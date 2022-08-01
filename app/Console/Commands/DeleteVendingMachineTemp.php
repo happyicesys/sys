@@ -2,25 +2,24 @@
 
 namespace App\Console\Commands;
 
-use App\Models\VMData;
-use Carbon\Carbon;
+use App\Models\VendingMachineTemp;
 use Illuminate\Console\Command;
 
-class DeleteVMDataMoreThanAWeek extends Command
+class DeleteVendingMachineTemp extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'delete:vm-data-more-than-a-week';
+    protected $signature = 'delete:vending-machine-temp';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Delete VM Data More Than a Week';
+    protected $description = 'Delete vending machine temperature';
 
     /**
      * Execute the console command.
@@ -29,6 +28,6 @@ class DeleteVMDataMoreThanAWeek extends Command
      */
     public function handle()
     {
-        VMData::whereDate('created_at', '<=', Carbon::today()->subWeeks(1))->delete();
+        VendingMachineTemp::whereDate('created_at', '<=', Carbon::today()->subDays(14))->delete();
     }
 }
