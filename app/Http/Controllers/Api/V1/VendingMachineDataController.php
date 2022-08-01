@@ -72,7 +72,7 @@ class VendingMachineDataController extends Controller
         // more than 3 minutes only update same machine temp
         if(!$vendingMachine->temp_updated_at or $vendingMachine->temp_updated_at->addMinutes(1)->isPast()) {
             $vendingMachine->vendingMachineTemps()->create([
-                'temp' => $temp,
+                'value' => $temp,
             ]);
 
             $vendingMachine->temp = $temp;
