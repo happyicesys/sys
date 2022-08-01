@@ -88,7 +88,7 @@ const showingNavigationDropdown = ref(false);
             <div
                 class="hidden md:block flex flex-none flex-col border-r border-gray-200 pt-5 pb-4 bg-white md:w-1/5 xl:w-1/6">
                 <div class="flex items-center flex-shrink-0 px-4">
-                    <svg class="h-12 w-auto mx-auto" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg"
+                    <svg class="h-14 w-auto mx-auto" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg"
                         xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="300px" height="105px"
                         viewBox="0 0 300 105" enable-background="new 0 0 300 105" xml:space="preserve">
                         <image id="image0" width="300" height="105" x="0" y="0" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAABpCAYAAACAnx4eAAAABGdBTUEAALGPC/xhBQAAACBjSFJN

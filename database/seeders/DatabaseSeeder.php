@@ -16,7 +16,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             PaymentMethodSeeder::class,
-            VMChannelErrorSeeder::class,
+            VendingMachineChannelErrorSeeder::class,
         ]);
         // \App\Models\User::factory(10)->create();
 
