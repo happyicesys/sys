@@ -9,11 +9,11 @@ class VendingMachineData extends Model
 {
     use HasFactory;
 
-    protected $casts = [
-        'value' => 'json',
-    ];
-
     protected $fillable = [
         'value',
+    ];
+
+    protected $casts = [
+        'value' => 'json',
     ];
 }

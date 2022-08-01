@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('vending_machine_data', function (Blueprint $table) {
             $table->id();
-            $table->json('value');
+            $table->json('value')->nullable()->change();
             $table->timestamps();
         });
     }
