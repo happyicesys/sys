@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\VendingMachineData;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class DeleteVendingMachineData extends Command

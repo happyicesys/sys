@@ -7,7 +7,7 @@ import BreezeNavLink from '@/Components/NavLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link } from '@inertiajs/inertia-vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { CalendarIcon, ChartBarIcon, ChartPieIcon, FolderIcon, InboxIcon, TerminalIcon, UsersIcon } from '@heroicons/vue/solid'
+import { CalendarIcon, ChartBarIcon, ChartPieIcon, CreditCardIcon, FolderIcon, InboxIcon, TerminalIcon, UsersIcon } from '@heroicons/vue/solid'
 
 const navigation = [
     {
@@ -23,15 +23,10 @@ const navigation = [
         href: 'vending-machine',
     },
     {
-        name: 'Team',
-        icon: UsersIcon,
+        name: 'Transaction',
+        icon: CreditCardIcon,
         current: false,
-        children: [
-            { name: 'Overview', href: '#' },
-            { name: 'Members', href: '#' },
-            { name: 'Calendar', href: '#' },
-            { name: 'Settings', href: '#' },
-        ],
+        href: 'transaction'
     },
     {
         name: 'Projects',

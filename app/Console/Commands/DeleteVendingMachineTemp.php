@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\VendingMachineTemp;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class DeleteVendingMachineTemp extends Command

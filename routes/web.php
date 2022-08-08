@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\VendingMachineController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -32,6 +33,7 @@ Route::get('/dashboard', function () {
 
 Route::middleware('auth')->group(function() {
     Route::get('/vending-machine', [VendingMachineController::class, 'index'])->name('vending-machine');
+    Route::get('/transaction', [TransactionController::class, 'index'])->name('transaction');
 });
 
 Route::get('/', function () {
