@@ -33,6 +33,7 @@ Route::get('/dashboard', function () {
 
 Route::middleware('auth')->group(function() {
     Route::get('/vending-machine', [VendingMachineController::class, 'index'])->name('vending-machine');
+    Route::get('/vending-machine/{id}/temp', [VendingMachineController::class, 'temp'])->name('temp');
     Route::get('/transaction', [TransactionController::class, 'index'])->name('transaction');
 });
 

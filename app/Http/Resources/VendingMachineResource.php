@@ -24,8 +24,8 @@ class VendingMachineResource extends JsonResource
             'temp_updated_at' => Carbon::parse($this->temp_updated_at)->diffForHumans(),
             'coin_amount' => $this->coin_amount/ 100,
             'firmware_ver' => $this->firmware_ver,
-            'is_door_open' => $this->is_door_open ? true : false,
-            'is_sensor_normal' => $this->is_sensor_normal ? true : false,
+            'is_door_open' => $this->is_door_open ? 'Yes' : 'No',
+            'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
         ];
     }
 }
