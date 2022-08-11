@@ -71,12 +71,18 @@ class VendingMachineDataController extends Controller
     {
         // more than 3 minutes only update same machine temp
         if(!$vendingMachine->temp_updated_at or $vendingMachine->temp_updated_at->addMinutes(1)->isPast()) {
-            $vendingMachine->vendingMachineTemps()->create([
-                'value' => $temp,
-            ]);
+            if($temp == VendingMachineTemp::TEMPERATURE_ERROR) {
+                $vendingMachine->is_temp_error = true;
+            }else {
+                $vendingMachine->vendingMachineTemps()->create([
+                    'value' => $temp,
+                ]);
 
-            $vendingMachine->temp = $temp;
-            $vendingMachine->temp_updated_at = Carbon::now();
+                $vendingMachine->temp = $temp;
+                $vendingMachine->temp_updated_at = Carbon::now();
+                $vendingMachine->is_temp_error = false;
+            }
+
             $vendingMachine->save();
         }
     }

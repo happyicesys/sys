@@ -9,6 +9,8 @@ class VendingMachineTemp extends Model
 {
     use HasFactory;
 
+    const TEMPERATURE_ERROR = 32767;
+
     protected $fillable = [
         'vending_machine_id',
         'value',

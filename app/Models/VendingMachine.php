@@ -23,6 +23,7 @@ class VendingMachine extends Model
         'firmware_ver',
         'is_door_open',
         'is_sensor_normal',
+        'is_temp_error',
     ];
 
     // relationships
