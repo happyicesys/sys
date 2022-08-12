@@ -26,6 +26,7 @@ class VendingMachineResource extends JsonResource
             'firmware_ver' => $this->firmware_ver,
             'is_door_open' => $this->is_door_open ? 'Yes' : 'No',
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
+            'is_temp_error' => $this->is_temp_error ? true : false,
         ];
     }
 }

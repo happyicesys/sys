@@ -39,8 +39,8 @@ class VendingMachineController extends Controller
         $vendingMachine = VendingMachine::findOrFail($vendingMachineId);
 
         return Inertia::render('VendingMachine/Temp', [
-            'vendingMachine' => new VendingMachineResource($vendingMachine),
-            'vendingMachineTemps' => VendingMachineTempResource::collection(
+            'vendingMachineObj' => new VendingMachineResource($vendingMachine),
+            'vendingMachineTempsObj' => VendingMachineTempResource::collection(
                 $vendingMachine->vendingMachineTemps()->whereDate('created_at', '>=', Carbon::now()->subDays(7))->get()
             ),
         ]);

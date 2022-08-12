@@ -89,11 +89,15 @@
                                             class="text-center">
                                             {{ vendingMachine.name }}</td>
                                         <td :class="[vendingMachineIndex !== vendingMachines.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-blue-600 sm:pl-6 lg:pl-8']"
-                                            class="text-center">
+                                            class="text-right flex flex-col">
                                             <span class="hover:cursor-pointer"
                                                 @click="onVendingMachineTempClicked(vendingMachine.id)">
                                                 {{ vendingMachine.temp }}
                                             </span>
+                                            <span
+                                                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800"
+                                                v-if="vendingMachine.is_temp_error">
+                                                Abnormal</span>
                                         </td>
                                         <td :class="[vendingMachineIndex !== vendingMachines.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 lg:pl-8']"
                                             class="text-center">

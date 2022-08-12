@@ -12,5 +12,6 @@ class VendingMachineChannelErrorLog extends Model
     protected $fillable = [
         'vending_machine_channel_id',
         'vending_machine_channel_error_id',
+        'is_error_cleared'
     ];
 }

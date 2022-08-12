@@ -70,7 +70,7 @@ class VendingMachineDataController extends Controller
     private function createVendingMachineTemp(VendingMachine $vendingMachine, $temp)
     {
         // more than 3 minutes only update same machine temp
-        if(!$vendingMachine->temp_updated_at or $vendingMachine->temp_updated_at->addMinutes(1)->isPast()) {
+        if(!$vendingMachine->temp_updated_at or $vendingMachine->temp_updated_at->addMinutes(2)->isPast()) {
             if($temp == VendingMachineTemp::TEMPERATURE_ERROR) {
                 $vendingMachine->is_temp_error = true;
             }else {
@@ -160,17 +160,19 @@ class VendingMachineDataController extends Controller
                     'code' => $vendingMachineChannelCode,
                 ]);
 
-                VendingMachineChannelErrorLog::updateOrCreate([
+                VendingMachineChannelErrorLog::create([
                     'vending_machine_channel_id' => $vendingMachineChannel->id,
-                ],[
                     'vending_machine_channel_error_id' => $vendingMachineChannelError->id
                 ]);
             }else {
                 $recoveredChannel = VendingMachineChannel::where('vending_machine_id', $vendingMachine->id)->where('code', $vendingMachineChannelCode)->first();
                 if($recoveredChannel) {
-                    $recoveredVendingMachineChannelErrorLog = VendingMachineChannelErrorLog::where('vending_machine_channel_id', $recoveredChannel->id)->first();
-                    if($recoveredVendingMachineChannelErrorLog) {
-                        $recoveredVendingMachineChannelErrorLog->delete();
+                    $recoveredVendingMachineChannelErrorLogs = VendingMachineChannelErrorLog::where('vending_machine_channel_id', $recoveredChannel->id)->get();
+                    if($recoveredVendingMachineChannelErrorLogs) {
+                        foreach($recoveredVendingMachineChannelErrorLogs as $recoveredVendingMachineChannelErrorLog) {
+                            $recoveredVendingMachineChannelErrorLog->is_error_cleared = true;
+                            $recoveredVendingMachineChannelErrorLog->save();
+                        }
                     }
                 }
 
