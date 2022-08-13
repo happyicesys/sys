@@ -14,4 +14,14 @@ class VendingMachineChannelErrorLog extends Model
         'vending_machine_channel_error_id',
         'is_error_cleared'
     ];
+
+    public function vendingMachineChannel()
+    {
+        return $this->belongsTo(VendingMachineChannel::class);
+    }
+
+    public function vendingMachineChannelError()
+    {
+        return $this->belongsTo(VendingMachineChannelError::class);
+    }
 }
