@@ -160,7 +160,7 @@ class VendingMachineDataController extends Controller
                     'code' => $vendingMachineChannelCode,
                 ]);
 
-                $lastVendingMachineChannelErrorLog = $vendingMachineChannel->vendingMachineChannelLogs()->latest()->first();
+                $lastVendingMachineChannelErrorLog = $vendingMachineChannel->vendingMachineChannelErrorLogs()->latest()->first();
 
                 if(!$lastVendingMachineChannelErrorLog or ($lastVendingMachineChannelErrorLog->code != $vendingMachineChannelCode) or $lastVendingMachineChannelErrorLog->is_error_cleared == true) {
                     VendingMachineChannelErrorLog::create([

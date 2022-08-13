@@ -23,4 +23,9 @@ class VendingMachineChannel extends Model
     {
         return $this->belongsTo(VendingMachine::class);
     }
+
+    public function vendingMachineChannelErrorLogs()
+    {
+        return $this->hasMany(VendingMachineChannelErrorLog::class);
+    }
 }
