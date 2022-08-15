@@ -49,7 +49,12 @@ class SendVendingMachineChannelErrorLogEmail extends Command
 
 
 
-        Mail::to(['daniel.ma@happyice.com.sg', 'kent@happyice.com.sg', 'stephen@happyice.com.sg'])
+        Mail::to([
+            'daniel.ma@happyice.com.sg',
+            'kent@happyice.com.sg',
+            'stephen@happyice.com.sg',
+            'brianlee@happyice.com.sg'
+            ])
             ->send(new VendingMachineChannelErrorLogs($vendingMachines, $intervalHours));
     }
 }
