@@ -40,8 +40,7 @@
                     $counter = 0;
                 @endphp
                 <tbody class="bg-white">
-                  @foreach($vendingMachines as $vendingMachine)
-                    @foreach($vendingMachine->vendingMachineChannels()->has('vendingMachineChannelErrorLogs')->get() as $vendingMachineChannel)
+                  @foreach($vendingMachineChannelErrorLogs as $vendingMachineChannelErrorLog)
                     @php
                         $counter += 1;
                     @endphp
@@ -50,22 +49,21 @@
                         {{$counter}}
                       </td>
                       <td class="whitespace-nowrap border-b border-gray-200 py-4 pl-4 pr-3 text-right text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8">
-                        {{$vendingMachine->code}}
+                        {{$vendingMachineChannelErrorLog->vendingMachineChannel->vendingMachine->code}}
                       </td>
                       <td class="whitespace-nowrap border-b border-gray-200 py-4 pl-4 pr-3 text-center text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8">
-                        {{$vendingMachineChannel->code}}
+                        {{$vendingMachineChannelErrorLog->vendingMachineChannel->code}}
                       </td>
                       <td class="whitespace-nowrap border-b border-gray-200 px-3 py-4 text-sm text-center text-gray-500 hidden lg:table-cell">
-                        {{$vendingMachineChannel->vendingMachineChannelErrorLogs ? $vendingMachineChannel->vendingMachineChannelErrorLogs[0]->vendingMachineChannelError->code : ''}}
+                        {{$vendingMachineChannelErrorLog->vendingMachineChannelError->code }}
                       </td>
                       <td class="whitespace-nowrap border-b border-gray-200 px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
-                        {{$vendingMachineChannel->vendingMachineChannelErrorLogs ? $vendingMachineChannel->vendingMachineChannelErrorLogs[0]->vendingMachineChannelError->desc : ''}}
+                        {{$vendingMachineChannelErrorLog->vendingMachineChannelError->desc }}
                       </td>
                       <td class="whitespace-nowrap border-b border-gray-200 px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
-                        {{$vendingMachineChannel->vendingMachineChannelErrorLogs ? \Carbon\Carbon::parse($vendingMachineChannel->vendingMachineChannelErrorLogs[0]->created_at)->format('ymd h:ia') : ''}}
+                        {{$vendingMachineChannelErrorLog->created_at->format('ymd h:ia')}}
                       </td>
                     </tr>
-                    @endforeach
                   @endforeach
                   <!-- More people... -->
                 </tbody>

@@ -2,28 +2,28 @@
 
 namespace App\Mail;
 
-use App\Http\Resources\VendingMachineResource;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class VendingMachineChannelErrorLogs extends Mailable
+class VMChannelErrorLogsMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $vendingMachines;
-    public $now;
+    public $vendingMachineChannelErrorLogs;
     public $intervalHours;
+    public $now;
+
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct($vendingMachines, $intervalHours)
+    public function __construct($vendingMachineChannelErrorLogs, $intervalHours)
     {
-        $this->vendingMachines = $vendingMachines;
+        $this->vendingMachineChannelErrorLogs = $vendingMachineChannelErrorLogs;
         $this->intervalHours = $intervalHours;
         $this->now = Carbon::now();
     }
