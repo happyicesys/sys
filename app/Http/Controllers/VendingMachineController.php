@@ -30,7 +30,7 @@ class VendingMachineController extends Controller
                                     $query->where('name', 'LIKE', "%{$search}%");
                                 })
                                 ->orderBy('code')
-                                ->paginate(50)
+                                ->paginate(100)
                                 ->withQueryString()
                             ),
             'filters' => $request->only(['code', 'serial_num', 'name']),
@@ -66,23 +66,12 @@ class VendingMachineController extends Controller
             ->select('*', 'vending_machine_channel_error_logs.created_at')
             ->get();
 
-        // $vendingMachines = VendingMachine::query()
-        //     ->with([
-        //         'vendingMachineChannels',
-        //         'vendingMachineChannels.vendingMachineChannelErrorLogs' => function($query) use ($intervalHours, $now) {
-        //             $query->where('created_at', '>=', $now->subHours($intervalHours));
-        //         },
-        //         'vendingMachineChannels.vendingMachineChannelErrorLogs.vendingMachineChannelError'
-        //         ])
-        //     ->whereHas('vendingMachineChannels.vendingMachineChannelErrorLogs', function($query) use ($intervalHours, $now) {
-        //         $query->where('created_at', '>=', $now->subHours($intervalHours));
-        //     })
-        //     ->orderBy('code')
-        //     ->get();
-
-
-
-        Mail::to(['leehongjie91@gmail.com'])
+        Mail::to([
+            'daniel.ma@happyice.com.sg',
+            'kent@happyice.com.sg',
+            'stephen@happyice.com.sg',
+            'brianlee@happyice.com.sg'
+            ])
             ->send(new VMChannelErrorLogsMail($vendingMachineChannelErrorLogs, $intervalHours));
     }
 }

@@ -35,6 +35,7 @@ Route::middleware('auth')->group(function() {
     Route::get('/vending-machine', [VendingMachineController::class, 'index'])->name('vending-machine');
     Route::get('/vending-machine/{id}/temp', [VendingMachineController::class, 'temp'])->name('temp');
     Route::get('/vending-machines/channel-error-logs-email', [VendingMachineController::class, 'channelErrorLogsEmail']);
+    Route::get('/customer', [CustomerController::class, 'index'])->name('customer');
     Route::get('/transaction', [TransactionController::class, 'index'])->name('transaction');
 });
 
