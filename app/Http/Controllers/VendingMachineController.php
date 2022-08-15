@@ -68,7 +68,7 @@ class VendingMachineController extends Controller
 
 
 
-        Mail::to(['daniel.ma@happyice.com.sg', 'kent@happyice.com.sg', 'stephen@happyice.com.sg'])
+        Mail::to(['leehongjie91@gmail.com'])
             ->send(new VendingMachineChannelErrorLogs($vendingMachines, $intervalHours));
     }
 }
