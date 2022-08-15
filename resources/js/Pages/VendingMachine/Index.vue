@@ -26,6 +26,9 @@
                     <SearchInput placeholderStr="Name" v-model="searchFilters.name" @input="onSearchFilterUpdated()">
                         Name
                     </SearchInput>
+                    <Button type="button" @click.prevent="onVendingMachineChannelErrorLogEmailClicked()">
+                        Send Vending Machine Channel Error Log Mail
+                    </Button>
                 </section>
             </div>
             <div class="px-2 mt-8 flex flex-col">
@@ -135,6 +138,7 @@
 
 <script>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import Button from '@/Components/Button.vue';
 import { Head } from '@inertiajs/inertia-vue3';
 import { Link } from '@inertiajs/inertia-vue3';
 import Paginator from '@/Components/Paginator.vue';
@@ -143,6 +147,7 @@ import SearchInput from '@/Components/SearchInput.vue';
 export default {
     components: {
         BreezeAuthenticatedLayout,
+        Button,
         Head,
         Link,
         Paginator,
@@ -174,6 +179,9 @@ export default {
         },
         onVendingMachineTempClicked(vendingMachineId) {
             this.$inertia.get('/vending-machine/' + vendingMachineId + '/temp')
+        },
+        onVendingMachineChannelErrorLogEmailClicked() {
+            this.$inertia.get('/vending-machines/channel-error-logs-email')
         }
     },
 }

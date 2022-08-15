@@ -32,6 +32,11 @@ class VendingMachine extends Model
         return $this->morphOne(Category::class, 'modelable');
     }
 
+    public function vendingMachineChannels()
+    {
+        return $this->hasMany(VendingMachineChannel::class);
+    }
+
     public function vendingMachineTemps()
     {
         return $this->hasMany(VendingMachineTemp::class);

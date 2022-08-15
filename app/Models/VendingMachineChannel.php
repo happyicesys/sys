@@ -28,4 +28,9 @@ class VendingMachineChannel extends Model
     {
         return $this->hasMany(VendingMachineChannelErrorLog::class);
     }
+
+    public function vendingMachineChannelLatestError()
+    {
+        return $this->hasOne(VendingMachineChannelErrorLog::class)->orderByDesc('created_at');
+    }
 }

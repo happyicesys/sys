@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\VendingMachineResource;
 use App\Http\Resources\VendingMachineTempResource;
+use App\Mail\VendingMachineChannelErrorLogs;
 use App\Models\VendingMachine;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
 
@@ -44,5 +46,29 @@ class VendingMachineController extends Controller
                 $vendingMachine->vendingMachineTemps()->whereDate('created_at', '>=', Carbon::now()->subDays(7))->get()
             ),
         ]);
+    }
+
+    public function channelErrorLogsEmail()
+    {
+        $intervalHours = 24;
+        $now = Carbon::now();
+        $vendingMachines = VendingMachine::query()
+            ->with([
+                'vendingMachineChannels',
+                'vendingMachineChannels.vendingMachineChannelErrorLogs' => function($query) use ($intervalHours, $now) {
+                    $query->where('created_at', '>=', $now->subHours($intervalHours));
+                },
+                'vendingMachineChannels.vendingMachineChannelErrorLogs.vendingMachineChannelError'
+                ])
+            ->whereHas('vendingMachineChannels.vendingMachineChannelErrorLogs', function($query) use ($intervalHours, $now) {
+                $query->where('created_at', '>=', $now->subHours($intervalHours));
+            })
+            ->orderBy('code')
+            ->get();
+
+
+
+        Mail::to(['daniel.ma@happyice.com.sg', 'kent@happyice.com.sg', 'stephen@happyice.com.sg'])
+            ->send(new VendingMachineChannelErrorLogs($vendingMachines, $intervalHours));
     }
 }

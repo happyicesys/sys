@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\VendingMachineChannelResource;
 
 class VendingMachineResource extends JsonResource
 {
@@ -27,6 +28,7 @@ class VendingMachineResource extends JsonResource
             'is_door_open' => $this->is_door_open ? 'Yes' : 'No',
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
+            'vending_machine_channels' => VendingMachineChannelResource::collection($this->vendingMachineChannels),
         ];
     }
 }
