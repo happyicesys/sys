@@ -54,7 +54,7 @@ class SendVendingMachineChannelErrorLogEmail extends Command
             'kent@happyice.com.sg',
             'stephen@happyice.com.sg',
             'brianlee@happyice.com.my',
-            'leehongjie91@gmail.com'
+            'technician1@happyice.com.sg',
             ])
             ->send(new VMChannelErrorLogsMail($vendingMachineChannelErrorLogs, $intervalHours));
     }
