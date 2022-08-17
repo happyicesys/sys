@@ -29,6 +29,9 @@
                     <Button type="button" @click.prevent="onVendingMachineChannelErrorLogEmailClicked()">
                         Send Vending Machine Channel Error Log Mail
                     </Button>
+                    <!-- <Select v-model="searchFilters.vendingMachines" :options="vendingMachines.data">
+                        Vending Machine
+                    </Select> -->
                 </section>
             </div>
             <div class="px-2 mt-8 flex flex-col">
@@ -143,6 +146,7 @@ import { Head } from '@inertiajs/inertia-vue3';
 import { Link } from '@inertiajs/inertia-vue3';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
+import Select from '@/Components/Select.vue';
 
 export default {
     components: {
@@ -152,6 +156,7 @@ export default {
         Link,
         Paginator,
         SearchInput,
+        Select,
     },
     props: {
         vendingMachines: Object,
