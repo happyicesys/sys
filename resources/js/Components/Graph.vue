@@ -1,6 +1,11 @@
 <template>
-    <div>
-        <vue3-chart-js id="chartjs" type="line" :data="data" :options="options"></vue3-chart-js>
+    <div class="md:hidden overflow-scroll">
+        <vue3-chart-js height="430" id="chartjs" type="line" :data="data" :options="options">
+        </vue3-chart-js>
+    </div>
+    <div class="hidden md:block overflow-scroll">
+        <vue3-chart-js id="chartjs" type="line" :data="data" :options="options">
+        </vue3-chart-js>
     </div>
 </template>
 
@@ -24,7 +29,8 @@ export default {
                 datasets: [{
                     label: 'Temp',
                     data: this.values,
-                    borderColor: 'rgb(75, 192, 192)',
+                    borderColor: '#E6676B',
+                    backgroundColor: '#E6676B',
                     tension: 0.1,
                 }]
             },

@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\TransactionController;
-use App\Http\Controllers\VendingMachineController;
+use App\Http\Controllers\VendController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -32,9 +32,9 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function() {
-    Route::get('/vending-machine', [VendingMachineController::class, 'index'])->name('vending-machine');
-    Route::get('/vending-machine/{id}/temp', [VendingMachineController::class, 'temp'])->name('temp');
-    Route::get('/vending-machines/channel-error-logs-email', [VendingMachineController::class, 'channelErrorLogsEmail']);
+    Route::get('/vend', [VendController::class, 'index'])->name('vend');
+    Route::get('/vend/{id}/temp/{duration?}', [VendController::class, 'temp'])->name('temp');
+    Route::get('/vends/channel-error-logs-email', [VendController::class, 'channelErrorLogsEmail']);
     Route::get('/customer', [CustomerController::class, 'index'])->name('customer');
     Route::get('/transaction', [TransactionController::class, 'index'])->name('transaction');
 });
