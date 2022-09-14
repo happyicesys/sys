@@ -32,7 +32,7 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function() {
-    Route::get('/vend', [VendController::class, 'index'])->name('vend');
+    Route::get('/vends', [VendController::class, 'index'])->name('vends');
     Route::get('/vend/{id}/temp/{duration?}', [VendController::class, 'temp'])->name('temp');
     Route::get('/vends/channel-error-logs-email', [VendController::class, 'channelErrorLogsEmail']);
     Route::get('/customer', [CustomerController::class, 'index'])->name('customer');

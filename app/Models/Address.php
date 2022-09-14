@@ -11,19 +11,27 @@ class Address extends Model
 
     protected $fillable = [
         'name',
-        'company_name',
-        'unit_num',
-        'street_name',
-        'postcode',
+        'block_num',
+        'building',
         'city',
+        'company_name',
         'country_id',
+        'full_address',
         'latitude',
         'longitude',
-        'type',
+        'postcode',
         'sequence',
+        'street_name',
+        'type',
+        'unit_num',
     ];
 
     // relationships
+    public function country()
+    {
+        return $this->belongsTo(Country::class)->orderBy('sequence');
+    }
+
     public function modelable()
     {
         return $this->morphTo();

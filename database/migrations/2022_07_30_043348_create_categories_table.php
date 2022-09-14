@@ -15,12 +15,14 @@ return new class extends Migration
     {
         Schema::create('categories', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->bigInteger('category_group_id')->nullable();
+            $table->string('classname');
             $table->text('desc')->nullable();
-            $table->integer('type')->nullable();
-            $table->integer('sequence')->nullable();
-            $table->morphs('modelable');
             $table->boolean('is_active')->default(true);
+            $table->string('name');
+            $table->text('remarks')->nullable();
+            $table->integer('sequence')->nullable();
+            $table->integer('type')->nullable();
             $table->timestamps();
         });
     }

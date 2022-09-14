@@ -34,7 +34,7 @@ class Vend extends Model
 
     public function vendChannels()
     {
-        return $this->hasMany(VendChannel::class);
+        return $this->hasMany(VendChannel::class)->orderBy('code');
     }
 
     public function vendTemps()

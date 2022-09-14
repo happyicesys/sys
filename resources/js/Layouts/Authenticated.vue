@@ -10,16 +10,10 @@ import { CalendarIcon, ChartBarIcon, ChartPieIcon, CreditCardIcon, FolderIcon, I
 
 const navigation = [
     {
-        name: 'Dashboard',
-        icon: ChartPieIcon,
-        current: true,
-        href: 'dashboard'
-    },
-    {
-        name: 'Vending Machine',
+        name: 'Vending Machines',
         icon: TerminalIcon,
-        current: false,
-        href: 'vend',
+        current: true,
+        href: 'vends',
     },
     {
         name: 'Customer',
@@ -34,47 +28,11 @@ const navigation = [
         href: 'transaction'
     },
     {
-        name: 'Projects',
+        name: 'Data Settings',
         icon: FolderIcon,
         current: false,
         children: [
             { name: 'Overview', href: '#' },
-            { name: 'Members', href: '#' },
-            { name: 'Calendar', href: '#' },
-            { name: 'Settings', href: '#' },
-        ],
-    },
-    {
-        name: 'Calendar',
-        icon: CalendarIcon,
-        current: false,
-        children: [
-            { name: 'Overview', href: '#' },
-            { name: 'Members', href: '#' },
-            { name: 'Calendar', href: '#' },
-            { name: 'Settings', href: '#' },
-        ],
-    },
-    {
-        name: 'Documents',
-        icon: InboxIcon,
-        current: false,
-        children: [
-            { name: 'Overview', href: '#' },
-            { name: 'Members', href: '#' },
-            { name: 'Calendar', href: '#' },
-            { name: 'Settings', href: '#' },
-        ],
-    },
-    {
-        name: 'Reports',
-        icon: ChartBarIcon,
-        current: false,
-        children: [
-            { name: 'Overview', href: '#' },
-            { name: 'Members', href: '#' },
-            { name: 'Calendar', href: '#' },
-            { name: 'Settings', href: '#' },
         ],
     },
 ]
@@ -84,9 +42,9 @@ const showingNavigationDropdown = ref(false);
 
 <template>
     <div>
-        <div class="flex min-h-screen bg-gray-100">
+        <div class="min-h-screen sm:flex bg-gray-100">
             <div
-                class="hidden md:block flex flex-none flex-col border-r border-gray-200 pt-5 pb-4 bg-white md:w-1/5 xl:w-1/6">
+                class="hidden md:block flex-none flex-col border-r border-gray-200 pt-5 pb-4 bg-white md:w-1/5 xl:w-1/6">
                 <div class="flex items-center flex-shrink-0 px-4">
                     <svg class="h-14 w-auto mx-auto" version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg"
                         xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="300px" height="105px"
@@ -494,7 +452,7 @@ const showingNavigationDropdown = ref(false);
                             </div>
                             <Disclosure as="div" v-else class="space-y-1" v-slot="{ open }">
                                 <DisclosureButton
-                                    :class="[item.current ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 pr-1 py-2 text-left text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
+                                    :class="[item.current ? 'bg-]]]gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 pr-1 py-2 text-left text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
                                     <component :is="item.icon"
                                         class="mr-3 flex-shrink-0 h-6 w-6 text-gray-400 group-hover:text-gray-500"
                                         aria-hidden="true" />
@@ -519,7 +477,8 @@ const showingNavigationDropdown = ref(false);
                 </div>
             </div>
 
-            <div class="flex-auto mx-auto">
+            <!-- <div class="flex-auto mx-auto"> -->
+            <div class="md:w-4/5 xl:w-5/6">
                 <!-- Page Heading -->
                 <header class="bg-white shadow" v-if="$slots.header">
                     <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">

@@ -26,7 +26,7 @@ class VendChannel extends Model
 
     public function vendChannelErrorLogs()
     {
-        return $this->hasMany(VendChannelErrorLog::class);
+        return $this->hasMany(VendChannelErrorLog::class)->latest();
     }
 
     public function vendChannelLatestError()

@@ -13,11 +13,6 @@ import Select2 from 'v-select2-component';
 export default {
     // declare Select2Component
     components: { Select2 },
-    data() {
-        return {
-            myOptions: ['op1', 'op2', 'op3'] // or [{id: key, text: value}, {id: key, text: value}]
-        }
-    },
     props: {
         modelValue: String,
         options: Object

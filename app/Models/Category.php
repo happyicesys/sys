@@ -10,19 +10,17 @@ class Category extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name',
+        'category_group_id',
+        'classname',
         'desc',
-        'type',
-        'sequence',
         'is_active',
+        'name',
+        'remarks',
+        'sequence',
+        'type',
     ];
 
     // relationships
-    public function modelable()
-    {
-        return $this->morphTo();
-    }
-
     public function attachments()
     {
         return $this->morphMany(Attachment::class, 'modelable');

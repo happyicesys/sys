@@ -17,6 +17,7 @@ class CountrySeeder extends Seeder
     {
         Country::create([
             'name' => 'Singapore',
+            'code' => 'SG',
             'currency_name' => 'SGD',
             'currency_symbol' => 'S$',
             'phone_code' => '65',
@@ -26,6 +27,7 @@ class CountrySeeder extends Seeder
 
         Country::create([
             'name' => 'Malaysia',
+            'code' => 'MY',
             'currency_name' => 'MYR',
             'currency_symbol' => 'RM',
             'phone_code' => '60',
@@ -35,6 +37,7 @@ class CountrySeeder extends Seeder
 
         Country::create([
             'name' => 'China',
+            'code' => 'CN',
             'currency_name' => 'RMB',
             'currency_symbol' => '¥',
             'phone_code' => '86',

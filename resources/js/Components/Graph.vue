@@ -1,6 +1,6 @@
 <template>
     <div class="md:hidden overflow-scroll">
-        <vue3-chart-js height="430" id="chartjs" type="line" :data="data" :options="options">
+        <vue3-chart-js :height="410" id="chartjs" type="line" :data="data" :options="options">
         </vue3-chart-js>
     </div>
     <div class="hidden md:block overflow-scroll">
