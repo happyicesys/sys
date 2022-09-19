@@ -59,7 +59,7 @@
                 <DatetimePicker
                     v-model="filters.datetime_from"
                     :maxDate="new Date()"
-                    class="col-span-5"
+                    class="col-span-5 md:col-span-1"
                 >
                     From
                 </DatetimePicker>
@@ -67,7 +67,7 @@
                     v-model="filters.datetime_to"
                     :minDate="filters.datetime_from"
                     :maxDate="new Date()"
-                    class="col-span-5"
+                    class="col-span-5 md:col-span-1"
                 >
                     To
                 </DatetimePicker>
