@@ -19,13 +19,13 @@
                 </div>
                 <div class="flex space-x-2 font-semibold text-md text-gray-500 leading-tight">
                     <h2>
-                        {{ startDate }}
+                        {{ startDateString }}
                     </h2>
                     <h2>
                         to
                     </h2>
                     <h2>
-                        {{ endDate }}
+                        {{ endDateString }}
                     </h2>
                 </div>
             </div>
@@ -42,13 +42,49 @@
                     Back
                 </Button>
             </div>
-            <div class="pl-1 py-3 flex space-x-2 overflow-x-scroll">
-                <Button v-for="durationFilter in durationFilters"
+            <label for="text" class="pt-4 pl-1 block text-sm font-medium text-gray-700">
+                Shortcut
+            </label>
+            <div class="pl-1 py-2 flex space-x-2 overflow-x-scroll">
+                <Button
+                    v-for="durationFilter in durationFilters"
                     class="border-transparent bg-indigo-600 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 px-10 sm:px-3"
-                    :class="durationFilter == duration ? 'outline-none ring-2 ring-indigo-500 ring-offset-2' : ''"
+                    :class="durationFilter == filters.duration ? 'outline-none ring-2 ring-indigo-500 ring-offset-2' : ''"
                     @click="onDurationFilterClicked(durationFilter)">
                     {{ durationFilter }} {{ durationFilter > 1 ? 'Days' : 'Day' }}
                 </Button>
+
+            </div>
+            <div class="pl-1 py-3 grid grid-cols-1 md:grid-cols-5 gap-2">
+                <DatetimePicker
+                    v-model="filters.datetime_from"
+                    :maxDate="new Date()"
+                    class="col-span-5"
+                >
+                    From
+                </DatetimePicker>
+                <DatetimePicker
+                    v-model="filters.datetime_to"
+                    :minDate="filters.datetime_from"
+                    :maxDate="new Date()"
+                    class="col-span-5"
+                >
+                    To
+                </DatetimePicker>
+                <div class="col-span-5">
+                    <Button
+                        class="border-transparent bg-green-600 py-3 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-700 px-10 sm:px-3 md:py-2 active:outline-none active:ring-2 active:ring-green-500 active:ring-offset-2"
+                        @click.prevent="onCustomDatetimeSearched">
+
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 pr-1">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                        </svg>
+
+                        <span>
+                            Search
+                        </span>
+                    </Button>
+                </div>
             </div>
             <div class="px-1 mt-2 flex flex-col">
                 <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
@@ -69,10 +105,11 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Datepicker from '@/Components/Datepicker.vue';
+import DatetimePicker from '@/Components/DatetimePicker.vue';
+import { Inertia } from '@inertiajs/inertia'
 import SearchInput from '@/Components/SearchInput.vue';
 import Graph from '@/Components/Graph.vue';
-import { isInteger } from 'lodash';
-import { ArrowLeftIcon } from '@heroicons/vue/solid'
+import { ArrowLeftIcon,  } from '@heroicons/vue/solid'
 
 export default {
     components: {
@@ -80,13 +117,17 @@ export default {
         BreezeAuthenticatedLayout,
         Button,
         Datepicker,
+        DatetimePicker,
         SearchInput,
         Graph,
     },
     props: {
         duration: Number,
 		endDate: String,
+        endDateString: String,
+        request: Object,
 		startDate: String,
+        startDateString: String,
         vendObj: Object,
         vendTempsObj: Object,
     },
@@ -95,23 +136,29 @@ export default {
             durationFilters: [
                 1, 3, 7, 14
             ],
+            filters: {
+                datetime_from: this.startDate ? new Date(this.startDate) : new Date(),
+                datetime_to: this.endDate ? new Date(this.endDate) : new Date(),
+                duration: this.duration,
+                showDurationFilters: this.showDurationFilters,
+            },
             vendTemps: this.vendTempsObj.data.map(a => a.value),
             vendTime: this.vendTempsObj.data.map(a => a.created_at),
             vend: this.vendObj.data,
         }
     },
     methods: {
-        onDurationFilterClicked(duration) {
-            this.$inertia.get('/vend/' + this.vend.id + '/temp/' + duration)
-        },
-        onSearchFilterUpdated() {
-            this.$inertia.get('/vend', {
-                date_from: this.searchFilters.date_from,
-                date_to: this.searchFilters.date_to,
-            }, {
-                preserveState: true,
-                replace: true,
+        onCustomDatetimeSearched() {
+            this.$inertia.get(
+                '/vend/' +
+                this.vend.id +
+                '/temp'
+            , this.filters, {
+                preserveScroll: true,
             })
+        },
+        onDurationFilterClicked(duration) {
+            this.$inertia.get('/vend/' + this.vend.id + '/temp?duration=' + duration)
         },
         back() {
             window.history.back();

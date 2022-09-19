@@ -6,7 +6,7 @@ import BreezeNavLink from '@/Components/NavLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link } from '@inertiajs/inertia-vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { CalendarIcon, ChartBarIcon, ChartPieIcon, CreditCardIcon, FolderIcon, InboxIcon, TerminalIcon, UserCircleIcon, UsersIcon } from '@heroicons/vue/solid'
+import { OfficeBuildingIcon, CalendarIcon, ChartBarIcon, ChartPieIcon, CreditCardIcon, FolderIcon, InboxIcon, TerminalIcon, UserCircleIcon, UsersIcon } from '@heroicons/vue/solid'
 
 const navigation = [
     {
@@ -19,13 +19,19 @@ const navigation = [
         name: 'Customer',
         icon: UserCircleIcon,
         current: false,
-        href: 'customer'
+        href: 'customers'
     },
     {
-        name: 'Transaction',
+        name: 'Transactions',
         icon: CreditCardIcon,
         current: false,
-        href: 'transaction'
+        href: 'transactions'
+    },
+    {
+        name: 'Profiles',
+        icon: OfficeBuildingIcon,
+        current: false,
+        href: 'profiles'
     },
     {
         name: 'Data Settings',

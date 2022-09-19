@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\VendResource;
+use App\Http\Resources\VendChannelErrorResource;
 use App\Http\Resources\VendTempResource;
 use App\Mail\VendChannelErrorLogsMail;
 use App\Models\Vend;
+use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -17,7 +19,10 @@ class VendController extends Controller
 {
     public function index(Request $request)
     {
+        // init
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
+        $sortKey = $request->sortKey ? $request->sortKey : 'code';
+        $sortBy = $request->sortBy ? $request->sortBy : true;
 
         return Inertia::render('Vend/Index', [
             'vends' => VendResource::collection(
@@ -40,31 +45,59 @@ class VendController extends Controller
                             $query->where('temp', '>=', $search * 10);
                         }
                     })
-                    ->when($request->sortKey, function($query, $search) use ($request) {
-                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($request->hasError, function($query, $search) {
+                        if($search['id'] === 'errors_only') {
+                            $query->whereHas('vendChannels.vendChannelErrorLogs', function($query) {
+                               $query->where('is_error_cleared', false);
+                            });
+                        }else if($search['id'] !== null) {
+                            $query->whereHas('vendChannels.vendChannelErrorLogs', function($query) use ($search) {
+                                $query->where('vend_channel_error_id', $search['id'])->where('is_error_cleared', false);
+                            });
+                        }
+                    })
+                    ->when($sortKey, function($query, $search) use ($sortBy) {
+                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                     })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),
-            'filters' => $request->only(['code', 'serialNum', 'name', 'temp', 'sortKey', 'sortBy', 'numberPerPage']),
+            'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
         ]);
     }
 
-    public function temp($vendId, $duration = 1)
+    public function temp(Request $request, $vendId)
     {
+        $duration = 1;
+        if($request->duration) {
+            $duration = $request->duration;
+        }
+        // dd($request->all());
         $vend = Vend::findOrFail($vendId);
-
         $startDate =  Carbon::now()->subDays($duration);
         $endDate =  Carbon::now();
-
+        if($request->datetime_from) {
+            // $startDate = Carbon::createFromFormat('D M d Y H:i:s e+', $request->datetime_from);
+            $startDate = Carbon::parse($request->datetime_from)->setTimezone('Asia/Singapore');
+        }
+        if($request->datetime_to) {
+            // $endDate = Carbon::createFromFormat('D M d Y H:i:s e+', $request->datetime_to);
+            $endDate = Carbon::parse($request->datetime_to)->setTimezone('Asia/Singapore');
+        }
         return Inertia::render('Vend/Temp', [
             'duration' => $duration,
-            'startDate' => $startDate->toDateString(),
-            'endDate' => $endDate->toDateString(),
             'vendObj' => new VendResource($vend),
             'vendTempsObj' => VendTempResource::collection(
-                $vend->vendTemps()->whereDate('created_at', '>=', $startDate)->get()
+                $vend
+                ->vendTemps()
+                ->where('vend_temps.created_at', '>=', $startDate)
+                ->where('vend_temps.created_at', '<=', $endDate)
+                ->get()
             ),
+            'startDate' => $startDate->format('D M d Y H:i:s'),
+            'endDate' => $endDate->format('D M d Y H:i:s'),
+            'startDateString' => $startDate->format('y-m-d H:i'),
+            'endDateString' => $endDate->format('y-m-d H:i'),
         ]);
     }
 

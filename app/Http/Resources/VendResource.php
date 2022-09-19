@@ -22,7 +22,7 @@ class VendResource extends JsonResource
             'serial_num' => $this->serial_num,
             'name' => $this->name,
             'temp' => $this->temp/ 10,
-            'temp_updated_at' => Carbon::parse($this->temp_updated_at)->diffForHumans(),
+            'temp_updated_at' => $this->temp_updated_at ? Carbon::parse($this->temp_updated_at)->diffForHumans() : null,
             'coin_amount' => $this->coin_amount/ 100,
             'firmware_ver' => $this->firmware_ver,
             'is_door_open' => $this->is_door_open ? 'Yes' : 'No',

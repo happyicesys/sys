@@ -13,22 +13,28 @@ class ProfileController extends Controller
 {
     public function index(Request $request)
     {
+        // init
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
+        $sortKey = $request->sortKey ? $request->sortKey : 'code';
+        $sortBy = $request->sortBy ? $request->sortBy : true;
 
         return Inertia::render('Profile/Index', [
-            'vends' => VendResource::collection(
-                Profile::with([
+            'profiles' => VendResource::collection(
+                Vend::with([
                     'address',
                     ])
-                    ->when($request->name, fn($query, $input) => $query->where('name', 'LIKE', '%'.$input.'%'))
-                    ->when($request->uen, fn($query, $input) => $query->where('uen', 'LIKE', '%'.$input.'%'))
-                    ->when($request->sortKey, function($query, $search) use ($request) {
-                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($request->name, function($query, $search) {
+                        $query->where('name', 'LIKE', "%{$search}%");
+                    })
+                    ->when($request->uen, function($query, $search) {
+                        $query->where('uen', 'LIKE', "%{$search}%");
+                    })
+                    ->when($sortKey, function($query, $search) use ($sortBy) {
+                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                     })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
-            ),
-            'filters' => $request->only(['name', 'uen', 'sortKey', 'sortBy', 'numberPerPage']),
+                ),
         ]);
     }
 }

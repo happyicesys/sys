@@ -12,23 +12,49 @@
 
         <div class="m-2 sm:mx-5 sm:my-3 px-2 sm:px-4 lg:px-6">
         <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-5 px-3 md:px-6 py-6 ">
-            <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0">
-                <SearchInput placeholderStr="Code" v-model="searchFilters.code" @input="onSearchFilterUpdated()">
+            <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+                <SearchInput placeholderStr="Code" v-model="filters.code" @input="onSearchFilterUpdated()">
                     Code
                 </SearchInput>
-                <SearchInput placeholderStr="Serial Num" v-model="searchFilters.serialNum"
+                <SearchInput placeholderStr="Serial Num" v-model="filters.serialNum"
                     @input="onSearchFilterUpdated()">
                     Serial Num
                 </SearchInput>
-                <SearchInput placeholderStr="Name" v-model="searchFilters.name" @input="onSearchFilterUpdated()">
+                <SearchInput placeholderStr="Name" v-model="filters.name" @input="onSearchFilterUpdated()">
                     Name
                 </SearchInput>
-                <SearchInput placeholderStr="Number" v-model="searchFilters.tempHigherThan" @input="onSearchFilterUpdated()">
+                <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @input="onSearchFilterUpdated()">
                     Temp Higher Than
                 </SearchInput>
+                <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                        Channel Has Error?
+                    </label>
+                    <MultiSelect
+                        v-model="filters.hasError"
+                        :custom-label="getHasErrorFiltersLabel"
+                        :options="vendChannelErrorsOptions"
+                        :close-on-select="true"
+                        :clear-on-select="false"
+                        placeholder="Select"
+                        track-by="id"
+                        open-direction="bottom"
+                        @on-selected="onHasErrorSelected"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                </div>
             </div>
 
             <div class="flex justify-end mt-5">
+                <!-- <div class="mt-5">
+                    <Link href="/vends" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-5 py-2 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    @click="resetFilters()"
+                    >
+                        Reset
+                    </Link>
+                </div> -->
                 <div class="flex flex-col space-y-2">
                     <p class="text-sm text-gray-700 leading-5 flex space-x-1">
                         <span>Showing</span>
@@ -40,11 +66,24 @@
                         <span>results</span>
                     </p>
                     <div class="flex justify-end">
-                        <OptionDropdown
-                            @option-selected="onNumberPerPageSelected"
-                            :options="[100, 200, 500, 'All']"
+                        <MultiSelect
+                            v-model="filters.numberPerPage"
+                            :options="[
+                                { id: 100, value: 100 },
+                                { id: 200, value: 200 },
+                                { id: 500, value: 500 },
+                                { id: 'All', value: 'All' },
+                            ]"
+                            :custom-label="getNumberPerPageLabel"
+                            :close-on-select="true"
+                            :clear-on-select="false"
+                            placeholder="Select"
+                            track-by="id"
+                            open-direction="bottom"
+                            @on-selected="onNumberPerPageSelected"
                         >
-                        </OptionDropdown>
+
+                        </MultiSelect>
                     </div>
                 </div>
             </div>
@@ -67,12 +106,12 @@
                                         Code
                                     </a>
                                     <div class="pt-0.5 pl-0.5 text-blue-600 hover:text-blue-800">
-                                        <span v-if="searchFilters.sortKey === 'code' && searchFilters.sortBy">
+                                        <span v-if="filters.sortKey === 'code' && filters.sortBy">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                                             </svg>
                                         </span>
-                                        <span v-if="searchFilters.sortKey === 'code' && !searchFilters.sortBy">
+                                        <span v-if="filters.sortKey === 'code' && !filters.sortBy">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
                                             </svg>
@@ -87,12 +126,12 @@
                                         Temp(C)
                                     </a>
                                     <div class="pt-0.5 pl-0.5 text-blue-600 hover:text-blue-800">
-                                        <span v-if="searchFilters.sortKey === 'temp' && searchFilters.sortBy">
+                                        <span v-if="filters.sortKey === 'temp' && filters.sortBy">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                                             </svg>
                                         </span>
-                                        <span v-if="searchFilters.sortKey === 'temp' && !searchFilters.sortBy">
+                                        <span v-if="filters.sortKey === 'temp' && !filters.sortBy">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
                                             </svg>
@@ -117,12 +156,12 @@
                                         Last Temp
                                     </a>
                                     <div class="pt-0.5 pl-0.5 text-blue-600 hover:text-blue-800">
-                                        <span v-if="searchFilters.sortKey === 'temp_updated_at' && searchFilters.sortBy">
+                                        <span v-if="filters.sortKey === 'temp_updated_at' && filters.sortBy">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
                                             </svg>
                                         </span>
-                                        <span v-if="searchFilters.sortKey === 'temp_updated_at' && !searchFilters.sortBy">
+                                        <span v-if="filters.sortKey === 'temp_updated_at' && !filters.sortBy">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
                                             </svg>
@@ -132,7 +171,24 @@
                             </th>
                             <th scope="col"
                                 class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                                Coin Amount($)</th>
+                                <div class="flex justify-center">
+                                    <a href="#" class="text-blue-600 hover:text-blue-800" @click="sortTable('coin_amount')">
+                                        Coin Amount
+                                    </a>
+                                    <div class="pt-0.5 pl-0.5 text-blue-600 hover:text-blue-800">
+                                        <span v-if="filters.sortKey === 'coin_amount' && filters.sortBy">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </span>
+                                        <span v-if="filters.sortKey === 'coin_amount' && !filters.sortBy">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                                            </svg>
+                                        </span>
+                                    </div>
+                                </div>
+                            </th>
                             <th scope="col"
                                 class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
                                 Serial Num</th>
@@ -274,62 +330,59 @@
   import OptionDropdown from '@/Components/OptionDropdown.vue';
   import Paginator from '@/Components/Paginator.vue';
   import SearchInput from '@/Components/SearchInput.vue';
-  import Select from '@/Components/Select.vue';
   import { debounce } from 'lodash';
+    import MultiSelect from '@/Components/MultiSelect.vue';
 
   export default {
     components: {
-        BreezeAuthenticatedLayout,
-        Button,
-        OptionDropdown,
-        Paginator,
-        SearchInput,
-        Select,
-    },
+    BreezeAuthenticatedLayout,
+    Button,
+    MultiSelect,
+    OptionDropdown,
+    Paginator,
+    SearchInput,
+},
     props: {
         vends: Object,
-        filters: Object,
+        vendChannelErrors: Object,
+        // filters: Object,
+    },
+    created() {
+        this.vendChannelErrorsOptions = [
+            {'id': '', 'desc': 'All'},
+            {'id': 'errors_only', 'desc': 'Errors Only'},
+            ...this.vendChannelErrors.data
+        ]
+        // this.filters.hasError = Object.values(this.vendChannelErrorsOptions)[0]
     },
     data() {
         return {
-            searchFilters: {
-                code: this.filters.code,
-                serialNum: this.filters.serialNum,
-                name: this.filters.name,
-                tempHigherThan: this.filters.tempHigherThan,
-                sortKey: this.filters.sortKey,
-                sortBy: this.filters.sortBy,
-                numberPerPage: this.filters.numberPerPage,
-            },
+            filters: this.getFiltersDefault(),
+            vendChannelErrorsOptions: [],
         }
     },
-    mounted() {
-        this.searchFilters.numberPerPage = 100
-    },
-    computed: {
-
-    },
     methods: {
-        onSearchFilterUpdated: debounce(function() {
-            this.$inertia.get('/vends', this.searchFilters, {
-                preserveState: true,
-                replace: true,
-            })
-        }, 500),
-        onVendTempClicked(vendId) {
-            this.$inertia.get('/vend/' + vendId + '/temp')
+        getFiltersDefault() {
+            return {
+                code: '',
+                serialNum: '',
+                name: '',
+                tempHigherThan: '',
+                hasError: '',
+                sortKey: '',
+                sortBy: true,
+                numberPerPage: 100,
+            }
         },
-        onVendChannelErrorLogEmailClicked() {
-            this.$inertia.get('/vends/channel-error-logs-email')
+        getHasErrorFiltersLabel(option) {
+            return `${option.desc}`
         },
-        sortTable(sortKey) {
-            this.searchFilters.sortKey = sortKey
-            this.searchFilters.sortBy = !this.searchFilters.sortBy
-            this.onSearchFilterUpdated()
-        },
-        onNumberPerPageSelected(option) {
-            this.searchFilters.numberPerPage = option
-            this.onSearchFilterUpdated()
+        getNumberPerPageLabel({ id, value }) {
+            if(value !== 'All') {
+                return `${value}` + ' results (page)'
+            }else {
+                return `${value}`
+            }
         },
         getTotalQty(vend) {
             return vend.vend_channels
@@ -349,7 +402,39 @@
                         return total + value.capacity
                     }, 0)
         },
+        onNumberPerPageSelected(option) {
+            this.filters.numberPerPage = option.value
+            this.onSearchFilterUpdated()
+        },
+        onHasErrorSelected(option) {
+            this.filters.hasError = option
+            this.onSearchFilterUpdated()
+        },
+        onSearchFilterUpdated: debounce(function() {
+            // console.log(JSON.parse(JSON.stringify(this.filters)))
+            this.$inertia.get('/vends', this.filters, {
+                preserveState: true,
+                replace: true,
+            })
+        }, 500),
 
+        onVendTempClicked(vendId) {
+            this.$inertia.get('/vend/' + vendId + '/temp')
+        },
+        onVendChannelErrorLogEmailClicked() {
+            this.$inertia.get('/vends/channel-error-logs-email')
+        },
+        resetFilters() {
+            this.filters = this.getFiltersDefault()
+            console.log(Object.values(this.vendChannelErrorsOptions)[0])
+            this.filters.hasError = Object.values(this.vendChannelErrorsOptions)[0]
+            this.onSearchFilterUpdated()
+        },
+        sortTable(sortKey) {
+            this.filters.sortKey = sortKey
+            this.filters.sortBy = !this.filters.sortBy
+            this.onSearchFilterUpdated()
+        },
     },
   }
   </script>

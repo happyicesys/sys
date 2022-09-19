@@ -33,10 +33,11 @@ Route::get('/dashboard', function () {
 
 Route::middleware('auth')->group(function() {
     Route::get('/vends', [VendController::class, 'index'])->name('vends');
-    Route::get('/vend/{id}/temp/{duration?}', [VendController::class, 'temp'])->name('temp');
+    Route::get('/vend/{id}/temp', [VendController::class, 'temp'])->name('temp');
     Route::get('/vends/channel-error-logs-email', [VendController::class, 'channelErrorLogsEmail']);
-    Route::get('/customer', [CustomerController::class, 'index'])->name('customer');
-    Route::get('/transaction', [TransactionController::class, 'index'])->name('transaction');
+    Route::get('/customers', [CustomerController::class, 'index'])->name('customers');
+    Route::get('/profiles', [ProfileController::class, 'index'])->name('profiles');
+    Route::get('/transactions', [TransactionController::class, 'index'])->name('transactions');
 });
 
 Route::get('/', function () {
