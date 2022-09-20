@@ -25,11 +25,11 @@
                     Name
                 </SearchInput>
                 <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @input="onSearchFilterUpdated()">
-                    Temp Higher Than
+                    Temp >>
                 </SearchInput>
                 <div>
                     <label for="text" class="block text-sm font-medium text-gray-700">
-                        Channel Has Error?
+                        Errors?
                     </label>
                     <MultiSelect
                         v-model="filters.hasError"

@@ -7,13 +7,13 @@
         <template #header>
             <div class="flex flex-col space-y-2">
                 <div class="flex space-x-2 items-center">
-                    <h2 class="font-semibold text-xl text-gray-700 leading-tight">
+                    <h2 class="font-semibold text-md md:text-xl text-gray-700 leading-tight">
                         Vending Machine
                     </h2>
-                    <h2 class="font-semibold text-2xl text-gray-900 leading-tight">
+                    <h2 class="font-semibold text-xl md:text-2xl text-gray-900 leading-tight">
                         {{ vend.code }}
                     </h2>
-                    <h2 class="font-semibold text-xl text-gray-700 leading-tight">
+                    <h2 class="font-semibold text-md md:text-xl text-gray-700 leading-tight">
                         Temperature
                     </h2>
                 </div>
