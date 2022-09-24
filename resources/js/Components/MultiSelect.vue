@@ -1,39 +1,63 @@
 <template>
   <div>
-    <VueMultiselect
-      v-model="selected"
+    <Multiselect
+      v-model="value"
+      :canClear="canClear"
+      :canDeselect="false"
+      :label="label"
+      :mode="mode"
+      :object="true"
       :options="options"
-      :allow-empty="allowEmpty"
-      :deselect-label="deselectLabel"
-      @update:model-value="onSelected()"
-      open-direction="bottom"
-      :custom-label="customLabel"
-      :reset-after="resetAfter"
+      :placeholder="placeholder"
+      :required="true"
+      :searchable="true"
+      :valueProp="valueProp"
+      @select="onSelected"
     />
+    <!-- @select="$emit('update:modelValue', $event)" -->
   </div>
 </template>
 
 <script>
-import VueMultiselect from 'vue-multiselect'
-export default {
-  components: { VueMultiselect },
-  props: {
-    options: Array,
-    allowEmpty: Boolean,
-    deselectLabel: String,
-    customLabel: Function,
-  },
-  data () {
-    return {
-      selected: this.options[0],
-    }
-  },
-  methods: {
-    onSelected() {
-      this.$emit('onSelected', this.selected)
-    }
+  import Multiselect from '@vueform/multiselect'
+
+  export default {
+    components: {
+      Multiselect,
+    },
+    props: {
+      modelValue: Object,
+      canClear: Boolean,
+      label: String,
+      mode: String,
+      options: Array,
+      placeholder: String,
+      trackBy: String,
+      valueProp: String,
+    },
+    data() {
+      return {
+        value: this.mode == 'tags' ? [] : this.options[0],
+      }
+    },
+    methods: {
+      onSelected() {
+        if(this.mode == 'tags') {
+          this.$emit('update:modelValue', this.value.map((x) => {return x.id}))
+        }else {
+          this.$emit('update:modelValue', this.value.id)
+        }
+      }
+    },
   }
-}
 </script>
 
-<style src="vue-multiselect/dist/vue-multiselect.css"></style>
+<style src="@vueform/multiselect/themes/default.css"></style>
+<style>
+  .multiselect {
+    width: 100% !important;
+  }
+  .multiselect-tags {
+    overflow-x: scroll;
+  }
+</style>

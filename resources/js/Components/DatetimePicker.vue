@@ -14,6 +14,7 @@
         :closeOnAutoApply="true"
         :minDate="minDate"
         :maxDate="maxDate"
+        :enableTimePicker="enableTimePicker"
       >
       </Datepicker>
     </div>
@@ -30,6 +31,10 @@
         modelValue: Date,
         minDate: String,
         maxDate: String,
+        enableTimePicker: {
+          type: Boolean,
+          default: true,
+        },
       },
       emit: ['update:modelValue'],
       methods: {

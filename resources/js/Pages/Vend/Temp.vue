@@ -106,7 +106,6 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Datepicker from '@/Components/Datepicker.vue';
 import DatetimePicker from '@/Components/DatetimePicker.vue';
-import { Inertia } from '@inertiajs/inertia'
 import SearchInput from '@/Components/SearchInput.vue';
 import Graph from '@/Components/Graph.vue';
 import { ArrowLeftIcon,  } from '@heroicons/vue/solid'

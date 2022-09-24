@@ -19,8 +19,8 @@ class ProfileController extends Controller
         $sortBy = $request->sortBy ? $request->sortBy : true;
 
         return Inertia::render('Profile/Index', [
-            'profiles' => VendResource::collection(
-                Vend::with([
+            'profiles' => ProfileResource::collection(
+                Profile::with([
                     'address',
                     ])
                     ->when($request->name, function($query, $search) {

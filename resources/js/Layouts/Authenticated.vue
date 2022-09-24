@@ -13,7 +13,10 @@ const navigation = [
         name: 'Vending Machines',
         icon: TerminalIcon,
         current: true,
-        href: 'vends',
+        children: [
+            {name: 'List', href: '/vends'},
+            {name: 'Transactions', href: '/vends/transactions'},
+        ]
     },
     {
         name: 'Customer',
@@ -458,7 +461,7 @@ const showingNavigationDropdown = ref(false);
                             </div>
                             <Disclosure as="div" v-else class="space-y-1" v-slot="{ open }">
                                 <DisclosureButton
-                                    :class="[item.current ? 'bg-]]]gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 pr-1 py-2 text-left text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
+                                    :class="[item.current ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 pr-1 py-2 text-left text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
                                     <component :is="item.icon"
                                         class="mr-3 flex-shrink-0 h-6 w-6 text-gray-400 group-hover:text-gray-500"
                                         aria-hidden="true" />
@@ -470,12 +473,14 @@ const showingNavigationDropdown = ref(false);
                                         <path d="M6 6L14 10L6 14V6Z" fill="currentColor" />
                                     </svg>
                                 </DisclosureButton>
-                                <DisclosurePanel class="space-y-1">
-                                    <DisclosureButton v-for="subItem in item.children" :key="subItem.name" as="a"
-                                        :href="subItem.href"
-                                        class="group w-full flex items-center pl-11 pr-2 py-2 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-50">
-                                        {{ subItem.name }}
-                                    </DisclosureButton>
+                                <DisclosurePanel class="space-y-1 py-2 bg-gray-100">
+                                    <Link v-for="subItem in item.children" :key="subItem.name" as="a"
+                                            :href="subItem.href">
+                                        <DisclosureButton
+                                            class="group w-full flex items-center pl-11 pr-2 py-2 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-200">
+                                            {{ subItem.name }}
+                                        </DisclosureButton>
+                                    </Link>
                                 </DisclosurePanel>
                             </Disclosure>
                         </template>
@@ -555,11 +560,13 @@ const showingNavigationDropdown = ref(false);
                                     </svg>
                                 </DisclosureButton>
                                 <DisclosurePanel class="py-1 space-y-1">
-                                    <DisclosureButton v-for="subItem in item.children" :key="subItem.name" as="a"
-                                        :href="subItem.href"
-                                        class="group w-full flex items-center pl-11 pr-2 py-3 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-50">
-                                        {{ subItem.name }}
-                                    </DisclosureButton>
+                                    <Link v-for="subItem in item.children" :key="subItem.name" as="a"
+                                            :href="subItem.href">
+                                        <DisclosureButton
+                                            class="group w-full flex items-center pl-11 pr-2 py-3 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-50">
+                                            {{ subItem.name }}
+                                        </DisclosureButton>
+                                    </Link>
                                 </DisclosurePanel>
                             </Disclosure>
                         </template>

@@ -14,24 +14,23 @@
         <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-5 px-3 md:px-6 py-6 ">
             <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
             <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-                <SearchInput placeholderStr="Code" v-model="filters.code" @input="onSearchFilterUpdated()">
+                <SearchInput placeholderStr="Code" v-model="filters.code">
                     Code
                 </SearchInput>
-                <SearchInput placeholderStr="Serial Num" v-model="filters.serialNum"
-                    @input="onSearchFilterUpdated()">
+                <SearchInput placeholderStr="Serial Num" v-model="filters.serialNum">
                     Serial Num
                 </SearchInput>
-                <SearchInput placeholderStr="Name" v-model="filters.name" @input="onSearchFilterUpdated()">
+                <SearchInput placeholderStr="Name" v-model="filters.name">
                     Name
                 </SearchInput>
-                <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @input="onSearchFilterUpdated()">
+                <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan">
                     Temp >>
                 </SearchInput>
                 <div>
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Errors?
                     </label>
-                    <MultiSelect
+                    <!-- <MultiSelect
                         v-model="filters.hasError"
                         :custom-label="getHasErrorFiltersLabel"
                         :options="vendChannelErrorsOptions"
@@ -43,18 +42,32 @@
                         @on-selected="onHasErrorSelected"
                         class="mt-1"
                     >
+                    </MultiSelect> -->
+                    <MultiSelect
+                        v-model="filters.vend_channel_error_id"
+                        :options="vendChannelErrorsOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="desc"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
                     </MultiSelect>
                 </div>
             </div>
 
-            <div class="flex justify-end mt-5">
-                <!-- <div class="mt-5">
-                    <Link href="/vends" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-5 py-2 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    @click="resetFilters()"
+            <div class="flex justify-between mt-5">
+                <div class="mt-3">
+                    <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    @click="onSearchFilterUpdated()"
                     >
-                        Reset
-                    </Link>
-                </div> -->
+                        <SearchIcon class="h-4 w-4" aria-hidden="true"/>
+                        <span>
+                            Search
+                        </span>
+                    </Button>
+                </div>
                 <div class="flex flex-col space-y-2">
                     <p class="text-sm text-gray-700 leading-5 flex space-x-1">
                         <span>Showing</span>
@@ -65,26 +78,23 @@
                         <span class="font-medium">{{ vends.meta.total }}</span>
                         <span>results</span>
                     </p>
-                    <div class="flex justify-end">
-                        <MultiSelect
-                            v-model="filters.numberPerPage"
-                            :options="[
+                    <MultiSelect
+                        v-model="filters.numberPerPage"
+                        :options="[
                                 { id: 100, value: 100 },
                                 { id: 200, value: 200 },
                                 { id: 500, value: 500 },
                                 { id: 'All', value: 'All' },
                             ]"
-                            :custom-label="getNumberPerPageLabel"
-                            :close-on-select="true"
-                            :clear-on-select="false"
-                            placeholder="Select"
-                            track-by="id"
-                            open-direction="bottom"
-                            @on-selected="onNumberPerPageSelected"
-                        >
-
-                        </MultiSelect>
-                    </div>
+                        trackBy="id"
+                        valueProp="id"
+                        label="value"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                        @change="onSearchFilterUpdated()"
+                    >
+                    </MultiSelect>
                 </div>
             </div>
         </div>
@@ -332,6 +342,7 @@
   import SearchInput from '@/Components/SearchInput.vue';
   import { debounce } from 'lodash';
     import MultiSelect from '@/Components/MultiSelect.vue';
+    import { SearchIcon } from '@heroicons/vue/solid';
 
   export default {
     components: {
@@ -340,6 +351,7 @@
     MultiSelect,
     OptionDropdown,
     Paginator,
+    SearchIcon,
     SearchInput,
 },
     props: {
@@ -361,6 +373,11 @@
             vendChannelErrorsOptions: [],
         }
     },
+    watch: {
+        'filters.numberPerPage' () {
+            this.onSearchFilterUpdated()
+        }
+    },
     methods: {
         getFiltersDefault() {
             return {
@@ -368,20 +385,10 @@
                 serialNum: '',
                 name: '',
                 tempHigherThan: '',
-                hasError: '',
+                vend_channel_error_id: '',
                 sortKey: '',
                 sortBy: true,
                 numberPerPage: 100,
-            }
-        },
-        getHasErrorFiltersLabel(option) {
-            return `${option.desc}`
-        },
-        getNumberPerPageLabel({ id, value }) {
-            if(value !== 'All') {
-                return `${value}` + ' results (page)'
-            }else {
-                return `${value}`
             }
         },
         getTotalQty(vend) {
@@ -402,14 +409,6 @@
                         return total + value.capacity
                     }, 0)
         },
-        onNumberPerPageSelected(option) {
-            this.filters.numberPerPage = option.value
-            this.onSearchFilterUpdated()
-        },
-        onHasErrorSelected(option) {
-            this.filters.hasError = option
-            this.onSearchFilterUpdated()
-        },
         onSearchFilterUpdated: debounce(function() {
             // console.log(JSON.parse(JSON.stringify(this.filters)))
             this.$inertia.get('/vends', this.filters, {
@@ -426,8 +425,7 @@
         },
         resetFilters() {
             this.filters = this.getFiltersDefault()
-            console.log(Object.values(this.vendChannelErrorsOptions)[0])
-            this.filters.hasError = Object.values(this.vendChannelErrorsOptions)[0]
+            this.filters.vend_channel_error_id = Object.values(this.vendChannelErrorsOptions)[0]
             this.onSearchFilterUpdated()
         },
         sortTable(sortKey) {

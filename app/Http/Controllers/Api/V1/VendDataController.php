@@ -109,9 +109,9 @@ class VendDataController extends Controller
 
         VendTransaction::create([
             'order_id' => $request->ORDRID,
-            'transaction_datetime' => $request->TIME,
+            'transaction_datetime' => Carbon::createFromFormat('Y-m-d H:i:s', $request->TIME),
             'amount' => $request->Price,
-            'payment_method_id' => isset($paymentMethod) ? $paymentMethod->id : 0,
+            'payment_method_id' => isset($paymentMethod) ? $paymentMethod->id : null,
             'vend_id' => $vend->id,
             'vend_channel_id' => isset($vendChannel) ? $vendChannel->id : 0,
             'vend_channel_error_id' => isset($vendChannelError) ? $vendChannelError->id : null

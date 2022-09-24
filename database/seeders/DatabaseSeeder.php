@@ -14,37 +14,37 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
-        \App\Models\User::factory()->create([
-            'name' => 'Brian',
-            'email' => 'leehongjie91@gmail.com',
-            'password' => 'brian1234',
-        ]);
+        // \App\Models\User::factory()->create([
+        //     'name' => 'Brian',
+        //     'email' => 'leehongjie91@gmail.com',
+        //     'password' => 'brian1234',
+        // ]);
 
-        \App\Models\User::factory()->create([
-            'name' => 'Daniel',
-            'email' => 'daniel.ma@happyice.com.sg',
-            'password' => 'daniel1234',
-        ]);
+        // \App\Models\User::factory()->create([
+        //     'name' => 'Daniel',
+        //     'email' => 'daniel.ma@happyice.com.sg',
+        //     'password' => 'daniel1234',
+        // ]);
 
-        \App\Models\User::factory()->create([
-            'name' => 'Kent',
-            'email' => 'kent@happyice.com.sg',
-            'password' => 'kent1234',
-        ]);
+        // \App\Models\User::factory()->create([
+        //     'name' => 'Kent',
+        //     'email' => 'kent@happyice.com.sg',
+        //     'password' => 'kent1234',
+        // ]);
 
-        \App\Models\User::factory()->create([
-            'name' => 'Stephen',
-            'email' => 'stephen@happyice.com.sg',
-            'password' => 'stephen1234',
-        ]);
+        // \App\Models\User::factory()->create([
+        //     'name' => 'Stephen',
+        //     'email' => 'stephen@happyice.com.sg',
+        //     'password' => 'stephen1234',
+        // ]);
 
 
         $this->call([
-            // PaymentMethodSeeder::class,
+            PaymentMethodSeeder::class,
             // VendChannelErrorSeeder::class,
-            CountrySeeder::class,
-            PaymentTermSeeder::class,
-            TaxSeeder::class,
+            // CountrySeeder::class,
+            // PaymentTermSeeder::class,
+            // TaxSeeder::class,
         ]);
     }
 }

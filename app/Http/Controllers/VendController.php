@@ -2,13 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendChannelErrorResource;
+use App\Http\Resources\VendTransactionResource;
 use App\Http\Resources\VendTempResource;
 use App\Mail\VendChannelErrorLogsMail;
+use App\Models\PaymentMethod;
 use App\Models\Vend;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
+use App\Models\VendTemp;
+use App\Models\VendTransaction;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -45,14 +50,14 @@ class VendController extends Controller
                             $query->where('temp', '>=', $search * 10);
                         }
                     })
-                    ->when($request->hasError, function($query, $search) {
-                        if($search['id'] === 'errors_only') {
+                    ->when($request->vend_channel_error_id, function($query, $search) {
+                        if($search === 'errors_only') {
                             $query->whereHas('vendChannels.vendChannelErrorLogs', function($query) {
                                $query->where('is_error_cleared', false);
                             });
-                        }else if($search['id'] !== null) {
+                        }else if($search !== null) {
                             $query->whereHas('vendChannels.vendChannelErrorLogs', function($query) use ($search) {
-                                $query->where('vend_channel_error_id', $search['id'])->where('is_error_cleared', false);
+                                $query->where('vend_channel_error_id', $search)->where('is_error_cleared', false);
                             });
                         }
                     })
@@ -77,11 +82,9 @@ class VendController extends Controller
         $startDate =  Carbon::now()->subDays($duration);
         $endDate =  Carbon::now();
         if($request->datetime_from) {
-            // $startDate = Carbon::createFromFormat('D M d Y H:i:s e+', $request->datetime_from);
             $startDate = Carbon::parse($request->datetime_from)->setTimezone('Asia/Singapore');
         }
         if($request->datetime_to) {
-            // $endDate = Carbon::createFromFormat('D M d Y H:i:s e+', $request->datetime_to);
             $endDate = Carbon::parse($request->datetime_to)->setTimezone('Asia/Singapore');
         }
         return Inertia::render('Vend/Temp', [
@@ -98,6 +101,53 @@ class VendController extends Controller
             'endDate' => $endDate->format('D M d Y H:i:s'),
             'startDateString' => $startDate->format('y-m-d H:i'),
             'endDateString' => $endDate->format('y-m-d H:i'),
+        ]);
+    }
+
+    public function transactionIndex(Request $request)
+    {
+
+        // init
+        $numberPerPage = isset($request->numberPerPage['id']) ? $request->numberPerPage['id'] : 100;
+        $sortKey = $request->sortKey ? $request->sortKey : 'transaction_datetime';
+        $sortBy = $request->sortBy ? $request->sortBy : false;
+
+        return Inertia::render('Vend/Transaction', [
+            'vends' => VendResource::collection(Vend::orderBy('code')->get()),
+            'vendTransactions' => VendTransactionResource::collection(
+                VendTransaction::with([
+                    'vend',
+                    // 'vendChannel',
+                    'vendChannelError',
+                    ])
+                    ->when($request->codes, function($query, $search) {
+                        $query->whereHas('vend', function($query) use ($search) {
+                            $query->whereIn('id', $search);
+                        });
+                    })
+                    ->when($request->errors, function($query, $search) {
+                        $query->whereHas('vendChannels.vendChannelErrorLogs', function($query) use ($search) {
+                            $query->where('vend_channel_error_id', 'IN', $search)->where('is_error_cleared', false);
+                        });
+                    })
+                    ->when($request->paymentMethod, function($query, $search) {
+                        $query->where('payment_method_id', $search);
+                    })
+                    ->when($request->date_from, function($query, $search) {
+                        $query->whereDate('transaction_datetime', '>=', $search);
+                    })
+                    ->when($request->date_to, function($query, $search) {
+                        $query->whereDate('transaction_datetime', '<=', $search);
+                    })
+                    ->when($sortKey, function($query, $search) use ($sortBy) {
+                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    })
+                    ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                    ->withQueryString()
+            ),
+            'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
+            'paymentMethods' => PaymentMethodResource::collection(PaymentMethod::orderBy('name')->get()),
+
         ]);
     }
 

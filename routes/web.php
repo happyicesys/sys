@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\VendController;
 use Illuminate\Foundation\Application;
@@ -34,6 +35,7 @@ Route::get('/dashboard', function () {
 Route::middleware('auth')->group(function() {
     Route::get('/vends', [VendController::class, 'index'])->name('vends');
     Route::get('/vend/{id}/temp', [VendController::class, 'temp'])->name('temp');
+    Route::get('/vends/transactions', [VendController::class, 'transactionIndex'])->name('vends-transactions');
     Route::get('/vends/channel-error-logs-email', [VendController::class, 'channelErrorLogsEmail']);
     Route::get('/customers', [CustomerController::class, 'index'])->name('customers');
     Route::get('/profiles', [ProfileController::class, 'index'])->name('profiles');
