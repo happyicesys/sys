@@ -107,7 +107,7 @@ class VendController extends Controller
             $duration = $request->duration;
         }
         // dd($request->all());
-        $vend = Vend::findOrFail($vendId);
+        $vend = Vend::with('latestVendBinding.customer')->findOrFail($vendId);
         $startDate =  Carbon::now()->subDays($duration);
         $endDate =  Carbon::now();
         if($request->datetime_from) {
@@ -118,7 +118,7 @@ class VendController extends Controller
         }
         return Inertia::render('Vend/Temp', [
             'duration' => $duration,
-            'vendObj' => new VendResource($vend),
+            'vendObj' => VendResource::make($vend),
             'vendTempsObj' => VendTempResource::collection(
                 $vend
                 ->vendTemps()

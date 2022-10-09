@@ -5,7 +5,7 @@
 
     <BreezeAuthenticatedLayout>
         <template #header>
-            <div class="flex flex-col space-y-2">
+            <div class="flex flex-col space-y-1">
                 <div class="flex space-x-2 items-center">
                     <h2 class="font-semibold text-md md:text-xl text-gray-700 leading-tight">
                         Vending Machine
@@ -15,6 +15,14 @@
                     </h2>
                     <h2 class="font-semibold text-md md:text-xl text-gray-700 leading-tight">
                         Temperature
+                    </h2>
+                </div>
+                <div class="flex space-x-2 items-center">
+                    <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
+                        {{ vend.latestVendBinding.customer.code }}
+                    </h2>
+                    <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
+                        - {{ vend.latestVendBinding.customer.name }}
                     </h2>
                 </div>
                 <div class="flex space-x-2 font-semibold text-md text-gray-500 leading-tight">
@@ -104,13 +112,12 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-import Datepicker from '@/Components/Datepicker.vue';
 import DatetimePicker from '@/Components/DatetimePicker.vue';
-import SearchInput from '@/Components/SearchInput.vue';
 import Graph from '@/Components/Graph.vue';
 import { ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { Inertia } from '@inertiajs/inertia';
+import { Head } from '@inertiajs/inertia-vue3';
 
 const props = defineProps({
     duration: Number,
