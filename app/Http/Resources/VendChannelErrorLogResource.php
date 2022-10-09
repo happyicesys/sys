@@ -16,7 +16,7 @@ class VendChannelErrorLogResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'vend_channel_error' => new VendChannelErrorResource($this->vendChannelError),
+            'vendChannelError' => VendChannelErrorResource::make($this->vendChannelError),
             'is_error_cleared' => $this->is_error_cleared ? true : false,
         ];
     }

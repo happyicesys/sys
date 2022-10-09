@@ -16,9 +16,9 @@ class UomSeeder extends Seeder
     public function run()
     {
         Uom::create([
-            'name' => 'pcs',
-            'sequence' => 3,
-            'color' => '#f0f0f0'
+            'name' => 'ctn',
+            'sequence' => 1,
+            'color' => '#c9c9c9'
         ]);
 
         Uom::create([
@@ -28,9 +28,9 @@ class UomSeeder extends Seeder
         ]);
 
         Uom::create([
-            'name' => 'ctn',
-            'sequence' => 1,
-            'color' => '#c9c9c9'
+            'name' => 'pcs',
+            'sequence' => 3,
+            'color' => '#f0f0f0'
         ]);
     }
 }

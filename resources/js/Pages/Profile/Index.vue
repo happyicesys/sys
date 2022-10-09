@@ -1,7 +1,7 @@
 
 <template>
 
-    <Head title="Profile" />
+    <Head title="Profiles" />
 
     <BreezeAuthenticatedLayout>
         <template #header>
@@ -12,46 +12,69 @@
 
         <div class="m-2 sm:mx-5 sm:my-3 px-2 sm:px-4 lg:px-6">
         <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-5 px-3 md:px-6 py-6 ">
+            <div class="flex justify-end">
+                <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                @click="onCreateProfileClicked()"
+                >
+                    <PlusIcon class="h-4 w-4" aria-hidden="true"/>
+                    <span>
+                        Create
+                    </span>
+                </Button>
+            </div>
             <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
             <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-                <SearchInput placeholderStr="Name" v-model="filters.name" @input="onSearchFilterUpdated()">
+                <SearchInput placeholderStr="Name" v-model="filters.name">
                     Name
                 </SearchInput>
-                <SearchInput placeholderStr="UEN" v-model="filters.uen" @input="onSearchFilterUpdated()">
+                <SearchInput placeholderStr="UEN" v-model="filters.uen">
                     UEN
                 </SearchInput>
             </div>
 
-            <div class="flex justify-end mt-5">
+            <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
+                <div class="mt-3">
+                    <div class="flex space-x-1">
+                        <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        @click="onSearchFilterUpdated()"
+                        >
+                            <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
+                            <span>
+                                Search
+                            </span>
+                        </Button>
+                        <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        @click="resetFilters()"
+                        >
+                            <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
+                            <span>
+                                Reset
+                            </span>
+                        </Button>
+                    </div>
+                </div>
                 <div class="flex flex-col space-y-2">
                     <p class="text-sm text-gray-700 leading-5 flex space-x-1">
                         <span>Showing</span>
-                        <span class="font-medium">{{ profiles.meta.from }}</span>
+                        <span class="font-medium">{{ profiles.meta.from ?? 0 }}</span>
                         <span>to</span>
-                        <span class="font-medium">{{ profiles.meta.to }}</span>
+                        <span class="font-medium">{{ profiles.meta.to ?? 0 }}</span>
                         <span>of</span>
                         <span class="font-medium">{{ profiles.meta.total }}</span>
                         <span>results</span>
                     </p>
-                    <div class="flex justify-end">
-                        <MultiSelect
-                            v-model="filters.numberPerPage"
-                            :options="[
-                                { id: 100, value: 100 },
-                                { id: 200, value: 200 },
-                                { id: 500, value: 500 },
-                                { id: 'All', value: 'All' },
-                            ]"
-                            :custom-label="getNumberPerPageLabel"
-                            :close-on-select="true"
-                            :clear-on-select="false"
-                            placeholder="Select"
-                            track-by="id"
-                            open-direction="bottom"
-                            @on-selected="onNumberPerPageSelected"
-                        >
-                        </MultiSelect>
-                    </div>
+                    <MultiSelect
+                        v-model="filters.numberPerPage"
+                        :options="numberPerPageOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="value"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                        @selected="onSearchFilterUpdated"
+                    >
+                    </MultiSelect>
                 </div>
             </div>
         </div>
@@ -62,346 +85,174 @@
                 <table class="min-w-full border-separate" style="border-spacing: 0">
                     <thead class="bg-gray-100">
                         <tr class="divide-x divide-gray-200">
-                            <th scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                                #</th>
-                            <th
-                                scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                                <div class="flex justify-center">
-                                    <a href="#" class="text-blue-600 hover:text-blue-800" @click="sortTable('code')">
-                                        Code
-                                    </a>
-                                    <div class="pt-0.5 pl-0.5 text-blue-600 hover:text-blue-800">
-                                        <span v-if="filters.sortKey === 'code' && filters.sortBy">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                                            </svg>
-                                        </span>
-                                        <span v-if="filters.sortKey === 'code' && !filters.sortBy">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
-                                            </svg>
-                                        </span>
-                                    </div>
-                                </div>
-                            </th>
-                            <th scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                                <div class="flex justify-center">
-                                    <a href="#" class="text-blue-600 hover:text-blue-800" @click="sortTable('temp')">
-                                        Temp(C)
-                                    </a>
-                                    <div class="pt-0.5 pl-0.5 text-blue-600 hover:text-blue-800">
-                                        <span v-if="filters.sortKey === 'temp' && filters.sortBy">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                                            </svg>
-                                        </span>
-                                        <span v-if="filters.sortKey === 'temp' && !filters.sortBy">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
-                                            </svg>
-                                        </span>
-                                    </div>
-                                </div>
-                            </th>
-
-                            <th scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                                Name</th>
-                            <th scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                                Channels Status</th>
-                            <th scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                                Inventory Status</th>
-                            <th scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                                <div class="flex justify-center">
-                                    <a href="#" class="text-blue-600 hover:text-blue-800" @click="sortTable('temp_updated_at')">
-                                        Last Temp
-                                    </a>
-                                    <div class="pt-0.5 pl-0.5 text-blue-600 hover:text-blue-800">
-                                        <span v-if="filters.sortKey === 'temp_updated_at' && filters.sortBy">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                                            </svg>
-                                        </span>
-                                        <span v-if="filters.sortKey === 'temp_updated_at' && !filters.sortBy">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
-                                            </svg>
-                                        </span>
-                                    </div>
-                                </div>
-                            </th>
-                            <th scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                                <div class="flex justify-center">
-                                    <a href="#" class="text-blue-600 hover:text-blue-800" @click="sortTable('coin_amount')">
-                                        Coin Amount
-                                    </a>
-                                    <div class="pt-0.5 pl-0.5 text-blue-600 hover:text-blue-800">
-                                        <span v-if="filters.sortKey === 'coin_amount' && filters.sortBy">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                                            </svg>
-                                        </span>
-                                        <span v-if="filters.sortKey === 'coin_amount' && !filters.sortBy">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
-                                            </svg>
-                                        </span>
-                                    </div>
-                                </div>
-                            </th>
-                            <th scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                                Serial Num</th>
-                            <th scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                                Firmware Ver</th>
-                            <th scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 px-3 py-3.5 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter">
-                                Door Opening?</th>
-                            <th scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 px-3 py-3.5 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter">
-                                Sensor Normal?</th>
-                            <th scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pr-4 pl-3 backdrop-blur backdrop-filter sm:pr-6 lg:pr-8">
-                                <span class="sr-only">Edit</span>
-                            </th>
+                            <TableHead>
+                                #
+                            </TableHead>
+                            <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
+                                Name
+                            </TableHeadSort>
+                            <TableHead>
+                                Alias
+                            </TableHead>
+                            <TableHead>
+                                UEN
+                            </TableHead>
+                            <TableHead>
+                                Address
+                            </TableHead>
+                            <TableHead>
+                            </TableHead>
                         </tr>
                     </thead>
                     <tbody class="bg-white">
-                        <tr v-for="(vend, vendIndex) in vends.data" :key="vend.id"
+                        <tr v-for="(profile, profileIndex) in profiles.data" :key="profile.id"
                             class="divide-x divide-gray-200">
-                            <td :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 lg:pl-8']"
-                                class="text-right">
-                                {{ vends.meta.from + vendIndex }}
-                            </td>
-                            <td :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-800 sm:pl-6 lg:pl-8']"
-                                class="text-right">
-                                {{ vend.code }}
-                            </td>
-                            <td :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-blue-600 sm:pl-6 lg:pl-8']"
-                                class="text-right">
-                                <div class="flex flex-col">
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                        :class="[vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600']"
-                                        @click="onVendTempClicked(vend.id)"
+                            <TableData :currentIndex="profileIndex" :totalLength="profiles.length" inputClass="text-center">
+                                {{ profiles.meta.from + profileIndex }}
+                            </TableData>
+                            <TableData :currentIndex="profileIndex" :totalLength="profiles.length" inputClass="text-left">
+                                {{ profile.name }}
+                            </TableData>
+                            <TableData :currentIndex="profileIndex" :totalLength="profiles.length" inputClass="text-center">
+                                {{ profile.alias }}
+                            </TableData>
+                            <TableData :currentIndex="profileIndex" :totalLength="profiles.length" inputClass="text-center">
+                                {{ profile.uen }}
+                            </TableData>
+                            <TableData :currentIndex="profileIndex" :totalLength="profiles.length" inputClass="text-left md:max-w-xs">
+                                {{ profile.address.full_address }}
+                            </TableData>
+                            <TableData :currentIndex="profileIndex" :totalLength="profiles.length" inputClass="text-center">
+                                <div class="flex justify-center space-x-1">
+                                    <Button
+                                        type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                                        @click="onEditProfileClicked(profile)"
                                     >
-                                        {{ vend.is_temp_error ? 'Error' : vend.temp }}
-                                    </button>
-                                </div>
-                            </td>
-                            <td :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-800 sm:pl-6 lg:pl-8']"
-                                class="text-center">
-                                {{ vend.name }}</td>
-                            <td :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-normal py-2 pl-2 pr-1 text-sm font-medium text-gray-800 sm:pl-1 lg:pl-2']"
-                                class="text-center">
-                                <span v-for="
-                                            channel in vend.vend_channels
-                                            .map(function(channel){
-                                                return channel
-                                            })
-                                            .filter(function(channel) {
-                                                return (channel.vend_channel_error_logs.length) ?? channel.vend_channel_error_logs
-                                            })"
-                                    class="flex flex-col space-y-1"
-                                >
-                                    <span v-for="error in channel.vend_channel_error_logs.filter(function(error) {
-                                        return !error.is_error_cleared
-                                    })" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border" :class="[error.is_error_cleared ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']">
-                                        #{{channel.code}}, {{ error.vend_channel_error.desc }}
-                                    </span>
-                                </span>
-                            </td>
-                            <td :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'py-1 pl-1 pr-1 text-sm font-medium text-gray-800']"
-                                class="text-center">
-                                <div class="grid grid-cols-[100px_minmax(100px,_1fr)_100px] gap-1">
-                                    <div v-for="
-                                                channel in vend.vend_channels
-                                                .map(function(channel){
-                                                    return channel
-                                                })
-                                                .filter(function(channel) {
-                                                    return channel.capacity > 0 && channel.code < 1000
-                                                })"
-                                        class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full"
-                                        :class="[channel.capacity > 0 ? 'bg-gray-50 text-gray-900' : 'bg-red-100 text-red-800']"
+                                        <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                                        <span>
+                                            Edit
+                                        </span>
+                                    </Button>
+                                    <Button
+                                        type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
+                                        @click="onDeleteProfileClicked(profile)"
                                     >
-                                        <div class="font-semibold">
-                                            #{{channel.code}},
-                                        </div>
-                                        <div class="text-blue-600 text-sm pl-1">
-                                            {{channel.capacity - channel.qty}},
-                                        </div>
-                                        <div class="pl-1">
-                                            {{channel.qty}}/{{channel.capacity}}
-                                        </div>
-                                    </div>
-                                    <div class="col-span-3 inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full space-x-2">
+                                        <TrashIcon class="w-4 h-4"></TrashIcon>
                                         <span>
-                                            Total
+                                            Delete
                                         </span>
-                                        <span class="text-blue-600 text-sm">
-                                            {{getTotalCapacity(vend) - getTotalQty(vend)}},
-                                        </span>
-                                        <span>
-                                            {{getTotalQty(vend)}}/{{getTotalCapacity(vend)}}
-                                        </span>
-                                    </div>
+                                    </Button>
                                 </div>
-                            </td>
-                            <td :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 lg:pl-8']"
-                                class="text-center">
-                                {{ vend.temp_updated_at }}</td>
-                            <td :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 lg:pl-8']"
-                                class="text-right">
-                                {{ vend.coin_amount }}</td>
-                            <td :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-800 sm:pl-6 lg:pl-8']"
-                                class="text-center">
-                                {{ vend.serial_num }}</td>
-                            <td :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 lg:pl-8']"
-                                class="text-center">
-                                {{ vend.firmware_ver }}</td>
-                            <td :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 lg:pl-8']"
-                                class="text-center">
-                                {{ vend.is_door_open }}</td>
-                            <td :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 lg:pl-8']"
-                                class="text-center">
-                                {{ vend.is_sensor_normal }}</td>
-                            <td
-                                :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'relative whitespace-nowrap py-4 pr-4 pl-3 text-right text-sm font-medium sm:pr-6 lg:pr-8']">
-                                <a href="#" class="text-indigo-600 hover:text-indigo-900">Edit<span
-                                        class="sr-only">, {{ vend.name }}</span></a>
+                            </TableData>
+                        </tr>
+                        <tr v-if="!profiles.data.length">
+                            <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                                No Results Found
                             </td>
                         </tr>
                     </tbody>
                 </table>
-                <Paginator :links="vends.links" :meta="vends.meta"></Paginator>
+                <Paginator v-if="profiles.data.length" :links="profiles.links" :meta="profiles.meta"></Paginator>
             </div>
         </div>
         </div>
     </div>
+    <Form
+        v-if="showEditModal"
+        :profile="profile"
+        :countries="props.countries"
+        :type="type"
+        :showModal="showEditModal"
+        @modalClose="onModalClose"
+    >
+    </Form>
     </BreezeAuthenticatedLayout>
   </template>
 
-  <script>
-  import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-  import Button from '@/Components/Button.vue';
-  import OptionDropdown from '@/Components/OptionDropdown.vue';
-  import Paginator from '@/Components/Paginator.vue';
-  import SearchInput from '@/Components/SearchInput.vue';
-  import { debounce } from 'lodash';
-    import MultiSelect from '@/Components/MultiSelect.vue';
+<script setup>
+import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import Button from '@/Components/Button.vue';
+import Form from '@/Pages/Profile/Form.vue';
+import Paginator from '@/Components/Paginator.vue';
+import SearchInput from '@/Components/SearchInput.vue';
+import MultiSelect from '@/Components/MultiSelect.vue';
+import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import TableHead from '@/Components/TableHead.vue';
+import TableData from '@/Components/TableData.vue';
+import TableHeadSort from '@/Components/TableHeadSort.vue';
+import { Head } from '@inertiajs/inertia-vue3';
+import { ref, onMounted } from 'vue';
+import { Inertia } from '@inertiajs/inertia'
 
-  export default {
-    components: {
-    BreezeAuthenticatedLayout,
-    Button,
-    MultiSelect,
-    OptionDropdown,
-    Paginator,
-    SearchInput,
-},
-    props: {
-        vends: Object,
-        vendChannelErrors: Object,
-        // filters: Object,
-    },
-    created() {
-        this.vendChannelErrorsOptions = [
-            {'id': '', 'desc': 'All'},
-            {'id': 'errors_only', 'desc': 'Errors Only'},
-            ...this.vendChannelErrors.data
-        ]
-        // this.filters.hasError = Object.values(this.vendChannelErrorsOptions)[0]
-    },
-    data() {
-        return {
-            filters: this.getFiltersDefault(),
-            vendChannelErrorsOptions: [],
-        }
-    },
-    methods: {
-        getFiltersDefault() {
-            return {
-                code: '',
-                serialNum: '',
-                name: '',
-                tempHigherThan: '',
-                hasError: '',
-                sortKey: '',
-                sortBy: true,
-                numberPerPage: 100,
-            }
-        },
-        getHasErrorFiltersLabel(option) {
-            return `${option.desc}`
-        },
-        getNumberPerPageLabel({ id, value }) {
-            if(value !== 'All') {
-                return `${value}` + ' results (page)'
-            }else {
-                return `${value}`
-            }
-        },
-        getTotalQty(vend) {
-            return vend.vend_channels
-                    .filter(function(channel) {
-                        return channel.capacity > 0 && channel.code < 1000
-                    })
-                    .reduce(function(total, value) {
-                        return total + value.qty
-                    }, 0)
-        },
-        getTotalCapacity(vend) {
-            return vend.vend_channels
-                    .filter(function(channel) {
-                        return channel.capacity > 0 && channel.code < 1000
-                    })
-                    .reduce(function(total, value) {
-                        return total + value.capacity
-                    }, 0)
-        },
-        onNumberPerPageSelected(option) {
-            this.filters.numberPerPage = option.value
-            this.onSearchFilterUpdated()
-        },
-        onHasErrorSelected(option) {
-            this.filters.hasError = option
-            this.onSearchFilterUpdated()
-        },
-        onSearchFilterUpdated: debounce(function() {
-            // console.log(JSON.parse(JSON.stringify(this.filters)))
-            this.$inertia.get('/vends', this.filters, {
-                preserveState: true,
-                replace: true,
-            })
-        }, 500),
+const props = defineProps({
+    profiles: Object,
+    countries: Object,
+})
 
-        onVendTempClicked(vendId) {
-            this.$inertia.get('/vend/' + vendId + '/temp')
-        },
-        onVendChannelErrorLogEmailClicked() {
-            this.$inertia.get('/vends/channel-error-logs-email')
-        },
-        resetFilters() {
-            this.filters = this.getFiltersDefault()
-            console.log(Object.values(this.vendChannelErrorsOptions)[0])
-            this.filters.hasError = Object.values(this.vendChannelErrorsOptions)[0]
-            this.onSearchFilterUpdated()
-        },
-        sortTable(sortKey) {
-            this.filters.sortKey = sortKey
-            this.filters.sortBy = !this.filters.sortBy
-            this.onSearchFilterUpdated()
-        },
-    },
-  }
-  </script>
+const filters = ref({
+    name: '',
+    uen: '',
+    sortKey: '',
+    sortBy: true,
+    numberPerPage: 100,
+})
+const showEditModal = ref(false)
+const profile = ref()
+const type = ref('')
+const numberPerPageOptions = ref([])
+
+onMounted(() => {
+    numberPerPageOptions.value = [
+        { id: 100, value: 100 },
+        { id: 200, value: 200 },
+        { id: 500, value: 500 },
+        { id: 'All', value: 'All' },
+    ]
+    filters.value.numberPerPage = numberPerPageOptions.value[0]
+})
+
+function onCreateProfileClicked() {
+    type.value = 'create'
+    profile.value = null
+    showEditModal.value = true
+}
+
+function onDeleteProfileClicked(profile) {
+    const approval = confirm('Are you sure to delete ' + profile.name + '?');
+    if (!approval) {
+        return;
+    }
+    Inertia.delete('/profiles/' + profile.id)
+}
+
+function onEditProfileClicked(profileValue) {
+    type.value = 'update'
+    profile.value = profileValue
+    showEditModal.value = true
+}
+
+function onSearchFilterUpdated() {
+    Inertia.get('/profiles', {
+        ...filters.value,
+        numberPerPage: filters.value.numberPerPage.id,
+    }, {
+        preserveState: true,
+        replace: true,
+    })
+}
+
+function resetFilters() {
+    Inertia.get('/profiles')
+}
+
+function sortTable(sortKey) {
+    filters.value.sortKey = sortKey
+    filters.value.sortBy = !filters.value.sortBy
+    onSearchFilterUpdated()
+}
+
+function onModalClose() {
+    showEditModal.value = false
+}
+
+</script>

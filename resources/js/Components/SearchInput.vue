@@ -12,14 +12,14 @@
     </div>
 </template>
 
-<script>
-export default {
-    props: {
-        placeholderStr: {
-            type: String,
-            default: 'Please fill in'
-        },
-        modelValue: String
+<script setup>
+
+defineProps({
+    placeholderStr: {
+        type: String,
+        default: 'Please fill in'
     },
-}
+    modelValue: String
+})
+
 </script>

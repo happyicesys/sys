@@ -11,6 +11,7 @@ use App\Models\PaymentTerm;
 use App\Models\Profile;
 use App\Models\Status;
 use App\Models\Tax;
+use App\Models\Vend;
 use App\Models\Zone;
 use App\Traits\SearchAddress;
 use Illuminate\Console\Command;
@@ -20,6 +21,7 @@ use Propaganistas\LaravelPhone\PhoneNumber;
 
 class SyncCustomerApi extends Command
 {
+    use SearchAddress;
     /**
      * The name and signature of the console command.
      *
@@ -40,7 +42,7 @@ class SyncCustomerApi extends Command
      * @return int
      */
 
-    public $endPointUrl = 'https://admin.happyice.com.sg/api/person/vend-code';
+    public $endPointUrl = 'https://admin.happyice.com.sg/api/person/migrate';
 
     public function handle()
     {
@@ -55,6 +57,7 @@ class SyncCustomerApi extends Command
         $categoryGroupId = null;
         $payTermId = null;
         $profileId = null;
+        $statusId = null;
         $zoneId = null;
 
         if($customersCollection) {
@@ -65,12 +68,14 @@ class SyncCustomerApi extends Command
                             'name' => 'Active',
                             'classname' => $className,
                         ]);
+                        $statusId = $status->id;
                         break;
                     case 'No':
                         $status = Status::updateOrCreate([
                             'name' => 'Inactive',
                             'classname' => $className,
                         ]);
+                        $statusId = $status->id;
                         break;
                     case 'New':
                     case 'Pending':
@@ -78,6 +83,7 @@ class SyncCustomerApi extends Command
                             'name' => $statusData,
                             'classname' => $className,
                         ]);
+                        $statusId = $status->id;
                         break;
                 }
 
@@ -92,6 +98,7 @@ class SyncCustomerApi extends Command
                     if($categoryGroupData = $categoryData['custcategory_group']) {
                         $categoryGroup = CategoryGroup::updateOrCreate([
                             'name' => $categoryGroupData['name'],
+                            'classname' => $className,
                         ], [
                             'desc' => $categoryGroupData['desc'],
                         ]);
@@ -209,6 +216,46 @@ class SyncCustomerApi extends Command
                         'sequence' => $zoneData['priority'],
                     ]);
                     $zoneId = $zone->id;
+                }
+
+                $customer = Customer::updateOrCreate([
+                    'code' => $customerCollection['cust_id'],
+                ], [
+                    'name' => $customerCollection['company'],
+                    'profile_id' => $profileId,
+                    'status_id' => $statusId,
+                    'bank_id' => $bankId,
+                    'bank_remarks' => $customerCollection['account_number'],
+                    'category_id' => $categoryId,
+                    'payment_term_id' => $paymentTermId,
+                    'zone_id' => $zoneId,
+                    'remarks' => $customerCollection['remark'],
+                    'ops_note' => $customerCollection['operation_note'],
+                    'created_at' => $customerCollection['created_at'],
+                ]);
+
+                if($customerCollection['is_dvm'] or $customerCollection['is_vending'] or $customerCollection['is_combi']) {
+                    $vend = Vend::where('code', $customerCollection['vend_code'])->first();
+
+                    if($vend) {
+                        $customer->vendBinding()->updateOrCreate([
+                            'vend_id' => $vend->id,
+                            ],[
+                            'begin_date' => $customerCollection['created_at'],
+                            'is_active' => $customerCollection['active'] == 'Yes' ? true : false,
+                            'is_rental' => $customerCollection['cooperate_method'] == 2 ? true: false,
+                            'is_profit_sharing' => $customerCollection['cooperate_method'] == 1 ? true: false,
+                            'is_profit_sharing_percentage' => $customerCollection['commission_type'] == 2 ? true: false,
+                            'is_both_utility_comm' => $customerCollection['commission_package'] == 1 ? true: false,
+                            'product_unit_price' => $customerCollection['vending_piece_price'] ? $customerCollection['vending_piece_price'] * 100 : null,
+                            'rental' => $customerCollection['vending_monthly_rental'] ? $customerCollection['vending_monthly_rental'] * 100 : null,
+                            'profit_sharing' => $customerCollection['vending_profit_sharing'] ? $customerCollection['vending_profit_sharing'] * 100 : null,
+                            'utilities' => $customerCollection['vending_monthly_utilities'] ? $customerCollection['vending_monthly_utilities'] * 100 : null,
+                            'adjustment_rate' => $customerCollection['vending_clocker_adjustment'] ? $customerCollection['vending_clocker_adjustment'] * 100 : null,
+                            'is_pwp' => $customerCollection['is_pwp'],
+                            'pwp_adjustment_rate' => $customerCollection['pwp_adj_rate'] ? $customerCollection['pwp_adj_rate'] * 100 : null,
+                        ]);
+                    }
                 }
 
             }

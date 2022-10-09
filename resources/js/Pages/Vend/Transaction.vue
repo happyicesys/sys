@@ -1,12 +1,12 @@
 
 <template>
 
-  <Head title="Vending Machine" />
+  <Head title="VM Transactions" />
 
   <BreezeAuthenticatedLayout>
       <template #header>
           <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-              VM Transactions
+              Vending Machines (Transactions)
           </h2>
       </template>
 
@@ -80,42 +80,47 @@
             </div>
           </div>
 
-          <div class="flex justify-between mt-5">
+          <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
                 <div class="mt-3">
-                    <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                    @click="onSearchFilterUpdated()"
-                    >
-                        <SearchIcon class="h-4 w-4" aria-hidden="true"/>
-                        <span>
-                            Search
-                        </span>
-                    </Button>
+                    <div class="flex space-x-1">
+                        <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        @click="onSearchFilterUpdated()"
+                        >
+                            <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
+                            <span>
+                                Search
+                            </span>
+                        </Button>
+                        <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        @click="resetFilters()"
+                        >
+                            <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
+                            <span>
+                                Reset
+                            </span>
+                        </Button>
+                    </div>
                 </div>
                 <div class="flex flex-col space-y-2">
                     <p class="text-sm text-gray-700 leading-5 flex space-x-1">
                         <span>Showing</span>
-                        <span class="font-medium">{{ vendTransactions.meta.from }}</span>
+                        <span class="font-medium">{{ vendTransactions.meta.from ?? 0 }}</span>
                         <span>to</span>
-                        <span class="font-medium">{{ vendTransactions.meta.to }}</span>
+                        <span class="font-medium">{{ vendTransactions.meta.to ?? 0 }}</span>
                         <span>of</span>
                         <span class="font-medium">{{ vendTransactions.meta.total }}</span>
                         <span>results</span>
                     </p>
                     <MultiSelect
                         v-model="filters.numberPerPage"
-                        :options="[
-                                { id: 100, value: 100 },
-                                { id: 200, value: 200 },
-                                { id: 500, value: 500 },
-                                { id: 'All', value: 'All' },
-                            ]"
+                        :options="numberPerPageOptions"
                         trackBy="id"
                         valueProp="id"
                         label="value"
                         placeholder="Select"
                         open-direction="bottom"
                         class="mt-1"
-                        @change="onSearchFilterUpdated()"
+                        @selected="onSearchFilterUpdated"
                     >
                     </MultiSelect>
                 </div>
@@ -128,95 +133,68 @@
               <table class="min-w-full border-separate" style="border-spacing: 0">
                   <thead class="bg-gray-100">
                       <tr class="divide-x divide-gray-200">
-                          <th scope="col"
-                              class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                              #
-                          </th>
-                          <th scope="col"
-                              class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                              <div class="flex justify-center">
-                                  <a href="#" class="text-blue-600 hover:text-blue-800" @click="sortTable('transaction_datetime')">
-                                      DateTime
-                                  </a>
-                                  <div class="pt-0.5 pl-0.5 text-blue-600 hover:text-blue-800">
-                                      <span v-if="filters.sortKey === 'transaction_datetime' && filters.sortBy">
-                                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                                          </svg>
-                                      </span>
-                                      <span v-if="filters.sortKey === 'transaction_datetime' && !filters.sortBy">
-                                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                              <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
-                                          </svg>
-                                      </span>
-                                  </div>
-                              </div>
-                          </th>
-                          <th scope="col"
-                              class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                              Code
-                          </th>
-                          <th scope="col"
-                              class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                              Channel
-                          </th>
-                          <th scope="col"
-                              class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                              Amount
-                          </th>
-                          <th scope="col"
-                              class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                              Pay Method
-                          </th>
-                          <th scope="col"
-                              class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                              Channels Error
-                          </th>
-                          <th scope="col"
-                              class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                              Order ID
-                          </th>
+                        <TableHead>
+                            #
+                        </TableHead>
+                        <TableHeadSort modelName="transaction_datetime" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('transaction_datetime')">
+                            DateTime
+                        </TableHeadSort>
+                        <TableHead>
+                            Code
+                        </TableHead>
+                        <TableHead>
+                            Channel
+                        </TableHead>
+                        <TableHead>
+                            Amount
+                        </TableHead>
+                        <TableHead>
+                            Pay Method
+                        </TableHead>
+                        <TableHead>
+                            Channels Error
+                        </TableHead>
+                        <TableHead>
+                            Order ID
+                        </TableHead>
                       </tr>
                   </thead>
                   <tbody class="bg-white">
                       <tr v-for="(vendTransaction, vendTransactionIndex) in vendTransactions.data" :key="vendTransaction.id"
                           class="divide-x divide-gray-200">
-                          <td :class="[vendTransactionIndex !== vendTransactions.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 lg:pl-8']"
-                              class="text-center">
-                              {{ vendTransactions.meta.from + vendTransactionIndex }}
-                          </td>
-                          <td :class="[vendTransactionIndex !== vendTransactions.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-800 sm:pl-6 lg:pl-8']"
-                              class="text-left">
-                              {{ vendTransaction.transaction_datetime }}
-                          </td>
-                          <td :class="[vendTransactionIndex !== vendTransactions.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-800 sm:pl-6 lg:pl-8']"
-                              class="text-right">
-                              {{ vendTransaction.vend_code }}
-                          </td>
-                          <td :class="[vendTransactionIndex !== vendTransactions.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-800 sm:pl-6 lg:pl-8']"
-                              class="text-right">
-                              {{ vendTransaction.vend_channel_code }}
-                          </td>
-                          <td :class="[vendTransactionIndex !== vendTransactions.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-800 sm:pl-6 lg:pl-8']"
-                              class="text-right">
-                              {{ vendTransaction.amount }}
-                          </td>
-                          <td :class="[vendTransactionIndex !== vendTransactions.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-800 sm:pl-6 lg:pl-8']"
-                              class="text-left">
-                              {{ vendTransaction.payment_method_name }}
-                          </td>
-                          <td :class="[vendTransactionIndex !== vendTransactions.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-800 sm:pl-6 lg:pl-8']"
-                              class="text-right">
-                              {{ vendTransaction.vend_channel_error_desc }}
-                          </td>
-                          <td :class="[vendTransactionIndex !== vendTransactions.length - 1 ? 'border-b border-gray-200' : '', 'whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-800 sm:pl-6 lg:pl-8']"
-                              class="text-left">
-                              {{ vendTransaction.order_id }}
-                          </td>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            {{ vendTransactions.meta.from + vendTransactionIndex }}
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            {{ vendTransaction.transaction_datetime }}
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            {{ vendTransaction.vend.code }}
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            {{ vendTransaction.vendChannel.code }}
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-right">
+                            {{ vendTransaction.amount }}
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            {{ vendTransaction.paymentMethod ? vendTransaction.paymentMethod.name : null }}
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
+                            {{ vendTransaction.vend_channel_error_desc }}
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            {{ vendTransaction.order_id }}
+                        </TableData>
                       </tr>
+                      <tr v-if="!vendTransactions.data.length">
+                            <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                                No Results Found
+                            </td>
+                        </tr>
                   </tbody>
               </table>
-              <Paginator :links="vendTransactions.links" :meta="vendTransactions.meta"></Paginator>
+              <Paginator v-if="vendTransactions.data.length" :links="vendTransactions.links" :meta="vendTransactions.meta"></Paginator>
           </div>
       </div>
       </div>
@@ -224,80 +202,80 @@
   </BreezeAuthenticatedLayout>
 </template>
 
-<script>
+<script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
-import OptionDropdown from '@/Components/OptionDropdown.vue';
 import Paginator from '@/Components/Paginator.vue';
-import { SearchIcon } from '@heroicons/vue/solid';
-import SearchInput from '@/Components/SearchInput.vue';
-import { debounce } from 'lodash';
-  import MultiSelect from '@/Components/MultiSelect.vue';
+import { MagnifyingGlassIcon, BackspaceIcon } from '@heroicons/vue/20/solid';
+import MultiSelect from '@/Components/MultiSelect.vue';
 import moment from 'moment';
+import TableData from '@/Components/TableData.vue';
+import TableHead from '@/Components/TableHead.vue';
+import TableHeadSort from '@/Components/TableHeadSort.vue';
+import { ref, onMounted } from 'vue';
+import { Inertia } from '@inertiajs/inertia';
+import { Head } from '@inertiajs/inertia-vue3';
 
-export default {
-  components: {
-  BreezeAuthenticatedLayout,
-  Button,
-  DatePicker,
-  MultiSelect,
-  OptionDropdown,
-  Paginator,
-  SearchIcon,
-  SearchInput,
-},
-  props: {
-      paymentMethods: Object,
-      vends: Object,
-      vendTransactions: Object,
-      vendChannelErrors: Object,
-  },
-  created() {
-      this.vendOptions = this.vends.data.map((vend) => {return {id: vend.id, code: vend.code}})
-      this.vendChannelErrorOptions = this.vendChannelErrors.data.map((error) => {return {id: error.id, desc: error.desc}})
-      this.paymentMethodOptions = [
+const props = defineProps({
+    paymentMethods: Object,
+    vends: Object,
+    vendTransactions: Object,
+    vendChannelErrors: Object,
+})
+
+onMounted(() => {
+    vendOptions.value = props.vends.data.map((vend) => {return {id: vend.id, code: vend.code}})
+    vendChannelErrorOptions.value = props.vendChannelErrors.data.map((error) => {return {id: error.id, desc: error.desc}})
+    paymentMethodOptions.value = [
         {id: '', name: 'All'},
-        ...this.paymentMethods.data.map((paymethod) => {return {id: paymethod.id, name: paymethod.name}})
-      ]
-  },
-  data() {
-      return {
-          filters: this.getFiltersDefault(),
-          vendOptions: [],
-          vendChannelErrorOptions: [],
-          paymentMethodOptions: [],
-      }
-  },
-  watch: {
-        'filters.numberPerPage' () {
-            this.onSearchFilterUpdated()
-        }
-    },
-  methods: {
-      getFiltersDefault() {
-          return {
-              codes: [],
-              errors: [],
-              paymentMethod: '',
-              date_from: moment().startOf('month').toDate(),
-              date_to: moment().toDate(),
-              sortKey: '',
-              sortBy: true,
-              numberPerPage: 100,
-          }
-      },
-      onSearchFilterUpdated: debounce(function() {
-          this.$inertia.get('/vends/transactions', this.filters, {
-              preserveState: true,
-              replace: true,
-          })
-      }, 500),
-      sortTable(sortKey) {
-          this.filters.sortKey = sortKey
-          this.filters.sortBy = !this.filters.sortBy
-          this.onSearchFilterUpdated()
-      },
-  },
+        ...props.paymentMethods.data.map((paymethod) => {return {id: paymethod.id, name: paymethod.name}})
+    ]
+    numberPerPageOptions.value = [
+        { id: 100, value: 100 },
+        { id: 200, value: 200 },
+        { id: 500, value: 500 },
+        { id: 'All', value: 'All' },
+    ]
+    filters.value.numberPerPage = numberPerPageOptions.value[0]
+    filters.value.paymentMethod = paymentMethodOptions.value[0]
+})
+
+const filters = ref({
+    codes: [],
+    errors: [],
+    paymentMethod: '',
+    date_from: moment().startOf('month').toDate(),
+    date_to: moment().toDate(),
+    sortKey: '',
+    sortBy: true,
+    numberPerPage: 100,
+})
+const vendOptions = ref([])
+const vendChannelErrorOptions = ref([])
+const paymentMethodOptions = ref([])
+const numberPerPageOptions = ref([])
+
+function onSearchFilterUpdated() {
+    Inertia.get('/vends/transactions', {
+        ...filters.value,
+        codes: filters.value.codes.map((code) => { return code.id }),
+        errors: filters.value.errors.map((error) => { return error.id }),
+        paymentMethod: filters.value.paymentMethod.id,
+        numberPerPage: filters.value.numberPerPage.id,
+    }, {
+        preserveState: true,
+        replace: true,
+    })
+}
+
+function resetFilters() {
+    Inertia.get('/vends/transactions')
+}
+
+function sortTable(sortKey) {
+    filters.value.sortKey = sortKey
+    filters.value.sortBy = !filters.value.sortBy
+    onSearchFilterUpdated()
 }
 </script>

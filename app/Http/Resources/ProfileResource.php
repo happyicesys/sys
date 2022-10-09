@@ -14,6 +14,14 @@ class ProfileResource extends JsonResource
      */
     public function toArray($request)
     {
-        return parent::toArray($request);
+        return [
+            'id' => $this->id,
+            'alias' => $this->alias,
+            'name' => $this->name,
+            'uen' => $this->uen,
+            'base_currency_id' => CountryResource::make($this->whenLoaded('baseCurrency')),
+            'address' => AddressResource::make($this->whenLoaded('address')),
+            'contact' => ContactResource::make($this->whenLoaded('contact')),
+        ];
     }
 }

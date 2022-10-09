@@ -40,11 +40,17 @@ class DatabaseSeeder extends Seeder
 
 
         $this->call([
-            PaymentMethodSeeder::class,
+            // PaymentMethodSeeder::class,
             // VendChannelErrorSeeder::class,
             // CountrySeeder::class,
             // PaymentTermSeeder::class,
             // TaxSeeder::class,
+
+            // CashlessProviderSeeder::class,
+            // TelcoSeeder::class,
+            // VendTypeSeeder::class,
+            // UomSeeder::class,
+            UserAssignProfileSeeder::class,
         ]);
     }
 }

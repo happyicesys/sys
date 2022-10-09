@@ -24,12 +24,19 @@ class Vend extends Model
         'is_door_open',
         'is_sensor_normal',
         'is_temp_error',
+        'keylock_number',
+        'vend_type_id',
     ];
 
     // relationships
     public function category()
     {
         return $this->morphOne(Category::class, 'modelable');
+    }
+
+    public function latestVendBinding()
+    {
+        return $this->hasOne(VendBinding::class)->latest('begin_date');
     }
 
     public function vendChannels()
@@ -40,5 +47,10 @@ class Vend extends Model
     public function vendTemps()
     {
         return $this->hasMany(VendTemp::class);
+    }
+
+    public function vendType()
+    {
+        return $this->belongsTo(VendType::class);
     }
 }

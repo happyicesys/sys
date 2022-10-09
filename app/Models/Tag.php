@@ -15,8 +15,8 @@ class Tag extends Model
         'desc',
     ];
 
-    public function customers()
+    public function tagBindings()
     {
-        return $this->hasMany(Customer::class);
+        return $this->hasMany(TagBinding::class);
     }
 }

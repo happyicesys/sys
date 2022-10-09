@@ -22,34 +22,23 @@
   </Menu>
 </template>
 
-<script>
-    import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue'
-    import { ChevronDownIcon } from '@heroicons/vue/solid'
+<script setup>
+  import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue'
+  import { ChevronDownIcon } from '@heroicons/vue/solid'
+  import { ref } from 'vue'
 
-  export default {
-    components: {
-      ChevronDownIcon,
-      Menu,
-      MenuButton,
-      MenuItem,
-      MenuItems,
-    },
-    props: {
-      options: {
-        type: Object,
-      }
-    },
-    data() {
-      return {
-        selected: this.options[0],
-      }
-    },
-    methods: {
-      selectOption(option) {
-        this.selected = option
-        this.$emit('optionSelected', option)
-      },
+  const emit = defineEmits(['optionSelected'])
+
+  const props = defineProps({
+    options: {
+      type: [Object, Array]
     }
-  }
+  })
 
+  const selected = ref(props.options[0])
+
+  function selectOption(option) {
+    selected.value = option
+    emit('optionSelected', option)
+  }
 </script>

@@ -24,7 +24,7 @@ class Profile extends Model
 
     public function baseCurrency()
     {
-        return $this->belongsTo(Country::class, 'base_currency_id')->orderBy('sequence');
+        return $this->belongsTo(Country::class, 'base_currency_id');
     }
 
     public function contact()

@@ -22,6 +22,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'profile_id',
     ];
 
     /**
@@ -50,5 +51,11 @@ class User extends Authenticatable
             get: fn ($value) => $value,
             set: fn ($value) => bcrypt($value),
         );
+    }
+
+    // relationships
+    public function profile()
+    {
+        return $this->belongsTo(Profile::class);
     }
 }

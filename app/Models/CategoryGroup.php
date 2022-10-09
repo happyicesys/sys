@@ -10,8 +10,9 @@ class CategoryGroup extends Model
     use HasFactory;
 
     protected $fillable =[
-        'name',
+        'classname',
         'desc',
+        'name',
     ];
 
     // relationships

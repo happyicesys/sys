@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CategoryResource;
+use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendChannelErrorResource;
 use App\Http\Resources\VendTransactionResource;
 use App\Http\Resources\VendTempResource;
 use App\Mail\VendChannelErrorLogsMail;
+use App\Models\Category;
+use App\Models\CategoryGroup;
+use App\Models\Customer;
 use App\Models\PaymentMethod;
 use App\Models\Vend;
 use App\Models\VendChannelError;
@@ -24,16 +29,23 @@ class VendController extends Controller
 {
     public function index(Request $request)
     {
-        // init
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $sortKey = $request->sortKey ? $request->sortKey : 'code';
         $sortBy = $request->sortBy ? $request->sortBy : true;
+        $className = get_class(new Customer());
 
         return Inertia::render('Vend/Index', [
+            'categories' => CategoryResource::collection(
+                Category::where('classname', $className)->orderBy('name')->get()
+            ),
+            'categoryGroups' => CategoryGroupResource::collection(
+                CategoryGroup::where('classname', $className)->orderBy('name')->get()
+            ),
             'vends' => VendResource::collection(
                 Vend::with([
+                    'latestVendBinding.customer',
+                    'latestVendBinding.customer.category.categoryGroup',
                     'vendChannels',
-                    'vendChannels.vendChannelErrorLogs',
                     'vendChannels.vendChannelErrorLogs.vendChannelError',
                     ])
                     ->when($request->code, function($query, $search) {
@@ -42,8 +54,25 @@ class VendController extends Controller
                     ->when($request->serialNum, function($query, $search) {
                         $query->where('serial_num', 'LIKE', "%{$search}%");
                     })
-                    ->when($request->name, function($query, $search) {
-                        $query->where('name', 'LIKE', "%{$search}%");
+                    ->when($request->customer_code, function($query, $search) {
+                        $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                            $query->where('code', 'LIKE', "%{$search}%");
+                        });
+                    })
+                    ->when($request->customer_name, function($query, $search) {
+                        $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                            $query->where('name', 'LIKE', "%{$search}%");
+                        });
+                    })
+                    ->when($request->categories, function($query, $search) {
+                        $query->whereHas('latestVendBinding.customer.category', function($query) use ($search) {
+                            $query->whereIn('id', $search);
+                        });
+                    })
+                    ->when($request->categoryGroups, function($query, $search) {
+                        $query->whereHas('latestVendBinding.customer.category.categoryGroup', function($query) use ($search) {
+                            $query->whereIn('id', $search);
+                        });
                     })
                     ->when($request->tempHigherThan, function($query, $search) {
                         if(is_numeric($search)) {
@@ -106,18 +135,20 @@ class VendController extends Controller
 
     public function transactionIndex(Request $request)
     {
-
-        // init
-        $numberPerPage = isset($request->numberPerPage['id']) ? $request->numberPerPage['id'] : 100;
+        // dd($request->all());
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $sortKey = $request->sortKey ? $request->sortKey : 'transaction_datetime';
         $sortBy = $request->sortBy ? $request->sortBy : false;
+        $startDate =  $request->date_from ?? Carbon::today()->startOfMonth()->toDateString();
+        $endDate =  $request->date_to ?? Carbon::today()->toDateString();
 
         return Inertia::render('Vend/Transaction', [
             'vends' => VendResource::collection(Vend::orderBy('code')->get()),
             'vendTransactions' => VendTransactionResource::collection(
                 VendTransaction::with([
+                    'paymentMethod',
                     'vend',
-                    // 'vendChannel',
+                    'vendChannel',
                     'vendChannelError',
                     ])
                     ->when($request->codes, function($query, $search) {
@@ -126,17 +157,17 @@ class VendController extends Controller
                         });
                     })
                     ->when($request->errors, function($query, $search) {
-                        $query->whereHas('vendChannels.vendChannelErrorLogs', function($query) use ($search) {
+                        $query->whereHas('vendChannel.vendChannelErrorLogs', function($query) use ($search) {
                             $query->where('vend_channel_error_id', 'IN', $search)->where('is_error_cleared', false);
                         });
                     })
                     ->when($request->paymentMethod, function($query, $search) {
                         $query->where('payment_method_id', $search);
                     })
-                    ->when($request->date_from, function($query, $search) {
+                    ->when($startDate, function($query, $search) {
                         $query->whereDate('transaction_datetime', '>=', $search);
                     })
-                    ->when($request->date_to, function($query, $search) {
+                    ->when($endDate, function($query, $search) {
                         $query->whereDate('transaction_datetime', '<=', $search);
                     })
                     ->when($sortKey, function($query, $search) use ($sortBy) {

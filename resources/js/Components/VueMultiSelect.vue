@@ -14,28 +14,25 @@
   </div>
 </template>
 
-<script>
-import VueMultiselect from 'vue-multiselect'
-export default {
-  components: { VueMultiselect },
-  props: {
+<script setup>
+  import VueMultiselect from 'vue-multiselect'
+  import { ref } from 'vue'
+
+  const emit = defineEmits(['onSelected'])
+
+  const props = defineProps({
     options: Array,
     allowEmpty: Boolean,
     deselectLabel: String,
     customLabel: Function,
     multiple: Boolean,
-  },
-  data () {
-    return {
-      selected: this.multiple ? null : this.options[0],
-    }
-  },
-  methods: {
-    onSelected() {
-      this.$emit('onSelected', this.selected)
-    }
+  })
+
+  const selected = ref(props.multiple ? null : props.options[0])
+
+  function onSelected() {
+    emit('onSelected', selected.value)
   }
-}
 </script>
 
 <style src="vue-multiselect/dist/vue-multiselect.css"></style>

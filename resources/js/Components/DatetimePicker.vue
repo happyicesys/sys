@@ -21,26 +21,23 @@
   </div>
 </template>
 
-<script>
+<script setup>
   import Datepicker from '@vuepic/vue-datepicker';
   import '@vuepic/vue-datepicker/dist/main.css'
 
-  export default {
-      components: { Datepicker },
-      props: {
-        modelValue: Date,
-        minDate: String,
-        maxDate: String,
-        enableTimePicker: {
-          type: Boolean,
-          default: true,
-        },
-      },
-      emit: ['update:modelValue'],
-      methods: {
-        onSelected(modelData) {
-          this.$emit('update:modelValue', modelData)
-        }
-      }
+  const emit = defineEmits(['update:modelValue'])
+
+  defineProps({
+    modelValue: [Date, String],
+    minDate: [Date, String],
+    maxDate: [Date, String],
+    enableTimePicker: {
+      type: Boolean,
+      default: true,
+    },
+  })
+
+  function onSelected(modelData) {
+    emit('update:modelValue', modelData)
   }
 </script>

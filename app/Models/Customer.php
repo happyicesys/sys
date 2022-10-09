@@ -12,17 +12,20 @@ class Customer extends Model
     protected $fillable = [
         'category_id',
         'code',
+        'created_at',
         'created_by',
         'deactivated_at',
-        'name',
         'first_transaction_id',
         'handled_by',
+        'name',
         'is_active',
+        'is_freezer',
+        'ops_note',
         'parent_id',
-        'pay_term_id',
+        'payment_method_id',
+        'payment_term_id',
         'profile_id',
         'price_template_id',
-        'ops_note',
         'remarks',
         'status_id',
         'updated_by',
@@ -108,6 +111,11 @@ class Customer extends Model
     public function updatedBy()
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function vendBinding()
+    {
+        return $this->hasOne(VendBinding::class);
     }
 
     public function zone()

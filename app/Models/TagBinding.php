@@ -17,7 +17,7 @@ class TagBinding extends Model
     // relationships
     public function customer()
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Customer::class)->orderBy('code', 'asc');
     }
 
     public function tag()

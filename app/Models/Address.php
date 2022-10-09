@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Country;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -36,4 +38,12 @@ class Address extends Model
     {
         return $this->morphTo();
     }
+
+    // mutators
+    // protected function countryId(): Attribute
+    // {
+    //     return Attribute::make(
+    //         set: fn ($value) => $value ? $value : Country::where('name', 'Singapore')->first()->id,
+    //     );
+    // }
 }

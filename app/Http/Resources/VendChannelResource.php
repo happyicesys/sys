@@ -22,7 +22,7 @@ class VendChannelResource extends JsonResource
             'capacity' => $this->capacity,
             'amount' => $this->amount,
             'is_active' => $this->is_active ? true : false,
-            'vend_channel_error_logs' => VendChannelErrorLogResource::collection($this->vendChannelErrorLogs),
+            'vendChannelErrorLogs' => VendChannelErrorLogResource::collection($this->whenLoaded('vendChannelErrorLogs')),
         ];
     }
 }

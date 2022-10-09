@@ -25,4 +25,9 @@ class Category extends Model
     {
         return $this->morphMany(Attachment::class, 'modelable');
     }
+
+    public function categoryGroup()
+    {
+        return $this->belongsTo(CategoryGroup::class);
+    }
 }

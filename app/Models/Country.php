@@ -18,4 +18,15 @@ class Country extends Model
         'is_state',
         'sequence',
     ];
+
+    // relationships
+    public function quoteExchangeRates()
+    {
+        return $this->hasMany(ExchangeRate::class, 'quote_country_id')->latest();
+    }
+
+    public function latestQuoteExchangeRate()
+    {
+        return $this->hasOne(ExchangeRate::class, 'quote_country_id')->latest();
+    }
 }

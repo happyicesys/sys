@@ -38,7 +38,7 @@
                 <Button
                     class="border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 px-7 sm:px-3"
                     @click="back()">
-                    <ArrowLeftIcon class="mr-2 flex-shrink-0 h-4 w-4 text-gray-400 group-hover:text-gray-500" aria-hidden="true" />
+                    <ArrowUturnLeftIcon class="mr-2 flex-shrink-0 h-4 w-4 text-gray-400 group-hover:text-gray-500" aria-hidden="true" />
                     Back
                 </Button>
             </div>
@@ -101,67 +101,61 @@
     </BreezeAuthenticatedLayout>
 </template>
 
-<script>
+<script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Datepicker from '@/Components/Datepicker.vue';
 import DatetimePicker from '@/Components/DatetimePicker.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import Graph from '@/Components/Graph.vue';
-import { ArrowLeftIcon,  } from '@heroicons/vue/solid'
+import { ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
+import { ref, onMounted } from 'vue';
+import { Inertia } from '@inertiajs/inertia';
 
-export default {
-    components: {
-		ArrowLeftIcon,
-        BreezeAuthenticatedLayout,
-        Button,
-        Datepicker,
-        DatetimePicker,
-        SearchInput,
-        Graph,
-    },
-    props: {
-        duration: Number,
-		endDate: String,
-        endDateString: String,
-        request: Object,
-		startDate: String,
-        startDateString: String,
-        vendObj: Object,
-        vendTempsObj: Object,
-    },
-    data() {
-        return {
-            durationFilters: [
-                1, 3, 7, 14
-            ],
-            filters: {
-                datetime_from: this.startDate ? new Date(this.startDate) : new Date(),
-                datetime_to: this.endDate ? new Date(this.endDate) : new Date(),
-                duration: this.duration,
-                showDurationFilters: this.showDurationFilters,
-            },
-            vendTemps: this.vendTempsObj.data.map(a => a.value),
-            vendTime: this.vendTempsObj.data.map(a => a.created_at),
-            vend: this.vendObj.data,
-        }
-    },
-    methods: {
-        onCustomDatetimeSearched() {
-            this.$inertia.get(
-                '/vend/' +
-                this.vend.id +
-                '/temp'
-            , this.filters, {
-                preserveScroll: true,
-            })
-        },
-        onDurationFilterClicked(duration) {
-            this.$inertia.get('/vend/' + this.vend.id + '/temp?duration=' + duration)
-        },
-        back() {
-            window.history.back();
-        }
-    },
+const props = defineProps({
+    duration: Number,
+    endDate: String,
+    endDateString: String,
+    request: Object,
+    startDate: String,
+    startDateString: String,
+    vendObj: Object,
+    vendTempsObj: Object,
+});
+
+const durationFilters = ref([1, 3, 7, 14])
+const filters = ref({
+    datetime_from: props.startDate ? new Date(props.startDate) : new Date(),
+    datetime_to: props.endDate ? new Date(props.endDate) : new Date(),
+    duration: props.duration,
+    // showDurationFilters: this.showDurationFilters,
+})
+const vendTemps = ref(props.vendTempsObj.data.map(a => a.value))
+const vendTime = ref(props.vendTempsObj.data.map(a => a.created_at))
+const vend = ref(props.vendObj.data)
+
+// onMounted(() => {
+//     vendTemps.value = props.vendTempsObj.data.map(a => a.value)
+//     vendTime.value = props.vendTempsObj.data.map(a => a.created_at)
+//     vend.value = props.vendObj.data
+// })
+
+
+function onCustomDatetimeSearched() {
+    Inertia.get(
+        '/vends/' +
+        vend.value.id +
+        '/temp'
+    , filters.value, {
+        preserveScroll: true,
+    })
+}
+
+function onDurationFilterClicked(duration) {
+    Inertia.get('/vends/' + vend.value.id + '/temp?duration=' + duration)
+}
+
+function back() {
+    window.history.back();
 }
 </script>

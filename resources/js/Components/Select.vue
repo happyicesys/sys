@@ -4,18 +4,21 @@
             <slot></slot>
         </label>
         <Select2 class="mt-1" :input="modelValue" :options="options" :settings="{ allowClear: true }"
-            @select="$emit('update:modelValue', $event.target.value)" />
+            @select="onSelected"/>
     </div>
 </template>
-<script>
+
+<script setup>
 import Select2 from 'v-select2-component';
 
-export default {
-    // declare Select2Component
-    components: { Select2 },
-    props: {
-        modelValue: String,
-        options: Object
-    }
+const emit = defineEmits(['update:modelValue'])
+
+defineProps({
+    modelValue: String,
+    options: Object
+})
+
+function onSelected() {
+    emit('update:modelValue', $event.target.value)
 }
 </script>

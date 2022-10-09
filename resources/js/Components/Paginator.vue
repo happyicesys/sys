@@ -38,7 +38,7 @@
                         :class="[!links.prev ? 'opacity-25 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50']"
                         :disabled="!links.prev" preserve-scroll>
                         <span class="sr-only">Previous</span>
-                        <ChevronLeftIcon class="h-5 w-5" aria-hidden="true" />
+                        <ChevronDoubleLeftIcon class="h-5 w-5" aria-hidden="true" />
                     </Component>
                     <!-- Current: "z-10 bg-indigo-50 border-indigo-500 text-indigo-600", Default: "bg-white border-gray-300 text-gray-500 hover:bg-gray-50" -->
                     <Link v-for="(link, linkIndex) in meta.links"
@@ -53,7 +53,7 @@
                         :class="[!links.next ? 'opacity-25 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50']"
                         :disabled="!links.next" preserve-scroll>
                         <span class="sr-only">Next</span>
-                        <ChevronRightIcon class="h-5 w-5" aria-hidden="true" />
+                        <ChevronDoubleRightIcon class="h-5 w-5" aria-hidden="true" />
                     </Component>
 
                 </nav>
@@ -62,19 +62,12 @@
     </div>
 </template>
 
-<script>
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/solid'
+<script setup>
+import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon } from '@heroicons/vue/24/outline'
 import { Link } from '@inertiajs/inertia-vue3';
 
-export default {
-    components: {
-        ChevronLeftIcon,
-        ChevronRightIcon,
-        Link,
-    },
-    props: {
-        links: Object,
-        meta: Object,
-    }
-}
+defineProps({
+    links: Object,
+    meta: Object,
+})
 </script>

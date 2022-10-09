@@ -28,7 +28,15 @@ class VendResource extends JsonResource
             'is_door_open' => $this->is_door_open ? 'Yes' : 'No',
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
-            'vend_channels' => VendChannelResource::collection($this->vendChannels),
+            'vendChannels' => VendChannelResource::collection($this->whenLoaded('vendChannels')),
+            'latestVendBinding' =>$this->whenLoaded('latestVendBinding'),
         ];
+    }
+
+    public function only(...$attributes)
+    {
+        return collect($this->resolve())
+            ->only($attributes)
+            ->toArray();
     }
 }

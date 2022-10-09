@@ -20,7 +20,7 @@ class VendTransactionResource extends JsonResource
             'id' => $this->id,
             'amount' => number_format($this->amount/ 100, 2, '.', ','),
             'order_id' => $this->order_id,
-            'payment_method_name' =>  PaymentMethod::where('code', $this->payment_method_id)->first()->name,
+            'paymentMethod' => PaymentMethodResource::make($this->paymentMethod),
             'transaction_datetime' => $this->transaction_datetime ? Carbon::parse($this->transaction_datetime)->format('ymd h:i a') : null,
             'vend' => VendResource::make($this->vend),
             'vendChannel' => VendChannelResource::make($this->vendChannel),

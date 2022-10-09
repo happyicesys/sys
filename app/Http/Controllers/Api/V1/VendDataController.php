@@ -90,9 +90,9 @@ class VendDataController extends Controller
 
     private function createVendTransaction(Vend $vend, $request)
     {
-        if($payType = $request->PAY_TYPE) {
-            $paymentMethod = PaymentMethod::where('code', $payType)->first();
-        }
+        // if($payType = $request->PAY_TYPE) {
+        $paymentMethod = PaymentMethod::where('code', $payType)->first();
+        // }
 
         if($sID = $request->SId) {
             $vendChannel = VendChannel::where('code', $sID)->where('vend_id', $vend->id)->first();
@@ -111,7 +111,7 @@ class VendDataController extends Controller
             'order_id' => $request->ORDRID,
             'transaction_datetime' => Carbon::createFromFormat('Y-m-d H:i:s', $request->TIME),
             'amount' => $request->Price,
-            'payment_method_id' => isset($paymentMethod) ? $paymentMethod->id : null,
+            'payment_method_id' => $paymentMethod ? $paymentMethod->id : null,
             'vend_id' => $vend->id,
             'vend_channel_id' => isset($vendChannel) ? $vendChannel->id : 0,
             'vend_channel_error_id' => isset($vendChannelError) ? $vendChannelError->id : null
