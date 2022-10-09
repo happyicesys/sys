@@ -46,11 +46,11 @@ class DatabaseSeeder extends Seeder
             // PaymentTermSeeder::class,
             // TaxSeeder::class,
 
-            CashlessProviderSeeder::class,
-            TelcoSeeder::class,
-            VendTypeSeeder::class,
-            UomSeeder::class,
-            // UserAssignProfileSeeder::class,
+            // CashlessProviderSeeder::class,
+            // TelcoSeeder::class,
+            // VendTypeSeeder::class,
+            // UomSeeder::class,
+            UserAssignProfileSeeder::class,
         ]);
     }
 }
