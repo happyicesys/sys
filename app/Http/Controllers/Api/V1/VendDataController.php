@@ -91,7 +91,7 @@ class VendDataController extends Controller
     private function createVendTransaction(Vend $vend, $request)
     {
         // if($payType = $request->PAY_TYPE) {
-        $paymentMethod = PaymentMethod::where('code', $payType)->first();
+        $paymentMethod = PaymentMethod::where('code', $request->PAY_TYPE)->first();
         // }
 
         if($sID = $request->SId) {
