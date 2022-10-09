@@ -50,7 +50,7 @@ class DatabaseSeeder extends Seeder
             // TelcoSeeder::class,
             // VendTypeSeeder::class,
             // UomSeeder::class,
-            UserAssignProfileSeeder::class,
+            // UserAssignProfileSeeder::class,
         ]);
     }
 }

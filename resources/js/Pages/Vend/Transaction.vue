@@ -15,22 +15,6 @@
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-5 md:col-span-1">
-              <label for="text" class="block text-sm font-medium text-gray-700">
-                  Code
-              </label>
-                <MultiSelect
-                    v-model="filters.codes"
-                    :options="vendOptions"
-                    valueProp="id"
-                    label="code"
-                    mode="tags"
-                    placeholder="Select"
-                    open-direction="bottom"
-                    class="mt-1"
-                >
-                </MultiSelect>
-            </div>
-            <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Errors?
                 </label>
@@ -78,7 +62,58 @@
                     To
                 </DatePicker>
             </div>
+            <div class="col-span-5 md:col-span-1">
+              <label for="text" class="block text-sm font-medium text-gray-700">
+                  Code
+              </label>
+                <MultiSelect
+                    v-model="filters.codes"
+                    :options="vendOptions"
+                    valueProp="id"
+                    label="code"
+                    mode="tags"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
+            <div class="col-span-5 md:col-span-1">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Category
+                </label>
+                <MultiSelect
+                    v-model="filters.categories"
+                    :options="categoryOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="name"
+                    mode="tags"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
+            <div class="col-span-5 md:col-span-1">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Group
+                </label>
+                <MultiSelect
+                    v-model="filters.categoryGroups"
+                    :options="categoryGroupOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="name"
+                    mode="tags"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
           </div>
+
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
                 <div class="mt-3">
@@ -143,6 +178,12 @@
                             Code
                         </TableHead>
                         <TableHead>
+                            Customer
+                        </TableHead>
+                        <TableHead>
+                            Category
+                        </TableHead>
+                        <TableHead>
                             Channel
                         </TableHead>
                         <TableHead>
@@ -171,13 +212,22 @@
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.vend.code }}
                         </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
+                                <!-- {{  vend.latestVendBinding.customer.code }} -->
+                                {{ vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer ? vendTransaction.vend.latestVendBinding.customer.code : null }} <br>
+                                {{ vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer ? vendTransaction.vend.latestVendBinding.customer.name : null }}
+                            </TableData>
+                            <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
+                                {{ vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer && vendTransaction.vend.latestVendBinding.customer.category ? vendTransaction.vend.latestVendBinding.customer.category.name : null }} <br>
+                                {{ vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer && vendTransaction.vend.latestVendBinding.customer.category && vendTransaction.vend.latestVendBinding.customer.category.category_group ? vendTransaction.vend.latestVendBinding.customer.category.category_group.name : null }}
+                            </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.vendChannel.code }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-right">
                             {{ vendTransaction.amount }}
                         </TableData>
-                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
                             {{ vendTransaction.paymentMethod ? vendTransaction.paymentMethod.name : null }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
@@ -218,11 +268,15 @@ import { Inertia } from '@inertiajs/inertia';
 import { Head } from '@inertiajs/inertia-vue3';
 
 const props = defineProps({
+    categories: Object,
+    categoryGroups: Object,
     paymentMethods: Object,
     vends: Object,
     vendTransactions: Object,
     vendChannelErrors: Object,
 })
+const categoryOptions = ref([])
+const categoryGroupOptions = ref([])
 
 onMounted(() => {
     vendOptions.value = props.vends.data.map((vend) => {return {id: vend.id, code: vend.code}})
@@ -239,10 +293,15 @@ onMounted(() => {
     ]
     filters.value.numberPerPage = numberPerPageOptions.value[0]
     filters.value.paymentMethod = paymentMethodOptions.value[0]
+
+    categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
+    categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
 })
 
 const filters = ref({
     codes: [],
+    categories: [],
+    categoryGroups: [],
     errors: [],
     paymentMethod: '',
     date_from: moment().startOf('month').toDate(),
@@ -259,6 +318,8 @@ const numberPerPageOptions = ref([])
 function onSearchFilterUpdated() {
     Inertia.get('/vends/transactions', {
         ...filters.value,
+        categories: filters.value.categories.map((category) => { return category.id }),
+        categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
         codes: filters.value.codes.map((code) => { return code.id }),
         errors: filters.value.errors.map((error) => { return error.id }),
         paymentMethod: filters.value.paymentMethod.id,

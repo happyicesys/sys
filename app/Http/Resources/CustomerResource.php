@@ -36,17 +36,17 @@ class CustomerResource extends JsonResource
             'updated_at' => Carbon::parse($this->updated_at)->toDateString(),
             'updated_by' => $this->updated_by,
             'zone_id' => $this->zone_id,
-            'accountManager' => UserResource::make($this->handledBy),
+            'accountManager' => UserResource::make($this->whenLoaded('handledBy')),
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'billingAddress' => AddressResource::make($this->whenLoaded('billingAddress')),
             'category' => CategoryResource::make($this->whenLoaded('category')),
             'contacts' => ContactResource::collection($this->whenLoaded('contacts')),
-            'createdBy' => UserResource::make($this->createdBy),
+            'createdBy' => UserResource::make($this->whenLoaded('createdBy')),
             'deliveryAddress' => AddressResource::make($this->whenLoaded('deliveryAddress')),
-            'firstTransaction' => TransactionResource::make($this->firstTransaction),
-            'status' => StatusResource::make($this->status),
+            'firstTransaction' => TransactionResource::make($this->whenLoaded('firstTransaction')),
+            'status' => StatusResource::make($this->whenLoaded('status')),
             'tags' => TagResource::collection($this->whenLoaded('tagBindings')),
-            'updatedBy' => UserResource::make($this->updatedBy),
+            'updatedBy' => UserResource::make($this->whenLoaded('updatedBy')),
         ];
     }
 }

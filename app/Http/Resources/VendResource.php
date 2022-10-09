@@ -29,7 +29,7 @@ class VendResource extends JsonResource
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
             'vendChannels' => VendChannelResource::collection($this->whenLoaded('vendChannels')),
-            'latestVendBinding' =>$this->whenLoaded('latestVendBinding'),
+            'latestVendBinding' => VendBindingResource::make($this->whenLoaded('latestVendBinding')),
         ];
     }
 

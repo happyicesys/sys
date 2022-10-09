@@ -141,13 +141,21 @@ class VendController extends Controller
         $sortBy = $request->sortBy ? $request->sortBy : false;
         $startDate =  $request->date_from ?? Carbon::today()->startOfMonth()->toDateString();
         $endDate =  $request->date_to ?? Carbon::today()->toDateString();
+        $className = get_class(new Customer());
 
         return Inertia::render('Vend/Transaction', [
+            'categories' => CategoryResource::collection(
+                Category::where('classname', $className)->orderBy('name')->get()
+            ),
+            'categoryGroups' => CategoryGroupResource::collection(
+                CategoryGroup::where('classname', $className)->orderBy('name')->get()
+            ),
             'vends' => VendResource::collection(Vend::orderBy('code')->get()),
             'vendTransactions' => VendTransactionResource::collection(
                 VendTransaction::with([
                     'paymentMethod',
                     'vend',
+                    'vend.latestVendBinding.customer.category.categoryGroup',
                     'vendChannel',
                     'vendChannelError',
                     ])
@@ -163,6 +171,16 @@ class VendController extends Controller
                     })
                     ->when($request->paymentMethod, function($query, $search) {
                         $query->where('payment_method_id', $search);
+                    })
+                    ->when($request->categories, function($query, $search) {
+                        $query->whereHas('vend.latestVendBinding.customer.category', function($query) use ($search) {
+                            $query->whereIn('id', $search);
+                        });
+                    })
+                    ->when($request->categoryGroups, function($query, $search) {
+                        $query->whereHas('vend.latestVendBinding.customer.category.categoryGroup', function($query) use ($search) {
+                            $query->whereIn('id', $search);
+                        });
                     })
                     ->when($startDate, function($query, $search) {
                         $query->whereDate('transaction_datetime', '>=', $search);
