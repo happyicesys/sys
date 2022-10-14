@@ -13,4 +13,8 @@ class VendChannelError extends Model
         'code',
         'desc'
     ];
+
+    protected $dates = [
+        'created_at'
+    ];
 }

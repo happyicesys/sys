@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class VendChannelErrorLogResource extends JsonResource
@@ -18,6 +19,7 @@ class VendChannelErrorLogResource extends JsonResource
             'id' => $this->id,
             'vendChannelError' => VendChannelErrorResource::make($this->vendChannelError),
             'is_error_cleared' => $this->is_error_cleared ? true : false,
+            'created_at' => $this->created_at->format('ymd h:ia'),
         ];
     }
 }

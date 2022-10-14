@@ -46,6 +46,7 @@ class VendController extends Controller
                     'latestVendBinding.customer',
                     'latestVendBinding.customer.category.categoryGroup',
                     'vendChannels',
+                    'vendChannels.vendChannelErrorLogs',
                     'vendChannels.vendChannelErrorLogs.vendChannelError',
                     ])
                     ->when($request->code, function($query, $search) {

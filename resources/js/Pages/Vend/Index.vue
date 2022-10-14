@@ -224,7 +224,8 @@
                                     <span v-for="error in channel.vendChannelErrorLogs.filter(function(error) {
                                         return !error.is_error_cleared
                                     })" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border" :class="[error.is_error_cleared ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']">
-                                        #{{channel.code}}, {{ error.vendChannelError.desc }}
+                                        #{{channel.code}}, {{ error.vendChannelError.desc }} <br>
+                                        {{error.created_at}}
                                     </span>
                                 </span>
                             </TableData>

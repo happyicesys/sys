@@ -74,9 +74,15 @@ class VendDataController extends Controller
             if($temp == VendTemp::TEMPERATURE_ERROR) {
                 $vend->is_temp_error = true;
             }else {
-                $vend->vendTemps()->create([
+                $createdTemp = $vend->vendTemps()->create([
                     'value' => $temp,
                 ]);
+
+                $prevIsKeepVendTemp = VendTemp::where('vend_id', $vend->id)->where('is_keep', true)->latest()->first();
+
+                if(!$prevIsKeepVendTemp or ($prevIsKeepVendTemp and $prevIsKeepVendTemp->created_at->addMinutes(5)->isPast())) {
+                    $createdTemp->update(['is_keep' => true]);
+                }
 
                 $vend->temp = $temp;
                 $vend->temp_updated_at = Carbon::now();

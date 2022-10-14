@@ -14,6 +14,12 @@ class VendTemp extends Model
     protected $fillable = [
         'vend_id',
         'value',
+        'is_keep',
+    ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
     ];
 
     // relationships
