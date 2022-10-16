@@ -18,6 +18,28 @@ class VendDataController extends Controller
 {
     public function create(Request $request)
     {
+        $dataArr = [];
+        $dataArr = $request->all();
+        $processedDataArr = [];
+        foreach($dataArr as $dataIndex => $data) {
+
+            switch($dataIndex) {
+                case 'f':
+                    $processedDataArr['vend_id'] = substr($data, strpos($data, "=") + 1);
+                    break;
+                case 't':
+                    break;
+                case 'm':
+                    break;
+                case 'g':
+                    break;
+                case 'p':
+                    $processedDataArr['content'] = substr($data, -1) == '!' ? base64_decode(substr_replace($data,"=",-1)) : base64_decode($data);
+                    break;
+                default:
+            }
+        }
+
         if($input = $request->all()) {
             $vendData = VendData::create([
                 'value' => $input,
