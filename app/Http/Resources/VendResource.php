@@ -24,7 +24,7 @@ class VendResource extends JsonResource
             'temp' => $this->temp/ 10,
             'temp_updated_at' => $this->temp_updated_at ? Carbon::parse($this->temp_updated_at)->diffForHumans() : null,
             'coin_amount' => $this->coin_amount/ 100,
-            'firmware_ver' => $this->firmware_ver,
+            'firmware_ver' => dechex($this->firmware_ver),
             'is_door_open' => $this->is_door_open ? 'Yes' : 'No',
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
