@@ -67,7 +67,7 @@
       "resources/js/Pages/Zone/Index.vue"
     ],
     "css": [
-      "assets/app.35c1eb07.css"
+      "assets/app.f93af624.css"
     ]
   },
   "resources/js/Pages/Auth/ConfirmPassword.vue": {
@@ -1047,6 +1047,14 @@
       "__plugin-vue_export-helper.cdc0426e.js"
     ]
   },
+  "resources/js/Pages/Welcome.css": {
+    "file": "assets/Welcome.78873d61.css",
+    "src": "resources/js/Pages/Welcome.css"
+  },
+  "resources/js/app.css": {
+    "file": "assets/app.f93af624.css",
+    "src": "resources/js/app.css"
+  },
   "main.css": {
     "file": "assets/main.53725b8c.css",
     "src": "main.css"
@@ -1054,13 +1062,5 @@
   "MultiSelect.css": {
     "file": "assets/MultiSelect.e8899f14.css",
     "src": "MultiSelect.css"
-  },
-  "resources/js/Pages/Welcome.css": {
-    "file": "assets/Welcome.78873d61.css",
-    "src": "resources/js/Pages/Welcome.css"
-  },
-  "resources/js/app.css": {
-    "file": "assets/app.35c1eb07.css",
-    "src": "resources/js/app.css"
   }
 }

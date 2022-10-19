@@ -11,6 +11,7 @@ use App\Models\VendChannelErrorLog;
 use App\Models\VendData;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
+use App\Jobs\ProcessVendData;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -18,75 +19,78 @@ class VendDataController extends Controller
 {
     public function create(Request $request)
     {
-        $dataArr = [];
-        $dataArr = $request->all();
-        $processedDataArr = [];
-        foreach($dataArr as $dataIndex => $data) {
+        $input = $request->all();
 
-            switch($dataIndex) {
-                case 'f':
-                    $processedDataArr['vend_id'] = substr($data, strpos($data, "=") + 1);
-                    break;
-                case 't':
-                    break;
-                case 'm':
-                    break;
-                case 'g':
-                    break;
-                case 'p':
-                    $processedDataArr['content'] = substr($data, -1) == '!' ? base64_decode(substr_replace($data,"=",-1)) : base64_decode($data);
-                    break;
-                default:
-            }
-        }
+        ProcessVendData::dispatch($input);
 
-        if($input = $request->all()) {
-            $vendData = VendData::create([
-                'value' => $input,
-            ]);
+        // $processedDataArr = [];
+        // foreach($dataArr as $dataIndex => $data) {
 
-            if($request->Vid) {
-                $vend = Vend::firstOrCreate([
-                    'code' => $request->Vid,
-                ]);
+        //     switch($dataIndex) {
+        //         case 'f':
+        //             $processedDataArr['vend_id'] = substr($data, strpos($data, "=") + 1);
+        //             break;
+        //         case 't':
+        //             break;
+        //         case 'm':
+        //             break;
+        //         case 'g':
+        //             break;
+        //         case 'p':
+        //             $processedDataArr['content'] = substr($data, -1) == '!' ? base64_decode(substr_replace($data,"=",-1)) : base64_decode($data);
+        //             break;
+        //         default:
+        //     }
+        // }
 
-                if($vend) {
-                    if($coinAmount = $request->CoinCnt) {
-                        $vend->coin_amount = $coinAmount;
-                    }
+        // if($input) {
+        //     dd($input['f']);
+        //     $vendData = VendData::create([
+        //         'value' => $input,
+        //     ]);
 
-                    if($firmwareVer = $request->Ver) {
-                        $vend->firmware_ver = $firmwareVer;
-                    }
+        //     if($vid = $input['Vid']) {
+        //         $vend = Vend::firstOrCreate([
+        //             'code' => $vid,
+        //         ]);
 
-                    if($isDoorOpen = $request->door) {
-                        $vend->firmware_ver = $firmwareVer;
-                    }
+        //         if($vend) {
+        //             if($coinAmount = $request->CoinCnt) {
+        //                 $vend->coin_amount = $coinAmount;
+        //             }
 
-                    if($isSensorNormal = $request->Sensor) {
-                        $vend->is_sensor_normal = $isSensorNormal;
-                    }
+        //             if($firmwareVer = $request->Ver) {
+        //                 $vend->firmware_ver = $firmwareVer;
+        //             }
 
-                    $vend->save();
+        //             if($isDoorOpen = $request->door) {
+        //                 $vend->firmware_ver = $firmwareVer;
+        //             }
 
-                    if($type = $request->Type) {
-                        switch($type) {
-                            case 'VENDER':
-                                if($temp = $request->TEMP) {
-                                    $this->createVendTemp($vend, $temp);
-                                }
-                                break;
-                            case 'TRADE':
-                                $this->createVendTransaction($vend, $request);
-                                break;
-                            case 'CHANNEL':
-                                $this->syncVendChannels($vend, $request);
-                                break;
-                        }
-                    }
-                }
-            }
-        }
+        //             if($isSensorNormal = $request->Sensor) {
+        //                 $vend->is_sensor_normal = $isSensorNormal;
+        //             }
+
+        //             $vend->save();
+
+        //             if($type = $input['Type']) {
+        //                 switch($type) {
+        //                     case 'VENDER':
+        //                         if($temp = $input['TEMP']) {
+        //                             $this->createVendTemp($vend, $temp);
+        //                         }
+        //                         break;
+        //                     case 'TRADE':
+        //                         $this->createVendTransaction($vend, $request);
+        //                         break;
+        //                     case 'CHANNEL':
+        //                         $this->syncVendChannels($vend, $request);
+        //                         break;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
     }
 
     private function createVendTemp(Vend $vend, $temp)
