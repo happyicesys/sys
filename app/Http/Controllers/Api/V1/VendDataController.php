@@ -21,7 +21,6 @@ class VendDataController extends Controller
     public function create(Request $request)
     {
         $input = $request->all();
-        Log::info($input);
 
         ProcessVendData::dispatch($input);
 
