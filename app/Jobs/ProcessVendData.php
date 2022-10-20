@@ -125,11 +125,11 @@ class ProcessVendData implements ShouldQueue
                     'value' => $temp,
                 ]);
 
-                $prevIsKeepVendTemp = VendTemp::where('vend_id', $vend->id)->where('is_keep', true)->latest()->first();
+                // $prevIsKeepVendTemp = VendTemp::where('vend_id', $vend->id)->where('is_keep', true)->latest()->first();
 
-                if(!$prevIsKeepVendTemp or ($prevIsKeepVendTemp and $prevIsKeepVendTemp->created_at->addMinutes(5)->isPast())) {
-                    $createdTemp->update(['is_keep' => true]);
-                }
+                // if(!$prevIsKeepVendTemp or ($prevIsKeepVendTemp and $prevIsKeepVendTemp->created_at->addMinutes(5)->isPast())) {
+                //     $createdTemp->update(['is_keep' => true]);
+                // }
 
                 $vend->temp = $temp;
                 $vend->temp_updated_at = Carbon::now();
