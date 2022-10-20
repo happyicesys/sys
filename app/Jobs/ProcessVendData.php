@@ -171,7 +171,7 @@ class ProcessVendData implements ShouldQueue
         ]);
 
         if($vendChannelError) {
-            $this->syncVendChannelErrorLog($vend, $input['SId'], $input['sErr']);
+            $this->syncVendChannelErrorLog($vend, $input['SId'], $input['SErr']);
         }
     }
 
