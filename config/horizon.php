@@ -99,12 +99,12 @@ return [
     */
 
     'trim' => [
-        'recent' => 60,
-        'pending' => 60,
-        'completed' => 60,
-        'recent_failed' => 10080,
-        'failed' => 10080,
-        'monitored' => 10080,
+        'recent' => 20,
+        'pending' => 20,
+        'completed' => 20,
+        'recent_failed' => 30,
+        'failed' => 30,
+        'monitored' => 30,
     ],
 
     /*
@@ -182,7 +182,7 @@ return [
     'environments' => [
         'production' => [
             'supervisor-1' => [
-                'maxProcesses' => 40,
+                'maxProcesses' => 20,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ]
