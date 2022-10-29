@@ -15,6 +15,7 @@
             <div class="flex justify-end">
                 <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 @click="onCreateProfileClicked()"
+                v-if="can.create"
                 >
                     <PlusIcon class="h-4 w-4" aria-hidden="true"/>
                     <span>
@@ -187,6 +188,7 @@ import { Inertia } from '@inertiajs/inertia'
 const props = defineProps({
     profiles: Object,
     countries: Object,
+    can: Object,
 })
 
 const filters = ref({

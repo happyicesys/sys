@@ -41,7 +41,10 @@ class ProfileController extends Controller
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),
-            'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get())
+            'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
+            'can' => [
+                'create' => true,
+            ],
         ]);
     }
 

@@ -82,7 +82,9 @@ const showingNavigationDropdown = ref(false);
         <div class="min-h-screen sm:flex bg-gray-100">
             <div
                 class="hidden md:block flex-none flex-col border-r border-gray-200 pt-5 pb-4 bg-white md:w-1/5 xl:w-1/6">
+
                 <div class="flex items-center justify-center flex-shrink-0 px-1">
+                    <Link href="/">
                     <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
                         class="h-20 w-44" viewBox="0 200 600 300"
                         preserveAspectRatio="xMidYMid meet"
@@ -232,6 +234,7 @@ const showingNavigationDropdown = ref(false);
                         -98 -50 98 c-48 95 -50 97 -84 97 l-35 0 0 -120z"/>
                         </g>
                     </svg>
+                    </Link>
                 </div>
                 <div class="mt-5 flex-grow flex flex-col border-t border-gray-200 pt-2">
                     <nav class="flex-1 px-2 space-y-1 bg-white" aria-label="Sidebar">

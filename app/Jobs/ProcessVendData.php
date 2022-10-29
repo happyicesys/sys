@@ -23,15 +23,17 @@ class ProcessVendData implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $input;
+    protected $ipAddress;
 
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct($input)
+    public function __construct($input, $ipAddress)
     {
         $this->input = $input;
+        $this->ipAddress = $ipAddress;
     }
 
     /**
@@ -63,9 +65,12 @@ class ProcessVendData implements ShouldQueue
         if($input = $this->input) {
             $vendData = VendData::create([
                 'value' => $input,
+                'ip_address' => $this->ipAddress,
             ]);
 
-            if($vid = $input['Vid']) {
+            if(isset($input['Vid'])) {
+                $vid = $input['Vid'];
+
                 $vend = Vend::firstOrCreate([
                     'code' => $vid,
                 ]);

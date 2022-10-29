@@ -10,6 +10,7 @@ class VendData extends Model
     use HasFactory;
 
     protected $fillable = [
+        'ip_address',
         'value',
     ];
 
