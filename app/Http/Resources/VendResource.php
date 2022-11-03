@@ -30,6 +30,26 @@ class VendResource extends JsonResource
             'is_temp_error' => $this->is_temp_error ? true : false,
             'vendChannels' => VendChannelResource::collection($this->whenLoaded('vendChannels')),
             'latestVendBinding' => VendBindingResource::make($this->whenLoaded('latestVendBinding')),
+            'vendChannelsTotals' => $this->when($this->relationLoaded('vendChannels'), function() {
+                $total = [
+                    'vendChannelsTotalQty' => $this->vendChannelsTotalQty,
+                    'vendChannelsTotalCapacity' => $this->vendChannelsTotalCapacity,
+                    'vendChannelsOutOfStock' => $this->vendChannelsOutOfStock,
+                    'vendChannelsErrorLogsActive' => $this->vendChannelsErrorLogsActive,
+                    'vendChannelsCount' => $this->vendChannelsCount,
+                ];
+                return [
+                    'qty' => $total['vendChannelsTotalQty'],
+                    'capacity' => $total['vendChannelsTotalCapacity'],
+                    'sales' => $total['vendChannelsTotalCapacity'] - $total['vendChannelsTotalQty'],
+                    'balancePercent' => $total['vendChannelsTotalCapacity'] ? round($total['vendChannelsTotalQty']/ $total['vendChannelsTotalCapacity'] * 100) : 0,
+                    'outOfStock' => $total['vendChannelsOutOfStock'],
+                    'activeErrorLogs' => $total['vendChannelsErrorLogsActive'],
+                    'count' => $total['vendChannelsCount'],
+                    'outOfStockSku' => $total['vendChannelsOutOfStock'] + $total['vendChannelsErrorLogsActive'],
+                    'outOfStockSkuPercent' => $total['vendChannelsCount'] ? round(($total['vendChannelsOutOfStock'] + $total['vendChannelsErrorLogsActive'])/ $total['vendChannelsCount'] * 100) : 0,
+                ];
+            }),
         ];
     }
 

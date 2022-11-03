@@ -51,6 +51,7 @@ class DatabaseSeeder extends Seeder
             // VendTypeSeeder::class,
             // UomSeeder::class,
             // UserAssignProfileSeeder::class,
+            RoleSeeder::class,
         ]);
     }
 }

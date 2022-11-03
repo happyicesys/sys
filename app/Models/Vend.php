@@ -41,7 +41,12 @@ class Vend extends Model
 
     public function vendChannels()
     {
-        return $this->hasMany(VendChannel::class)->orderBy('code');
+        return $this->hasMany(VendChannel::class)->where('code', '<', 1000)->where('capacity', '>', 0)->orderBy('code');
+    }
+
+    public function outOfStockVendChannels()
+    {
+        return $this->vendChannels()->where('qty', '=', 0);
     }
 
     public function vendTemps()
@@ -52,5 +57,43 @@ class Vend extends Model
     public function vendType()
     {
         return $this->belongsTo(VendType::class);
+    }
+
+    // computed
+    public function getVendChannelsTotalCapacityAttribute()
+    {
+        return $this->vendChannels->sum('capacity');
+    }
+
+    public function getVendChannelsTotalQtyAttribute()
+    {
+        return $this->vendChannels->sum('qty');
+    }
+
+    public function getVendChannelsOutOfStockAttribute()
+    {
+        return $this->outOfStockVendChannels->count();
+    }
+
+    public function getVendChannelsCountAttribute()
+    {
+        return $this->vendChannels->count();
+    }
+
+    public function getVendChannelsErrorLogsActiveAttribute()
+    {
+        $count = 0;
+
+        $count = $this->vendChannels->map(function($vendChannel) {
+            $vendChannel->activeErrorCount = $vendChannel->vendChannelErrorLogs->reduce(function($carry, $vendChannelErrorLog) {
+                if(!$vendChannelErrorLog->is_error_cleared and $vendChannelErrorLog->vendChannelError->code != 4 and $vendChannelErrorLog->vendChannelError->code != 5 and $vendChannelErrorLog->vendChannelError->code != 7) {
+                    $carry += 1;
+                }
+                return $carry;
+            });
+            return $vendChannel;
+        })->sum('activeErrorCount');
+
+        return $count;
     }
 }

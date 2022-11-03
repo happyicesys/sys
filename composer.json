@@ -16,6 +16,7 @@
         "league/flysystem-aws-s3-v3": "^3.0",
         "predis/predis": "^2.0",
         "propaganistas/laravel-phone": "^4.3",
+        "spatie/laravel-permission": "^5.5",
         "tightenco/ziggy": "^1.0"
     },
     "require-dev": {

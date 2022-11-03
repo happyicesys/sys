@@ -155,6 +155,12 @@
                             <TableHead>
                                 Inventory Status
                             </TableHead>
+                            <TableHead>
+                                Balance Stock
+                            </TableHead>
+                            <TableHead>
+                                Out of Stock SKU
+                            </TableHead>
                             <TableHeadSort modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at')">
                                 Last Temp
                             </TableHeadSort>
@@ -173,11 +179,6 @@
                             <TableHead>
                                 Sensor Normal?
                             </TableHead>
-
-                            <th scope="col"
-                                class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pr-4 pl-3 backdrop-blur backdrop-filter sm:pr-6 lg:pr-8">
-                                <span class="sr-only">Edit</span>
-                            </th>
                         </tr>
                     </thead>
                     <tbody class="bg-white">
@@ -230,17 +231,17 @@
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <div class="grid grid-cols-[100px_minmax(100px,_1fr)_100px] gap-1">
+                                <div class="grid grid-cols-[120px_minmax(120px,_1fr)_120px] gap-1">
                                     <div v-for="
-                                                channel in vend.vendChannels
+                                                (channel, channelIndex) in vend.vendChannels
                                                 .map(function(channel){
                                                     return channel
                                                 })
                                                 .filter(function(channel) {
                                                     return channel.capacity > 0 && channel.code < 1000
                                                 })"
-                                        class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full"
-                                        :class="[channel.capacity > 0 ? 'bg-gray-50 text-gray-900' : 'bg-red-100 text-red-800']"
+                                        class="inline-flex justify-between items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full"
+                                        :class="[channelIndex > 0 && (String(channel.code)[0] !== String(vend.vendChannels[channelIndex - 1].code)[0]) ? 'col-start-1' : '']"
                                     >
                                         <div class="font-semibold">
                                             #{{channel.code}},
@@ -252,18 +253,26 @@
                                             {{channel.qty}}/{{channel.capacity}}
                                         </div>
                                     </div>
-                                    <div class="col-span-3 inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full space-x-2">
+                                    <!-- <div class="col-span-3 inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full space-x-2">
                                         <span>
                                             Total
                                         </span>
                                         <span class="text-blue-600 text-sm">
-                                            {{getTotalCapacity(vend) - getTotalQty(vend)}},
+                                            {{vend.vendChannelsTotals.sales}},
                                         </span>
                                         <span>
-                                            {{getTotalQty(vend)}}/{{getTotalCapacity(vend)}}
+                                            {{vend.vendChannelsTotals.qty}}/{{vend.vendChannelsTotals.capacity}}
                                         </span>
-                                    </div>
+                                    </div> -->
                                 </div>
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                {{ vend.vendChannelsTotals.qty }}/ {{ vend.vendChannelsTotals.capacity }} <br>
+                                ({{ vend.vendChannelsTotals.balancePercent }}%)
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                {{ vend.vendChannelsTotals.outOfStockSku }}/ {{ vend.vendChannelsTotals.count }} <br>
+                                ({{ vend.vendChannelsTotals.outOfStockSkuPercent }}%)
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.temp_updated_at }}
@@ -283,11 +292,6 @@
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.is_sensor_normal }}
                             </TableData>
-                            <td
-                                :class="[vendIndex !== vends.length - 1 ? 'border-b border-gray-200' : '', 'relative whitespace-nowrap py-4 pr-4 pl-3 text-right text-sm font-medium sm:pr-6 lg:pr-8']">
-                                <a href="#" class="text-indigo-600 hover:text-indigo-900">Edit<span
-                                        class="sr-only">, {{ vend.name }}</span></a>
-                            </td>
                         </tr>
                         <tr v-if="!vends.data.length">
                             <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
@@ -362,25 +366,6 @@ onMounted(() => {
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
 })
-
-function getTotalQty(vend) {
-    return vend.vendChannels
-            .filter(function(channel) {
-                return channel.capacity > 0 && channel.code < 1000
-            })
-            .reduce(function(total, value) {
-                return total + value.qty
-            }, 0)
-}
-function getTotalCapacity(vend) {
-    return vend.vendChannels
-            .filter(function(channel) {
-                return channel.capacity > 0 && channel.code < 1000
-            })
-            .reduce(function(total, value) {
-                return total + value.capacity
-            }, 0)
-}
 
 function onSearchFilterUpdated() {
     Inertia.get('/vends', {

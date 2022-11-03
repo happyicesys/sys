@@ -45,10 +45,13 @@ class VendController extends Controller
                 Vend::with([
                     'latestVendBinding.customer',
                     'latestVendBinding.customer.category.categoryGroup',
-                    'vendChannels',
+                    'vendChannels' => function($query) {
+                        $query->where('code', '<', 1000)->where('capacity', '>', 0);
+                    },
                     'vendChannels.vendChannelErrorLogs',
                     'vendChannels.vendChannelErrorLogs.vendChannelError',
                     ])
+                    // ->has('vendChannels')
                     ->when($request->code, function($query, $search) {
                         $query->where('code', 'LIKE', "%{$search}%");
                     })
