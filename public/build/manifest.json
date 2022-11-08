@@ -1047,20 +1047,20 @@
       "__plugin-vue_export-helper.cdc0426e.js"
     ]
   },
-  "resources/js/app.css": {
-    "file": "assets/app.b4b7a0ef.css",
-    "src": "resources/js/app.css"
+  "resources/js/Pages/Welcome.css": {
+    "file": "assets/Welcome.78873d61.css",
+    "src": "resources/js/Pages/Welcome.css"
   },
   "main.css": {
     "file": "assets/main.53725b8c.css",
     "src": "main.css"
   },
-  "resources/js/Pages/Welcome.css": {
-    "file": "assets/Welcome.78873d61.css",
-    "src": "resources/js/Pages/Welcome.css"
-  },
   "MultiSelect.css": {
     "file": "assets/MultiSelect.e8899f14.css",
     "src": "MultiSelect.css"
+  },
+  "resources/js/app.css": {
+    "file": "assets/app.b4b7a0ef.css",
+    "src": "resources/js/app.css"
   }
 }
