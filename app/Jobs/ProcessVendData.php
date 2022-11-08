@@ -18,7 +18,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class ProcessVendData
+class ProcessVendData implements ShouldQueue
 {
     // implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
