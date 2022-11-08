@@ -18,8 +18,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class ProcessVendData implements ShouldQueue
-{
+class ProcessVendData implements ShouldQueue{
     // implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -217,9 +216,23 @@ class ProcessVendData implements ShouldQueue
 
     private function syncVendChannels(Vend $vend, $input)
     {
+        // dd($vend->toArray(), $input['channels']);
         if($channels = $input['channels']) {
             foreach($channels as $channel) {
                 if($channel['capacity'] > 0) {
+                    // dd('here got', $channel['channel_code'], $vend->toArray());
+                    $vendChannel = VendChannel::updateOrCreate([
+                        'vend_id' => $vend->id,
+                        'code' => $channel['channel_code'],
+                    ], [
+                        'qty' => $channel['qty'],
+                        'capacity' => $channel['capacity'],
+                        'amount' => $channel['amount'],
+                        'is_active' => true,
+                    ]);
+                    // dd($vendChannel->toArray(), $channel['channel_code'], $vend->toArray(), $input);
+                    $this->syncVendChannelErrorLog($vend, $channel['channel_code'], $channel['error_code']);
+                }else if($channel['capacity'] == 0) {
                     VendChannel::updateOrCreate([
                         'vend_id' => $vend->id,
                         'code' => $channel['channel_code'],
@@ -227,16 +240,8 @@ class ProcessVendData implements ShouldQueue
                         'qty' => $channel['qty'],
                         'capacity' => $channel['capacity'],
                         'amount' => $channel['amount'],
+                        'is_active' => false,
                     ]);
-                    $this->syncVendChannelErrorLog($vend, $channel['channel_code'], $channel['error_code']);
-                }else if($channel['capacity'] == 0) {
-                    $zeroCapacityChannel = VendChannel::where('vend_id', $vend->id)
-                                                            ->where('code', $channel['channel_code'])
-                                                            ->first();
-                    if($zeroCapacityChannel) {
-                        $zeroCapacityChannel->is_active = false;
-                        $zeroCapacityChannel->save();
-                    }
                 }
             }
         }
