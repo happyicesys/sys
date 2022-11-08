@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessCustomerData;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CustomerResource;
@@ -115,5 +116,11 @@ class CustomerController extends Controller
                     ->get()
             ),
         ]);
+    }
+
+    public function migrate(Request $request)
+    {
+        dd($request->all());
+        ProcessCustomerData::dispatch($request->all(), null);
     }
 }

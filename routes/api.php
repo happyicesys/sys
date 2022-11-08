@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\Api\V1\VendDataController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -20,3 +21,5 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 Route::post('/v1/vend-data', [VendDataController::class, 'create']);
+
+Route::post('/v1/customer/migrate', [CustomerController::class, 'migrate']);

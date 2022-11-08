@@ -43,26 +43,62 @@ class ProcessVendData implements ShouldQueue
      */
     public function handle()
     {
-        // $processedDataArr = [];
-        // foreach($input as $dataIndex => $data) {
+        $input = collect($this->input);
+        if($input->has('f') and $input->has('g') and $input->has('m') and $input->has('p') and $input->has('t')) {
+            $processedDataArr = [];
+            foreach($this->input as $dataIndex => $data) {
+                switch($dataIndex) {
+                    case 'f':
+                        break;
+                    case 't':
+                        break;
+                    case 'm':
+                        $processedDataArr['code'] = $data;
+                        break;
+                    case 'g':
+                        break;
+                    case 'p':
+                        $processedDataArr['content'] = substr($data, -1) == '!' ? base64_decode(substr_replace($data,"=",-1)) : base64_decode($data);
+                        break;
+                    default:
+                }
+            }
 
-        //     switch($dataIndex) {
-        //         case 'f':
-        //             $processedDataArr['vend_id'] = substr($data, strpos($data, "=") + 1);
-        //             break;
-        //         case 't':
-        //             break;
-        //         case 'm':
-        //             break;
-        //         case 'g':
-        //             break;
-        //         case 'p':
-        //             $processedDataArr['content'] = substr($data, -1) == '!' ? base64_decode(substr_replace($data,"=",-1)) : base64_decode($data);
-        //             break;
-        //         default:
-        //     }
-        // }
-        if($input = $this->input) {
+            if(str_starts_with($processedDataArr['content'], "{\"")) {
+                if($processedDataArr['content'] === "{\"Type\":\"P\"}") {
+                    $processedDataArr['data'] = null;
+                }else {
+                    $processedDataArr['data'] = json_decode($processedDataArr['content'], true);
+                }
+            }else {
+                $processedDataArr['data']['Vid'] = $processedDataArr['code'];
+                $processedDataArr['data']['Type'] = 'CHANNEL';
+                $processedDataArr['data']['channels'] = [];
+
+                $byteData = unpack('C*', $processedDataArr['content']);
+
+                for($j = 6; $j < count($byteData); $j++) {
+                    $channelArr = [];
+                    $channelArr['channel_code'] = $byteData[$j++];
+                    $channelArr['name'] = $byteData[$j++];
+                    $channelArr['error_code'] = $byteData[$j++];
+                    $channelArr['capacity'] = $byteData[$j++];
+                    $channelArr['qty'] = $byteData[$j++];
+                    $channelArr['amount'] = $byteData[$j];
+                    $j += 4;
+                    $channelArr['item'] = $byteData[$j];
+                    $j += 1;
+                    if(is_array($channelArr)) {
+                        array_push($processedDataArr['data']['channels'], $channelArr);
+                    }
+                }
+            }
+            $input = $processedDataArr['data'];
+        }else {
+            $input = $this->input;
+        }
+
+        if($input) {
             $vendData = VendData::create([
                 'value' => $input,
                 'ip_address' => $this->ipAddress,
@@ -106,17 +142,17 @@ class ProcessVendData implements ShouldQueue
                                 }
                                 break;
                             case 'TRADE':
-                                $this->createVendTransaction($vend);
+                                $this->createVendTransaction($vend, $input);
                                 break;
                             case 'CHANNEL':
-                                $this->syncVendChannels($vend);
+                                $this->syncVendChannels($vend, $input);
                                 break;
                         }
                     }
                 }
             }
         }
-
+        return $processedDataArr['data'];
     }
 
     private function createVendTemp(Vend $vend, $temp)
@@ -146,10 +182,8 @@ class ProcessVendData implements ShouldQueue
     }
 
 
-    private function createVendTransaction(Vend $vend)
+    private function createVendTransaction(Vend $vend, $input)
     {
-        $input = $this->input;
-
         $paymentMethod = PaymentMethod::where('code', $input['PAY_TYPE'])->first();
 
         if($sID = $input['SId']) {
@@ -180,10 +214,8 @@ class ProcessVendData implements ShouldQueue
         }
     }
 
-    private function syncVendChannels(Vend $vend)
+    private function syncVendChannels(Vend $vend, $input)
     {
-        $input = $this->input;
-
         if($channels = $input['channels']) {
             foreach($channels as $channel) {
                 if($channel['capacity'] > 0) {
