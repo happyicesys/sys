@@ -71,7 +71,7 @@ class ProcessVendData implements ShouldQueue
                     $processedDataArr['data'] = json_decode($processedDataArr['content'], true);
                 }
             }else {
-                $processedDataArr['data']['Vid'] = $processedDataArr['code'];
+                $processedDataArr['data']['Vid'] = json_decode($processedDataArr['code'], true);
                 $processedDataArr['data']['Type'] = 'CHANNEL';
                 $processedDataArr['data']['channels'] = [];
 
@@ -173,9 +173,9 @@ class ProcessVendData implements ShouldQueue
                 // }
 
                 $vend->temp = $temp;
-                $vend->temp_updated_at = Carbon::now();
                 $vend->is_temp_error = false;
             }
+            $vend->temp_updated_at = Carbon::now();
 
             $vend->save();
         }
