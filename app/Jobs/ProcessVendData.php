@@ -18,8 +18,9 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class ProcessVendData implements ShouldQueue
+class ProcessVendData
 {
+    // implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $input;
@@ -100,7 +101,7 @@ class ProcessVendData implements ShouldQueue
 
         if($input) {
             $vendData = VendData::create([
-                'value' => $input,
+                'value' => $this->input,
                 'ip_address' => $this->ipAddress,
             ]);
 
