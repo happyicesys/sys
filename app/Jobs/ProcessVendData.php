@@ -152,7 +152,7 @@ class ProcessVendData implements ShouldQueue
                 }
             }
         }
-        return $processedDataArr['data'];
+        return true;
     }
 
     private function createVendTemp(Vend $vend, $temp)
