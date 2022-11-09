@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Jobs\SaveVendChannelErrorLogsJson;
+use App\Jobs\SaveVendChannelsJson;
 use App\Models\PaymentMethod;
 use App\Models\Vend;
 use App\Models\VendChannel;
@@ -219,7 +221,6 @@ class ProcessVendData implements ShouldQueue {
         if($channels = $input['channels']) {
             foreach($channels as $channel) {
                 if($channel['capacity'] > 0) {
-                    // dd('here got', $channel['channel_code'], $vend->toArray());
                     $vendChannel = VendChannel::updateOrCreate([
                         'vend_id' => $vend->id,
                         'code' => $channel['channel_code'],
@@ -229,7 +230,6 @@ class ProcessVendData implements ShouldQueue {
                         'amount' => $channel['amount'],
                         'is_active' => true,
                     ]);
-                    // dd($vendChannel->toArray(), $channel['channel_code'], $vend->toArray(), $input);
                     $this->syncVendChannelErrorLog($vend, $channel['channel_code'], $channel['error_code'], $channel['error_code']);
                 }else if($channel['capacity'] == 0) {
                     VendChannel::updateOrCreate([
@@ -243,6 +243,7 @@ class ProcessVendData implements ShouldQueue {
                     ]);
                 }
             }
+            SaveVendChannelsJson::dispatch($vend->id);
         }
     }
 
@@ -262,13 +263,11 @@ class ProcessVendData implements ShouldQueue {
                 // dd($vendChannel->toArray(), $lastVendChannelErrorLog->toArray(), $lastVendChannelErrorLog->vendChannelError->code, $vendChannelErrorCode, $lastVendChannelErrorLog->is_error_cleared);
 
                 if(!$lastVendChannelErrorLog or ($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode) or $lastVendChannelErrorLog->is_error_cleared == 1) {
-                    // dd('1');
                     VendChannelErrorLog::create([
                         'vend_channel_id' => $vendChannel->id,
                         'vend_channel_error_id' => $vendChannelError->id
                     ]);
                 }
-                // dd('2');
 
             }else {
                 $recoveredChannel = VendChannel::where('vend_id', $vend->id)->where('code', $vendChannelCode)->first();
@@ -283,6 +282,7 @@ class ProcessVendData implements ShouldQueue {
                 }
 
             }
+            SaveVendChannelErrorLogsJson::dispatch($vend->id);
         }
     }
 }
