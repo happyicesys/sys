@@ -24,13 +24,14 @@ class VendResource extends JsonResource
             'temp' => $this->temp/ 10,
             'temp_updated_at' => $this->temp_updated_at ? Carbon::parse($this->temp_updated_at)->diffForHumans() : null,
             'coin_amount' => $this->coin_amount/ 100,
-            'firmware_ver' => dechex($this->firmware_ver),
+            'firmware_ver' => $this->firmware_ver ? dechex($this->firmware_ver) : null,
             'is_door_open' => $this->is_door_open ? 'Yes' : 'No',
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
             'vendChannels' => VendChannelResource::collection($this->whenLoaded('vendChannels')),
             'vendChannelsJson' => $this->vend_channels_json,
             'vendChannelErrorLogsJson' => $this->vend_channel_error_logs_json,
+            'vendChannelTotalsJson' => $this->vend_channel_totals_json,
             'latestVendBinding' => VendBindingResource::make($this->whenLoaded('latestVendBinding')),
             'vendChannelsTotals' => $this->when($this->relationLoaded('vendChannels'), function() {
                 $total = [

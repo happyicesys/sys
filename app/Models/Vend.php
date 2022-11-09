@@ -13,6 +13,7 @@ class Vend extends Model
         'temp_updated_at' => 'datetime',
         'vend_channel_error_logs_json' => 'json',
         'vend_channels_json' => 'json',
+        'vend_channel_totals_json' => 'json',
     ];
 
     protected $fillable = [
@@ -29,6 +30,7 @@ class Vend extends Model
         'keylock_number',
         'vend_channel_error_logs_json',
         'vend_channels_json',
+        'vend_channel_totals_json',
         'vend_type_id',
     ];
 
