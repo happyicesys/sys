@@ -9,6 +9,11 @@ class VendChannelErrorLog extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'created_at' => 'datetime:ymd h:ia',
+        'updated_at' => 'datetime:ymd h:ia',
+    ];
+
     protected $fillable = [
         'vend_channel_id',
         'vend_channel_error_id',

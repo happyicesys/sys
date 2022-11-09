@@ -1055,12 +1055,12 @@
     "file": "assets/main.53725b8c.css",
     "src": "main.css"
   },
-  "resources/js/app.css": {
-    "file": "assets/app.b4b7a0ef.css",
-    "src": "resources/js/app.css"
-  },
   "MultiSelect.css": {
     "file": "assets/MultiSelect.e8899f14.css",
     "src": "MultiSelect.css"
+  },
+  "resources/js/app.css": {
+    "file": "assets/app.b4b7a0ef.css",
+    "src": "resources/js/app.css"
   }
 }

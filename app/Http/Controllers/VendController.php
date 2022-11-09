@@ -45,9 +45,6 @@ class VendController extends Controller
                 Vend::with([
                     'latestVendBinding.customer',
                     'latestVendBinding.customer.category.categoryGroup',
-                    'vendChannels' => function($query) {
-                        $query->where('code', '<', 1000)->where('is_active', true);
-                    },
                     'vendChannels.vendChannelErrorLogs',
                     'vendChannels.vendChannelErrorLogs.vendChannelError',
                     ])

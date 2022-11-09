@@ -29,6 +29,8 @@ class VendResource extends JsonResource
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
             'vendChannels' => VendChannelResource::collection($this->whenLoaded('vendChannels')),
+            'vendChannelsJson' => $this->vend_channels_json,
+            'vendChannelErrorLogsJson' => $this->vend_channel_error_logs_json,
             'latestVendBinding' => VendBindingResource::make($this->whenLoaded('latestVendBinding')),
             'vendChannelsTotals' => $this->when($this->relationLoaded('vendChannels'), function() {
                 $total = [
