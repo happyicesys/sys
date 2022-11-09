@@ -18,7 +18,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class ProcessVendData implements ShouldQueue{
+class ProcessVendData {
     // implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -216,7 +216,6 @@ class ProcessVendData implements ShouldQueue{
 
     private function syncVendChannels(Vend $vend, $input)
     {
-        // dd($vend->toArray(), $input['channels']);
         if($channels = $input['channels']) {
             foreach($channels as $channel) {
                 if($channel['capacity'] > 0) {
@@ -231,7 +230,7 @@ class ProcessVendData implements ShouldQueue{
                         'is_active' => true,
                     ]);
                     // dd($vendChannel->toArray(), $channel['channel_code'], $vend->toArray(), $input);
-                    $this->syncVendChannelErrorLog($vend, $channel['channel_code'], $channel['error_code']);
+                    $this->syncVendChannelErrorLog($vend, $channel['channel_code'], $channel['error_code'], $channel['error_code']);
                 }else if($channel['capacity'] == 0) {
                     VendChannel::updateOrCreate([
                         'vend_id' => $vend->id,
@@ -260,12 +259,16 @@ class ProcessVendData implements ShouldQueue{
 
                 $lastVendChannelErrorLog = $vendChannel->vendChannelErrorLogs()->latest()->first();
 
-                if(!$lastVendChannelErrorLog or ($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode) or $lastVendChannelErrorLog->is_error_cleared == true) {
+                // dd($vendChannel->toArray(), $lastVendChannelErrorLog->toArray(), $lastVendChannelErrorLog->vendChannelError->code, $vendChannelErrorCode, $lastVendChannelErrorLog->is_error_cleared);
+
+                if(!$lastVendChannelErrorLog or ($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode) or $lastVendChannelErrorLog->is_error_cleared == 1) {
+                    // dd('1');
                     VendChannelErrorLog::create([
                         'vend_channel_id' => $vendChannel->id,
                         'vend_channel_error_id' => $vendChannelError->id
                     ]);
                 }
+                // dd('2');
 
             }else {
                 $recoveredChannel = VendChannel::where('vend_id', $vend->id)->where('code', $vendChannelCode)->first();

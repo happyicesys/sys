@@ -10,7 +10,9 @@ class Vend extends Model
     use HasFactory;
 
     protected $casts = [
-        'temp_updated_at' => 'datetime'
+        'temp_updated_at' => 'datetime',
+        'vend_channel_error_logs_json' => 'json',
+        'vend_channels_json' => 'json',
     ];
 
     protected $fillable = [
@@ -25,6 +27,8 @@ class Vend extends Model
         'is_sensor_normal',
         'is_temp_error',
         'keylock_number',
+        'vend_channel_error_logs_json',
+        'vend_channels_json',
         'vend_type_id',
     ];
 
