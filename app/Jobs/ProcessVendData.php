@@ -18,8 +18,8 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class ProcessVendData {
-    // implements ShouldQueue
+class ProcessVendData implements ShouldQueue {
+    //
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $input;
