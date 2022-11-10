@@ -2,16 +2,16 @@
 <template>
     <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
         <div class="flex-1 flex justify-between sm:hidden">
-            <Component :is="links.prev ? 'Link' : 'span'" :href="links.prev"
+            <Link :href="links.prev"
                 class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md"
                 :class="[!links.prev ? 'opacity-25 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-gray-50']"
                 :disabled="!links.prev" preserve-scroll>
-                Previous </Component>
-            <Component :is="links.next ? 'Link' : 'span'" :href="links.next"
+                Previous </Link>
+            <Link :href="links.next"
                 class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md"
                 :class="[!links.next ? 'opacity-25 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-gray-50']"
                 :disabled="!links.next" preserve-scroll>
-                Next </Component>
+                Next </Link>
         </div>
         <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>

@@ -45,10 +45,7 @@ class VendController extends Controller
                 Vend::with([
                     'latestVendBinding.customer',
                     'latestVendBinding.customer.category.categoryGroup',
-                    'vendChannels.vendChannelErrorLogs',
-                    'vendChannels.vendChannelErrorLogs.vendChannelError',
                     ])
-                    // ->has('vendChannels')
                     ->when($request->code, function($query, $search) {
                         $query->where('code', 'LIKE', "%{$search}%");
                     })
@@ -92,7 +89,15 @@ class VendController extends Controller
                         }
                     })
                     ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+
+                        if(strpos($search, '->')) {
+                            $inputSearch = explode("->", $search);
+                            $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                            ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                        }else {
+                            $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                        }
+
                     })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()

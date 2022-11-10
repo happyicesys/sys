@@ -1,6 +1,5 @@
 
 <template>
-
     <Head title="Vending Machines" />
 
     <BreezeAuthenticatedLayout>
@@ -140,9 +139,6 @@
                             <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
                                 Code
                             </TableHeadSort>
-                            <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
-                                Temp
-                            </TableHeadSort>
                             <TableHead>
                                 Name
                             </TableHead>
@@ -150,26 +146,20 @@
                                 Category
                             </TableHead>
                             <TableHead>
-                                Channel Status
+                                Error(s)
                             </TableHead>
                             <TableHead>
                                 Inventory Status
                             </TableHead>
-                            <TableHead>
+                            <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
+                                Temp
+                            </TableHeadSort>
+                            <TableHeadSort modelName="vend_channel_totals_json->balancePercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->balancePercent')">
                                 Balance Stock
-                            </TableHead>
-                            <TableHead>
+                            </TableHeadSort>
+                            <TableHeadSort modelName="vend_channel_totals_json->outOfStockSkuPercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->outOfStockSkuPercent')">
                                 Out of Stock SKU
-                            </TableHead>
-                            <TableHeadSort modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at')">
-                                Last Temp
                             </TableHeadSort>
-                            <TableHeadSort modelName="coin_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('coin_amount')">
-                                Coin Amount
-                            </TableHeadSort>
-                            <TableHead>
-                                Serial Num
-                            </TableHead>
                             <TableHead>
                                 Firmware Ver
                             </TableHead>
@@ -178,6 +168,9 @@
                             </TableHead>
                             <TableHead>
                                 Sensor Normal?
+                            </TableHead>
+                            <TableHead>
+                                Serial Num
                             </TableHead>
                         </tr>
                     </thead>
@@ -190,18 +183,7 @@
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.code }}
                             </TableData>
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <div class="flex flex-col">
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                        :class="[vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600']"
-                                        @click="onVendTempClicked(vend.id)"
-                                    >
-                                        {{ vend.is_temp_error ? 'Error' : vend.temp }}
-                                    </button>
-                                </div>
-                            </TableData>
+
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                                 <!-- {{  vend.latestVendBinding.customer.code }} -->
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.code : null }} <br>
@@ -212,77 +194,69 @@
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.category && vend.latestVendBinding.customer.category.category_group ? vend.latestVendBinding.customer.category.category_group.name : null }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span v-for="
-                                            channel in vend.vendChannels
-                                            .map(function(channel){
-                                                return channel
-                                            })
-                                            .filter(function(channel) {
-                                                return (channel.vendChannelErrorLogs.length) ?? channel.vendChannelErrorLogs
-                                            })"
-                                    class="flex flex-col space-y-1"
-                                >
-                                    <span v-for="error in channel.vendChannelErrorLogs.filter(function(error) {
-                                        return !error.is_error_cleared
-                                    })" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border" :class="[error.is_error_cleared ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']">
-                                        #{{channel.code}}, {{ error.vendChannelError.desc }} <br>
-                                        {{error.created_at}}
-                                    </span>
+
+                                <span v-for="vendChannelErrorLog in vend.vendChannelErrorLogsJson" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border"
+                                :class="[vendChannelErrorLog['is_error_cleared'] ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']">
+                                    <div class="flex flex-col">
+                                        <div>
+                                            #{{vendChannelErrorLog['vend_channel']['code']}},
+                                            <span class="font-bold">
+                                            ({{ vendChannelErrorLog['vend_channel_error']['code'] }})
+                                            </span>
+                                        </div>
+                                        <div>
+                                            {{vendChannelErrorLog['created_at']}}
+                                        </div>
+                                    </div>
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="grid grid-cols-[120px_minmax(120px,_1fr)_120px] gap-1">
-                                    <div v-for="
-                                                (channel, channelIndex) in vend.vendChannels
-                                                .map(function(channel){
-                                                    return channel
-                                                })
-                                                .filter(function(channel) {
-                                                    return channel.capacity > 0 && channel.code < 1000
-                                                })"
+                                    <div v-for="(channel, channelIndex) in vend.vendChannelsJson"
                                         class="inline-flex justify-between items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full"
-                                        :class="[channelIndex > 0 && (String(channel.code)[0] !== String(vend.vendChannels[channelIndex - 1].code)[0]) ? 'col-start-1' : '']"
+                                        :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
                                     >
                                         <div class="font-semibold">
-                                            #{{channel.code}},
+                                            #{{channel['code']}},
                                         </div>
                                         <div class="text-blue-600 text-sm pl-1">
-                                            {{channel.capacity - channel.qty}},
+                                            {{channel['capacity'] - channel['qty']}},
                                         </div>
                                         <div class="pl-1">
-                                            {{channel.qty}}/{{channel.capacity}}
+                                            {{channel['qty']}}/{{channel['capacity']}}
                                         </div>
                                     </div>
-                                    <!-- <div class="col-span-3 inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full space-x-2">
-                                        <span>
-                                            Total
-                                        </span>
-                                        <span class="text-blue-600 text-sm">
-                                            {{vend.vendChannelsTotals.sales}},
-                                        </span>
-                                        <span>
-                                            {{vend.vendChannelsTotals.qty}}/{{vend.vendChannelsTotals.capacity}}
-                                        </span>
-                                    </div> -->
+
                                 </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.vendChannelsTotals.qty }}/ {{ vend.vendChannelsTotals.capacity }} <br>
-                                ({{ vend.vendChannelsTotals.balancePercent }}%)
+                                <div class="flex flex-col items-center">
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
+                                        :class="[vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600']"
+                                        @click="onVendTempClicked(vend.id)"
+                                    >
+                                        {{ vend.is_temp_error ? 'Error' : vend.temp }}
+                                    </button>
+                                    <span class="mt-1">
+                                        {{ vend.temp_updated_at }}
+                                    </span>
+                                </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.vendChannelsTotals.outOfStockSku }}/ {{ vend.vendChannelsTotals.count }} <br>
-                                ({{ vend.vendChannelsTotals.outOfStockSkuPercent }}%)
+                                <span v-if="vend.vendChannelTotalsJson">
+                                    {{ vend.vendChannelTotalsJson['qty'] }}/ {{ vend.vendChannelTotalsJson['capacity'] }} <br>
+                                    ({{ vend.vendChannelTotalsJson['balancePercent'] }}%)
+                                </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.temp_updated_at }}
+                                <span v-if="vend.vendChannelTotalsJson">
+                                    {{ vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
+                                    ({{ vend.vendChannelTotalsJson['outOfStockSkuPercent'] }}%)
+                                </span>
                             </TableData>
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-right">
-                                {{ vend.coin_amount }}
-                            </TableData>
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.serial_num }}
-                            </TableData>
+
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.firmware_ver }}
                             </TableData>
@@ -292,6 +266,9 @@
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.is_sensor_normal }}
                             </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                {{ vend.serial_num }}
+                            </TableData>
                         </tr>
                         <tr v-if="!vends.data.length">
                             <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
@@ -300,36 +277,36 @@
                         </tr>
                     </tbody>
                 </table>
-                <Paginator v-if="vends.data.length" :links="vends.links" :meta="vends.meta"></Paginator>
             </div>
+            <Paginator v-if="vends.data.length" :links="vends.links" :meta="vends.meta"></Paginator>
         </div>
         </div>
     </div>
     </BreezeAuthenticatedLayout>
   </template>
 
-<script setup>
-import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import Button from '@/Components/Button.vue';
-import Paginator from '@/Components/Paginator.vue';
-import SearchInput from '@/Components/SearchInput.vue';
-import MultiSelect from '@/Components/MultiSelect.vue';
-import { MagnifyingGlassIcon, BackspaceIcon } from '@heroicons/vue/20/solid';
-import TableHead from '@/Components/TableHead.vue';
-import TableData from '@/Components/TableData.vue';
-import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia';
-import { Head } from '@inertiajs/inertia-vue3';
+  <script setup>
+  import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+  import Button from '@/Components/Button.vue';
+  import Paginator from '@/Components/Paginator.vue';
+  import SearchInput from '@/Components/SearchInput.vue';
+  import MultiSelect from '@/Components/MultiSelect.vue';
+  import { MagnifyingGlassIcon, BackspaceIcon } from '@heroicons/vue/20/solid';
+  import TableHead from '@/Components/TableHead.vue';
+  import TableData from '@/Components/TableData.vue';
+  import TableHeadSort from '@/Components/TableHeadSort.vue';
+  import { ref, onMounted } from 'vue';
+  import { Inertia } from '@inertiajs/inertia';
+  import { Head } from '@inertiajs/inertia-vue3';
 
-const props = defineProps({
+  const props = defineProps({
     categories: Object,
     categoryGroups: Object,
     vends: Object,
     vendChannelErrors: Object,
-})
+  })
 
-const filters = ref({
+  const filters = ref({
     code: '',
     serialNum: '',
     customer_code: '',
@@ -341,14 +318,14 @@ const filters = ref({
     sortKey: '',
     sortBy: true,
     numberPerPage: '',
-})
+  })
 
-const vendChannelErrorsOptions = ref([])
-const numberPerPageOptions = ref([])
-const categoryOptions = ref([])
-const categoryGroupOptions = ref([])
+  const vendChannelErrorsOptions = ref([])
+  const numberPerPageOptions = ref([])
+  const categoryOptions = ref([])
+  const categoryGroupOptions = ref([])
 
-onMounted(() => {
+  onMounted(() => {
     vendChannelErrorsOptions.value = [
         {'id': '', 'desc': 'All'},
         {'id': 'errors_only', 'desc': 'Errors Only'},
@@ -365,9 +342,9 @@ onMounted(() => {
 
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
-})
+  })
 
-function onSearchFilterUpdated() {
+  function onSearchFilterUpdated() {
     Inertia.get('/vends', {
         ...filters.value,
         vend_channel_error_id: filters.value.vend_channel_error_id.id,
@@ -378,20 +355,20 @@ function onSearchFilterUpdated() {
         preserveState: true,
         replace: true,
     })
-}
+  }
 
-function onVendTempClicked(vendId) {
+  function onVendTempClicked(vendId) {
     Inertia.get('/vends/' + vendId + '/temp')
-}
+  }
 
-function resetFilters() {
+  function resetFilters() {
     Inertia.get('/vends')
-}
+  }
 
-function sortTable(sortKey) {
+  function sortTable(sortKey) {
     filters.value.sortKey = sortKey
     filters.value.sortBy = !this.filters.sortBy
     onSearchFilterUpdated()
-}
+  }
 
-</script>
+  </script>

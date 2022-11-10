@@ -28,31 +28,10 @@ class VendResource extends JsonResource
             'is_door_open' => $this->is_door_open ? 'Yes' : 'No',
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
-            'vendChannels' => VendChannelResource::collection($this->whenLoaded('vendChannels')),
             'vendChannelsJson' => $this->vend_channels_json,
             'vendChannelErrorLogsJson' => $this->vend_channel_error_logs_json,
             'vendChannelTotalsJson' => $this->vend_channel_totals_json,
             'latestVendBinding' => VendBindingResource::make($this->whenLoaded('latestVendBinding')),
-            'vendChannelsTotals' => $this->when($this->relationLoaded('vendChannels'), function() {
-                $total = [
-                    'vendChannelsTotalQty' => $this->vendChannelsTotalQty,
-                    'vendChannelsTotalCapacity' => $this->vendChannelsTotalCapacity,
-                    'vendChannelsOutOfStock' => $this->vendChannelsOutOfStock,
-                    'vendChannelsErrorLogsActive' => $this->vendChannelsErrorLogsActive,
-                    'vendChannelsCount' => $this->vendChannelsCount,
-                ];
-                return [
-                    'qty' => $total['vendChannelsTotalQty'],
-                    'capacity' => $total['vendChannelsTotalCapacity'],
-                    'sales' => $total['vendChannelsTotalCapacity'] - $total['vendChannelsTotalQty'],
-                    'balancePercent' => $total['vendChannelsTotalCapacity'] ? round($total['vendChannelsTotalQty']/ $total['vendChannelsTotalCapacity'] * 100) : 0,
-                    'outOfStock' => $total['vendChannelsOutOfStock'],
-                    'activeErrorLogs' => $total['vendChannelsErrorLogsActive'],
-                    'count' => $total['vendChannelsCount'],
-                    'outOfStockSku' => $total['vendChannelsOutOfStock'] + $total['vendChannelsErrorLogsActive'],
-                    'outOfStockSkuPercent' => $total['vendChannelsCount'] ? round(($total['vendChannelsOutOfStock'] + $total['vendChannelsErrorLogsActive'])/ $total['vendChannelsCount'] * 100) : 0,
-                ];
-            }),
         ];
     }
 

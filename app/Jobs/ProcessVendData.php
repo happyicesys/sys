@@ -142,6 +142,7 @@ class ProcessVendData implements ShouldQueue
                             case 'VENDER':
                                 if($temp = $input['TEMP']) {
                                     $this->createVendTemp($vend, $temp);
+                                    $this->saveParameter($vend, $input);
                                 }
                                 break;
                             case 'TRADE':
@@ -285,5 +286,11 @@ class ProcessVendData implements ShouldQueue
             }
             SaveVendChannelErrorLogsJson::dispatch($vend->id);
         }
+    }
+
+    private function saveParameter(Vend $vend, $input)
+    {
+        $vend->parameter_json = $input;
+        $vend->save();
     }
 }
