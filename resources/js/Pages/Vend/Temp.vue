@@ -141,12 +141,6 @@ const vendTemps = ref(props.vendTempsObj.data.map(a => a.value))
 const vendTime = ref(props.vendTempsObj.data.map(a => a.created_at))
 const vend = ref(props.vendObj.data)
 
-// onMounted(() => {
-//     vendTemps.value = props.vendTempsObj.data.map(a => a.value)
-//     vendTime.value = props.vendTempsObj.data.map(a => a.created_at)
-//     vend.value = props.vendObj.data
-// })
-
 
 function onCustomDatetimeSearched() {
     Inertia.get(
