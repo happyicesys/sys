@@ -170,7 +170,8 @@ class ProcessVendData implements ShouldQueue
                         'type' => VendTemp::TYPE_CHAMBER,
                     ]);
 
-                    if($tempEvaporator = $input['t2']) {
+                    if(isset($input['t2'])) {
+                        $tempEvaporator = $input['t2'];
                         $vend->vendTemps()->create([
                             'value' => $tempEvaporator,
                             'type' => VendTemp::TYPE_EVAPORATOR,
