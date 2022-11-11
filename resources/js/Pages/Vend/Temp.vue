@@ -14,7 +14,7 @@
                         {{ vend.code }}
                     </h2>
                     <h2 class="font-semibold text-md md:text-xl text-gray-700 leading-tight">
-                        Temperature
+                        {{ typeName }} Temperature
                     </h2>
                 </div>
                 <div class="flex space-x-2 items-center">
@@ -126,6 +126,7 @@ const props = defineProps({
     request: Object,
     startDate: String,
     startDateString: String,
+    typeName: String,
     vendObj: Object,
     vendTempsObj: Object,
 });
