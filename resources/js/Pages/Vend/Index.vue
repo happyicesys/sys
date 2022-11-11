@@ -152,7 +152,12 @@
                                 Inventory Status
                             </TableHead>
                             <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
-                                Temp
+                                Temp <br>
+                                (Chamber)
+                            </TableHeadSort>
+                            <TableHeadSort modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2')">
+                                Temp <br>
+                                (Evaporator)
                             </TableHeadSort>
                             <TableHeadSort modelName="vend_channel_totals_json->balancePercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->balancePercent')">
                                 Balance Stock
@@ -235,13 +240,26 @@
                                         type="button"
                                         class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
                                         :class="[vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600']"
-                                        @click="onVendTempClicked(vend.id)"
+                                        @click="onVendTempClicked(vend.id, 1)"
                                     >
                                         {{ vend.is_temp_error ? 'Error' : vend.temp }}
                                     </button>
                                     <span class="mt-1">
                                         {{ vend.temp_updated_at }}
                                     </span>
+                                </div>
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                <div class="flex flex-col items-center">
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
+                                        :class="[vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600']"
+                                        @click="onVendTempClicked(vend.id, 2)"
+                                        v-if="vend.parameterJson && vend.parameterJson['t2']"
+                                    >
+                                        {{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}
+                                    </button>
                                 </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -304,6 +322,7 @@
     categoryGroups: Object,
     vends: Object,
     vendChannelErrors: Object,
+    constTempError: Number,
   })
 
   const filters = ref({
@@ -357,8 +376,8 @@
     })
   }
 
-  function onVendTempClicked(vendId) {
-    Inertia.get('/vends/' + vendId + '/temp')
+  function onVendTempClicked(vendId, type) {
+    Inertia.get('/vends/' + vendId + '/temp/' + type)
   }
 
   function resetFilters() {

@@ -41,6 +41,7 @@ class VendController extends Controller
             'categoryGroups' => CategoryGroupResource::collection(
                 CategoryGroup::where('classname', $className)->orderBy('name')->get()
             ),
+            'constTempError' => VendTemp::TEMPERATURE_ERROR,
             'vends' => VendResource::collection(
                 Vend::with([
                     'latestVendBinding.customer',
@@ -106,7 +107,7 @@ class VendController extends Controller
         ]);
     }
 
-    public function temp(Request $request, $vendId)
+    public function temp(Request $request, $vendId, $type)
     {
         $duration = 1;
         if($request->duration) {
@@ -122,16 +123,24 @@ class VendController extends Controller
         if($request->datetime_to) {
             $endDate = Carbon::parse($request->datetime_to)->setTimezone('Asia/Singapore');
         }
+        if($type == VendTemp::TYPE_CHAMBER) {
+            $vendTemps = $vend
+            ->vendTemps()
+            ->where('vend_temps.created_at', '>=', $startDate)
+            ->where('vend_temps.created_at', '<=', $endDate)
+            ->get();
+        }else if($type == VendTemp::TYPE_EVAPORATOR) {
+            $vendTemps = $vend
+            ->vendTempsEvaporator()
+            ->where('vend_temps.created_at', '>=', $startDate)
+            ->where('vend_temps.created_at', '<=', $endDate)
+            ->get();
+        }
+
         return Inertia::render('Vend/Temp', [
             'duration' => $duration,
             'vendObj' => VendResource::make($vend),
-            'vendTempsObj' => VendTempResource::collection(
-                $vend
-                ->vendTemps()
-                ->where('vend_temps.created_at', '>=', $startDate)
-                ->where('vend_temps.created_at', '<=', $endDate)
-                ->get()
-            ),
+            'vendTempsObj' => VendTempResource::collection($vendTemps),
             'startDate' => $startDate->format('D M d Y H:i:s'),
             'endDate' => $endDate->format('D M d Y H:i:s'),
             'startDateString' => $startDate->format('y-m-d H:i'),

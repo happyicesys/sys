@@ -185,7 +185,7 @@ Route::middleware('auth')->group(function() {
 
     Route::prefix('vends')->group(function() {
         Route::get('/', [VendController::class, 'index'])->name('vends');
-        Route::get('/{id}/temp', [VendController::class, 'temp'])->name('temp');
+        Route::get('/{id}/temp/{type}', [VendController::class, 'temp'])->name('temp');
         Route::get('/transactions', [VendController::class, 'transactionIndex'])->name('vends-transactions');
         Route::get('/channel-error-logs-email', [VendController::class, 'channelErrorLogsEmail']);
     });

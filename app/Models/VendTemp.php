@@ -10,11 +10,14 @@ class VendTemp extends Model
     use HasFactory;
 
     const TEMPERATURE_ERROR = 32767;
+    const TYPE_CHAMBER = 1;
+    const TYPE_EVAPORATOR = 2;
 
     protected $fillable = [
         'vend_id',
         'value',
         'is_keep',
+        'type',
     ];
 
     protected $casts = [

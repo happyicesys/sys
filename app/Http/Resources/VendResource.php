@@ -28,6 +28,7 @@ class VendResource extends JsonResource
             'is_door_open' => $this->is_door_open ? 'Yes' : 'No',
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
+            'parameterJson' => $this->parameter_json,
             'vendChannelsJson' => $this->vend_channels_json,
             'vendChannelErrorLogsJson' => $this->vend_channel_error_logs_json,
             'vendChannelTotalsJson' => $this->vend_channel_totals_json,

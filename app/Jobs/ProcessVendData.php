@@ -140,10 +140,8 @@ class ProcessVendData implements ShouldQueue
                     if($type = $input['Type']) {
                         switch($type) {
                             case 'VENDER':
-                                if($temp = $input['TEMP']) {
-                                    $this->createVendTemp($vend, $temp);
-                                    $this->saveParameter($vend, $input);
-                                }
+                                $this->createVendTemp($vend, $input);
+                                $this->saveParameter($vend, $input);
                                 break;
                             case 'TRADE':
                                 $this->createVendTransaction($vend, $input);
@@ -159,28 +157,37 @@ class ProcessVendData implements ShouldQueue
         return true;
     }
 
-    private function createVendTemp(Vend $vend, $temp)
+    private function createVendTemp(Vend $vend, $input)
     {
         // more than 3 minutes only update same machine temp
         if(!$vend->temp_updated_at or $vend->temp_updated_at->addMinutes(2)->isPast()) {
-            if($temp == VendTemp::TEMPERATURE_ERROR) {
-                $vend->is_temp_error = true;
-            }else {
-                $createdTemp = $vend->vendTemps()->create([
-                    'value' => $temp,
-                ]);
+            if($temp = $input['TEMP']) {
+                if($temp == VendTemp::TEMPERATURE_ERROR) {
+                    $vend->is_temp_error = true;
+                }else {
+                    $createdTemp = $vend->vendTemps()->create([
+                        'value' => $temp,
+                        'type' => VendTemp::TYPE_CHAMBER,
+                    ]);
 
-                // $prevIsKeepVendTemp = VendTemp::where('vend_id', $vend->id)->where('is_keep', true)->latest()->first();
+                    if($tempEvaporator = $input['t2']) {
+                        $vend->vendTemps()->create([
+                            'value' => $tempEvaporator,
+                            'type' => VendTemp::TYPE_EVAPORATOR,
+                        ]);
+                    }
 
-                // if(!$prevIsKeepVendTemp or ($prevIsKeepVendTemp and $prevIsKeepVendTemp->created_at->addMinutes(5)->isPast())) {
-                //     $createdTemp->update(['is_keep' => true]);
-                // }
+                    // $prevIsKeepVendTemp = VendTemp::where('vend_id', $vend->id)->where('is_keep', true)->latest()->first();
 
-                $vend->temp = $temp;
-                $vend->is_temp_error = false;
+                    // if(!$prevIsKeepVendTemp or ($prevIsKeepVendTemp and $prevIsKeepVendTemp->created_at->addMinutes(5)->isPast())) {
+                    //     $createdTemp->update(['is_keep' => true]);
+                    // }
+
+                    $vend->temp = $temp;
+                    $vend->is_temp_error = false;
+                }
             }
             $vend->temp_updated_at = Carbon::now();
-
             $vend->save();
         }
     }
