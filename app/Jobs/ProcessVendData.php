@@ -20,9 +20,9 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class ProcessVendData implements ShouldQueue
+class ProcessVendData
+    //implements ShouldQueue
 {
-    //
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $input;
@@ -73,11 +73,13 @@ class ProcessVendData implements ShouldQueue
                     if(isset($processedDataArr['code']) and $processedDataArr['code']) {
                         if($vend = Vend::where('code', $processedDataArr['code'])->first()) {
                             $this->vendSaveLastUpdatedTime($vend);
+                            // dd($vend->toArray());
                         }
                     }
                 }else {
                     $processedDataArr['data'] = json_decode($processedDataArr['content'], true);
                 }
+                // dd('hereblock');
             }else {
                 $processedDataArr['data']['Vid'] = json_decode($processedDataArr['code'], true);
                 $processedDataArr['data']['Type'] = 'CHANNEL';
