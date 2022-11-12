@@ -70,6 +70,11 @@ class ProcessVendData implements ShouldQueue
             if(str_starts_with($processedDataArr['content'], "{\"")) {
                 if($processedDataArr['content'] === "{\"Type\":\"P\"}") {
                     $processedDataArr['data'] = null;
+                    if(isset($processedDataArr['code']) and $processedDataArr['code']) {
+                        if($vend = Vend::where('code', $processedDataArr['code'])->first()) {
+                            $this->vendSaveLastUpdatedTime($vend);
+                        }
+                    }
                 }else {
                     $processedDataArr['data'] = json_decode($processedDataArr['content'], true);
                 }
@@ -299,6 +304,12 @@ class ProcessVendData implements ShouldQueue
     private function saveParameter(Vend $vend, $input)
     {
         $vend->parameter_json = $input;
+        $vend->save();
+    }
+
+    private function vendSaveLastUpdatedTime(Vend $vend)
+    {
+        $vend->last_updated_at = Carbon::now();
         $vend->save();
     }
 }

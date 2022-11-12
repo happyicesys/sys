@@ -10,6 +10,7 @@ class Vend extends Model
     use HasFactory;
 
     protected $casts = [
+        'last_updated_at' => 'datetime',
         'parameter_json' => 'json',
         'temp_updated_at' => 'datetime',
         'vend_channel_error_logs_json' => 'json',
@@ -28,6 +29,7 @@ class Vend extends Model
         'is_door_open',
         'is_sensor_normal',
         'is_temp_error',
+        'last_updated_at',
         'parameter_json',
         'keylock_number',
         'vend_channel_error_logs_json',
