@@ -69,17 +69,16 @@ class ProcessVendData
 
             if(str_starts_with($processedDataArr['content'], "{\"")) {
                 if($processedDataArr['content'] === "{\"Type\":\"P\"}") {
-                    $processedDataArr['data'] = null;
                     if(isset($processedDataArr['code']) and $processedDataArr['code']) {
                         if($vend = Vend::where('code', $processedDataArr['code'])->first()) {
                             $this->vendSaveLastUpdatedTime($vend);
-                            // dd($vend->toArray());
                         }
                     }
+                    $processedDataArr['data'] = null;
+
                 }else {
                     $processedDataArr['data'] = json_decode($processedDataArr['content'], true);
                 }
-                // dd('hereblock');
             }else {
                 $processedDataArr['data']['Vid'] = json_decode($processedDataArr['code'], true);
                 $processedDataArr['data']['Type'] = 'CHANNEL';
