@@ -296,7 +296,15 @@
                                         class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs font-medium border min-w-full"
                                         :class="[vend.is_online ? 'bg-green-200' : 'bg-red-200']"
                                     >
-                                        {{vend.is_online ? 'Online' : 'Offline'}}
+                                        <div class="flex flex-col">
+                                            <span>
+                                                {{vend.is_online ? 'Online' : 'Offline'}}
+                                            </span>
+                                            <span>
+                                                Updated {{vend.last_updated_at}}
+                                            </span>
+                                        </div>
+
                                     </div>
                                     <div
                                         class="inline-flex justify-between items-center rounded px-0.5 py-0.5 text-xs font-medium border min-w-full"
