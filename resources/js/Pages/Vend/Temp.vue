@@ -14,7 +14,7 @@
                         {{ vend.code }}
                     </h2>
                     <h2 class="font-semibold text-md md:text-xl text-gray-700 leading-tight">
-                        {{ typeName }} Temperature
+                        {{ type.name }} Temperature
                     </h2>
                 </div>
                 <div class="flex space-x-2 items-center">
@@ -126,7 +126,7 @@ const props = defineProps({
     request: Object,
     startDate: String,
     startDateString: String,
-    typeName: String,
+    type: [String, Object, Array],
     vendObj: Object,
     vendTempsObj: Object,
 });
@@ -147,14 +147,15 @@ function onCustomDatetimeSearched() {
     Inertia.get(
         '/vends/' +
         vend.value.id +
-        '/temp'
+        '/temp/' +
+        props.type.value
     , filters.value, {
         preserveScroll: true,
     })
 }
 
 function onDurationFilterClicked(duration) {
-    Inertia.get('/vends/' + vend.value.id + '/temp?duration=' + duration)
+    Inertia.get('/vends/' + vend.value.id + '/temp/'+ props.type.value +'?duration=' + duration)
 }
 
 function back() {

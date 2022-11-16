@@ -169,10 +169,7 @@
                                 Firmware Ver
                             </TableHead>
                             <TableHead>
-                                Door Opening?
-                            </TableHead>
-                            <TableHead>
-                                Sensor Normal?
+                                Status
                             </TableHead>
                             <TableHead>
                                 Serial Num
@@ -231,7 +228,6 @@
                                             {{channel['qty']}}/{{channel['capacity']}}
                                         </div>
                                     </div>
-
                                 </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -279,10 +275,21 @@
                                 {{ vend.firmware_ver }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.is_door_open }}
-                            </TableData>
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.is_sensor_normal }}
+                                <div class="grid grid-cols-[100px_minmax(100px,_1fr)_100px] gap-1">
+                                    <div
+                                        class="inline-flex justify-between items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full"
+                                        :class="[vend.parameterJson['Sensor'] == 1 ? 'bg-green-200' : 'bg-red-200']"
+                                        v-if="vend.parameterJson && vend.parameterJson['Sensor']"
+                                    >
+                                        Drop Sensor: {{vend.parameterJson['Sensor'] == 1 ? 'Active' : 'Inactive'}}
+                                    </div>
+                                    <div
+                                        class="inline-flex justify-between items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full bg-green-200"
+                                        v-if="vend.parameterJson && vend.parameterJson['fan']"
+                                    >
+                                        Fan Speed: {{vend.parameterJson['fan']}}
+                                    </div>
+                                </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.serial_num }}

@@ -20,6 +20,7 @@ use App\Models\Profile;
 use App\Models\Status;
 use App\Models\Tag;
 use App\Models\User;
+use App\Models\VendData;
 use App\Models\Zone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -120,7 +121,10 @@ class CustomerController extends Controller
 
     public function migrate(Request $request)
     {
-        dd($request->all());
-        ProcessCustomerData::dispatch($request->all(), null);
+        VendData::create([
+            'ip_address' => $request->ip(),
+            'value' => $request->all(),
+        ]);
+        // ProcessCustomerData::dispatch($request->all(), null);
     }
 }

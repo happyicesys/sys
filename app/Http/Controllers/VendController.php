@@ -141,7 +141,10 @@ class VendController extends Controller
 
         return Inertia::render('Vend/Temp', [
             'duration' => $duration,
-            'typeName' => $typeName,
+            'type' => [
+                'name' => $typeName,
+                'value' => $type,
+            ],
             'vendObj' => VendResource::make($vend),
             'vendTempsObj' => VendTempResource::collection($vendTemps),
             'startDate' => $startDate->format('D M d Y H:i:s'),
