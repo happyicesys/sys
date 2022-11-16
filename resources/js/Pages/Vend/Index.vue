@@ -78,6 +78,22 @@
                     >
                     </MultiSelect>
                 </div>
+                <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                        Is Online?
+                    </label>
+                    <MultiSelect
+                        v-model="filters.is_online"
+                        :options="booleanOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="value"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                </div>
             </div>
 
             <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -347,6 +363,7 @@
     categoryGroups: [],
     tempHigherThan: '',
     vend_channel_error_id: '',
+    is_online: '',
     sortKey: '',
     sortBy: true,
     numberPerPage: '',
@@ -356,6 +373,7 @@
   const numberPerPageOptions = ref([])
   const categoryOptions = ref([])
   const categoryGroupOptions = ref([])
+  const booleanOptions = ref([])
 
   onMounted(() => {
     vendChannelErrorsOptions.value = [
@@ -374,6 +392,13 @@
 
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
+    booleanOptions.value = [
+        {id: '', value: 'All'},
+        {id: 'true', value: 'Yes'},
+        {id: 'false', value: 'No'},
+    ]
+    filters.value.is_online = booleanOptions.value[1]
+    console.log(filters.value.is_online)
   })
 
   function onSearchFilterUpdated() {
@@ -382,6 +407,7 @@
         vend_channel_error_id: filters.value.vend_channel_error_id.id,
         categories: filters.value.categories.map((category) => { return category.id }),
         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
+        is_online: filters.value.is_online.id,
         numberPerPage: filters.value.numberPerPage.id,
     }, {
         preserveState: true,

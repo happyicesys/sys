@@ -89,6 +89,14 @@ class VendController extends Controller
                             });
                         }
                     })
+                    ->when($request->is_online, function($query, $search) {
+                        if($search == 'true') {
+                            $search = true;
+                        }else {
+                            $search = false;
+                        }
+                        $query->where('is_online', $search);
+                    })
                     ->when($sortKey, function($query, $search) use ($sortBy) {
 
                         if(strpos($search, '->')) {
