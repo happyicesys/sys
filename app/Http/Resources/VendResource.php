@@ -26,6 +26,7 @@ class VendResource extends JsonResource
             'coin_amount' => $this->coin_amount/ 100,
             'firmware_ver' => $this->firmware_ver ? dechex($this->firmware_ver) : null,
             'is_door_open' => $this->is_door_open ? 'Yes' : 'No',
+            'is_online' => $this->is_online,
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
             'parameterJson' => $this->parameter_json,
