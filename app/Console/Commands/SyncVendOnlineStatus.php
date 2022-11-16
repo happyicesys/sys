@@ -33,7 +33,7 @@ class SyncVendOnlineStatus extends Command
 
         foreach($vends as $vend) {
             $vend->is_online = true;
-            if($vend->last_updated_at->addMinutes(5)->isPast()) {
+            if($vend->last_updated_at and $vend->last_updated_at->addMinutes(5)->isPast()) {
                 $vend->is_online = false;
             }
             $vend->save();
