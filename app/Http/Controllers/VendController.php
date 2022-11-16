@@ -30,6 +30,7 @@ class VendController extends Controller
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
+        $isOnline = $request->is_online != null ? $request->is_online : 'true';
         $sortKey = $request->sortKey ? $request->sortKey : 'code';
         $sortBy = $request->sortBy ? $request->sortBy : true;
         $className = get_class(new Customer());
@@ -89,13 +90,15 @@ class VendController extends Controller
                             });
                         }
                     })
-                    ->when($request->is_online, function($query, $search) {
-                        if($search == 'true') {
-                            $search = true;
-                        }else {
-                            $search = false;
+                    ->when($isOnline, function($query, $search) {
+                        if($search != 'all') {
+                            if($search == 'true') {
+                                $search = true;
+                            }else {
+                                $search = false;
+                            }
+                            $query->where('is_online', $search);
                         }
-                        $query->where('is_online', $search);
                     })
                     ->when($sortKey, function($query, $search) use ($sortBy) {
 

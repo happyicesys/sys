@@ -393,12 +393,12 @@
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
     booleanOptions.value = [
-        {id: '', value: 'All'},
+        {id: 'all', value: 'All'},
         {id: 'true', value: 'Yes'},
         {id: 'false', value: 'No'},
     ]
     filters.value.is_online = booleanOptions.value[1]
-    console.log(filters.value.is_online)
+    // console.log(filters.value.is_online)
   })
 
   function onSearchFilterUpdated() {
