@@ -291,33 +291,75 @@
                                 {{ vend.firmware_ver }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <div class="grid grid-cols-[80px_minmax(80px,_1fr)_80px] gap-1">
+                                <div class="grid grid-cols-[90px_minmax(90px,_1fr)_90px] gap-1">
                                     <div
-                                        class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs font-medium border min-w-full"
+                                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                                         :class="[vend.is_online ? 'bg-green-200' : 'bg-red-200']"
                                     >
                                         <div class="flex flex-col">
-                                            <span>
+                                            <span class="font-bold">
                                                 {{vend.is_online ? 'Online' : 'Offline'}}
                                             </span>
-                                            <span>
-                                                Updated {{vend.last_updated_at}}
+                                            <span v-if="vend.last_updated_at">
+                                                Last: {{vend.last_updated_at}}
                                             </span>
                                         </div>
 
                                     </div>
                                     <div
-                                        class="inline-flex justify-between items-center rounded px-0.5 py-0.5 text-xs font-medium border min-w-full"
+                                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                                         :class="[vend.parameterJson['Sensor'] == 1 ? 'bg-green-200' : 'bg-red-200']"
                                         v-if="vend.parameterJson && vend.parameterJson['Sensor']"
                                     >
-                                        Drop Sensor: {{vend.parameterJson['Sensor'] == 1 ? 'Active' : 'Inactive'}}
+                                        <div class="flex flex-col">
+                                            <span class="font-bold">
+                                                Drop Sensor
+                                            </span>
+                                            <span>
+                                                {{vend.parameterJson['Sensor'] == 1 ? 'Active' : 'Inactive'}}
+                                            </span>
+                                        </div>
                                     </div>
                                     <div
-                                        class="inline-flex justify-between items-center rounded px-0.5 py-0.5 text-xs font-medium border min-w-full bg-green-200"
+                                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-green-200"
                                         v-if="vend.parameterJson && vend.parameterJson['fan']"
                                     >
-                                        Fan Speed: {{vend.parameterJson['fan']}}
+                                        <div class="flex flex-col">
+                                            <span class="font-bold">
+                                                Fan Speed
+                                            </span>
+                                            <span>
+                                                {{vend.parameterJson['fan']}}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                        :class="[vend.parameterJson['door'] == 'close' ? 'bg-green-200' : 'bg-red-200']"
+                                        v-if="vend.parameterJson && vend.parameterJson['door']"
+                                    >
+                                        <div class="flex flex-col">
+                                            <span class="font-bold">
+                                                Door
+                                            </span>
+                                            <span>
+                                                {{vend.parameterJson['door'] == 'open' ? 'Open' : 'Close'}}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                        :class="[vend.parameterJson['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200']"
+                                        v-if="vend.parameterJson && vend.parameterJson['CoinCnt']"
+                                    >
+                                        <div class="flex flex-col">
+                                            <span class="font-bold">
+                                                Coin
+                                            </span>
+                                            <span>
+                                                {{(vend.parameterJson['CoinCnt']/ 100).toFixed(2)}}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </TableData>

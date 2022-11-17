@@ -25,8 +25,9 @@ use Illuminate\Support\Facades\Log;
 use Propaganistas\LaravelPhone\PhoneNumber;
 
 
-class ProcessCustomerData implements ShouldQueue
+class ProcessCustomerData
 {
+    //implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SearchAddress, SerializesModels;
 
     /**
@@ -65,6 +66,10 @@ class ProcessCustomerData implements ShouldQueue
 
         if($customersCollection) {
             foreach($customersCollection as $customerCollection) {
+                // dd($customerCollection[0]);
+                if($this->dataArr) {
+                    $customerCollection = $customerCollection[0];
+                }
                 switch($statusData = $customerCollection['active']) {
                     case 'Yes':
                         $status = Status::updateOrCreate([
@@ -103,7 +108,7 @@ class ProcessCustomerData implements ShouldQueue
                             'name' => $categoryGroupData['name'],
                             'classname' => $className,
                         ], [
-                            'desc' => $categoryGroupData['desc'],
+                            'desc' => isset($categoryGroupData['desc']) ?  $categoryGroupData['desc'] : null,
                         ]);
                         $categoryGroupId = $categoryGroup->id;
                     }
@@ -232,8 +237,8 @@ class ProcessCustomerData implements ShouldQueue
                     'category_id' => $categoryId,
                     'payment_term_id' => $paymentTermId,
                     'zone_id' => $zoneId,
-                    'remarks' => $customerCollection['remark'],
-                    'ops_note' => $customerCollection['operation_note'],
+                    'remarks' => isset($customerCollection['remark']) ? $customerCollection['remark'] : null,
+                    'ops_note' => isset($customerCollection['operation_note']) ?  $customerCollection['operation_note'] : null,
                     'created_at' => $customerCollection['created_at'],
                 ]);
 

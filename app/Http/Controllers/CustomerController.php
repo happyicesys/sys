@@ -125,6 +125,6 @@ class CustomerController extends Controller
             'ip_address' => $request->ip(),
             'value' => $request->all(),
         ]);
-        // ProcessCustomerData::dispatch($request->all(), null);
+        ProcessCustomerData::dispatch($request->all(), null);
     }
 }
