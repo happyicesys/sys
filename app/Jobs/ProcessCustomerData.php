@@ -25,9 +25,9 @@ use Illuminate\Support\Facades\Log;
 use Propaganistas\LaravelPhone\PhoneNumber;
 
 
-class ProcessCustomerData
+class ProcessCustomerData implements ShouldQueue
 {
-    //implements ShouldQueue
+    //
     use Dispatchable, InteractsWithQueue, Queueable, SearchAddress, SerializesModels;
 
     /**
