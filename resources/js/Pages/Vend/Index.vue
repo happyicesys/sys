@@ -301,7 +301,7 @@
                                                 {{vend.is_online ? 'Online' : 'Offline'}}
                                             </span>
                                             <span v-if="vend.last_updated_at">
-                                                ({{vend.last_updated_at}})
+                                                {{vend.last_updated_at}}
                                             </span>
                                         </div>
 
