@@ -15,6 +15,7 @@ trait SearchAddress{
             'getAddrDetails' => 'Y',
         ])->collect();
 
+        $results = null;
         foreach($response as $searchResult)
         {
             if(is_array($searchResult)) {
@@ -22,7 +23,7 @@ trait SearchAddress{
             }
         }
 
-        if(is_array($results)) {
+        if($results and is_array($results)) {
             return [
                 'block_num' => $results['BLK_NO'],
                 'street_name' => $results['ROAD_NAME'],

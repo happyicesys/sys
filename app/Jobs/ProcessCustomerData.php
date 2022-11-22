@@ -256,19 +256,21 @@ class ProcessCustomerData implements ShouldQueue
                     if($billingCountryCol and $billingCountryCol->name == 'Singapore') {
                         $billingAddressResult = $this->getAddressResult($billingPostcode);
 
-                        $customer->addresses()->updateOrCreate([
-                            'type' => 1,
-                        ], [
-                            'unit_num' => isset($customerCollection['bill_address']) ? $customerCollection['bill_address'] : null,
-                            'block_num' => $billingAddressResult['block_num'],
-                            'street_name' => $billingAddressResult['street_name'],
-                            'building' => $billingAddressResult['building'],
-                            'full_address' => $billingAddressResult['full_address'],
-                            'postcode' => $billingAddressResult['postcode'],
-                            'latitude' => $billingAddressResult['latitude'],
-                            'longitude' => $billingAddressResult['longitude'],
-                            'country_id' => $billingCountryCol->id,
-                        ]);
+                        if($billingAddressResult) {
+                            $customer->addresses()->updateOrCreate([
+                                'type' => 1,
+                            ], [
+                                'unit_num' => isset($customerCollection['bill_address']) ? $customerCollection['bill_address'] : null,
+                                'block_num' => $billingAddressResult['block_num'],
+                                'street_name' => $billingAddressResult['street_name'],
+                                'building' => $billingAddressResult['building'],
+                                'full_address' => $billingAddressResult['full_address'],
+                                'postcode' => $billingAddressResult['postcode'],
+                                'latitude' => $billingAddressResult['latitude'],
+                                'longitude' => $billingAddressResult['longitude'],
+                                'country_id' => $billingCountryCol->id,
+                            ]);
+                        }
                     }
                 }
 
@@ -281,19 +283,21 @@ class ProcessCustomerData implements ShouldQueue
                     if($deliveryCountryCol and $deliveryCountryCol->name == 'Singapore') {
                         $deliveryAddressResult = $this->getAddressResult($deliveryPostcode);
 
-                        $customer->addresses()->updateOrCreate([
-                            'type' => 2,
-                        ], [
-                            'unit_num' => isset($customerCollection['del_address']) ? $customerCollection['del_address'] : null,
-                            'block_num' => $deliveryAddressResult['block_num'],
-                            'street_name' => $deliveryAddressResult['street_name'],
-                            'building' => $deliveryAddressResult['building'],
-                            'full_address' => $deliveryAddressResult['full_address'],
-                            'postcode' => $deliveryAddressResult['postcode'],
-                            'latitude' => $deliveryAddressResult['latitude'],
-                            'longitude' => $deliveryAddressResult['longitude'],
-                            'country_id' => $deliveryCountryCol->id,
-                        ]);
+                        if($deliveryAddressResult) {
+                            $customer->addresses()->updateOrCreate([
+                                'type' => 2,
+                            ], [
+                                'unit_num' => isset($customerCollection['del_address']) ? $customerCollection['del_address'] : null,
+                                'block_num' => $deliveryAddressResult['block_num'],
+                                'street_name' => $deliveryAddressResult['street_name'],
+                                'building' => $deliveryAddressResult['building'],
+                                'full_address' => $deliveryAddressResult['full_address'],
+                                'postcode' => $deliveryAddressResult['postcode'],
+                                'latitude' => $deliveryAddressResult['latitude'],
+                                'longitude' => $deliveryAddressResult['longitude'],
+                                'country_id' => $deliveryCountryCol->id,
+                            ]);
+                        }
                     }
                 }
 
