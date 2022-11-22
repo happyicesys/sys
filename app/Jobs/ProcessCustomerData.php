@@ -68,7 +68,7 @@ class ProcessCustomerData implements ShouldQueue
             foreach($customersCollection as $customerCollection) {
                 // dd($customerCollection[0]);
                 if($this->dataArr) {
-                    $customerCollection = $customerCollection[0];
+                    $customerCollection = collect($customerCollection[0]);
                 }
                 switch($statusData = $customerCollection['active']) {
                     case 'Yes':
@@ -95,14 +95,16 @@ class ProcessCustomerData implements ShouldQueue
                         break;
                 }
 
-                if($bankData = $customerCollection['bank']) {
+                if(isset($customerCollection['bank'])) {
+                    $bankData = $customerCollection['bank'];
                     $bank = Bank::updateOrCreate([
                         'name' => $bankData['name']
                     ]);
                     $bankId = $bank->id;
                 }
 
-                if($categoryData = $customerCollection['custcategory']) {
+                if(isset($customerCollection['custcategory'])) {
+                    $categoryData = $customerCollection['custcategory'];
                     if($categoryGroupData = $categoryData['custcategory_group']) {
                         $categoryGroup = CategoryGroup::updateOrCreate([
                             'name' => $categoryGroupData['name'],
@@ -124,14 +126,16 @@ class ProcessCustomerData implements ShouldQueue
                     $categoryId = $category->id;
                 }
 
-                if($paymentTermData = $customerCollection['payterm']) {
+                if(isset($customerCollection['payterm'])) {
+                    $paymentTermData = $customerCollection['payterm'];
                     $paymentTerm = PaymentTerm::updateOrCreate([
                         'name' => $paymentTermData
                     ]);
                     $paymentTermId = $paymentTerm->id;
                 }
 
-                if($profileData = $customerCollection['profile']) {
+                if(isset($customerCollection['profile'])) {
+                    $profileData = $customerCollection['profile'];
                     $baseCurrencyCountryData = $profileData['currency'];
                     $baseCurrencyCountry = null;
                     switch($baseCurrencyCountryData['currency_name']) {
@@ -217,7 +221,8 @@ class ProcessCustomerData implements ShouldQueue
                     }
                 }
 
-                if($zoneData = $customerCollection['zone']) {
+                if(isset($customerCollection['zone'])) {
+                    $zoneData = $customerCollection['zone'];
                     $zone = Zone::updateOrCreate([
                         'name' => $zoneData['name'],
                     ], [
@@ -229,11 +234,11 @@ class ProcessCustomerData implements ShouldQueue
                 $customer = Customer::updateOrCreate([
                     'code' => $customerCollection['cust_id'],
                 ], [
-                    'name' => $customerCollection['company'],
+                    'name' => isset($customerCollection['company']) ? $customerCollection['company'] : null,
                     'profile_id' => $profileId,
                     'status_id' => $statusId,
                     'bank_id' => $bankId,
-                    'bank_remarks' => $customerCollection['account_number'],
+                    'bank_remarks' => isset($customerCollection['account_number']) ? $customerCollection['account_number'] : null,
                     'category_id' => $categoryId,
                     'payment_term_id' => $paymentTermId,
                     'zone_id' => $zoneId,
@@ -241,6 +246,56 @@ class ProcessCustomerData implements ShouldQueue
                     'ops_note' => isset($customerCollection['operation_note']) ?  $customerCollection['operation_note'] : null,
                     'created_at' => $customerCollection['created_at'],
                 ]);
+
+                if(isset($customerCollection['billing_country']) and isset($customerCollection['bill_postcode'])) {
+                    $billingCountry = $customerCollection['billing_country'];
+                    $billingPostcode = $customerCollection['bill_postcode'];
+
+                    $billingCountryCol = Country::where('name', $billingCountry['name'])->first();
+
+                    if($billingCountryCol and $billingCountryCol->name == 'Singapore') {
+                        $billingAddressResult = $this->getAddressResult($billingPostcode);
+
+                        $customer->addresses()->updateOrCreate([
+                            'type' => 1,
+                        ], [
+                            'unit_num' => isset($customerCollection['bill_address']) ? $customerCollection['bill_address'] : null,
+                            'block_num' => $billingAddressResult['block_num'],
+                            'street_name' => $billingAddressResult['street_name'],
+                            'building' => $billingAddressResult['building'],
+                            'full_address' => $billingAddressResult['full_address'],
+                            'postcode' => $billingAddressResult['postcode'],
+                            'latitude' => $billingAddressResult['latitude'],
+                            'longitude' => $billingAddressResult['longitude'],
+                            'country_id' => $billingCountryCol->id,
+                        ]);
+                    }
+                }
+
+                if(isset($customerCollection['delivery_country']) and isset($customerCollection['del_postcode'])) {
+                    $deliveryCountry = $customerCollection['delivery_country'];
+                    $deliveryPostcode = $customerCollection['del_postcode'];
+
+                    $deliveryCountryCol = Country::where('name', $deliveryCountry['name'])->first();
+
+                    if($deliveryCountryCol and $deliveryCountryCol->name == 'Singapore') {
+                        $deliveryAddressResult = $this->getAddressResult($deliveryPostcode);
+
+                        $customer->addresses()->updateOrCreate([
+                            'type' => 2,
+                        ], [
+                            'unit_num' => isset($customerCollection['del_address']) ? $customerCollection['del_address'] : null,
+                            'block_num' => $deliveryAddressResult['block_num'],
+                            'street_name' => $deliveryAddressResult['street_name'],
+                            'building' => $deliveryAddressResult['building'],
+                            'full_address' => $deliveryAddressResult['full_address'],
+                            'postcode' => $deliveryAddressResult['postcode'],
+                            'latitude' => $deliveryAddressResult['latitude'],
+                            'longitude' => $deliveryAddressResult['longitude'],
+                            'country_id' => $deliveryCountryCol->id,
+                        ]);
+                    }
+                }
 
                 if($customerCollection['is_dvm'] or $customerCollection['is_vending'] or $customerCollection['is_combi']) {
                     $vend = Vend::where('code', $customerCollection['vend_code'])->first();
@@ -265,7 +320,6 @@ class ProcessCustomerData implements ShouldQueue
                         ]);
                     }
                 }
-
             }
         }
     }

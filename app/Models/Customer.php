@@ -34,6 +34,11 @@ class Customer extends Model
     ];
 
     // relationships
+    public function addresses()
+    {
+        return $this->morphMany(Address::class, 'modelable');
+    }
+
     public function attachments()
     {
         return $this->morphMany(Attachment::class, 'modelable')->orderBy('sequence');
