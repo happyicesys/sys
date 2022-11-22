@@ -18,7 +18,7 @@ trait SearchAddress{
         $results = null;
         foreach($response as $searchResult)
         {
-            if(is_array($searchResult)) {
+            if($searchResult and is_array($searchResult)) {
                 $results = $searchResult[0];
             }
         }
