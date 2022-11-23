@@ -8,6 +8,8 @@
         <span>
           #ID: {{$vend->code}}
         </span>
+      </h3>
+      <h3 class="text-lg leading-6 font-medium text-gray-900">
         @if($vend->latestVendBinding and $vend->latestVendBinding->customer)
           <span>
             {{$vend->latestVendBinding->customer->code}} - {{$vend->latestVendBinding->customer->name}}
