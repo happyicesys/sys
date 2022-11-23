@@ -94,6 +94,22 @@
                     >
                     </MultiSelect>
                 </div>
+                <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                        Country
+                    </label>
+                    <MultiSelect
+                        v-model="filters.country_id"
+                        :options="countryOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="name"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                </div>
             </div>
 
             <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -399,9 +415,11 @@
   const props = defineProps({
     categories: Object,
     categoryGroups: Object,
+    constTempError: Number,
+    countries: Object,
     vends: Object,
     vendChannelErrors: Object,
-    constTempError: Number,
+
   })
 
   const filters = ref({
@@ -411,6 +429,7 @@
     customer_name: '',
     categories: [],
     categoryGroups: [],
+    country_id: '',
     tempHigherThan: '',
     vend_channel_error_id: '',
     is_online: '',
@@ -423,6 +442,7 @@
   const numberPerPageOptions = ref([])
   const categoryOptions = ref([])
   const categoryGroupOptions = ref([])
+  const countryOptions = ref([])
   const booleanOptions = ref([])
 
   onMounted(() => {
@@ -448,7 +468,11 @@
         {id: 'false', value: 'No'},
     ]
     filters.value.is_online = booleanOptions.value[1]
-    // console.log(filters.value.is_online)
+    countryOptions.value = [
+        {'id': '0', 'name': 'All'},
+        ...props.countries.data.map((data) => {return {id: data.id, name: data.name}})
+    ];
+    filters.value.country_id = countryOptions.value[1]
   })
 
   function onSearchFilterUpdated() {
@@ -457,6 +481,7 @@
         vend_channel_error_id: filters.value.vend_channel_error_id.id,
         categories: filters.value.categories.map((category) => { return category.id }),
         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
+        country_id: filters.value.country_id.id,
         is_online: filters.value.is_online.id,
         numberPerPage: filters.value.numberPerPage.id,
     }, {

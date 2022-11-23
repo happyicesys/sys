@@ -37,6 +37,7 @@ class CustomerResource extends JsonResource
             'updated_by' => $this->updated_by,
             'zone_id' => $this->zone_id,
             'accountManager' => UserResource::make($this->whenLoaded('handledBy')),
+            'addresses' => AddressResource::make($this->whenLoaded('addresses')),
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'billingAddress' => AddressResource::make($this->whenLoaded('billingAddress')),
             'category' => CategoryResource::make($this->whenLoaded('category')),
