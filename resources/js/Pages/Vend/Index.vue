@@ -198,9 +198,6 @@
                                 Out of Stock SKU
                             </TableHeadSort>
                             <TableHead>
-                                Firmware Ver
-                            </TableHead>
-                            <TableHead>
                                 Status
                             </TableHead>
                             <TableHead>
@@ -209,6 +206,9 @@
                             <TableHeadSort modelName="latestVendBinding.customer.deliveryAddress.postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('latestVendBinding.customer.deliveryAddress.postcode')">
                                 Postcode
                             </TableHeadSort>
+                            <TableHead>
+                                Firmware Ver
+                            </TableHead>
                         </tr>
                     </thead>
                     <tbody class="bg-white">
@@ -304,10 +304,6 @@
                                     ({{ vend.vendChannelTotalsJson['outOfStockSkuPercent'] }}%)
                                 </span>
                             </TableData>
-
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.firmware_ver }}
-                            </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="grid grid-cols-[90px_minmax(90px,_1fr)_90px] gap-1">
                                     <div
@@ -388,6 +384,9 @@
                                 <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.deliveryAddress">
                                     {{ vend.postcode }}
                                 </span>
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                {{ vend.firmware_ver }}
                             </TableData>
                         </tr>
                         <tr v-if="!vends.data.length">
@@ -507,7 +506,7 @@
 
   function sortTable(sortKey) {
     filters.value.sortKey = sortKey
-    filters.value.sortBy = !this.filters.sortBy
+    filters.value.sortBy = !filters.value.sortBy
     onSearchFilterUpdated()
   }
 
