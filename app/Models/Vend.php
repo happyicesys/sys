@@ -119,11 +119,11 @@ class Vend extends Model
     {
         $isOnline = $request->is_online != null ? $request->is_online : 'true';
         $countryId = $request->country_id != null ? (int)$request->country_id : 1;
-        $sortKey = $request->sortKey ? $request->sortKey : 'code';
+        $sortKey = $request->sortKey ? $request->sortKey : 'vends.code';
         $sortBy = $request->sortBy ? $request->sortBy : true;
 
         return $query->when($request->code, function($query, $search) {
-            $query->where('code', 'LIKE', "%{$search}%");
+            $query->where('vends.code', 'LIKE', "%{$search}%");
         })
         ->when($request->serialNum, function($query, $search) {
             $query->where('serial_num', 'LIKE', "%{$search}%");
@@ -149,7 +149,6 @@ class Vend extends Model
             });
         })
         ->when($countryId, function($query, $search) {
-            // dd($search);
             $query->whereHas('latestVendBinding.customer.deliveryAddress', function($query) use ($search) {
                 $query->where('country_id', $search);
             });

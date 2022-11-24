@@ -49,9 +49,23 @@ class VendController extends Controller
                     'latestVendBinding.customer.deliveryAddress',
                     'latestVendBinding.customer.category.categoryGroup',
                     ])
+                    // ->leftJoin('vend_bindings', function($query) {
+                    //     $query->on('vend_bindings.vend_id', '=', 'vends.id')
+                    //         ->orderBy('begin_date', 'DESC')
+                    //         ->limit(1);
+                    // })
+                    // ->leftJoin('customers', 'customers.id', '=', 'customer_id')
+                    // ->leftJoin('addresses', function($query) {
+                    //     $query->on('addresses.modelable_id', '=', 'customers.id')
+                    //             ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                    //             ->where('addresses.type', '=', 2)
+                    //             ->limit(1);
+                    // })
+                    // ->select('*', 'addresses.postcode', 'vends.code')
                     ->filterIndex($request)
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
+
             ),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
         ]);

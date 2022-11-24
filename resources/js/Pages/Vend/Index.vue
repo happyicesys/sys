@@ -206,6 +206,9 @@
                             <TableHead>
                                 Serial Num
                             </TableHead>
+                            <TableHeadSort modelName="latestVendBinding.customer.deliveryAddress.postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('latestVendBinding.customer.deliveryAddress.postcode')">
+                                Postcode
+                            </TableHeadSort>
                         </tr>
                     </thead>
                     <tbody class="bg-white">
@@ -217,7 +220,6 @@
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.code }}
                             </TableData>
-
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                                 <!-- {{  vend.latestVendBinding.customer.code }} -->
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.code : null }} <br>
@@ -381,6 +383,11 @@
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.serial_num }}
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.deliveryAddress">
+                                    {{ vend.postcode }}
+                                </span>
                             </TableData>
                         </tr>
                         <tr v-if="!vends.data.length">
