@@ -29,7 +29,7 @@
                       Error Code
                     </th>
                     <th scope="col" class="sticky top-0 z-10 hidden border-b border-gray-300 bg-gray-50 bg-opacity-75 px-3 py-3.5 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter lg:table-cell">
-                      Error Desc
+                      Customer
                     </th>
                     <th scope="col" class="sticky top-0 z-10 hidden border-b border-gray-300 bg-gray-50 bg-opacity-75 px-3 py-3.5 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter lg:table-cell">
                       Created At
@@ -58,7 +58,10 @@
                         {{$vendChannelErrorLog->vendChannelError->code }}
                       </td>
                       <td class="whitespace-nowrap border-b border-gray-200 px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
-                        {{$vendChannelErrorLog->vendChannelError->desc }}
+                        {{
+                          $vendChannelErrorLog->vendChannel->vend->latestVendBinding && $vendChannelErrorLog->vendChannel->vend->latestVendBinding->customer ? $vendChannelErrorLog->vendChannel->vend->latestVendBinding->customer->code - $vendChannelErrorLog->vendChannel->vend->latestVendBinding->customer->name :
+                          null
+                        }}
                       </td>
                       <td class="whitespace-nowrap border-b border-gray-200 px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
                         {{$vendChannelErrorLog->created_at->format('ymd h:ia')}}

@@ -81,7 +81,7 @@ const showingNavigationDropdown = ref(false);
     <div>
         <div class="min-h-screen sm:flex bg-gray-100">
             <div
-                class="hidden md:block flex-none flex-col border-r border-gray-200 pt-5 pb-4 bg-white md:w-1/5 xl:w-1/6">
+                class="hidden md:block flex-none flex-col border-r border-gray-200 pt-5 pb-4 bg-white md:w-1/6 xl:w-2/12">
 
                 <div class="flex items-center justify-center flex-shrink-0 px-1">
                     <Link href="/">
@@ -279,7 +279,7 @@ const showingNavigationDropdown = ref(false);
             </div>
 
             <!-- <div class="flex-auto mx-auto"> -->
-            <div class="md:w-4/5 xl:w-5/6">
+            <div class="md:w-5/6 xl:w-10/12">
                 <!-- Page Heading -->
                 <header class="bg-white shadow flex justify-between" v-if="$slots.header">
                     <div class="max-w-7xl  my-auto py-4 px-4 lg:px-8">

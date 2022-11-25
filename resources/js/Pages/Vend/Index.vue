@@ -9,7 +9,7 @@
             </h2>
         </template>
 
-        <div class="m-2 sm:mx-5 sm:my-3 px-2 sm:px-4 lg:px-6">
+        <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
         <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-5 px-3 md:px-6 py-6 ">
             <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
             <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
@@ -169,7 +169,7 @@
                                 #
                             </TableHead>
                             <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-                                Code
+                                ID
                             </TableHeadSort>
                             <TableHead>
                                 Name
@@ -178,7 +178,7 @@
                                 Category
                             </TableHead>
                             <TableHead>
-                                Error(s)
+                                Errors
                             </TableHead>
                             <TableHead>
                                 Inventory Status
@@ -247,11 +247,12 @@
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <div class="grid grid-cols-[120px_minmax(120px,_1fr)_120px] gap-1">
-                                    <div v-for="(channel, channelIndex) in vend.vendChannelsJson"
-                                        class="inline-flex justify-between items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full"
+                                <div class="grid grid-cols-[120px_minmax(120px,_1fr)_120px] ">
+                                    <span v-for="(channel, channelIndex) in vend.vendChannelsJson"
+                                        class="flex border p-0.5 justify-around"
                                         :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
                                     >
+                                    <!-- inline-flex justify-between items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full -->
                                         <div class="font-semibold">
                                             #{{channel['code']}},
                                         </div>
@@ -261,7 +262,7 @@
                                         <div class="pl-1">
                                             {{channel['qty']}}/{{channel['capacity']}}
                                         </div>
-                                    </div>
+                                    </span>
                                 </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">

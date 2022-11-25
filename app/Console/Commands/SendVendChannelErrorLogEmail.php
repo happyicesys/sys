@@ -37,6 +37,7 @@ class SendVendChannelErrorLogEmail extends Command
         $vendChannelErrorLogs = VendChannelErrorLog::with([
             'vendChannel',
             'vendChannel.vend',
+            'vendChannel.vend.latestVendBinding.customer',
             'vendChannelError'
         ])
             ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_channel_error_logs.vend_channel_id')
