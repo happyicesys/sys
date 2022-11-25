@@ -247,19 +247,19 @@
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <div class="grid grid-cols-[120px_minmax(120px,_1fr)_120px] ">
+                                <div class="grid grid-cols-[105px_minmax(110px,_1fr)_100px] ">
                                     <span v-for="(channel, channelIndex) in vend.vendChannelsJson"
-                                        class="flex border p-0.5 justify-around"
+                                        class="inline-flex justify-evenly items-center rounded px-1 py-0.5 text-xs font-medium border min-w-full"
                                         :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
                                     >
                                     <!-- inline-flex justify-between items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full -->
                                         <div class="font-semibold">
                                             #{{channel['code']}},
                                         </div>
-                                        <div class="text-blue-600 text-sm pl-1">
+                                        <div class="text-blue-600 text-sm">
                                             {{channel['capacity'] - channel['qty']}},
                                         </div>
-                                        <div class="pl-1">
+                                        <div class="">
                                             {{channel['qty']}}/{{channel['capacity']}}
                                         </div>
                                     </span>
