@@ -168,7 +168,7 @@
                             <TableHead>
                                 #
                             </TableHead>
-                            <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
+                            <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')">
                                 ID
                             </TableHeadSort>
                             <TableHead>
