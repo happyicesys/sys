@@ -248,7 +248,9 @@
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="grid grid-cols-[105px_minmax(110px,_1fr)_100px] ">
-                                    <span v-for="(channel, channelIndex) in vend.vendChannelsJson"
+                                    <span v-for="(channel, channelIndex) in vend.vendChannelsJson.filter((vendChannel) => {
+                                        return vendChannel['code'] >= 10 && vendChannel['code'] <= 69
+                                    })"
                                         class="inline-flex justify-evenly items-center rounded px-1 py-0.5 text-xs font-medium border min-w-full"
                                         :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
                                     >
@@ -259,7 +261,9 @@
                                         <div class="text-blue-600 text-sm">
                                             {{channel['capacity'] - channel['qty']}},
                                         </div>
-                                        <div class="">
+                                        <div
+                                            :class="[channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700']"
+                                        >
                                             {{channel['qty']}}/{{channel['capacity']}}
                                         </div>
                                     </span>
@@ -294,13 +298,19 @@
                                 </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span v-if="vend.vendChannelTotalsJson">
+                                <span
+                                    v-if="vend.vendChannelTotalsJson"
+                                    :class="[vend.vendChannelTotalsJson['balancePercent'] <= 30 ? 'text-red-700' : (vend.vendChannelTotalsJson['balancePercent'] > 60 ? '' : 'text-blue-700')]"
+                                >
                                     {{ vend.vendChannelTotalsJson['qty'] }}/ {{ vend.vendChannelTotalsJson['capacity'] }} <br>
                                     ({{ vend.vendChannelTotalsJson['balancePercent'] }}%)
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span v-if="vend.vendChannelTotalsJson">
+                                <span
+                                    v-if="vend.vendChannelTotalsJson"
+                                    :class="[vend.vendChannelTotalsJson['outOfStockSkuPercent'] > 40 ? 'text-red-700' : '']"
+                                >
                                     {{ vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
                                     ({{ vend.vendChannelTotalsJson['outOfStockSkuPercent'] }}%)
                                 </span>

@@ -15,30 +15,15 @@
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-5 md:col-span-1">
-                <label for="text" class="block text-sm font-medium text-gray-700">
-                    Errors?
-                </label>
+              <label for="text" class="block text-sm font-medium text-gray-700">
+                  Code
+              </label>
                 <MultiSelect
-                    v-model="filters.errors"
-                    :options="vendChannelErrorOptions"
+                    v-model="filters.codes"
+                    :options="vendOptions"
                     valueProp="id"
-                    label="desc"
+                    label="code"
                     mode="tags"
-                    placeholder="Select"
-                    open-direction="bottom"
-                    class="mt-1"
-                >
-                </MultiSelect>
-            </div>
-            <div class="col-span-5 md:col-span-1">
-                <label for="text" class="block text-sm font-medium text-gray-700">
-                   Pay Method
-                </label>
-                <MultiSelect
-                    v-model="filters.paymentMethod"
-                    :options="paymentMethodOptions"
-                    valueProp="id"
-                    label="name"
                     placeholder="Select"
                     open-direction="bottom"
                     class="mt-1"
@@ -63,15 +48,30 @@
                 </DatePicker>
             </div>
             <div class="col-span-5 md:col-span-1">
-              <label for="text" class="block text-sm font-medium text-gray-700">
-                  Code
-              </label>
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Errors?
+                </label>
                 <MultiSelect
-                    v-model="filters.codes"
-                    :options="vendOptions"
+                    v-model="filters.errors"
+                    :options="vendChannelErrorOptions"
                     valueProp="id"
-                    label="code"
+                    label="desc"
                     mode="tags"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
+            <div class="col-span-5 md:col-span-1">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                   Pay Method
+                </label>
+                <MultiSelect
+                    v-model="filters.paymentMethod"
+                    :options="paymentMethodOptions"
+                    valueProp="id"
+                    label="name"
                     placeholder="Select"
                     open-direction="bottom"
                     class="mt-1"
@@ -307,7 +307,7 @@ const filters = ref({
     date_from: moment().startOf('month').toDate(),
     date_to: moment().toDate(),
     sortKey: '',
-    sortBy: true,
+    sortBy: false,
     numberPerPage: 100,
 })
 const vendOptions = ref([])
