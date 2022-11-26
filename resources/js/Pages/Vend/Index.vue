@@ -182,7 +182,7 @@
                             </TableHead>
                             <TableHead>
                                 Inventory Status <br>
-                                (#, Sales, Balance/Capacity)
+                                (#Channel, Sales, Balance/Capacity)
                             </TableHead>
                             <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
                                 Temp <br>
@@ -204,7 +204,7 @@
                             <TableHead>
                                 Serial Num
                             </TableHead>
-                            <TableHeadSort modelName="latestVendBinding.customer.deliveryAddress.postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('latestVendBinding.customer.deliveryAddress.postcode')">
+                            <TableHeadSort modelName="addresses.postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('addresses.postcode')">
                                 Postcode
                             </TableHeadSort>
                             <TableHead>
@@ -213,7 +213,7 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white">
-                        <tr v-for="(vend, vendIndex) in vends.data" :key="vend.id"
+                        <tr v-for="(vend, vendIndex) in vends.data" :key="vendIndex"
                             class="divide-x divide-gray-200">
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vends.meta.from + vendIndex }}
@@ -222,7 +222,7 @@
                                 {{ vend.code }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                                <!-- {{  vend.latestVendBinding.customer.code }} -->
+                                <!-- {{  vend}} -->
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.code : null }} <br>
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.name : null }}
                             </TableData>
@@ -393,9 +393,7 @@
                                 {{ vend.serial_num }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.deliveryAddress">
-                                    {{ vend.postcode }}
-                                </span>
+                                {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.deliveryAddress ? vend.latestVendBinding.customer.deliveryAddress.postcode : null }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.firmware_ver }}

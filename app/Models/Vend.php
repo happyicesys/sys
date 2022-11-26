@@ -51,6 +51,11 @@ class Vend extends Model
         return $this->hasOne(VendBinding::class)->latest('begin_date');
     }
 
+    public function vendBindings()
+    {
+        return $this->hasMany(VendBinding::class);
+    }
+
     public function vendChannels()
     {
         return $this->hasMany(VendChannel::class)->where('code', '<', 1000)->where('capacity', '>', 0)->orderBy('code');
@@ -180,7 +185,6 @@ class Vend extends Model
             }
         })
         ->when($sortKey, function($query, $search) use ($sortBy) {
-
             if(strpos($search, '->')) {
                 $inputSearch = explode("->", $search);
                 $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
@@ -188,7 +192,6 @@ class Vend extends Model
             }else {
                 $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }
-
         });
     }
 }

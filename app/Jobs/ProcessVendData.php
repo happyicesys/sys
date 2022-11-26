@@ -21,6 +21,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
 class ProcessVendData implements ShouldQueue
+//
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
