@@ -10,8 +10,8 @@ class VendChannelErrorLog extends Model
     use HasFactory;
 
     protected $casts = [
-        'created_at' => 'datetime:ymd h:ia',
-        'updated_at' => 'datetime:ymd h:ia',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     protected $fillable = [

@@ -17,7 +17,8 @@ class VendChannelErrorLogResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'vendChannelError' => VendChannelErrorResource::make($this->vendChannelError),
+            'vendChannelError' => VendChannelErrorResource::make($this->whenLoaded('vendChannelError')),
+            'vendChannel' => VendChannelResource::make($this->whenLoaded('vendChannel')),
             'is_error_cleared' => $this->is_error_cleared ? true : false,
             'created_at' => $this->created_at->format('ymd h:ia'),
         ];

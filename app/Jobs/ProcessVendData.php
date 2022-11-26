@@ -107,6 +107,7 @@ class ProcessVendData implements ShouldQueue
         }
 
         if($input) {
+            // dd($input);
             $vendData = VendData::create([
                 'value' => $this->input,
                 'ip_address' => $this->ipAddress,
