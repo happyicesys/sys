@@ -181,7 +181,8 @@
                                 Errors
                             </TableHead>
                             <TableHead>
-                                Inventory Status
+                                Inventory Status <br>
+                                (#ID, Sales, Balance/Capacity)
                             </TableHead>
                             <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
                                 Temp <br>
