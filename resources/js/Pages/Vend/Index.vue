@@ -94,7 +94,7 @@
                     >
                     </MultiSelect>
                 </div>
-                <div>
+                <!-- <div>
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Country
                     </label>
@@ -104,6 +104,22 @@
                         trackBy="id"
                         valueProp="id"
                         label="name"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                </div> -->
+                <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                        Customer Binded?
+                    </label>
+                    <MultiSelect
+                        v-model="filters.is_binded_customer"
+                        :options="booleanOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="value"
                         placeholder="Select"
                         open-direction="bottom"
                         class="mt-1"
@@ -445,7 +461,8 @@
     customer_name: '',
     categories: [],
     categoryGroups: [],
-    country_id: '',
+    // country_id: '',
+    is_binded_customer: '',
     tempHigherThan: '',
     vend_channel_error_id: '',
     is_online: '',
@@ -489,6 +506,8 @@
         ...props.countries.data.map((data) => {return {id: data.id, name: data.name}})
     ];
     filters.value.country_id = countryOptions.value[1]
+
+    filters.value.is_binded_customer = booleanOptions.value[1]
   })
 
   function onSearchFilterUpdated() {
@@ -497,7 +516,8 @@
         vend_channel_error_id: filters.value.vend_channel_error_id.id,
         categories: filters.value.categories.map((category) => { return category.id }),
         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
-        country_id: filters.value.country_id.id,
+        // country_id: filters.value.country_id.id,
+        is_binded_customer: filters.value.is_binded_customer.id,
         is_online: filters.value.is_online.id,
         numberPerPage: filters.value.numberPerPage.id,
     }, {
