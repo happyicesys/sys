@@ -207,6 +207,16 @@ class Vend extends Model
                 ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }else {
                 $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                if($sortBy and $search == 'vends.code') {
+                    $query
+                    ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' )
+                    ->orderBy('customers.code', 'asc')
+                    ->orderBy('vend_channel_totals_json->balancePercent', 'asc')
+                    ->orderBy('vend_channel_totals_json->outOfStockSkuPercent', 'asc')
+                    ->orderBy('vend_channel_error_logs_json', 'desc')
+                    ->orderBy('vends.temp', 'desc')
+                    ->orderBy('parameter_json->t2', 'desc');
+                }
             }
         });
     }
