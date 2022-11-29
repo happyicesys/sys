@@ -128,8 +128,8 @@ class Vend extends Model
     // scopes
     public function scopeFilterIndex($query, $request)
     {
-        $isOnline = $request->is_online != null ? $request->is_online : 'true';
-        $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
+        $isOnline = $request->is_online != null ? $request->is_online : 'all';
+        $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'all';
         // $countryId = $request->country_id != null ? (int)$request->country_id : 1;
         $sortKey = $request->sortKey ? $request->sortKey : 'vends.code';
         $sortBy = $request->sortBy ? $request->sortBy : true;

@@ -41,8 +41,8 @@
                 <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code">
                     Cust ID
                 </SearchInput>
-                <SearchInput placeholderStr="Cust ID Name" v-model="filters.customer_name">
-                    Cust ID Name
+                <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name">
+                    Cust Name
                 </SearchInput>
                 <div>
                     <label for="text" class="block text-sm font-medium text-gray-700">
@@ -190,9 +190,9 @@
                             <TableHead>
                                 Name
                             </TableHead>
-                            <TableHead>
+                            <!-- <TableHead>
                                 Category
-                            </TableHead>
+                            </TableHead> -->
                             <TableHead>
                                 Errors
                             </TableHead>
@@ -242,10 +242,10 @@
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.code : null }} <br>
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.name : null }}
                             </TableData>
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
+                            <!-- <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.category ? vend.latestVendBinding.customer.category.name : null }} <br>
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.category && vend.latestVendBinding.customer.category.category_group ? vend.latestVendBinding.customer.category.category_group.name : null }}
-                            </TableData>
+                            </TableData> -->
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
 
                                 <span v-for="vendChannelErrorLog in vend.vendChannelErrorLogsJson" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border"
@@ -264,7 +264,7 @@
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <div class="grid grid-cols-[105px_minmax(110px,_1fr)_100px] ">
+                                <div class="grid grid-cols-[105px_minmax(110px,_1fr)_100px]" v-if="vend.vendChannelsJson">
                                     <span v-for="(channel, channelIndex) in vend.vendChannelsJson.filter((vendChannel) => {
                                         return vendChannel['code'] >= 10 && vendChannel['code'] <= 69
                                     })"
@@ -500,14 +500,14 @@
         {id: 'true', value: 'Yes'},
         {id: 'false', value: 'No'},
     ]
-    filters.value.is_online = booleanOptions.value[1]
+    filters.value.is_online = booleanOptions.value[0]
     // countryOptions.value = [
     //     {'id': '0', 'name': 'All'},
     //     ...props.countries.data.map((data) => {return {id: data.id, name: data.name}})
     // ];
     // filters.value.country_id = countryOptions.value[1]
 
-    filters.value.is_binded_customer = booleanOptions.value[1]
+    filters.value.is_binded_customer = booleanOptions.value[0]
   })
 
   function onSearchFilterUpdated() {
