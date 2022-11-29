@@ -475,7 +475,7 @@
   const numberPerPageOptions = ref([])
   const categoryOptions = ref([])
   const categoryGroupOptions = ref([])
-  const countryOptions = ref([])
+//   const countryOptions = ref([])
   const booleanOptions = ref([])
 
   onMounted(() => {
@@ -501,11 +501,11 @@
         {id: 'false', value: 'No'},
     ]
     filters.value.is_online = booleanOptions.value[1]
-    countryOptions.value = [
-        {'id': '0', 'name': 'All'},
-        ...props.countries.data.map((data) => {return {id: data.id, name: data.name}})
-    ];
-    filters.value.country_id = countryOptions.value[1]
+    // countryOptions.value = [
+    //     {'id': '0', 'name': 'All'},
+    //     ...props.countries.data.map((data) => {return {id: data.id, name: data.name}})
+    // ];
+    // filters.value.country_id = countryOptions.value[1]
 
     filters.value.is_binded_customer = booleanOptions.value[1]
   })

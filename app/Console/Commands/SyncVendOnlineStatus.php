@@ -41,7 +41,7 @@ class SyncVendOnlineStatus extends Command
                 $vend->is_offline_notification_sent = false;
             }
             // send offline notification mail after 30 mins
-            if($vend->last_updated_at and $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 30) {
+            if($vend->last_updated_at and $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 60) {
                 if(!$vend->is_offline_notification_sent) {
                     Mail::to([
                         'daniel.ma@happyice.com.sg',

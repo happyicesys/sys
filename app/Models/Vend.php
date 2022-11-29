@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -48,7 +49,7 @@ class Vend extends Model
 
     public function latestVendBinding()
     {
-        return $this->hasOne(VendBinding::class)->latest('begin_date');
+        return $this->hasOne(VendBinding::class)->where('is_active', true)->latest('begin_date');
     }
 
     public function vendBindings()
@@ -74,6 +75,11 @@ class Vend extends Model
     public function vendTempsEvaporator()
     {
         return $this->hasMany(VendTemp::class)->where('type', VendTemp::TYPE_EVAPORATOR);
+    }
+
+    public function vendSevenDaysTransactions()
+    {
+        return $this->hasMany(VendTransaction::class)->whereDate('transaction_datetime', '<=', Carbon::today()->subDays(7));
     }
 
     public function vendType()
