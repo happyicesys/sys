@@ -218,7 +218,7 @@ class ProcessVendData implements ShouldQueue
 
         $vendChannelError = VendChannelError::where('code', (isset($input['SErr']) ? $input['SErr'] : 0))->where('code', '!=', 0)->first();
 
-        VendTransaction::create([
+        $vendTransaction = VendTransaction::create([
             'order_id' => $input['ORDRID'],
             'transaction_datetime' => Carbon::createFromFormat('Y-m-d H:i:s', $input['TIME']),
             'amount' => $input['Price'],
@@ -227,6 +227,8 @@ class ProcessVendData implements ShouldQueue
             'vend_channel_id' => isset($vendChannel) ? $vendChannel->id : 0,
             'vend_channel_error_id' => isset($vendChannelError) ? $vendChannelError->id : null
         ]);
+
+        $this->syncVendTransactionTotalsJson($vendTransaction->vend);
 
         if($vendChannelError) {
             $this->syncVendChannelErrorLog($vend, $input['SId'], $input['SErr']);
@@ -313,5 +315,15 @@ class ProcessVendData implements ShouldQueue
     {
         $vend->last_updated_at = Carbon::now();
         $vend->save();
+    }
+
+    private function syncVendTransactionTotalsJson(Vend $vend)
+    {
+        $vend->update([
+            'vend_transaction_totals_json' => [
+                '1' => $vend->vendTodayTransactions->sum('amount'),
+                '7' => $vend->vendSevenDaysTransactions->sum('amount'),
+            ]
+        ]);
     }
 }
