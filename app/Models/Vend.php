@@ -82,6 +82,11 @@ class Vend extends Model
         return $this->hasMany(VendTransaction::class)->whereDate('transaction_datetime', '<=', Carbon::today()->subDays(7));
     }
 
+    public function vendTodayTransactions()
+    {
+        return $this->hasMany(VendTransaction::class)->whereDate('transaction_datetime', '=', Carbon::today());
+    }
+
     public function vendType()
     {
         return $this->belongsTo(VendType::class);

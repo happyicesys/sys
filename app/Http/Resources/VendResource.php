@@ -35,6 +35,9 @@ class VendResource extends JsonResource
             'vendChannelErrorLogsJson' => $this->vend_channel_error_logs_json,
             'vendChannelTotalsJson' => $this->vend_channel_totals_json,
             'latestVendBinding' => VendBindingResource::make($this->whenLoaded('latestVendBinding')),
+            'todaySales' => $this->whenLoaded('vendTodayTransactions')->sum('amount')/ 100,
+            'sevenDaysSales' => $this->whenLoaded('vendSevenDaysTransactions')->sum('amount')/ 100,
+            // number_format($this->amount/ 100, 2, '.', ',')
         ];
     }
 

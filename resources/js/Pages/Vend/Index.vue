@@ -215,12 +215,16 @@
                                 Out of Stock SKU
                             </TableHeadSort>
                             <TableHead>
+                                Sales <br>
+                                (Today/ 7 Days)
+                            </TableHead>
+                            <TableHead>
                                 Status
                             </TableHead>
                             <TableHead>
                                 Serial Num
                             </TableHead>
-                            <TableHeadSort modelName="addresses.postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('addresses.postcode')">
+                            <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
                                 Postcode
                             </TableHeadSort>
                             <TableHead>
@@ -330,6 +334,13 @@
                                 >
                                     {{ vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
                                     ({{ vend.vendChannelTotalsJson['outOfStockSkuPercent'] }}%)
+                                </span>
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                <span :class="[
+                                    vend.sevenDaysSales > 200 ? 'text-green-700' : 'text-red-700'
+                                ]">
+                                    {{vend.todaySales.toFixed(2)}}/ {{vend.sevenDaysSales.toFixed(2)}}
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -448,7 +459,7 @@
     categories: Object,
     categoryGroups: Object,
     constTempError: Number,
-    countries: Object,
+    // countries: Object,
     vends: Object,
     vendChannelErrors: Object,
 

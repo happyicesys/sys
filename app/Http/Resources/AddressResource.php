@@ -24,7 +24,7 @@ class AddressResource extends JsonResource
                                 .($this->block_num ? 'Blk '.ucwords(strtolower($this->block_num)).', ' : '')
                                 .($this->building ? ucwords(strtolower($this->building)).', ' : '')
                                 .($this->street_name ? ucwords(strtolower($this->street_name)).', ' : '')
-                                .$this->postcode.' '.$this->country->name,
+                                .$this->postcode,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
             'postcode' => $this->postcode,
