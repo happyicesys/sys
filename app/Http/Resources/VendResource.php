@@ -35,9 +35,15 @@ class VendResource extends JsonResource
             'vendChannelErrorLogsJson' => $this->vend_channel_error_logs_json,
             'vendChannelTotalsJson' => $this->vend_channel_totals_json,
             'latestVendBinding' => VendBindingResource::make($this->whenLoaded('latestVendBinding')),
-            'todaySales' => $this->whenLoaded('vendTodayTransactions')->sum('amount')/ 100,
-            'sevenDaysSales' => $this->whenLoaded('vendSevenDaysTransactions')->sum('amount')/ 100,
-            // number_format($this->amount/ 100, 2, '.', ',')
+            // 'todaySales' => $this->whenLoaded('vendTodayTransactions') ? $this->whenLoaded('vendTodayTransactions')->sum('amount')/ 100 : 0,
+            // 'sevenDaysSales' => $this->whenLoaded('vendSevenDaysTransactions') ? $this->whenLoaded('vendSevenDaysTransactions')->sum('amount')/ 100 : 0,
+
+            'todaySales' => $this->when($this->relationLoaded('vendTodayTransactions'), function() {
+                return $this->vendTodayTransactions->sum('amount')/ 100;
+            }),
+            'sevenDaysSales' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
+                return $this->vendSevenDaysTransactions->sum('amount')/ 100;
+            }),
         ];
     }
 
