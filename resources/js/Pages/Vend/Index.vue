@@ -190,43 +190,41 @@
                             <TableHead>
                                 Name
                             </TableHead>
-                            <!-- <TableHead>
-                                Category
-                            </TableHead> -->
-                            <TableHead>
-                                Errors
-                            </TableHead>
                             <TableHead>
                                 Inventory Status <br>
                                 (#Channel, Sales, Balance/Capacity)
                             </TableHead>
-                            <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
-                                Temp <br>
-                                (Chamber)
-                            </TableHeadSort>
-                            <TableHeadSort modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2')">
-                                Temp <br>
-                                (Evaporator)
-                            </TableHeadSort>
                             <TableHeadSort modelName="vend_channel_totals_json->balancePercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->balancePercent')">
                                 Balance Stock
                             </TableHeadSort>
                             <TableHeadSort modelName="vend_channel_totals_json->outOfStockSkuPercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->outOfStockSkuPercent')">
                                 Out of Stock SKU
                             </TableHeadSort>
+                            <!-- <TableHead>
+                                Category
+                            </TableHead> -->
                             <TableHead>
-                                Sales <br>
-                                (Today/ 7 Days)
+                                Errors
                             </TableHead>
+                            <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
+                                Temp 1
+                            </TableHeadSort>
+                            <TableHeadSort modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2')">
+                                Temp 2
+                            </TableHeadSort>
                             <TableHead>
                                 Status
                             </TableHead>
                             <TableHead>
-                                Serial Num
+                                Sales <br>
+                                (Today/ 7 Days)
                             </TableHead>
                             <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
                                 Postcode
                             </TableHeadSort>
+                            <TableHead>
+                                Serial Num
+                            </TableHead>
                             <TableHead>
                                 Firmware Ver
                             </TableHead>
@@ -245,27 +243,6 @@
                                 <!-- {{  vend}} -->
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.code : null }} <br>
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.name : null }}
-                            </TableData>
-                            <!-- <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                                {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.category ? vend.latestVendBinding.customer.category.name : null }} <br>
-                                {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.category && vend.latestVendBinding.customer.category.category_group ? vend.latestVendBinding.customer.category.category_group.name : null }}
-                            </TableData> -->
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-
-                                <span v-for="vendChannelErrorLog in vend.vendChannelErrorLogsJson" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border"
-                                :class="[vendChannelErrorLog['is_error_cleared'] ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']">
-                                    <div class="flex flex-col">
-                                        <div>
-                                            #{{vendChannelErrorLog['vendChannel'] ? vendChannelErrorLog['vendChannel']['code'] : vendChannelErrorLog['vend_channel']['code']}},
-                                            <span class="font-bold">
-                                            ({{ vendChannelErrorLog['vendChannelError'] ? vendChannelErrorLog['vendChannelError']['code'] : vendChannelErrorLog['vend_channel_error']['code'] }})
-                                            </span>
-                                        </div>
-                                        <div>
-                                            {{vendChannelErrorLog['created_at']}}
-                                        </div>
-                                    </div>
-                                </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="grid grid-cols-[105px_minmax(110px,_1fr)_100px]" v-if="vend.vendChannelsJson">
@@ -290,6 +267,45 @@
                                     </span>
                                 </div>
                             </TableData>
+                            <!-- <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
+                                {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.category ? vend.latestVendBinding.customer.category.name : null }} <br>
+                                {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.category && vend.latestVendBinding.customer.category.category_group ? vend.latestVendBinding.customer.category.category_group.name : null }}
+                            </TableData> -->
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                <span
+                                    v-if="vend.vendChannelTotalsJson"
+                                    :class="[vend.vendChannelTotalsJson['balancePercent'] <= 30 ? 'text-red-700' : (vend.vendChannelTotalsJson['balancePercent'] > 60 ? '' : 'text-blue-700')]"
+                                >
+                                    {{ vend.vendChannelTotalsJson['qty'] }}/ {{ vend.vendChannelTotalsJson['capacity'] }} <br>
+                                    ({{ vend.vendChannelTotalsJson['balancePercent'] }}%)
+                                </span>
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                <span
+                                    v-if="vend.vendChannelTotalsJson"
+                                    :class="[vend.vendChannelTotalsJson['outOfStockSkuPercent'] > 40 ? 'text-red-700' : '']"
+                                >
+                                    {{ vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
+                                    ({{ vend.vendChannelTotalsJson['outOfStockSkuPercent'] }}%)
+                                </span>
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                <span v-for="vendChannelErrorLog in vend.vendChannelErrorLogsJson" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border"
+                                :class="[vendChannelErrorLog['is_error_cleared'] ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']">
+                                    <div class="flex flex-col">
+                                        <div>
+                                            #{{vendChannelErrorLog['vendChannel'] ? vendChannelErrorLog['vendChannel']['code'] : vendChannelErrorLog['vend_channel']['code']}},
+                                            <span class="font-bold">
+                                            ({{ vendChannelErrorLog['vendChannelError'] ? vendChannelErrorLog['vendChannelError']['code'] : vendChannelErrorLog['vend_channel_error']['code'] }})
+                                            </span>
+                                        </div>
+                                        <div>
+                                            {{vendChannelErrorLog['created_at']}}
+                                        </div>
+                                    </div>
+                                </span>
+                            </TableData>
+
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="flex flex-col items-center">
                                     <button
@@ -319,32 +335,8 @@
                                 </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span
-                                    v-if="vend.vendChannelTotalsJson"
-                                    :class="[vend.vendChannelTotalsJson['balancePercent'] <= 30 ? 'text-red-700' : (vend.vendChannelTotalsJson['balancePercent'] > 60 ? '' : 'text-blue-700')]"
-                                >
-                                    {{ vend.vendChannelTotalsJson['qty'] }}/ {{ vend.vendChannelTotalsJson['capacity'] }} <br>
-                                    ({{ vend.vendChannelTotalsJson['balancePercent'] }}%)
-                                </span>
-                            </TableData>
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span
-                                    v-if="vend.vendChannelTotalsJson"
-                                    :class="[vend.vendChannelTotalsJson['outOfStockSkuPercent'] > 40 ? 'text-red-700' : '']"
-                                >
-                                    {{ vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
-                                    ({{ vend.vendChannelTotalsJson['outOfStockSkuPercent'] }}%)
-                                </span>
-                            </TableData>
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span :class="[
-                                    vend.sevenDaysSales > 200 ? 'text-green-700' : 'text-red-700'
-                                ]">
-                                    {{vend.todaySales.toFixed(2)}}/ {{vend.sevenDaysSales.toFixed(2)}}
-                                </span>
-                            </TableData>
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <div class="grid grid-cols-[90px_minmax(90px,_1fr)_90px] gap-1">
+                                <!-- <div class="grid grid-cols-[90px_minmax(90px,_1fr)_90px] gap-1"> -->
+                                <div class="flex flex-col space-y-1">
                                     <div
                                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                                         :class="[vend.is_online ? 'bg-green-200' : 'bg-red-200']"
@@ -417,10 +409,17 @@
                                 </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.serial_num }}
+                                <span :class="[
+                                    vend.sevenDaysSales > 200 ? 'text-green-700' : 'text-red-700'
+                                ]">
+                                    {{vend.todaySales.toLocaleString(undefined, {minimumFractionDigits: 2})}}/ {{vend.sevenDaysSales.toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                                </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.deliveryAddress ? vend.latestVendBinding.customer.deliveryAddress.postcode : null }}
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                {{ vend.serial_num }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.firmware_ver }}

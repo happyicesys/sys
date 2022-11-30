@@ -81,12 +81,12 @@ class Vend extends Model
 
     public function vendSevenDaysTransactions()
     {
-        return $this->hasMany(VendTransaction::class)->whereDate('transaction_datetime', '<=', Carbon::today()->subDays(7));
+        return $this->hasMany(VendTransaction::class)->whereDate('transaction_datetime', '<=', Carbon::today()->subDays(7))->whereNull('vend_channel_error_id');
     }
 
     public function vendTodayTransactions()
     {
-        return $this->hasMany(VendTransaction::class)->whereDate('transaction_datetime', '=', Carbon::today());
+        return $this->hasMany(VendTransaction::class)->whereDate('transaction_datetime', '=', Carbon::today())->whereNull('vend_channel_error_id');
     }
 
     public function vendType()

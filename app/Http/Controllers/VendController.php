@@ -92,14 +92,14 @@ class VendController extends Controller
             $endDate = Carbon::parse($request->datetime_to)->setTimezone('Asia/Singapore');
         }
         if($type == VendTemp::TYPE_CHAMBER) {
-            $typeName = 'Chamber';
+            $typeName = 'Temp 1';
             $vendTemps = $vend
             ->vendTemps()
             ->where('vend_temps.created_at', '>=', $startDate)
             ->where('vend_temps.created_at', '<=', $endDate)
             ->get();
         }else if($type == VendTemp::TYPE_EVAPORATOR) {
-            $typeName = 'Evaporator';
+            $typeName = 'Temp 2';
             $vendTemps = $vend
             ->vendTempsEvaporator()
             ->where('vend_temps.created_at', '>=', $startDate)
