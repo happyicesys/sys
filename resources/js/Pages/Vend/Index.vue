@@ -207,10 +207,10 @@
                                 Errors
                             </TableHead>
                             <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
-                                Temp 1
+                                Temp1
                             </TableHeadSort>
                             <TableHeadSort modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2')">
-                                Temp 2
+                                Temp2
                             </TableHeadSort>
                             <TableHead>
                                 Status

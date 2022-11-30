@@ -81,7 +81,10 @@ class Vend extends Model
 
     public function vendSevenDaysTransactions()
     {
-        return $this->hasMany(VendTransaction::class)->whereDate('transaction_datetime', '<=', Carbon::today()->subDays(7))->whereNull('vend_channel_error_id');
+        return $this->hasMany(VendTransaction::class)
+                    ->whereDate('transaction_datetime', '<=', Carbon::today())
+                    ->whereDate('transaction_datetime', '>=', Carbon::today()->subDays(7))
+                    ->whereNull('vend_channel_error_id');
     }
 
     public function vendTodayTransactions()
@@ -214,16 +217,16 @@ class Vend extends Model
                 ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }else {
                 $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-                if($sortBy and $search == 'vends.code') {
-                    $query
-                    ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' )
-                    ->orderBy('customers.code', 'asc')
-                    ->orderBy('vend_channel_totals_json->balancePercent', 'asc')
-                    ->orderBy('vend_channel_totals_json->outOfStockSkuPercent', 'asc')
-                    ->orderBy('vend_channel_error_logs_json', 'desc')
-                    ->orderBy('vends.temp', 'desc')
-                    ->orderBy('parameter_json->t2', 'desc');
-                }
+                // if($sortBy and $search == 'vends.code') {
+                //     $query
+                //     ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' )
+                //     ->orderBy('customers.code', 'asc')
+                //     ->orderBy('vend_channel_totals_json->balancePercent', 'asc')
+                //     ->orderBy('vend_channel_totals_json->outOfStockSkuPercent', 'asc')
+                //     ->orderBy('vend_channel_error_logs_json', 'desc')
+                //     ->orderBy('vends.temp', 'desc')
+                //     ->orderBy('parameter_json->t2', 'desc');
+                // }
             }
         });
     }
