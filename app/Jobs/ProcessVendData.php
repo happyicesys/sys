@@ -321,8 +321,10 @@ class ProcessVendData implements ShouldQueue
     {
         $vend->update([
             'vend_transaction_totals_json' => [
-                '1' => $vend->vendTodayTransactions->sum('amount'),
-                '7' => $vend->vendSevenDaysTransactions->sum('amount'),
+                'today_amount' => $vend->vendTodayTransactions->sum('amount'),
+                'today_count' => $vend->vendTodayTransactions->count(),
+                'seven_days_amount' => $vend->vendSevenDaysTransactions->sum('amount'),
+                'seven_days_count' => $vend->vendSevenDaysTransactions->count(),
             ]
         ]);
     }

@@ -216,7 +216,7 @@
                                 Status
                             </TableHead>
                             <TableHead>
-                                Sales <br>
+                                Sales $(Qty) <br>
                                 (Today/ 7 Days)
                             </TableHead>
                             <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
@@ -412,7 +412,7 @@
                                 <span :class="[
                                     vend.sevenDaysSales > 200 ? 'text-green-700' : 'text-red-700'
                                 ]">
-                                    {{vend.todaySales.toLocaleString(undefined, {minimumFractionDigits: 2})}}/ {{vend.sevenDaysSales.toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                                    {{vend.todaySales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.todayCount}})/ {{vend.sevenDaysSales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.sevenDaysCount}})
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">

@@ -41,8 +41,14 @@ class VendResource extends JsonResource
             'todaySales' => $this->when($this->relationLoaded('vendTodayTransactions'), function() {
                 return $this->vendTodayTransactions->sum('amount')/ 100;
             }),
+            'todayCount' => $this->when($this->relationLoaded('vendTodayTransactions'), function() {
+                return $this->vendTodayTransactions->count();
+            }),
             'sevenDaysSales' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
                 return $this->vendSevenDaysTransactions->sum('amount')/ 100;
+            }),
+            'sevenDaysCount' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
+                return $this->vendSevenDaysTransactions->count();
             }),
         ];
     }
