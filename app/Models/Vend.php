@@ -61,7 +61,7 @@ class Vend extends Model
 
     public function vendChannels()
     {
-        return $this->hasMany(VendChannel::class)->where('code', '<', 1000)->where('capacity', '>', 0)->orderBy('code');
+        return $this->hasMany(VendChannel::class)->where('is_active', true)->where('capacity', '>', 0)->orderBy('code');
     }
 
     public function outOfStockVendChannels()

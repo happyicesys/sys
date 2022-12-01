@@ -239,7 +239,7 @@ class ProcessVendData implements ShouldQueue
     {
         if($channels = $input['channels']) {
             foreach($channels as $channel) {
-                if($channel['capacity'] > 0) {
+                if($channel['capacity'] > 0 and $channel['channel_code'] >= 10 and $channel['channel_code'] <= 69) {
                     $vendChannel = VendChannel::updateOrCreate([
                         'vend_id' => $vend->id,
                         'code' => $channel['channel_code'],

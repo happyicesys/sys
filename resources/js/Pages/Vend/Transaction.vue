@@ -181,9 +181,6 @@
                             Customer
                         </TableHead>
                         <TableHead>
-                            Category
-                        </TableHead>
-                        <TableHead>
                             Channel
                         </TableHead>
                         <TableHead>
@@ -216,11 +213,7 @@
                                 <!-- {{  vend.latestVendBinding.customer.code }} -->
                                 {{ vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer ? vendTransaction.vend.latestVendBinding.customer.code : null }} <br>
                                 {{ vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer ? vendTransaction.vend.latestVendBinding.customer.name : null }}
-                            </TableData>
-                            <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
-                                {{ vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer && vendTransaction.vend.latestVendBinding.customer.category ? vendTransaction.vend.latestVendBinding.customer.category.name : null }} <br>
-                                {{ vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer && vendTransaction.vend.latestVendBinding.customer.category && vendTransaction.vend.latestVendBinding.customer.category.category_group ? vendTransaction.vend.latestVendBinding.customer.category.category_group.name : null }}
-                            </TableData>
+                        </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.vendChannel.code }}
                         </TableData>
