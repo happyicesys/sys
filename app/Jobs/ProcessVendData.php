@@ -250,7 +250,7 @@ class ProcessVendData implements ShouldQueue
                         'is_active' => true,
                     ]);
                     $this->syncVendChannelErrorLog($vend, $channel['channel_code'], $channel['error_code']);
-                }else if($channel['capacity'] == 0) {
+                }else {
                     VendChannel::updateOrCreate([
                         'vend_id' => $vend->id,
                         'code' => $channel['channel_code'],
