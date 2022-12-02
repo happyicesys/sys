@@ -63,6 +63,7 @@ class SaveVendChannelsJson implements ShouldQueue
             'outOfStockSkuPercent'
                 => $vendTotals['vendChannelsCount'] ? round(($vendTotals['vendChannelsOutOfStock'] + $vendTotals['vendChannelsErrorLogsActive'])/ $vendTotals['vendChannelsCount'] * 100) : 0,
         ];
+        dd($totals);
 
         $vend->update([
             'vend_channels_json' => $vend->vendChannels,

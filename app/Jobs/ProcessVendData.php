@@ -108,7 +108,6 @@ class ProcessVendData implements ShouldQueue
         }
 
         if($input) {
-            // dd($input);
             $vendData = VendData::create([
                 'value' => $this->input,
                 'ip_address' => $this->ipAddress,
@@ -238,6 +237,7 @@ class ProcessVendData implements ShouldQueue
     private function syncVendChannels(Vend $vend, $input)
     {
         if($channels = $input['channels']) {
+            $vend->vendChannels()->update(['is_active' => false]);
             foreach($channels as $channel) {
                 if($channel['capacity'] > 0 and $channel['channel_code'] >= 10 and $channel['channel_code'] <= 69) {
                     $vendChannel = VendChannel::updateOrCreate([
@@ -251,7 +251,7 @@ class ProcessVendData implements ShouldQueue
                     ]);
                     $this->syncVendChannelErrorLog($vend, $channel['channel_code'], $channel['error_code']);
                 }else {
-                    VendChannel::updateOrCreate([
+                    $vendChannelFalse = VendChannel::updateOrCreate([
                         'vend_id' => $vend->id,
                         'code' => $channel['channel_code'],
                     ], [
@@ -262,6 +262,7 @@ class ProcessVendData implements ShouldQueue
                     ]);
                 }
             }
+            // dd($vend->vendChannels->toArray(), $vend->vendChannels()->sum('capacity'));
             SaveVendChannelsJson::dispatch($vend->id);
         }
     }
