@@ -361,7 +361,7 @@
                                                 Drop Sensor
                                             </span>
                                             <span>
-                                                {{vend.parameterJson['Sensor'] == 1 ? 'Active' : 'Inactive'}}
+                                                {{vend.parameterJson['Sensor'] == 1 ? 'Enabled' : 'Disabled'}}
                                             </span>
                                         </div>
                                     </div>
