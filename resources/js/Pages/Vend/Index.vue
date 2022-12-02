@@ -353,7 +353,7 @@
                                     </div>
                                     <div
                                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                        :class="[vend.parameterJson['Sensor'] == 1 ? 'bg-green-200' : 'bg-red-200']"
+                                        :class="[vend.parameterJson['Sensor'] == 0 ? 'bg-red-200' : 'bg-green-200']"
                                         v-if="vend.parameterJson && vend.parameterJson['Sensor']"
                                     >
                                         <div class="flex flex-col">
@@ -361,7 +361,7 @@
                                                 Drop Sensor
                                             </span>
                                             <span>
-                                                {{vend.parameterJson['Sensor'] == 1 ? 'Enabled' : 'Disabled'}}
+                                                {{vend.parameterJson['Sensor'] == 0 ? 'Disabled' : 'Enabled'}}
                                             </span>
                                         </div>
                                     </div>
