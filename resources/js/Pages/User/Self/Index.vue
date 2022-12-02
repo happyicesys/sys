@@ -10,13 +10,13 @@
           </h2>
       </template>
 
-      <div class="mt-5 md:col-span-2 md:mt-0">
+      <div class="mt-3">
         <form action="#" method="POST">
           <div class="overflow-hidden shadow sm:rounded-md">
             <div class="bg-white px-4 py-5 sm:p-6">
               <div class="grid grid-cols-6 gap-6">
                 <div class="col-span-6 sm:col-span-3">
-                  <label for="first-name" class="block text-sm font-medium text-gray-700">First name</label>
+                  <label for="first-name" class="block text-sm font-medium text-gray-700">Firstzzz name</label>
                   <input type="text" name="first-name" id="first-name" autocomplete="given-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" />
                 </div>
 

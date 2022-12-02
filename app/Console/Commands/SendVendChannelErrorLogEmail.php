@@ -43,6 +43,7 @@ class SendVendChannelErrorLogEmail extends Command
             ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_channel_error_logs.vend_channel_id')
             ->leftJoin('vends', 'vends.id', '=', 'vend_channels.vend_id')
             ->where('vend_channel_error_logs.created_at', '>=', $now->subHours($intervalHours))
+            ->where('is_error_cleared', false)
             ->orderBy('vends.code')
             ->orderBy('vend_channel_error_logs.created_at')
             ->select('*', 'vend_channel_error_logs.created_at')

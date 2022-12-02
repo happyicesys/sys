@@ -48,9 +48,8 @@ class UserController extends Controller
 
     public function selfIndex()
     {
-        // dd(auth()->user());
         return Inertia::render('User/Self/Index', [
-            'user' => UserResource::collection(
+            'user' => UserResource::make(
                 auth()->user()
             )
         ]);
