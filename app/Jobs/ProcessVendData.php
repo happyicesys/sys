@@ -123,7 +123,7 @@ class ProcessVendData implements ShouldQueue
                 $coinAmount = isset($input['CoinCnt']) ? $input['CoinCnt'] : null;
                 $firmwareVer = isset($input['Ver']) ? (int)$input['Ver'] : null;
                 $isDoorOpen = isset($input['isDoorOpen']) ? $input['isDoorOpen'] : null;
-                $isSensorNormal = isset($input['isDoorOpen']) ? $input['Sensor'] : null;
+                $isSensorNormal = isset($input['Sensor']) ? $input['Sensor'] : null;
 
                 if($vend) {
                     if($coinAmount) {

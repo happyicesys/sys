@@ -11,6 +11,7 @@ const form = useForm({
     email: '',
     password: '',
     password_confirmation: '',
+    username: '',
     terms: false,
 });
 
@@ -35,7 +36,12 @@ const submit = () => {
 
             <div class="mt-4">
                 <BreezeLabel for="email" value="Email" />
-                <BreezeInput id="email" type="email" class="mt-1 block w-full" v-model="form.email" required autocomplete="username" />
+                <BreezeInput id="email" type="email" class="mt-1 block w-full" v-model="form.email" autocomplete="email" />
+            </div>
+
+            <div class="mt-4">
+                <BreezeLabel for="username" value="Username" />
+                <BreezeInput id="username" type="text" class="mt-1 block w-full" v-model="form.username" autocomplete="username" />
             </div>
 
             <div class="mt-4">

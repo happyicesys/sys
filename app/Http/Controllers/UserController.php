@@ -46,6 +46,16 @@ class UserController extends Controller
         return redirect()->route('users');
     }
 
+    public function selfIndex()
+    {
+        // dd(auth()->user());
+        return Inertia::render('User/Self/Index', [
+            'user' => UserResource::collection(
+                auth()->user()
+            )
+        ]);
+    }
+
     public function update(Request $request, $userId)
     {
         $request->validate([

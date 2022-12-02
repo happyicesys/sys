@@ -169,6 +169,11 @@ Route::middleware('auth')->group(function() {
         Route::delete('/{id}', [TelcoController::class, 'delete']);
     });
 
+    Route::prefix('self')->group(function() {
+        Route::get('/', [UserController::class, 'selfIndex'])->name('self');
+        Route::post('/{id}/update', [UserController::class, 'selfUpdate']);
+    });
+
     Route::prefix('uoms')->group(function() {
         Route::get('/', [UomController::class, 'index'])->name('uoms');
         Route::post('/create', [UomController::class, 'create']);

@@ -307,6 +307,9 @@ const showingNavigationDropdown = ref(false);
                                                 </template>
 
                                                 <template #content>
+                                                    <BreezeDropdownLink :href="route('self')" method="get" as="button">
+                                                        Account Settings
+                                                    </BreezeDropdownLink>
                                                     <BreezeDropdownLink :href="route('logout')" method="post" as="button">
                                                         Log Out
                                                     </BreezeDropdownLink>
@@ -366,6 +369,12 @@ const showingNavigationDropdown = ref(false);
                         <div class="px-4">
                             <div class="font-medium text-base text-gray-800">{{ $page.props.auth.user.name }}</div>
                             <div class="font-medium text-sm text-gray-500">{{ $page.props.auth.user.email }}</div>
+                        </div>
+
+                        <div class="mt-3 space-y-1">
+                            <BreezeResponsiveNavLink :href="route('self')" method="get" as="button">
+                                Account Settings
+                            </BreezeResponsiveNavLink>
                         </div>
 
                         <div class="mt-3 space-y-1">
