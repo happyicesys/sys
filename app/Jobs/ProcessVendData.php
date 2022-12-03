@@ -288,7 +288,7 @@ class ProcessVendData implements ShouldQueue
                         'vend_channel_error_id' => $vendChannelError->id
                     ]);
 
-                    if($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode) {
+                    if($lastVendChannelErrorLog and ($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode)) {
                         $lastVendChannelErrorLog->is_error_cleared = true;
                         $lastVendChannelErrorLog->save();
                     }
