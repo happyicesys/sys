@@ -95,6 +95,9 @@
                               Email
                           </TableHead>
                           <TableHead>
+                              Username
+                          </TableHead>
+                          <TableHead>
                           </TableHead>
                       </tr>
                   </thead>
@@ -109,6 +112,9 @@
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-left">
                               {{ user.email }}
+                          </TableData>
+                          <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
+                              {{ user.username }}
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
                               <div class="flex justify-center space-x-1">

@@ -79,11 +79,11 @@ const showingNavigationDropdown = ref(false);
 
 <template>
     <div>
-        <div class="min-h-screen sm:flex bg-gray-100">
+        <div class="min-h-screen md:flex bg-gray-100">
             <div
                 class="hidden md:block flex-none flex-col border-r border-gray-200 pt-5 pb-4 bg-white md:w-1/6 xl:w-2/12">
 
-                <div class="flex items-center justify-center flex-shrink-0 px-1">
+                <div class="flex items-center justify-center flex-shrink-0 px-1 object-scale-down">
                     <Link href="/">
                     <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
                         class="h-20 w-44" viewBox="0 200 600 300"
@@ -290,7 +290,7 @@ const showingNavigationDropdown = ref(false);
                             <!-- Primary Navigation Menu -->
                             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                                 <div class="flex justify-between h-16">
-                                    <div class="hidden sm:flex sm:items-center sm:ml-6">
+                                    <div class="hidden md:flex sm:items-center sm:ml-6">
                                         <!-- Settings Dropdown -->
                                         <div class="ml-3 relative">
                                             <BreezeDropdown align="right" width="48">
@@ -319,7 +319,7 @@ const showingNavigationDropdown = ref(false);
                                     </div>
 
                                     <!-- Hamburger -->
-                                    <div class="my-auto sm:hidden">
+                                    <div class="my-auto md:hidden">
                                         <button @click="showingNavigationDropdown = ! showingNavigationDropdown" class="inline-flex items-center justify-center p-3 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out bg-gray-100">
                                             <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                                                 <path :class="{'hidden': showingNavigationDropdown, 'inline-flex': ! showingNavigationDropdown }" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -334,7 +334,7 @@ const showingNavigationDropdown = ref(false);
                 </header>
 
                 <!-- Responsive Navigation Menu -->
-                <div :class="{'block': showingNavigationDropdown, 'hidden': ! showingNavigationDropdown}" class="sm:hidden bg-gray-50">
+                <div :class="{'block': showingNavigationDropdown, 'hidden': ! showingNavigationDropdown}" class="md:hidden bg-gray-50">
 
                     <template v-for="item in navigation" :key="item.name">
                         <div v-if="!item.children" class="py-1 space-y-1">

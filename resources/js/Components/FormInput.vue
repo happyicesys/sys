@@ -13,6 +13,7 @@
             :placeholder="placeholderStr" @input="$emit('update:modelValue', $event.target.value)"
             :value="modelValue"
             :disabled="disabled"
+            :autocomplete="autocomplete"
           />
           <div class="text-sm text-red-600" v-if="error">
             {{ error }}
@@ -27,6 +28,10 @@
 <script setup>
 
 defineProps({
+  autocomplete: {
+    type: String,
+    default: 'on',
+  },
   placeholderStr: {
     type: String,
   },

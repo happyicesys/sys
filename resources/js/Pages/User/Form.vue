@@ -17,14 +17,24 @@
       <template #default>
         <form @submit.prevent="submit" id="submit">
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
-            <div class="sm:col-span-6">
+            <div class="col-span-12 sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
                 Name
               </FormInput>
             </div>
-            <div class="sm:col-span-6">
-              <FormInput v-model="form.email" :error="form.errors.email" required="true">
+            <div class="col-span-12 sm:col-span-6">
+              <FormInput v-model="form.email" :error="form.errors.email">
                 Email
+              </FormInput>
+            </div>
+            <div class="col-span-12 sm:col-span-6">
+              <FormInput v-model="form.username" :error="form.errors.username">
+                Username
+              </FormInput>
+            </div>
+            <div class="col-span-12 sm:col-span-6">
+              <FormInput v-model="form.password" :error="form.errors.password" :placeholderStr="[type == 'update' ? 'Leave blank for same password' : '']" inputType="password" autocomplete="new-password">
+                Password {{type == 'update' ? '(Override)' : ''}}
               </FormInput>
             </div>
           </div>
@@ -77,13 +87,15 @@ const form = ref(
 )
 
 onMounted(() => {
-  form.value = props.user ? useForm(props.user) : useForm(getDefaultForm())
+  form.value = props.user ? useForm({...getDefaultForm(), ...props.user}) : useForm(getDefaultForm())
 })
 
 function getDefaultForm() {
   return {
     name: '',
     email: '',
+    username: '',
+    password: '',
   }
 }
 
