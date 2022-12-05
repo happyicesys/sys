@@ -245,7 +245,11 @@
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.name : null }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <div class="grid grid-cols-[105px_minmax(110px,_1fr)_100px]" v-if="vend.vendChannelsJson">
+                                <div
+                                    class="grid grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
+                                    v-if="vend.vendChannelsJson"
+                                    @click="onChannelOverviewClicked(vend)"
+                                >
                                     <span v-for="(channel, channelIndex) in vend.vendChannelsJson.filter((vendChannel) => {
                                         return vendChannel['code'] >= 10 && vendChannel['code'] <= 69
                                     })"
@@ -438,12 +442,20 @@
         </div>
         </div>
     </div>
+    <ChannelOverview
+        v-if="showChannelOverviewModal"
+        :vend="vend"
+        :showModal="showChannelOverviewModal"
+        @modalClose="onChannelOverviewClosed"
+    >
+    </ChannelOverview>
     </BreezeAuthenticatedLayout>
   </template>
 
   <script setup>
   import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
   import Button from '@/Components/Button.vue';
+  import ChannelOverview from '@/Pages/Vend/ChannelOverview.vue';
   import Paginator from '@/Components/Paginator.vue';
   import SearchInput from '@/Components/SearchInput.vue';
   import MultiSelect from '@/Components/MultiSelect.vue';
@@ -482,12 +494,14 @@
     numberPerPage: '',
   })
 
-  const vendChannelErrorsOptions = ref([])
-  const numberPerPageOptions = ref([])
+  const booleanOptions = ref([])
   const categoryOptions = ref([])
   const categoryGroupOptions = ref([])
-//   const countryOptions = ref([])
-  const booleanOptions = ref([])
+  const numberPerPageOptions = ref([])
+  const showChannelOverviewModal = ref(false)
+  const vend = ref()
+  const vendChannelErrorsOptions = ref([])
+
 
   onMounted(() => {
     vendChannelErrorsOptions.value = [
@@ -521,6 +535,15 @@
     filters.value.is_binded_customer = booleanOptions.value[0]
   })
 
+    function onChannelOverviewClicked(vendData) {
+        vend.value = vendData
+        showChannelOverviewModal.value = true
+    }
+
+    function onChannelOverviewClosed() {
+        showChannelOverviewModal.value = false
+    }
+
   function onSearchFilterUpdated() {
     Inertia.get('/vends', {
         ...filters.value,
@@ -550,5 +573,6 @@
     filters.value.sortBy = !filters.value.sortBy
     onSearchFilterUpdated()
   }
+
 
   </script>

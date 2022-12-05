@@ -38,8 +38,10 @@ class UserController extends Controller
     public function create(Request $request)
     {
         $request->validate([
-            'name' => 'required',
-            'email' => 'required|email',
+            'name' => 'required|string|max:255',
+            'email' => 'nullable|email|max:255|required_without:username|unique:users,email',
+            'username' => 'nullable|required_without:email|unique:users,username',
+            'password' => 'required',
         ]);
 
         $user = User::create($request->all());
