@@ -86,19 +86,30 @@ class ProcessVendData implements ShouldQueue
 
                 $byteData = unpack('C*', $processedDataArr['content']);
 
-                for($j = 6; $j < count($byteData); $j++) {
-                    $channelArr = [];
-                    $channelArr['channel_code'] = $byteData[$j++];
-                    $channelArr['name'] = $byteData[$j++];
-                    $channelArr['error_code'] = $byteData[$j++];
-                    $channelArr['capacity'] = $byteData[$j++];
-                    $channelArr['qty'] = $byteData[$j++];
-                    $channelArr['amount'] = $byteData[$j];
-                    $j += 4;
-                    $channelArr['item'] = $byteData[$j];
-                    $j += 1;
-                    if(is_array($channelArr)) {
-                        array_push($processedDataArr['data']['channels'], $channelArr);
+                if(!empty($byteData) && $byteData[1] == 83) {
+                    $byteSize = (sizeof($byteData) - 5)/ 11;
+                    $i = 2;
+                    $i += 4;
+
+                    for($j = 0; $j < $byteSize; $j++) {
+                        $channelArr = [];
+                        $channelCode = $byteData[$i++];
+                        $channelCode += $byteData[$i++]*0x100;
+                        $channelArr['channel_code'] = $channelCode;
+
+                        $channelArr['error_code'] = $byteData[$i++];
+                        $channelArr['capacity'] = $byteData[$i++];
+                        $channelArr['qty'] = $byteData[$i++];
+
+                        $amount = $byteData[$i++];
+                        $amount += $byteData[$i++]*0x100;
+                        $amount += $byteData[$i++]*0x10000;
+                        $amount += $byteData[$i++]*0x1000000;
+                        $channelArr['amount'] = $amount;
+                        $i += 2;
+                        if(is_array($channelArr)) {
+                            array_push($processedDataArr['data']['channels'], $channelArr);
+                        }
                     }
                 }
             }
@@ -108,6 +119,7 @@ class ProcessVendData implements ShouldQueue
         }
 
         if($input) {
+            dd($input);
             $vendData = VendData::create([
                 'value' => $this->input,
                 'ip_address' => $this->ipAddress,
