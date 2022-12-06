@@ -16,7 +16,7 @@
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-5 md:col-span-1">
               <label for="text" class="block text-sm font-medium text-gray-700">
-                  Code
+                  Vend ID
               </label>
                 <MultiSelect
                     v-model="filters.codes"
@@ -112,6 +112,12 @@
                 >
                 </MultiSelect>
             </div>
+            <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code">
+                Cust ID
+            </SearchInput>
+            <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name">
+                Cust Name
+            </SearchInput>
           </div>
 
 
@@ -253,6 +259,7 @@ import Paginator from '@/Components/Paginator.vue';
 import { MagnifyingGlassIcon, BackspaceIcon } from '@heroicons/vue/20/solid';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import moment from 'moment';
+import SearchInput from '@/Components/SearchInput.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -295,6 +302,8 @@ const filters = ref({
     codes: [],
     categories: [],
     categoryGroups: [],
+    customer_code: '',
+    customer_name: '',
     errors: [],
     paymentMethod: '',
     date_from: moment().startOf('month').toDate(),

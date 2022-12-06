@@ -76,6 +76,16 @@ class VendTransaction extends Model
                 $query->whereIn('id', $search);
             });
         })
+        ->when($request->customer_code, function($query, $search) {
+            $query->whereHas('vend.latestVendBinding.customer', function($query) use ($search) {
+                $query->where('code', 'LIKE', "%{$search}%");
+            });
+        })
+        ->when($request->customer_name, function($query, $search) {
+            $query->whereHas('vend.latestVendBinding.customer', function($query) use ($search) {
+                $query->where('name', 'LIKE', "%{$search}%");
+            });
+        })
         ->when($startDate, function($query, $search) {
             $query->whereDate('transaction_datetime', '>=', $search);
         })
