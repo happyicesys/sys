@@ -177,11 +177,14 @@
                         <TableHead>
                             #
                         </TableHead>
+                        <TableHead>
+                            Order ID
+                        </TableHead>
                         <TableHeadSort modelName="transaction_datetime" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('transaction_datetime')">
-                            DateTime
+                            Transaction DateTime
                         </TableHeadSort>
                         <TableHead>
-                            Code
+                            Vend ID
                         </TableHead>
                         <TableHead>
                             Customer
@@ -193,13 +196,13 @@
                             Amount
                         </TableHead>
                         <TableHead>
-                            Pay Method
+                            Payment Method
                         </TableHead>
                         <TableHead>
                             Channels Error
                         </TableHead>
                         <TableHead>
-                            Order ID
+                            Dispensing Status
                         </TableHead>
                       </tr>
                   </thead>
@@ -208,6 +211,9 @@
                           class="divide-x divide-gray-200">
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransactions.meta.from + vendTransactionIndex }}
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            {{ vendTransaction.order_id }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.transaction_datetime }}
@@ -229,11 +235,11 @@
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
                             {{ vendTransaction.paymentMethod ? vendTransaction.paymentMethod.name : null }}
                         </TableData>
-                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
-                            {{ vendTransaction.vend_channel_error_desc }}
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            {{ vendTransaction.vendChannelError ? vendTransaction.vendChannelError.desc : '' }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.order_id }}
+                            {{ vendTransaction.vendTransactionJson['ISOK'] == 1 ? 'Success' : "Failure" }}
                         </TableData>
                       </tr>
                       <tr v-if="!vendTransactions.data.length">

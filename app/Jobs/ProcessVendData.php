@@ -119,7 +119,7 @@ class ProcessVendData implements ShouldQueue
         }
 
         if($input) {
-            // dd($input);
+            dd($input);
             $vendData = VendData::create([
                 'value' => $this->input,
                 'ip_address' => $this->ipAddress,
@@ -236,7 +236,8 @@ class ProcessVendData implements ShouldQueue
             'payment_method_id' => $paymentMethod ? $paymentMethod->id : null,
             'vend_id' => $vend->id,
             'vend_channel_id' => isset($vendChannel) ? $vendChannel->id : 0,
-            'vend_channel_error_id' => isset($vendChannelError) ? $vendChannelError->id : null
+            'vend_channel_error_id' => isset($vendChannelError) ? $vendChannelError->id : null,
+            'vend_transaction_json' => $input,
         ]);
 
         $this->syncVendTransactionTotalsJson($vendTransaction->vend);

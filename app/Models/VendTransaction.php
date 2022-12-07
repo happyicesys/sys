@@ -11,7 +11,8 @@ class VendTransaction extends Model
     use HasFactory;
 
     protected $casts = [
-        'transaction_datetime' => 'datetime'
+        'transaction_datetime' => 'datetime',
+        'vend_transaction_json' => 'json',
     ];
 
     protected $fillable = [
@@ -21,7 +22,8 @@ class VendTransaction extends Model
         'payment_method_id',
         'vend_channel_id',
         'vend_channel_error_id',
-        'vend_id'
+        'vend_id',
+        'vend_transaction_json',
     ];
 
     // relationships

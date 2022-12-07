@@ -25,6 +25,7 @@ class VendTransactionResource extends JsonResource
             'vend' => VendResource::make($this->vend),
             'vendChannel' => VendChannelResource::make($this->vendChannel),
             'vendChannelError' => VendChannelErrorResource::make($this->vendChannelError),
+            'vendTransactionJson' => $this->vend_transaction_json,
         ];
     }
 }
