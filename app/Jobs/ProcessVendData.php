@@ -231,7 +231,7 @@ class ProcessVendData implements ShouldQueue
 
         $vendTransaction = VendTransaction::create([
             'order_id' => $input['ORDRID'],
-            'transaction_datetime' => Carbon::createFromFormat('Y-m-d H:i:s', $input['TIME']),
+            'transaction_datetime' => Carbon::now(),
             'amount' => $input['Price'],
             'payment_method_id' => $paymentMethod ? $paymentMethod->id : null,
             'vend_id' => $vend->id,
