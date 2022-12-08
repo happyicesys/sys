@@ -49,7 +49,7 @@
             </div>
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                    Errors?
+                    Channel Errors
                 </label>
                 <MultiSelect
                     v-model="filters.errors"
@@ -65,7 +65,7 @@
             </div>
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
-                   Pay Method
+                   Payment Method
                 </label>
                 <MultiSelect
                     v-model="filters.paymentMethod"
@@ -187,7 +187,7 @@
                             Vend ID
                         </TableHead>
                         <TableHead>
-                            Customer
+                            Customer Name
                         </TableHead>
                         <TableHead>
                             Channel
