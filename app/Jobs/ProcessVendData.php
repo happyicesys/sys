@@ -229,13 +229,11 @@ class ProcessVendData implements ShouldQueue
 
         $vendChannelError = VendChannelError::where('code', (isset($input['SErr']) ? $input['SErr'] : 0))->where('code', '!=', 0)->first();
 
-        $vendTransaction = VendTransaction::updateOrCreate(
-            [
-                'order_id' => $input['ORDRID'],
-            ],
+        $vendTransaction = VendTransaction::create(
             [
             'transaction_datetime' => Carbon::now(),
             'amount' => $input['Price'],
+            'order_id' => $input['ORDRID'],
             'payment_method_id' => $paymentMethod ? $paymentMethod->id : null,
             'vend_id' => $vend->id,
             'vend_channel_id' => isset($vendChannel) ? $vendChannel->id : 0,

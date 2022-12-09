@@ -37,17 +37,6 @@
                 Password {{type == 'update' ? '(Override)' : ''}}
               </FormInput>
             </div>
-
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-4 md:pb-2">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-center">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Role & Access Level </span>
-                </div>
-              </div>
-            </div>
             <div class="col-span-12 sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Role
