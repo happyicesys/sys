@@ -303,7 +303,9 @@ class ProcessCustomerData implements ShouldQueue
 
                 if($customerCollection['is_dvm'] or $customerCollection['is_vending'] or $customerCollection['is_combi']) {
                     $vend = Vend::where('code', $customerCollection['vend_code'])->first();
-                    $vend->vendBindings()->update(['is_active' => false]);
+                    if($vend->vendBindings()->exists()) {
+                        $vend->vendBindings()->update(['is_active' => false]);
+                    }
 
                     if($vend) {
                         $customer->vendBinding()->updateOrCreate([
