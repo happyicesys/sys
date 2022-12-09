@@ -527,7 +527,7 @@
   })
 
   const filters = ref({
-    code: '',
+    codes: [],
     serialNum: '',
     customer_code: '',
     customer_name: '',
