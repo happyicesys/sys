@@ -33,7 +33,7 @@ defineProps({
     default: 'on',
   },
   placeholderStr: {
-    type: String,
+    type: [Array, String]
   },
   modelValue: [String, Number],
   error: String,

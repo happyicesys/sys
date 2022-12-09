@@ -134,6 +134,13 @@ Route::middleware('auth')->group(function() {
         Route::delete('/{id}', [ProfileController::class, 'delete']);
     });
 
+    Route::prefix('permissions')->group(function() {
+        Route::get('/', [RolePermissionController::class, 'indexPermission'])->name('permissions');
+        Route::post('/create', [RolePermissionController::class, 'createPermission']);
+        Route::post('/{id}/update', [RolePermissionController::class, 'updatePermission']);
+        Route::delete('/{id}', [RolePermissionController::class, 'deletePermission']);
+    });
+
     Route::prefix('simcards')->group(function() {
         Route::get('/', [SimcardController::class, 'index'])->name('simcards');
         Route::post('/create', [SimcardController::class, 'create']);
@@ -167,6 +174,13 @@ Route::middleware('auth')->group(function() {
         Route::post('/create', [TelcoController::class, 'create']);
         Route::post('/{id}/update', [TelcoController::class, 'update']);
         Route::delete('/{id}', [TelcoController::class, 'delete']);
+    });
+
+    Route::prefix('roles')->group(function() {
+        Route::get('/', [RolePermissionController::class, 'indexRole'])->name('roles');
+        Route::post('/create', [RolePermissionController::class, 'createRole']);
+        Route::post('/{id}/update', [RolePermissionController::class, 'updateRole']);
+        Route::delete('/{id}', [RolePermissionController::class, 'deleteRole']);
     });
 
     Route::prefix('self')->group(function() {

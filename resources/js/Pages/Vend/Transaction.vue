@@ -239,7 +239,7 @@
                             {{ vendTransaction.vendChannelError ? vendTransaction.vendChannelError.desc : '' }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vendTransactionJson['ISOK'] == 1 ? 'Success' : "Failure" }}
+                            {{ vendTransaction.vendTransactionJson && vendTransaction.vendTransactionJson['ISOK'] == 1 ? 'Success' : "Failure" }}
                         </TableData>
                       </tr>
                       <tr v-if="!vendTransactions.data.length">

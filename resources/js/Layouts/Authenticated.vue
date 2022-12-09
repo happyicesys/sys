@@ -63,6 +63,8 @@ const navigation = [
             {name: 'Cust Category Groups', href: '/category-groups'},
             {name: 'Payment Methods', href: '/payment-methods'},
             {name: 'Payment Terms', href: '/payment-terms'},
+            {name: 'Permission', href: '/permissions'},
+            {name: 'Role', href: '/roles'},
             {name: 'Simcard', href: '/simcards'},
             {name: 'Status', href: '/statuses'},
             {name: 'Tags', href: '/tags'},

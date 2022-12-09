@@ -44,14 +44,25 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Role & Acess Level </span>
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Role & Access Level </span>
                 </div>
               </div>
             </div>
             <div class="col-span-12 sm:col-span-6">
-              <FormInput v-model="form.username" :error="form.errors.username">
-                Username
-              </FormInput>
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Role
+              </label>
+              <MultiSelect
+                v-model="form.role_id"
+                :options="roleOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
             </div>
           </div>
           <div class="sm:col-span-6">
@@ -85,6 +96,7 @@
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
+import MultiSelect from '@/Components/MultiSelect.vue'
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue'
@@ -92,6 +104,7 @@ import { ref, onMounted } from 'vue'
 const props = defineProps({
   user: Object,
   countries: Object,
+  roles: Object,
   type: String,
   showModal: Boolean,
 })
@@ -101,9 +114,11 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const roleOptions = ref([])
 
 onMounted(() => {
   form.value = props.user ? useForm({...getDefaultForm(), ...props.user}) : useForm(getDefaultForm())
+  roleOptions.value = props.roles
 })
 
 function getDefaultForm() {
