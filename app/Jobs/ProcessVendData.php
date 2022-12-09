@@ -20,8 +20,8 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class ProcessVendData implements ShouldQueue
-//
+class ProcessVendData
+//implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -46,9 +46,11 @@ class ProcessVendData implements ShouldQueue
      */
     public function handle()
     {
+
         $input = collect($this->input);
+        $processedDataArr = [];
         if($input->has('f') and $input->has('g') and $input->has('m') and $input->has('p') and $input->has('t')) {
-            $processedDataArr = [];
+            $processedDataArr['original'] = $input;
             foreach($this->input as $dataIndex => $data) {
                 switch($dataIndex) {
                     case 'f':
@@ -171,6 +173,11 @@ class ProcessVendData implements ShouldQueue
                     }
                 }
             }
+        }
+
+        if(isset($processedDataArr['original'])) {
+            // dd(strlen('VElNRTIwMTgtMDYtMjkgMTM6MjM6NTc='));
+            return $processedDataArr['original']['f'].',4,MQ==';
         }
         return true;
     }
