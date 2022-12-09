@@ -71,6 +71,7 @@ class VendController extends Controller
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),
+            'vendOptions' => VendResource::collection(Vend::orderBy('code')->get()),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
         ]);
     }

@@ -13,9 +13,25 @@
         <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
             <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
             <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-                <SearchInput placeholderStr="Code" v-model="filters.code">
+                <!-- <SearchInput placeholderStr="Code" v-model="filters.code">
                     Vend ID
-                </SearchInput>
+                </SearchInput> -->
+                <div>
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Vend ID
+                </label>
+                    <MultiSelect
+                        v-model="filters.codes"
+                        :options="vendOptions"
+                        valueProp="id"
+                        label="code"
+                        mode="tags"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                </div>
                 <SearchInput placeholderStr="Serial Num" v-model="filters.serialNum">
                     Serial Num
                 </SearchInput>
@@ -504,8 +520,8 @@
     categories: Object,
     categoryGroups: Object,
     constTempError: Number,
-    // countries: Object,
     vends: Object,
+    vendOptions: Object,
     vendChannelErrors: Object,
 
   })
@@ -534,6 +550,7 @@
   const showChannelOverviewModal = ref(false)
   const vend = ref()
   const vendChannelErrorsOptions = ref([])
+  const vendOptions = ref([])
 
 
   onMounted(() => {
@@ -566,6 +583,7 @@
     // filters.value.country_id = countryOptions.value[1]
 
     filters.value.is_binded_customer = booleanOptions.value[0]
+    vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
   })
 
     function onChannelOverviewClicked(vendData) {
@@ -580,6 +598,7 @@
   function onSearchFilterUpdated() {
     Inertia.get('/vends', {
         ...filters.value,
+        codes: filters.value.codes.map((code) => { return code.id }),
         vend_channel_error_id: filters.value.vend_channel_error_id.id,
         categories: filters.value.categories.map((category) => { return category.id }),
         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),

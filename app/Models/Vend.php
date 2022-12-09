@@ -144,8 +144,8 @@ class Vend extends Model
         $sortKey = $request->sortKey ? $request->sortKey : 'vends.code';
         $sortBy = $request->sortBy ? $request->sortBy : true;
 
-        return $query->when($request->code, function($query, $search) {
-            $query->where('vends.code', 'LIKE', "%{$search}%");
+        return $query->when($request->codes, function($query, $search) {
+            $query->whereIn('vends.id', $search);
         })
         ->when($request->serialNum, function($query, $search) {
             $query->where('serial_num', 'LIKE', "%{$search}%");
