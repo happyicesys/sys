@@ -244,32 +244,31 @@
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.code : null }} <br>
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.name : null }}
                             </TableData>
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <div
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
+
+                                    <ul
                                     class="grid grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
                                     v-if="vend.vendChannelsJson"
                                     @click="onChannelOverviewClicked(vend)"
-                                >
-                                    <span v-for="(channel, channelIndex) in vend.vendChannelsJson.filter((vendChannel) => {
-                                        return vendChannel['code'] >= 10 && vendChannel['code'] <= 69
-                                    })"
-                                        class="inline-flex justify-evenly items-center rounded px-1 py-0.5 text-xs font-medium border min-w-full"
-                                        :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
                                     >
-                                    <!-- inline-flex justify-between items-center rounded px-2.5 py-0.5 text-xs font-medium border min-w-full -->
-                                        <div class="font-semibold">
-                                            #{{channel['code']}},
-                                        </div>
-                                        <div class="text-blue-600 text-sm">
-                                            {{channel['capacity'] - channel['qty']}},
-                                        </div>
-                                        <div
-                                            :class="[channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700']"
+                                        <li v-for="(channel, channelIndex) in vend.vendChannelsJson.filter((vendChannel) => {
+                                            return vendChannel['code'] >= 10 && vendChannel['code'] <= 69
+                                            })"
+                                            class="quick-look"
+                                            :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
                                         >
-                                            {{channel['qty']}}/{{channel['capacity']}}
-                                        </div>
-                                    </span>
-                                </div>
+                                            <span>
+                                                #{{channel['code']}},
+                                            </span>
+                                            <span class="text-blue-600">
+                                                {{channel['capacity'] - channel['qty']}},
+                                            </span>
+                                            <span :class="[channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700']">
+                                                {{channel['qty']}}/{{channel['capacity']}}
+                                            </span>
+                                        </li>
+                                    </ul>
+
                             </TableData>
                             <!-- <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.category ? vend.latestVendBinding.customer.category.name : null }} <br>
@@ -451,6 +450,40 @@
     </ChannelOverview>
     </BreezeAuthenticatedLayout>
   </template>
+
+<style setup>
+	.quick-look
+	{
+		-webkit-border-horizontal-spacing: 0px;
+		-webkit-border-image: none;
+		-webkit-border-vertical-spacing: 0px;
+		border-bottom-color: white;
+		border-bottom-left-radius: 3px;
+		border-bottom-right-radius: 3px;
+		border-bottom-style: none;
+		border-width: 0px;
+		border-collapse: separate;
+		border-left-color: white;
+		border-left-style: none;
+		border-right-color: white;
+		border-right-style: none;
+		border-top-color: white;
+		border-top-left-radius: 3px;
+		border-top-right-radius: 3px;
+		border-top-style: none;
+		line-height: 14px;
+		max-width: none;
+		text-align: left;
+		vertical-align: baseline;
+		white-space: nowrap;
+		padding:5px;
+		margin:3px;
+		display:block;
+		float:left;
+		/* width:170px; */
+		font-size:14px;
+	}
+</style>
 
   <script setup>
   import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
