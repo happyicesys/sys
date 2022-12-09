@@ -229,8 +229,11 @@ class ProcessVendData implements ShouldQueue
 
         $vendChannelError = VendChannelError::where('code', (isset($input['SErr']) ? $input['SErr'] : 0))->where('code', '!=', 0)->first();
 
-        $vendTransaction = VendTransaction::create([
-            'order_id' => $input['ORDRID'],
+        $vendTransaction = VendTransaction::updateOrCreate(
+            [
+                'order_id' => $input['ORDRID'],
+            ],
+            [
             'transaction_datetime' => Carbon::now(),
             'amount' => $input['Price'],
             'payment_method_id' => $paymentMethod ? $paymentMethod->id : null,
@@ -238,7 +241,8 @@ class ProcessVendData implements ShouldQueue
             'vend_channel_id' => isset($vendChannel) ? $vendChannel->id : 0,
             'vend_channel_error_id' => isset($vendChannelError) ? $vendChannelError->id : null,
             'vend_transaction_json' => $input,
-        ]);
+            ]
+        );
 
         $this->syncVendTransactionTotalsJson($vendTransaction->vend);
 

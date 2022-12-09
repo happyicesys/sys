@@ -313,7 +313,7 @@
                         {{ customer.created_at }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.status.name }}
+                        {{ customer.status ? customer.status.name : '' }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
