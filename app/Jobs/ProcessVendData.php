@@ -48,10 +48,6 @@ class ProcessVendData implements ShouldQueue
     {
 
         $input = collect($this->input);
-        VendData::create([
-            'value' => $this->input,
-            'ip_address' => $this->ipAddress,
-        ]);
         $processedDataArr = [];
         if($input->has('f') and $input->has('g') and $input->has('m') and $input->has('p') and $input->has('t')) {
             $processedDataArr['original'] = $input;
@@ -125,6 +121,12 @@ class ProcessVendData implements ShouldQueue
         }
 
         if($input) {
+            // dd($input);
+            $vendData = VendData::create([
+                'value' => $this->input,
+                'ip_address' => $this->ipAddress,
+            ]);
+
             if(isset($input['Vid'])) {
                 $vid = $input['Vid'];
 
@@ -171,11 +173,6 @@ class ProcessVendData implements ShouldQueue
                     }
                 }
             }
-        }
-
-        if(isset($processedDataArr['original'])) {
-            // dd(strlen('VElNRTIwMTgtMDYtMjkgMTM6MjM6NTc='));
-            return $processedDataArr['original']['f'].',4,MQ==';
         }
         return true;
     }

@@ -24,5 +24,11 @@ class VendDataController extends Controller
         $ipAddress = $request->ip();
 
         ProcessVendData::dispatch($input, $ipAddress);
+
+        $input = collect($input);
+        if($input->has('f') and $input->has('g') and $input->has('m') and $input->has('p') and $input->has('t')) {
+            return $input['f'].',4,MQ==';
+        }
+        return true;
     }
 }
