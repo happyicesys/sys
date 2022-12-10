@@ -9,7 +9,7 @@
       :object="true"
       :options="options"
       :placeholder="placeholder"
-      :required="true"
+      :required="required"
       :searchable="true"
       :valueProp="valueProp"
       @select="onSelected"
@@ -37,6 +37,10 @@
     placeholder: String,
     trackBy: String,
     valueProp: String,
+    required: {
+      type: [Boolean, String],
+      default: false,
+    }
   })
 
   function onSelected(data) {
