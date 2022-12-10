@@ -44,6 +44,7 @@
               <MultiSelect
                 v-model="form.role_id"
                 :options="roleOptions"
+                required="false"
                 trackBy="id"
                 valueProp="id"
                 label="name"
