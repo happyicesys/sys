@@ -61,8 +61,8 @@ class VendTransaction extends Model
             });
         })
         ->when($request->errors, function($query, $search) {
-            $query->whereHas('vendChannel.vendChannelErrorLogs', function($query) use ($search) {
-                $query->where('vend_channel_error_id', 'IN', $search)->where('is_error_cleared', false);
+            $query->whereHas('vendChannelError', function($query) use ($search) {
+                $query->whereIn('id', $search);
             });
         })
         ->when($request->paymentMethod, function($query, $search) {
