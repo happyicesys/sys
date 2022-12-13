@@ -187,7 +187,8 @@
                                 Name
                             </TableHead>
                             <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
-                                Temp1
+                                Temp1<br>
+                                &#8451;
                             </TableHeadSort>
                             <TableHead>
                                 Inventory Status <br>
@@ -211,7 +212,8 @@
                             </TableHead>
                             <TableHeadSort modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2')">
                                 Temp2 <br>
-                                (Evap)
+                                (Evap)<br>
+                                &#8451;
                             </TableHeadSort>
                             <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
                                 Postcode
@@ -468,7 +470,7 @@
 		display:block;
 		float:left;
 		/* width:170px; */
-		font-size:14px;
+		font-size:13px;
 	}
 </style>
 

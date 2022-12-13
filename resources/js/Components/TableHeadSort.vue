@@ -1,6 +1,6 @@
 <template>
   <th scope="col"
-      class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-1 pr-1 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter">
+      class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-1 pr-1 text-center text-[13px] font-semibold text-gray-900 backdrop-blur backdrop-filter">
       <div class="flex justify-center">
           <a href="#" class="text-blue-600 hover:text-blue-800" @click="$emit('sortTable', modelName)">
               <slot/>
