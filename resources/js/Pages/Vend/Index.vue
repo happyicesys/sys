@@ -11,15 +11,11 @@
 
         <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
         <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
-            <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
             <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-                <!-- <SearchInput placeholderStr="Code" v-model="filters.code">
-                    Vend ID
-                </SearchInput> -->
                 <div>
-                <label for="text" class="block text-sm font-medium text-gray-700">
-                    Vend ID
-                </label>
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                        Vend ID
+                    </label>
                     <MultiSelect
                         v-model="filters.codes"
                         :options="vendOptions"
@@ -110,22 +106,6 @@
                     >
                     </MultiSelect>
                 </div>
-                <!-- <div>
-                    <label for="text" class="block text-sm font-medium text-gray-700">
-                        Country
-                    </label>
-                    <MultiSelect
-                        v-model="filters.country_id"
-                        :options="countryOptions"
-                        trackBy="id"
-                        valueProp="id"
-                        label="name"
-                        placeholder="Select"
-                        open-direction="bottom"
-                        class="mt-1"
-                    >
-                    </MultiSelect>
-                </div> -->
                 <div>
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Customer Binded?
@@ -206,9 +186,15 @@
                             <TableHead>
                                 Name
                             </TableHead>
+                            <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
+                                Temp
+                            </TableHeadSort>
                             <TableHead>
                                 Inventory Status <br>
                                 (#Channel, Sales, Balance/Capacity)
+                            </TableHead>
+                            <TableHead>
+                                Errors
                             </TableHead>
                             <TableHeadSort modelName="vend_channel_totals_json->balancePercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->balancePercent')">
                                 Balance Stock
@@ -216,33 +202,24 @@
                             <TableHeadSort modelName="vend_channel_totals_json->outOfStockSkuPercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->outOfStockSkuPercent')">
                                 Out of Stock SKU
                             </TableHeadSort>
-                            <!-- <TableHead>
-                                Category
-                            </TableHead> -->
-                            <TableHead>
-                                Errors
-                            </TableHead>
-                            <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
-                                Temp1
-                            </TableHeadSort>
-                            <TableHeadSort modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2')">
-                                Temp2
-                            </TableHeadSort>
-                            <TableHead>
-                                Status
-                            </TableHead>
                             <TableHead>
                                 Sales $(Qty) <br>
                                 (Today/ 7 Days)
                             </TableHead>
+                            <TableHead>
+                                Status
+                            </TableHead>
+                            <TableHeadSort modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2')">
+                                Evap
+                            </TableHeadSort>
                             <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
                                 Postcode
                             </TableHeadSort>
                             <TableHead>
-                                Serial Num
+                                Firmware Ver
                             </TableHead>
                             <TableHead>
-                                Firmware Ver
+                                Serial Num
                             </TableHead>
                         </tr>
                     </thead>
@@ -256,45 +233,64 @@
                                 {{ vend.code }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                                <!-- {{  vend}} -->
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.code : null }} <br>
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.name : null }}
                             </TableData>
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                                    <ul
-                                    class="grid grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
-                                    v-if="vend.vendChannelsJson"
-                                    @click="onChannelOverviewClicked(vend)"
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                <div class="flex flex-col items-center">
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
+                                        :class="[vend.is_online ? (vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                        @click="onVendTempClicked(vend.id, 1)"
                                     >
-                                        <li v-for="(channel, channelIndex) in vend.vendChannelsJson"
-                                            class="quick-look"
-                                            :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
-                                        >
-                                        <!-- <li v-for="(channel, channelIndex) in vend.vendChannelsJson.filter((vendChannel) => {
-                                            return vendChannel['code'] >= 10 && vendChannel['code'] <= 69
-                                            })"
-                                            class="quick-look"
-                                            :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1 divide-y' : '']"
-                                        >-->
-                                        <span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
-                                            <span>
-                                                #{{channel['code']}},
-                                            </span>
-                                            <span class="text-blue-600">
-                                                {{channel['capacity'] - channel['qty']}},
-                                            </span>
-                                            <span :class="[channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700']">
-                                                {{channel['qty']}}/{{channel['capacity']}}
-                                            </span>
-                                        </span>
-                                        </li>
-                                    </ul>
-
+                                        {{ vend.is_temp_error ? 'Error' : vend.temp }}
+                                    </button>
+                                    <span class="mt-1">
+                                        {{ vend.temp_updated_at }}
+                                    </span>
+                                </div>
                             </TableData>
-                            <!-- <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                                {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.category ? vend.latestVendBinding.customer.category.name : null }} <br>
-                                {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.category && vend.latestVendBinding.customer.category.category_group ? vend.latestVendBinding.customer.category.category_group.name : null }}
-                            </TableData> -->
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
+                                <ul
+                                class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
+                                v-if="vend.vendChannelsJson"
+                                @click="onChannelOverviewClicked(vend)"
+                                >
+                                    <li v-for="(channel, channelIndex) in vend.vendChannelsJson"
+                                        class="quick-look"
+                                        :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
+                                    >
+                                    <span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
+                                        <span>
+                                            #{{channel['code']}},
+                                        </span>
+                                        <span class="text-blue-600">
+                                            {{channel['capacity'] - channel['qty']}},
+                                        </span>
+                                        <span :class="[channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700']">
+                                            {{channel['qty']}}/{{channel['capacity']}}
+                                        </span>
+                                    </span>
+                                    </li>
+                                </ul>
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                <span v-for="vendChannelErrorLog in vend.vendChannelErrorLogsJson" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border"
+                                :class="[vendChannelErrorLog['is_error_cleared'] ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']">
+                                    <div class="flex flex-col">
+                                        <div>
+                                            #{{vendChannelErrorLog['vendChannel'] ? vendChannelErrorLog['vendChannel']['code'] : vendChannelErrorLog['vend_channel']['code']}},
+                                            <span class="font-bold">
+                                            ({{ vendChannelErrorLog['vendChannelError'] ? vendChannelErrorLog['vendChannelError']['code'] : vendChannelErrorLog['vend_channel_error']['code'] }})
+                                            </span>
+                                        </div>
+                                        <div>
+                                            {{vendChannelErrorLog['created_at']}}
+                                        </div>
+                                    </div>
+                                </span>
+                            </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <span
                                     v-if="vend.vendChannelTotalsJson"
@@ -314,49 +310,12 @@
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span v-for="vendChannelErrorLog in vend.vendChannelErrorLogsJson" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border"
-                                :class="[vendChannelErrorLog['is_error_cleared'] ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']">
-                                    <div class="flex flex-col">
-                                        <div>
-                                            #{{vendChannelErrorLog['vendChannel'] ? vendChannelErrorLog['vendChannel']['code'] : vendChannelErrorLog['vend_channel']['code']}},
-                                            <span class="font-bold">
-                                            ({{ vendChannelErrorLog['vendChannelError'] ? vendChannelErrorLog['vendChannelError']['code'] : vendChannelErrorLog['vend_channel_error']['code'] }})
-                                            </span>
-                                        </div>
-                                        <div>
-                                            {{vendChannelErrorLog['created_at']}}
-                                        </div>
-                                    </div>
+                                <span :class="[
+                                    vend.sevenDaysSales > 200 ? 'text-green-700' : 'text-red-700'
+                                ]">
+                                    {{vend.todaySales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.todayCount}})/ <br>
+                                    {{vend.sevenDaysSales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.sevenDaysCount}})
                                 </span>
-                            </TableData>
-
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <div class="flex flex-col items-center">
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                        :class="[vend.is_online ? (vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
-                                        @click="onVendTempClicked(vend.id, 1)"
-                                    >
-                                        {{ vend.is_temp_error ? 'Error' : vend.temp }}
-                                    </button>
-                                    <span class="mt-1">
-                                        {{ vend.temp_updated_at }}
-                                    </span>
-                                </div>
-                            </TableData>
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <div class="flex flex-col items-center">
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                        :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
-                                        @click="onVendTempClicked(vend.id, 2)"
-                                        v-if="vend.parameterJson && vend.parameterJson['t2']"
-                                    >
-                                        {{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}
-                                    </button>
-                                </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <!-- <div class="grid grid-cols-[90px_minmax(90px,_1fr)_90px] gap-1"> -->
@@ -433,21 +392,27 @@
                                 </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span :class="[
-                                    vend.sevenDaysSales > 200 ? 'text-green-700' : 'text-red-700'
-                                ]">
-                                    {{vend.todaySales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.todayCount}})/ <br>
-                                    {{vend.sevenDaysSales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.sevenDaysCount}})
-                                </span>
+                                <div class="flex flex-col items-center">
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
+                                        :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                        @click="onVendTempClicked(vend.id, 2)"
+                                        v-if="vend.parameterJson && vend.parameterJson['t2']"
+                                    >
+                                        {{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}
+                                    </button>
+                                </div>
                             </TableData>
+
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.deliveryAddress ? vend.latestVendBinding.customer.deliveryAddress.postcode : null }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.serial_num }}
+                                {{ vend.firmware_ver }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.firmware_ver }}
+                                {{ vend.serial_num }}
                             </TableData>
                         </tr>
                         <tr v-if="!vends.data.length">
