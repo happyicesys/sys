@@ -359,21 +359,9 @@ function onExportExcelClicked() {
         },
         responseType: 'blob',
     }).then(response => {
-        fileDownload(response.data, 'vend_transaction.xlsx')
+        fileDownload(response.data, 'Vending_Transaction_' + moment().format('YYMMDDhhmmss') +'.xlsx')
         loading.value = false
     })
-    // Inertia.get('/vends/transactions/excel', {
-    //     ...filters.value,
-    //     categories: filters.value.categories.map((category) => { return category.id }),
-    //     categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
-    //     codes: filters.value.codes.map((code) => { return code.id }),
-    //     errors: filters.value.errors.map((error) => { return error.id }),
-    //     paymentMethod: filters.value.paymentMethod.id,
-    //     numberPerPage: filters.value.numberPerPage.id,
-    // }, {
-    //     preserveState: true,
-    //     replace: true,
-    // })
 }
 
 function onSearchFilterUpdated() {
