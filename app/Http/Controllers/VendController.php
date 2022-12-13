@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\VendTransactionExport;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CountryResource;
@@ -179,5 +180,20 @@ class VendController extends Controller
             'technician1@happyice.com.sg',
             ])
             ->send(new VendChannelErrorLogsMail($vendChannelErrorLogs, $intervalHours));
+    }
+
+    public function exportTransactionExcel(Request $request)
+    {
+        $vendTransactions = VendTransaction::with([
+            'paymentMethod',
+            'vend',
+            'vend.latestVendBinding.customer.category.categoryGroup',
+            'vendChannel',
+            'vendChannelError',
+            ])
+            ->filterTransactionIndex($request)
+            ->get();
+
+        return (new VendTransactionExport(VendTransactionResource::collection($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx');
     }
 }

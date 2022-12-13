@@ -14,8 +14,10 @@
         "laravel/sanctum": "^2.8",
         "laravel/tinker": "^2.7",
         "league/flysystem-aws-s3-v3": "^3.0",
+        "maatwebsite/excel": "^3.1",
         "predis/predis": "^2.0",
         "propaganistas/laravel-phone": "^4.3",
+        "psr/simple-cache": "^2.0",
         "spatie/laravel-permission": "^5.5",
         "tightenco/ziggy": "^1.0"
     },

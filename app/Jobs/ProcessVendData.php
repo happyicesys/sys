@@ -72,7 +72,8 @@ class ProcessVendData implements ShouldQueue
             if(str_starts_with($processedDataArr['content'], "{\"")) {
                 if($processedDataArr['content'] === "{\"Type\":\"P\"}") {
                     if(isset($processedDataArr['code']) and $processedDataArr['code']) {
-                        if($vend = Vend::where('code', $processedDataArr['code'])->first()) {
+                        $vend = Vend::where('code', $processedDataArr['code'])->first();
+                        if($vend) {
                             $this->vendSaveLastUpdatedTime($vend);
                         }
                     }

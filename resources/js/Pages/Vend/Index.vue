@@ -261,18 +261,22 @@
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.name : null }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-
                                     <ul
                                     class="grid grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
                                     v-if="vend.vendChannelsJson"
                                     @click="onChannelOverviewClicked(vend)"
                                     >
-                                        <li v-for="(channel, channelIndex) in vend.vendChannelsJson.filter((vendChannel) => {
-                                            return vendChannel['code'] >= 10 && vendChannel['code'] <= 69
-                                            })"
+                                        <li v-for="(channel, channelIndex) in vend.vendChannelsJson"
                                             class="quick-look"
                                             :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
                                         >
+                                        <!-- <li v-for="(channel, channelIndex) in vend.vendChannelsJson.filter((vendChannel) => {
+                                            return vendChannel['code'] >= 10 && vendChannel['code'] <= 69
+                                            })"
+                                            class="quick-look"
+                                            :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1 divide-y' : '']"
+                                        >-->
+                                        <span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
                                             <span>
                                                 #{{channel['code']}},
                                             </span>
@@ -282,6 +286,7 @@
                                             <span :class="[channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700']">
                                                 {{channel['qty']}}/{{channel['capacity']}}
                                             </span>
+                                        </span>
                                         </li>
                                     </ul>
 
