@@ -224,6 +224,8 @@
                             <TableHead>
                                 Serial Num
                             </TableHead>
+                            <TableHead>
+                            </TableHead>
                         </tr>
                     </thead>
                     <tbody class="bg-white">
@@ -417,6 +419,19 @@
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.serial_num }}
                             </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                <div class="flex justify-center space-x-1">
+                                    <Button
+                                        type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                                        @click="onEditClicked(vend)"
+                                    >
+                                        <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                                        <span>
+                                            Edit
+                                        </span>
+                                    </Button>
+                                </div>
+                            </TableData>
                         </tr>
                         <tr v-if="!vends.data.length">
                             <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
@@ -437,6 +452,15 @@
         @modalClose="onChannelOverviewClosed"
     >
     </ChannelOverview>
+    <Form
+        v-if="showEditModal"
+        :vend="vend"
+        :customers="props.customers"
+        :type="type"
+        :showModal="showEditModal"
+        @modalClose="onModalClose"
+    >
+    </Form>
     </BreezeAuthenticatedLayout>
   </template>
 
@@ -478,10 +502,11 @@
   import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
   import Button from '@/Components/Button.vue';
   import ChannelOverview from '@/Pages/Vend/ChannelOverview.vue';
+  import Form from '@/Pages/Vend/Form.vue';
   import Paginator from '@/Components/Paginator.vue';
   import SearchInput from '@/Components/SearchInput.vue';
   import MultiSelect from '@/Components/MultiSelect.vue';
-  import { MagnifyingGlassIcon, BackspaceIcon } from '@heroicons/vue/20/solid';
+  import { MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
   import TableHead from '@/Components/TableHead.vue';
   import TableData from '@/Components/TableData.vue';
   import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -496,7 +521,6 @@
     vends: Object,
     vendOptions: Object,
     vendChannelErrors: Object,
-
   })
 
   const filters = ref({
@@ -521,10 +545,11 @@
   const categoryGroupOptions = ref([])
   const numberPerPageOptions = ref([])
   const showChannelOverviewModal = ref(false)
+  const showEditModal = ref(false)
+  const type = ref('')
   const vend = ref()
   const vendChannelErrorsOptions = ref([])
   const vendOptions = ref([])
-
 
   onMounted(() => {
     vendChannelErrorsOptions.value = [
@@ -549,12 +574,6 @@
         {id: 'false', value: 'No'},
     ]
     filters.value.is_online = booleanOptions.value[0]
-    // countryOptions.value = [
-    //     {'id': '0', 'name': 'All'},
-    //     ...props.countries.data.map((data) => {return {id: data.id, name: data.name}})
-    // ];
-    // filters.value.country_id = countryOptions.value[1]
-
     filters.value.is_binded_customer = booleanOptions.value[0]
     vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
   })
@@ -568,30 +587,33 @@
         showChannelOverviewModal.value = false
     }
 
-  function onSearchFilterUpdated() {
-    Inertia.get('/vends', {
-        ...filters.value,
-        codes: filters.value.codes.map((code) => { return code.id }),
-        vend_channel_error_id: filters.value.vend_channel_error_id.id,
-        categories: filters.value.categories.map((category) => { return category.id }),
-        categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
-        // country_id: filters.value.country_id.id,
-        is_binded_customer: filters.value.is_binded_customer.id,
-        is_online: filters.value.is_online.id,
-        numberPerPage: filters.value.numberPerPage.id,
-    }, {
-        preserveState: true,
-        replace: true,
-    })
-  }
+    function onEditClicked(vend) {
 
-  function onVendTempClicked(vendId, type) {
-    Inertia.get('/vends/' + vendId + '/temp/' + type)
-  }
+    }
 
-  function resetFilters() {
-    Inertia.get('/vends')
-  }
+    function onSearchFilterUpdated() {
+        Inertia.get('/vends', {
+            ...filters.value,
+            codes: filters.value.codes.map((code) => { return code.id }),
+            vend_channel_error_id: filters.value.vend_channel_error_id.id,
+            categories: filters.value.categories.map((category) => { return category.id }),
+            categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
+            is_binded_customer: filters.value.is_binded_customer.id,
+            is_online: filters.value.is_online.id,
+            numberPerPage: filters.value.numberPerPage.id,
+        }, {
+            preserveState: true,
+            replace: true,
+        })
+    }
+
+    function onVendTempClicked(vendId, type) {
+        Inertia.get('/vends/' + vendId + '/temp/' + type)
+    }
+
+    function resetFilters() {
+        Inertia.get('/vends')
+    }
 
   function sortTable(sortKey) {
     filters.value.sortKey = sortKey
