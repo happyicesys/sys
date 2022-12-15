@@ -11,12 +11,15 @@
 
 <script setup>
     import Vue3ChartJs from '@j-t-mcc/vue3-chartjs';
+import moment from 'moment';
     import { ref } from 'vue';
 
     const props = defineProps({
         type: String,
         labels: Object,
         values: Object,
+        startDatetime: [String, Object],
+        endDatetime: [String, Object],
     });
 
     const data = ref({
@@ -35,5 +38,11 @@
                             radius: 2
                         }
                     },
+                    // scales: {
+                    //     x: {
+                    //         suggestedMin: moment(props.startDatetime).startOf('hour').toString(),
+                    //         suggestedMax: moment(props.endDatetime).endOf('hour').toString(),
+                    //     }
+                    // }
                 })
 </script>

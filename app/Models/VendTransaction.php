@@ -56,8 +56,18 @@ class VendTransaction extends Model
         $endDate =  $request->date_to ?? Carbon::today()->toDateString();
         // return
         $query = $query->when($request->codes, function($query, $search) {
+            if(strpos($search, ',') !== false) {
+                $search = explode(',', $search);
+            }else {
+                $search = [$search];
+            }
             $query->whereHas('vend', function($query) use ($search) {
-                $query->whereIn('id', $search);
+                $query->whereIn('code', $search);
+            });
+        })
+        ->when($request->channel_code, function($query, $search) {
+            $query->whereHas('vendChannel', function($query) use ($search) {
+                $query->where('code', 'LIKE', "%{$search}%");
             });
         })
         ->when($request->errors, function($query, $search) {

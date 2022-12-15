@@ -381,6 +381,7 @@ const props = defineProps({
 
 const filters = ref({
   name: '',
+  statuses: [],
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
@@ -432,6 +433,7 @@ function onEditClicked(customerValue) {
 function onSearchFilterUpdated() {
   Inertia.get('/customers', {
       ...filters.value,
+      statuses: filters.value.statuses.map((status) => { return status.id }),
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

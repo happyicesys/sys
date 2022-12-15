@@ -8,7 +8,7 @@
             <div class="flex flex-col space-y-1">
                 <div class="flex space-x-2 items-center">
                     <h2 class="font-semibold text-md md:text-xl text-gray-700 leading-tight">
-                        Vending Machine
+                        Vend ID
                     </h2>
                     <h2 class="font-semibold text-xl md:text-2xl text-gray-900 leading-tight">
                         {{ vend.code }}
@@ -17,12 +17,12 @@
                         {{ type.name }} Temperature
                     </h2>
                 </div>
-                <div class="flex space-x-2 items-center">
+                <div class="flex flex-col items-start">
                     <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
                         {{ vend.latestVendBinding.customer.code }}
                     </h2>
                     <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
-                        - {{ vend.latestVendBinding.customer.name }}
+                        {{ vend.latestVendBinding.customer.name }}
                     </h2>
                 </div>
                 <div class="flex space-x-2 font-semibold text-md text-gray-500 leading-tight">
@@ -98,7 +98,7 @@
                 <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
                     <div class="inline-block min-w-full py-2 align-middle">
                         <div class="shadow-sm ring-1 ring-black ring-opacity-5">
-                            <Graph type="line" :labels="vendTime" :values="vendTemps"></Graph>
+                            <Graph type="line" :labels="vendTime" :values="vendTemps" :startDatetime="startDate" :endDatetime="endDate"></Graph>
                         </div>
                     </div>
                 </div>
@@ -115,12 +115,12 @@ import Button from '@/Components/Button.vue';
 import DatetimePicker from '@/Components/DatetimePicker.vue';
 import Graph from '@/Components/Graph.vue';
 import { ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { Inertia } from '@inertiajs/inertia';
 import { Head } from '@inertiajs/inertia-vue3';
 
 const props = defineProps({
-    duration: Number,
+    duration: [Number, String],
     endDate: String,
     endDateString: String,
     request: Object,
@@ -142,6 +142,11 @@ const vendTemps = ref(props.vendTempsObj.data.map(a => a.value))
 const vendTime = ref(props.vendTempsObj.data.map(a => a.created_at))
 const vend = ref(props.vendObj.data)
 
+
+onMounted(() => {
+// console.log(moment(props.startDate).startOf('hour').toString())
+// console.log(vendTime.value)
+  })
 
 function onCustomDatetimeSearched() {
     Inertia.get(

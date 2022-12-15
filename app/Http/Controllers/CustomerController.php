@@ -34,6 +34,7 @@ class CustomerController extends Controller
         $sortKey = $request->sortKey ? $request->sortKey : 'created_at';
         $sortBy = $request->sortBy ? $request->sortBy : false;
         $className = get_class(new Customer());
+        // dd($request->statuses);
 
         return Inertia::render('Customer/Index', [
             'customers' => CustomerResource::collection(
@@ -64,7 +65,7 @@ class CustomerController extends Controller
                     ->when($request->name, fn($query, $input) => $query->where('name', 'LIKE', '%'.$input.'%'))
                     ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
                     ->when($request->profile_id, fn($query, $input) => $query->where('profile_id', $input))
-                    ->when($request->status_id, fn($query, $input) => $query->where('status_id', $input))
+                    ->when($request->statuses, fn($query, $input) => $query->whereIn('status_id', $input))
                     ->when($request->zone_id, fn($query, $input) => $query->where('zone_id', $input))
                     ->when($sortKey, function($query, $search) use ($sortBy) {
                         $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );

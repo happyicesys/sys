@@ -15,20 +15,17 @@
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-5 md:col-span-1">
-              <label for="text" class="block text-sm font-medium text-gray-700">
-                  Vend ID
-              </label>
-                <MultiSelect
-                    v-model="filters.codes"
-                    :options="vendOptions"
-                    valueProp="id"
-                    label="code"
-                    mode="tags"
-                    placeholder="Select"
-                    open-direction="bottom"
-                    class="mt-1"
-                >
-                </MultiSelect>
+                <SearchInput placeholderStr="Vend ID" v-model="filters.codes">
+                    Vend ID
+                    <span class="text-[9px]">
+                        ("," for multiple)
+                    </span>
+                </SearchInput>
+            </div>
+            <div class="col-span-5 md:col-span-1">
+                <SearchInput placeholderStr="Channel ID" v-model="filters.channel_code">
+                    Channel ID
+                </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
                 <DatePicker
@@ -323,7 +320,8 @@ onMounted(() => {
 })
 
 const filters = ref({
-    codes: [],
+    codes: '',
+    channel_code: '',
     categories: [],
     categoryGroups: [],
     customer_code: '',
@@ -352,7 +350,7 @@ function onExportExcelClicked() {
             ...filters.value,
             categories: filters.value.categories.map((category) => { return category.id }),
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
-            codes: filters.value.codes.map((code) => { return code.id }),
+            channel_code: filters.value.channel_code,
             errors: filters.value.errors.map((error) => { return error.id }),
             paymentMethod: filters.value.paymentMethod.id,
             numberPerPage: filters.value.numberPerPage.id,
@@ -369,7 +367,7 @@ function onSearchFilterUpdated() {
         ...filters.value,
         categories: filters.value.categories.map((category) => { return category.id }),
         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
-        codes: filters.value.codes.map((code) => { return code.id }),
+        channel_code: filters.value.channel_code,
         errors: filters.value.errors.map((error) => { return error.id }),
         paymentMethod: filters.value.paymentMethod.id,
         numberPerPage: filters.value.numberPerPage.id,

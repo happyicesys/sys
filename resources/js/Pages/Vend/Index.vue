@@ -574,7 +574,7 @@
         {id: 'false', value: 'No'},
     ]
     filters.value.is_online = booleanOptions.value[0]
-    filters.value.is_binded_customer = booleanOptions.value[0]
+    filters.value.is_binded_customer = booleanOptions.value[1]
     vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
   })
 

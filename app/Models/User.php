@@ -57,6 +57,13 @@ class User extends Authenticatable
         );
     }
 
+    protected function profileId(): Attribute
+    {
+        return Attribute::make(
+            set: fn ($value) => $value ? $value : 1,
+        );
+    }
+
     // relationships
     public function profile()
     {
