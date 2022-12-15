@@ -316,9 +316,13 @@
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <span :class="[
-                                    vend.sevenDaysSales > 200 ? 'text-green-700' : 'text-red-700'
+                                    vend.todaySales >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{vend.todaySales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.todayCount}})/ <br>
+                                </span>
+                                <span :class="[
+                                    vend.sevenDaysSales > 200 ? 'text-green-700' : 'text-red-700'
+                                ]">
                                     {{vend.sevenDaysSales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.sevenDaysCount}})
                                 </span>
                             </TableData>
