@@ -346,7 +346,7 @@
                                     <div
                                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                                         :class="[vend.parameterJson['Sensor'] == 1 ? 'bg-green-200' : 'bg-red-200']"
-                                        v-if="vend.parameterJson && vend.parameterJson['Sensor']"
+                                        v-if="vend.parameterJson"
                                     >
                                         <div class="flex flex-col">
                                             <span class="font-bold">
