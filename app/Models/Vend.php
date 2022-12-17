@@ -34,6 +34,7 @@ class Vend extends Model
         'is_sensor_normal',
         'is_temp_error',
         'last_updated_at',
+        'operator_id',
         'parameter_json',
         'keylock_number',
         'vend_channel_error_logs_json',
@@ -62,6 +63,11 @@ class Vend extends Model
     public function vendChannels()
     {
         return $this->hasMany(VendChannel::class)->where('is_active', true)->where('capacity', '>', 0)->orderBy('code');
+    }
+
+    public function operator()
+    {
+        return $this->belongsTo(Operator::class);
     }
 
     public function outOfStockVendChannels()
