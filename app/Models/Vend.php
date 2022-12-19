@@ -144,6 +144,7 @@ class Vend extends Model
     // scopes
     public function scopeFilterIndex($query, $request)
     {
+        // dd($request->all());
         $isOnline = $request->is_online != null ? $request->is_online : 'all';
         $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
         // $countryId = $request->country_id != null ? (int)$request->country_id : 1;
@@ -217,6 +218,7 @@ class Vend extends Model
             }
         })
         ->when($sortKey, function($query, $search) use ($sortBy) {
+            // dd($search, $sortBy, 'here');
             if(strpos($search, '->')) {
                 $inputSearch = explode("->", $search);
                 $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
@@ -234,7 +236,6 @@ class Vend extends Model
                 //     ->orderBy('parameter_json->t2', 'desc');
                 // }
             }
-        })
-        ->orderBy('vends.code', 'asc');
+        });
     }
 }

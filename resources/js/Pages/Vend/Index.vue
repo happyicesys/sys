@@ -540,7 +540,7 @@
     vend_channel_error_id: '',
     is_online: '',
     sortKey: '',
-    sortBy: true,
+    sortBy: false,
     numberPerPage: '',
   })
 

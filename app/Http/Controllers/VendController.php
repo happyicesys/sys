@@ -69,6 +69,7 @@ class VendController extends Controller
                     })
                     ->select('*', 'vends.id', 'vends.code')
                     ->filterIndex($request)
+                    ->orderBy('vends.is_online', 'desc')->orderBy('vends.code', 'asc')
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),
