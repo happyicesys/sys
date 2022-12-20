@@ -38,6 +38,9 @@
                       <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                         Price
                       </th>
+                      <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                        Error
+                      </th>
                     </tr>
                   </thead>
                   <tbody class="bg-white">
@@ -57,6 +60,30 @@
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                         {{ (channel.amount/100).toLocaleString(undefined, {minimumFractionDigits: 2}) }}
                       </td>
+                      <td class="py-1 pl-1 pr-1 text-xs font-medium text-gray-900 sm:pl-1 text-center">
+                        <span
+                          v-if="channel.vend_channel_error_logs
+                                && channel.vend_channel_error_logs[0]
+                                && channel.vend_channel_error_logs[0].is_error_cleared == 0"
+                        >
+                            <div
+                              :class="[
+                                  channel.vend_channel_error_logs[0].vend_channel_error.code == 4 ||
+                                  channel.vend_channel_error_logs[0].vend_channel_error.code == 5 ||
+                                  channel.vend_channel_error_logs[0].vend_channel_error.code == 7 ||
+                                  channel.vend_channel_error_logs[0].vend_channel_error.code == 9  ?
+                                  ' text-blue-800' :
+                                  ' text-red-800'
+                                  ]">
+                              <span class="font-bold">
+                              ({{ channel.vend_channel_error_logs[0].vend_channel_error.code }})
+                              </span>
+                              <div>
+                                {{formatDatetime(channel.vend_channel_error_logs[0].created_at)}}
+                              </div>
+                            </div>
+                        </span>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -70,12 +97,7 @@
 </template>
 
 <script setup>
-import Button from '@/Components/Button.vue';
-import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
-import MultiSelect from '@/Components/MultiSelect.vue'
-import SearchAddressInput from '@/Components/SearchAddressInput.vue';
-import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 
 const props = defineProps({
   vend: Object,
@@ -84,10 +106,9 @@ const props = defineProps({
 
 const emit = defineEmits(['modalClose'])
 
-// onMounted(() => {
-//   countryOptions.value = props.countries.data
-//   form.value = props.profile ? useForm(props.profile) : useForm(getDefaultForm())
-// })
+function formatDatetime(value) {
+  return moment(value).format('YYMMDD hh:mm A');
+}
 
 
 </script>

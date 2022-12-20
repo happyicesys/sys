@@ -282,7 +282,24 @@
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <span v-for="vendChannelErrorLog in vend.vendChannelErrorLogsJson" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border"
-                                :class="[vendChannelErrorLog['is_error_cleared'] ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']">
+                                :class="[
+                                    vendChannelErrorLog['vendChannelError'] ?
+                                    (
+                                        vendChannelErrorLog['vendChannelError']['code'] == 4 ||
+                                        vendChannelErrorLog['vendChannelError']['code'] == 5 ||
+                                        vendChannelErrorLog['vendChannelError']['code'] == 7 ||
+                                        vendChannelErrorLog['vendChannelError']['code'] == 9 ?
+                                        'bg-blue-100 text-blue-800' :
+                                        'bg-red-100 text-red-800'
+                                    ) :
+                                    (
+                                        vendChannelErrorLog['vend_channel_error']['code'] == 4 ||
+                                        vendChannelErrorLog['vend_channel_error']['code'] == 5 ||
+                                        vendChannelErrorLog['vend_channel_error']['code'] == 7 ||
+                                        vendChannelErrorLog['vend_channel_error']['code'] == 9 ?
+                                        'bg-blue-100 text-blue-800' :
+                                        'bg-red-100 text-red-800'
+                                    )]">
                                     <div class="flex flex-col">
                                         <div>
                                             #{{vendChannelErrorLog['vendChannel'] ? vendChannelErrorLog['vendChannel']['code'] : vendChannelErrorLog['vend_channel']['code']}},
