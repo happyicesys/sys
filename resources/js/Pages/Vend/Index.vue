@@ -293,10 +293,10 @@
                                         'bg-red-100 text-red-800'
                                     ) :
                                     (
-                                        vendChannelErrorLog['vend_channel_error']['code'] == 4 ||
-                                        vendChannelErrorLog['vend_channel_error']['code'] == 5 ||
-                                        vendChannelErrorLog['vend_channel_error']['code'] == 7 ||
-                                        vendChannelErrorLog['vend_channel_error']['code'] == 9 ?
+                                        vendChannelErrorLog['vend_channel']['code'] == 4 ||
+                                        vendChannelErrorLog['vend_channel']['code'] == 5 ||
+                                        vendChannelErrorLog['vend_channel']['code'] == 7 ||
+                                        vendChannelErrorLog['vend_channel']['code'] == 9 ?
                                         'bg-blue-100 text-blue-800' :
                                         'bg-red-100 text-red-800'
                                     )]">

@@ -117,6 +117,7 @@ class VendController extends Controller
                 'value' => $type,
             ],
             'vendObj' => VendResource::make($vend),
+            'vendOptions' => VendResource::collection(Vend::orderBy('code')->get()),
             'vendTempsObj' => VendTempResource::collection($vendTemps),
             'startDate' => $startDate->format('D M d Y H:i:s'),
             'endDate' => $endDate->format('D M d Y H:i:s'),
@@ -129,6 +130,17 @@ class VendController extends Controller
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $className = get_class(new Customer());
+        $vendTransactions =
+                VendTransaction::with([
+                    'paymentMethod',
+                    'vend',
+                    'vend.latestVendBinding.customer.category.categoryGroup',
+                    'vendChannel',
+                    'vendChannelError',
+                    ])
+                    ->filterTransactionIndex($request);
+
+        $vendTransactionsTotal = $vendTransactions->where('vend_transaction_json->ISOK', 1)->sum('amount');
 
         return Inertia::render('Vend/Transaction', [
             'categories' => CategoryResource::collection(
@@ -139,17 +151,11 @@ class VendController extends Controller
             ),
             'vends' => VendResource::collection(Vend::orderBy('code')->get()),
             'vendTransactions' => VendTransactionResource::collection(
-                VendTransaction::with([
-                    'paymentMethod',
-                    'vend',
-                    'vend.latestVendBinding.customer.category.categoryGroup',
-                    'vendChannel',
-                    'vendChannelError',
-                    ])
-                    ->filterTransactionIndex($request)
-                    ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-                    ->withQueryString()
+                $vendTransactions
+                ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                ->withQueryString()
             ),
+            'vendTransactionsTotal' => $vendTransactionsTotal,
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
             'paymentMethods' => PaymentMethodResource::collection(PaymentMethod::orderBy('name')->get()),
 

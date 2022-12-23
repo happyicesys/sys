@@ -49,8 +49,12 @@ class UserController extends Controller
             'username' => 'nullable|required_without:email|unique:users,username',
             'password' => 'required',
         ]);
+        $user = new User();
+        $user->fill($request->all());
+        $user->profile_id = 1;
+        $user->save();
 
-        $user = User::create($request->all());
+        // $user = User::create($request->all());
 
         return redirect()->route('users');
     }
@@ -94,7 +98,7 @@ class UserController extends Controller
             'username' => 'nullable|required_without:email|unique:users,username,'.$userId,
             'password' => 'nullable',
         ]);
-        // dd($request->all());
+
         if($request->password) {
             $validated = $request->only('name', 'email', 'username', 'password');
         }else {

@@ -30,7 +30,6 @@
             <div class="col-span-5 md:col-span-1">
                 <DatePicker
                     v-model="filters.date_from"
-                    class="col-span-5 md:col-span-1"
                 >
                     From
                 </DatePicker>
@@ -39,7 +38,6 @@
                 <DatePicker
                     v-model="filters.date_to"
                     :minDate="filters.date_from"
-                    class="col-span-5 md:col-span-1"
                 >
                     To
                 </DatePicker>
@@ -179,6 +177,21 @@
                     </MultiSelect>
                 </div>
             </div>
+
+        <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
+            <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <dt class="truncate text-sm font-medium text-gray-500">Total Amount (Success)</dt>
+                <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                    {{(vendTransactionsTotal/100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                </dd>
+            </div>
+            <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <dt class="truncate text-sm font-medium text-gray-500">Transactions Count</dt>
+                <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                    {{vendTransactions.meta.total.toLocaleString(undefined, {minimumFractionDigits: 0})}}
+                </dd>
+            </div>
+        </dl>
       </div>
 
        <div class="mt-6 flex flex-col">
@@ -294,12 +307,14 @@ const props = defineProps({
     paymentMethods: Object,
     vends: Object,
     vendTransactions: Object,
+    vendTransactionsTotal: [String, Number],
     vendChannelErrors: Object,
 })
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
 
 onMounted(() => {
+    console.log(props.vendTransactions);
     vendOptions.value = props.vends.data.map((vend) => {return {id: vend.id, code: vend.code}})
     vendChannelErrorOptions.value = props.vendChannelErrors.data.map((error) => {return {id: error.id, desc: error.desc}})
     paymentMethodOptions.value = [
@@ -328,7 +343,7 @@ const filters = ref({
     customer_name: '',
     errors: [],
     paymentMethod: '',
-    date_from: moment().startOf('month').toDate(),
+    date_from: moment().subtract(1, 'days').toDate(),
     date_to: moment().toDate(),
     sortKey: '',
     sortBy: false,

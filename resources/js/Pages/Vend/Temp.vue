@@ -17,31 +17,31 @@
                         {{ type.name }} Temperature
                     </h2>
                 </div>
-                <div class="flex flex-col items-start">
-                    <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
-                        {{ vend.latestVendBinding.customer.code }}
-                    </h2>
-                    <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
-                        {{ vend.latestVendBinding.customer.name }}
-                    </h2>
-                </div>
-                <div class="flex space-x-2 font-semibold text-md text-gray-500 leading-tight">
-                    <h2>
-                        {{ startDateString }}
-                    </h2>
-                    <h2>
-                        to
-                    </h2>
-                    <h2>
-                        {{ endDateString }}
-                    </h2>
-                </div>
             </div>
         </template>
 
         <!-- <div class="py-5"> -->
         <!-- <div class="max-w-10xl mx-auto sm:px-6 lg:px-8"> -->
         <div class="p-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col items-start pl-1">
+                <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
+                    {{ vend.latestVendBinding.customer.code }}
+                </h2>
+                <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
+                    {{ vend.latestVendBinding.customer.name }}
+                </h2>
+            </div>
+            <div class="flex space-x-2 font-semibold text-md text-gray-500 leading-tight pl-1">
+                <h2>
+                    {{ startDateString }}
+                </h2>
+                <h2>
+                    to
+                </h2>
+                <h2>
+                    {{ endDateString }}
+                </h2>
+            </div>
             <div class="pl-1 py-2 text-left">
                 <Button
                     class="border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 px-7 sm:px-3"
@@ -50,6 +50,25 @@
                     Back
                 </Button>
             </div>
+<!--
+            <div class="grid grid-cols-1 md:grid-cols-3">
+                <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                        Vend ID
+                    </label>
+                    <MultiSelect
+                        v-model="filters.vend_id"
+                        :options="vendOptions"
+                        valueProp="id"
+                        label="code"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                </div>
+            </div> -->
+
             <label for="text" class="pt-4 pl-1 block text-sm font-medium text-gray-700">
                 Shortcut
             </label>
@@ -114,6 +133,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatetimePicker from '@/Components/DatetimePicker.vue';
 import Graph from '@/Components/Graph.vue';
+import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
 import { ref, onMounted } from 'vue';
 import { Inertia } from '@inertiajs/inertia';
@@ -127,6 +147,7 @@ const props = defineProps({
     startDate: String,
     startDateString: String,
     type: [String, Object, Array],
+    vendOptions: Object,
     vendObj: Object,
     vendTempsObj: Object,
 });
@@ -141,11 +162,11 @@ const filters = ref({
 const vendTemps = ref(props.vendTempsObj.data.map(a => a.value))
 const vendTime = ref(props.vendTempsObj.data.map(a => a.created_at))
 const vend = ref(props.vendObj.data)
+const vendOptions = ref([])
 
 
 onMounted(() => {
-// console.log(moment(props.startDate).startOf('hour').toString())
-// console.log(vendTime.value)
+    vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
   })
 
 function onCustomDatetimeSearched() {

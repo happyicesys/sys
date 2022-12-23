@@ -52,10 +52,11 @@ class VendTransaction extends Model
     {
         $sortKey = $request->sortKey ? $request->sortKey : 'transaction_datetime';
         $sortBy = $request->sortBy ? $request->sortBy : false;
-        $startDate =  $request->date_from ?? Carbon::today()->startOfMonth()->toDateString();
-        $endDate =  $request->date_to ?? Carbon::today()->toDateString();
+        $startDate =  $request->date_from ? Carbon::parse($request->date_from)->toDateString() : Carbon::today()->subDays(1)->toDateString();
+        $endDate =  $request->date_to ? Carbon::parse($request->date_to)->toDateString() : Carbon::today()->toDateString();
+        // dd($startDate, $endDate);
         // return
-        $query = $query->when($request->codes, function($query, $search) {
+        return $query->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
             }else {
@@ -107,6 +108,5 @@ class VendTransaction extends Model
         ->when($sortKey, function($query, $search) use ($sortBy) {
             $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
         });
-        return $query;
     }
 }

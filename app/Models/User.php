@@ -61,6 +61,7 @@ class User extends Authenticatable
     {
         return Attribute::make(
             set: fn ($value) => $value ? $value : 1,
+            // set: fn ($value) => $value ? $value : 1,
         );
     }
 

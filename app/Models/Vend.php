@@ -177,11 +177,6 @@ class Vend extends Model
                 $query->whereIn('id', $search);
             });
         })
-        // ->when($countryId, function($query, $search) {
-        //     $query->whereHas('latestVendBinding.customer.deliveryAddress', function($query) use ($search) {
-        //         $query->where('country_id', $search);
-        //     });
-        // })
         ->when($isBindedCustomer, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
