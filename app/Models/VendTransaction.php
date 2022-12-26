@@ -56,7 +56,7 @@ class VendTransaction extends Model
         $endDate =  $request->date_to ? Carbon::parse($request->date_to)->toDateString() : Carbon::today()->toDateString();
         // dd($startDate, $endDate);
         // return
-        return $query->when($request->codes, function($query, $search) {
+        $query =  $query->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
             }else {
@@ -72,9 +72,13 @@ class VendTransaction extends Model
             });
         })
         ->when($request->errors, function($query, $search) {
-            $query->whereHas('vendChannelError', function($query) use ($search) {
-                $query->whereIn('id', $search);
-            });
+            if(in_array('errors_only', $search)) {
+                $query->has('vendChannelError');
+            }else {
+                $query->whereHas('vendChannelError', function($query) use ($search) {
+                    $query->whereIn('id', $search);
+                });
+            }
         })
         ->when($request->paymentMethod, function($query, $search) {
             $query->where('payment_method_id', $search);
@@ -95,8 +99,14 @@ class VendTransaction extends Model
             });
         })
         ->when($request->customer_name, function($query, $search) {
-            $query->whereHas('vend.latestVendBinding.customer', function($query) use ($search) {
-                $query->where('name', 'LIKE', "%{$search}%");
+            $query->where(function($query) use ($search) {
+                $query
+                    ->whereHas('vend.latestVendBinding.customer', function($query) use ($search) {
+                        $query->where('name', 'LIKE', "%{$search}%");
+                    })
+                    ->orWhereHas('vend', function($query) use ($search) {
+                        $query->where('name', 'LIKE', "%{$search}%");
+                    });
             });
         })
         ->when($startDate, function($query, $search) {
@@ -108,5 +118,7 @@ class VendTransaction extends Model
         ->when($sortKey, function($query, $search) use ($sortBy) {
             $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
         });
+
+        return $query;
     }
 }

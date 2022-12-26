@@ -5,44 +5,59 @@ import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link } from '@inertiajs/inertia-vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { CommandLineIcon, CreditCardIcon, BuildingOfficeIcon, FolderIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
+import { CommandLineIcon, CreditCardIcon, BuildingOfficeIcon, FolderIcon, LinkIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
 
 const navigation = [
     {
         name: 'Vending Machines',
         icon: CommandLineIcon,
         current: false,
-        children: [
-            {name: 'List', href: '/vends'},
-            {name: 'Transactions', href: '/vends/transactions'},
-        ]
-    },
-    {
-        name: 'Customers',
-        icon: UserGroupIcon,
-        current: false,
-        href: 'customers'
+        href: 'vends'
     },
     {
         name: 'Transactions',
         icon: CreditCardIcon,
         current: false,
-        href: 'transactions'
+        href: 'vends-transactions'
     },
     {
         name: 'Products',
         icon: RectangleStackIcon,
         current: false,
-        children: [
-            {name: 'List', href: '/products'},
-            {name: 'Unit Cost', href: '/products/unit-costs'},
-        ]
+        href: 'products'
     },
     {
-        name: 'Profiles',
-        icon: BuildingOfficeIcon,
+        name: 'Product Mapping',
+        icon: LinkIcon,
         current: false,
-        href: 'profiles'
+        href: 'product-mappings'
+    },
+    // {
+    //     name: 'Customers',
+    //     icon: UserGroupIcon,
+    //     current: false,
+    //     href: 'customers'
+    // },
+    // {
+    //     name: 'Products',
+    //     icon: RectangleStackIcon,
+    //     current: false,
+    //     children: [
+    //         {name: 'List', href: '/products'},
+    //         {name: 'Unit Cost', href: '/products/unit-costs'},
+    //     ]
+    // },
+    // {
+    //     name: 'Profiles',
+    //     icon: BuildingOfficeIcon,
+    //     current: false,
+    //     href: 'profiles'
+    // },
+    {
+        name: 'Operators',
+        icon: UserGroupIcon,
+        current: false,
+        href: 'operators'
     },
     {
         name: 'Users',
@@ -55,23 +70,23 @@ const navigation = [
         icon: FolderIcon,
         current: false,
         children: [
-            {name: 'Bank', href: '/banks'},
-            {name: 'Cashless Providers', href: '/cashless-providers'},
-            {name: 'Cashless Terminals', href: '/cashless-terminals'},
+            // {name: 'Bank', href: '/banks'},
+            // {name: 'Cashless Providers', href: '/cashless-providers'},
+            // {name: 'Cashless Terminals', href: '/cashless-terminals'},
             {name: 'Country & Currency', href: '/countries'},
             {name: 'Cust Categories', href: '/categories?classname=App\\Models\\Customer'},
             {name: 'Cust Category Groups', href: '/category-groups'},
             {name: 'Payment Methods', href: '/payment-methods'},
-            {name: 'Payment Terms', href: '/payment-terms'},
+            // {name: 'Payment Terms', href: '/payment-terms'},
             {name: 'Permission', href: '/permissions'},
             {name: 'Role', href: '/roles'},
-            {name: 'Simcard', href: '/simcards'},
+            // {name: 'Simcard', href: '/simcards'},
             {name: 'Status', href: '/statuses'},
-            {name: 'Tags', href: '/tags'},
-            {name: 'Telco', href: '/telcos'},
-            {name: 'Tax', href: '/taxes'},
+            // {name: 'Tags', href: '/tags'},
+            // {name: 'Telco', href: '/telcos'},
+            // {name: 'Tax', href: '/taxes'},
             {name: 'UOM', href: '/uoms'},
-            {name: 'Zone', href: '/zones'},
+            // {name: 'Zone', href: '/zones'},
         ],
     },
 ]

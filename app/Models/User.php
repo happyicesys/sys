@@ -23,6 +23,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'operator_id',
         'password',
         'password_confirmation',
         'profile_id',
@@ -66,6 +67,11 @@ class User extends Authenticatable
     }
 
     // relationships
+    public function operator()
+    {
+        return $this->belongsTo(Operator::class);
+    }
+
     public function profile()
     {
         return $this->belongsTo(Profile::class);

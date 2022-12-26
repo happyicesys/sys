@@ -53,6 +53,22 @@
               >
               </MultiSelect>
             </div>
+            <div class="col-span-12 sm:col-span-6">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Operator
+              </label>
+              <MultiSelect
+                v-model="form.operator_id"
+                :options="operatorOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">
@@ -93,6 +109,7 @@ import { ref, onMounted } from 'vue'
 const props = defineProps({
   user: Object,
   countries: Object,
+  operators: Object,
   roles: Object,
   type: String,
   showModal: Boolean,
@@ -103,10 +120,12 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const operatorOptions = ref([])
 const roleOptions = ref([])
 
 onMounted(() => {
   form.value = props.user ? useForm({...getDefaultForm(), ...props.user}) : useForm(getDefaultForm())
+  operatorOptions.value = props.operators.data
   roleOptions.value = props.roles
 })
 
@@ -116,6 +135,7 @@ function getDefaultForm() {
     email: '',
     username: '',
     password: '',
+    operator_id: '',
   }
 }
 
@@ -124,6 +144,10 @@ function submit() {
 
   if(props.type === 'create') {
     form.value
+    .transform((data) => ({
+        ...data,
+        operator_id: data.operator_id.id,
+    }))
     .post('/users/create', {
       onSuccess: () => {
         emit('modalClose')
@@ -135,6 +159,10 @@ function submit() {
 
   if(props.type === 'update') {
     form.value
+      .transform((data) => ({
+        ...data,
+        operator_id: data.operator_id.id,
+      }))
       .post('/users/' + form.value.id + '/update', {
       onSuccess: () => {
         emit('modalClose')

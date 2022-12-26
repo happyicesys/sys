@@ -154,6 +154,7 @@
   <Form
       v-if="showFormModal"
       :user="user"
+      :operators="operators"
       :type="type"
       :showModal="showFormModal"
       @modalClose="onModalClose"
@@ -180,6 +181,7 @@ import { Inertia } from '@inertiajs/inertia'
 const props = defineProps({
   users: Object,
   countries: Object,
+  operators: Object,
 })
 
 const filters = ref({

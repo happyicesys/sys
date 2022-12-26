@@ -67,7 +67,7 @@ class VendController extends Controller
                                 ->where('addresses.type', '=', 2)
                                 ->limit(1);
                     })
-                    ->select('*', 'vends.id', 'vends.code')
+                    ->select('*', 'vends.id', 'vends.code', 'vends.name')
                     ->filterIndex($request)
                     ->orderBy('vends.is_online', 'desc')->orderBy('vends.code', 'asc')
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
@@ -140,7 +140,8 @@ class VendController extends Controller
                     ])
                     ->filterTransactionIndex($request);
 
-        $vendTransactionsTotal = $vendTransactions->where('vend_transaction_json->ISOK', 1)->sum('amount');
+        $vendTransactionsTotal = clone $vendTransactions;
+        $vendTransactionsTotal = $vendTransactionsTotal->where('vend_transaction_json->ISOK', 1)->sum('amount');
 
         return Inertia::render('Vend/Transaction', [
             'categories' => CategoryResource::collection(
@@ -202,5 +203,30 @@ class VendController extends Controller
             ->get();
 
         return (new VendTransactionExport(VendTransactionResource::collection($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx');
+    }
+
+    public function update(Request $request, $vendId)
+    {
+        $request->validate([
+            'serial_num' => 'numeric',
+        ]);
+
+        $vend = Vend::findOrFail($vendId);
+
+        $vend->update([
+            'name' => $request->name,
+            'serial_num' => $request->serial_num,
+        ]);
+
+        return redirect()->route('vends');
+    }
+
+    public function unbindCustomer($vendId)
+    {
+        $vend = Vend::findOrFail($vendId);
+
+        $vend->latestVendBinding->delete();
+
+        return redirect()->route('vends');
     }
 }

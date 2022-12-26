@@ -181,7 +181,7 @@ class ProcessVendData implements ShouldQueue
     private function createVendTemp(Vend $vend, $input)
     {
         // more than 3 minutes only update same machine temp
-        if(!$vend->temp_updated_at or $vend->temp_updated_at->addMinutes(2)->isPast()) {
+        // if(!$vend->temp_updated_at or $vend->temp_updated_at->addMinutes(2)->isPast()) {
             if($temp = $input['TEMP']) {
                 if($temp == VendTemp::TEMPERATURE_ERROR) {
                     $vend->is_temp_error = true;
@@ -211,7 +211,7 @@ class ProcessVendData implements ShouldQueue
             }
             $vend->temp_updated_at = Carbon::now();
             $vend->save();
-        }
+        // }
     }
 
 

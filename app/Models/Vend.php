@@ -34,7 +34,6 @@ class Vend extends Model
         'is_sensor_normal',
         'is_temp_error',
         'last_updated_at',
-        'operator_id',
         'parameter_json',
         'keylock_number',
         'vend_channel_error_logs_json',
@@ -65,9 +64,9 @@ class Vend extends Model
         return $this->hasMany(VendChannel::class)->where('is_active', true)->where('capacity', '>', 0)->orderBy('code');
     }
 
-    public function operator()
+    public function operators()
     {
-        return $this->belongsTo(Operator::class);
+        return $this->belongsToMany(Operator::class);
     }
 
     public function outOfStockVendChannels()
@@ -151,8 +150,16 @@ class Vend extends Model
         $sortKey = $request->sortKey ? $request->sortKey : 'vends.is_online';
         $sortBy = $request->sortBy ? $request->sortBy : false;
 
+        // return $query->when($request->codes, function($query, $search) {
+        //     $query->whereIn('vends.id', $search);
+        // })
         return $query->when($request->codes, function($query, $search) {
-            $query->whereIn('vends.id', $search);
+            if(strpos($search, ',') !== false) {
+                $search = explode(',', $search);
+            }else {
+                $search = [$search];
+            }
+            $query->whereIn('vends.code', $search);
         })
         ->when($request->serialNum, function($query, $search) {
             $query->where('serial_num', 'LIKE', "%{$search}%");
@@ -163,9 +170,15 @@ class Vend extends Model
             });
         })
         ->when($request->customer_name, function($query, $search) {
-            $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
-                $query->where('name', 'LIKE', "%{$search}%");
+            $query->where(function($query) use ($search) {
+                $query
+                    ->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                        $query->where('name', 'LIKE', "%{$search}%");
+                    })
+                    ->orWhere('vends.name', 'LIKE', "%{$search}%");
             });
+
+
         })
         ->when($request->categories, function($query, $search) {
             $query->whereHas('latestVendBinding.customer.category', function($query) use ($search) {
@@ -191,17 +204,29 @@ class Vend extends Model
                 $query->where('temp', '>=', $search * 10);
             }
         })
-        ->when($request->vend_channel_error_id, function($query, $search) {
-            if($search === 'errors_only') {
+        ->when($request->errors, function($query, $search) {
+            if(in_array('errors_only', $search)) {
                 $query->whereHas('vendChannels.vendChannelErrorLogs', function($query) {
                    $query->where('is_error_cleared', false);
                 });
-            }else if($search !== null) {
+            }else {
                 $query->whereHas('vendChannels.vendChannelErrorLogs', function($query) use ($search) {
-                    $query->where('vend_channel_error_id', $search)->where('is_error_cleared', false);
+                    $query->whereIn('vend_channel_error_id', $search)->where('is_error_cleared', false);
                 });
             }
+
         })
+        // ->when($request->vend_channel_error_id, function($query, $search) {
+        //     if($search === 'errors_only') {
+        //         $query->whereHas('vendChannels.vendChannelErrorLogs', function($query) {
+        //            $query->where('is_error_cleared', false);
+        //         });
+        //     }else if($search !== null) {
+        //         $query->whereHas('vendChannels.vendChannelErrorLogs', function($query) use ($search) {
+        //             $query->where('vend_channel_error_id', $search)->where('is_error_cleared', false);
+        //         });
+        //     }
+        // })
         ->when($isOnline, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {

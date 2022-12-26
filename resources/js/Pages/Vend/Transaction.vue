@@ -248,9 +248,13 @@
                             {{ vendTransaction.vend.code }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
-                                <!-- {{  vend.latestVendBinding.customer.code }} -->
-                                {{ vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer ? vendTransaction.vend.latestVendBinding.customer.code : null }} <br>
-                                {{ vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer ? vendTransaction.vend.latestVendBinding.customer.name : null }}
+                            <span v-if="vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer">
+                                {{ vendTransaction.vend.latestVendBinding.customer.code }} <br>
+                                {{ vendTransaction.vend.latestVendBinding.customer.name }}
+                            </span>
+                            <span v-else>
+                                {{ vendTransaction.vend.name }}
+                            </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.vendChannel.code }}
@@ -314,9 +318,11 @@ const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
 
 onMounted(() => {
-    console.log(props.vendTransactions);
     vendOptions.value = props.vends.data.map((vend) => {return {id: vend.id, code: vend.code}})
-    vendChannelErrorOptions.value = props.vendChannelErrors.data.map((error) => {return {id: error.id, desc: error.desc}})
+    vendChannelErrorOptions.value = [
+        {'id': 'errors_only', 'desc': 'Errors Only'},
+        ...props.vendChannelErrors.data.map((error) => {return {id: error.id, desc: error.desc}})
+    ]
     paymentMethodOptions.value = [
         {id: '', name: 'All'},
         ...props.paymentMethods.data.map((paymethod) => {return {id: paymethod.id, name: paymethod.name}})

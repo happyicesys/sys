@@ -26,7 +26,24 @@ class VendDataController extends Controller
         ProcessVendData::dispatch($input, $ipAddress);
 
         $input = collect($input);
+        $content = '';
         if($input->has('f') and $input->has('g') and $input->has('m') and $input->has('p') and $input->has('t')) {
+            foreach($input as $dataIndex => $data) {
+                switch($dataIndex) {
+                    case 'm':
+                        $vendCode = $data;
+                        break;
+                    case 'p':
+                        $content = substr($data, -1) == '!' ? base64_decode(substr_replace($data,"=",-1)) : base64_decode($data);
+                        break;
+                }
+            }
+            if(str_starts_with($content, "{\"") and $content !== "{\"Type\":\"P\"}") {
+                $content = json_decode($content, true);
+                if($content['Type'] === 'TIME') {
+                    // $vendCode
+                }
+            }
             return $input['f'].',4,MQ==';
         }
         return true;

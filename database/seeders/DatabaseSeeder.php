@@ -52,6 +52,8 @@ class DatabaseSeeder extends Seeder
             // UomSeeder::class,
             // UserAssignProfileSeeder::class,
             RoleSeeder::class,
+            ThaiCountrySeeder::class,
+            OperatorSeeder::class,
         ]);
     }
 }

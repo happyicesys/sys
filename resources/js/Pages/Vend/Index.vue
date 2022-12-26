@@ -12,6 +12,7 @@
         <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
         <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
             <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+<!--
                 <div>
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Vend ID
@@ -27,7 +28,13 @@
                         class="mt-1"
                     >
                     </MultiSelect>
-                </div>
+                </div> -->
+                <SearchInput placeholderStr="Vend ID" v-model="filters.codes">
+                    Vend ID
+                    <span class="text-[9px]">
+                        ("," for multiple)
+                    </span>
+                </SearchInput>
                 <SearchInput placeholderStr="Serial Num" v-model="filters.serialNum">
                     Serial Num
                 </SearchInput>
@@ -36,6 +43,20 @@
                 </SearchInput>
                 <div>
                     <label for="text" class="block text-sm font-medium text-gray-700">
+                        Channel Errors
+                    </label>
+                    <MultiSelect
+                        v-model="filters.errors"
+                        :options="vendChannelErrorsOptions"
+                        valueProp="id"
+                        label="desc"
+                        mode="tags"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                    <!-- <label for="text" class="block text-sm font-medium text-gray-700">
                         Errors?
                     </label>
                     <MultiSelect
@@ -48,7 +69,7 @@
                         open-direction="bottom"
                         class="mt-1"
                     >
-                    </MultiSelect>
+                    </MultiSelect> -->
                 </div>
                 <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code">
                     Cust ID
@@ -238,8 +259,13 @@
                                 {{ vend.code }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                                {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.code : null }} <br>
-                                {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.name : null }}
+                                <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
+                                    {{ vend.latestVendBinding.customer.code }} <br>
+                                    {{ vend.latestVendBinding.customer.name }}
+                                </span>
+                                <span v-else>
+                                    {{ vend.name }}
+                                </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="flex flex-col items-center">
@@ -476,7 +502,6 @@
     <Form
         v-if="showEditModal"
         :vend="vend"
-        :customers="props.customers"
         :type="type"
         :showModal="showEditModal"
         @modalClose="onModalClose"
@@ -545,13 +570,13 @@
   })
 
   const filters = ref({
-    codes: [],
+    codes: '',
     serialNum: '',
     customer_code: '',
     customer_name: '',
     categories: [],
     categoryGroups: [],
-    // country_id: '',
+    errors: [],
     is_binded_customer: '',
     tempHigherThan: '',
     vend_channel_error_id: '',
@@ -574,7 +599,7 @@
 
   onMounted(() => {
     vendChannelErrorsOptions.value = [
-        {'id': '', 'desc': 'All'},
+        // {'id': '', 'desc': 'All'},
         {'id': 'errors_only', 'desc': 'Errors Only'},
         ...props.vendChannelErrors.data
     ]
@@ -608,17 +633,23 @@
         showChannelOverviewModal.value = false
     }
 
-    function onEditClicked(vend) {
+    function onEditClicked(vendData) {
+        vend.value = vendData
+        showEditModal.value = true
+    }
 
+    function onModalClose() {
+        showEditModal.value = false
     }
 
     function onSearchFilterUpdated() {
         Inertia.get('/vends', {
             ...filters.value,
-            codes: filters.value.codes.map((code) => { return code.id }),
-            vend_channel_error_id: filters.value.vend_channel_error_id.id,
+            // codes: filters.value.codes.map((code) => { return code.id }),
+            // vend_channel_error_id: filters.value.vend_channel_error_id.id,
             categories: filters.value.categories.map((category) => { return category.id }),
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
+            errors: filters.value.errors.map((error) => { return error.id }),
             is_binded_customer: filters.value.is_binded_customer.id,
             is_online: filters.value.is_online.id,
             numberPerPage: filters.value.numberPerPage.id,

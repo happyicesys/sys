@@ -21,6 +21,7 @@ class Product extends Model
         'is_supermarket_fee',
         'category_id',
         'category_group_id',
+        'operator_id',
     ];
 
     // relationships
@@ -42,6 +43,11 @@ class Product extends Model
     public function categoryGroup()
     {
         return $this->belongsTo(CategoryGroup::class);
+    }
+
+    public function operator()
+    {
+        return $this->belongsTo(Operator::class);
     }
 
     public function productUoms()

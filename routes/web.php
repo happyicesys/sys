@@ -7,9 +7,11 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CategoryGroupController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\OperatorController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\PaymentTermController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductMappingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SimcardController;
@@ -109,6 +111,13 @@ Route::middleware('auth')->group(function() {
         Route::delete('/{id}', [CustomerController::class, 'delete']);
     });
 
+    Route::prefix('operators')->group(function() {
+        Route::get('/', [OperatorController::class, 'index'])->name('operators');
+        Route::post('/create', [OperatorController::class, 'create']);
+        Route::post('/{id}/update', [OperatorController::class, 'update']);
+        Route::delete('/{id}', [OperatorController::class, 'delete']);
+    });
+
     Route::prefix('payment-methods')->group(function() {
         Route::get('/', [PaymentMethodController::class, 'index'])->name('payment-methods');
         Route::post('/create', [PaymentMethodController::class, 'create']);
@@ -132,6 +141,13 @@ Route::middleware('auth')->group(function() {
         Route::post('/create', [ProductController::class, 'create']);
         Route::post('/{id}/update', [ProductController::class, 'update']);
         Route::delete('/{id}', [ProductController::class, 'delete']);
+    });
+
+    Route::prefix('product-mappings')->group(function() {
+        Route::get('/', [ProductMappingController::class, 'index'])->name('product-mappings');
+        Route::post('/create', [ProductMappingController::class, 'create']);
+        Route::post('/{id}/update', [ProductMappingController::class, 'update']);
+        Route::delete('/{id}', [ProductMappingController::class, 'delete']);
     });
 
     Route::prefix('profiles')->group(function() {
@@ -215,6 +231,8 @@ Route::middleware('auth')->group(function() {
         Route::get('/transactions', [VendController::class, 'transactionIndex'])->name('vends-transactions');
         Route::get('/transactions/excel', [VendController::class, 'exportTransactionExcel']);
         Route::get('/channel-error-logs-email', [VendController::class, 'channelErrorLogsEmail']);
+        Route::post('/{id}/update', [VendController::class, 'update']);
+        Route::post('/{id}/unbind', [VendController::class, 'unbindCustomer']);
     });
 
     Route::prefix('zones')->group(function() {

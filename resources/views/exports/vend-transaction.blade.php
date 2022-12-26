@@ -29,7 +29,8 @@
             {{ $vendTransaction->vend->code }}
           </td>
           <td>
-            {{ $vendTransaction->vend->latestVendBinding ? $vendTransaction->vend->latestVendBinding->customer->code : '' }}<br>
+            {{ $vendTransaction->vend->latestVendBinding ? $vendTransaction->vend->latestVendBinding->customer->code :
+            $vendTransaction->vend->name }}<br>
             {{ $vendTransaction->vend->latestVendBinding ? $vendTransaction->vend->latestVendBinding->customer->name : '' }}
           </td>
           <td>

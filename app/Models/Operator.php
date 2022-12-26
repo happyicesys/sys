@@ -19,11 +19,12 @@ class Operator extends Model
         'is_active',
         'profile_id',
         'remarks',
+        'timezone',
         'updated_by',
     ];
 
     // relationships
-    public function addresses()
+    public function address()
     {
         return $this->morphOne(Address::class, 'modelable');
     }
@@ -31,6 +32,11 @@ class Operator extends Model
     public function contact()
     {
         return $this->morphOne(Contact::class, 'modelable');
+    }
+
+    public function country()
+    {
+        return $this->belongsTo(Country::class);
     }
 
     public function createdBy()
@@ -45,6 +51,6 @@ class Operator extends Model
 
     public function vends()
     {
-        return $this->hasMany(Vend::class);
+        return $this->belongsToMany(Vend::class);
     }
 }
