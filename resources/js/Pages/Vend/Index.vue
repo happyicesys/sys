@@ -225,10 +225,10 @@
                                 Out of Stock SKU
                             </TableHeadSort>
                             <TableHead>
+                                $ Sales (qty)<br>
                                 Today <br>
                                 Yesterday<br>
-                                7 Days <br>
-                                Sales (Count)
+                                Last 7 Days
                             </TableHead>
                             <TableHead>
                                 Status
@@ -362,18 +362,18 @@
                                     vend.salesData.today.sales >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{vend.salesData.today.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}
-                                    ({{vend.salesData.today.count}}) <br>
+                                    ({{vend.salesData.today.count.toLocaleString(undefined, {minimumFractionDigits: 0})}}) <br>
                                 </span>
                                 <span :class="[
                                     vend.salesData.yesterday.sales >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{vend.salesData.yesterday.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}
-                                    ({{vend.salesData.yesterday.count}}) <br>
+                                    ({{vend.salesData.yesterday.count.toLocaleString(undefined, {minimumFractionDigits: 0})}}) <br>
                                 </span>
                                 <span :class="[
                                     vend.salesData.sevenDays.sales > 200 ? 'text-green-700' : 'text-red-700'
                                 ]">
-                                    {{vend.salesData.sevenDays.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.salesData.sevenDays.count}})
+                                    {{vend.salesData.sevenDays.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.salesData.sevenDays.count.toLocaleString(undefined, {minimumFractionDigits: 0})}})
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
