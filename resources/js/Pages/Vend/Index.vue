@@ -225,8 +225,10 @@
                                 Out of Stock SKU
                             </TableHeadSort>
                             <TableHead>
-                                Sales $(Qty) <br>
-                                (Today/ 7 Days)
+                                Today <br>
+                                Yesterday<br>
+                                7 Days <br>
+                                Sales (Count)
                             </TableHead>
                             <TableHead>
                                 Status
@@ -357,14 +359,21 @@
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <span :class="[
-                                    vend.todaySales >= 30 ? 'text-green-700' : 'text-red-700'
+                                    vend.salesData.today.sales >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
-                                    {{vend.todaySales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.todayCount}})/ <br>
+                                    {{vend.salesData.today.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                                    ({{vend.salesData.today.count}}) <br>
                                 </span>
                                 <span :class="[
-                                    vend.sevenDaysSales > 200 ? 'text-green-700' : 'text-red-700'
+                                    vend.salesData.yesterday.sales >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
-                                    {{vend.sevenDaysSales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.sevenDaysCount}})
+                                    {{vend.salesData.yesterday.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                                    ({{vend.salesData.yesterday.count}}) <br>
+                                </span>
+                                <span :class="[
+                                    vend.salesData.sevenDays.sales > 200 ? 'text-green-700' : 'text-red-700'
+                                ]">
+                                    {{vend.salesData.sevenDays.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.salesData.sevenDays.count}})
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">

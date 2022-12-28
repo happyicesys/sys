@@ -40,21 +40,46 @@ class VendResource extends JsonResource
             'vendChannelErrorLogsJson' => $this->vend_channel_error_logs_json,
             'vendChannelTotalsJson' => $this->vend_channel_totals_json,
             'latestVendBinding' => VendBindingResource::make($this->whenLoaded('latestVendBinding')),
-            // 'todaySales' => $this->whenLoaded('vendTodayTransactions') ? $this->whenLoaded('vendTodayTransactions')->sum('amount')/ 100 : 0,
-            // 'sevenDaysSales' => $this->whenLoaded('vendSevenDaysTransactions') ? $this->whenLoaded('vendSevenDaysTransactions')->sum('amount')/ 100 : 0,
-
-            'todaySales' => $this->when($this->relationLoaded('vendTodayTransactions'), function() {
-                return $this->vendTodayTransactions->sum('amount')/ 100;
-            }),
-            'todayCount' => $this->when($this->relationLoaded('vendTodayTransactions'), function() {
-                return $this->vendTodayTransactions->count();
-            }),
-            'sevenDaysSales' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
-                return $this->vendSevenDaysTransactions->sum('amount')/ 100;
-            }),
-            'sevenDaysCount' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
-                return $this->vendSevenDaysTransactions->count();
-            }),
+            'salesData' => [
+                'today' => [
+                    'sales' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
+                        return $this->vendSevenDaysTransactions
+                                    ->where('transaction_datetime', '>=', Carbon::today()->startOfDay())
+                                    ->where('transaction_datetime', '<=', Carbon::today()->endOfDay())
+                                    ->sum('amount')/ 100;
+                    }),
+                    'count' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
+                        return $this->vendSevenDaysTransactions
+                                    // ->where('transaction_datetime', Carbon::today()->toDateString())
+                                    ->where('transaction_datetime', '>=', Carbon::today()->startOfDay())
+                                    ->where('transaction_datetime', '<=', Carbon::today()->endOfDay())
+                                    ->count();
+                    }),
+                ],
+                'yesterday' => [
+                    'sales' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
+                        return $this->vendSevenDaysTransactions
+                                    ->where('transaction_datetime', '>=', Carbon::yesterday()->startOfDay())
+                                    ->where('transaction_datetime', '<=', Carbon::yesterday()->endOfDay())
+                                    ->sum('amount')/ 100;
+                    }),
+                    'count' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
+                        return $this->vendSevenDaysTransactions
+                                    // ->where('transaction_datetime', Carbon::today()->toDateString())
+                                    ->where('transaction_datetime', '>=', Carbon::yesterday()->startOfDay())
+                                    ->where('transaction_datetime', '<=', Carbon::yesterday()->endOfDay())
+                                    ->count();
+                    }),
+                ],
+                'sevenDays' => [
+                    'sales' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
+                        return $this->vendSevenDaysTransactions->sum('amount')/ 100;
+                    }),
+                    'count' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
+                        return $this->vendSevenDaysTransactions->count();
+                    }),
+                ]
+            ]
         ];
     }
 
