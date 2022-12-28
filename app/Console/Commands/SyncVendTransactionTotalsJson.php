@@ -1,0 +1,46 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Models\Vend;
+use Illuminate\Console\Command;
+
+class SyncVendTransactionTotalsJson extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'sync:vend-transaction-totals-json';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Sync transaction total json';
+
+    /**
+     * Execute the console command.
+     *
+     * @return int
+     */
+    public function handle()
+    {
+        $vends = Vend::all();
+
+        foreach($vends as $vend) {
+            $vend->update([
+                'vend_transaction_totals_json' => [
+                    'today_amount' => $vend->vendTodayTransactions->sum('amount'),
+                    'today_count' => $vend->vendTodayTransactions->count(),
+                    'seven_days_amount' => $vend->vendSevenDaysTransactions->sum('amount'),
+                    'seven_days_count' => $vend->vendSevenDaysTransactions->count(),
+                ]
+            ]);
+        }
+
+
+    }
+}

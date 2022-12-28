@@ -143,6 +143,22 @@
                     >
                     </MultiSelect>
                 </div>
+                <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                        Sensor Status
+                    </label>
+                    <MultiSelect
+                        v-model="filters.is_sensor"
+                        :options="enableOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="value"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                </div>
             </div>
 
             <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -224,12 +240,12 @@
                             <TableHeadSort modelName="vend_channel_totals_json->outOfStockSkuPercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->outOfStockSkuPercent')">
                                 Out of Stock SKU
                             </TableHeadSort>
-                            <TableHead>
+                            <TableHeadSort modelName="vend_transaction_totals_json->seven_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->seven_days_amount')">
                                 $ Sales (qty)<br>
                                 Today <br>
                                 Yesterday<br>
                                 Last 7 Days
-                            </TableHead>
+                            </TableHeadSort>
                             <TableHead>
                                 Status
                             </TableHead>
@@ -588,6 +604,7 @@
     tempHigherThan: '',
     vend_channel_error_id: '',
     is_online: '',
+    is_sensor: '',
     sortKey: '',
     sortBy: false,
     numberPerPage: '',
@@ -596,6 +613,7 @@
   const booleanOptions = ref([])
   const categoryOptions = ref([])
   const categoryGroupOptions = ref([])
+  const enableOptions = ref([])
   const numberPerPageOptions = ref([])
   const showChannelOverviewModal = ref(false)
   const showEditModal = ref(false)
@@ -626,7 +644,13 @@
         {id: 'true', value: 'Yes'},
         {id: 'false', value: 'No'},
     ]
+    enableOptions.value = [
+        {id: 'all', value: 'All'},
+        {id: 'true', value: 'Enabled'},
+        {id: 'false', value: 'Disabled'},
+    ]
     filters.value.is_online = booleanOptions.value[0]
+    filters.value.is_sensor = enableOptions.value[0]
     filters.value.is_binded_customer = booleanOptions.value[1]
     vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
   })
@@ -659,6 +683,7 @@
             errors: filters.value.errors.map((error) => { return error.id }),
             is_binded_customer: filters.value.is_binded_customer.id,
             is_online: filters.value.is_online.id,
+            is_sensor: filters.value.is_sensor.id,
             numberPerPage: filters.value.numberPerPage.id,
         }, {
             preserveState: true,

@@ -92,6 +92,7 @@ class Vend extends Model
     public function vendSevenDaysTransactions()
     {
         return $this->hasMany(VendTransaction::class)
+                    ->where('vend_transaction_json->ISOK', 1)
                     ->whereDate('transaction_datetime', '<=', Carbon::today())
                     ->whereDate('transaction_datetime', '>=', Carbon::today()->subDays(7))
                     ->whereNull('vend_channel_error_id');
@@ -99,7 +100,10 @@ class Vend extends Model
 
     public function vendTodayTransactions()
     {
-        return $this->hasMany(VendTransaction::class)->whereDate('transaction_datetime', '=', Carbon::today())->whereNull('vend_channel_error_id');
+        return $this->hasMany(VendTransaction::class)
+                    ->where('vend_transaction_json->ISOK', 1)
+                    ->whereDate('transaction_datetime', '=', Carbon::today())
+                    ->whereNull('vend_channel_error_id');
     }
 
     public function vendType()
@@ -150,6 +154,7 @@ class Vend extends Model
     {
         // dd($request->all());
         $isOnline = $request->is_online != null ? $request->is_online : 'all';
+        $isSensor = $request->is_sensor != null ? $request->is_sensor : 'all';
         $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
         // $countryId = $request->country_id != null ? (int)$request->country_id : 1;
         $sortKey = $request->sortKey ? $request->sortKey : 'vends.is_online';
@@ -240,6 +245,15 @@ class Vend extends Model
                     $search = false;
                 }
                 $query->where('is_online', $search);
+            }
+        })
+        ->when($isSensor, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->whereIn('parameter_json->Sensor', ['1', '3', '5', '7', '9']);
+                }else {
+                    $query->whereIn('parameter_json->Sensor', ['0', '2', '4', '6', '8', '10']);
+                }
             }
         })
         ->when($sortKey, function($query, $search) use ($sortBy) {
