@@ -47,7 +47,7 @@
                 Desc
               </FormTextarea>
             </div>
-            <div class="sm:col-span-3">
+            <!-- <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Category
               </label>
@@ -84,8 +84,8 @@
               <div class="text-sm text-red-600" v-if="form.errors.category_group_id">
                 {{ form.errors.category_group_id }}
               </div>
-            </div>
-            <div class="sm:col-span-6 pt-2">
+            </div> -->
+            <!-- <div class="sm:col-span-6 pt-2">
               <div class="flex md:justify-between flex-col space-y-3 md:flex-row md:space-y-0">
                 <div class="relative flex items-start">
                   <div class="flex h-5 items-center">
@@ -114,8 +114,8 @@
                   </div>
                 </div>
               </div>
-            </div>
-            <div class="sm:col-span-6">
+            </div> -->
+            <!-- <div class="sm:col-span-6">
               <div class="mt-8 flex flex-col">
                 <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
                   <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
@@ -182,7 +182,7 @@
                   </div>
                 </div>
               </div>
-            </div>
+            </div> -->
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 pt-5 justify-end">
@@ -261,7 +261,7 @@ const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
 const showUomModal = ref(false)
 const uomOptions = ref([])
-const productUoms = ref(props.product.productUoms)
+// const productUoms = ref(props.product.productUoms)
 const form = ref(
   useForm(getDefaultForm())
 )
@@ -280,7 +280,7 @@ function getDefaultForm() {
     desc: '',
     name: '',
     thumbnail: '',
-    is_inventory: '',
+    is_inventory: 1,
     is_commission: '',
     is_supermarket_fee: '',
     category_id: '',

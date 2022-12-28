@@ -61,7 +61,7 @@
             >
             </MultiSelect>
           </div>
-          <div>
+          <!-- <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Is Comm or SF?
             </label>
@@ -77,7 +77,7 @@
               @selected="onIsCommOrSfSelected"
             >
             </MultiSelect>
-          </div>
+          </div> -->
         </div>
 
 
@@ -146,7 +146,7 @@
                     <TableHead>
                       Thumbnail
                     </TableHead>
-                    <TableHead>
+                    <!-- <TableHead>
                       Category
                     </TableHead>
                     <TableHead>
@@ -154,7 +154,7 @@
                     </TableHead>
                     <TableHead>
                       Is Inventory
-                    </TableHead>
+                    </TableHead> -->
                     <TableHead>
                       Is Active
                     </TableHead>
@@ -178,7 +178,7 @@
                           <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="product.thumbnail.full_url" alt="" v-if="product.thumbnail"/>
                         </div>
                       </TableData>
-                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
+                      <!-- <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         {{ product.category_id ? product.category_id.name : null }}
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
@@ -186,7 +186,7 @@
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         {{ product.isInventory }}
-                      </TableData>
+                      </TableData> -->
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         {{ product.isActive }}
                       </TableData>

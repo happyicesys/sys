@@ -28,6 +28,7 @@ class OperatorResource extends JsonResource
             'country_id' => CountryResource::make($this->whenLoaded('country')),
             'address' => AddressResource::make($this->whenLoaded('address')),
             'is_active' => $this->is_active ? true : false,
+            'vends' => VendResource::collection($this->whenLoaded('vends')),
         ];
     }
 }

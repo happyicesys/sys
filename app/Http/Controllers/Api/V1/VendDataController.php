@@ -30,6 +30,9 @@ class VendDataController extends Controller
         if($input->has('f') and $input->has('g') and $input->has('m') and $input->has('p') and $input->has('t')) {
             foreach($input as $dataIndex => $data) {
                 switch($dataIndex) {
+                    case 'f':
+                        $fId = $data;
+                        break;
                     case 'm':
                         $vendCode = $data;
                         break;
@@ -41,7 +44,17 @@ class VendDataController extends Controller
             if(str_starts_with($content, "{\"") and $content !== "{\"Type\":\"P\"}") {
                 $content = json_decode($content, true);
                 if($content['Type'] === 'TIME') {
-                    // $vendCode
+                    // $vend = Vend::where('code', $vendCode)->first();
+                    // if($vend) {
+                    //     if($vend->primaryOperator()->exists()) {
+                    //         $operator = $vend->primaryOperator()->first();
+                    //         $time = Carbon::now()->setTimezone($operator->timezone)->toDateTimeString();
+                    //         $base64Encode = base64_encode('TIME'.$time);
+                    //         $length = strlen($base64Encode);
+
+                    //         return $fId.','.$length.','.$base64Encode;
+                    //     }
+                    // }
                 }
             }
             return $input['f'].',4,MQ==';

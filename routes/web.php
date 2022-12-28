@@ -116,6 +116,8 @@ Route::middleware('auth')->group(function() {
         Route::post('/create', [OperatorController::class, 'create']);
         Route::post('/{id}/update', [OperatorController::class, 'update']);
         Route::delete('/{id}', [OperatorController::class, 'delete']);
+        Route::post('/bind-vend', [OperatorController::class, 'bindVend']);
+        Route::post('/unbind-vend', [OperatorController::class, 'unbindVend']);
     });
 
     Route::prefix('payment-methods')->group(function() {

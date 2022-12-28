@@ -51,9 +51,9 @@ class DatabaseSeeder extends Seeder
             // VendTypeSeeder::class,
             // UomSeeder::class,
             // UserAssignProfileSeeder::class,
-            RoleSeeder::class,
-            ThaiCountrySeeder::class,
-            OperatorSeeder::class,
+            // RoleSeeder::class,
+            // ThaiCountrySeeder::class,
+            // OperatorSeeder::class,
         ]);
     }
 }

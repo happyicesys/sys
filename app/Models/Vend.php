@@ -69,6 +69,11 @@ class Vend extends Model
         return $this->belongsToMany(Operator::class);
     }
 
+    public function primaryOperator()
+    {
+        return $this->belongsToMany(Operator::class)->withPivot('is_primary', true);
+    }
+
     public function outOfStockVendChannels()
     {
         return $this->vendChannels()->where('qty', '=', 0);

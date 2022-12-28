@@ -70,8 +70,7 @@
                               :class="[
                                   channel.vend_channel_error_logs[0].vend_channel_error.code == 4 ||
                                   channel.vend_channel_error_logs[0].vend_channel_error.code == 5 ||
-                                  channel.vend_channel_error_logs[0].vend_channel_error.code == 7 ||
-                                  channel.vend_channel_error_logs[0].vend_channel_error.code == 9  ?
+                                  channel.vend_channel_error_logs[0].vend_channel_error.code == 7 ?
                                   ' text-blue-800' :
                                   ' text-red-800'
                                   ]">

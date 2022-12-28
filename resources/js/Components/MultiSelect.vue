@@ -14,6 +14,7 @@
       :valueProp="valueProp"
       @select="onSelected"
       @deselect="onDeselected"
+      :clearOnBlur="clearOnBlur"
     />
     <!-- @select="$emit('update:modelValue', $event)" -->
   </div>
@@ -30,6 +31,10 @@
 
   const props = defineProps({
     canClear: Boolean,
+    clearOnBlur: {
+      type: [Boolean, String],
+      default: true,
+    },
     label: String,
     mode: String,
     modelValue: [Array, Object, String, Number],

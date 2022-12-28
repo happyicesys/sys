@@ -97,6 +97,9 @@
                           <TableHead>
                               Username
                           </TableHead>
+                          <TableHeadSort modelName="operator_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_id')">
+                              Belongs to Operator
+                        </TableHeadSort>
                           <TableHead>
                           </TableHead>
                       </tr>
@@ -115,6 +118,9 @@
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
                               {{ user.username }}
+                          </TableData>
+                          <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
+                              {{ user.operator.name }}
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
                               <div class="flex justify-center space-x-1">

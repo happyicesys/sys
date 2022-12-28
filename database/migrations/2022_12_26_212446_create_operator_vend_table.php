@@ -17,6 +17,7 @@ return new class extends Migration
             $table->id();
             $table->bigInteger('operator_id');
             $table->bigInteger('vend_id');
+            $table->boolean('is_primary')->default(false);
             $table->timestamps();
         });
     }

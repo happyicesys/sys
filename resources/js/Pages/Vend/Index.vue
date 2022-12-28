@@ -313,16 +313,14 @@
                                     (
                                         vendChannelErrorLog['vendChannelError']['code'] == 4 ||
                                         vendChannelErrorLog['vendChannelError']['code'] == 5 ||
-                                        vendChannelErrorLog['vendChannelError']['code'] == 7 ||
-                                        vendChannelErrorLog['vendChannelError']['code'] == 9 ?
+                                        vendChannelErrorLog['vendChannelError']['code'] == 7 ?
                                         'bg-blue-100 text-blue-800' :
                                         'bg-red-100 text-red-800'
                                     ) :
                                     (
                                         vendChannelErrorLog['vend_channel']['code'] == 4 ||
                                         vendChannelErrorLog['vend_channel']['code'] == 5 ||
-                                        vendChannelErrorLog['vend_channel']['code'] == 7 ||
-                                        vendChannelErrorLog['vend_channel']['code'] == 9 ?
+                                        vendChannelErrorLog['vend_channel']['code'] == 7 ?
                                         'bg-blue-100 text-blue-800' :
                                         'bg-red-100 text-red-800'
                                     )]">
@@ -388,7 +386,7 @@
                                     </div>
                                     <div
                                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                        :class="[vend.parameterJson['Sensor'] == 1 ? 'bg-green-200' : 'bg-red-200']"
+                                        :class="[vend.parameterJson['Sensor'] % 2 == 0 ? 'bg-red-200' : 'bg-green-200']"
                                         v-if="vend.parameterJson"
                                     >
                                         <div class="flex flex-col">
@@ -396,7 +394,7 @@
                                                 Drop Sensor
                                             </span>
                                             <span>
-                                                {{vend.parameterJson['Sensor'] == 1 ? 'Enabled' : 'Disabled'}}
+                                                {{vend.parameterJson['Sensor'] % 2 == 0 ? 'Disabled' : 'Enabled'}}
                                             </span>
                                         </div>
                                     </div>

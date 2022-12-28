@@ -208,7 +208,7 @@ class VendController extends Controller
     public function update(Request $request, $vendId)
     {
         $request->validate([
-            'serial_num' => 'numeric',
+            'serial_num' => 'nullable|numeric',
         ]);
 
         $vend = Vend::findOrFail($vendId);

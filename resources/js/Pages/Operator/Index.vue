@@ -160,7 +160,9 @@
       :timezones="timezones"
       :type="type"
       :showModal="showModal"
+      :unbindedVends="unbindedVends"
       @modalClose="onModalClose"
+      @refreshData="onRefreshData(operatorId)"
   >
   </Form>
   </BreezeAuthenticatedLayout>
@@ -185,6 +187,7 @@ defineProps({
   countries: Object,
   operators: Object,
   timezones: [Array, Object],
+  unbindedVends: Object,
 })
 
 const filters = ref({
@@ -225,7 +228,17 @@ function onDeleteClicked(operator) {
 function onEditClicked(operatorValue) {
   type.value = 'update'
   operator.value = operatorValue
+  Inertia.visit(
+      route('operators', {
+          operator_id: operatorValue.id
+      }),{
+          only: ['unbindedVends'],
+          preserveState: true,
+      }
+  );
   showModal.value = true
+
+
 }
 
 function onSearchFilterUpdated() {
@@ -250,5 +263,17 @@ function sortTable(sortKey) {
 
 function onModalClose() {
   showModal.value = false
+}
+
+function onRefreshData(operatorId) {
+  // Inertia.reload({ only: ['operators', 'unbindedVends'] })
+  Inertia.visit(
+      route('operators', {
+          operator_id: operatorId
+      }),{
+          only: ['unbindedVends', 'operators'],
+          // preserveState: true,
+      }
+  );
 }
 </script>

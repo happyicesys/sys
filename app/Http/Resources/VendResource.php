@@ -22,6 +22,11 @@ class VendResource extends JsonResource
             'serial_num' => $this->serial_num,
             'last_updated_at' => $this->last_updated_at ? Carbon::parse($this->last_updated_at)->shortRelativeDiffForHumans() : null,
             'name' => $this->name,
+            'full_name' => $this->code.$this->when($this->relationLoaded('latestVendBinding'), function() {
+                return $this->latestVendBinding && $this->latestVendBinding->customer ? (' - '.$this->latestVendBinding->customer->code.' - '.$this->latestVendBinding->customer->name) : ($this->name ? ' - '.$this->name : '');
+            }, function(){
+                return $this->name ? ' - '.$this->name : '';
+            }),
             'temp' => $this->temp/ 10,
             'temp_updated_at' => $this->temp_updated_at ? Carbon::parse($this->temp_updated_at)->shortRelativeDiffForHumans() : null,
             'coin_amount' => $this->coin_amount/ 100,
