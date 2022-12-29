@@ -17,9 +17,15 @@ class VendChannel extends Model
         'amount',
         'is_active',
         'vend_id',
+        'product_id',
     ];
 
     // relationships
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
+
     public function vend()
     {
         return $this->belongsTo(Vend::class);

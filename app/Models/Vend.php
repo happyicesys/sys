@@ -35,6 +35,7 @@ class Vend extends Model
         'is_temp_error',
         'last_updated_at',
         'parameter_json',
+        'product_mapping_id',
         'keylock_number',
         'vend_channel_error_logs_json',
         'vend_channels_json',
@@ -72,6 +73,11 @@ class Vend extends Model
     public function primaryOperator()
     {
         return $this->belongsToMany(Operator::class)->withPivot('is_primary', true);
+    }
+
+    public function productMapping()
+    {
+        return $this->belongsTo(ProductMapping::class);
     }
 
     public function outOfStockVendChannels()

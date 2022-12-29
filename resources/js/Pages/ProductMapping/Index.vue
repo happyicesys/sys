@@ -89,6 +89,12 @@
                       Name
                     </TableHeadSort>
                     <TableHead>
+                      Channel - Product
+                    </TableHead>
+                    <TableHead>
+                      Binded Vending Machines
+                    </TableHead>
+                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -99,6 +105,34 @@
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
                         {{ productMapping.name }}
+                      </TableData>
+                      <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
+                        <ul class="divide-y divide-gray-200">
+                          <li class="flex py-1 px-3 space-x-2" v-for="productMappingItem in productMapping.productMappingItemsJson">
+                            <span class="text-blue-700 text-md pr-2">
+                              {{ productMappingItem['channel_code'] }}
+                            </span>
+                            <span v-if="productMappingItem['product']['code']">
+                              {{ productMappingItem['product']['code'] }}
+                            </span>
+                            <span>
+                              - {{ productMappingItem['product']['name'] }}
+                            </span>
+
+                          </li>
+                        </ul>
+                      </TableData>
+                      <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
+                        <ul class="divide-y divide-gray-200">
+                          <li class="flex py-1 px-3 space-x-2" v-for="productMappingVend in productMapping.vendsJson">
+                            <!-- <span class="text-blue-700 text-md pr-2">
+                              {{ productMappingVend['code'] }}
+                            </span> -->
+                            <span v-if="productMappingVend['full_name']">
+                              {{ productMappingVend['full_name'] }}
+                            </span>
+                          </li>
+                        </ul>
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
@@ -112,12 +146,26 @@
                             </span>
                           </Button>
                           <Button
-                            type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
+                            type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                            @click="onVendFormEditClicked(productMapping)"
+                          >
+                            <LinkIcon class="w-4 h-4"></LinkIcon>
+                            <span>
+                                VM Binding
+                            </span>
+                          </Button>
+                          <Button
+                            type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1"
                             @click="onDeleteClicked(productMapping)"
                           >
-                            <TrashIcon class="w-4 h-4"></TrashIcon>
+                            <span class="flex space-x-1">
+                              <TrashIcon class="w-4 h-4"></TrashIcon>
+                              <span>
+                                  Delete
+                              </span>
+                            </span>
                             <span>
-                                Delete
+                              (Binded)
                             </span>
                           </Button>
                         </div>
@@ -137,12 +185,25 @@
   </div>
   <Form
       v-if="showModal"
+      :products="products"
       :productMapping="productMapping"
       :type="type"
       :showModal="showModal"
       @modalClose="onModalClose"
   >
   </Form>
+
+  <VendForm
+      v-if="showVendFormModal"
+      :productMapping="productMapping"
+      :type="type"
+      :showModal="showVendFormModal"
+      :unbindedVends="unbindedVends"
+      @modalClose="onVendFormModalClose"
+  >
+
+  </VendForm>
+
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -150,10 +211,11 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/ProductMapping/Form.vue';
+import VendForm from '@/Pages/ProductMapping/VendForm.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, LinkIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -161,8 +223,10 @@ import { Head } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue';
 import { Inertia } from '@inertiajs/inertia'
 
-defineProps({
+const props = defineProps({
+  products: Object,
   productMappings: Object,
+  unbindedVends: Object,
 })
 
 const filters = ref({
@@ -172,6 +236,7 @@ const filters = ref({
   numberPerPage: 100,
 })
 const showModal = ref(false)
+const showVendFormModal = ref(false)
 const productMapping = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
@@ -197,7 +262,7 @@ function onDeleteClicked(productMapping) {
   if (!approval) {
       return;
   }
-  Inertia.delete('/productMappings/' + productMapping.id)
+  Inertia.delete('/product-mappings/' + productMapping.id)
 }
 
 function onEditClicked(productMappingValue) {
@@ -206,8 +271,22 @@ function onEditClicked(productMappingValue) {
   showModal.value = true
 }
 
+function onVendFormEditClicked(productMappingValue) {
+  type.value = 'update'
+  productMapping.value = productMappingValue
+  Inertia.visit(
+      route('product-mappings', {
+          id: productMappingValue.id
+      }),{
+          only: ['unbindedVends'],
+          preserveState: true,
+      }
+  );
+  showVendFormModal.value = true
+}
+
 function onSearchFilterUpdated() {
-  Inertia.get('/productMappings', {
+  Inertia.get('/product-mappings', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -217,7 +296,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/productMappings')
+  Inertia.get('/product-mappings')
 }
 
 function sortTable(sortKey) {
@@ -228,5 +307,9 @@ function sortTable(sortKey) {
 
 function onModalClose() {
   showModal.value = false
+}
+
+function onVendFormModalClose() {
+  showVendFormModal.value = false
 }
 </script>

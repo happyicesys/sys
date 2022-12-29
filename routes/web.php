@@ -149,7 +149,9 @@ Route::middleware('auth')->group(function() {
         Route::get('/', [ProductMappingController::class, 'index'])->name('product-mappings');
         Route::post('/create', [ProductMappingController::class, 'create']);
         Route::post('/{id}/update', [ProductMappingController::class, 'update']);
+        Route::post('/{id}/update/vends', [ProductMappingController::class, 'bindVends']);
         Route::delete('/{id}', [ProductMappingController::class, 'delete']);
+        Route::post('/replicate', [ProductMappingController::class, 'replicate']);
     });
 
     Route::prefix('profiles')->group(function() {

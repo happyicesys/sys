@@ -18,7 +18,12 @@ class ProductMappingResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'remarks' => $this->remarks,
+            'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
+            'productMappingItems' => ProductMappingItemResource::collection($this->whenLoaded('productMappingItems')),
+            'productMappingItemsJson' => $this->product_mapping_items_json,
+            'vends' => VendResource::collection($this->whenLoaded('vends')),
+            'vendsJson' => $this->vends_json,
         ];
     }
 }

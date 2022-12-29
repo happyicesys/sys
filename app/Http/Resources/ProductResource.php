@@ -18,6 +18,7 @@ class ProductResource extends JsonResource
             'id' => $this->id,
             'code' => $this->code,
             'name' => $this->name,
+            'full_name' => $this->code.' - '.$this->name,
             'remarks' => $this->remarks,
             'desc' => $this->desc,
             'is_active' => $this->is_active ? true : false,

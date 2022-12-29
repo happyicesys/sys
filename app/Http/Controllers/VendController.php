@@ -85,7 +85,8 @@ class VendController extends Controller
         }
         // dd($request->all());
         $vend = Vend::with('latestVendBinding.customer')->findOrFail($vendId);
-        $startDate =  Carbon::now()->subDays($duration);
+        // dd($duration);
+        $startDate =  $request->durationType == 'day' || !$request->durationType ? Carbon::now()->subDays($duration) : Carbon::now()->subHours($duration);
         $endDate =  Carbon::now();
         if($request->datetime_from) {
             $startDate = Carbon::parse($request->datetime_from)->setTimezone('Asia/Singapore');
@@ -140,7 +141,9 @@ class VendController extends Controller
                     ->filterTransactionIndex($request);
 
         $vendTransactionsTotal = clone $vendTransactions;
+        $vendTransactionsCount = clone $vendTransactions;
         $vendTransactionsTotal = $vendTransactionsTotal->where('vend_transaction_json->ISOK', 1)->sum('amount');
+        $vendTransactionsCount = $vendTransactionsCount->where('vend_transaction_json->ISOK', 1)->count();
 
         return Inertia::render('Vend/Transaction', [
             'categories' => CategoryResource::collection(
@@ -156,6 +159,7 @@ class VendController extends Controller
                 ->withQueryString()
             ),
             'vendTransactionsTotal' => $vendTransactionsTotal,
+            'vendTransactionsCount' => $vendTransactionsCount,
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
             'paymentMethods' => PaymentMethodResource::collection(PaymentMethod::orderBy('name')->get()),
 

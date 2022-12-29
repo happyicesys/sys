@@ -20,6 +20,7 @@ class VendTransaction extends Model
         'transaction_datetime',
         'amount',
         'payment_method_id',
+        'product_id',
         'vend_channel_id',
         'vend_channel_error_id',
         'vend_id',
@@ -30,6 +31,11 @@ class VendTransaction extends Model
     public function paymentMethod()
     {
         return $this->belongsTo(PaymentMethod::class);
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
     }
 
     public function vend()

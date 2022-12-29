@@ -36,6 +36,7 @@ class VendResource extends JsonResource
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
             'parameterJson' => $this->parameter_json,
+            'productMapping' => ProductMappingResource::make($this->whenLoaded('productMapping')),
             'vendChannelsJson' => $this->vend_channels_json,
             'vendChannelErrorLogsJson' => $this->vend_channel_error_logs_json,
             'vendChannelTotalsJson' => $this->vend_channel_totals_json,

@@ -111,7 +111,7 @@
               :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
               :disabled="!form.vend_id"
               >
-                <PaperClipIcon class="w-4 h-4"></PaperClipIcon>
+                <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
                   Add
                 </span>
@@ -210,7 +210,7 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PaperClipIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue'
 // import { Inertia } from '@inertiajs/inertia'

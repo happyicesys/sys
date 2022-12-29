@@ -14,4 +14,15 @@ class ProductMappingItem extends Model
         'product_id',
         'product_mapping_id',
     ];
+
+    // relationships
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function productMapping()
+    {
+        return $this->belongsTo(ProductMapping::class);
+    }
 }

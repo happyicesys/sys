@@ -232,6 +232,14 @@ class ProcessVendData implements ShouldQueue
 
         $vendChannelError = VendChannelError::where('code', (isset($input['SErr']) ? $input['SErr'] : 0))->where('code', '!=', 0)->first();
 
+        $productId = null;
+        if(isset($vendChannel) and $vendChannel and $vend->productMapping()->exists()) {
+            $productMappingItem = $vend->productMapping->productMappingItems()->where('channel_code', $vendChannel->code)->first();
+            if($productMappingItem) {
+                $productId = $productMappingItem->product_id;
+            }
+        }
+
         $vendTransaction = VendTransaction::create(
             [
             'transaction_datetime' => Carbon::now(),
@@ -242,6 +250,7 @@ class ProcessVendData implements ShouldQueue
             'vend_channel_id' => isset($vendChannel) ? $vendChannel->id : 0,
             'vend_channel_error_id' => isset($vendChannelError) ? $vendChannelError->id : null,
             'vend_transaction_json' => $input,
+            'product_id' => $productId,
             ]
         );
 

@@ -74,10 +74,17 @@
             </label>
             <div class="pl-1 py-2 flex space-x-2 overflow-x-scroll">
                 <Button
+                    v-for="hourDurationFilter in hourDurationFilters"
+                    class="border-transparent bg-indigo-600 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 px-10 sm:px-3"
+                    :class="hourDurationFilter == filters.duration ? 'outline-none ring-2 ring-indigo-500 ring-offset-2' : ''"
+                    @click="onDurationFilterClicked(hourDurationFilter, 'hour')">
+                    {{ hourDurationFilter }} {{ hourDurationFilter > 1 ? 'Hours' : 'Hour' }}
+                </Button>
+                <Button
                     v-for="durationFilter in durationFilters"
                     class="border-transparent bg-indigo-600 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 px-10 sm:px-3"
                     :class="durationFilter == filters.duration ? 'outline-none ring-2 ring-indigo-500 ring-offset-2' : ''"
-                    @click="onDurationFilterClicked(durationFilter)">
+                    @click="onDurationFilterClicked(durationFilter, 'day')">
                     {{ durationFilter }} {{ durationFilter > 1 ? 'Days' : 'Day' }}
                 </Button>
 
@@ -152,6 +159,7 @@ const props = defineProps({
     vendTempsObj: Object,
 });
 
+const hourDurationFilters = ref([6])
 const durationFilters = ref([1, 3, 7, 14])
 const filters = ref({
     datetime_from: props.startDate ? new Date(props.startDate) : new Date(),
@@ -180,8 +188,8 @@ function onCustomDatetimeSearched() {
     })
 }
 
-function onDurationFilterClicked(duration) {
-    Inertia.get('/vends/' + vend.value.id + '/temp/'+ props.type.value +'?duration=' + duration)
+function onDurationFilterClicked(duration, durationType) {
+    Inertia.get('/vends/' + vend.value.id + '/temp/'+ props.type.value +'?duration=' + duration + '&durationType=' + durationType)
 }
 
 function back() {
