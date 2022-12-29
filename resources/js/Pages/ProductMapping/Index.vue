@@ -155,16 +155,19 @@
                             </span>
                           </Button>
                           <Button
-                            type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1"
+                            type="button"
+                            class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1"
+                            :class="[productMapping.vendsJson.length > 0 ? 'opacity-50 cursor-not-allowed' : '']"
                             @click="onDeleteClicked(productMapping)"
+                            :disabled="productMapping.vendsJson.length > 0"
                           >
-                            <span class="flex space-x-1">
+                            <span class="flex space-x-1 items-center">
                               <TrashIcon class="w-4 h-4"></TrashIcon>
                               <span>
                                   Delete
                               </span>
                             </span>
-                            <span>
+                            <span v-if="productMapping.vendsJson.length > 0">
                               (Binded)
                             </span>
                           </Button>

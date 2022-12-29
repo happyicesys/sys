@@ -102,6 +102,7 @@ class ProductMappingController extends Controller
     public function delete($productMappingId)
     {
         $productMapping = ProductMapping::findOrFail($productMappingId);
+        $productMapping->productMappingItems()->delete();
         $productMapping->delete();
 
         return redirect()->route('product-mappings');
@@ -140,9 +141,9 @@ class ProductMappingController extends Controller
                 $vend->product_mapping_id = $productMapping->id;
                 $vend->save();
             }
-            $productMapping->vends_json = $request->productMappingVends;
-            $productMapping->save();
         }
+        $productMapping->vends_json = $request->productMappingVends;
+        $productMapping->save();
 
         $this->syncProductMappingChannels($productMapping);
 
