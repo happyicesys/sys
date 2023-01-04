@@ -11,13 +11,13 @@
 
 <script setup>
     import Vue3ChartJs from '@j-t-mcc/vue3-chartjs';
-import moment from 'moment';
-    import { ref } from 'vue';
+    import { ref } from 'vue'
 
     const props = defineProps({
         type: String,
         labels: Object,
         values: Object,
+        options: Object,
         startDatetime: [String, Object],
         endDatetime: [String, Object],
     });
@@ -25,11 +25,12 @@ import moment from 'moment';
     const data = ref({
                     labels: props.labels,
                     datasets: [{
-                        label: 'Temp',
+                        label: 'Temps',
                         data: props.values,
                         borderColor: '#E6676B',
                         backgroundColor: '#E6676B',
                         tension: 0.1,
+                        spanGaps: true
                     }]
                 })
     const options = ref({
@@ -38,11 +39,6 @@ import moment from 'moment';
                             radius: 2
                         }
                     },
-                    // scales: {
-                    //     x: {
-                    //         suggestedMin: moment(props.startDatetime).startOf('hour').toString(),
-                    //         suggestedMax: moment(props.endDatetime).endOf('hour').toString(),
-                    //     }
-                    // }
+                    ...props.options,
                 })
 </script>

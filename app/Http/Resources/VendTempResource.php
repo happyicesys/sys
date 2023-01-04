@@ -16,9 +16,8 @@ class VendTempResource extends JsonResource
     public function toArray($request)
     {
         return [
-            'id' => $this->id,
             'value' => $this->value/ 10,
-            'created_at' => Carbon::parse($this->created_at)->format('H:i (d)'),
+            'created_at' => Carbon::parse($this->created_at)->format('Y-m-d\TH:i:sP'),
         ];
     }
 }

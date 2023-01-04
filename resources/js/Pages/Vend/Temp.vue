@@ -124,7 +124,14 @@
                 <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
                     <div class="inline-block min-w-full py-2 align-middle">
                         <div class="shadow-sm ring-1 ring-black ring-opacity-5">
-                            <Graph type="line" :labels="vendTime" :values="vendTemps" :startDatetime="startDate" :endDatetime="endDate"></Graph>
+                            <Graph
+                                type="line"
+                                :labels="vendTimesData"
+                                :values="vendTempsData"
+                                :startDatetime="startDate"
+                                :endDatetime="endDate"
+                                :options="graphOptions"
+                            ></Graph>
                         </div>
                     </div>
                 </div>
@@ -140,11 +147,12 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatetimePicker from '@/Components/DatetimePicker.vue';
 import Graph from '@/Components/Graph.vue';
-import MultiSelect from '@/Components/MultiSelect.vue';
+// import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onBeforeMount } from 'vue';
 import { Inertia } from '@inertiajs/inertia';
 import { Head } from '@inertiajs/inertia-vue3';
+import moment from 'moment';
 
 const props = defineProps({
     duration: [Number, String],
@@ -165,15 +173,86 @@ const filters = ref({
     datetime_from: props.startDate ? new Date(props.startDate) : new Date(),
     datetime_to: props.endDate ? new Date(props.endDate) : new Date(),
     duration: props.duration,
-    // showDurationFilters: this.showDurationFilters,
 })
-const vendTemps = ref(props.vendTempsObj.data.map(a => a.value))
-const vendTime = ref(props.vendTempsObj.data.map(a => a.created_at))
+const graphOptions = ref({
+        // plugins: {
+        //     tooltip: {
+        //         callbacks: {
+        //             label: function(context) {
+        //                 let label = context.dataset.label || '';
+
+        //                 if (label) {
+        //                     label += ': ' + context.parsed.x;
+        //                 }
+        //                 // if (context.parsed.x !== null) {
+        //                 //     label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.x);
+        //                 // }
+        //                 return label;
+        //             }
+        //         }
+        //     }
+        // }
+})
+const vendTempsData = ref()
+const vendTimesData = ref()
 const vend = ref(props.vendObj.data)
 const vendOptions = ref([])
+const vendTemps = ref()
 
+onBeforeMount(() => {
+    vendTemps.value = props.vendTempsObj.data
+    // vendTempsData.value = vendTemps.value.map(a => a.value)
+    // vendTimesData.value = vendTemps.value.map(a => moment(a.created_at).format('HH(DD)'))
 
-onMounted(() => {
+    let processList = []
+    for(let i = 0; i < vendTemps.value.length; i++) {
+        if(i > 0 && Math.abs(moment(vendTemps.value[i].created_at).diff(moment(vendTemps.value[i-1].created_at), 'minutes')) > 5) {
+            processList.push({
+                past: vendTemps.value[i-1],
+                current: vendTemps.value[i]
+            })
+        }
+        // if(
+        //     i > 0
+        //     && Math.abs(moment(vendTemps.value[i].created_at).diff(moment(vendTemps.value[i-1].created_at), 'minutes')) > 10
+        // ) {
+        //     let tempTimer = moment(vendTemps.value[i - 1].created_at).add(5, 'minutes')
+        //     do {
+        //         vendTemps.value.push({
+        //             value: 'NaN',
+        //             created_at: tempTimer.format(),
+        //         })
+        //         tempTimer = tempTimer.add(10, 'minutes')
+        //     }while (Math.abs(moment(vendTemps.value[i].created_at).diff(tempTimer, 'minutes')) > 10)
+        // }
+
+    }
+    if(processList.length) {
+        processList.forEach((value, index) => {
+            let tempTimer = moment(value.past.created_at).add(5, 'minutes')
+            do {
+                vendTemps.value.push({
+                    value: 'NaN',
+                    created_at: tempTimer.format(),
+                })
+                tempTimer = tempTimer.add(5, 'minutes')
+            }while (moment(value.current.created_at).diff(tempTimer, 'minutes')> 5)
+        })
+    }
+
+    if(vendTemps.value[vendTemps.value.length - 1] && moment().diff(moment(vendTemps.value[vendTemps.value.length - 1].created_at), 'minutes') > 5) {
+            let tempTimer = moment(vendTemps.value[vendTemps.value.length - 1].created_at).add(5, 'minutes')
+            do {
+                vendTemps.value.push({
+                    value: 'NaN',
+                    created_at: tempTimer.format(),
+                })
+                tempTimer = tempTimer.add(5, 'minutes')
+            }while (moment().diff(tempTimer, 'minutes') > 5)
+    }
+    vendTemps.value.sort((a,b) => moment(a.created_at).unix() - moment(b.created_at).unix())
+    vendTempsData.value = vendTemps.value.map(a => a.value)
+    vendTimesData.value = vendTemps.value.map(a => moment(a.created_at).format('HH:mm (DD)'))
     vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
   })
 

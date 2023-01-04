@@ -232,4 +232,40 @@ class VendController extends Controller
 
         return redirect()->route('vends');
     }
+
+    private function processVendTempTiming($vendTemps)
+    {
+        if($vendTemps) {
+            for($i=0; $i<count($vendTemps); $i++) {
+                if($i > 0) {
+                    $past = Carbon::parse($vendTemps[$i - 1]['created_at']);
+                    $current = Carbon::parse($vendTemps[$i]['created_at']);
+                    $temPast = null;
+                    $temCurrent = null;
+                    if($past->diffInMinutes($current) >= 10) {
+                        $temPast = $past;
+                        $temCurrent = $temPast->copy()->addMinutes(10);
+                        while($temCurrent->diffInMinutes($current) >= 10) {
+                            $vendTemps->push([
+                                'value' => 'NaN',
+                                'created_at' => $temCurrent->copy()->jsonSerialize()
+                            ]);
+                            $temPast = $temCurrent;
+                            $temCurrent = $temCurrent->copy()->addMinutes(10);
+                        }
+                    }
+                    if($i == count($vendTemps) - 1 and $current->diffInMinutes(Carbon::now()) >= 10) {
+                        $temCurrent = $current;
+                        while($temCurrent->diffInMinutes(Carbon::now()) >= 10) {
+                            $vendTemps->push([
+                                'value' => 'NaN',
+                                'created_at' => $temCurrent->copy()->jsonSerialize()
+                            ]);
+                            $temCurrent = $temCurrent->copy()->addMinutes(10);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
