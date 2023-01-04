@@ -87,12 +87,7 @@ class Vend extends Model
 
     public function vendTemps()
     {
-        return $this->hasMany(VendTemp::class)->where('type', VendTemp::TYPE_CHAMBER);
-    }
-
-    public function vendTempsEvaporator()
-    {
-        return $this->hasMany(VendTemp::class)->where('type', VendTemp::TYPE_EVAPORATOR);
+        return $this->hasMany(VendTemp::class);
     }
 
     public function vendSevenDaysTransactions()

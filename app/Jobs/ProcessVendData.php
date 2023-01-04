@@ -199,6 +199,22 @@ class ProcessVendData implements ShouldQueue
                         ]);
                     }
 
+                    if(isset($input['t3'])) {
+                        $temp3 = $input['t3'];
+                        $vend->vendTemps()->create([
+                            'value' => $temp3,
+                            'type' => VendTemp::TYPE_THREE,
+                        ]);
+                    }
+
+                    if(isset($input['t4'])) {
+                        $temp4 = $input['t4'];
+                        $vend->vendTemps()->create([
+                            'value' => $temp4,
+                            'type' => VendTemp::TYPE_FOUR,
+                        ]);
+                    }
+
                     // $prevIsKeepVendTemp = VendTemp::where('vend_id', $vend->id)->where('is_keep', true)->latest()->first();
 
                     // if(!$prevIsKeepVendTemp or ($prevIsKeepVendTemp and $prevIsKeepVendTemp->created_at->addMinutes(5)->isPast())) {

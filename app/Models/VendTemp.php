@@ -12,6 +12,8 @@ class VendTemp extends Model
     const TEMPERATURE_ERROR = 32767;
     const TYPE_CHAMBER = 1;
     const TYPE_EVAPORATOR = 2;
+    const TYPE_THREE = 3;
+    const TYPE_FOUR = 4;
 
     protected $fillable = [
         'vend_id',

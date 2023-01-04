@@ -94,21 +94,15 @@ class VendController extends Controller
         if($request->datetime_to) {
             $endDate = Carbon::parse($request->datetime_to)->setTimezone('Asia/Singapore');
         }
-        if($type == VendTemp::TYPE_CHAMBER) {
-            $typeName = 'Temp 1';
-            $vendTemps = $vend
-            ->vendTemps()
-            ->where('vend_temps.created_at', '>=', $startDate)
-            ->where('vend_temps.created_at', '<=', $endDate)
-            ->get();
-        }else if($type == VendTemp::TYPE_EVAPORATOR) {
-            $typeName = 'Temp 2';
-            $vendTemps = $vend
-            ->vendTempsEvaporator()
-            ->where('vend_temps.created_at', '>=', $startDate)
-            ->where('vend_temps.created_at', '<=', $endDate)
-            ->get();
-        }
+
+        $vendTemps = $vend
+        ->vendTemps()
+        ->where('type', $type)
+        ->where('vend_temps.created_at', '>=', $startDate)
+        ->where('vend_temps.created_at', '<=', $endDate)
+        ->get();
+
+        $typeName = 'Temp '.$type;
 
         return Inertia::render('Vend/Temp', [
             'duration' => $duration,
