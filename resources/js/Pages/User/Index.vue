@@ -97,6 +97,9 @@
                           <TableHead>
                               Username
                           </TableHead>
+                          <TableHead>
+                              Role
+                          </TableHead>
                           <TableHeadSort modelName="operator_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_id')">
                               Belongs to Operator
                         </TableHeadSort>
@@ -118,6 +121,9 @@
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
                               {{ user.username }}
+                          </TableData>
+                          <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
+                              {{ user.roles[0] ? user.roles[0].name : null }}
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
                               {{ user.operator.name }}
@@ -161,6 +167,7 @@
       v-if="showFormModal"
       :user="user"
       :operators="operators"
+      :roles="roles"
       :type="type"
       :showModal="showFormModal"
       @modalClose="onModalClose"
@@ -188,6 +195,7 @@ const props = defineProps({
   users: Object,
   countries: Object,
   operators: Object,
+  roles: Object,
 })
 
 const filters = ref({

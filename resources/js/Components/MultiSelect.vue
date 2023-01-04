@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="overflow-visible">
     <Multiselect
       :modelValue="modelValue"
       :canClear="canClear"
@@ -15,6 +15,7 @@
       @select="onSelected"
       @deselect="onDeselected"
       :clearOnBlur="clearOnBlur"
+      :openDirection="openDirection"
     />
     <!-- @select="$emit('update:modelValue', $event)" -->
   </div>
@@ -34,6 +35,10 @@
     clearOnBlur: {
       type: [Boolean, String],
       default: true,
+    },
+    openDirection: {
+      type: String,
+      default: 'bottom',
     },
     label: String,
     mode: String,
@@ -72,8 +77,16 @@
 <style>
   .multiselect {
     width: 100% !important;
+    overflow: visible;
   }
   .multiselect-tags {
     overflow-x: scroll;
+  }
+  .multiselect--active {
+    z-index: 20;
+  }
+  .multiselect__content-wrapper {
+    z-index: 20;
+    position: static;
   }
 </style>

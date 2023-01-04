@@ -54,6 +54,7 @@ class DatabaseSeeder extends Seeder
             // RoleSeeder::class,
             // ThaiCountrySeeder::class,
             // OperatorSeeder::class,
+            OperaterRoleSeeder::class,
         ]);
     }
 }

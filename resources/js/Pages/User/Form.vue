@@ -37,7 +37,7 @@
                 Password {{type == 'update' ? '(Override)' : ''}}
               </FormInput>
             </div>
-            <div class="col-span-12 sm:col-span-6">
+            <div class="col-span-12 sm:col-span-6" v-if="!operatorRole">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Role
               </label>
@@ -64,10 +64,13 @@
                 valueProp="id"
                 label="name"
                 placeholder="Select"
-                open-direction="bottom"
+                open-direction="top"
                 class="mt-1"
               >
               </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.operator_id">
+                {{ form.errors.operator_id }}
+              </div>
             </div>
           </div>
           <div class="sm:col-span-6">
@@ -103,7 +106,7 @@ import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue'
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
-import { useForm } from '@inertiajs/inertia-vue3';
+import { useForm, usePage } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue'
 
 const props = defineProps({
@@ -122,11 +125,12 @@ const form = ref(
 )
 const operatorOptions = ref([])
 const roleOptions = ref([])
+const operatorRole = usePage().props.value.auth.operatorRole
 
 onMounted(() => {
   form.value = props.user ? useForm({...getDefaultForm(), ...props.user}) : useForm(getDefaultForm())
   operatorOptions.value = props.operators.data
-  roleOptions.value = props.roles
+  roleOptions.value = props.roles.data
 })
 
 function getDefaultForm() {
@@ -136,6 +140,7 @@ function getDefaultForm() {
     username: '',
     password: '',
     operator_id: '',
+    role_id: '',
   }
 }
 
@@ -147,6 +152,7 @@ function submit() {
     .transform((data) => ({
         ...data,
         operator_id: data.operator_id.id,
+        role_id: data.role_id.id,
     }))
     .post('/users/create', {
       onSuccess: () => {
@@ -162,6 +168,7 @@ function submit() {
       .transform((data) => ({
         ...data,
         operator_id: data.operator_id.id,
+        role_id: data.role_id.id,
       }))
       .post('/users/' + form.value.id + '/update', {
       onSuccess: () => {

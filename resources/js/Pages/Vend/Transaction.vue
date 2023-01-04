@@ -73,7 +73,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="!operatorRole">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Category
                 </label>
@@ -90,7 +90,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="!operatorRole">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Group
                 </label>
@@ -107,18 +107,17 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="!operatorRole">
                 <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code">
                     Cust ID
                 </SearchInput>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="!operatorRole">
                 <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name">
                     Cust Name
                 </SearchInput>
             </div>
           </div>
-
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
                 <div class="mt-3">
@@ -302,7 +301,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Inertia } from '@inertiajs/inertia';
-import { Head } from '@inertiajs/inertia-vue3';
+import { Head, usePage } from '@inertiajs/inertia-vue3';
 import axios from 'axios';
 
 const props = defineProps({
@@ -317,6 +316,7 @@ const props = defineProps({
 })
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
+const operatorRole = usePage().props.value.auth.operatorRole
 
 onMounted(() => {
     vendOptions.value = props.vends.data.map((vend) => {return {id: vend.id, code: vend.code}})

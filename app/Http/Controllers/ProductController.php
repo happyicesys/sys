@@ -103,7 +103,10 @@ class ProductController extends Controller
             'name' => 'required',
         ]);
 
-        $product = Product::create($request->all());
+        $product = new Product();
+        $product = $product->fill($request->all());
+        $product->operator_id = auth()->user()->operator_id;
+        $product->save();
 
         if($request->hasFile('thumbnail')){
             $request->validate([

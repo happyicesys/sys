@@ -159,7 +159,7 @@
                   Back
                 </span>
               </Button>
-              <Button type="button" class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1" @click="replicateProductMapping()">
+              <Button type="button" class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1" v-if="form.id" @click="replicateProductMapping()">
                 <DocumentDuplicateIcon class="w-4 h-4"></DocumentDuplicateIcon>
                 <span>
                   Replicate

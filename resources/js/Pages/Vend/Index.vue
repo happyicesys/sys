@@ -71,13 +71,13 @@
                     >
                     </MultiSelect> -->
                 </div>
-                <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code">
+                <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="!operatorRole">
                     Cust ID
                 </SearchInput>
-                <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name">
+                <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="!operatorRole">
                     Cust Name
                 </SearchInput>
-                <div>
+                <div v-if="!operatorRole">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Category
                     </label>
@@ -94,7 +94,7 @@
                     >
                     </MultiSelect>
                 </div>
-                <div>
+                <div v-if="!operatorRole">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Group
                     </label>
@@ -127,7 +127,7 @@
                     >
                     </MultiSelect>
                 </div>
-                <div>
+                <div v-if="!operatorRole">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Customer Binded?
                     </label>
@@ -599,7 +599,7 @@
   import TableHeadSort from '@/Components/TableHeadSort.vue';
   import { ref, onMounted } from 'vue';
   import { Inertia } from '@inertiajs/inertia';
-  import { Head } from '@inertiajs/inertia-vue3';
+  import { Head, usePage } from '@inertiajs/inertia-vue3';
 
   const props = defineProps({
     categories: Object,
@@ -639,6 +639,7 @@
   const vend = ref()
   const vendChannelErrorsOptions = ref([])
   const vendOptions = ref([])
+  const operatorRole = usePage().props.value.auth.operatorRole
 
   onMounted(() => {
     vendChannelErrorsOptions.value = [
@@ -669,7 +670,7 @@
     ]
     filters.value.is_online = booleanOptions.value[0]
     filters.value.is_sensor = enableOptions.value[0]
-    filters.value.is_binded_customer = booleanOptions.value[1]
+    filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
     vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
   })
 

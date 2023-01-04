@@ -22,6 +22,7 @@ use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
+use App\Traits\OperatorAccess;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -30,6 +31,8 @@ use Inertia\Inertia;
 
 class VendController extends Controller
 {
+    use OperatorAccess;
+
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;

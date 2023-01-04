@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\OperatorVendFilterScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,11 @@ use Illuminate\Database\Eloquent\Model;
 class Vend extends Model
 {
     use HasFactory;
+
+    protected static function booted()
+    {
+        static::addGlobalScope(new OperatorVendFilterScope);
+    }
 
     protected $casts = [
         'last_updated_at' => 'datetime',
@@ -95,7 +101,15 @@ class Vend extends Model
         return $this->hasMany(VendTransaction::class)
                     ->where('vend_transaction_json->ISOK', 1)
                     ->whereDate('transaction_datetime', '<=', Carbon::today())
-                    ->whereDate('transaction_datetime', '>=', Carbon::today()->subDays(7))
+                    ->whereDate('transaction_datetime', '>=', Carbon::today()->subDays(6))
+                    ->whereNull('vend_channel_error_id');
+    }
+
+    public function vendYesterdayTransactions()
+    {
+        return $this->hasMany(VendTransaction::class)
+                    ->where('vend_transaction_json->ISOK', 1)
+                    ->whereDate('transaction_datetime', '=', Carbon::yesterday())
                     ->whereNull('vend_channel_error_id');
     }
 
@@ -157,6 +171,7 @@ class Vend extends Model
         $isOnline = $request->is_online != null ? $request->is_online : 'all';
         $isSensor = $request->is_sensor != null ? $request->is_sensor : 'all';
         $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
+        $isBindedCustomer = auth()->user()->hasRole('operator') ? 'false' : $isBindedCustomer;
         // $countryId = $request->country_id != null ? (int)$request->country_id : 1;
         $sortKey = $request->sortKey ? $request->sortKey : 'vends.is_online';
         $sortBy = $request->sortBy ? $request->sortBy : false;

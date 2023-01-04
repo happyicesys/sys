@@ -67,7 +67,10 @@ class ProductMappingController extends Controller
             'name' => 'required',
         ]);
 
-        ProductMapping::create($request->all());
+        $productMapping = new ProductMapping();
+        $productMapping->fill($request->all());
+        $productMapping->operator_id = auth()->user()->operator_id;
+        $productMapping->save();
 
         return redirect()->route('product-mappings');
     }

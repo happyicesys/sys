@@ -21,17 +21,22 @@ class UserController extends Controller
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $sortKey = $request->sortKey ? $request->sortKey : 'name';
         $sortBy = $request->sortBy ? $request->sortBy : true;
+        $operatorId = auth()->user()->operator_id == 1 ? null : auth()->user()->operator_id;
 
         return Inertia::render('User/Index', [
             'users' => UserResource::collection(
                 User::with([
-                    'operator'
+                    'operator',
+                    'roles'
                 ])
                 ->when($request->name, function($query, $search) {
                     $query->where('name', 'LIKE', "%{$search}%");
                 })
                 ->when($request->email, function($query, $search) {
                     $query->where('email', 'LIKE', "%{$search}%");
+                })
+                ->when($operatorId, function($query, $search) {
+                    $query->where('operator_id', $search);
                 })
                 ->when($sortKey, function($query, $search) use ($sortBy) {
                     $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
@@ -42,9 +47,7 @@ class UserController extends Controller
             'operators' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
-            'roles' => RoleResource::collection(
-                Role::orderBy('name')->get()
-            ),
+            'roles' => RoleResource::collection(Role::orderBy('name')->get()),
         ]);
     }
 
@@ -55,13 +58,17 @@ class UserController extends Controller
             'email' => 'nullable|email|max:255|required_without:username|unique:users,email',
             'username' => 'nullable|required_without:email|unique:users,username',
             'password' => 'required',
+            'operator_id' => 'required',
         ]);
         $user = new User();
         $user->fill($request->all());
         $user->profile_id = 1;
         $user->save();
 
-        // $user = User::create($request->all());
+        $role = Role::find($request->role_id);
+        if($role) {
+            $user->assignRole($role->name);
+        }
 
         return redirect()->route('users');
     }
@@ -115,6 +122,12 @@ class UserController extends Controller
         $user = User::findOrFail($userId);
 
         $user->update($validated);
+
+        $role = Role::find($request->role_id);
+        if($role) {
+            $user->roles()->detach();
+            $user->assignRole($role->name);
+        }
 
         return redirect()->route('users');
     }
