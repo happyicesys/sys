@@ -171,7 +171,7 @@ class Vend extends Model
         $isOnline = $request->is_online != null ? $request->is_online : 'all';
         $isSensor = $request->is_sensor != null ? $request->is_sensor : 'all';
         $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
-        $isBindedCustomer = auth()->user()->hasRole('operator') ? 'false' : $isBindedCustomer;
+        $isBindedCustomer = auth()->user()->hasRole('operator') ? 'all' : $isBindedCustomer;
         // $countryId = $request->country_id != null ? (int)$request->country_id : 1;
         $sortKey = $request->sortKey ? $request->sortKey : 'vends.is_online';
         $sortBy = $request->sortBy ? $request->sortBy : false;
@@ -217,6 +217,7 @@ class Vend extends Model
             });
         })
         ->when($isBindedCustomer, function($query, $search) {
+            // dd($search);
             if($search != 'all') {
                 if($search == 'true') {
                     $query->has('latestVendBinding');

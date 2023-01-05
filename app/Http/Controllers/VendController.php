@@ -22,7 +22,7 @@ use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
-use App\Traits\OperatorAccess;
+use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -31,7 +31,7 @@ use Inertia\Inertia;
 
 class VendController extends Controller
 {
-    use OperatorAccess;
+    use GetUserTimezone;
 
     public function index(Request $request)
     {
@@ -89,13 +89,13 @@ class VendController extends Controller
         // dd($request->all());
         $vend = Vend::with('latestVendBinding.customer')->findOrFail($vendId);
         // dd($duration);
-        $startDate =  $request->durationType == 'day' || !$request->durationType ? Carbon::now()->subDays($duration) : Carbon::now()->subHours($duration);
-        $endDate =  Carbon::now();
+        $startDate =  $request->durationType == 'day' || !$request->durationType ? Carbon::now()->setTimezone($this->getUserTimezone())->subDays($duration) : Carbon::now()->setTimezone($this->getUserTimezone())->subHours($duration);
+        $endDate =  Carbon::now()->setTimezone($this->getUserTimezone());
         if($request->datetime_from) {
-            $startDate = Carbon::parse($request->datetime_from)->setTimezone('Asia/Singapore');
+            $startDate = Carbon::parse($request->datetime_from)->setTimezone($this->getUserTimezone());
         }
         if($request->datetime_to) {
-            $endDate = Carbon::parse($request->datetime_to)->setTimezone('Asia/Singapore');
+            $endDate = Carbon::parse($request->datetime_to)->setTimezone($this->getUserTimezone());
         }
 
         $vendTemps = $vend
