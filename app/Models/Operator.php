@@ -10,10 +10,10 @@ class Operator extends Model
 {
     use HasFactory;
 
-    // protected static function booted()
-    // {
-    //     static::addGlobalScope(new OperatorFilterScope);
-    // }
+    protected static function booted()
+    {
+        static::addGlobalScope(new OperatorFilterScope);
+    }
 
     protected $fillable = [
         'code',

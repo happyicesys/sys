@@ -11,10 +11,10 @@ class Vend extends Model
 {
     use HasFactory;
 
-    // protected static function booted()
-    // {
-    //     static::addGlobalScope(new OperatorVendFilterScope);
-    // }
+    protected static function booted()
+    {
+        static::addGlobalScope(new OperatorVendFilterScope);
+    }
 
     protected $casts = [
         'last_updated_at' => 'datetime',

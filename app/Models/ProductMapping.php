@@ -10,10 +10,10 @@ class ProductMapping extends Model
 {
     use HasFactory;
 
-    // protected static function booted()
-    // {
-    //     static::addGlobalScope(new OperatorProductFilterScope);
-    // }
+    protected static function booted()
+    {
+        static::addGlobalScope(new OperatorProductFilterScope);
+    }
 
     protected $casts = [
         'product_mapping_items_json' => 'json',

@@ -14,6 +14,7 @@
         <div class="flex justify-end">
           <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           @click="onCreateClicked()"
+          v-if="!operatorRole"
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
@@ -119,7 +120,7 @@
                         {{ operator.timezone.name }}
                       </TableData>
                       <TableData :currentIndex="operatorIndex" :totalLength="operators.length" inputClass="text-center">
-                        <div class="flex justify-center space-x-1">
+                        <div class="flex justify-center space-x-1" v-if="!operatorRole">
                           <Button
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                             @click="onEditClicked(operator)"
@@ -179,11 +180,11 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head } from '@inertiajs/inertia-vue3';
+import { Head, usePage } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue';
 import { Inertia } from '@inertiajs/inertia'
 
-defineProps({
+const props = defineProps({
   countries: Object,
   operators: Object,
   timezones: [Array, Object],
@@ -200,6 +201,7 @@ const showModal = ref(false)
 const operator = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
+const operatorRole = usePage().props.value.auth.operatorRole
 
 onMounted(() => {
   numberPerPageOptions.value = [

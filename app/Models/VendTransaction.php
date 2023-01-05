@@ -11,10 +11,10 @@ class VendTransaction extends Model
 {
     use HasFactory;
 
-    // protected static function booted()
-    // {
-    //     static::addGlobalScope(new OperatorTransactionFilterScope);
-    // }
+    protected static function booted()
+    {
+        static::addGlobalScope(new OperatorTransactionFilterScope);
+    }
 
     protected $casts = [
         'transaction_datetime' => 'datetime',

@@ -10,10 +10,10 @@ class Product extends Model
 {
     use HasFactory;
 
-    // protected static function booted()
-    // {
-    //     static::addGlobalScope(new OperatorProductFilterScope);
-    // }
+    protected static function booted()
+    {
+        static::addGlobalScope(new OperatorProductFilterScope);
+    }
 
     protected $fillable = [
         'code',

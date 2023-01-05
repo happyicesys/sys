@@ -17,6 +17,7 @@ class OperatorTransactionFilterScope implements Scope
      */
     public function apply(Builder $builder, Model $model)
     {
+      if(auth()->check()) {
         $operatorId = auth()->user()->operator_id;
         $isHappyIce = $operatorId == 1 ? true : false;
         if($isHappyIce) {
@@ -27,5 +28,6 @@ class OperatorTransactionFilterScope implements Scope
             $builder->where('operators.id', $operatorId);
           });
         }
+      }
     }
 }

@@ -17,13 +17,15 @@ class OperatorProductFilterScope implements Scope
      */
     public function apply(Builder $builder, Model $model)
     {
-      $operatorId = auth()->user()->operator_id;
-      $isHappyIce = $operatorId == 1 ? true : false;
+      if(auth()->check()) {
+        $operatorId = auth()->user()->operator_id;
+        $isHappyIce = $operatorId == 1 ? true : false;
         if($isHappyIce) {
           $operatorId = null;
         }
         if($operatorId) {
           $builder->where('operator_id', $operatorId);
         }
+      }
     }
 }
