@@ -124,6 +124,26 @@
                 <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
                     <div class="inline-block min-w-full py-2 align-middle">
                         <div class="shadow-sm ring-1 ring-black ring-opacity-5">
+                            <div class="p-2 flex space-x-1">
+                                <span class="inline-flex rounded-md shadow-sm">
+                                    <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
+                                    <input type="checkbox" value="2" v-model="checkedTempType" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                        <label class="pl-2">T2</label>
+                                    </span>
+                                </span>
+                                <span class="inline-flex rounded-md shadow-sm ">
+                                    <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
+                                    <input type="checkbox" value="3" v-model="checkedTempType" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                        <label class="pl-2">T3</label>
+                                    </span>
+                                </span>
+                                <span class="inline-flex rounded-md shadow-sm ">
+                                    <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
+                                    <input type="checkbox" value="4" v-model="checkedTempType" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                        <label class="pl-2">T4</label>
+                                    </span>
+                                </span>
+                            </div>
                             <Graph
                                 type="line"
                                 :labels="vendTimesData"
@@ -198,6 +218,7 @@ const vendTimesData = ref()
 const vend = ref(props.vendObj.data)
 const vendOptions = ref([])
 const vendTemps = ref()
+const checkedTempType = ref([])
 
 onBeforeMount(() => {
     vendTemps.value = props.vendTempsObj.data

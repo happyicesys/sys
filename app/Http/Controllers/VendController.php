@@ -130,6 +130,7 @@ class VendController extends Controller
         $vendTransactions =
                 VendTransaction::with([
                     'paymentMethod',
+                    'product',
                     'vend',
                     'vend.latestVendBinding.customer.category.categoryGroup',
                     'vendChannel',
