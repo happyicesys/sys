@@ -41,6 +41,7 @@ class HandleInertiaRequests extends Middleware
                 'operatorRole' => $request->user() ? $request->user()->hasRole('operator') : null,
                 'profile' => $request->user() ? $request->user()->profile : null,
                 'profile.baseCurrency' => $request->user() ? $request->user()->profile->baseCurrency : null,
+                'timezone' => $request->user() and $request->user()->operator ? $request->user()->operator->timezone : 'Asia/Singapore',
             ],
             'ziggy' => function () use ($request) {
                 return array_merge((new Ziggy)->toArray(), [

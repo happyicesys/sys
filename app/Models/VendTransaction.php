@@ -6,10 +6,11 @@ use App\Models\Scopes\OperatorTransactionFilterScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\GetUserTimezone;
 
 class VendTransaction extends Model
 {
-    use HasFactory;
+    use GetUserTimezone, HasFactory;
 
     protected static function booted()
     {
