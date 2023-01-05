@@ -28,7 +28,7 @@ class VendTransactionExport implements FromView, WithColumnFormatting, WithStyle
     {
         return [
             'B' => NumberFormat::FORMAT_NUMBER,
-            'G' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1,
+            'H' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1,
         ];
     }
 

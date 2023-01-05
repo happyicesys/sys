@@ -7,6 +7,7 @@
       <th>Vend ID</th>
       <th>Customer Name</th>
       <th>Channel</th>
+      <th>Product</th>
       <th>Amount</th>
       <th>Payment Method</th>
       <th>Error</th>
@@ -35,6 +36,9 @@
           </td>
           <td>
             {{ $vendTransaction->vendChannel->code }}
+          </td>
+          <td>
+            {{ $vendTransaction->product ? $vendTransaction->product->code.' - '.$vendTransaction->product->name : '' }}
           </td>
           <td>
             {{ $vendTransaction->amount/ 100 }}

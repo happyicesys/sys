@@ -199,6 +199,7 @@ class VendController extends Controller
             'vend.latestVendBinding.customer.category.categoryGroup',
             'vendChannel',
             'vendChannelError',
+            'product',
             ])
             ->filterTransactionIndex($request)
             ->get();
