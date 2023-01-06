@@ -30,24 +30,8 @@ class DeleteVendTemp extends Command
      */
     public function handle()
     {
-        VendTemp::whereDate('created_at', '<=', Carbon::today()->subDays(30))->delete();
+        // VendTemp::whereDate('created_at', '<=', Carbon::today()->subDays(30))->delete();
 
-        $vends = Vend::with(['vendTemps' => function($query) {
-            $query->whereDate('created_at', '<=', Carbon::today()->subDays(14));
-        }])->has('vendTemps')->orderBy('code')->get();
-
-        if($vends) {
-            foreach($vends as $vend) {
-                $firstIsKeep = $vend->vendTemp()->latest()->where('is_keep', true)->first();
-                if(!$firstIsKeep) {
-                    $firstIsKeep = $vend->vendTemp()->latest()->first();
-                    $firstIsKeep->is_keep = true;
-                    $firstIsKeep->save();
-                }
-
-            }
-        }
-
-        VendTemp::whereDate('created_at', '<=', Carbon::today()->subDays(14))->where('is_keep', false)->delete();
+        VendTemp::whereDate('created_at', '<=', Carbon::today()->subDays(14))->delete();
     }
 }

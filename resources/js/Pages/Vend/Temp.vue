@@ -252,12 +252,27 @@ function onCustomDatetimeSearched() {
         vend.value.id +
         '/temp/' +
         props.type.value
-    , filters.value, {
+    , {...filters.value, types: types.value}, {
         preserveScroll: true,
     })
 }
 
 function onDurationFilterClicked(duration, durationType) {
+    // Inertia.get(
+    //     '/vends/' +
+    //     vend.value.id +
+    //     '/temp/' +
+    //     props.type.value
+    // , {
+    //     ...filters.value,
+    //     types: types.value,
+    //     duration: duration,
+    //     durationType: durationType
+    // }, {
+    //     preserveScroll: true,
+    // })
+    // forceRerender()
+
     Inertia.get('/vends/' + vend.value.id + '/temp/'+ props.type.value +'?duration=' + duration + '&durationType=' + durationType)
 }
 

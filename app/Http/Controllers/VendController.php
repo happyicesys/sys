@@ -54,7 +54,7 @@ class VendController extends Controller
                     // 'latestVendBinding.customer.addresses',
                     'latestVendBinding.customer.deliveryAddress',
                     'latestVendBinding.customer.category.categoryGroup',
-                    'vendSevenDaysTransactions',
+                    // 'vendSevenDaysTransactions',
                     ])
                     ->leftJoin('vend_bindings', function($query) {
                         $query->on('vend_bindings.vend_id', '=', 'vends.id')
