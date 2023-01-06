@@ -377,7 +377,7 @@
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <!-- <span :class="[
+                                <span :class="[
                                     vend.salesData.today.sales >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{vend.salesData.today.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}
@@ -393,8 +393,8 @@
                                     vend.salesData.sevenDays.sales > 200 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{vend.salesData.sevenDays.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.salesData.sevenDays.count.toLocaleString(undefined, {minimumFractionDigits: 0})}})
-                                </span> -->
-                                <span :class="[
+                                </span>
+                                <!-- <span :class="[
                                     vend.vendTransactionTotalsJson['today_amount'] >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{vend.vendTransactionTotalsJson['today_amount'].toLocaleString(undefined, {minimumFractionDigits: 2})}}
@@ -410,7 +410,7 @@
                                     vend.vendTransactionTotalsJson['seven_days_amount'] > 200 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{vend.vendTransactionTotalsJson['seven_days_amount'].toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.vendTransactionTotalsJson['seven_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
-                                </span>
+                                </span> -->
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <!-- <div class="grid grid-cols-[90px_minmax(90px,_1fr)_90px] gap-1"> -->
