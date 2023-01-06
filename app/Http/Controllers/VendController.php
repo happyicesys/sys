@@ -6,6 +6,7 @@ use App\Exports\VendTransactionExport;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CountryResource;
+use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendChannelErrorResource;
@@ -16,6 +17,7 @@ use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Country;
 use App\Models\Customer;
+use App\Models\Operator;
 use App\Models\PaymentMethod;
 use App\Models\Vend;
 use App\Models\VendChannelError;
@@ -46,7 +48,10 @@ class VendController extends Controller
                 CategoryGroup::where('classname', $className)->orderBy('name')->get()
             ),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
-            'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
+            // 'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::all()
+            ),
             'vends' => VendResource::collection(
                 Vend::with([
                     'latestVendBinding',
@@ -54,7 +59,7 @@ class VendController extends Controller
                     // 'latestVendBinding.customer.addresses',
                     'latestVendBinding.customer.deliveryAddress',
                     'latestVendBinding.customer.category.categoryGroup',
-                    'vendSevenDaysTransactions',
+                    // 'vendSevenDaysTransactions',
                     ])
                     ->leftJoin('vend_bindings', function($query) {
                         $query->on('vend_bindings.vend_id', '=', 'vends.id')
@@ -75,7 +80,7 @@ class VendController extends Controller
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),
-            'vendOptions' => VendResource::collection(Vend::orderBy('code')->get()),
+            // 'vendOptions' => VendResource::collection(Vend::orderBy('code')->get()),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
         ]);
     }
@@ -155,7 +160,10 @@ class VendController extends Controller
             'categoryGroups' => CategoryGroupResource::collection(
                 CategoryGroup::where('classname', $className)->orderBy('name')->get()
             ),
-            'vends' => VendResource::collection(Vend::orderBy('code')->get()),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::all()
+            ),
+            // 'vends' => VendResource::collection(Vend::orderBy('code')->get()),
             'vendTransactions' => VendTransactionResource::collection(
                 $vendTransactions
                 ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)

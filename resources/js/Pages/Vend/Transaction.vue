@@ -117,6 +117,22 @@
                     Cust Name
                 </SearchInput>
             </div>
+            <div v-if="!operatorRole">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Operator
+                </label>
+                <MultiSelect
+                    v-model="filters.operator"
+                    :options="operatorOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="full_name"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
           </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -318,6 +334,7 @@ import axios from 'axios';
 const props = defineProps({
     categories: Object,
     categoryGroups: Object,
+    operatorOptions: Object,
     paymentMethods: Object,
     vends: Object,
     vendTransactions: Object,
@@ -327,10 +344,11 @@ const props = defineProps({
 })
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
+
 const operatorRole = usePage().props.value.auth.operatorRole
 
 onMounted(() => {
-    vendOptions.value = props.vends.data.map((vend) => {return {id: vend.id, code: vend.code}})
+    // vendOptions.value = props.vends.data.map((vend) => {return {id: vend.id, code: vend.code}})
     vendChannelErrorOptions.value = [
         {'id': 'errors_only', 'desc': 'Errors Only'},
         ...props.vendChannelErrors.data.map((error) => {return {id: error.id, desc: error.desc}})
@@ -350,6 +368,7 @@ onMounted(() => {
 
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
+    operatorOptions.value = props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
 })
 
 const filters = ref({
@@ -360,6 +379,7 @@ const filters = ref({
     customer_code: '',
     customer_name: '',
     errors: [],
+    operator: '',
     paymentMethod: '',
     date_from: moment().subtract(1, 'days').toDate(),
     date_to: moment().toDate(),
@@ -367,7 +387,8 @@ const filters = ref({
     sortBy: false,
     numberPerPage: 100,
 })
-const vendOptions = ref([])
+const operatorOptions = ref([])
+// const vendOptions = ref([])
 const vendChannelErrorOptions = ref([])
 const loading = ref(false)
 const paymentMethodOptions = ref([])
@@ -385,6 +406,7 @@ function onExportExcelClicked() {
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             channel_code: filters.value.channel_code,
             errors: filters.value.errors.map((error) => { return error.id }),
+            operator_id: filters.value.operator.id,
             paymentMethod: filters.value.paymentMethod.id,
             numberPerPage: filters.value.numberPerPage.id,
         },
@@ -402,6 +424,7 @@ function onSearchFilterUpdated() {
         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
         channel_code: filters.value.channel_code,
         errors: filters.value.errors.map((error) => { return error.id }),
+        operator_id: filters.value.operator.id,
         paymentMethod: filters.value.paymentMethod.id,
         numberPerPage: filters.value.numberPerPage.id,
     }, {

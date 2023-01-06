@@ -19,6 +19,7 @@ class OperatorResource extends JsonResource
             'id' => $this->id,
             'code' => $this->code,
             'name' => $this->name,
+            'full_name' => $this->code.' - '.$this->name,
             'remarks' => $this->remarks,
             'timezone' => [
                 'id' => array_search($this->timezone, DateTimeZone::listIdentifiers()),

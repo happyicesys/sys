@@ -122,6 +122,11 @@ class VendTransaction extends Model
                     });
             });
         })
+        ->when($request->operator_id, function($query, $search) {
+            $query->whereHas('vend.operators', function($query) use ($search) {
+                $query->where('operators.id', $search);
+            });
+        })
         ->when($startDate, function($query, $search) {
             $query->whereDate('transaction_datetime', '>=', $search);
         })

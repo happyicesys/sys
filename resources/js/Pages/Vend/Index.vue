@@ -159,6 +159,22 @@
                     >
                     </MultiSelect>
                 </div>
+                <div v-if="!operatorRole">
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                        Operator
+                    </label>
+                    <MultiSelect
+                        v-model="filters.operator"
+                        :options="operatorOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="full_name"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                </div>
             </div>
 
             <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -377,7 +393,7 @@
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span :class="[
+                                <!-- <span :class="[
                                     vend.salesData.today.sales >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{vend.salesData.today.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}
@@ -393,24 +409,24 @@
                                     vend.salesData.sevenDays.sales > 200 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{vend.salesData.sevenDays.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.salesData.sevenDays.count.toLocaleString(undefined, {minimumFractionDigits: 0})}})
-                                </span>
-                                <!-- <span :class="[
-                                    vend.vendTransactionTotalsJson['today_amount'] >= 30 ? 'text-green-700' : 'text-red-700'
+                                </span> -->
+                                <span :class="[
+                                    (vend.vendTransactionTotalsJson['today_amount']/ 100) >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
-                                    {{vend.vendTransactionTotalsJson['today_amount'].toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                                    {{(vend.vendTransactionTotalsJson['today_amount'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
                                     ({{vend.vendTransactionTotalsJson['today_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}) <br>
                                 </span>
                                 <span :class="[
-                                    vend.vendTransactionTotalsJson['yesterday_amount'] >= 30 ? 'text-green-700' : 'text-red-700'
+                                    (vend.vendTransactionTotalsJson['yesterday_amount']/ 100) >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
-                                    {{vend.vendTransactionTotalsJson['yesterday_amount'].toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                                    {{(vend.vendTransactionTotalsJson['yesterday_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
                                     ({{vend.vendTransactionTotalsJson['yesterday_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}) <br>
                                 </span>
                                 <span :class="[
-                                    vend.vendTransactionTotalsJson['seven_days_amount'] > 200 ? 'text-green-700' : 'text-red-700'
+                                    (vend.vendTransactionTotalsJson['seven_days_amount']/ 100) > 200 ? 'text-green-700' : 'text-red-700'
                                 ]">
-                                    {{vend.vendTransactionTotalsJson['seven_days_amount'].toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.vendTransactionTotalsJson['seven_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
-                                </span> -->
+                                    {{(vend.vendTransactionTotalsJson['seven_days_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.vendTransactionTotalsJson['seven_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
+                                </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <!-- <div class="grid grid-cols-[90px_minmax(90px,_1fr)_90px] gap-1"> -->
@@ -625,8 +641,9 @@
     categories: Object,
     categoryGroups: Object,
     constTempError: Number,
+    operatorOptions: Object,
     vends: Object,
-    vendOptions: Object,
+    // vendOptions: Object,
     vendChannelErrors: Object,
   })
 
@@ -638,6 +655,7 @@
     categories: [],
     categoryGroups: [],
     errors: [],
+    operator: '',
     is_binded_customer: '',
     tempHigherThan: '',
     vend_channel_error_id: '',
@@ -653,12 +671,13 @@
   const categoryGroupOptions = ref([])
   const enableOptions = ref([])
   const numberPerPageOptions = ref([])
+  const operatorOptions = ref([])
   const showChannelOverviewModal = ref(false)
   const showEditModal = ref(false)
   const type = ref('')
   const vend = ref()
   const vendChannelErrorsOptions = ref([])
-  const vendOptions = ref([])
+//   const vendOptions = ref([])
   const operatorRole = usePage().props.value.auth.operatorRole
   const now = ref(moment().format('HH:mm:ss'))
 
@@ -689,10 +708,12 @@
         {id: 'true', value: 'Enabled'},
         {id: 'false', value: 'Disabled'},
     ]
+    operatorOptions.value = props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     filters.value.is_online = booleanOptions.value[0]
     filters.value.is_sensor = enableOptions.value[0]
     filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
-    vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
+
+    // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
   })
 
     function onChannelOverviewClicked(vendData) {
@@ -721,6 +742,7 @@
             categories: filters.value.categories.map((category) => { return category.id }),
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             errors: filters.value.errors.map((error) => { return error.id }),
+            operator_id: filters.value.operator.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_online: filters.value.is_online.id,
             is_sensor: filters.value.is_sensor.id,
