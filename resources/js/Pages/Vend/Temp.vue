@@ -125,6 +125,12 @@
                     <div class="inline-block min-w-full py-2 align-middle">
                         <div class="shadow-sm ring-1 ring-black ring-opacity-5">
                             <div class="p-2 flex space-x-1">
+                                <span class="inline-flex rounded-md shadow-sm" v-if="vend.temp && (vend.parameterJson['t2'] || vend.parameterJson['t3'] || vend.parameterJson['t4'])">
+                                    <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
+                                    <input type="checkbox" value="1" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                        <label class="pl-2">T1</label>
+                                    </span>
+                                </span>
                                 <span class="inline-flex rounded-md shadow-sm" v-if="vend.parameterJson['t2']">
                                     <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                     <input type="checkbox" value="2" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
