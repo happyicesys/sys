@@ -20,6 +20,7 @@ class VendTempResource extends JsonResource
         return [
             'value' => $this->value/ 10,
             'created_at' => Carbon::parse($this->created_at)->setTimezone($this->getUserTimezone())->format('Y-m-d\TH:i:sP'),
+            'type' => $this->type,
         ];
     }
 }

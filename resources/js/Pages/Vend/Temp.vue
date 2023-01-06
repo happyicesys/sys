@@ -125,31 +125,30 @@
                     <div class="inline-block min-w-full py-2 align-middle">
                         <div class="shadow-sm ring-1 ring-black ring-opacity-5">
                             <div class="p-2 flex space-x-1">
-                                <span class="inline-flex rounded-md shadow-sm">
+                                <span class="inline-flex rounded-md shadow-sm" v-if="vend.parameterJson['t2']">
                                     <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
-                                    <input type="checkbox" value="2" v-model="checkedTempType" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                    <input type="checkbox" value="2" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                         <label class="pl-2">T2</label>
                                     </span>
                                 </span>
-                                <span class="inline-flex rounded-md shadow-sm ">
+                                <span class="inline-flex rounded-md shadow-sm " v-if="vend.parameterJson['t3']">
                                     <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
-                                    <input type="checkbox" value="3" v-model="checkedTempType" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                    <input type="checkbox" value="3" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                         <label class="pl-2">T3</label>
                                     </span>
                                 </span>
-                                <span class="inline-flex rounded-md shadow-sm ">
+                                <span class="inline-flex rounded-md shadow-sm " v-if="vend.parameterJson['t4']">
                                     <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
-                                    <input type="checkbox" value="4" v-model="checkedTempType" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                    <input type="checkbox" value="4" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                         <label class="pl-2">T4</label>
                                     </span>
                                 </span>
                             </div>
                             <Graph
+                                :key="componentKey"
                                 type="line"
-                                :labels="vendTimesData"
-                                :values="vendTempsData"
-                                :startDatetime="startDate"
-                                :endDatetime="endDate"
+                                :labels="labels"
+                                :datasets="datasets"
                                 :options="graphOptions"
                             ></Graph>
                         </div>
@@ -169,10 +168,11 @@ import DatetimePicker from '@/Components/DatetimePicker.vue';
 import Graph from '@/Components/Graph.vue';
 // import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
-import { ref, onMounted, onBeforeMount } from 'vue';
+import { ref, onBeforeMount, onMounted } from 'vue';
 import { Inertia } from '@inertiajs/inertia';
 import { Head } from '@inertiajs/inertia-vue3';
 import moment from 'moment';
+import { computed, watch } from 'vue';
 
 const props = defineProps({
     duration: [Number, String],
@@ -195,87 +195,59 @@ const filters = ref({
     duration: props.duration,
 })
 const graphOptions = ref({
-        // plugins: {
-        //     tooltip: {
-        //         callbacks: {
-        //             label: function(context) {
-        //                 let label = context.dataset.label || '';
-
-        //                 if (label) {
-        //                     label += ': ' + context.parsed.x;
-        //                 }
-        //                 // if (context.parsed.x !== null) {
-        //                 //     label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.x);
-        //                 // }
-        //                 return label;
-        //             }
-        //         }
-        //     }
-        // }
+    scales: {
+        x: {
+            type: 'time',
+            time: {
+                displayFormats: {
+                    hour: 'ha (DD)'
+                },
+                tooltipFormat: 'YYMMDD hh:mma'
+            }
+        }
+    }
 })
-const vendTempsData = ref()
-const vendTimesData = ref()
+const labels = ref([])
+const datasets = ref([])
 const vend = ref(props.vendObj.data)
 const vendOptions = ref([])
 const vendTemps = ref()
-const checkedTempType = ref([])
+const types = ref([props.type.value])
+const componentKey = ref(0);
+
+const forceRerender = () => {
+  componentKey.value += 1;
+};
 
 onBeforeMount(() => {
-    vendTemps.value = props.vendTempsObj.data
-    // vendTempsData.value = vendTemps.value.map(a => a.value)
-    // vendTimesData.value = vendTemps.value.map(a => moment(a.created_at).format('HH(DD)'))
-
-    let processList = []
-    for(let i = 0; i < vendTemps.value.length; i++) {
-        if(i > 0 && Math.abs(moment(vendTemps.value[i].created_at).diff(moment(vendTemps.value[i-1].created_at), 'minutes')) > 5) {
-            processList.push({
-                past: vendTemps.value[i-1],
-                current: vendTemps.value[i]
-            })
-        }
-        // if(
-        //     i > 0
-        //     && Math.abs(moment(vendTemps.value[i].created_at).diff(moment(vendTemps.value[i-1].created_at), 'minutes')) > 10
-        // ) {
-        //     let tempTimer = moment(vendTemps.value[i - 1].created_at).add(5, 'minutes')
-        //     do {
-        //         vendTemps.value.push({
-        //             value: 'NaN',
-        //             created_at: tempTimer.format(),
-        //         })
-        //         tempTimer = tempTimer.add(10, 'minutes')
-        //     }while (Math.abs(moment(vendTemps.value[i].created_at).diff(tempTimer, 'minutes')) > 10)
-        // }
-
-    }
-    if(processList.length) {
-        processList.forEach((value, index) => {
-            let tempTimer = moment(value.past.created_at).add(5, 'minutes')
-            do {
-                vendTemps.value.push({
-                    value: 'NaN',
-                    created_at: tempTimer.format(),
-                })
-                tempTimer = tempTimer.add(5, 'minutes')
-            }while (moment(value.current.created_at).diff(tempTimer, 'minutes')> 5)
-        })
-    }
-
-    if(vendTemps.value[vendTemps.value.length - 1] && moment().diff(moment(vendTemps.value[vendTemps.value.length - 1].created_at), 'minutes') > 5) {
-            let tempTimer = moment(vendTemps.value[vendTemps.value.length - 1].created_at).add(5, 'minutes')
-            do {
-                vendTemps.value.push({
-                    value: 'NaN',
-                    created_at: tempTimer.format(),
-                })
-                tempTimer = tempTimer.add(5, 'minutes')
-            }while (moment().diff(tempTimer, 'minutes') > 5)
-    }
-    vendTemps.value.sort((a,b) => moment(a.created_at).unix() - moment(b.created_at).unix())
-    vendTempsData.value = vendTemps.value.map(a => a.value)
-    vendTimesData.value = vendTemps.value.map(a => moment(a.created_at).format('HH:mm (DD)'))
+    getVendTempsData()
     vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
-  })
+})
+
+
+watch(types, async (newTypes, oldTypes) => {
+    Inertia.visit(
+        route('temp', {
+            id: vend.value.id,
+            type: props.type.value,
+            types: newTypes,
+            ...filters.value,
+        }),{
+            only: ['vendTempsObj'],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onSuccess: (page) => {
+                Inertia.reload({
+                    only: ['vendTempsObj'],
+                    preserveState: true,
+                    preserveScroll: true,
+                })
+                getVendTempsData()
+            },
+        }
+    );
+})
 
 function onCustomDatetimeSearched() {
     Inertia.get(
@@ -295,4 +267,79 @@ function onDurationFilterClicked(duration, durationType) {
 function back() {
     window.history.back();
 }
+
+function getVendTempsData() {
+    let colors = ['#E6676B', '#36a2eb', '#cc65fe', '#ffce56']
+    let vendTempsAllArr = JSON.parse(JSON.stringify(props.vendTempsObj.data))
+    let vendTempsArr = []
+    if(types.value.length > 0) {
+        types.value.forEach((type, typeIndex) => {
+            let vendTempsDataByType = vendTempsAllArr.filter((vendTemp) => {
+                return vendTemp.type == type;
+            })
+
+            vendTempsArr[type] = vendTempsDataByType
+            let processList = []
+            for(let i = 0; i < vendTempsArr[type].length; i++) {
+                if(i > 0 && Math.abs(moment(vendTempsArr[type][i].created_at).diff(moment(vendTempsArr[type][i-1].created_at), 'minutes')) > 5) {
+                    processList.push({
+                        past: vendTempsArr[type][i-1],
+                        current: vendTempsArr[type][i]
+                    })
+                }
+            }
+            if(processList.length) {
+                processList.forEach((value, index) => {
+                    let tempTimer = moment(value.past.created_at).add(5, 'minutes')
+                    do {
+                        vendTempsArr[type].push({
+                            value: 'NaN',
+                            created_at: tempTimer.format(),
+                            type: type,
+                        })
+                        tempTimer = tempTimer.add(5, 'minutes')
+                    }while (moment(value.current.created_at).diff(tempTimer, 'minutes')> 5)
+                })
+            }
+
+            if(vendTempsArr[type][vendTempsDataByType.length - 1] && moment().diff(moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at), 'minutes') > 5) {
+                    let tempTimer = moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at).add(5, 'minutes')
+                    do {
+                        vendTempsArr[type].push({
+                            value: 'NaN',
+                            created_at: tempTimer.format(),
+                            type: type,
+                        })
+                        tempTimer = tempTimer.add(5, 'minutes')
+                    }while (moment().diff(tempTimer, 'minutes') > 5)
+            }
+            vendTempsArr[type].sort((a,b) => moment(a.created_at).unix() - moment(b.created_at).unix())
+        })
+
+        vendTemps.value = vendTempsArr
+
+        if(vendTemps.value.length > 0) {
+            let allTimings = []
+            datasets.value = []
+            vendTemps.value.forEach((vendTemp, vendTempIndex) => {
+                datasets.value.push({
+                    label: 'Temp ' + vendTempIndex,
+                    data: vendTemp.map((temp) => {return {x: temp.created_at, y: temp.value}}),
+                    borderColor: colors[vendTempIndex - 1],
+                    backgroundColor: colors[vendTempIndex -1],
+                    tension: 0.1,
+                    spanGaps: true
+                })
+                allTimings.push(vendTemp)
+            })
+        }
+
+        forceRerender()
+    }
+
+
+
+
+}
+
 </script>

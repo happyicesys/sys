@@ -97,15 +97,20 @@ class VendController extends Controller
         if($request->datetime_to) {
             $endDate = Carbon::parse($request->datetime_to)->setTimezone($this->getUserTimezone());
         }
+        $types = [$type];
+        if($request->types) {
+            $types = array_merge($types, $request->types);
+        }
+
+        $typeName = 'Temp '.$type;
 
         $vendTemps = $vend
         ->vendTemps()
-        ->where('type', $type)
+        ->whereIn('type', $types)
+        ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
         ->where('vend_temps.created_at', '>=', $startDate)
         ->where('vend_temps.created_at', '<=', $endDate)
         ->get();
-
-        $typeName = 'Temp '.$type;
 
         return Inertia::render('Vend/Temp', [
             'duration' => $duration,
@@ -113,6 +118,7 @@ class VendController extends Controller
                 'name' => $typeName,
                 'value' => $type,
             ],
+            'types' => $types,
             'vendObj' => VendResource::make($vend),
             'vendOptions' => VendResource::collection(Vend::orderBy('code')->get()),
             'vendTempsObj' => VendTempResource::collection($vendTemps),

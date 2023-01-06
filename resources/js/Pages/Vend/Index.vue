@@ -182,7 +182,10 @@
                         </Button>
                     </div>
                 </div>
-                <div class="flex flex-col space-y-2">
+                <div class="flex flex-col space-y-1">
+                    <span class="text-sm text-gray-700 leading-5">
+                        <p>Last loaded: {{ now }}</p>
+                    </span>
                     <p class="text-sm text-gray-700 leading-5 flex space-x-1">
                         <span>Showing</span>
                         <span class="font-medium">{{ vends.meta.from ?? 0 }}</span>
@@ -640,6 +643,7 @@
   const vendChannelErrorsOptions = ref([])
   const vendOptions = ref([])
   const operatorRole = usePage().props.value.auth.operatorRole
+  const now = ref(moment().format('HH:mm:ss'))
 
   onMounted(() => {
     vendChannelErrorsOptions.value = [
@@ -707,6 +711,9 @@
         }, {
             preserveState: true,
             replace: true,
+            onFinish: visit => {
+                now.value = moment().format('HH:mm:ss')
+            },
         })
     }
 

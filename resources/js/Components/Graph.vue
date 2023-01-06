@@ -1,37 +1,31 @@
 <template>
     <div class="md:hidden overflow-scroll">
-        <Vue3ChartJs :height="410" id="chartjs" type="line" :data="data" :options="options">
+        <Vue3ChartJs :height="410" id="chartjs" type="line" :data="data" ref="chartRef" :options="options">
         </Vue3ChartJs>
     </div>
     <div class="hidden md:block overflow-scroll">
-        <Vue3ChartJs id="chartjs" type="line" :data="data" :options="options">
+        <Vue3ChartJs id="chartjs" type="line" :data="data" ref="chartRef" :options="options">
         </Vue3ChartJs>
     </div>
 </template>
 
 <script setup>
     import Vue3ChartJs from '@j-t-mcc/vue3-chartjs';
-    import { ref } from 'vue'
+    import 'chartjs-adapter-moment';
+    import { ref, watch } from 'vue'
 
     const props = defineProps({
         type: String,
-        labels: Object,
+        labels: [Array, Object, String],
         values: Object,
         options: Object,
-        startDatetime: [String, Object],
-        endDatetime: [String, Object],
+        datasets: [Array, Object],
     });
 
+    const chartRef = ref(null)
     const data = ref({
                     labels: props.labels,
-                    datasets: [{
-                        label: 'Temps',
-                        data: props.values,
-                        borderColor: '#E6676B',
-                        backgroundColor: '#E6676B',
-                        tension: 0.1,
-                        spanGaps: true
-                    }]
+                    datasets: props.datasets
                 })
     const options = ref({
                     elements: {
@@ -41,4 +35,5 @@
                     },
                     ...props.options,
                 })
+
 </script>
