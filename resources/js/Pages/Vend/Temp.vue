@@ -182,7 +182,6 @@ const props = defineProps({
     startDate: String,
     startDateString: String,
     type: [String, Object, Array],
-    vendOptions: Object,
     vendObj: Object,
     vendTempsObj: Object,
 });
@@ -210,7 +209,6 @@ const graphOptions = ref({
 const labels = ref([])
 const datasets = ref([])
 const vend = ref(props.vendObj.data)
-const vendOptions = ref([])
 const vendTemps = ref()
 const types = ref([props.type.value])
 const componentKey = ref(0);
@@ -221,7 +219,6 @@ const forceRerender = () => {
 
 onBeforeMount(() => {
     getVendTempsData()
-    vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
 })
 
 

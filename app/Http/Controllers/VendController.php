@@ -120,7 +120,6 @@ class VendController extends Controller
             ],
             'types' => $types,
             'vendObj' => VendResource::make($vend),
-            'vendOptions' => VendResource::collection(Vend::orderBy('code')->get()),
             'vendTempsObj' => VendTempResource::collection($vendTemps),
             'startDate' => $startDate->format('D M d Y H:i:s'),
             'endDate' => $endDate->format('D M d Y H:i:s'),
