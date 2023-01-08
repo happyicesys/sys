@@ -174,11 +174,10 @@ import DatetimePicker from '@/Components/DatetimePicker.vue';
 import Graph from '@/Components/Graph.vue';
 // import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
-import { ref, onBeforeMount, onMounted } from 'vue';
+import { ref, onBeforeMount, watch } from 'vue';
 import { Inertia } from '@inertiajs/inertia';
 import { Head } from '@inertiajs/inertia-vue3';
 import moment from 'moment';
-import { computed, watch } from 'vue';
 
 const props = defineProps({
     duration: [Number, String],

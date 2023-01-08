@@ -13,6 +13,7 @@ use App\Http\Controllers\PaymentTermController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductMappingController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ResourceCenterController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SimcardController;
 use App\Http\Controllers\RolePermissionController;
@@ -119,6 +120,13 @@ Route::middleware('auth')->group(function() {
         Route::delete('/{id}', [OperatorController::class, 'delete']);
         Route::post('/bind-vend', [OperatorController::class, 'bindVend']);
         Route::post('/unbind-vend', [OperatorController::class, 'unbindVend']);
+    });
+
+    Route::prefix('resource-centers')->group(function() {
+        Route::get('/', [ResourceCenterController::class, 'index'])->name('resource-centers');
+        Route::post('/create', [ResourceCenterController::class, 'create']);
+        Route::post('/{id}/update', [ResourceCenterController::class, 'update']);
+        Route::delete('/{id}', [ResourceCenterController::class, 'delete']);
     });
 
     Route::prefix('payment-methods')->group(function() {

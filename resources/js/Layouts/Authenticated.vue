@@ -5,7 +5,7 @@ import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link } from '@inertiajs/inertia-vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { CommandLineIcon, CreditCardIcon, BuildingOfficeIcon, FolderIcon, LinkIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
+import { CircleStackIcon, CommandLineIcon, CreditCardIcon, BuildingOfficeIcon, FolderIcon, LinkIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
 
 const navigation = [
     {
@@ -58,6 +58,12 @@ const navigation = [
         icon: UserGroupIcon,
         current: false,
         href: 'operators'
+    },
+    {
+        name: 'Resource Center',
+        icon: CircleStackIcon,
+        current: false,
+        href: 'resource-centers'
     },
     {
         name: 'Users',
