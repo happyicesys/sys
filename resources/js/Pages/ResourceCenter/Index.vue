@@ -32,13 +32,9 @@
                     <span class="font-medium">
                       {{ childIndex + 1 }}. {{ child.name }}
                     </span>
-                    <span class="rounded-lg">
-                      <!-- <video class="object-contain h-48 w-96" :src="child.url"></video> -->
-                      <video class="md:object-contain md:h-96 md:w-fit" controls>
-                          <source :src="child.url">
-                          Your browser does not support the video tag.
-                      </video>
-                    </span>
+                    <div class="aspect-w-9 aspect-h-16 md:aspect-w-16 md:aspect-h-9">
+                      <iframe :src="child.url" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen></iframe>
+                    </div>
                   </li>
                 </ul>
               </div>
@@ -81,17 +77,17 @@ const items = ref([
       {
         sequence: 1,
         name: 'Replenishing Stock',
-        url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/ExplainerVideo/ExplainerVideo/1.%20ProcedureReplenishingStock.mp4',
+        url: 'https://www.youtube.com/embed/VNdcIWCwVsc',
       },
       {
         sequence: 2,
         name: 'Buying via Cash or Cashless',
-        url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/ExplainerVideo/ExplainerVideo/2.%20ProcedureOfBuyingViaCashOrCashless.mp4',
+        url: 'https://www.youtube.com/embed/Z5Oy7frSLyo',
       },
       {
         sequence: 3,
         name: 'Componenets Walkthrough',
-        url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/ExplainerVideo/ExplainerVideo/3.%20ComponentsWalkthrough.mp4',
+        url: 'https://www.youtube.com/embed/GJULWifpwDg',
       },
     ]
   },
@@ -103,47 +99,49 @@ const items = ref([
       {
         sequence: 1,
         name: 'Adjust Spring Position',
-        url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/TroubleshootingVideo/AdjustSpringPosition.MOV',
+        url: 'https://www.youtube.com/embed/TfCeurwG-Fc',
       },
       {
         sequence: 2,
         name: 'Checking Evaporator',
-        url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/TroubleshootingVideo/CheckingEvaporator.MOV',
+        url: 'https://www.youtube.com/embed/sk2tGbfKRQs',
       },
       {
         sequence: 3,
         name: 'Checking Foam Door Tightness',
-        url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/TroubleshootingVideo/checkingfoamdoortightness.MOV',
+        url: 'https://www.youtube.com/embed/Wql18r7yffE',
       },
       {
         sequence: 4,
         name: 'Checking Freezer Fan',
-        url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/TroubleshootingVideo/CheckingFreezerFan.MOV',
+        url: 'https://www.youtube.com/embed/2m8g6d_mCkI',
       },
       {
         sequence: 5,
         name: 'Checking Seal',
-        url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/TroubleshootingVideo/checkingseal.MOV',
+        url: 'https://www.youtube.com/embed/tYtMIugoMrk',
       },
       {
         sequence: 6,
         name: 'Clear Error Code 3',
-        url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/TroubleshootingVideo/ClearErrorCode3.MOV',
+        url: 'https://www.youtube.com/embed/KFcQ3Nah2dE',
       },
       {
         sequence: 7,
         name: 'Clear Error Code 9',
-        url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/TroubleshootingVideo/ClearErrorCode9.MOV',
+        url: 'https://www.youtube.com/embed/T55WaxbapRY',
       },
       {
         sequence: 8,
         name: 'Offline Issues',
-        url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/TroubleshootingVideo/OfflineIssues.MOV',
+        url:''
+        // url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/TroubleshootingVideo/OfflineIssues.MOV',
       },
       {
         sequence: 9,
         name: 'Sensor Disabled Checking',
-        url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/TroubleshootingVideo/SensorDisabledChecking.MOV',
+        url:''
+        // url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/TroubleshootingVideo/SensorDisabledChecking.MOV',
       },
     ]
   }
