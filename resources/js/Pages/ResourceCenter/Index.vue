@@ -134,14 +134,12 @@ const items = ref([
       {
         sequence: 8,
         name: 'Offline Issues',
-        url:''
-        // url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/TroubleshootingVideo/OfflineIssues.MOV',
+        url: 'https://www.youtube.com/embed/zIoV7Hrp7Zk',
       },
       {
         sequence: 9,
         name: 'Sensor Disabled Checking',
-        url:''
-        // url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/TroubleshootingVideo/SensorDisabledChecking.MOV',
+        url: 'https://www.youtube.com/embed/FnhSZ2A96sU',
       },
     ]
   }
