@@ -217,6 +217,7 @@ const vend = ref(props.vendObj.data)
 const vendTemps = ref()
 const types = ref([props.type.value])
 const componentKey = ref(0);
+const syncTimeLatest = ref(true)
 
 const forceRerender = () => {
   componentKey.value += 1;
@@ -252,6 +253,7 @@ watch(types, async (newTypes, oldTypes) => {
 })
 
 function onCustomDatetimeSearched() {
+    // syncTimeLatest.value = false
     Inertia.get(
         '/vends/' +
         vend.value.id +
@@ -263,6 +265,7 @@ function onCustomDatetimeSearched() {
 }
 
 function onDurationFilterClicked(duration, durationType) {
+    // syncTimeLatest.value = false
     // Inertia.get(
     //     '/vends/' +
     //     vend.value.id +
@@ -319,21 +322,32 @@ function getVendTempsData() {
                 })
             }
 
-            if(vendTempsArr[type][vendTempsDataByType.length - 1] && moment().diff(moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at), 'minutes') > 5) {
+            // console.log(moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at).format())
+            // console.log(moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at).add(3, 'hours').diff(moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at), 'minutes'))
+            if(vendTempsArr[type][vendTempsDataByType.length - 1] && moment().diff(moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at), 'minutes') > 5 ) {
                     let tempTimer = moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at).add(5, 'minutes')
-                    do {
-                        vendTempsArr[type].push({
-                            value: 'NaN',
-                            created_at: tempTimer.format(),
-                            type: type,
-                        })
-                        tempTimer = tempTimer.add(5, 'minutes')
-                    }while (moment().diff(tempTimer, 'minutes') > 5)
+                        for(let t=0; t<=36; t++) {
+                            vendTempsArr[type].push({
+                                value: 'NaN',
+                                created_at: tempTimer.format(),
+                                type: type,
+                            })
+                            tempTimer = tempTimer.add(5, 'minutes')
+                        }
+            //         do {
+            //             vendTempsArr[type].push({
+            //                 value: 'NaN',
+            //                 created_at: tempTimer.format(),
+            //                 type: type,
+            //             })
+            //             tempTimer = tempTimer.add(5, 'minutes')
+            //         }while (moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at).add(3, 'hours').diff(tempTimer, 'minutes') > 5)
             }
             vendTempsArr[type].sort((a,b) => moment(a.created_at).unix() - moment(b.created_at).unix())
         })
 
         vendTemps.value = vendTempsArr
+
 
         if(vendTemps.value.length > 0) {
             let allTimings = []
@@ -353,10 +367,6 @@ function getVendTempsData() {
 
         forceRerender()
     }
-
-
-
-
 }
 
 </script>
