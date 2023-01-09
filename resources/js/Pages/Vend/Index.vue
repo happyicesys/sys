@@ -319,7 +319,7 @@
                                     </span>
                                     <span
                                         class="mt-1"
-                                        :class="Math.abs(vend.parameterJson['t2']/10 -  vend.temp).toFixed(1) >= 4 ? 'text-red-500' : ''"
+                                        :class="Math.abs(vend.parameterJson['t2']/10 -  vend.temp).toFixed(1) >= 4 ? 'text-red-500' : 'text-green-500'"
                                         v-if="vend.parameterJson && vend.parameterJson['t2'] && vend.parameterJson['t2'] != constTempError && !vend.is_temp_error && !operatorRole"
                                     >
                                         &Delta;t2-t1 <br>
