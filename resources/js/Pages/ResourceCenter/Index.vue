@@ -76,18 +76,18 @@ const items = ref([
     children: [
       {
         sequence: 1,
-        name: 'Replenishing Stock',
-        url: 'https://www.youtube.com/embed/VNdcIWCwVsc',
-      },
-      {
-        sequence: 2,
         name: 'Buying via Cash or Cashless',
         url: 'https://www.youtube.com/embed/Z5Oy7frSLyo',
       },
       {
-        sequence: 3,
+        sequence: 2,
         name: 'Componenets Walkthrough',
         url: 'https://www.youtube.com/embed/GJULWifpwDg',
+      },
+      {
+        sequence: 3,
+        name: 'Replenishing Stock',
+        url: 'https://www.youtube.com/embed/VNdcIWCwVsc',
       },
       {
         sequence: 4,
