@@ -244,7 +244,8 @@
                             </TableHead>
                             <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
                                 Temp1<br>
-                                &#8451;
+                                &#8451;<br>
+                                &Delta;t2-t1
                             </TableHeadSort>
                             <TableHead>
                                 Inventory Status <br>
@@ -319,11 +320,10 @@
                                     </span>
                                     <span
                                         class="mt-1"
-                                        :class="Math.abs(vend.parameterJson['t2']/10 -  vend.temp).toFixed(1) >= 4 ? 'text-red-500' : 'text-green-500'"
+                                        :class="(vend.parameterJson['t2']/10 -  vend.temp).toFixed(1) <= -4 ? 'text-red-700' : 'text-green-700'"
                                         v-if="vend.parameterJson && vend.parameterJson['t2'] && vend.parameterJson['t2'] != constTempError && !vend.is_temp_error && !operatorRole"
                                     >
-                                        &Delta;t2-t1 <br>
-                                        ({{ Math.abs(vend.parameterJson['t2']/10 -  vend.temp).toFixed(1) }})
+                                        {{ (vend.parameterJson['t2']/10 -  vend.temp).toFixed(1) }}
                                     </span>
                                 </div>
                             </TableData>
