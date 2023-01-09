@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\VendTempExport;
 use App\Exports\VendTransactionExport;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
@@ -91,7 +92,6 @@ class VendController extends Controller
         if($request->duration) {
             $duration = $request->duration;
         }
-        // dd($request->all());
         $vend = Vend::with('latestVendBinding.customer')->findOrFail($vendId);
         // dd($duration);
         $startDate =  $request->durationType == 'day' || !$request->durationType ? Carbon::now()->setTimezone($this->getUserTimezone())->subDays($duration) : Carbon::now()->setTimezone($this->getUserTimezone())->subHours($duration);
@@ -131,6 +131,41 @@ class VendController extends Controller
             'startDateString' => $startDate->format('y-m-d H:i'),
             'endDateString' => $endDate->format('y-m-d H:i'),
         ]);
+    }
+
+    public function exportTempExcel(Request $request, $vendId, $type)
+    {
+        $duration = 3;
+        if($request->duration) {
+            $duration = $request->duration;
+        }
+        // dd($request->all());
+        $vend = Vend::with('latestVendBinding.customer')->findOrFail($vendId);
+        // dd($duration);
+        $startDate =  $request->durationType == 'day' || !$request->durationType ? Carbon::now()->setTimezone($this->getUserTimezone())->subDays($duration) : Carbon::now()->setTimezone($this->getUserTimezone())->subHours($duration);
+        $endDate =  Carbon::now()->setTimezone($this->getUserTimezone());
+        if($request->datetime_from) {
+            $startDate = Carbon::parse($request->datetime_from)->setTimezone($this->getUserTimezone());
+        }
+        if($request->datetime_to) {
+            $endDate = Carbon::parse($request->datetime_to)->setTimezone($this->getUserTimezone());
+        }
+        $types = [$type];
+        if($request->types) {
+            $types = array_merge($types, $request->types);
+        }
+
+        $typeName = 'Temp '.$type;
+
+        $vendTemps = $vend
+        ->vendTemps()
+        ->whereIn('type', $types)
+        ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
+        ->where('vend_temps.created_at', '>=', $startDate)
+        ->where('vend_temps.created_at', '<=', $endDate)
+        ->get();
+
+        return (new VendTempExport(VendTempResource::collection($vendTemps)))->download('Vend_temps_'.Carbon::now()->toDateTimeString().'.xlsx');
     }
 
     public function transactionIndex(Request $request)

@@ -317,6 +317,14 @@
                                     <span class="mt-1">
                                         {{ vend.temp_updated_at }}
                                     </span>
+                                    <span
+                                        class="mt-1"
+                                        :class="Math.abs(vend.parameterJson['t2']/10 -  vend.temp).toFixed(1) >= 4 ? 'text-red-500' : ''"
+                                        v-if="vend.parameterJson && vend.parameterJson['t2'] && vend.parameterJson['t2'] != constTempError && !vend.is_temp_error && !operatorRole"
+                                    >
+                                        &Delta;t2-t1 <br>
+                                        ({{ Math.abs(vend.parameterJson['t2']/10 -  vend.temp).toFixed(1) }})
+                                    </span>
                                 </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">

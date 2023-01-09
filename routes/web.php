@@ -241,6 +241,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('vends')->group(function() {
         Route::get('/', [VendController::class, 'index'])->name('vends');
         Route::get('/{id}/temp/{type}', [VendController::class, 'temp'])->name('temp');
+        Route::get('/{id}/temp/{type}/excel', [VendController::class, 'exportTempExcel']);
         Route::get('/transactions', [VendController::class, 'transactionIndex'])->name('vends-transactions');
         Route::get('/transactions/excel', [VendController::class, 'exportTransactionExcel']);
         Route::get('/channel-error-logs-email', [VendController::class, 'channelErrorLogsEmail']);
