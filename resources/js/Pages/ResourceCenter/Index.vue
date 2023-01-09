@@ -89,6 +89,11 @@ const items = ref([
         name: 'Componenets Walkthrough',
         url: 'https://www.youtube.com/embed/GJULWifpwDg',
       },
+      {
+        sequence: 4,
+        name: 'Machine Installation',
+        url: 'https://www.youtube.com/embed/tHkiLbKMqlA',
+      },
     ]
   },
   {
