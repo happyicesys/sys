@@ -51,26 +51,26 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { Head } from '@inertiajs/inertia-vue3';
 import { ref } from 'vue';
-import { ChevronDoubleDownIcon, PaperClipIcon } from '@heroicons/vue/20/solid';
+import { PaperClipIcon } from '@heroicons/vue/20/solid';
 
 
 const showModal = ref(false)
 const contentIndex = ref()
 const items = ref([
+  // {
+  //   index: 1,
+  //   name: 'VM Training Agenda',
+  //   filename: 'VM training agenda.pdf',
+  //   url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/VM%20training%20agenda.pdf',
+  // },
   {
     index: 1,
-    name: 'VM Training Agenda',
-    filename: 'VM training agenda.pdf',
-    url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/VM%20training%20agenda.pdf',
-  },
-  {
-    index: 2,
     name: 'Quick User Guide Model-F',
     filename: 'Quick User Guide-Model F_Rev1_0.pdf',
     url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/Quick%20User%20Guide-Model%20F_Rev1_0.pdf',
   },
   {
-    index: 3,
+    index: 2,
     name: 'Explainer Videos',
     url: '',
     children: [
@@ -97,7 +97,7 @@ const items = ref([
     ]
   },
   {
-    index: 4,
+    index: 3,
     name: 'TroubleShooting Videos',
     url: '',
     children: [

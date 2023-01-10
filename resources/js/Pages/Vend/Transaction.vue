@@ -234,7 +234,10 @@
                             Channel
                         </TableHead>
                         <TableHead>
-                            Product
+                            Product Code
+                        </TableHead>
+                        <TableHead>
+                            Product Name
                         </TableHead>
                         <TableHead>
                             Amount
@@ -277,12 +280,14 @@
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.vendChannel.code }}
                         </TableData>
-                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.product && vendTransaction.product.code">
                                 {{ vendTransaction.product.code }}
                             </span>
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
                             <span v-if="vendTransaction.product && vendTransaction.product.name">
-                                - {{ vendTransaction.product.name }}
+                                {{ vendTransaction.product.name }}
                             </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-right">

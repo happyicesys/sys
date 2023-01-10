@@ -29,7 +29,7 @@
           <SearchInput placeholderStr="Name" v-model="filters.name">
             Name
           </SearchInput>
-          <div>
+          <!-- <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Is Inventory?
             </label>
@@ -60,7 +60,7 @@
               class="mt-1"
             >
             </MultiSelect>
-          </div>
+          </div> -->
           <!-- <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Is Comm or SF?
@@ -155,9 +155,9 @@
                     <TableHead>
                       Is Inventory
                     </TableHead> -->
-                    <TableHead>
+                    <!-- <TableHead>
                       Is Active
-                    </TableHead>
+                    </TableHead> -->
                     <TableHead>
                     </TableHead>
                   </tr>
@@ -187,9 +187,9 @@
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         {{ product.isInventory }}
                       </TableData> -->
-                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
+                      <!-- <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         {{ product.isActive }}
-                      </TableData>
+                      </TableData> -->
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
                           <Button
@@ -255,9 +255,9 @@ const props = defineProps({
 const filters = ref({
   code: '',
   name: '',
-  is_active: '',
-  is_comm_or_sf: '',
-  is_inventory: '',
+  // is_active: '',
+  // is_comm_or_sf: '',
+  // is_inventory: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
@@ -281,15 +281,15 @@ onMounted(() => {
     {id: 1, value: 'Yes'},
     {id: 0, value: 'No'},
   ]
-  filters.value.is_active = booleanOptions.value[0]
-  filters.value.is_inventory = booleanOptions.value[0]
+  // filters.value.is_active = booleanOptions.value[0]
+  // filters.value.is_inventory = booleanOptions.value[0]
   commSfOptions.value = [
     {id: '', value: 'All'},
     {id: 'comm', value: 'Comm Only'},
     {id: 'sf', value: 'SF Only'},
     {id: 'both', value: 'Both Comm & SF'},
   ]
-  filters.value.is_comm_or_sf = commSfOptions.value[0]
+  // filters.value.is_comm_or_sf = commSfOptions.value[0]
   // console.log(JSON.parse(JSON.stringify(props.uoms)))
 })
 
@@ -322,9 +322,9 @@ function onSearchFilterUpdated() {
   Inertia.get('/products', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
-      is_active: filters.value.is_active.id,
-      is_inventory: filters.value.is_inventory.id,
-      is_comm_or_sf: filters.value.is_comm_or_sf.id,
+      // is_active: filters.value.is_active.id,
+      // is_inventory: filters.value.is_inventory.id,
+      // is_comm_or_sf: filters.value.is_comm_or_sf.id,
   }, {
       preserveState: true,
       replace: true,
