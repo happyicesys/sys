@@ -295,8 +295,8 @@ function submit() {
     form.value
     .transform((data) => ({
       ...data,
-      category_id: data.category_id.id,
-      category_group_id: data.category_group_id.id,
+      // category_id: data.category_id.id,
+      // category_group_id: data.category_group_id.id,
     }))
     .post('/products/create', {
       onSuccess: () => {
@@ -311,8 +311,8 @@ function submit() {
     form.value
       .transform((data) => ({
         ...data,
-        category_id: data.category_id.id,
-        category_group_id: data.category_group_id.id,
+        // category_id: data.category_id.id,
+        // category_group_id: data.category_group_id.id,
       }))
       .post('/products/' + form.value.id + '/update', {
       onSuccess: () => {
