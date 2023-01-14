@@ -399,6 +399,34 @@ const loading = ref(false)
 const paymentMethodOptions = ref([])
 const numberPerPageOptions = ref([])
 
+// function onExportExcelClicked() {
+//     // window.open('/vends/transactions/excel', '_blank');
+//     loading.value = true
+//     axios({
+//         method: 'get',
+//         url: '/vends/transactions/excel',
+//         params: {
+//             ...filters.value,
+//             categories: filters.value.categories.map((category) => { return category.id }),
+//             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
+//             channel_code: filters.value.channel_code,
+//             errors: filters.value.errors.map((error) => { return error.id }),
+//             operator_id: filters.value.operator.id,
+//             paymentMethod: filters.value.paymentMethod.id,
+//             numberPerPage: filters.value.numberPerPage.id,
+//         },
+//         responseType: 'blob',
+//     }).then(response => {
+//         fileDownload(response.data, 'Vending_Transaction_' + moment().format('YYMMDDhhmmss') +'.xlsx')
+//         loading.value = false
+//     }).catch(error => {
+//         console.log(error.message)
+//         loading.value = false
+//     }).finally(() => {
+//         loading.value = false
+//     })
+// }
+
 function onExportExcelClicked() {
     // window.open('/vends/transactions/excel', '_blank');
     loading.value = true
@@ -419,11 +447,10 @@ function onExportExcelClicked() {
     }).then(response => {
         fileDownload(response.data, 'Vending_Transaction_' + moment().format('YYMMDDhhmmss') +'.xlsx')
     }).catch(error => {
-        console.log(error.message)
+        console.log(error)
     }).finally(() => {
         loading.value = false
     })
-
 }
 
 function onSearchFilterUpdated() {

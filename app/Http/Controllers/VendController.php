@@ -253,16 +253,34 @@ class VendController extends Controller
     {
         $vendTransactions = VendTransaction::with([
             'paymentMethod',
-            'vend',
             'vend.latestVendBinding.customer',
-            'vendChannel',
-            'vendChannelError',
             'product',
             ])
             ->filterTransactionIndex($request)
             ->get();
 
         // return (new VendTransactionExport(VendTransactionResource::collection($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx');
+
+        // return (new FastExcel($vendTransactions))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
+        //     return [
+        //         'Order ID' => $vendTransaction->order_id,
+        //         'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
+        //         'Vend ID' => $vendTransaction->vend->code,
+        //         'Customer Name' => $vendTransaction->vend->latestVendBinding ?
+        //                             $vendTransaction->vend->latestVendBinding->customer->code.''.$vendTransaction->vend->latestVendBinding->customer->name :
+        //                             $vendTransaction->vend->name,
+        //         'Channel' => $vendTransaction->vendChannel->code,
+        //         'Product Code' => $vendTransaction->product ?
+        //                         $vendTransaction->product->code :
+        //                         '',
+        //         'Product Name' => $vendTransaction->product ?
+        //                         $vendTransaction->product->name :
+        //                         '',
+        //         'Amount' => $vendTransaction->amount/ 100,
+        //         'Payment Method' => $vendTransaction->paymentMethod->name,
+        //         'Error' => $vendTransaction->vendChannelError ? $vendTransaction->vendChannelError->code : ''
+        //     ];
+        // });
 
         return (new FastExcel($vendTransactions))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
             return [
@@ -272,7 +290,7 @@ class VendController extends Controller
                 'Customer Name' => $vendTransaction->vend->latestVendBinding ?
                                     $vendTransaction->vend->latestVendBinding->customer->code.''.$vendTransaction->vend->latestVendBinding->customer->name :
                                     $vendTransaction->vend->name,
-                'Channel' => $vendTransaction->vendChannel->code,
+                'Channel' => $vendTransaction->vend_transaction_json['SId'],
                 'Product Code' => $vendTransaction->product ?
                                 $vendTransaction->product->code :
                                 '',
@@ -281,7 +299,7 @@ class VendController extends Controller
                                 '',
                 'Amount' => $vendTransaction->amount/ 100,
                 'Payment Method' => $vendTransaction->paymentMethod->name,
-                'Error' => $vendTransaction->vendChannelError ? $vendTransaction->vendChannelError->code : ''
+                'Error' => $vendTransaction->vend_transaction_json['SErr'] ? $vendTransaction->vend_transaction_json['SErr'] : '',
             ];
         });
     }
