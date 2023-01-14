@@ -186,7 +186,7 @@
   import Graph from '@/Components/Graph.vue';
   // import MultiSelect from '@/Components/MultiSelect.vue';
   import { ArrowDownTrayIcon, ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
-  import { ref, onBeforeMount, watch } from 'vue';
+  import { ref, onBeforeMount, onMounted, watch } from 'vue';
   import { Inertia } from '@inertiajs/inertia';
   import { Head } from '@inertiajs/inertia-vue3';
   import moment from 'moment';
@@ -242,6 +242,10 @@
 
   onBeforeMount(() => {
     getVendTempsData()
+  })
+
+  onMounted(() => {
+    console.log(props.startDate)
   })
 
 
