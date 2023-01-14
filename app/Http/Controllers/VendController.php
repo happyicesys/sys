@@ -282,7 +282,7 @@ class VendController extends Controller
         //     ];
         // });
 
-        return (new FastExcel($vendTransactions))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
+        return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
             return [
                 'Order ID' => $vendTransaction->order_id,
                 'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
@@ -302,6 +302,12 @@ class VendController extends Controller
                 'Error' => $vendTransaction->vend_transaction_json['SErr'] ? $vendTransaction->vend_transaction_json['SErr'] : '',
             ];
         });
+    }
+
+    private function yieldOneByOne($items) {
+        foreach($items as $item) {
+            yield $item;
+        }
     }
 
     public function update(Request $request, $vendId)
