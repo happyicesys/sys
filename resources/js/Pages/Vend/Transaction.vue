@@ -419,7 +419,7 @@ function onExportExcelClicked() {
     }).then(response => {
         fileDownload(response.data, 'Vending_Transaction_' + moment().format('YYMMDDhhmmss') +'.xlsx')
     }).catch(error => {
-        console.log(error)
+        console.log(error.message)
     })
 
     loading.value = false
