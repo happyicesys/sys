@@ -418,11 +418,12 @@ function onExportExcelClicked() {
         responseType: 'blob',
     }).then(response => {
         fileDownload(response.data, 'Vending_Transaction_' + moment().format('YYMMDDhhmmss') +'.xlsx')
+        loading.value = false
     }).catch(error => {
         console.log(error.message)
+        loading.value = false
     })
 
-    loading.value = false
 }
 
 function onSearchFilterUpdated() {
