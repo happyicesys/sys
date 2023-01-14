@@ -416,7 +416,6 @@ function onExportExcelClicked() {
             numberPerPage: filters.value.numberPerPage.id,
         },
         responseType: 'blob',
-        timeout: 60000,
     }).then(response => {
         fileDownload(response.data, 'Vending_Transaction_' + moment().format('YYMMDDhhmmss') +'.xlsx')
     }).catch(error => {
