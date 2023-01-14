@@ -402,44 +402,26 @@ const numberPerPageOptions = ref([])
 function onExportExcelClicked() {
     // window.open('/vends/transactions/excel', '_blank');
     loading.value = true
-    // axios({
-    //     method: 'get',
-    //     url: '/vends/transactions/excel',
-    //     params: {
-    //         ...filters.value,
-    //         categories: filters.value.categories.map((category) => { return category.id }),
-    //         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
-    //         channel_code: filters.value.channel_code,
-    //         errors: filters.value.errors.map((error) => { return error.id }),
-    //         operator_id: filters.value.operator.id,
-    //         paymentMethod: filters.value.paymentMethod.id,
-    //         numberPerPage: filters.value.numberPerPage.id,
-    //     },
-    //     responseType: 'blob',
-    // }).then(response => {
-    //     fileDownload(response.data, 'Vending_Transaction_' + moment().format('YYMMDDhhmmss') +'.xlsx')
-    // }).catch(error => {
-    //     console.log(error)
-    // })
-    Inertia.get('/vends/transactions/excel', {
-        ...filters.value,
-        categories: filters.value.categories.map((category) => { return category.id }),
+    axios({
+        method: 'get',
+        url: '/vends/transactions/excel',
+        params: {
+            ...filters.value,
+            categories: filters.value.categories.map((category) => { return category.id }),
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             channel_code: filters.value.channel_code,
             errors: filters.value.errors.map((error) => { return error.id }),
             operator_id: filters.value.operator.id,
             paymentMethod: filters.value.paymentMethod.id,
             numberPerPage: filters.value.numberPerPage.id,
-    }, {
-        preserveState: true,
-        replace: true,
-        onSuccess: () => {
-            fileDownload(response.data, 'Vending_Transaction_' + moment().format('YYMMDDhhmmss') +'.xlsx')
         },
-        onError: (errors) => {
-            console.log(errors)
-        },
+        responseType: 'blob',
+    }).then(response => {
+        fileDownload(response.data, 'Vending_Transaction_' + moment().format('YYMMDDhhmmss') +'.xlsx')
+    }).catch(error => {
+        console.log(error)
     })
+
     loading.value = false
 }
 
