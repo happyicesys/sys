@@ -297,7 +297,7 @@
                             {{ vendTransaction.paymentMethod ? vendTransaction.paymentMethod.name : null }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vendChannelError ? vendTransaction.vendChannelError.desc : '' }}
+                            {{ vendTransaction.vendChannelError ? vendTransaction.vendChannelError.desc : 0 }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span></span>
@@ -373,7 +373,13 @@ onMounted(() => {
 
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
-    operatorOptions.value = props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+    operatorOptions.value = [
+        {
+            id: 'all', full_name: 'All'
+        },
+        ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+    ]
+    filters.value.operator = operatorOptions.value[0]
 })
 
 const filters = ref({

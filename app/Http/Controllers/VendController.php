@@ -299,7 +299,7 @@ class VendController extends Controller
                                 '',
                 'Amount' => $vendTransaction->amount/ 100,
                 'Payment Method' => $vendTransaction->paymentMethod->name,
-                'Error' => $vendTransaction->vend_transaction_json['SErr'] ? $vendTransaction->vend_transaction_json['SErr'] : '',
+                'Error' => $vendTransaction->vend_transaction_json['SErr'] ? $vendTransaction->vend_transaction_json['SErr'] : 0,
             ];
         });
     }

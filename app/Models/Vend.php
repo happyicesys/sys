@@ -244,9 +244,11 @@ class Vend extends Model
 
         })
         ->when($request->operator_id, function($query, $search) {
-            $query->whereHas('operators', function($query) use ($search) {
-                $query->where('operators.id', $search);
-            });
+            if($search != 'all') {
+                $query->whereHas('operators', function($query) use ($search) {
+                    $query->where('operators.id', $search);
+                });
+            }
         })
 
         // ->when($request->vend_channel_error_id, function($query, $search) {

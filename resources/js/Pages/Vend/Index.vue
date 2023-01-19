@@ -716,10 +716,17 @@
         {id: 'true', value: 'Enabled'},
         {id: 'false', value: 'Disabled'},
     ]
-    operatorOptions.value = props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+    operatorOptions.value = [
+        {
+            id: 'all', full_name: 'All'
+        },
+        ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+    ]
+                // operatorOptions.value = operatorOptions.value.push({id: 'all', full_name: 'All'})
     filters.value.is_online = booleanOptions.value[0]
     filters.value.is_sensor = enableOptions.value[0]
     filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
+    filters.value.operator = operatorOptions.value[0]
 
     // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
   })
