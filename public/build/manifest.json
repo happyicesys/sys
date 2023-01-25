@@ -1464,16 +1464,16 @@
     "file": "assets/Index.8b3a4ee5.css",
     "src": "resources/js/Pages/Vend/Index.css"
   },
-  "main.css": {
-    "file": "assets/main.53725b8c.css",
-    "src": "main.css"
+  "resources/js/app.css": {
+    "file": "assets/app.19482b55.css",
+    "src": "resources/js/app.css"
   },
   "MultiSelect.css": {
     "file": "assets/MultiSelect.5947dbed.css",
     "src": "MultiSelect.css"
   },
-  "resources/js/app.css": {
-    "file": "assets/app.19482b55.css",
-    "src": "resources/js/app.css"
+  "main.css": {
+    "file": "assets/main.53725b8c.css",
+    "src": "main.css"
   }
 }

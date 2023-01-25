@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Jobs\SaveVendChannelErrorLogsJson;
 use App\Jobs\SaveVendChannelsJson;
+use App\Models\LogData;
 use App\Models\PaymentMethod;
 use App\Models\Vend;
 use App\Models\VendChannel;
@@ -128,6 +129,11 @@ class ProcessVendData implements ShouldQueue
                 'ip_address' => $this->ipAddress,
             ]);
 
+            if($vendData) {
+                $vend = Vend::where('code', $vendData->value['m'])->first();
+                $this->logTempUpdatedAtVariance($vend, $vendData);
+            }
+
             if(isset($input['Vid'])) {
                 $vid = $input['Vid'];
 
@@ -215,12 +221,6 @@ class ProcessVendData implements ShouldQueue
                         ]);
                     }
 
-                    // $prevIsKeepVendTemp = VendTemp::where('vend_id', $vend->id)->where('is_keep', true)->latest()->first();
-
-                    // if(!$prevIsKeepVendTemp or ($prevIsKeepVendTemp and $prevIsKeepVendTemp->created_at->addMinutes(5)->isPast())) {
-                    //     $createdTemp->update(['is_keep' => true]);
-                    // }
-
                     $vend->temp = $temp;
                     $vend->is_temp_error = false;
                 }
@@ -273,7 +273,7 @@ class ProcessVendData implements ShouldQueue
         $this->syncVendTransactionTotalsJson($vendTransaction->vend);
 
         if($vendChannelError) {
-            $this->syncVendChannelErrorLog($vend, $input['SId'], $input['SErr']);
+            $this->syncVendChannelErrorLog($vend, $input['SId'], $input['SErr'], $vendTransaction->id);
         }
     }
 
@@ -310,7 +310,7 @@ class ProcessVendData implements ShouldQueue
         }
     }
 
-    private function syncVendChannelErrorLog(Vend $vend, $vendChannelCode, $vendChannelErrorCode)
+    private function syncVendChannelErrorLog(Vend $vend, $vendChannelCode, $vendChannelErrorCode, $vendTransactionId = null)
     {
         $vendChannelError = VendChannelError::where('code', $vendChannelErrorCode)->first();
 
@@ -326,14 +326,23 @@ class ProcessVendData implements ShouldQueue
                 // dd($vendChannel->toArray(), $lastVendChannelErrorLog->toArray(), $lastVendChannelErrorLog->vendChannelError->code, $vendChannelErrorCode, $lastVendChannelErrorLog->is_error_cleared);
 
                 if(!$lastVendChannelErrorLog or ($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode) or $lastVendChannelErrorLog->is_error_cleared == 1) {
-                    VendChannelErrorLog::create([
+                    $vendChannelErrorLog = VendChannelErrorLog::create([
                         'vend_channel_id' => $vendChannel->id,
                         'vend_channel_error_id' => $vendChannelError->id
                     ]);
 
+                    if($vendTransactionId) {
+                        $vendChannelErrorLog->vend_transaction_id = $vendTransactionId;
+                        $vendChannelErrorLog->save();
+                    }
+
                     if($lastVendChannelErrorLog and ($lastVendChannelErrorLog->vendChannelError->code != $vendChannelErrorCode)) {
                         $lastVendChannelErrorLog->is_error_cleared = true;
                         $lastVendChannelErrorLog->save();
+                    }
+
+                    if($vendChannelErrorLog and !$vendTransactionId) {
+                        $this->logVendChannelErrorNotTally($vendChannelErrorLog);
                     }
                 }
 
@@ -378,5 +387,31 @@ class ProcessVendData implements ShouldQueue
                 'seven_days_count' => $vend->vendSevenDaysTransactions->count(),
             ]
         ]);
+    }
+
+    private function logVendChannelErrorNotTally($vendChannelErrorLog)
+    {
+        $className = get_class(new VendChannelErrorLog());
+        LogData::create([
+            'value1' => $vendChannelErrorLog,
+            'value2' => VendData::whereJsonContains('value->m', $vendChannelErrorLog->vendChannel->vend->code)
+                                ->whereJsonContains('value->m', 'AAAA')
+                                ->latest()
+                                ->first(),
+            'type' => $className,
+        ]);
+    }
+
+    private function logTempUpdatedAtVariance($vend, $vendData)
+    {
+        $className = get_class(new VendTemp());
+
+        if($vend->temp_updated_at->addMinutes(10)->isPast()) {
+            LogData::create([
+                'value1' => $vendData,
+                'value2' => $vend,
+                'type' => $className,
+            ]);
+        }
     }
 }

@@ -17,7 +17,8 @@ class VendChannelErrorLog extends Model
     protected $fillable = [
         'vend_channel_id',
         'vend_channel_error_id',
-        'is_error_cleared'
+        'vend_transaction_id',
+        'is_error_cleared',
     ];
 
     public function vendChannel()
