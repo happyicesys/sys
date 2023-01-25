@@ -79,9 +79,14 @@ class VendTransaction extends Model
                 $query->whereIn('code', $search);
             });
         })
-        ->when($request->channel_code, function($query, $search) {
+        ->when($request->channel_codes, function($query, $search) {
+            if(strpos($search, ',') !== false) {
+                $search = explode(',', $search);
+            }else {
+                $search = [$search];
+            }
             $query->whereHas('vendChannel', function($query) use ($search) {
-                $query->where('code', 'LIKE', "%{$search}%");
+                $query->whereIn('code', $search);
             });
         })
         ->when($request->errors, function($query, $search) {

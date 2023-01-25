@@ -23,8 +23,11 @@
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
-                <SearchInput placeholderStr="Channel ID" v-model="filters.channel_code">
+                <SearchInput placeholderStr="Channel ID" v-model="filters.channel_codes">
                     Channel ID
+                    <span class="text-[9px]">
+                        ("," for multiple)
+                    </span>
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
@@ -384,7 +387,7 @@ onMounted(() => {
 
 const filters = ref({
     codes: '',
-    channel_code: '',
+    channel_codes: '',
     categories: [],
     categoryGroups: [],
     customer_code: '',
@@ -443,7 +446,7 @@ function onExportExcelClicked() {
             ...filters.value,
             categories: filters.value.categories.map((category) => { return category.id }),
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
-            channel_code: filters.value.channel_code,
+            channel_codes: filters.value.channel_codes,
             errors: filters.value.errors.map((error) => { return error.id }),
             operator_id: filters.value.operator.id,
             paymentMethod: filters.value.paymentMethod.id,
@@ -464,7 +467,7 @@ function onSearchFilterUpdated() {
         ...filters.value,
         categories: filters.value.categories.map((category) => { return category.id }),
         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
-        channel_code: filters.value.channel_code,
+        channel_codes: filters.value.channel_codes,
         errors: filters.value.errors.map((error) => { return error.id }),
         operator_id: filters.value.operator.id,
         paymentMethod: filters.value.paymentMethod.id,
