@@ -45,6 +45,7 @@ class ProductMappingController extends Controller
                     'thumbnail'
                 ])
                 ->where('is_inventory', true)
+                ->where('is_active', true)
                 ->orderBy('code')
                 ->get()
             ),
