@@ -64,7 +64,15 @@ class ProcessVendData implements ShouldQueue
                     case 'g':
                         break;
                     case 'p':
-                        $processedDataArr['content'] = substr($data, -1) == '!' ? base64_decode(substr_replace($data,"=",-1)) : base64_decode($data);
+                        if(strpos($data, ' ')) {
+                            $data = str_replace(' ', '+', $data);
+                        }
+                        if(substr($data, -1) == '!') {
+                            $data = base64_decode(substr_replace($data,"=",-1));
+                        }else {
+                            $data = base64_decode($data);
+                        }
+                        $processedDataArr['content'] = $data;
                         break;
                     default:
                 }
@@ -87,7 +95,6 @@ class ProcessVendData implements ShouldQueue
                 $processedDataArr['data']['Vid'] = json_decode($processedDataArr['code'], true);
                 $processedDataArr['data']['Type'] = 'CHANNEL';
                 $processedDataArr['data']['channels'] = [];
-
                 $byteData = unpack('C*', $processedDataArr['content']);
 
                 if(!empty($byteData) && $byteData[1] == 83) {
