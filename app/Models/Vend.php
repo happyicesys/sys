@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\VendTemp;
 use App\Models\Scopes\OperatorVendFilterScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -229,6 +230,14 @@ class Vend extends Model
         ->when($request->tempHigherThan, function($query, $search) {
             if(is_numeric($search)) {
                 $query->where('temp', '>=', $search * 10);
+            }
+        })
+        ->when($request->tempDeltaHigherThan, function($query, $search) {
+            if(is_numeric($search)) {
+                $query
+                    ->whereNotNull('parameter_json->t2')
+                    ->where('parameter_json->t2', '!=', VendTemp::TEMPERATURE_ERROR)
+                    ->whereRaw('temp - json_extract(parameter_json, "$.t2") > ?', [$search * 10]);
             }
         })
         ->when($request->errors, function($query, $search) {

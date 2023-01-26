@@ -41,6 +41,9 @@
                 <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan">
                     Temp >>
                 </SearchInput>
+                <SearchInput placeholderStr="Number" v-model="filters.tempDeltaHigherThan">
+                    t1-t2 Delta >>
+                </SearchInput>
                 <div>
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Channel Errors
@@ -245,7 +248,7 @@
                             <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
                                 Temp1<br>
                                 &#8451;<br>
-                                &Delta;t2-t1
+                                &Delta;t1-t2
                             </TableHeadSort>
                             <TableHead>
                                 Inventory Status <br>
@@ -320,10 +323,10 @@
                                     </span>
                                     <span
                                         class="mt-1"
-                                        :class="(vend.parameterJson['t2']/10 -  vend.temp).toFixed(1) <= -4 ? 'text-red-700' : 'text-green-700'"
+                                        :class="(vend.temp - vend.parameterJson['t2']/10).toFixed(1) >= 4 ? 'text-red-700' : 'text-green-700'"
                                         v-if="vend.parameterJson && vend.parameterJson['t2'] && vend.parameterJson['t2'] != constTempError && !vend.is_temp_error && !operatorRole"
                                     >
-                                        {{ (vend.parameterJson['t2']/10 -  vend.temp).toFixed(1) }}
+                                        {{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
                                     </span>
                                 </div>
                             </TableData>
@@ -666,6 +669,7 @@
     operator: '',
     is_binded_customer: '',
     tempHigherThan: '',
+    tempDeltaHigherThan: '',
     vend_channel_error_id: '',
     is_online: '',
     is_sensor: '',
