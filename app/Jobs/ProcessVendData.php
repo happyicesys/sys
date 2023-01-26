@@ -413,7 +413,7 @@ class ProcessVendData implements ShouldQueue
     {
         $className = get_class(new VendTemp());
 
-        if($vend->temp_updated_at->addMinutes(10)->isPast()) {
+        if($vend->temp_updated_at and $vend->temp_updated_at->addMinutes(10)->isPast()) {
             LogData::create([
                 'value1' => $vendData,
                 'value2' => $vend,
