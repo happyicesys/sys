@@ -47,6 +47,25 @@
                 Desc
               </FormTextarea>
             </div>
+            <div class="col-span-12 sm:col-span-6">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Operator
+              </label>
+              <MultiSelect
+                v-model="form.operator_id"
+                :options="operatorOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="top"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.operator_id">
+                {{ form.errors.operator_id }}
+              </div>
+            </div>
             <!-- <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Category
@@ -243,7 +262,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue'
 import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon, FolderMinusIcon, FolderPlusIcon, RectangleStackIcon, XCircleIcon } from '@heroicons/vue/20/solid';
-import { useForm } from '@inertiajs/inertia-vue3';
+import { useForm, usePage } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue'
 
 const props = defineProps({
@@ -253,6 +272,7 @@ const props = defineProps({
   uoms: Object,
   type: String,
   showModal: Boolean,
+  operatorOptions: Object,
 })
 
 const emit = defineEmits(['modalClose'])
@@ -265,13 +285,15 @@ const uomOptions = ref([])
 const form = ref(
   useForm(getDefaultForm())
 )
+const operatorOptions = ref([])
+const operatorRole = usePage().props.value.auth.operatorRole
 
 onMounted(() => {
   form.value = props.product ? useForm(props.product) : useForm(getDefaultForm())
   categoryOptions.value = props.categories.data.map((category) => {return {id: category.id, name: category.name}})
   categoryGroupOptions.value = props.categoryGroups.data.map((categoryGroup) => {return {id: categoryGroup.id, name: categoryGroup.name}})
   uomOptions.value = props.uoms.data.map((uom) => {return {id: uom.id, name: uom.name}})
-  // console.log(JSON.parse(JSON.stringify(props.uoms)))
+  operatorOptions.value = props.operatorOptions.slice(1)
 })
 
 function getDefaultForm() {
@@ -285,6 +307,7 @@ function getDefaultForm() {
     is_supermarket_fee: '',
     category_id: '',
     category_group_id: '',
+    operator_id: '',
   }
 }
 
@@ -295,6 +318,7 @@ function submit() {
     form.value
     .transform((data) => ({
       ...data,
+      operator_id: data.operator_id.id,
       // category_id: data.category_id.id,
       // category_group_id: data.category_group_id.id,
     }))
@@ -311,6 +335,7 @@ function submit() {
     form.value
       .transform((data) => ({
         ...data,
+        operator_id: data.operator_id.id,
         // category_id: data.category_id.id,
         // category_group_id: data.category_group_id.id,
       }))

@@ -33,6 +33,8 @@ class ProductResource extends JsonResource
             'thumbnail' => AttachmentResource::make($this->whenLoaded('thumbnail')),
             'unitCosts' => UnitCostResource::collection($this->whenLoaded('unitCosts')),
             'productUoms' => ProductUomResource::collection($this->whenLoaded('productUoms')),
+            'operator' => OperatorResource::make($this->whenLoaded('operator')),
+            'operator_id' => OperatorResource::make($this->whenLoaded('operator')),
         ];
     }
 }

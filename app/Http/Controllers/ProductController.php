@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
+use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\UomResource;
 use App\Models\Category;
 use App\Models\CategoryGroup;
+use App\Models\Operator;
 use App\Models\Product;
 use App\Models\ProductUom;
 use App\Models\Uom;
@@ -25,6 +27,7 @@ class ProductController extends Controller
         $sortBy = $request->sortBy ? $request->sortBy : true;
         $isActive = isset($request->is_active) ? $request->is_active : 1;
         $isInventory = isset($request->is_inventory) ? $request->is_inventory : 1;
+        // $operatorId = isset($request->operator_id) ? $request->operator_id : 1;
         $className = get_class(new Product());
 
         return Inertia::render('Product/Index', [
@@ -38,11 +41,15 @@ class ProductController extends Controller
                         ->orderBy('name')
                         ->get()
             ),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::all()
+            ),
             'products' => ProductResource::collection(
                 Product::with([
                         'attachments',
                         'category',
                         'categoryGroup',
+                        'operator',
                         'productUoms.uom',
                         'thumbnail',
                         'unitCosts',
@@ -82,6 +89,11 @@ class ProductController extends Controller
                                 break;
                         }
                     })
+                    ->when($request->operator_id, function($query, $search) {
+                        if($search != 'all') {
+                            $query->where('operator_id', $search);
+                        }
+                    })
                     ->when($sortKey, function($query, $search) use ($sortBy) {
                         $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                     })
@@ -105,7 +117,9 @@ class ProductController extends Controller
 
         $product = new Product();
         $product = $product->fill($request->all());
-        $product->operator_id = auth()->user()->operator_id;
+        if(!$request->operator_id) {
+            $product->operator_id = auth()->user()->operator_id;
+        }
         $product->save();
 
         if($request->hasFile('thumbnail')){

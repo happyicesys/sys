@@ -29,6 +29,22 @@
           <SearchInput placeholderStr="Name" v-model="filters.name">
             Name
           </SearchInput>
+          <div v-if="!operatorRole">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Operator
+            </label>
+            <MultiSelect
+              v-model="filters.operator"
+              :options="operatorOptions"
+              trackBy="id"
+              valueProp="id"
+              label="full_name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
           <!-- <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Is Inventory?
@@ -146,6 +162,9 @@
                     <TableHead>
                       Thumbnail
                     </TableHead>
+                    <TableHead v-if="!operatorRole">
+                      Operator
+                    </TableHead>
                     <!-- <TableHead>
                       Category
                     </TableHead>
@@ -177,6 +196,12 @@
                         <div class="flex justify-center">
                           <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="product.thumbnail.full_url" alt="" v-if="product.thumbnail"/>
                         </div>
+                      </TableData>
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-left" v-if="!operatorRole">
+                        <span v-if="product.operator">
+                          {{ product.operator.code }} <br>
+                          {{ product.operator.name }}
+                        </span>
                       </TableData>
                       <!-- <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         {{ product.category_id ? product.category_id.name : null }}
@@ -224,6 +249,7 @@
       :uoms = "uoms"
       :type="type"
       :showModal="showModal"
+      :operatorOptions="operatorOptions"
       @modalClose="onModalClose"
   >
   </Form>
@@ -241,13 +267,14 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head } from '@inertiajs/inertia-vue3';
+import { Head, usePage } from '@inertiajs/inertia-vue3';
 import { ref, onMounted, watch } from 'vue';
 import { Inertia } from '@inertiajs/inertia'
 
 const props = defineProps({
   categories: Object,
   categoryGroups: Object,
+  operatorOptions: Object,
   products: Object,
   uoms: Object,
 })
@@ -255,6 +282,7 @@ const props = defineProps({
 const filters = ref({
   code: '',
   name: '',
+  operator: '',
   // is_active: '',
   // is_comm_or_sf: '',
   // is_inventory: '',
@@ -265,6 +293,8 @@ const filters = ref({
 const booleanOptions = ref([])
 const commSfOptions = ref([])
 const showModal = ref(false)
+const operatorOptions = ref([])
+const operatorRole = usePage().props.value.auth.operatorRole
 const product = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
@@ -276,7 +306,6 @@ onMounted(() => {
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
   ]
-  filters.value.numberPerPage = numberPerPageOptions.value[0]
   booleanOptions.value = [
     {id: 1, value: 'Yes'},
     {id: 0, value: 'No'},
@@ -289,6 +318,14 @@ onMounted(() => {
     {id: 'sf', value: 'SF Only'},
     {id: 'both', value: 'Both Comm & SF'},
   ]
+  operatorOptions.value = [
+    {
+        id: 'all', full_name: 'All'
+    },
+    ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+  ]
+  filters.value.numberPerPage = numberPerPageOptions.value[0]
+  filters.value.operator = operatorOptions.value[0]
   // filters.value.is_comm_or_sf = commSfOptions.value[0]
   // console.log(JSON.parse(JSON.stringify(props.uoms)))
 })
@@ -322,6 +359,7 @@ function onSearchFilterUpdated() {
   Inertia.get('/products', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
+      operator_id: filters.value.operator.id,
       // is_active: filters.value.is_active.id,
       // is_inventory: filters.value.is_inventory.id,
       // is_comm_or_sf: filters.value.is_comm_or_sf.id,
