@@ -85,9 +85,9 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
+                    <TableHead>
                       Name
-                    </TableHeadSort>
+                    </TableHead>
                     <TableHead>
                       Channel - Product
                     </TableHead>

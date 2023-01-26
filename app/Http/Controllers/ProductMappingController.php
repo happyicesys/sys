@@ -18,7 +18,7 @@ class ProductMappingController extends Controller
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
-        $sortKey = $request->sortKey ? $request->sortKey : 'created_at';
+        // $sortKey = $request->sortKey ? $request->sortKey : 'created_at';
         $sortBy = $request->sortBy ? $request->sortBy : false;
 
         return Inertia::render('ProductMapping/Index', [
@@ -31,14 +31,14 @@ class ProductMappingController extends Controller
                     'vends',
                     'vends.latestVendBinding.customer',
                 ])
-                    ->when($request->name, function($query, $search) {
-                        $query->where('name', 'LIKE', "%{$search}%");
-                    })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-                    })
-                    ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-                    ->withQueryString()
+                ->when($request->name, function($query, $search) {
+                    $query->where('name', 'LIKE', "%{$search}%");
+                })
+                // ->when($sortKey, function($query, $search) use ($sortBy) {
+                //     $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                // })
+                ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                ->withQueryString()
             ),
             'products' => ProductResource::collection(
                 Product::with([
