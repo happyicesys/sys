@@ -246,8 +246,8 @@
                                 Name
                             </TableHead>
                             <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
-                                Temp1<br>
-                                &#8451;<br>
+                                Temp1 (&#8451;)
+                                <br>
                                 &Delta;t1-t2
                             </TableHeadSort>
                             <TableHead>
