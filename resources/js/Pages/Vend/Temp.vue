@@ -143,7 +143,7 @@
                                         <label class="pl-2">T1</label>
                                     </span>
                                 </span>
-                                <span class="inline-flex rounded-md shadow-sm" v-if="vend.parameterJson['t2']">
+                                <span class="inline-flex rounded-md shadow-sm" v-if="'t2' in vend.parameterJson">
                                     <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                     <input type="checkbox" value="2" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                         <label class="pl-2">T2</label>

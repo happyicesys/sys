@@ -520,7 +520,7 @@
                                         class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
                                         :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
                                         @click="onVendTempClicked(vend.id, 2)"
-                                        v-if="vend.parameterJson && vend.parameterJson['t2']"
+                                        v-if="vend.parameterJson && 't2' in vend.parameterJson"
                                     >
                                         {{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)
                                     </button>
