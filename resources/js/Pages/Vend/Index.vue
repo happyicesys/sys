@@ -324,7 +324,7 @@
                                     <span
                                         class="mt-1"
                                         :class="(vend.temp - vend.parameterJson['t2']/10).toFixed(1) >= 4 ? 'text-red-700' : 'text-green-700'"
-                                        v-if="vend.parameterJson && vend.parameterJson['t2'] && vend.parameterJson['t2'] != constTempError && !vend.is_temp_error && !operatorRole"
+                                        v-if="vend.parameterJson && vend.parameterJson['t2'] && vend.parameterJson['t2'] != constTempError && !vend.is_temp_error"
                                     >
                                         {{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
                                     </span>
