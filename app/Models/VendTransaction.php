@@ -146,4 +146,14 @@ class VendTransaction extends Model
 
         return $query;
     }
+
+    public function scopeIsSuccessful($query)
+    {
+        return $query->whereIn('vend_transaction_json->SErr', [0, 6]);
+    }
+
+    public function scopeIsFailure($query)
+    {
+        return $query->whereNotIn('vend_transaction_json->SErr', [0, 6]);
+    }
 }

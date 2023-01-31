@@ -100,7 +100,7 @@ class Vend extends Model
     public function vendSevenDaysTransactions()
     {
         return $this->hasMany(VendTransaction::class)
-                    ->where('vend_transaction_json->ISOK', 1)
+                    ->isSuccessful()
                     ->whereDate('transaction_datetime', '<=', Carbon::today())
                     ->whereDate('transaction_datetime', '>=', Carbon::today()->subDays(6))
                     ->whereNull('vend_channel_error_id');
@@ -109,7 +109,7 @@ class Vend extends Model
     public function vendYesterdayTransactions()
     {
         return $this->hasMany(VendTransaction::class)
-                    ->where('vend_transaction_json->ISOK', 1)
+                    ->isSuccessful()
                     ->whereDate('transaction_datetime', '=', Carbon::yesterday())
                     ->whereNull('vend_channel_error_id');
     }
@@ -117,7 +117,7 @@ class Vend extends Model
     public function vendTodayTransactions()
     {
         return $this->hasMany(VendTransaction::class)
-                    ->where('vend_transaction_json->ISOK', 1)
+                    ->isSuccessful()
                     ->whereDate('transaction_datetime', '=', Carbon::today())
                     ->whereNull('vend_channel_error_id');
     }

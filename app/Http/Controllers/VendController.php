@@ -195,8 +195,8 @@ class VendController extends Controller
 
         $vendTransactionsTotal = clone $vendTransactions;
         $vendTransactionsCount = clone $vendTransactions;
-        $vendTransactionsTotal = $vendTransactionsTotal->where('vend_transaction_json->ISOK', 1)->sum('amount');
-        $vendTransactionsCount = $vendTransactionsCount->where('vend_transaction_json->ISOK', 1)->count();
+        $vendTransactionsTotal = $vendTransactionsTotal->isSuccessful()->sum('amount');
+        $vendTransactionsCount = $vendTransactionsCount->isSuccessful()->count();
 
         return Inertia::render('Vend/Transaction', [
             'categories' => CategoryResource::collection(

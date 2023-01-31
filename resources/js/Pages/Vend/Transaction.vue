@@ -252,7 +252,7 @@
                             Channels Error
                         </TableHead>
                         <TableHead>
-                            Dispensing Status
+                            Payment Received
                         </TableHead>
                       </tr>
                   </thead>
@@ -304,7 +304,7 @@
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span></span>
-                            {{ vendTransaction.vendTransactionJson ? (vendTransaction.vendTransactionJson['ISOK'] == 1 ? 'Success' : "Failure") : '' }}
+                            {{ vendTransaction.vendTransactionJson ? (vendTransaction.vendTransactionJson['SErr'] == 0 || vendTransaction.vendTransactionJson['SErr'] == 6 ? 'Yes' : "No") : '' }}
                         </TableData>
                       </tr>
                       <tr v-if="!vendTransactions.data.length">
