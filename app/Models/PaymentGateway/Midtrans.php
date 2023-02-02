@@ -14,7 +14,7 @@ class Midtrans extends Model implements PaymentGatewayInterface
     var $array, $obj, $url, $id, $deliverLevel, $errorMessage, $autoSubmit;
     public static $clientServerKey = '';
 
-    public function __construct($clientServerKey)
+    public function __construct( $clientServerKey)
     {
         $clientServerKey = $clientServerKey;
         $this->array = array();
@@ -47,8 +47,8 @@ class Midtrans extends Model implements PaymentGatewayInterface
 class MidtransAction
 {
     var $url, $action, $curlData, $clientServerKey;
-    public static $production = 'https://api.midtrans.com/';
     public static $staging = 'https://api.sandbox.midtrans.com/';
+    public static $production = 'https://api.midtrans.com/';
 
     public function setClientServerKey($clientServerKey)
     {
@@ -72,7 +72,7 @@ class MidtransAction
             self::throwException('Invalid API Key Provided');
         }
         if ($this->action == 'QRIS') {
-            $this->url .= 'v2/charge/';
+            $this->url .= 'v2/charge';
         }
         return $this;
     }

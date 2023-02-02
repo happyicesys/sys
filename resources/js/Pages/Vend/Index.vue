@@ -39,10 +39,10 @@
                     Serial Num
                 </SearchInput>
                 <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan">
-                    Temp >>
+                    Temp &gt;&gt;
                 </SearchInput>
                 <SearchInput placeholderStr="Number" v-model="filters.tempDeltaHigherThan">
-                    t1-t2 Delta >>
+                    t1-t2 Delta &gt;&gt;
                 </SearchInput>
                 <div>
                     <label for="text" class="block text-sm font-medium text-gray-700">
@@ -178,8 +178,8 @@
                     >
                     </MultiSelect>
                 </div>
-                <SearchInput placeholderStr="Fan Speed" v-model="filters.fanSpeedHigherThan">
-                    Fan Speed >>
+                <SearchInput placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan">
+                    Fan Speed &lt;&lt;
                 </SearchInput>
                 <div v-if="!operatorRole">
                     <label for="text" class="block text-sm font-medium text-gray-700">
@@ -676,7 +676,7 @@
     is_online: '',
     is_sensor: '',
     is_door_open: '',
-    fanSpeedHigherThan: '',
+    fanSpeedLowerThan: '',
     sortKey: '',
     sortBy: false,
     numberPerPage: '',

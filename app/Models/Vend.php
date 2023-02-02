@@ -218,9 +218,9 @@ class Vend extends Model
                 $query->whereIn('id', $search);
             });
         })
-        ->when($request->fanSpeedHigherThan, function($query, $search) {
+        ->when($request->fanSpeedLowerThan, function($query, $search) {
             if(is_numeric($search)) {
-                $query->where('parameter_json->fan', '>=', $search);
+                $query->where('parameter_json->fan', '<=', $search);
             }
         })
         ->when($isDoorOpen, function($query, $search) {
