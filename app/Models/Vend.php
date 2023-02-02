@@ -220,7 +220,7 @@ class Vend extends Model
         })
         ->when($request->fanSpeedLowerThan, function($query, $search) {
             if(is_numeric($search)) {
-                $query->where('parameter_json->fan', '<=', $search);
+                $query->where('parameter_json->fan', '<=', $search)->where('parameter_json->fan', '>', 0);
             }
         })
         ->when($isDoorOpen, function($query, $search) {

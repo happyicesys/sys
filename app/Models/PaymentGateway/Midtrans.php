@@ -11,48 +11,63 @@ class Midtrans extends Model implements PaymentGatewayInterface
 {
     use HasFactory;
 
-    var $array, $obj, $url, $id, $deliverLevel, $errorMessage, $autoSubmit;
-    public static $clientServerKey = '';
+    public static $apiKey = '';
+    public static $staging = 'https://api.sandbox.midtrans.com/';
+    public static $production = 'https://api.midtrans.com/';
 
-    public function __construct( $clientServerKey)
+    public function __construct($apiKey)
     {
-        $clientServerKey = $clientServerKey;
-        $this->array = array();
-        $this->obj = new MidtransAction;
-        if (empty($clientServerKey)) {
-            $this->obj->setClientServerKey(self::$clientServerKey);
-        } else {
-            $this->obj->setClientServerKey($clientServerKey);
+        if(config('app.env') === 'production') {
+            $this->url = self::$production;
+        }else {
+            $this->url = self::$staging;
         }
     }
 
-    public function setClientServerKey($clientServerKey = '')
+    public function setApiKey($apiKey)
     {
-        if (empty($clientServerKey)) {
-            $this->obj->setClientServerKey(self::$clientServerKey);
-        } else {
-            $this->obj->setClientServerKey($clientServerKey);
-        }
+        $this->apiKey = $apiKey;
         return $this;
     }
 
-
-    public function getClientServerKey()
+    public function getApiKey()
     {
-        return self::$clientServerKey;
+        return self::$apiKey;
+    }
+
+    public function setRequest($params = '')
+    {
+        if ($this->action == 'QRIS') {
+            $reqType = 'POST';
+        }
+
+        $headers = array(
+            'Authorization' => 'Basic '.base64_encode($this->clientServerKey.':'),
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/json',
+        );
+
+        try {
+            $response = $Http::withHeaders($headers)->post($this->url, [$params]);
+        } catch (ClientException $e) {
+            $response = $e->getResponse();
+        }
+        $this->curlData = $response;
+
+        return $this->curlData;
     }
 
 }
 
 class MidtransAction
 {
-    var $url, $action, $curlData, $clientServerKey;
+    var $url, $action, $curlData, $apiKey;
     public static $staging = 'https://api.sandbox.midtrans.com/';
     public static $production = 'https://api.midtrans.com/';
 
-    public function setClientServerKey($clientServerKey)
+    public function setApiKey($apiKey)
     {
-        $this->clientServerKey = $clientServerKey;
+        $this->apiKey = $apiKey;
         return $this;
     }
 
