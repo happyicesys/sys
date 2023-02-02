@@ -169,6 +169,7 @@ class Vend extends Model
     public function scopeFilterIndex($query, $request)
     {
         // dd($request->all());
+        $isDoorOpen = $request->is_door_open != null ? $request->is_door_open : 'all';
         $isOnline = $request->is_online != null ? $request->is_online : 'all';
         $isSensor = $request->is_sensor != null ? $request->is_sensor : 'all';
         $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
@@ -216,6 +217,16 @@ class Vend extends Model
             $query->whereHas('latestVendBinding.customer.category.categoryGroup', function($query) use ($search) {
                 $query->whereIn('id', $search);
             });
+        })
+        ->when($request->fanSpeedHigherThan, function($query, $search) {
+            if(is_numeric($search)) {
+                $query->where('parameter_json->fan', '>=', $search);
+            }
+        })
+        ->when($isDoorOpen, function($query, $search) {
+            if($search != 'all') {
+                $query->where('parameter_json->door', '=', $search);
+            }
         })
         ->when($isBindedCustomer, function($query, $search) {
             // dd($search);

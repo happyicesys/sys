@@ -162,6 +162,25 @@
                     >
                     </MultiSelect>
                 </div>
+                <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                        Is Door Open
+                    </label>
+                    <MultiSelect
+                        v-model="filters.is_door_open"
+                        :options="doorOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="value"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                </div>
+                <SearchInput placeholderStr="Fan Speed" v-model="filters.fanSpeedHigherThan">
+                    Fan Speed >>
+                </SearchInput>
                 <div v-if="!operatorRole">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Operator
@@ -404,23 +423,6 @@
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <!-- <span :class="[
-                                    vend.salesData.today.sales >= 30 ? 'text-green-700' : 'text-red-700'
-                                ]">
-                                    {{vend.salesData.today.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}
-                                    ({{vend.salesData.today.count.toLocaleString(undefined, {minimumFractionDigits: 0})}}) <br>
-                                </span>
-                                <span :class="[
-                                    vend.salesData.yesterday.sales >= 30 ? 'text-green-700' : 'text-red-700'
-                                ]">
-                                    {{vend.salesData.yesterday.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}
-                                    ({{vend.salesData.yesterday.count.toLocaleString(undefined, {minimumFractionDigits: 0})}}) <br>
-                                </span>
-                                <span :class="[
-                                    vend.salesData.sevenDays.sales > 200 ? 'text-green-700' : 'text-red-700'
-                                ]">
-                                    {{vend.salesData.sevenDays.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.salesData.sevenDays.count.toLocaleString(undefined, {minimumFractionDigits: 0})}})
-                                </span> -->
                                 <span :class="[
                                     (vend.vendTransactionTotalsJson['today_amount']/ 100) >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
@@ -673,6 +675,8 @@
     vend_channel_error_id: '',
     is_online: '',
     is_sensor: '',
+    is_door_open: '',
+    fanSpeedHigherThan: '',
     sortKey: '',
     sortBy: false,
     numberPerPage: '',
@@ -681,6 +685,7 @@
   const booleanOptions = ref([])
   const categoryOptions = ref([])
   const categoryGroupOptions = ref([])
+  const doorOptions = ref([])
   const enableOptions = ref([])
   const numberPerPageOptions = ref([])
   const operatorOptions = ref([])
@@ -720,13 +725,19 @@
         {id: 'true', value: 'Enabled'},
         {id: 'false', value: 'Disabled'},
     ]
+    doorOptions.value = [
+        {id: 'all', value: 'All'},
+        {id: 'open', value: 'Open'},
+        {id: 'close', value: 'Close'},
+    ]
     operatorOptions.value = [
         {
             id: 'all', full_name: 'All'
         },
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
-                // operatorOptions.value = operatorOptions.value.push({id: 'all', full_name: 'All'})
+
+    filters.value.is_door_open = doorOptions.value[0]
     filters.value.is_online = booleanOptions.value[0]
     filters.value.is_sensor = enableOptions.value[0]
     filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
@@ -763,6 +774,7 @@
             errors: filters.value.errors.map((error) => { return error.id }),
             operator_id: filters.value.operator.id,
             is_binded_customer: filters.value.is_binded_customer.id,
+            is_door_open: filters.value.is_door_open.id,
             is_online: filters.value.is_online.id,
             is_sensor: filters.value.is_sensor.id,
             numberPerPage: filters.value.numberPerPage.id,
