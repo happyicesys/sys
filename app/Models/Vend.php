@@ -92,6 +92,11 @@ class Vend extends Model
         return $this->vendChannels()->where('qty', '=', 0);
     }
 
+    public function vendFans()
+    {
+        return $this->hasMany(VendFan::class);
+    }
+
     public function vendTemps()
     {
         return $this->hasMany(VendTemp::class);

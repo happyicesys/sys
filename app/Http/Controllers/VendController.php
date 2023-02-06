@@ -26,12 +26,14 @@ use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
+use App\Models\PaymentGateway\Midtrans;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
-
+use PhpMqtt\Client\Facades\MQTT;
+use App\Jobs\ProcessVendData;
 
 class VendController extends Controller
 {
@@ -39,6 +41,25 @@ class VendController extends Controller
 
     public function index(Request $request)
     {
+        // $midtrans = new Midtrans('SB-Mid-server-USybf0_T3EbRgMHnibomesGv', 'QRIS');
+        // $response = $midtrans->executeRequest([
+        //     'payment_type' => 'qris',
+        //     'transaction_details' => [
+        //         'order_id' => '0011',
+        //         'gross_amount' => 3000,
+        //     ],
+        //     'qris' => [
+        //         'acquirer' => 'gopay',
+        //     ],
+        // ]);
+        // dd($response->collect());
+        // $mqtt = MQTT::connection();
+        // $mqtt->subscribe('CV1', function (string $topic, string $message) {
+        //     ProcessVendData::dispatch($input, $ipAddress);
+        // }, 1);
+        // $mqtt->loop(true);
+
+
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $className = get_class(new Customer());
 

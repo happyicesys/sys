@@ -11,6 +11,7 @@ use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use App\Models\VendData;
+use App\Models\VendFan;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
 use Carbon\Carbon;
@@ -174,6 +175,7 @@ class ProcessVendData implements ShouldQueue
                     if($type = $input['Type']) {
                         switch($type) {
                             case 'VENDER':
+                                $this->createVendFan($vend, $input);
                                 $this->createVendTemp($vend, $input);
                                 $this->saveParameter($vend, $input);
                                 break;
@@ -189,6 +191,16 @@ class ProcessVendData implements ShouldQueue
             }
         }
         return true;
+    }
+
+    private function createVendFan(Vend $vend, $input)
+    {
+        if($fan = $input['fan']) {
+            $vend->vendFans()->create([
+                'value' => $fan,
+                'type' => VendFan::TYPE_MAIN,
+            ]);
+        }
     }
 
     private function createVendTemp(Vend $vend, $input)

@@ -11,114 +11,64 @@ class Midtrans extends Model implements PaymentGatewayInterface
 {
     use HasFactory;
 
-    public static $apiKey = '';
-    public static $staging = 'https://api.sandbox.midtrans.com/';
-    public static $production = 'https://api.midtrans.com/';
+    public static $sandbox = 'https://api.sandbox.midtrans.com';
+    public static $production = 'https://api.midtrans.com';
+    private $apiKey;
+    private $action;
+    private $curlData;
+    private $url;
 
-    public function __construct($apiKey)
-    {
-        if(config('app.env') === 'production') {
-            $this->url = self::$production;
-        }else {
-            $this->url = self::$staging;
-        }
-    }
-
-    public function setApiKey($apiKey)
+    public function __construct($apiKey = '', $action = 'QRIS')
     {
         $this->apiKey = $apiKey;
-        return $this;
+        $this->action = $action;
+        $this->setUrl($action);
+    }
+
+    public function executeRequest($params = '')
+    {
+        // dd($this->getHeaders(), $this->getUrl(), $params);
+        try {
+            $response = Http::withHeaders($this->getHeaders())->post($this->getUrl(), $params);
+        } catch (ClientException $e) {
+            $response = $e->getResponse();
+        }
+        $this->curlData = $response;
+
+        return $this->curlData;
     }
 
     public function getApiKey()
     {
-        return self::$apiKey;
+        return $this->apiKey;
     }
 
-    public function setRequest($params = '')
+    private function setUrl($action)
     {
-        if ($this->action == 'QRIS') {
-            $reqType = 'POST';
-        }
-
-        $headers = array(
-            'Authorization' => 'Basic '.base64_encode($this->clientServerKey.':'),
-            'Accept' => 'application/json',
-            'Content-Type' => 'application/json',
-        );
-
-        try {
-            $response = $Http::withHeaders($headers)->post($this->url, [$params]);
-        } catch (ClientException $e) {
-            $response = $e->getResponse();
-        }
-        $this->curlData = $response;
-
-        return $this->curlData;
-    }
-
-}
-
-class MidtransAction
-{
-    var $url, $action, $curlData, $apiKey;
-    public static $staging = 'https://api.sandbox.midtrans.com/';
-    public static $production = 'https://api.midtrans.com/';
-
-    public function setApiKey($apiKey)
-    {
-        $this->apiKey = $apiKey;
-        return $this;
-    }
-
-    public function setAction($action)
-    {
-        $this->action = $action;
-        return $this;
-    }
-
-    public function setURL($mode, $id = '')
-    {
-        if ($mode == 'local') {
-            $this->url = self::$staging;
-        } else if ($mode == 'production') {
+        if(config('app.env') === 'production') {
             $this->url = self::$production;
-        } else {
-            self::throwException('Invalid API Key Provided');
+        }else {
+            $this->url = self::$sandbox;
         }
-        if ($this->action == 'QRIS') {
-            $this->url .= 'v2/charge';
+
+        if($this->action === 'QRIS') {
+            $this->url .= '/v2/charge';
         }
-        return $this;
     }
 
-    public function curlAction($params = '')
+    private function getUrl()
     {
-        $client = new Client();
+        return $this->url;
+    }
 
-        /*
-         * Determine request type
-         * Action Available:
-         * QRIS (REQUEST QR FOR PAYMENT)
-         */
-
-        if ($this->action == 'QRIS') {
-            $reqType = 'POST';
-        }
-
+    private function getHeaders()
+    {
         $headers = array(
-            'Authorization' => 'Basic '.base64_encode($this->clientServerKey.':'),
+            'Authorization' => 'Basic '.base64_encode($this->getApiKey().':'),
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
         );
 
-        try {
-            $response = $Http::withHeaders($headers)->post($this->url, [$params]);
-        } catch (ClientException $e) {
-            $response = $e->getResponse();
-        }
-        $this->curlData = $response;
-
-        return $this->curlData;
+        return $headers;
     }
 }

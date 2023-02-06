@@ -50,6 +50,11 @@ class Operator extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function operatorPaymentGateway()
+    {
+        return $this->hasMany(OperatorPaymentGateway::class);
+    }
+
     public function profile()
     {
         return $this->belongsTo(Profile::class);
