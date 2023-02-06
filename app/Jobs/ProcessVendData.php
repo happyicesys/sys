@@ -195,9 +195,9 @@ class ProcessVendData implements ShouldQueue
 
     private function createVendFan(Vend $vend, $input)
     {
-        if($fan = $input['fan']) {
+        if($input['fan']) {
             $vend->vendFans()->create([
-                'value' => $fan,
+                'value' => $input['fan'],
                 'type' => VendFan::TYPE_MAIN,
             ]);
         }
