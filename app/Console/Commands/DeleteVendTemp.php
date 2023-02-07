@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Vend;
+use App\Models\VendFan;
 use App\Models\VendTemp;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -33,5 +34,6 @@ class DeleteVendTemp extends Command
         // VendTemp::whereDate('created_at', '<=', Carbon::today()->subDays(30))->delete();
 
         VendTemp::whereDate('created_at', '<=', Carbon::today()->subDays(14))->delete();
+        VendFan::whereDate('created_at', '<=', Carbon::today()->subDays(14))->delete();
     }
 }

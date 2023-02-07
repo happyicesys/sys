@@ -1,25 +1,27 @@
 <?php
 
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\Api\Client\ClientController;
 use App\Http\Controllers\Api\V1\VendDataController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| is assigned the "api" middleware group. Enjoy building your API!
-|
-*/
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::post('/v1/vend-data', [VendDataController::class, 'create']);
+Route::prefix('client')
+    ->middleware(['throttle:client'])
+    ->middleware('auth:sanctum')
+    ->group(function() {
+        Route::post('/transactions', [ClientController::class, 'getTransactions']);
+    });
 
-Route::post('/v1/customer/migrate', [CustomerController::class, 'migrate']);
+Route::prefix('v1')->group(function() {
+    Route::post('/vend-data', [VendDataController::class, 'create']);
+    Route::post('/customer/migrate', [CustomerController::class, 'migrate']);
+});
+
+
+

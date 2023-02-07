@@ -7,7 +7,7 @@ trait GetUserTimezone{
 
   public function getUserTimezone()
   {
-    $timezone = auth()->user()->has('operator') ? auth()->user()->operator->timezone : 'Asia/Singapore';
+    $timezone = auth()->user() && auth()->user()->has('operator') ? auth()->user()->operator->timezone : 'Asia/Singapore';
 
     return $timezone;
   }

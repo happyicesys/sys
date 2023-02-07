@@ -55,7 +55,8 @@ class DatabaseSeeder extends Seeder
             // ThaiCountrySeeder::class,
             // OperatorSeeder::class,
             // OperaterRoleSeeder::class,
-            OperatorPaymentGatewaySeeder::class,
+            // OperatorPaymentGatewaySeeder::class,
+            UmamiTokenSeeder::class,
         ]);
     }
 }
