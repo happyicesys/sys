@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Http\Controllers\VendDataController;
 use App\Jobs\ProcessVendData;
+use App\Services\VendDataService;
 use Illuminate\Console\Command;
 use PhpMqtt\Client\Facades\MQTT;
 
@@ -27,12 +29,23 @@ class SubscribeMqtt extends Command
      *
      * @return int
      */
+    protected $vendDataService;
+
+    public function __construct(VendDataService $vendDataService)
+    {
+        parent::__construct();
+        $this->vendDataService = $vendDataService;
+    }
+
     public function handle()
     {
         $mqtt = MQTT::connection();
         $mqtt->subscribe('#', function (string $topic, string $message) {
-            $processedMessage = json_decode($message, true);
-            ProcessVendData::dispatch($processedMessage, '143.198.221.235');
+            $vendDataService = $this->vendDataService->getVendData($message, '143.198.221.235', 'mqtt');
+            // echo sprintf('Response %s', implode($vendDataService->toArray()));
+            // $obj = new VendDataController($this->vendDataService->getVendData($message, '143.198.221.235', 'mqtt'));
+            echo sprintf('Received message on topic [%s]: %s', $topic, $message);
+            ProcessVendData::dispatch($message, '143.198.221.235', 'mqtt');
         }, 1);
         $mqtt->loop(true);
     }

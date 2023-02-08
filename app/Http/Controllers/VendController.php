@@ -24,6 +24,7 @@ use App\Models\PaymentMethod;
 use App\Models\Vend;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
+use App\Models\VendData;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
 use App\Models\PaymentGateway\Midtrans;
@@ -32,8 +33,9 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
-use PhpMqtt\Client\Facades\MQTT;
-use App\Jobs\ProcessVendData;
+
+// use PhpMqtt\Client\Facades\MQTT;
+// use App\Jobs\ProcessVendData;
 
 class VendController extends Controller
 {
@@ -53,13 +55,6 @@ class VendController extends Controller
         //     ],
         // ]);
         // dd($response->collect());
-        // $mqtt = MQTT::connection();
-        // $mqtt->subscribe('CV1', function (string $topic, string $message) {
-        //     ProcessVendData::dispatch($input, $ipAddress);
-        // }, 1);
-        // $mqtt->loop(true);
-
-
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $className = get_class(new Customer());
 

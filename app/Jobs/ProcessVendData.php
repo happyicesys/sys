@@ -21,6 +21,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Log;
 
 class ProcessVendData implements ShouldQueue
 //
@@ -29,16 +30,18 @@ class ProcessVendData implements ShouldQueue
 
     protected $input;
     protected $ipAddress;
+    protected $connectionType;
 
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct($input, $ipAddress)
+    public function __construct($input, $ipAddress, $connectionType)
     {
         $this->input = $input;
         $this->ipAddress = $ipAddress;
+        $this->connectionType = $connectionType;
     }
 
     /**
@@ -48,12 +51,23 @@ class ProcessVendData implements ShouldQueue
      */
     public function handle()
     {
+        $connectionType = $this->connectionType;
+        $jsonInput = '';
+
+        if($connectionType === 'mqtt') {
+            $input = [];
+            foreach(explode('&', $this->input) as $processInput) {
+                list($a, $b) = explode('=', $processInput);
+                $input[$a] = $b;
+            }
+            $jsonInput = $input;
+        }
 
         $input = collect($this->input);
         $processedDataArr = [];
         if($input->has('f') and $input->has('g') and $input->has('m') and $input->has('p') and $input->has('t')) {
             $processedDataArr['original'] = $input;
-            foreach($this->input as $dataIndex => $data) {
+            foreach($input as $dataIndex => $data) {
                 switch($dataIndex) {
                     case 'f':
                         break;
@@ -131,12 +145,11 @@ class ProcessVendData implements ShouldQueue
         }
 
         if($input) {
-            // dd($input);
             $vendData = VendData::create([
-                'value' => $this->input,
+                'value' => $this->connectionType === 'mqtt' ? $jsonInput : $this->input,
                 'ip_address' => $this->ipAddress,
+                'connection' => $this->connectionType,
             ]);
-
             if($vendData) {
                 $vend = Vend::where('code', $vendData->value['m'])->first();
                 $this->logTempUpdatedAtVariance($vend, $vendData);
@@ -144,7 +157,6 @@ class ProcessVendData implements ShouldQueue
 
             if(isset($input['Vid'])) {
                 $vid = $input['Vid'];
-
                 $vend = Vend::firstOrCreate([
                     'code' => $vid,
                 ]);
@@ -152,7 +164,6 @@ class ProcessVendData implements ShouldQueue
                 $firmwareVer = isset($input['Ver']) ? (int)$input['Ver'] : null;
                 $isDoorOpen = isset($input['isDoorOpen']) ? $input['isDoorOpen'] : null;
                 $isSensorNormal = isset($input['Sensor']) ? $input['Sensor'] : null;
-
                 if($vend) {
                     if($coinAmount) {
                         $vend->coin_amount = $coinAmount;

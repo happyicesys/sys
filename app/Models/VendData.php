@@ -10,6 +10,8 @@ class VendData extends Model
     use HasFactory;
 
     protected $fillable = [
+        'connection',
+        'processed',
         'ip_address',
         'value',
     ];
