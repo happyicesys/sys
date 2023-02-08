@@ -29,8 +29,8 @@ class VendDataController extends Controller
         $input = $request->all();
         $ipAddress = $request->ip();
 
-        $vendDataService = $this->vendDataService->getVendData($input, $ipAddress, 'mqtt');
-        dd($vendDataService->toArray());
+        // $vendDataService = $this->vendDataService->getVendData($input, $ipAddress, 'mqtt');
+        // dd($vendDataService->toArray());
 
         ProcessVendData::dispatch($input, $ipAddress, 'http');
 
