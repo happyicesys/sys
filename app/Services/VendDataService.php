@@ -145,11 +145,6 @@ class VendDataService
           break;
 
       }
-  }
-
-  private function vendSaveLastUpdatedTime(Vend $vend)
-  {
-      $vend->last_updated_at = Carbon::now();
-      $vend->save();
+    }
   }
 }
