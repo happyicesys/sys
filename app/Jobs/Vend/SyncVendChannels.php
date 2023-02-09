@@ -54,7 +54,7 @@ class SyncVendChannels implements ShouldQueue
                         'amount' => $channel['amount'],
                         'is_active' => true,
                     ]);
-                    SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code'])->onQueue('default');
+                    SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }else {
                     $vendChannelFalse = VendChannel::updateOrCreate([
                         'vend_id' => $vend->id,

@@ -8,6 +8,7 @@ use App\Jobs\Vend\GetPaymentGatewayQR;
 use App\Jobs\Vend\SyncVendChannels;
 use App\Jobs\Vend\SyncVendParameter;
 use Carbon\Carbon;
+use PhpMqtt\Client\Facades\MQTT;
 
 class VendDataService
 {
@@ -132,6 +133,12 @@ class VendDataService
           break;
         case 'REQQR':
           // if($connectionType === 'mqtt') {
+            // VendData::create([
+            //   'connection' => $connectionType,
+            //   'ip_address' => $ipAddress,
+            //   'value' => $originalInput,
+            //   'processed' => $processedInput,
+            // ]);
             GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
           // }
           break;
@@ -153,6 +160,7 @@ class VendDataService
       }
     }
 
+    // dd($originalInput, $processedInput);
     if($saveVendData) {
       VendData::create([
         'connection' => $connectionType,

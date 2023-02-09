@@ -59,7 +59,7 @@
                       </td>
                       <td class="whitespace-nowrap text-sm font-semibold text-gray-900 text-center" v-if="vend.productMapping">
                         <div class="flex justify-center" >
-                          <img class="h-24 w-24 rounded-full py-2" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
+                          <img class="h-24 w-24 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
                         </div>
                       </td>
                       <td class="whitespace-nowrap py-4 text-sm font-semibold text-gray-900 text-center" v-if="vend.productMapping">
@@ -109,6 +109,14 @@
             </div>
           </div>
         </div>
+        <p class="flex flex-col items-end text-blue-800 text-sm p-3" v-if="vend.productMapping">
+          <span class="" v-if="vend.productMapping.name">
+            {{ vend.productMapping.name }}
+          </span>
+          <span v-if="vend.productMapping.remarks">
+            {{ vend.productMapping.remarks }}
+          </span>
+        </p>
       </template>
     </Modal>
   </Teleport>
