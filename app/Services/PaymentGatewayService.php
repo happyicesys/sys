@@ -3,15 +3,16 @@
 namespace App\Services;
 use App\Models\PaymentGateway;
 use App\Models\PaymentGateway\Midtrans;
+use App\Models\Vend;
 use Carbon\Carbon;
 
 class PaymentGatewayService
 {
   public function create($type = '', Vend $vend, $params)
   {
-    $paymentGateway = PaymentGateway::where('type', $type)->first();
+    $paymentGateway = PaymentGateway::where('name', $type)->first();
     $vendOperatorPaymentGateway = $this->getOperatorPaymentGateway($vend);
-    if($paymentGateway->id === $vendOperatorPaymentGateway->paymentGateway->id) {
+    if($vendOperatorPaymentGateway and $vendOperatorPaymentGateway->paymentGateway and $paymentGateway and $paymentGateway->id === $vendOperatorPaymentGateway->paymentGateway->id) {
       $response = '';
       switch($paymentGateway->name) {
         case 'midtrans':
@@ -19,7 +20,7 @@ class PaymentGatewayService
           $response = $newObj->executeRequest($params);
           break;
       }
-      return $response;
+      return $response->collect();
     }
   }
 
@@ -28,8 +29,8 @@ class PaymentGatewayService
     if($vend->operators()->exists()) {
       $operator = $vend->operators()->first();
 
-      if($operator->operatorPaymentGateway()->exists()) {
-        $operatorPaymentGateway = $operator->operatorPaymentGateway()->where('type', $this->getAppEnvironment())->first();
+      if($operator->operatorPaymentGateways()->exists()) {
+        $operatorPaymentGateway = $operator->operatorPaymentGateways()->where('type', $this->getAppEnvironment())->first();
 
         return $operatorPaymentGateway;
       }

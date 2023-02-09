@@ -23,22 +23,28 @@
                 <table class="min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
                     <tr>
-                      <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         #
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Channel #
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.productMapping">
+                        Image
+                      </th>
+                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.productMapping">
+                        Product
+                      </th>
+                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Qty
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Capacity
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Price
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Error
                       </th>
                     </tr>
@@ -50,6 +56,19 @@
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                         {{ channel.code }}
+                      </td>
+                      <td class="whitespace-nowrap text-sm font-semibold text-gray-900 text-center" v-if="vend.productMapping">
+                        <div class="flex justify-center" >
+                          <img class="h-24 w-24 rounded-full py-2" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
+                        </div>
+                      </td>
+                      <td class="whitespace-nowrap py-4 text-sm font-semibold text-gray-900 text-center" v-if="vend.productMapping">
+                        <span v-if="channel.product && channel.product.code">
+                          {{ channel.product.code }}
+                        </span>
+                        <span class="break-all text-xs" v-if="channel.product && channel.product.name">
+                          <br> {{ channel.product.name }}
+                        </span>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                         {{ channel.qty }}

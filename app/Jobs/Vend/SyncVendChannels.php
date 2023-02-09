@@ -2,7 +2,8 @@
 
 namespace App\Jobs\Vend;
 
-use App\Jobs\SaveVendChannelsJson;
+use App\Jobs\Vend\SaveVendChannelsJson;
+use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use Illuminate\Bus\Queueable;
@@ -39,8 +40,8 @@ class SyncVendChannels implements ShouldQueue
         $vend = $this->vend;
         $input = $this->input;
 
-        if(isset($input->processed) and isset($input->processed['channels'])) {
-            $channels = $input->processed['channels'];
+        if(isset($input) and isset($input['channels'])) {
+            $channels = $input['channels'];
             $vend->vendChannels()->update(['is_active' => false]);
             foreach($channels as $channel) {
                 if($channel['capacity'] > 0 and $channel['channel_code'] >= 10 and $channel['channel_code'] <= 69) {
@@ -53,7 +54,7 @@ class SyncVendChannels implements ShouldQueue
                         'amount' => $channel['amount'],
                         'is_active' => true,
                     ]);
-                    $this->syncVendChannelErrorLog($vend, $channel['channel_code'], $channel['error_code']);
+                    SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code'])->onQueue('default');
                 }else {
                     $vendChannelFalse = VendChannel::updateOrCreate([
                         'vend_id' => $vend->id,
@@ -66,7 +67,7 @@ class SyncVendChannels implements ShouldQueue
                     ]);
                 }
             }
-            SaveVendChannelsJson::dispatch($vend->id);
+            SaveVendChannelsJson::dispatch($vend->id)->onQueue('default');
         }
     }
 }

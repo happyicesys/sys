@@ -3,11 +3,15 @@
 namespace App\Services;
 use App\Models\Vend;
 use App\Models\VendData;
+use App\Jobs\Vend\CreateVendTransaction;
+use App\Jobs\Vend\GetPaymentGatewayQR;
+use App\Jobs\Vend\SyncVendChannels;
+use App\Jobs\Vend\SyncVendParameter;
 use Carbon\Carbon;
 
 class VendDataService
 {
-  public function standardizedVendData($input)
+  public function standardizedVendData($input, $connectionType)
   {
     $finalInput = [];
     if($connectionType === 'mqtt') {
@@ -25,7 +29,8 @@ class VendDataService
   public function decodeVendData($input) {
     $data = [];
     $processedDataArr = [];
-    if($input['f'] and $input['g'] and $input['f'] and $input['p'] and $input['t']) {
+
+    if(isset($input['f']) and isset($input['g']) and isset($input['m']) and isset($input['p']) and isset($input['t'])) {
         foreach($input as $dataIndex => $data) {
             switch($dataIndex) {
                 case 'f':
@@ -98,9 +103,8 @@ class VendDataService
             }
         }
       $data = $processedDataArr['data'];
-
     }else {
-      $data = $vendData->value;
+      $data = $input;
     }
 
     return $data;
@@ -108,43 +112,56 @@ class VendDataService
 
   public function processVendData($originalInput, $processedInput, $ipAddress, $connectionType)
   {
-    $response = '';
+    $response = isset($originalInput['f']) ? $originalInput['f'].',4,MQ==' : true;
+    $saveVendData = true;
 
-    if(isset($processedInput['Vid'])) {
+    if(isset($originalInput['m']) or isset($originalInput['Vid'])) {
       $vend = Vend::firstOrCreate([
-          'code' => $processedInput['Vid'],
+          'code' => isset($originalInput['m']) ? $originalInput['m'] : $originalInput['Vid'],
       ]);
 
       switch($processedInput['Type']) {
         case 'CHANNEL':
-          SyncVendChannels::dispatch($processedInput, $vend);
-          $response = $input['f'].',4,MQ==';
+          SyncVendChannels::dispatch($processedInput, $vend)->onQueue('default');
           break;
         case 'P':
-          $vend->last_updated_at = Carbon::now();
-          $vend->save();
-          $response = $input['f'].',4,MQ==';
+          $vend->update([
+            'last_updated_at' => Carbon::now()
+          ]);
+          $saveVendData = false;
           break;
         case 'REQQR':
-          // queue, cut queue, mqtt publish
-          // save payment gateway log
-          // return fid,len,BASE64(QRCODEmidtransbarcodeUrl,selfGenerateOrderId)
+          // if($connectionType === 'mqtt') {
+            GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
+          // }
           break;
         case 'TIME':
-          // live
-          // return fid,len,BASE64(TIMEyyyy-MM-dd HH:mm:ss)
+          $operatorTimezone = 'Asia/Singapore';
+          if($vend->operators()->exists()) {
+            $operatorTimezone = $vend->operators()->first()->timezone;
+          }
+          $response = isset($originalInput['f']) ?
+          $originalInput['f'].','.strlen(base64_encode('TIME'.Carbon::now()->setTimezone($operatorTimezone)->format('Y-m-d H:i:s'))).','.base64_encode('TIME'.Carbon::now()->setTimezone($operatorTimezone)->format('Y-m-d H:i:s')) :
+          true;
           break;
         case 'TRADE':
-          // queue
-          // record vend transactions
-          // return fid,len,BASE64(1)  fid,4,MQ==
+          CreateVendTransaction::dispatch($processedInput, $vend)->onQueue('default');
           break;
         case 'VENDER':
-          // queue (fan, temp, parameter)
-          // return fid,len,BASE64(1)  fid,4,MQ==
+          SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
           break;
-
       }
     }
+
+    if($saveVendData) {
+      VendData::create([
+        'connection' => $connectionType,
+        'ip_address' => $ipAddress,
+        'value' => $originalInput,
+        'processed' => $processedInput,
+      ]);
+    }
+
+    return $response;
   }
 }

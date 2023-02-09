@@ -2,6 +2,11 @@
 
 namespace App\Jobs\Vend;
 
+use App\Models\Vend;
+use App\Models\VendChannel;
+use App\Models\VendChannelError;
+use App\Models\VendChannelErrorLog;
+use App\Jobs\Vend\SaveVendChannelErrorLogsJson;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -37,6 +42,11 @@ class SyncVendChannelErrorLog implements ShouldQueue
      */
     public function handle()
     {
+        $vend = $this->vend;
+        $vendChannelCode = $this->vendChannelCode;
+        $vendChannelErrorCode = $this->vendChannelErrorCode;
+        $vendTransactionId = $this->vendTransactionId;
+
         $vendChannelError = VendChannelError::where('code', $vendChannelErrorCode)->first();
 
         if($vendChannelError) {
@@ -65,10 +75,6 @@ class SyncVendChannelErrorLog implements ShouldQueue
                         $lastVendChannelErrorLog->is_error_cleared = true;
                         $lastVendChannelErrorLog->save();
                     }
-
-                    if($vendChannelErrorLog and !$vendTransactionId) {
-                        $this->logVendChannelErrorNotTally($vendChannelErrorLog);
-                    }
                 }
 
             }else {
@@ -84,7 +90,7 @@ class SyncVendChannelErrorLog implements ShouldQueue
                 }
 
             }
-            SaveVendChannelErrorLogsJson::dispatch($vend->id);
+            SaveVendChannelErrorLogsJson::dispatch($vend->id)->onQueue('default');
         }
     }
 }

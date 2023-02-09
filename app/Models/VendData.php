@@ -18,5 +18,6 @@ class VendData extends Model
 
     protected $casts = [
         'value' => 'json',
+        'processed' => 'json',
     ];
 }

@@ -43,18 +43,6 @@ class VendController extends Controller
 
     public function index(Request $request)
     {
-        // $midtrans = new Midtrans('SB-Mid-server-USybf0_T3EbRgMHnibomesGv', 'QRIS');
-        // $response = $midtrans->executeRequest([
-        //     'payment_type' => 'qris',
-        //     'transaction_details' => [
-        //         'order_id' => '0011',
-        //         'gross_amount' => 3000,
-        //     ],
-        //     'qris' => [
-        //         'acquirer' => 'gopay',
-        //     ],
-        // ]);
-        // dd($response->collect());
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $className = get_class(new Customer());
 
@@ -77,6 +65,7 @@ class VendController extends Controller
                     // 'latestVendBinding.customer.addresses',
                     'latestVendBinding.customer.deliveryAddress',
                     'latestVendBinding.customer.category.categoryGroup',
+                    'productMapping',
                     // 'vendSevenDaysTransactions',
                     ])
                     ->leftJoin('vend_bindings', function($query) {
