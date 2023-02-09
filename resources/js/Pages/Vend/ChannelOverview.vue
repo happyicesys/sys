@@ -57,9 +57,9 @@
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                         {{ channel.code }}
                       </td>
-                      <td class="whitespace-nowrap text-sm font-semibold text-gray-900 text-center" v-if="vend.productMapping">
-                        <div class="flex justify-center" >
-                          <img class="h-24 w-24 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
+                      <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center" v-if="vend.productMapping">
+                        <div class="flex justify-center items-center" >
+                          <img class="h-16 w-16 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
                         </div>
                       </td>
                       <td class="whitespace-nowrap py-4 text-sm font-semibold text-gray-900 text-center" v-if="vend.productMapping">
