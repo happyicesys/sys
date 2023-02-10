@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\Api\Client\ClientController;
 use App\Http\Controllers\Api\V1\VendDataController;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ Route::prefix('client')
 Route::prefix('v1')->middleware(['throttle:api'])->group(function() {
     Route::post('/vend-data', [VendDataController::class, 'create']);
     Route::post('/customer/migrate', [CustomerController::class, 'migrate']);
+    Route::post('/payment-gateway-status', [PaymentController::class, 'createPaymentResult']);
 });
 
 
