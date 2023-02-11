@@ -132,15 +132,7 @@ class VendDataService
           $saveVendData = false;
           break;
         case 'REQQR':
-          // if($connectionType === 'mqtt') {
-            // VendData::create([
-            //   'connection' => $connectionType,
-            //   'ip_address' => $ipAddress,
-            //   'value' => $originalInput,
-            //   'processed' => $processedInput,
-            // ]);
-            GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
-          // }
+          GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
           break;
         case 'TIME':
           $operatorTimezone = 'Asia/Singapore';

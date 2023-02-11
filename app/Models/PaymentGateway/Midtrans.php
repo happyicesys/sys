@@ -45,11 +45,12 @@ class Midtrans extends Model implements PaymentGatewayInterface
 
     private function setUrl($action)
     {
-        if(config('app.env') === 'production') {
-            $this->url = self::$production;
-        }else {
-            $this->url = self::$sandbox;
-        }
+        $this->url = self::$sandbox;
+        // if(config('app.env') === 'production') {
+        //     $this->url = self::$production;
+        // }else {
+        //     $this->url = self::$sandbox;
+        // }
 
         if($this->action === 'QRIS') {
             $this->url .= '/v2/charge';

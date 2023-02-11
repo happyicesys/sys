@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class PaymentGatewayLog extends Model
 {
+    const STATUS_PENDING = 1;
+    const STATUS_APPROVE = 2;
+    const STATUS_DECLINE = 99;
+
     use HasFactory;
 
     protected $fillable = [

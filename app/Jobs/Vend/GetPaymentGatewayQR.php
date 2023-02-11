@@ -72,11 +72,10 @@ class GetPaymentGatewayQR
                 'response' => $response,
                 'order_id' => $orderId,
                 'amount' => $amount,
+                'status' => PaymentGatewayLog::STATUS_PENDING,
             ]);
             $encodeMsg = base64_encode('ORCODE'.$response['actions'][0]['url'].','.$orderId);
-            // MQTT::publish('CV1', $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
             $this->mqttService->publish('CV1', $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
-            // MQTT::publish('CV1', 'dude');
             return true;
         }else {
             return false;

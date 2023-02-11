@@ -2,6 +2,7 @@
 
 namespace App\Services;
 use App\Models\PaymentGateway;
+use App\Models\PaymentGatewayLog;
 use App\Models\PaymentGateway\Midtrans;
 use App\Models\Vend;
 use Carbon\Carbon;
@@ -35,6 +36,11 @@ class PaymentGatewayService
         return $operatorPaymentGateway;
       }
     }
+  }
+
+  public function processPaymentGatewayResponse(PaymentGatewayLog $paymentGatewayLog)
+  {
+
   }
 
   private function getAppEnvironment()
