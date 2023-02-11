@@ -47,11 +47,11 @@ class PaymentGatewayService
   {
     $envName = 'sandbox';
 
-    if(config('app.env') === 'production') {
-      $envName = 'production';
-    }else {
-      $envName = 'sandbox';
-    }
+    // if(config('app.env') === 'production') {
+    //   $envName = 'production';
+    // }else {
+    //   $envName = 'sandbox';
+    // }
 
     return $envName;
   }
