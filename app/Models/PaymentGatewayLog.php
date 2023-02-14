@@ -19,6 +19,7 @@ class PaymentGatewayLog extends Model
         'order_id',
         'vend_transaction_id',
         'operator_payment_gateway_id',
+        'payment_gateway_id',
         'amount',
     ];
 
