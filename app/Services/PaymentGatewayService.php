@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use App\Models\OperatorPaymentGateway;
 use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
 use App\Models\PaymentGateway\Midtrans;
@@ -9,16 +10,25 @@ use Carbon\Carbon;
 
 class PaymentGatewayService
 {
-  public function create($type = '', Vend $vend, $params)
+  public function create(OperatorPaymentGateway $operatorPaymentGateway, $params)
   {
-    $paymentGateway = PaymentGateway::where('name', $type)->first();
-    $vendOperatorPaymentGateway = $this->getOperatorPaymentGateway($vend);
-    if($vendOperatorPaymentGateway and $vendOperatorPaymentGateway->paymentGateway and $paymentGateway and $paymentGateway->id === $vendOperatorPaymentGateway->paymentGateway->id) {
+    if($operatorPaymentGateway) {
       $response = '';
-      switch($paymentGateway->name) {
+      $defaultParams = [];
+      switch($operatorPaymentGateway->paymentGateway->name) {
         case 'midtrans':
-          $newObj = new Midtrans($vendOperatorPaymentGateway->key1, 'QRIS');
-          $response = $newObj->executeRequest($params);
+          $defaultParams = [
+            'payment_type' => 'qris',
+            'transaction_details' => [
+              'order_id' => isset($params['orderId']) ? $params['orderId'] : Carbon::now()->format('ymdhis'),
+              'gross_amount' => isset($params['amount']) ? $params['amount'] : 0,
+            ],
+            'qris' => [
+              'acquirer' => 'gopay',
+            ]
+          ];
+          $newObj = new Midtrans($operatorPaymentGateway->key1, 'QRIS');
+          $response = $newObj->executeRequest($defaultParams);
           break;
       }
       return $response->collect();
@@ -36,11 +46,6 @@ class PaymentGatewayService
         return $operatorPaymentGateway;
       }
     }
-  }
-
-  public function processPaymentGatewayResponse(PaymentGatewayLog $paymentGatewayLog)
-  {
-
   }
 
   private function getAppEnvironment()

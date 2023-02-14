@@ -161,12 +161,12 @@
                                         <label class="pl-2">T4</label>
                                     </span>
                                 </span>
-                                <span class="inline-flex rounded-md shadow-sm " v-if="fan in vend.parameterJson && vend.parameterJson['fan']">
+                                <!-- <span class="inline-flex rounded-md shadow-sm " v-if="fan in vend.parameterJson && vend.parameterJson['fan']">
                                     <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                     <input type="checkbox" value="fan" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                         <label class="pl-2">Fan</label>
                                     </span>
-                                </span>
+                                </span> -->
                             </div>
                             <Graph
                                 :key="componentKey"

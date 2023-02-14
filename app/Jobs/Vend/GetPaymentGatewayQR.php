@@ -50,23 +50,20 @@ class GetPaymentGatewayQR
         $vend = $this->vend;
         $input = $this->input;
 
-        $orderId = Carbon::now()->format('ymdhis');
+        $vendCode = sprintf('%05d', $vend->code);
+        $orderId = Carbon::now()->format('ymdhis').$vendCode;
         $amount = $input['PRICE'];
 
+        $vendOperatorPaymentGateway = $this->paymentGatewayService->getOperatorPaymentGateway($vend);
 
-        $response = $this->paymentGatewayService->create('midtrans', $vend, [
-            'payment_type' => 'qris',
-            'transaction_details' => [
-                'order_id' => $orderId,
-                'gross_amount' => $amount,
-            ],
-            'qris' => [
-                'acquirer' => 'gopay',
-            ],
-        ]);
+        if($vendOperatorPaymentGateway) {
+            $response = $this->paymentGatewayService->create($vendOperatorPaymentGateway, [
+                'orderId' => $orderId,
+                'amount' => $amount,
+            ]);
+        }
 
-        // MQTT::publish('CV1', 'done');
-        if($response and isset($response['actions']) and isset($response['actions'][0]['url'])) {
+        if(isset($response) and isset($response['actions']) and isset($response['actions'][0]['url'])) {
             PaymentGatewayLog::create([
                 'request' => $this->input,
                 'response' => $response,
@@ -74,11 +71,10 @@ class GetPaymentGatewayQR
                 'amount' => $amount,
                 'status' => PaymentGatewayLog::STATUS_PENDING,
             ]);
-            $encodeMsg = base64_encode('ORCODE'.$response['actions'][0]['url'].','.$orderId);
+            $encodeMsg = base64_encode('QRCODE'.$response['actions'][0]['url'].','.$orderId);
             $this->mqttService->publish('CV1', $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
-            return true;
         }else {
-            return false;
+            throw new \Exception('Api key not set or parameters error', 404);
         }
     }
 }
