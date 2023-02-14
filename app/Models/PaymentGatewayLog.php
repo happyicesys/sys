@@ -28,4 +28,9 @@ class PaymentGatewayLog extends Model
         'request' => 'json',
         'response' => 'json',
     ];
+
+    public function paymentGateway()
+    {
+        return $this->belongsTo(PaymentGateway::class);
+    }
 }

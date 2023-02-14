@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
+use App\Models\Vend;
 use App\Models\VendData;
 use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
@@ -46,18 +47,22 @@ class PaymentController extends Controller
     }
 
     $pendingLog = PaymentGatewayLog::where('order_id', $input['order_id'])->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
-    $paymentGatewayLog = PaymentGatewayLog::create([
-      'request' => $pendingLog->request,
-      'response' => $input,
-      'order_id' => $input['order_id'],
-      'status' => $status,
-      'amount' => $input['gross_amount'],
-      'payment_gateway_id' => PaymentGateway::where('name', 'midtrans')->first() ? PaymentGateway::where('name', 'midtrans')->first()->id : null,
-      // hardcode midtrans
-    ]);
+    if($pendingLog) {
+      $paymentGatewayLog = PaymentGatewayLog::create([
+        'request' => $pendingLog->request,
+        'response' => $input,
+        'order_id' => $input['order_id'],
+        'status' => $status,
+        'amount' => $input['gross_amount'],
+        'payment_gateway_id' => PaymentGateway::where('name', 'midtrans')->first() ? PaymentGateway::where('name', 'midtrans')->first()->id : null,
+        // hardcode midtrans
+      ]);
 
-    if($paymentGatewayLog) {
-      $this->processPayment($paymentGatewayLog);
+      if($paymentGatewayLog) {
+        $this->processPayment($paymentGatewayLog);
+      }
+    }else {
+      throw new \Exception('Error: This QR isnt requested');
     }
   }
 
@@ -68,7 +73,7 @@ class PaymentController extends Controller
         case 'midtrans':
           $vend = Vend::where('code', ltrim(substr($paymentGatewayLog->response['order_id'], -5)))->first();
           if($vend) {
-            $vendChannel = $vend->vendChannels()->where('code', $paymentGatewayLog->response['SId'])->first();
+            $vendChannel = $vend->vendChannels()->where('code', $paymentGatewayLog->request['SId'])->first();
 
             $result = $this->vendDataService->getPurchaseRequest([
               'orderId' => $paymentGatewayLog->order_id,
@@ -76,7 +81,7 @@ class PaymentController extends Controller
               'vendCode' => $vend->code,
               'goods_id' =>  $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->code : null,
               'goods_name' =>  $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->name : null,
-              'goodroadid' =>  $paymentGatewayLog->response['SId'],
+              'goodroadid' =>  $paymentGatewayLog->request['SId'],
             ]);
 
             $fid = $paymentGatewayLog->id;
