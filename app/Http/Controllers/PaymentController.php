@@ -53,7 +53,7 @@ class PaymentController extends Controller
   private function processPayment(PaymentGatewayLog $paymentGatewayLog)
   {
     if($paymentGatewayLog->status === PaymentGatewayLog::STATUS_APPROVE) {
-
+      // switch()
     }
     // $this->paymentGatewayService()
   }
