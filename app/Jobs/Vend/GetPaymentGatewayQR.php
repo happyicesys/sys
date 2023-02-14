@@ -75,9 +75,9 @@ class GetPaymentGatewayQR
             $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
         }else {
             if($response['validation_messages']) {
-                $this->mqttService->publish('CV'.$vend->code, 'Error: '.$response['validation_messages'][0]);
+                $this->mqttService->publish('CM'.$vend->code, 'Error: '.$response['validation_messages'][0]);
             }else {
-                $this->mqttService->publish('CV'.$vend->code, 'Error: Api key not set or parameters error');
+                $this->mqttService->publish('CM'.$vend->code, 'Error: Api key not set or parameters error');
             }
             throw new \Exception('Api key not set or parameters error', 404);
         }

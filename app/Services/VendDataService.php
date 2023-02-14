@@ -164,4 +164,31 @@ class VendDataService
 
     return $response;
   }
+
+  public function getPurchaseRequest($params)
+  {
+    $transactionParams = [];
+    $transactionParams = [
+      'Type' => 'TRADE',
+      'orderid' => isset($params['orderId']) ? $params['orderId'] : null,
+      'get_type' => 1,
+      'pay_type' => 101,
+      'price' => isset($params['amount']) ? $params['amount'] : 0,
+      'score' => 1,
+      'receivetime' => Carbon::now()->timestamp,
+      'action' => 'TRADE',
+      'mid' => isset($params['vendCode']) ? $params['vendCode'] : null,
+      'shipment_info' => [
+        'port_type' => 0,
+        'goods_id' => isset($params['productCode']) ? $params['productCode'] : null,
+        'goods_name' => isset($params['productName']) ? $params['productName'] : null,
+        'goodroadid' => isset($params['channelCode']) ? $params['channelCode'] : null,
+        'num' => 1,
+        'uselift' => 0,
+        'usedropchk' => 1,
+      ],
+    ];
+
+    return $transactionParams;
+  }
 }

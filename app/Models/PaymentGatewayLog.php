@@ -21,6 +21,7 @@ class PaymentGatewayLog extends Model
         'operator_payment_gateway_id',
         'payment_gateway_id',
         'amount',
+        'status',
     ];
 
     protected $casts = [
