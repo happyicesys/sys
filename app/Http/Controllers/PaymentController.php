@@ -75,13 +75,14 @@ class PaymentController extends Controller
           if($vend) {
             $vendChannel = $vend->vendChannels()->where('code', $paymentGatewayLog->request['SId'])->first();
 
+            // dd($paymentGatewayLog, $paymentGatewayLog->request, $paymentGatewayLog->request['SId']);
             $result = $this->vendDataService->getPurchaseRequest([
               'orderId' => $paymentGatewayLog->order_id,
               'amount' => $paymentGatewayLog->response['gross_amount'],
               'vendCode' => $vend->code,
               'goods_id' =>  $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->code : null,
               'goods_name' =>  $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->name : null,
-              'goodroadid' =>  $paymentGatewayLog->request['SId'],
+              'goodroadid' =>  $vendChannel->code,
             ]);
 
             $fid = $paymentGatewayLog->id;
