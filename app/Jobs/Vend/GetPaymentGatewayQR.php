@@ -51,7 +51,6 @@ class GetPaymentGatewayQR
         $input = $this->input;
 
         $vendChannel = $vend->vendChannels()->where('code', $input['SId'])->first();
-
         if($vendChannel) {
             $vendCode = sprintf('%05d', $vend->code);
             $orderId = Carbon::now()->format('ymdhis').$vendCode;
