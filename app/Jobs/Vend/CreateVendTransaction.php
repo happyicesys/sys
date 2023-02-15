@@ -44,20 +44,19 @@ class CreateVendTransaction implements ShouldQueue
         $input = $this->input;
         $vend = $this->vend;
 
-        $paymentMethod = PaymentMethod::where('code', $input['PAY_TYPE'])->first();
+        $processedInput = $this->processInput($input);
 
-        if($sID = $input['SId']) {
-            $vendChannel = VendChannel::where('code', $sID)->where('vend_id', $vend->id)->first();
+        $paymentMethod = PaymentMethod::where('code', $processedInput['paymentMethodCode'])->first();
+        $vendChannel = VendChannel::where('code', $processedInput['channelCode'])->where('vend_id', $vend->id)->first();
 
-            if(!$vendChannel) {
-                $vendChannel = VendChannel::create([
-                    'code' => $sID,
-                    'vend_id' => $vend->id,
-                ]);
-            }
+        if(!$vendChannel) {
+            $vendChannel = VendChannel::create([
+                'code' => $processedInput['channelCode'],
+                'vend_id' => $vend->id,
+            ]);
         }
 
-        $vendChannelError = VendChannelError::where('code', (isset($input['SErr']) ? $input['SErr'] : 0))->where('code', '!=', 0)->first();
+        $vendChannelError = VendChannelError::where('code', $processedInput['errorCode'])->where('code', '!=', 0)->first();
 
         $productId = null;
         if(isset($vendChannel) and $vendChannel and $vend->productMapping()->exists()) {
@@ -70,8 +69,8 @@ class CreateVendTransaction implements ShouldQueue
         $vendTransaction = VendTransaction::create(
             [
             'transaction_datetime' => Carbon::now(),
-            'amount' => $input['Price'],
-            'order_id' => $input['ORDRID'],
+            'amount' => $processedInput['amount'],
+            'order_id' => $processedInput['orderId'],
             'payment_method_id' => $paymentMethod ? $paymentMethod->id : null,
             'vend_id' => $vend->id,
             'vend_channel_id' => isset($vendChannel) ? $vendChannel->id : 0,
@@ -84,7 +83,36 @@ class CreateVendTransaction implements ShouldQueue
         SyncVendTransactionTotalsJson::dispatch($vendTransaction->vend)->onQueue('default');
 
         if($vendChannelError) {
-            SyncVendChannelErrorLog::dispatch($vend, $input['SId'], $input['SErr'], $vendTransaction->id)->onQueue('default');
+            SyncVendChannelErrorLog::dispatch($vend, $processedInput['channelCode'], $processedInput['errorCode'], $vendTransaction->id)->onQueue('default');
         }
+    }
+
+    private function processInput($input)
+    {
+        $amount = $input['Price'];
+        $errorCode = 0;
+        $orderId = $input['ORDRID'];
+        $paymentMethodCode = $input['PAY_TYPE'];
+        $channelCode = 0;
+
+        if(isset($input['transf_info']) and isset($input['transf_info']) and isset($input['fail_info'])) {
+            if(sizeof($input['fail_info']) > 0) {
+                $errorCode = $input['fail_info']['SErr'];
+            }
+            if(sizeof($input['transf_info']) > 0) {
+                $channelCode = $input['transf_info']['SId'];
+            }
+        }else {
+            $errorCode = $input['SErr'];
+            $channelCode = $input['SId'];
+        }
+
+        return [
+            'amount' => $amount,
+            'errorCode' => $errorCode,
+            'orderId' => $orderId,
+            'paymentMethodCode' => $paymentMethodCode,
+            'channelCode' => $channelCode,
+        ];
     }
 }
