@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Vend;
 
+use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;

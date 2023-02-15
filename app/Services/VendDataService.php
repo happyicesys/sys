@@ -126,10 +126,7 @@ class VendDataService
           SyncVendChannels::dispatch($processedInput, $vend)->onQueue('default');
           break;
         case 'P':
-          $vend->update([
-            'last_updated_at' => Carbon::now()
-          ]);
-          // UpdateVendLastUpdated::dispatch($vend)->onQueue('default');
+          UpdateVendLastUpdated::dispatch($vend)->onQueue('default');
           $saveVendData = false;
           break;
         case 'REQQR':
@@ -153,7 +150,6 @@ class VendDataService
       }
     }
 
-    // dd($originalInput, $processedInput);
     if($saveVendData) {
       VendData::create([
         'connection' => $connectionType,
