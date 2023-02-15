@@ -75,23 +75,26 @@ class PaymentController extends Controller
           if($vend) {
             $vendChannel = $vend->vendChannels()->where('code', $paymentGatewayLog->request['SId'])->first();
 
-            // dd($paymentGatewayLog, $paymentGatewayLog->request, $paymentGatewayLog->request['SId']);
-            $result = $this->vendDataService->getPurchaseRequest([
-              'orderId' => $paymentGatewayLog->order_id,
-              'amount' => $paymentGatewayLog->response['gross_amount'],
-              'vendCode' => $vend->code,
-              'goods_id' =>  $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->code : null,
-              'goods_name' =>  $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->name : null,
-              'goodroadid' =>  $vendChannel->code,
-            ]);
+            if($vendChannel) {
+              $result = $this->vendDataService->getPurchaseRequest([
+                'orderId' => $paymentGatewayLog->order_id,
+                'amount' => $paymentGatewayLog->response['gross_amount'],
+                'vendCode' => $vend->code,
+                'goods_id' =>  $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->code : null,
+                'goods_name' =>  $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->name : null,
+                'goodroadid' =>  $vendChannel->code,
+              ]);
 
-            $fid = $paymentGatewayLog->id;
-            $content = base64_encode(json_encode($result));
-            $contentLength = strlen($content);
-            $key = '123456789110138A';
-            $md5 = md5($fid.','.$contentLength.','.$content.$key);
+              $fid = $paymentGatewayLog->id;
+              $content = base64_encode(json_encode($result));
+              $contentLength = strlen($content);
+              $key = '123456789110138A';
+              $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-            $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+              $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+            }else {
+              $this->mqttService->publish('CM'.$vend->code, 'This vending channel is not available');
+            }
           }
           break;
       }
