@@ -120,7 +120,6 @@ class VendDataService
       $vend = Vend::firstOrCreate([
           'code' => isset($originalInput['m']) ? $originalInput['m'] : $originalInput['Vid'],
       ]);
-
       switch($processedInput['Type']) {
         case 'CHANNEL':
           SyncVendChannels::dispatch($processedInput, $vend)->onQueue('default');

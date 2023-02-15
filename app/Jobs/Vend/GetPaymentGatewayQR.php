@@ -50,36 +50,44 @@ class GetPaymentGatewayQR
         $vend = $this->vend;
         $input = $this->input;
 
-        $vendCode = sprintf('%05d', $vend->code);
-        $orderId = Carbon::now()->format('ymdhis').$vendCode;
-        $amount = $input['PRICE'];
+        $vendChannel = $vend->vendChannels()->where('code', $input['SId'])->first();
 
-        $vendOperatorPaymentGateway = $this->paymentGatewayService->getOperatorPaymentGateway($vend);
+        if($vendChannel) {
+            $vendCode = sprintf('%05d', $vend->code);
+            $orderId = Carbon::now()->format('ymdhis').$vendCode;
+            $amount = $input['PRICE'];
 
-        if($vendOperatorPaymentGateway) {
-            $response = $this->paymentGatewayService->create($vendOperatorPaymentGateway, [
-                'orderId' => $orderId,
-                'amount' => $amount,
-            ]);
-        }
+            $vendOperatorPaymentGateway = $this->paymentGatewayService->getOperatorPaymentGateway($vend);
 
-        if(isset($response) and isset($response['actions']) and isset($response['actions'][0]['url'])) {
-            PaymentGatewayLog::create([
-                'request' => $this->input,
-                'response' => $response,
-                'order_id' => $orderId,
-                'amount' => $amount,
-                'status' => PaymentGatewayLog::STATUS_PENDING,
-            ]);
-            $encodeMsg = base64_encode('QRCODE'.$response['actions'][0]['url'].','.$orderId);
-            $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
-        }else {
-            if($response['validation_messages']) {
-                $this->mqttService->publish('CM'.$vend->code, 'Error: '.$response['validation_messages'][0]);
-            }else {
-                $this->mqttService->publish('CM'.$vend->code, 'Error: Api key not set or parameters error');
+            if($vendOperatorPaymentGateway) {
+                $response = $this->paymentGatewayService->create($vendOperatorPaymentGateway, [
+                    'orderId' => $orderId,
+                    'amount' => $amount,
+                ]);
             }
-            throw new \Exception('Api key not set or parameters error', 404);
+
+            if(isset($response) and isset($response['actions']) and isset($response['actions'][0]['url'])) {
+                PaymentGatewayLog::create([
+                    'request' => $this->input,
+                    'response' => $response,
+                    'order_id' => $orderId,
+                    'amount' => $amount,
+                    'status' => PaymentGatewayLog::STATUS_PENDING,
+                ]);
+                $encodeMsg = base64_encode('QRCODE'.$response['actions'][0]['url'].','.$orderId);
+                $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
+            }else {
+                if($response['validation_messages']) {
+                    $this->mqttService->publish('CM'.$vend->code, 'Error: '.$response['validation_messages'][0]);
+                }else {
+                    $this->mqttService->publish('CM'.$vend->code, 'Error: Api key not set or parameters error');
+                }
+                throw new \Exception('Api key not set or parameters error', 404);
+            }
+        }else {
+            $this->mqttService->publish('CM'.$vend->code, 'This vending channel is not available');
+            throw new \Exception('This vending channel is not available', 404);
         }
+
     }
 }
