@@ -7,6 +7,7 @@ use App\Jobs\Vend\CreateVendTransaction;
 use App\Jobs\Vend\GetPaymentGatewayQR;
 use App\Jobs\Vend\SyncVendChannels;
 use App\Jobs\Vend\SyncVendParameter;
+use App\Jobs\Vend\UpdateVendLastUpdated;
 use Carbon\Carbon;
 use PhpMqtt\Client\Facades\MQTT;
 
@@ -125,9 +126,7 @@ class VendDataService
           SyncVendChannels::dispatch($processedInput, $vend)->onQueue('default');
           break;
         case 'P':
-          $vend->update([
-            'last_updated_at' => Carbon::now()
-          ]);
+          UpdateVendLastUpdated::dispatch($vend)->onQueue('default');
           $saveVendData = false;
           break;
         case 'REQQR':
