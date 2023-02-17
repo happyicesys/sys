@@ -29,6 +29,7 @@
         "@vueform/multiselect": "^2.5.3",
         "@vuepic/vue-datepicker": "^3.4.8",
         "chart.js": "^3.9.1",
+        "chartjs-plugin-datalabels": "^2.2.0",
         "js-file-download": "^0.4.12",
         "v-calendar": "^3.0.0-alpha.8",
         "v-select2-component": "^0.4.7",

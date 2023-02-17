@@ -536,6 +536,16 @@
                     tension: 0.1,
                     spanGaps: true,
                     yAxisID: 'y',
+                    datalabels: {
+                        color: '#000000',
+                        display: function(value, context) {
+                            return value.dataIndex === vendTemp.length - 1;
+                        },
+                        align: 'left',
+                        formatter: function(value, context) {
+                            return context.chart.data.labels[context.dataIndex];
+                        }
+                    },
                 })
                 allTimings.push(vendTemp)
             })

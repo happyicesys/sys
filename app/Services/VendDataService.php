@@ -174,6 +174,7 @@ class VendDataService
       'action' => 'TRADE',
       'mid' => isset($params['vendCode']) ? $params['vendCode'] : null,
       'shipment_info' => [
+        [
         'port_type' => 0,
         'goods_id' => isset($params['productCode']) ? $params['productCode'] : null,
         'goods_name' => isset($params['productName']) ? $params['productName'] : null,
@@ -181,6 +182,7 @@ class VendDataService
         'num' => 1,
         'uselift' => 0,
         'usedropchk' => 1,
+        ]
       ],
     ];
 
