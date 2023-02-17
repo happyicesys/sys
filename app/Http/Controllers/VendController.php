@@ -136,7 +136,7 @@ class VendController extends Controller
             ->where('vend_fans.created_at', '<=', $endDate)
             ->get();
 
-
+        // dd($vendTemps->toArray(), $vendFans->toArray());
         return Inertia::render('Vend/Temp', [
             'duration' => $duration,
             'type' => [
