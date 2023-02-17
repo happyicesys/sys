@@ -5,6 +5,7 @@ use App\Models\Vend;
 use App\Models\VendData;
 use App\Jobs\Vend\CreateVendTransaction;
 use App\Jobs\Vend\GetPaymentGatewayQR;
+use App\Jobs\Vend\GetPurchaseConfirm;
 use App\Jobs\Vend\SyncVendChannels;
 use App\Jobs\Vend\SyncVendParameter;
 use App\Jobs\Vend\UpdateVendLastUpdated;
@@ -118,6 +119,11 @@ class VendDataService
         switch($processedInput['Type']) {
           case 'CHANNEL':
             SyncVendChannels::dispatch($processedInput, $vend)->onQueue('default');
+            break;
+          case 'CONFIRM':
+            if(isset($processedInput['orderid'])) {
+              GetPurchaseConfirm::dispatch($processedInput['orderid'], $vend)->onQueue('high');
+            }
             break;
           case 'P':
             UpdateVendLastUpdated::dispatch($vend)->onQueue('default');
