@@ -15,16 +15,18 @@ class VendDataService
 {
   public function standardizedVendData($input, $connectionType)
   {
-    $finalInput = [];
-    if($connectionType === 'mqtt') {
+    $input = collect($input);
+
+    if(strpos($input, '&') !== false) {
+      $input = $input->first();
       foreach(explode('&', $input) as $processInput) {
-          list($a, $b) = explode('=', $processInput);
-          $finalInput[$a] = $b;
+        list($a, $b) = explode('=', $processInput);
+        $finalInput[$a] = $b;
       }
+      $finalInput = collect($finalInput);
     }else {
       $finalInput = $input;
     }
-
     return $finalInput;
   }
 
@@ -60,55 +62,44 @@ class VendDataService
         }
 
         if(str_starts_with($processedDataArr['content'], "{\"")) {
-            // if($processedDataArr['content'] === "{\"Type\":\"P\"}") {
-            //     if(isset($processedDataArr['code']) and $processedDataArr['code']) {
-            //         $vend = Vend::where('code', $processedDataArr['code'])->first();
-            //         if($vend) {
-            //             $this->vendSaveLastUpdatedTime($vend);
-            //         }
-            //     }
-            //     $processedDataArr['data'] = null;
-            // }else {
-              $processedDataArr['data'] = json_decode($processedDataArr['content'], true);
-            // }
+          $processedDataArr['data'] = json_decode($processedDataArr['content'], true);
         }else {
-            $processedDataArr['data']['Vid'] = json_decode($processedDataArr['code'], true);
-            $processedDataArr['data']['Type'] = 'CHANNEL';
-            $processedDataArr['data']['channels'] = [];
-            $byteData = unpack('C*', $processedDataArr['content']);
+          $processedDataArr['data']['Vid'] = json_decode($processedDataArr['code'], true);
+          $processedDataArr['data']['Type'] = 'CHANNEL';
+          $processedDataArr['data']['channels'] = [];
+          $byteData = unpack('C*', $processedDataArr['content']);
 
-            if(!empty($byteData) && $byteData[1] == 83) {
-                $byteSize = (sizeof($byteData) - 5)/ 11;
-                $i = 2;
-                $i += 4;
+          if(!empty($byteData) && $byteData[1] == 83) {
+            $byteSize = (sizeof($byteData) - 5)/ 11;
+            $i = 2;
+            $i += 4;
 
-                for($j = 0; $j < $byteSize; $j++) {
-                    $channelArr = [];
-                    $channelCode = $byteData[$i++];
-                    $channelCode += $byteData[$i++]*0x100;
-                    $channelArr['channel_code'] = $channelCode;
+            for($j = 0; $j < $byteSize; $j++) {
+              $channelArr = [];
+              $channelCode = $byteData[$i++];
+              $channelCode += $byteData[$i++]*0x100;
+              $channelArr['channel_code'] = $channelCode;
 
-                    $channelArr['error_code'] = $byteData[$i++];
-                    $channelArr['capacity'] = $byteData[$i++];
-                    $channelArr['qty'] = $byteData[$i++];
+              $channelArr['error_code'] = $byteData[$i++];
+              $channelArr['capacity'] = $byteData[$i++];
+              $channelArr['qty'] = $byteData[$i++];
 
-                    $amount = $byteData[$i++];
-                    $amount += $byteData[$i++]*0x100;
-                    $amount += $byteData[$i++]*0x10000;
-                    $amount += $byteData[$i++]*0x1000000;
-                    $channelArr['amount'] = $amount;
-                    $i += 2;
-                    if(is_array($channelArr)) {
-                        array_push($processedDataArr['data']['channels'], $channelArr);
-                    }
-                }
+              $amount = $byteData[$i++];
+              $amount += $byteData[$i++]*0x100;
+              $amount += $byteData[$i++]*0x10000;
+              $amount += $byteData[$i++]*0x1000000;
+              $channelArr['amount'] = $amount;
+              $i += 2;
+              if(is_array($channelArr)) {
+                array_push($processedDataArr['data']['channels'], $channelArr);
+              }
             }
+          }
         }
       $data = $processedDataArr['data'];
     }else {
       $data = $input;
     }
-
     return $data;
   }
 

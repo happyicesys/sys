@@ -26,6 +26,7 @@ class VendDataController extends Controller
 
     public function create(Request $request)
     {
+        // dd($request->all());
         $input = $request->all();
         $ipAddress = $request->ip();
         $connectionType = 'http';

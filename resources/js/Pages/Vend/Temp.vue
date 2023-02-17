@@ -137,7 +137,7 @@
                     <div class="inline-block min-w-full py-2 align-middle">
                         <div class="shadow-sm ring-1 ring-black ring-opacity-5">
                             <div class="p-2 flex space-x-1">
-                                <span class="inline-flex rounded-md shadow-sm" v-if="vend.temp && (vend.parameterJson['t2'] || vend.parameterJson['t3'] || vend.parameterJson['t4'])">
+                                <span class="inline-flex rounded-md shadow-sm" v-if="vend.temp && ('t2' in vend.parameterJson || 't3' in vend.parameterJson || 't4' in vend.parameterJson)">
                                     <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                     <input type="checkbox" value="1" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                         <label class="pl-2">T1</label>
@@ -161,9 +161,9 @@
                                         <label class="pl-2">T4</label>
                                     </span>
                                 </span>
-                                <!-- <span class="inline-flex rounded-md shadow-sm " v-if="fan in vend.parameterJson && vend.parameterJson['fan']">
+                                <!-- <span class="inline-flex rounded-md shadow-sm " v-if="'fan' in vend.parameterJson">
                                     <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
-                                    <input type="checkbox" value="fan" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                    <input type="checkbox" value="1" v-model="fans" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                         <label class="pl-2">Fan</label>
                                     </span>
                                 </span> -->
@@ -205,8 +205,10 @@
     startDate: String,
     startDateString: String,
     type: [String, Object, Array],
+    fans: [String, Object, Array],
     vendObj: Object,
     vendTempsObj: Object,
+    vendFansObj: Object,
   });
 
   const hourDurationFilters = ref([6])
@@ -220,7 +222,9 @@
   const datasets = ref([])
   const vend = ref(props.vendObj.data)
   const vendTemps = ref()
+  const vendFans = ref()
   const types = ref([props.type.value])
+  const fans = ref([props.fans])
   const componentKey = ref(0);
   const loading = ref(false)
   const graphOptions = ref({
@@ -233,7 +237,17 @@
                 },
                 tooltipFormat: 'YYMMDD hh:mma'
             }
-        }
+        },
+        y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+        },
+        // y1: {
+        //     type: 'linear',
+        //     display: true,
+        //     position: 'right',
+        // }
     },
     plugins: {
         title: {
@@ -249,11 +263,6 @@
   onBeforeMount(() => {
     getVendTempsData()
   })
-
-  onMounted(() => {
-    console.log(props.startDate)
-  })
-
 
   watch(types, async (newTypes, oldTypes) => {
     Inertia.visit(
@@ -279,6 +288,31 @@
     );
   })
 
+  watch(fans, async (newFans, oldFans) => {
+    Inertia.visit(
+        route('temp', {
+            id: vend.value.id,
+            type: props.type.value,
+            types: types.value,
+            fans: newFans,
+            ...filters.value,
+        }),{
+            only: ['vendTempsObj'],
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            onSuccess: (page) => {
+                Inertia.reload({
+                    only: ['vendTempsObj'],
+                    preserveState: true,
+                    preserveScroll: true,
+                })
+                getVendTempsData()
+            },
+        }
+    );
+  })
+
   function onCustomDatetimeSearched() {
     // syncTimeLatest.value = false
     Inertia.get(
@@ -286,7 +320,7 @@
         vend.value.id +
         '/temp/' +
         props.type.value
-    , {...filters.value, types: types.value}, {
+    , {...filters.value, types: types.value, fans: fans.value}, {
         preserveScroll: true,
     })
   }
@@ -318,9 +352,11 @@
   function getVendTempsData() {
     let colors = ['#E6676B', '#36a2eb', '#cc65fe', '#ffce56']
     let vendTempsAllArr = JSON.parse(JSON.stringify(props.vendTempsObj.data))
+    let vendFansAllArr = JSON.parse(JSON.stringify(props.vendFansObj.data))
     let vendTempsArr = []
+    let vendFansArr = []
 
-    if(types.value.length > 0) {
+    if(types.value.length > 0 || fans.value.length > 0) {
         types.value.forEach((type, typeIndex) => {
             let vendTempsDataByType = vendTempsAllArr.filter((vendTemp) => {
                 return vendTemp.type == type;
@@ -350,8 +386,6 @@
                 })
             }
 
-            // console.log(moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at).format())
-            // console.log(moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at).add(3, 'hours').diff(moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at), 'minutes'))
             if(vendTempsArr[type][vendTempsDataByType.length - 1] && moment().diff(moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at), 'minutes') > 10 ) {
                 let addNullTempSetting = {
                     unit: 'hours',
@@ -404,9 +438,91 @@
             }
             vendTempsArr[type].sort((a,b) => moment(a.created_at).unix() - moment(b.created_at).unix())
         })
-
         vendTemps.value = vendTempsArr
 
+        // console.log(fans.value)
+        fans.value.forEach((type, typeIndex) => {
+            let vendFansDataByType = vendFansAllArr.filter((vendFan) => {
+                return vendFan.type == type;
+            })
+
+            vendFansArr[type] = vendFansDataByType
+            let processList = []
+            for(let i = 0; i < vendFansArr[type].length; i++) {
+                if(i > 0 && Math.abs(moment(vendFansArr[type][i].created_at).diff(moment(vendFansArr[type][i-1].created_at), 'minutes')) > 5) {
+                    processList.push({
+                        past: vendFansArr[type][i-1],
+                        current: vendFansArr[type][i]
+                    })
+                }
+            }
+            if(processList.length) {
+                processList.forEach((value, index) => {
+                    let fanTimer = moment(value.past.created_at).add(5, 'minutes')
+                    do {
+                        vendFansArr[type].push({
+                            value: 'NaN',
+                            created_at: fanTimer.format(),
+                            type: type,
+                        })
+                        fanTimer = fanTimer.add(5, 'minutes')
+                    }while (moment(value.current.created_at).diff(fanTimer, 'minutes')> 5)
+                })
+            }
+
+            if(vendFansArr[type][vendFansDataByType.length - 1] && moment().diff(moment(vendFansArr[type][vendFansArr[type].length - 1].created_at), 'minutes') > 10 ) {
+                let addNullTempSetting = {
+                    unit: 'hours',
+                    qty: 2,
+                }
+                let startTimer = moment(vendFansArr[type][0].created_at)
+                let endTimer = moment(vendFansArr[type][vendFansArr[type].length - 1].created_at)
+                let timerDiffMinutes = endTimer.diff(startTimer, 'minutes')
+
+                if(timerDiffMinutes <= 60) {
+                    addNullTempSetting = {
+                        unit: 'hours',
+                        qty: 2,
+                    }
+                }else if(timerDiffMinutes > 60 && timerDiffMinutes <= 360) {
+                    addNullTempSetting = {
+                        unit: 'hours',
+                        qty: 3,
+                    }
+                }else if(timerDiffMinutes > 360 && timerDiffMinutes <= 1440) {
+                    addNullTempSetting = {
+                        unit: 'hours',
+                        qty: 4,
+                    }
+                }else {
+                    addNullTempSetting = {
+                        unit: 'hours',
+                        qty: 6,
+                    }
+                }
+
+                let finalTimer = moment(vendFansArr[type][vendFansArr[type].length - 1].created_at).add(addNullTempSetting.qty, addNullTempSetting.unit)
+                if(moment().diff(finalTimer, 'minutes') < 10) {
+                    addNullTempSetting = {
+                        unit: 'hours',
+                        qty: 2,
+                    }
+                }
+
+                let fanTimer = moment(vendFansArr[type][vendFansArr[type].length - 1].created_at).add(5, 'minutes')
+
+                do {
+                    vendFansArr[type].push({
+                        value: 'NaN',
+                        created_at: tempTimer.format(),
+                        type: type,
+                    })
+                    fanTimer = fanTimer.add(5, 'minutes')
+                }while (finalTimer.diff(fanTimer, 'minutes') > 5)
+            }
+            vendFansArr[type].sort((a,b) => moment(a.created_at).unix() - moment(b.created_at).unix())
+        })
+        vendFans.value = vendFansArr
 
         if(vendTemps.value.length > 0) {
             let allTimings = []
@@ -418,9 +534,27 @@
                     borderColor: colors[vendTempIndex - 1],
                     backgroundColor: colors[vendTempIndex -1],
                     tension: 0.1,
-                    spanGaps: true
+                    spanGaps: true,
+                    yAxisID: 'y',
                 })
                 allTimings.push(vendTemp)
+            })
+        }
+        // console.log( vendFans[0] ? vendFans[0].map((fan) => {return {x: fan.created_at, y: fan.value}}) : null)
+        if(vendFans.value.length > 0) {
+            let allTimings = []
+            datasets.value = []
+            vendFans.value.forEach((vendFan, vendFanIndex) => {
+                datasets.value.push({
+                    label: 'Fan ' + vendFanIndex,
+                    data: vendFan.map((fan) => {return {x: fan.created_at, y: fan.value}}),
+                    borderColor: colors[vendFanIndex - 1],
+                    backgroundColor: colors[vendFanIndex -1],
+                    tension: 0.1,
+                    spanGaps: true,
+                    yAxisID: 'y1',
+                })
+                allTimings.push(vendFans)
             })
         }
 

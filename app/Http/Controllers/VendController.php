@@ -12,6 +12,7 @@ use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendChannelErrorResource;
+use App\Http\Resources\VendFanResource;
 use App\Http\Resources\VendTransactionResource;
 use App\Http\Resources\VendTempResource;
 use App\Mail\VendChannelErrorLogsMail;
@@ -123,6 +124,19 @@ class VendController extends Controller
         ->where('vend_temps.created_at', '<=', $endDate)
         ->get();
 
+        $fans = [];
+        if($request->fans) {
+            $fans = $request->fans;
+        }
+        // dd($fans);
+        $vendFans = $vend
+            ->vendFans()
+            ->whereIn('type', $fans)
+            ->where('vend_fans.created_at', '>=', $startDate)
+            ->where('vend_fans.created_at', '<=', $endDate)
+            ->get();
+
+
         return Inertia::render('Vend/Temp', [
             'duration' => $duration,
             'type' => [
@@ -130,8 +144,10 @@ class VendController extends Controller
                 'value' => $type,
             ],
             'types' => $types,
+            'fans' => $fans,
             'vendObj' => VendResource::make($vend),
             'vendTempsObj' => VendTempResource::collection($vendTemps),
+            'vendFansObj' => VendFanResource::collection($vendFans),
             'startDate' => $startDate->format('D M d Y H:i:s'),
             'endDate' => $endDate->format('D M d Y H:i:s'),
             'startDateString' => $startDate->format('y-m-d H:i'),
