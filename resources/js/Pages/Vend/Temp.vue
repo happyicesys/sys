@@ -543,7 +543,10 @@
                         },
                         align: 'left',
                         formatter: function(value, context) {
-                            return context.chart.data.labels[context.dataIndex];
+                            return context.dataset.label + ':' + value.y;
+                        },
+                        font: {
+                            size: 14,
                         }
                     },
                 })
