@@ -63,7 +63,7 @@ class VendDataService
             }
         }
 
-        if(str_starts_with($processedDataArr['content'], "{\"")) {
+        if(str_starts_with($processedDataArr['content'], "{\"") or empty($input['p'])) {
           $processedDataArr['data'] = json_decode($processedDataArr['content'], true);
         }else {
           $processedDataArr['data']['Vid'] = json_decode($processedDataArr['code'], true);
