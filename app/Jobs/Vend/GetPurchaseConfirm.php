@@ -55,7 +55,7 @@ class GetPurchaseConfirm
           $key = '123456789110138A';
           $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-          $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+          $this->mqttService->publish('CM'.$this->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
         }else {
             $this->mqttService->publish('CM'.$this->vend->code, 'This order id confirmation not found, please contact admin');
             throw new \Exception('This order id confirmation not found, please contact admin', 404);
