@@ -47,15 +47,17 @@ class VendDataService
                 case 'g':
                     break;
                 case 'p':
-                    if(strpos($data, ' ')) {
-                        $data = str_replace(' ', '+', $data);
+                    if(isset($data)) {
+                      if(strpos($data, ' ')) {
+                          $data = str_replace(' ', '+', $data);
+                      }
+                      if(substr($data, -1) == '!') {
+                          $data = base64_decode(substr_replace($data,"=",-1));
+                      }else {
+                          $data = base64_decode($data);
+                      }
+                      $processedDataArr['content'] = $data;
                     }
-                    if(substr($data, -1) == '!') {
-                        $data = base64_decode(substr_replace($data,"=",-1));
-                    }else {
-                        $data = base64_decode($data);
-                    }
-                    $processedDataArr['content'] = $data;
                     break;
                 default:
             }
@@ -112,32 +114,37 @@ class VendDataService
       $vend = Vend::firstOrCreate([
           'code' => isset($originalInput['m']) ? $originalInput['m'] : $originalInput['Vid'],
       ]);
-      switch($processedInput['Type']) {
-        case 'CHANNEL':
-          SyncVendChannels::dispatch($processedInput, $vend)->onQueue('default');
-          break;
-        case 'P':
-          UpdateVendLastUpdated::dispatch($vend)->onQueue('default');
-          $saveVendData = false;
-          break;
-        case 'REQQR':
-          GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
-          break;
-        case 'TIME':
-          $operatorTimezone = 'Asia/Singapore';
-          if($vend->operators()->exists()) {
-            $operatorTimezone = $vend->operators()->first()->timezone;
-          }
-          $response = isset($originalInput['f']) ?
-          $originalInput['f'].','.strlen(base64_encode('TIME'.Carbon::now()->setTimezone($operatorTimezone)->format('Y-m-d H:i:s'))).','.base64_encode('TIME'.Carbon::now()->setTimezone($operatorTimezone)->format('Y-m-d H:i:s')) :
-          true;
-          break;
-        case 'TRADE':
-          CreateVendTransaction::dispatch($processedInput, $vend)->onQueue('default');
-          break;
-        case 'VENDER':
-          SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
-          break;
+      if(isset($processedInput['Type'])) {
+        switch($processedInput['Type']) {
+          case 'CHANNEL':
+            SyncVendChannels::dispatch($processedInput, $vend)->onQueue('default');
+            break;
+          case 'P':
+            UpdateVendLastUpdated::dispatch($vend)->onQueue('default');
+            $saveVendData = false;
+            break;
+          case 'REQQR':
+            GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
+            break;
+          case 'TIME':
+            $operatorTimezone = 'Asia/Singapore';
+            if($vend->operators()->exists()) {
+              $operatorTimezone = $vend->operators()->first()->timezone;
+            }
+            $response = isset($originalInput['f']) ?
+            $originalInput['f'].','.strlen(base64_encode('TIME'.Carbon::now()->setTimezone($operatorTimezone)->format('Y-m-d H:i:s'))).','.base64_encode('TIME'.Carbon::now()->setTimezone($operatorTimezone)->format('Y-m-d H:i:s')) :
+            true;
+            break;
+          case 'TRADE':
+            CreateVendTransaction::dispatch($processedInput, $vend)->onQueue('default');
+            break;
+          case 'VENDER':
+            SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
+            break;
+        }
+      }else {
+        UpdateVendLastUpdated::dispatch($vend)->onQueue('default');
+        $saveVendData = false;
       }
     }
 
