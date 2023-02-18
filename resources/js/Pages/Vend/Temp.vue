@@ -529,7 +529,7 @@
             datasets.value = []
             vendTemps.value.forEach((vendTemp, vendTempIndex) => {
                 datasets.value.push({
-                    label: 'Temp ' + vendTempIndex,
+                    label: 'T' + vendTempIndex + ' (' + vendTemp[vendTemp.length -1].value + ')',
                     data: vendTemp.map((temp) => {return {x: temp.created_at, y: temp.value}}),
                     borderColor: colors[vendTempIndex - 1],
                     backgroundColor: colors[vendTempIndex -1],
@@ -541,13 +541,15 @@
                         display: function(value, context) {
                             return value.dataIndex === vendTemp.length - 1;
                         },
-                        align: 'left',
+                        anchor: 'start',
+                        align: '240',
+                        offset: 13,
                         formatter: function(value, context) {
-                            return context.dataset.label + ':' + value.y;
+                            return 'T' + context.dataset.label.charAt(1) + '= ' + value.y;
                         },
                         font: {
                             size: 14,
-                        }
+                        },
                     },
                 })
                 allTimings.push(vendTemp)
