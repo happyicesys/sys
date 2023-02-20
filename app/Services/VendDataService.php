@@ -127,7 +127,7 @@ class VendDataService
             }
             break;
           case 'P':
-            UpdateVendLastUpdated::dispatch($processedInput, $vend)->onQueue('default');
+            UpdateVendLastUpdated::dispatch($vend)->onQueue('default');
             $saveVendData = false;
             break;
           case 'PWRON':
