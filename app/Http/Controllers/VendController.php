@@ -126,7 +126,9 @@ class VendController extends Controller
 
         $fans = [];
         if($request->fans) {
-            $fans = $request->fans;
+            $fans = array_merge($fans, $request->fans);
+        }else {
+            $fans = [];
         }
         // dd($fans);
         $vendFans = $vend

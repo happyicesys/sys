@@ -440,7 +440,6 @@
         })
         vendTemps.value = vendTempsArr
 
-        // console.log(fans.value)
         fans.value.forEach((type, typeIndex) => {
             let vendFansDataByType = vendFansAllArr.filter((vendFan) => {
                 return vendFan.type == type;
@@ -514,7 +513,7 @@
                 do {
                     vendFansArr[type].push({
                         value: 'NaN',
-                        created_at: tempTimer.format(),
+                        created_at: fanTimer.format(),
                         type: type,
                     })
                     fanTimer = fanTimer.add(5, 'minutes')
@@ -527,41 +526,44 @@
         if(vendTemps.value.length > 0) {
             let allTimings = []
             datasets.value = []
+            let latestTemp = '';
             vendTemps.value.forEach((vendTemp, vendTempIndex) => {
-                datasets.value.push({
-                    label: 'T' + vendTempIndex + ' (' + vendTemp[vendTemp.length -1].value + ')',
+                if(vendTemp[vendTemp.length -1]) {
+                    latestTemp = vendTemp[vendTemp.length -1].value;
+                }
+                 datasets.value.push({
+                    label: 'T' + vendTempIndex + (latestTemp ? (' (' + latestTemp + "\u2103" + ')' ) : ''),
                     data: vendTemp.map((temp) => {return {x: temp.created_at, y: temp.value}}),
                     borderColor: colors[vendTempIndex - 1],
                     backgroundColor: colors[vendTempIndex -1],
                     tension: 0.1,
                     spanGaps: true,
                     yAxisID: 'y',
-                    datalabels: {
-                        color: '#000000',
-                        display: function(value, context) {
-                            return value.dataIndex === vendTemp.length - 1;
-                        },
-                        anchor: 'start',
-                        align: '240',
-                        offset: 13,
-                        formatter: function(value, context) {
-                            return 'T' + context.dataset.label.charAt(1) + '= ' + value.y;
-                        },
-                        font: {
-                            size: 14,
-                        },
-                    },
+                    // datalabels: {
+                    //     color: '#000000',
+                    //     display: function(value, context) {
+                    //         return value.dataIndex === vendTemp.length - 1;
+                    //     },
+                    //     anchor: 'start',
+                    //     align: '240',
+                    //     offset: 13,
+                    //     formatter: function(value, context) {
+                    //         return 'T' + context.dataset.label.charAt(1) + '= ' + value.y;
+                    //     },
+                    //     font: {
+                    //         size: 14,
+                    //     },
+                    // },
                 })
                 allTimings.push(vendTemp)
             })
         }
-        // console.log( vendFans[0] ? vendFans[0].map((fan) => {return {x: fan.created_at, y: fan.value}}) : null)
         if(vendFans.value.length > 0) {
             let allTimings = []
             datasets.value = []
             vendFans.value.forEach((vendFan, vendFanIndex) => {
                 datasets.value.push({
-                    label: 'Fan ' + vendFanIndex,
+                    label: 'Fan' + vendFanIndex,
                     data: vendFan.map((fan) => {return {x: fan.created_at, y: fan.value}}),
                     borderColor: colors[vendFanIndex - 1],
                     backgroundColor: colors[vendFanIndex -1],

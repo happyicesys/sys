@@ -36,6 +36,7 @@
                     },
                     ...props.options,
                 })
-    const plugins = ref([ChartDataLabels])
+    // const plugins = ref([ChartDataLabels])
+    const plugins = ref()
 
 </script>

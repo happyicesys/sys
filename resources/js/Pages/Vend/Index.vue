@@ -552,6 +552,12 @@
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
+                                <span class="text-blue-600" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
+                                    <br>Apk: {{ vend.apkVerJson['apkver'] }}
+                                    <span v-if="vend.apkVerJson && 'buildtime' in vend.apkVerJson">
+                                        {{ moment(new Date(vend.apkVerJson['buildtime'])).format('YYMMDD HH:mm:ss')  }}
+                                    </span>
+                                </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.serial_num }}
@@ -649,6 +655,7 @@
   import { ref, onMounted } from 'vue';
   import { Inertia } from '@inertiajs/inertia';
   import { Head, usePage } from '@inertiajs/inertia-vue3';
+  import moment from 'moment';
 
   const props = defineProps({
     categories: Object,

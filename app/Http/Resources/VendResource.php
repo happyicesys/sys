@@ -23,6 +23,7 @@ class VendResource extends JsonResource
         return [
             'id' => $this->id,
             'code' => $this->code,
+            'apkVerJson' => $this->apk_ver_json,
             'serial_num' => $this->serial_num,
             'last_updated_at' => $this->last_updated_at ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'name' => $this->name,

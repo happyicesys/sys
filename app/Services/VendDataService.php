@@ -8,6 +8,7 @@ use App\Jobs\Vend\GetPaymentGatewayQR;
 use App\Jobs\Vend\GetPurchaseConfirm;
 use App\Jobs\Vend\SyncVendChannels;
 use App\Jobs\Vend\SyncVendParameter;
+use App\Jobs\Vend\UpdateApkVersion;
 use App\Jobs\Vend\UpdateVendLastUpdated;
 use Carbon\Carbon;
 use PhpMqtt\Client\Facades\MQTT;
@@ -126,8 +127,11 @@ class VendDataService
             }
             break;
           case 'P':
-            UpdateVendLastUpdated::dispatch($vend)->onQueue('default');
+            UpdateVendLastUpdated::dispatch($processedInput, $vend)->onQueue('default');
             $saveVendData = false;
+            break;
+          case 'PWRON':
+            UpdateApkVersion::dispatch($processedInput, $vend)->onQueue('default');
             break;
           case 'REQQR':
             GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');

@@ -18,6 +18,7 @@ class Vend extends Model
     }
 
     protected $casts = [
+        'apk_ver_json' => 'json',
         'last_updated_at' => 'datetime',
         'parameter_json' => 'json',
         'temp_updated_at' => 'datetime',
@@ -28,6 +29,7 @@ class Vend extends Model
     ];
 
     protected $fillable = [
+        'apk_ver_json',
         'code',
         'serial_num',
         'name',
