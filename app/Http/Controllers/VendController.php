@@ -337,6 +337,7 @@ class VendController extends Controller
     {
         $request->validate([
             'serial_num' => 'nullable|numeric',
+            'private_key' => 'nullable',
         ]);
 
         $vend = Vend::findOrFail($vendId);
@@ -344,6 +345,7 @@ class VendController extends Controller
         $vend->update([
             'name' => $request->name,
             'serial_num' => $request->serial_num,
+            'private_key' => $request->private_key,
         ]);
 
         return redirect()->route('vends');

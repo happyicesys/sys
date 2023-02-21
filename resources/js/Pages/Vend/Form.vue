@@ -24,6 +24,11 @@
                 Serial Number
               </FormInput>
             </div>
+            <div class="sm:col-span-6">
+              <FormInput v-model="form.private_key" :error="form.errors.private_key">
+                Private Key
+              </FormInput>
+            </div>
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">
@@ -94,6 +99,7 @@ function getDefaultForm() {
   return {
     name: '',
     serial_num: '',
+    private_key: '',
   }
 }
 

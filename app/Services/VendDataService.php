@@ -111,6 +111,7 @@ class VendDataService
   {
     $response = isset($originalInput['f']) ? $originalInput['f'].',4,MQ==' : true;
     $saveVendData = true;
+    $requiredMd5 = false;
 
     if(isset($originalInput['m']) or isset($originalInput['Vid'])) {
       $vend = Vend::firstOrCreate([

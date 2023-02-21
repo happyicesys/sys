@@ -44,6 +44,7 @@ class Vend extends Model
         'is_temp_error',
         'last_updated_at',
         'parameter_json',
+        'private_key',
         'product_mapping_id',
         'keylock_number',
         'vend_channel_error_logs_json',
