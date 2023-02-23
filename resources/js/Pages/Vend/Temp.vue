@@ -242,6 +242,11 @@
             type: 'linear',
             display: true,
             position: 'left',
+            ticks: {
+                callback: function(value, index, values) {
+                    return value + '°C';
+                }
+            }
         },
         // y1: {
         //     type: 'linear',
@@ -253,6 +258,20 @@
         title: {
             display: true,
             text: vend.value.full_name
+        },
+        tooltip: {
+            callbacks: {
+                label: function(context) {
+                    var label = context.dataset.label.slice(0,2) || '';
+                    if (label) {
+                        label += ': ';
+                    }
+                    if (context.parsed.y !== null) {
+                        label += context.parsed.y + '°C';
+                    }
+                    return label;
+                }
+            }
         }
     }
   })
@@ -355,6 +374,7 @@
     let vendFansAllArr = JSON.parse(JSON.stringify(props.vendFansObj.data))
     let vendTempsArr = []
     let vendFansArr = []
+    let lastTempValue = []
 
     if(types.value.length > 0 || fans.value.length > 0) {
         types.value.forEach((type, typeIndex) => {
@@ -372,6 +392,7 @@
                     })
                 }
             }
+            lastTempValue[type] = vendTempsArr[type][vendTempsArr[type].length - 1].value
             if(processList.length) {
                 processList.forEach((value, index) => {
                     let tempTimer = moment(value.past.created_at).add(5, 'minutes')
@@ -526,13 +547,9 @@
         if(vendTemps.value.length > 0) {
             let allTimings = []
             datasets.value = []
-            let latestTemp = '';
             vendTemps.value.forEach((vendTemp, vendTempIndex) => {
-                if(vendTemp[vendTemp.length -1]) {
-                    latestTemp = vendTemp[vendTemp.length -1].value;
-                }
                  datasets.value.push({
-                    label: 'T' + vendTempIndex + (latestTemp ? (' (' + latestTemp + "\u2103" + ')' ) : ''),
+                    label: 'T' + vendTempIndex + (lastTempValue[vendTempIndex] ? (' (' + lastTempValue[vendTempIndex] + "\u2103" + ')' ) : ''),
                     data: vendTemp.map((temp) => {return {x: temp.created_at, y: temp.value}}),
                     borderColor: colors[vendTempIndex - 1],
                     backgroundColor: colors[vendTempIndex -1],

@@ -161,9 +161,10 @@
       :timezones="timezones"
       :type="type"
       :showModal="showModal"
+      :countryPaymentGateways="countryPaymentGateways"
+      :operatorPaymentGatewayTypes="operatorPaymentGatewayTypes"
       :unbindedVends="unbindedVends"
       @modalClose="onModalClose"
-      @refreshData="onRefreshData(operatorId)"
   >
   </Form>
   </BreezeAuthenticatedLayout>
@@ -188,6 +189,8 @@ const props = defineProps({
   countries: Object,
   operators: Object,
   timezones: [Array, Object],
+  countryPaymentGateways: Object,
+  operatorPaymentGatewayTypes: [Array, Object],
   unbindedVends: Object,
 })
 
@@ -232,15 +235,14 @@ function onEditClicked(operatorValue) {
   operator.value = operatorValue
   Inertia.visit(
       route('operators', {
-          operator_id: operatorValue.id
+          operator_id: operatorValue.id,
+          country_id: operatorValue.country.id,
       }),{
-          only: ['unbindedVends'],
+          only: ['countryPaymentGateways', 'unbindedVends'],
           preserveState: true,
       }
   );
   showModal.value = true
-
-
 }
 
 function onSearchFilterUpdated() {
@@ -267,15 +269,4 @@ function onModalClose() {
   showModal.value = false
 }
 
-function onRefreshData(operatorId) {
-  // Inertia.reload({ only: ['operators', 'unbindedVends'] })
-  Inertia.visit(
-      route('operators', {
-          operator_id: operatorId
-      }),{
-          only: ['unbindedVends', 'operators'],
-          // preserveState: true,
-      }
-  );
-}
 </script>

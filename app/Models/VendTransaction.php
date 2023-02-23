@@ -26,6 +26,7 @@ class VendTransaction extends Model
         'order_id',
         'transaction_datetime',
         'amount',
+        'is_payment_received',
         'payment_method_id',
         'product_id',
         'vend_channel_id',

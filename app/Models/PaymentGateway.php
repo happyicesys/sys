@@ -12,6 +12,21 @@ class PaymentGateway extends Model
     protected $fillable = [
         'name',
         'classname',
+        'country_id',
         'remarks',
+        'key1_name',
+        'key2_name',
+        'key3_name',
     ];
+
+    // relationships
+    public function operatorPaymentGateways()
+    {
+        return $this->hasMany(OperatorPaymentGateway::class);
+    }
+
+    public function country()
+    {
+        return $this->belongsTo(Country::class);
+    }
 }

@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\CountryResource;
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\PaymentGatewayResource;
 use App\Http\Resources\VendResource;
 use App\Models\Country;
 use App\Models\Operator;
+use App\Models\OperatorPaymentGateway;
+use App\Models\PaymentGateway;
 use App\Models\Vend;
 use Carbon\Carbon;
 use DateTimeZone;
@@ -21,7 +24,7 @@ class OperatorController extends Controller
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $sortKey = $request->sortKey ? $request->sortKey : 'name';
         $sortBy = $request->sortBy ? $request->sortBy : true;
-        // dd($request->all());
+
         return Inertia::render('Operator/Index', [
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
             'operators' => OperatorResource::collection(
@@ -29,6 +32,7 @@ class OperatorController extends Controller
                     'address',
                     'address.country',
                     'country',
+                    'operatorPaymentGateways.paymentGateway',
                     'vends',
                     'vends.latestVendBinding.customer',
                     ])
@@ -41,7 +45,18 @@ class OperatorController extends Controller
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),
+            'operatorPaymentGatewayTypes' => [
+                OperatorPaymentGateway::TYPE_SANDBOX,
+                OperatorPaymentGateway::TYPE_PRODUCTION
+            ],
             'timezones' => $timezones,
+            'countryPaymentGateways' =>
+                PaymentGatewayResource::collection(
+                    PaymentGateway::with(['country'])
+                    ->orderBy('name')
+                    ->get()
+                )
+            ,
             'unbindedVends' => fn () =>
                 VendResource::collection(
                     Vend::with([
@@ -58,6 +73,7 @@ class OperatorController extends Controller
                     'address',
                     'address.country',
                     'country',
+                    'operatorPaymentGateways.paymentGateway',
                     'vends',
                     'vends.latestVendBinding.customer',
                 ])
@@ -97,6 +113,15 @@ class OperatorController extends Controller
             if($request->operator['vends']) {
                 foreach($request->operator['vends'] as $vend) {
                     $operator->vends()->attach($vend['id']);
+                }
+            }
+            if($request->has('paymentGateways')) {
+                $operator->operatorPaymentGateways()->delete();
+                if($request->operator['operatorPaymentGateways']) {
+                    foreach($request->operator['operatorPaymentGateways'] as $operatorPaymentGateway) {
+                        $operatorPaymentGateway['payment_gateway_id'] = $operatorPaymentGateway['paymentGateway']['id'];
+                        $operator->operatorPaymentGateways()->create($operatorPaymentGateway);
+                    }
                 }
             }
         }

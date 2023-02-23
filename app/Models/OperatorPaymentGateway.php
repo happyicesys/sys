@@ -9,12 +9,16 @@ class OperatorPaymentGateway extends Model
 {
     use HasFactory;
 
+    const TYPE_SANDBOX = 'sandbox';
+    const TYPE_PRODUCTION = 'production';
+
     protected $fillable = [
         'operator_id',
         'payment_gateway_id',
         'key1',
         'key2',
         'key3',
+        'type',
     ];
 
     // relationships
