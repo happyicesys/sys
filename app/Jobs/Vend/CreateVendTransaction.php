@@ -41,6 +41,8 @@ class CreateVendTransaction implements ShouldQueue
      */
     public function handle()
     {
+        $isPaymentReceived = false;
+
         $input = $this->input;
         $vend = $this->vend;
 
@@ -58,6 +60,16 @@ class CreateVendTransaction implements ShouldQueue
 
         $vendChannelError = VendChannelError::where('code', $processedInput['errorCode'])->where('code', '!=', 0)->first();
 
+        if($processedInput['errorCode'] == 0 or $processedInput['errorCode'] == '6') {
+            $isPaymentReceived = true;
+        }
+
+        if($paymentMethod) {
+            if($paymentMethod->name == 'midtrans') {
+                $isPaymentReceived = true;
+            }
+        }
+
         $productId = null;
         if(isset($vendChannel) and $vendChannel and $vend->productMapping()->exists()) {
             $productMappingItem = $vend->productMapping->productMappingItems()->where('channel_code', $vendChannel->code)->first();
@@ -71,6 +83,7 @@ class CreateVendTransaction implements ShouldQueue
             'transaction_datetime' => Carbon::now(),
             'amount' => $processedInput['amount'],
             'order_id' => $processedInput['orderId'],
+            'is_payment_received' => $isPaymentReceived,
             'payment_method_id' => $paymentMethod ? $paymentMethod->id : null,
             'vend_id' => $vend->id,
             'vend_channel_id' => isset($vendChannel) ? $vendChannel->id : 0,

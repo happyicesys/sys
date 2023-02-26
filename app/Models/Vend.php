@@ -176,19 +176,14 @@ class Vend extends Model
     // scopes
     public function scopeFilterIndex($query, $request)
     {
-        // dd($request->all());
         $isDoorOpen = $request->is_door_open != null ? $request->is_door_open : 'all';
         $isOnline = $request->is_online != null ? $request->is_online : 'all';
         $isSensor = $request->is_sensor != null ? $request->is_sensor : 'all';
         $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
         $isBindedCustomer = auth()->user()->hasRole('operator') ? 'all' : $isBindedCustomer;
-        // $countryId = $request->country_id != null ? (int)$request->country_id : 1;
         $sortKey = $request->sortKey ? $request->sortKey : 'vends.is_online';
         $sortBy = $request->sortBy ? $request->sortBy : false;
 
-        // return $query->when($request->codes, function($query, $search) {
-        //     $query->whereIn('vends.id', $search);
-        // })
         return $query->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
@@ -196,6 +191,16 @@ class Vend extends Model
                 $search = [$search];
             }
             $query->whereIn('vends.code', $search);
+        })
+        ->when($request->channel_codes, function($query, $search) {
+            if(strpos($search, ',') !== false) {
+                $search = explode(',', $search);
+            }else {
+                $search = [$search];
+            }
+            $query->whereHas('vendChannels', function($query) use ($search) {
+                $query->whereIn('code', $search);
+            });
         })
         ->when($request->serialNum, function($query, $search) {
             $query->where('serial_num', 'LIKE', "%{$search}%");
@@ -278,18 +283,6 @@ class Vend extends Model
                 });
             }
         })
-
-        // ->when($request->vend_channel_error_id, function($query, $search) {
-        //     if($search === 'errors_only') {
-        //         $query->whereHas('vendChannels.vendChannelErrorLogs', function($query) {
-        //            $query->where('is_error_cleared', false);
-        //         });
-        //     }else if($search !== null) {
-        //         $query->whereHas('vendChannels.vendChannelErrorLogs', function($query) use ($search) {
-        //             $query->where('vend_channel_error_id', $search)->where('is_error_cleared', false);
-        //         });
-        //     }
-        // })
         ->when($isOnline, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
@@ -310,23 +303,12 @@ class Vend extends Model
             }
         })
         ->when($sortKey, function($query, $search) use ($sortBy) {
-            // dd($search, $sortBy, 'here');
             if(strpos($search, '->')) {
                 $inputSearch = explode("->", $search);
                 $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
                 ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }else {
                 $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-                // if($sortBy and $search == 'vends.code') {
-                //     $query
-                //     ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' )
-                //     ->orderBy('customers.code', 'asc')
-                //     ->orderBy('vend_channel_totals_json->balancePercent', 'asc')
-                //     ->orderBy('vend_channel_totals_json->outOfStockSkuPercent', 'asc')
-                //     ->orderBy('vend_channel_error_logs_json', 'desc')
-                //     ->orderBy('vends.temp', 'desc')
-                //     ->orderBy('parameter_json->t2', 'desc');
-                // }
             }
         });
     }

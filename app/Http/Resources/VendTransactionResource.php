@@ -19,6 +19,7 @@ class VendTransactionResource extends JsonResource
         return [
             'id' => $this->id,
             'amount' => number_format($this->amount/ 100, 2, '.', ','),
+            'is_payment_received' => $this->is_payment_received,
             'order_id' => $this->order_id,
             'paymentMethod' => PaymentMethodResource::make($this->paymentMethod),
             'product' => ProductResource::make($this->product),
