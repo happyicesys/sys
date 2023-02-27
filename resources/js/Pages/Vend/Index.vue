@@ -674,6 +674,7 @@
   import { Inertia } from '@inertiajs/inertia';
   import { Head, usePage } from '@inertiajs/inertia-vue3';
   import moment from 'moment';
+  import axios from 'axios';
 
   const props = defineProps({
     categories: Object,
@@ -834,8 +835,7 @@
     onSearchFilterUpdated()
   }
 
-  function onExportChannelExcelClicked() {
-    // window.open('/vends/transactions/excel', '_blank');
+function onExportChannelExcelClicked() {
     loading.value = true
     axios({
         method: 'get',

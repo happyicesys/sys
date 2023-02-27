@@ -417,6 +417,7 @@ class VendController extends Controller
                 'Balance Percent(%)' => $vendChannel->capacity ? round($vendChannel->qty/ $vendChannel->capacity * 100) : '',
             ];
         });
+        // return true;
     }
 
     private function processVendTempTiming($vendTemps)
