@@ -781,6 +781,7 @@
   })
 
     function onChannelOverviewClicked(vendData) {
+        console.log(vendData)
         vend.value = vendData
         showChannelOverviewModal.value = true
     }

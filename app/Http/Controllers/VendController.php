@@ -413,7 +413,7 @@ class VendController extends Controller
                                 '',
                 'Qty' => $vendChannel->qty,
                 'Capacity' => $vendChannel->capacity,
-                'Amount' => $vendChannel->amount/ 10,
+                'Price' => $vendChannel->amount/ 100,
                 'Balance Percent(%)' => $vendChannel->capacity ? round($vendChannel->qty/ $vendChannel->capacity * 100) : '',
             ];
         });
