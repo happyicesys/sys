@@ -57,8 +57,10 @@ class DatabaseSeeder extends Seeder
             // OperaterRoleSeeder::class,
             // OperatorPaymentGatewaySeeder::class,
             // UmamiTokenSeeder::class,
-            PaymentGatewayUpdateSeeder::class,
+            // PaymentGatewayUpdateSeeder::class,
             // IndoMidtransSeeder::class,
+            // OperatorUserSeeder::class,
+            PermissionSeeder::class,
         ]);
     }
 }

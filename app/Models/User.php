@@ -15,7 +15,7 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
-    protected $guard_name = 'api';
+    protected $guard_name = ['api', 'web'];
     /**
      * The attributes that are mass assignable.
      *
@@ -78,4 +78,5 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Profile::class);
     }
+
 }

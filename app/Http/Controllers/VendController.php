@@ -36,6 +36,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
+use Spatie\Permission\Models\Role;
 
 // use PhpMqtt\Client\Facades\MQTT;
 // use App\Jobs\ProcessVendData;

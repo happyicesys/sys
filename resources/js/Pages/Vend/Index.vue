@@ -723,9 +723,15 @@
   const vendChannelErrorsOptions = ref([])
 //   const vendOptions = ref([])
   const operatorRole = usePage().props.value.auth.operatorRole
+  const roles = usePage().props.value.auth.user.roles
+  const permissions = usePage().props.value.auth.user.permissions
   const now = ref(moment().format('HH:mm:ss'))
+  const rolesCollection = ref([])
+  const permissionsCollection = ref([])
 
   onMounted(() => {
+    rolesCollection.value = roles ? roles.map((data) => {return data.name}) : ''
+    permissionsCollection.value = permissions ? permissions.map((data) => {return data.name}) : ''
     vendChannelErrorsOptions.value = [
         // {'id': '', 'desc': 'All'},
         {'id': 'errors_only', 'desc': 'Errors Only'},
@@ -832,7 +838,7 @@
     // window.open('/vends/transactions/excel', '_blank');
     loading.value = true
     axios({
-        method: 'post',
+        method: 'get',
         url: '/vends/channels/excel',
         params: {
             ...filters.value,

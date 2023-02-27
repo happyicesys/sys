@@ -3,34 +3,39 @@ import { ref } from 'vue';
 import BreezeDropdown from '@/Components/Dropdown.vue';
 import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { Link } from '@inertiajs/inertia-vue3';
+import { Link, usePage } from '@inertiajs/inertia-vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
 import { CircleStackIcon, CommandLineIcon, CreditCardIcon, BuildingOfficeIcon, FolderIcon, LinkIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
+import { onMounted } from 'vue';
 
 const navigation = [
     {
         name: 'Vending Machines',
         icon: CommandLineIcon,
         current: false,
-        href: 'vends'
+        href: 'vends',
+        permission: 'read vends',
     },
     {
         name: 'Transactions',
         icon: CreditCardIcon,
         current: false,
-        href: 'vends-transactions'
+        href: 'vends-transactions',
+        permission: 'read transactions',
     },
     {
         name: 'Products',
         icon: RectangleStackIcon,
         current: false,
-        href: 'products'
+        href: 'products',
+        permission: 'read products',
     },
     {
         name: 'Product Mapping',
         icon: LinkIcon,
         current: false,
-        href: 'product-mappings'
+        href: 'product-mappings',
+        permission: 'read product-mappings',
     },
     // {
     //     name: 'Customers',
@@ -57,19 +62,22 @@ const navigation = [
         name: 'Operators',
         icon: UserGroupIcon,
         current: false,
-        href: 'operators'
+        href: 'operators',
+        permission: 'read operators',
     },
     {
         name: 'Resource Center',
         icon: CircleStackIcon,
         current: false,
-        href: 'resource-centers'
+        href: 'resource-centers',
+        permission: 'read resource-centers',
     },
     {
         name: 'Users',
         icon: UserCircleIcon,
         current: false,
-        href: 'users'
+        href: 'users',
+        permission: 'read users',
     },
     // {
     //     name: 'Data Settings',
@@ -98,6 +106,15 @@ const navigation = [
 ]
 
 const showingNavigationDropdown = ref(false);
+const roles = usePage().props.value.auth.user.roles
+const permissions = usePage().props.value.auth.user.permissions
+const rolesCollection = ref([])
+const permissionsCollection = ref([])
+
+  onMounted(() => {
+    rolesCollection.value = roles ? roles.map((data) => {return data.name}) : []
+    permissionsCollection.value = permissions ? permissions.map((data) => {return data.name}) : []
+  })
 </script>
 
 <template>
