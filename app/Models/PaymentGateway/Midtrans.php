@@ -11,12 +11,19 @@ class Midtrans extends Model implements PaymentGatewayInterface
 {
     use HasFactory;
 
+    const PAYMENT_METHOD_GOPAY = 101;
+    const PAYMENT_METHOD_AIRPAY_SHOPEE = 102;
+    const PAYMENT_METHOD_DANA = 103;
+    const PAYMENT_METHOD_OVO = 104;
+    const PAYMENT_METHOD_TCASH = 105;
+
     public static $sandbox = 'https://api.sandbox.midtrans.com';
     public static $production = 'https://api.midtrans.com';
     private $apiKey;
     private $action;
     private $curlData;
     private $url;
+
 
     public function __construct($apiKey = '', $action = 'QRIS')
     {

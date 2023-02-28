@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PaymentGateway\Midtrans;
 use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
 use App\Models\Vend;
@@ -74,6 +75,25 @@ class PaymentController extends Controller
           $vend = Vend::where('code', ltrim(substr($paymentGatewayLog->response['order_id'], -5)))->first();
           if($vend) {
             $vendChannel = $vend->vendChannels()->where('code', $paymentGatewayLog->request['SId'])->first();
+            $paymentMethod = '';
+            switch($paymentGatewayLog->response['issuer']) {
+              case 'gopay':
+                $paymentMethod = Midtrans::PAYMENT_METHOD_GOPAY;
+                break;
+              case 'airpay shopee':
+                $paymentMethod = Midtrans::PAYMENT_METHOD_AIRPAY_SHOPEE;
+                break;
+              case 'dana':
+                $paymentMethod = Midtrans::PAYMENT_METHOD_DANA;
+                break;
+              case 'ovo':
+                $paymentMethod = Midtrans::PAYMENT_METHOD_OVO;
+                break;
+              case 'tcash':
+                $paymentMethod = Midtrans::PAYMENT_METHOD_TCASH;
+                break;
+            }
+
             $result = $this->vendDataService->getPurchaseRequest([
               'orderId' => $paymentGatewayLog->order_id,
               'amount' => $paymentGatewayLog->response['gross_amount'],
@@ -81,6 +101,7 @@ class PaymentController extends Controller
               'productCode' =>  $vendChannel->product()->exists() ? $vendChannel->product->code : null,
               'productName' => $vendChannel->product()->exists() ? $vendChannel->product->name : null,
               'channelCode' =>  $vendChannel->code,
+              'paymentMethod' => $paymentMethod,
             ]);
 
             $fid = $paymentGatewayLog->id;

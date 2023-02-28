@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Client;
 use App\Models\VendTransaction;
 use App\Http\Controllers\Controller;
 // use App\Http\Requests\ClientVendTransactionRequest;
+use App\Http\Resources\ClientVendResource;
 use App\Http\Resources\ClientVendTransactionResource;
 use Illuminate\Http\Request;
 
@@ -29,5 +30,18 @@ class ClientController extends Controller
             ->get()
         );
         return $vendTransactions;
+    }
+
+    public function getChannels(Request $request)
+    {
+        $vendChannels = ClientVendResource::collection(
+            Vend::with([
+                'latestVendBinding.customer',
+                'vendChannels',
+            ])
+            ->filterIndex($request)
+            ->get()
+        );
+        return $vendChannels;
     }
 }

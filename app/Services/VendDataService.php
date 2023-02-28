@@ -178,7 +178,7 @@ class VendDataService
       'Type' => 'TRADE',
       'orderid' => isset($params['orderId']) ? $params['orderId'] : null,
       'get_type' => 1,
-      'pay_type' => 101,
+      'pay_type' => $params['paymentMethod'],
       'price' => isset($params['amount']) ? $params['amount'] : 0,
       'score' => 1,
       'receivetime' => Carbon::now()->timestamp,

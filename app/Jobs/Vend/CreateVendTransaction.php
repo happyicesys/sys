@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Vend;
 
+use App\Models\PaymentGateway\Midtrans;
 use App\Models\PaymentMethod;
 use App\Models\Vend;
 use App\Models\VendChannel;
@@ -65,7 +66,13 @@ class CreateVendTransaction implements ShouldQueue
         }
 
         if($paymentMethod) {
-            if($paymentMethod->name == 'midtrans') {
+            if(
+                $paymentMethod->code == Midtrans::PAYMENT_METHOD_GOPAY or
+                $paymentMethod->code == Midtrans::PAYMENT_METHOD_SHOPEEPAY or
+                $paymentMethod->code == Midtrans::PAYMENT_METHOD_DANA or
+                $paymentMethod->code == Midtrans::PAYMENT_METHOD_OVO or
+                $paymentMethod->code == Midtrans::PAYMENT_METHOD_TCASH
+            ) {
                 $isPaymentReceived = true;
             }
         }

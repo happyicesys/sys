@@ -17,6 +17,7 @@ Route::prefix('client')
     ->middleware('auth:sanctum')
     ->group(function() {
         Route::post('/transactions', [ClientController::class, 'getTransactions']);
+        Route::post('/channels', [ClientController::class, 'getChannels']);
     });
 
 Route::prefix('v1')->middleware(['throttle:api'])->group(function() {
