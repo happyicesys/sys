@@ -16,24 +16,24 @@ class PermissionSeeder extends Seeder
      */
     public function run()
     {
-        $actions = ['create', 'read', 'update', 'delete', 'admin-access'];
-        $models = [
-            'vends',
-            'transactions',
-            'products',
-            'product-mappings',
-            'operators',
-            'resource-centers',
-            'users',
-        ];
+        // $actions = ['create', 'read', 'update', 'delete', 'admin-access'];
+        // $models = [
+        //     'vends',
+        //     'transactions',
+        //     'products',
+        //     'product-mappings',
+        //     'operators',
+        //     'resource-centers',
+        //     'users',
+        // ];
 
-        foreach($models as $model) {
-            foreach($actions as $action) {
-                Permission::create([
-                    'name' => $action.' '.$model,
-                ]);
-            }
-        }
+        // foreach($models as $model) {
+        //     foreach($actions as $action) {
+        //         Permission::create([
+        //             'name' => $action.' '.$model,
+        //         ]);
+        //     }
+        // }
 
         $roles[] = Role::where('name', 'admin')->first();
         $roles[] = Role::where('name', 'driver')->first();

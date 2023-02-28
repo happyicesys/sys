@@ -2,10 +2,13 @@
 
 namespace App\Http\Resources;
 
+use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Traits\GetUserTimezone;
 
 class ClientVendResource extends JsonResource
 {
+    use GetUserTimezone;
     /**
      * Transform the resource into an array.
      *
@@ -32,6 +35,7 @@ class ClientVendResource extends JsonResource
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
             'vendTransactionTotalsJson' => $this->vend_transaction_totals_json,
+            'vendChannels' => ClientVendChannelResource::collection($this->whenLoaded('vendChannels')),
         ];
     }
 }

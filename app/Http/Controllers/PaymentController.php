@@ -98,9 +98,9 @@ class PaymentController extends Controller
               'orderId' => $paymentGatewayLog->order_id,
               'amount' => $paymentGatewayLog->response['gross_amount'],
               'vendCode' => $vend->code,
-              'productCode' =>  $vendChannel->product()->exists() ? $vendChannel->product->code : null,
-              'productName' => $vendChannel->product()->exists() ? $vendChannel->product->name : null,
-              'channelCode' =>  $vendChannel->code,
+              'productCode' =>  $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->code : null,
+              'productName' => $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->name : null,
+              'channelCode' =>  $vendChannel ? $vendChannel->code : null,
               'paymentMethod' => $paymentMethod,
             ]);
 

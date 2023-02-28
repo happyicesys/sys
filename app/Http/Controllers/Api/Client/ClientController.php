@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Client;
 
+use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Http\Controllers\Controller;
 // use App\Http\Requests\ClientVendTransactionRequest;
@@ -37,7 +38,7 @@ class ClientController extends Controller
         $vendChannels = ClientVendResource::collection(
             Vend::with([
                 'latestVendBinding.customer',
-                'vendChannels',
+                'vendChannels.product',
             ])
             ->filterIndex($request)
             ->get()
