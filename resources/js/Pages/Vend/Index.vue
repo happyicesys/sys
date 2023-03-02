@@ -303,9 +303,9 @@
                             <TableHeadSort modelName="vend_transaction_totals_json->seven_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->seven_days_amount')">
                                 $ Sales (qty)<br>
                                 Today <br>
-                                Yesterday<br>
-                                Last 7 Days <br>
-                                Last 30 Days
+                                Y'day<br>
+                                Last7d <br>
+                                Last30d
                             </TableHeadSort>
                             <TableHead>
                                 Status
