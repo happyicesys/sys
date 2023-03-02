@@ -39,6 +39,8 @@ class SyncVendTransactionTotalsJson extends Command
                     'yesterday_count' => $vend->vendYesterdayTransactions->count(),
                     'seven_days_amount' => $vend->vendSevenDaysTransactions->sum('amount'),
                     'seven_days_count' => $vend->vendSevenDaysTransactions->count(),
+                    'thirty_days_amount' => $vend->vendThirtyDaysTransactions->sum('amount'),
+                    'thirty_days_count' => $vend->vendThirtyDaysTransactions->count(),
                 ]
             ]);
         }

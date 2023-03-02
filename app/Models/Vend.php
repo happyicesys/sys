@@ -105,29 +105,34 @@ class Vend extends Model
         return $this->hasMany(VendTemp::class);
     }
 
+    public function vendThirtyDaysTransactions()
+    {
+        return $this->hasMany(VendTransaction::class)
+                    ->isSuccessful()
+                    ->whereDate('transaction_datetime', '<=', Carbon::today())
+                    ->whereDate('transaction_datetime', '>=', Carbon::today()->subDays(29));
+    }
+
     public function vendSevenDaysTransactions()
     {
         return $this->hasMany(VendTransaction::class)
                     ->isSuccessful()
                     ->whereDate('transaction_datetime', '<=', Carbon::today())
-                    ->whereDate('transaction_datetime', '>=', Carbon::today()->subDays(6))
-                    ->whereNull('vend_channel_error_id');
+                    ->whereDate('transaction_datetime', '>=', Carbon::today()->subDays(6));
     }
 
     public function vendYesterdayTransactions()
     {
         return $this->hasMany(VendTransaction::class)
                     ->isSuccessful()
-                    ->whereDate('transaction_datetime', '=', Carbon::yesterday())
-                    ->whereNull('vend_channel_error_id');
+                    ->whereDate('transaction_datetime', '=', Carbon::yesterday());
     }
 
     public function vendTodayTransactions()
     {
         return $this->hasMany(VendTransaction::class)
                     ->isSuccessful()
-                    ->whereDate('transaction_datetime', '=', Carbon::today())
-                    ->whereNull('vend_channel_error_id');
+                    ->whereDate('transaction_datetime', '=', Carbon::today());
     }
 
     public function vendType()

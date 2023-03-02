@@ -304,7 +304,8 @@
                                 $ Sales (qty)<br>
                                 Today <br>
                                 Yesterday<br>
-                                Last 7 Days
+                                Last 7 Days <br>
+                                Last 30 Days
                             </TableHeadSort>
                             <TableHead>
                                 Status
@@ -338,8 +339,16 @@
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                                 <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
-                                    {{ vend.latestVendBinding.customer.code }} <br>
-                                    {{ vend.latestVendBinding.customer.name }}
+                                    <span v-if="!operatorRole">
+                                        <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/vend-code/' + vend.code">
+                                            {{ vend.latestVendBinding.customer.code }} <br>
+                                            {{ vend.latestVendBinding.customer.name }}
+                                        </a>
+                                    </span>
+                                    <span v-else>
+                                        {{ vend.latestVendBinding.customer.code }} <br>
+                                        {{ vend.latestVendBinding.customer.name }}
+                                    </span>
                                 </span>
                                 <span v-else>
                                     {{ vend.name }}
@@ -441,22 +450,35 @@
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span :class="[
+                                <span
+                                v-if="'today_amount' in vend.vendTransactionTotalsJson"
+                                :class="[
                                     (vend.vendTransactionTotalsJson['today_amount']/ 100) >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{(vend.vendTransactionTotalsJson['today_amount'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
                                     ({{vend.vendTransactionTotalsJson['today_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}) <br>
                                 </span>
-                                <span :class="[
+                                <span
+                                v-if="'yesterday_amount' in vend.vendTransactionTotalsJson"
+                                :class="[
                                     (vend.vendTransactionTotalsJson['yesterday_amount']/ 100) >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{(vend.vendTransactionTotalsJson['yesterday_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
                                     ({{vend.vendTransactionTotalsJson['yesterday_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}) <br>
                                 </span>
-                                <span :class="[
+                                <span
+                                v-if="'seven_days_amount' in vend.vendTransactionTotalsJson"
+                                :class="[
                                     (vend.vendTransactionTotalsJson['seven_days_amount']/ 100) > 200 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{(vend.vendTransactionTotalsJson['seven_days_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.vendTransactionTotalsJson['seven_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
+                                </span>
+                                <span
+                                v-if="'thirty_days_amount' in vend.vendTransactionTotalsJson"
+                                :class="[
+                                    (vend.vendTransactionTotalsJson['thirty_days_amount']/ 100) > 200 ? 'text-green-700' : 'text-red-700'
+                                ]">
+                                    {{(vend.vendTransactionTotalsJson['thirty_days_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
