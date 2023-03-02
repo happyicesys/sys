@@ -456,21 +456,23 @@
                                     (vend.vendTransactionTotalsJson['today_amount']/ 100) >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{(vend.vendTransactionTotalsJson['today_amount'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
-                                    ({{vend.vendTransactionTotalsJson['today_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}) <br>
+                                    ({{vend.vendTransactionTotalsJson['today_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                                 </span>
                                 <span
                                 v-if="'yesterday_amount' in vend.vendTransactionTotalsJson"
                                 :class="[
                                     (vend.vendTransactionTotalsJson['yesterday_amount']/ 100) >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
+                                    <br>
                                     {{(vend.vendTransactionTotalsJson['yesterday_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
-                                    ({{vend.vendTransactionTotalsJson['yesterday_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}) <br>
+                                    ({{vend.vendTransactionTotalsJson['yesterday_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                                 </span>
                                 <span
                                 v-if="'seven_days_amount' in vend.vendTransactionTotalsJson"
                                 :class="[
                                     (vend.vendTransactionTotalsJson['seven_days_amount']/ 100) > 200 ? 'text-green-700' : 'text-red-700'
                                 ]">
+                                    <br>
                                     {{(vend.vendTransactionTotalsJson['seven_days_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.vendTransactionTotalsJson['seven_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                                 </span>
                                 <span
@@ -478,6 +480,7 @@
                                 :class="[
                                     (vend.vendTransactionTotalsJson['thirty_days_amount']/ 100) > 1000 ? 'text-green-700' : 'text-red-700'
                                 ]">
+                                    <br>
                                     {{(vend.vendTransactionTotalsJson['thirty_days_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                                 </span>
                             </TableData>
