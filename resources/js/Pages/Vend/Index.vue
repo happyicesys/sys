@@ -300,7 +300,7 @@
                             <TableHeadSort modelName="vend_channel_totals_json->outOfStockSkuPercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->outOfStockSkuPercent')">
                                 Out of Stock SKU
                             </TableHeadSort>
-                            <TableHeadSort modelName="vend_transaction_totals_json->seven_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->seven_days_amount')">
+                            <TableHeadSort modelName="vend_transaction_totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->thirty_days_amount')">
                                 $ Sales (qty)<br>
                                 Today <br>
                                 Y'day<br>
