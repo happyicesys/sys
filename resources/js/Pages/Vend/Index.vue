@@ -476,7 +476,7 @@
                                 <span
                                 v-if="'thirty_days_amount' in vend.vendTransactionTotalsJson"
                                 :class="[
-                                    (vend.vendTransactionTotalsJson['thirty_days_amount']/ 100) > 200 ? 'text-green-700' : 'text-red-700'
+                                    (vend.vendTransactionTotalsJson['thirty_days_amount']/ 100) > 10000 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     {{(vend.vendTransactionTotalsJson['thirty_days_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                                 </span>
