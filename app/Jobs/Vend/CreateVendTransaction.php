@@ -85,8 +85,14 @@ class CreateVendTransaction implements ShouldQueue
             }
         }
 
-        $vendTransaction = VendTransaction::create(
-            [
+        // check duplicated orderid
+        $duplicatedOrderId = VendTransaction::where('order_id', $processedInput['orderId'])->where('vend_id', $vend->id)->first();
+
+        if($duplicatedOrderId) {
+            return;
+        }
+
+        $vendTransaction = VendTransaction::create([
             'transaction_datetime' => Carbon::now(),
             'amount' => $processedInput['amount'],
             'order_id' => $processedInput['orderId'],
@@ -97,8 +103,7 @@ class CreateVendTransaction implements ShouldQueue
             'vend_channel_error_id' => isset($vendChannelError) ? $vendChannelError->id : null,
             'vend_transaction_json' => $input,
             'product_id' => $productId,
-            ]
-        );
+        ]);
 
         SyncVendTransactionTotalsJson::dispatch($vendTransaction->vend)->onQueue('default');
 
