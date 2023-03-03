@@ -24,6 +24,7 @@ Route::prefix('v1')->middleware(['throttle:api'])->group(function() {
     Route::post('/vend-data', [VendDataController::class, 'create']);
     Route::post('/customer/migrate', [CustomerController::class, 'migrate']);
     Route::post('/payment-gateway-status', [PaymentController::class, 'createPaymentResult']);
+    Route::get('/binded-vends', [VendDataController::class, 'getBindedVends']);
 });
 
 
