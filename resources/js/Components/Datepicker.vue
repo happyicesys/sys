@@ -40,14 +40,13 @@
   import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon } from '@heroicons/vue/20/solid';
   import '@vuepic/vue-datepicker/dist/main.css'
   import moment from 'moment';
-  import { ref } from 'vue';
 
   const emit = defineEmits(['update:modelValue'])
 
   const props = defineProps({
-    modelValue: [Date, String],
-    minDate: [Date, String],
-    maxDate: [Date, String],
+    modelValue: [Date, String, Object],
+    minDate: [Date, String, Object],
+    maxDate: [Date, String, Object],
     enableTimePicker: {
       type: Boolean,
       default: false,
@@ -55,14 +54,14 @@
   })
 
   function onPreviousDateClicked() {
-    emit('update:modelValue', moment(props.modelValue).subtract(1, 'days').format('Y-M-D'))
+    emit('update:modelValue', moment(props.modelValue).subtract(1, 'days').format('YYYY-MM-DD'))
   }
 
   function onNextDateClicked() {
-    emit('update:modelValue', moment(props.modelValue).add(1, 'days').format('Y-M-D'))
+    emit('update:modelValue', moment(props.modelValue).add(1, 'days').format('YYYY-MM-DD'))
   }
 
   function onSelected(modelData) {
-    emit('update:modelValue', moment(modelData).format('Y-M-D'))
+    emit('update:modelValue', moment(modelData).format('YYYY-MM-DD'))
   }
 </script>

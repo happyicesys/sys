@@ -28,9 +28,9 @@
   const emit = defineEmits(['update:modelValue'])
 
   defineProps({
-    modelValue: [Date, String],
-    minDate: [Date, String],
-    maxDate: [Date, String],
+    modelValue: [Date, String, Object],
+    minDate: [Date, String, Object],
+    maxDate: [Date, String, Object],
     enableTimePicker: {
       type: Boolean,
       default: true,
