@@ -23,7 +23,7 @@
                   <img class="h-28 w-28 rounded-full border" :src="product.thumbnail.full_url" alt="" v-if="product && product.thumbnail"/>
                   <RectangleStackIcon class="h-28 w-28 text-gray-300"></RectangleStackIcon>
                 </span>
-                <input type="file" @input="form.thumbnail = $event.target.files[0]" class="ml-5 rounded-md border border-gray-300 bg-white py-2 px-3 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"/>
+                <input v-if="permissions.includes('update products')" type="file" @input="form.thumbnail = $event.target.files[0]" class="ml-5 rounded-md border border-gray-300 bg-white py-2 px-3 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"/>
                 <progress v-if="form.progress" :value="form.progress.percentage" max="100">
                   {{ form.progress.percentage }}%
                 </progress>
@@ -33,17 +33,17 @@
               </div>
             </div>
             <div class="sm:col-span-2">
-              <FormInput v-model="form.code" :error="form.errors.code" required="true">
+              <FormInput v-model="form.code" :error="form.errors.code" :disabled="!permissions.includes('update products')" required="true">
                 Code
               </FormInput>
             </div>
             <div class="sm:col-span-4">
-              <FormInput v-model="form.name" :error="form.errors.name" required="true">
+              <FormInput v-model="form.name" :error="form.errors.name" :disabled="!permissions.includes('update products')" required="true">
                 Name
               </FormInput>
             </div>
             <div class="sm:col-span-6">
-              <FormTextarea v-model="form.desc" :error="form.errors.desc">
+              <FormTextarea v-model="form.desc" :disabled="!permissions.includes('update products')" :error="form.errors.desc">
                 Desc
               </FormTextarea>
             </div>
@@ -215,7 +215,7 @@
                   Back
                 </span>
               </Button>
-              <Button type="button" v-if="form.id" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
+              <Button type="button" v-if="form.id && permissions.includes('update products')" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
                 <div>
                   <span class="flex space-x-1 items-center" v-if="form.is_active">
                     <FolderMinusIcon class="w-4 h-4"></FolderMinusIcon>
@@ -231,7 +231,7 @@
                   </span>
                 </div>
               </Button>
-              <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
+              <Button type="submit" v-if="permissions.includes('update products')" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
                   Save
@@ -261,7 +261,7 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue'
 import Modal from '@/Components/Modal.vue';
-import { ArrowUturnLeftIcon, CheckCircleIcon, FolderMinusIcon, FolderPlusIcon, RectangleStackIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, CheckCircleIcon, FolderMinusIcon, FolderPlusIcon, RectangleStackIcon } from '@heroicons/vue/20/solid';
 import { useForm, usePage } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue'
 
@@ -273,6 +273,7 @@ const props = defineProps({
   type: String,
   showModal: Boolean,
   operatorOptions: Object,
+  permissions: [Array, Object],
 })
 
 const emit = defineEmits(['modalClose'])

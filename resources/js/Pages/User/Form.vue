@@ -113,6 +113,7 @@ const props = defineProps({
   user: Object,
   countries: Object,
   operators: Object,
+  permissions: [Array, Object],
   roles: Object,
   type: String,
   showModal: Boolean,
@@ -131,6 +132,11 @@ onMounted(() => {
   form.value = props.user ? useForm({...getDefaultForm(), ...props.user}) : useForm(getDefaultForm())
   operatorOptions.value = props.operators.data
   roleOptions.value = props.roles.data
+  if(!props.permissions.includes('admin-access operators')) {
+    roleOptions.value = props.roles.data.filter(function(role) {
+      return role.name == 'operator' || role.name == 'operator_user'
+    })
+  }
 })
 
 function getDefaultForm() {

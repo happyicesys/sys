@@ -14,7 +14,7 @@
         <div class="flex justify-end">
           <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           @click="onCreateClicked()"
-          v-if="!operatorRole"
+          v-if="permissions.includes('create operators') && permissions.includes('admin-access operators')"
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
@@ -133,6 +133,7 @@
                           <Button
                             type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
                             @click="onDeleteClicked(operator)"
+                            v-if="permissions.includes('delete operators') && permissions.includes('admin-access operators')"
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
@@ -163,6 +164,7 @@
       :showModal="showModal"
       :countryPaymentGateways="countryPaymentGateways"
       :operatorPaymentGatewayTypes="operatorPaymentGatewayTypes"
+      :permissions="permissions"
       :unbindedVends="unbindedVends"
       @modalClose="onModalClose"
   >
@@ -205,6 +207,8 @@ const operator = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
 const operatorRole = usePage().props.value.auth.operatorRole
+const roles = usePage().props.value.auth.roles
+const permissions = usePage().props.value.auth.permissions
 
 onMounted(() => {
   numberPerPageOptions.value = [

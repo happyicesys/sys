@@ -80,13 +80,13 @@
                     >
                     </MultiSelect> -->
                 </div>
-                <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="!operatorRole">
+                <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')">
                     Cust ID
                 </SearchInput>
-                <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="!operatorRole">
+                <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')">
                     Cust Name
                 </SearchInput>
-                <div v-if="!operatorRole">
+                <div v-if="permissions.includes('admin-access vends')">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Category
                     </label>
@@ -103,7 +103,7 @@
                     >
                     </MultiSelect>
                 </div>
-                <div v-if="!operatorRole">
+                <div v-if="permissions.includes('admin-access vends')">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Group
                     </label>
@@ -136,7 +136,7 @@
                     >
                     </MultiSelect>
                 </div>
-                <div v-if="!operatorRole">
+                <div v-if="permissions.includes('admin-access vends')">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Customer Binded?
                     </label>
@@ -187,7 +187,7 @@
                 <SearchInput placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan">
                     Fan Speed &lt;&lt;
                 </SearchInput>
-                <div v-if="!operatorRole">
+                <div v-if="permissions.includes('admin-access vends')">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Operator
                     </label>
@@ -339,7 +339,7 @@
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                                 <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
-                                    <span v-if="!operatorRole">
+                                    <span v-if="permissions.includes('admin-access vends')">
                                         <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/vend-code/' + vend.code">
                                             {{ vend.latestVendBinding.customer.code }} <br>
                                             {{ vend.latestVendBinding.customer.name }}
@@ -643,6 +643,7 @@
         :vend="vend"
         :type="type"
         :showModal="showEditModal"
+        :permissions="permissions"
         @modalClose="onModalClose"
     >
     </Form>
@@ -749,15 +750,11 @@
   const vendChannelErrorsOptions = ref([])
 //   const vendOptions = ref([])
   const operatorRole = usePage().props.value.auth.operatorRole
-  const roles = usePage().props.value.auth.user.roles
-  const permissions = usePage().props.value.auth.user.permissions
+  const roles = usePage().props.value.auth.roles
+const permissions = usePage().props.value.auth.permissions
   const now = ref(moment().format('HH:mm:ss'))
-  const rolesCollection = ref([])
-  const permissionsCollection = ref([])
 
   onMounted(() => {
-    rolesCollection.value = roles ? roles.map((data) => {return data.name}) : ''
-    permissionsCollection.value = permissions ? permissions.map((data) => {return data.name}) : ''
     vendChannelErrorsOptions.value = [
         // {'id': '', 'desc': 'All'},
         {'id': 'errors_only', 'desc': 'Errors Only'},

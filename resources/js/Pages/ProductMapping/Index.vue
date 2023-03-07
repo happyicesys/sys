@@ -14,6 +14,7 @@
         <div class="flex justify-end">
           <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           @click="onCreateClicked()"
+          v-if="permissions.includes('create product-mappings')"
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
@@ -135,7 +136,7 @@
                         </ul>
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-center">
-                        <div class="flex justify-center space-x-1">
+                        <div class="flex justify-center space-x-1" v-if="permissions.includes('update product-mappings')">
                           <Button
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                             @click="onEditClicked(productMapping)"
@@ -221,8 +222,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { BackspaceIcon, LinkIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
-import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head } from '@inertiajs/inertia-vue3';
+import { Head, usePage } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue';
 import { Inertia } from '@inertiajs/inertia'
 
@@ -243,6 +243,8 @@ const showVendFormModal = ref(false)
 const productMapping = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
+const roles = usePage().props.value.auth.roles
+const permissions = usePage().props.value.auth.permissions
 
 onMounted(() => {
   numberPerPageOptions.value = [

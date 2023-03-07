@@ -35,14 +35,15 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request)
     {
+        // dd($request->user() && $request->user()->roles && $request->user()->roles->first() ? $request->user()->roles->first()->permissions->pluck('name')->all() : null, $request->user() ? $request->user()->roles->pluck('name')->all() : null);
         return array_merge(parent::share($request), [
             'auth' => [
                 'user' => $request->user(),
-                'user.permissions' => function () use ($request) {
-                    return ( $request->user() ? $request->user()->permissions->pluck('name') : null );
+                'roles' => function () use ($request) {
+                    return ( $request->user() ? $request->user()->roles->pluck('name')->all() : null );
                 },
-                'user.roles' => function () use ($request) {
-                    return ( $request->user() ? $request->user()->roles->pluck('name') : null );
+                'permissions' => function () use ($request) {
+                    return ( $request->user() && $request->user()->roles && $request->user()->roles->first() ? $request->user()->roles->first()->permissions->pluck('name')->all() : null );
                 },
                 'operatorRole' => $request->user() ? $request->user()->hasRole('operator') : null,
                 'profile' => $request->user() ? $request->user()->profile : null,

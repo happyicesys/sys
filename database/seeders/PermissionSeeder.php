@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -16,30 +17,24 @@ class PermissionSeeder extends Seeder
      */
     public function run()
     {
-        // $actions = ['create', 'read', 'update', 'delete', 'admin-access'];
-        // $models = [
-        //     'vends',
-        //     'transactions',
-        //     'products',
-        //     'product-mappings',
-        //     'operators',
-        //     'resource-centers',
-        //     'users',
-        // ];
+        $actions = ['create', 'read', 'update', 'delete', 'admin-access'];
+        $models = [
+            'vends',
+            'transactions',
+            'products',
+            'product-mappings',
+            'operators',
+            'resource-centers',
+            'users',
+        ];
 
-        // foreach($models as $model) {
-        //     foreach($actions as $action) {
-        //         Permission::create([
-        //             'name' => $action.' '.$model,
-        //         ]);
-        //     }
-        // }
-
+        $roles[] = Role::where('name', 'superadmin')->first();
         $roles[] = Role::where('name', 'admin')->first();
         $roles[] = Role::where('name', 'driver')->first();
         $roles[] = Role::where('name', 'operator')->first();
         $roles[] = Role::where('name', 'operator_user')->first();
         $roles[] = Role::where('name', 'supervisor')->first();
+        $roles[] = Role::where('name', 'user')->first();
 
         $permissions = Permission::all();
 
@@ -61,5 +56,22 @@ class PermissionSeeder extends Seeder
             $operatorRole->revokePermissionTo('admin-access resource-centers');
             $operatorRole->revokePermissionTo('admin-access users');
         }
+
+        $superadmin = Role::where('name', 'superadmin')->first();
+        $user = User::where('email', 'leehongjie91@gmail.com')->first();
+        $user->assignRole($superadmin);
+
+        $normalUserRoles[] = Role::where('name', 'user')->first();
+        $normalUserRoles[] = Role::where('name', 'operator_user')->first();
+        foreach($normalUserRoles as $normalUserRole) {
+            foreach($models as $model) {
+                foreach($actions as $action) {
+                    if($action == 'create' or $action == 'update' or $action == 'delete') {
+                        $normalUserRole->revokePermissionTo($action . ' ' . $model);
+                    }
+                }
+            }
+        }
+
     }
 }

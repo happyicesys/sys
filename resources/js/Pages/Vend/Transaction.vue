@@ -76,7 +76,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="!operatorRole">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Category
                 </label>
@@ -93,7 +93,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="!operatorRole">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Group
                 </label>
@@ -110,17 +110,17 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="!operatorRole">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code">
                     Cust ID
                 </SearchInput>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="!operatorRole">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name">
                     Cust Name
                 </SearchInput>
             </div>
-            <div v-if="!operatorRole">
+            <div v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Operator
                 </label>
@@ -356,7 +356,8 @@ const props = defineProps({
 })
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
-
+const roles = usePage().props.value.auth.roles
+const permissions = usePage().props.value.auth.permissions
 const operatorRole = usePage().props.value.auth.operatorRole
 
 onMounted(() => {

@@ -20,12 +20,12 @@
               </FormInput>
             </div>
             <div class="sm:col-span-6">
-              <FormInput v-model="form.serial_num" :error="form.errors.serial_num">
+              <FormInput v-model="form.serial_num" :error="form.errors.serial_num" :disabled="!permissions.includes('update vends')">
                 Serial Number
               </FormInput>
             </div>
             <div class="sm:col-span-6">
-              <FormInput v-model="form.private_key" :error="form.errors.private_key">
+              <FormInput v-model="form.private_key" :error="form.errors.private_key" :disabled="!permissions.includes('update vends')">
                 Private Key
               </FormInput>
             </div>
@@ -45,7 +45,7 @@
               <Button
                 type="button"
                 class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1"
-                v-if="vend.latestVendBinding && vend.latestVendBinding.customer"
+                v-if="vend.latestVendBinding && vend.latestVendBinding.customer && permissions.includes('update vends')"
                 @click="unbindCustomer(form.id)"
               >
                 <ArrowUturnDownIcon class="w-4 h-4"></ArrowUturnDownIcon>
@@ -53,7 +53,11 @@
                   Unbind
                 </span>
               </Button>
-              <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
+              <Button
+                type="submit"
+                class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
+                v-if="permissions.includes('update vends')"
+              >
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
                   Save
@@ -78,6 +82,7 @@ import { ref, onMounted } from 'vue'
 const props = defineProps({
   vend: Object,
   countries: Object,
+  permissions: [Array, Object],
   type: String,
   showModal: Boolean,
 })

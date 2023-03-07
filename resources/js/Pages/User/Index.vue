@@ -15,6 +15,7 @@
           <div class="flex justify-end">
               <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
               @click="onCreateClicked()"
+              v-if="permissions.includes('create users')"
               >
                   <PlusIcon class="h-4 w-4" aria-hidden="true"/>
                   <span>
@@ -133,6 +134,7 @@
                                   <Button
                                       type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                                       @click="onEditClicked(user)"
+                                      v-if="permissions.includes('update users')"
                                   >
                                       <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                                       <span>
@@ -142,6 +144,7 @@
                                   <Button
                                       type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
                                       @click="onDeleteClicked(user)"
+                                      v-if="permissions.includes('delete users')"
                                   >
                                       <TrashIcon class="w-4 h-4"></TrashIcon>
                                       <span>
@@ -170,6 +173,7 @@
       :roles="roles"
       :type="type"
       :showModal="showFormModal"
+      :permissions="permissions"
       @modalClose="onModalClose"
   >
   </Form>
@@ -187,7 +191,7 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head } from '@inertiajs/inertia-vue3';
+import { Head, usePage } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue';
 import { Inertia } from '@inertiajs/inertia'
 
@@ -209,6 +213,7 @@ const showFormModal = ref(false)
 const user = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
+const permissions = usePage().props.value.auth.permissions
 
 onMounted(() => {
   numberPerPageOptions.value = [

@@ -5,7 +5,7 @@ import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link, usePage } from '@inertiajs/inertia-vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { CircleStackIcon, CommandLineIcon, CreditCardIcon, BuildingOfficeIcon, FolderIcon, LinkIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
+import { CircleStackIcon, CommandLineIcon, CreditCardIcon, LinkIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
 import { onMounted } from 'vue';
 
 const navigation = [
@@ -106,15 +106,9 @@ const navigation = [
 ]
 
 const showingNavigationDropdown = ref(false);
-const roles = usePage().props.value.auth.user.roles
-const permissions = usePage().props.value.auth.user.permissions
-const rolesCollection = ref([])
-const permissionsCollection = ref([])
+const roles = usePage().props.value.auth.roles
+const permissions = usePage().props.value.auth.permissions
 
-  onMounted(() => {
-    rolesCollection.value = roles ? roles.map((data) => {return data.name}) : []
-    permissionsCollection.value = permissions ? permissions.map((data) => {return data.name}) : []
-  })
 </script>
 
 <template>
@@ -281,6 +275,7 @@ const permissionsCollection = ref([])
                         <template v-for="item in navigation" :key="item.name">
                             <div v-if="!item.children">
                                 <Link :href="route(item.href)"
+                                    v-if="permissions.includes(item.permission)"
                                     :class="[$page.url === '/' + item.href ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 py-2 text-sm font-medium rounded-md']">
                                 <component :is="item.icon"
                                     :class="[$page.url === '/' + item.href ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500', 'mr-3 flex-shrink-0 h-6 w-6']"
@@ -378,7 +373,9 @@ const permissionsCollection = ref([])
 
                     <template v-for="item in navigation" :key="item.name">
                         <div v-if="!item.children" class="py-1 space-y-1">
-                            <BreezeResponsiveNavLink :href="route(item.href)" :active="route().current(item.href)">
+                            <BreezeResponsiveNavLink
+                            v-if="permissions.includes(item.permission)"
+                            :href="route(item.href)" :active="route().current(item.href)">
                                 {{ item.name }}
                             </BreezeResponsiveNavLink>
                         </div>

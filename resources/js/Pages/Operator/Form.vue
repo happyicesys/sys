@@ -170,7 +170,7 @@
                 !form.payment_gateway_key1 ?
                 'opacity-50 cursor-not-allowed' : ''
                 ]"
-              :disabled="!form.payment_gateway || !form.payment_gateway_type || !form.payment_gateway_key1"
+              :disabled="!form.payment_gateway || !form.payment_gateway_type || !form.payment_gateway_key1 || !permissions.includes('update operators')"
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
@@ -276,7 +276,7 @@
               @click="bindOperatorVend()"
               class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
               :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
-              :disabled="!form.vend_id"
+              :disabled="!form.vend_id && !permissions.includes('update operators')"
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
@@ -327,6 +327,7 @@
                           <Button
                             class="bg-red-400 hover:bg-red-500 text-white"
                             @click="unbindOperatorVend(vend)"
+                            v-if="permissions.includes('update operators')"
                           >
                             <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                           </Button>
@@ -357,7 +358,7 @@
                   Back
                 </span>
               </Button>
-              <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
+              <Button type="submit" v-if="permissions.includes('update operators')" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
                   Save
@@ -391,6 +392,7 @@ const props = defineProps({
   countryPaymentGateways: [Array, Object],
   operatorPaymentGatewayTypes: [Array, Object],
   unbindedVends: [Array, Object],
+  permissions: [Array, Object],
 })
 
 const emit = defineEmits(['modalClose'])
@@ -413,7 +415,7 @@ onMounted(() => {
   countryPaymentGatewayOptions.value = props.countryPaymentGateways.data
   operatorPaymentGatewayTypes.value = props.operatorPaymentGatewayTypes
   unbindedVendOptions.value = props.unbindedVends.data
-  operatorPaymentGateways.value = props.operator.operatorPaymentGateways
+  operatorPaymentGateways.value = props.operator ? props.operator.operatorPaymentGateways : null
   form.value = props.operator ? useForm(props.operator) : useForm(getDefaultForm())
 })
 

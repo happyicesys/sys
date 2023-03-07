@@ -14,6 +14,7 @@
         <div class="flex justify-end mb-4">
           <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           @click="onCreateClicked()"
+          v-if="permissions.includes('create products')"
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
@@ -29,7 +30,7 @@
           <SearchInput placeholderStr="Name" v-model="filters.name">
             Name
           </SearchInput>
-          <div v-if="!operatorRole">
+          <div v-if="permissions.includes('admin-access products')">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Operator
             </label>
@@ -162,7 +163,7 @@
                     <TableHead>
                       Thumbnail
                     </TableHead>
-                    <TableHead v-if="!operatorRole">
+                    <TableHead v-if="permissions.includes('admin-access products')">
                       Operator
                     </TableHead>
                     <!-- <TableHead>
@@ -197,7 +198,7 @@
                           <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="product.thumbnail.full_url" alt="" v-if="product.thumbnail"/>
                         </div>
                       </TableData>
-                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-left" v-if="!operatorRole">
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-left" v-if="permissions.includes('admin-access products')">
                         <span v-if="product.operator">
                           {{ product.operator.code }} <br>
                           {{ product.operator.name }}
@@ -250,6 +251,7 @@
       :type="type"
       :showModal="showModal"
       :operatorOptions="operatorOptions"
+      :permissions="permissions"
       @modalClose="onModalClose"
   >
   </Form>
@@ -293,6 +295,8 @@ const filters = ref({
 const booleanOptions = ref([])
 const commSfOptions = ref([])
 const showModal = ref(false)
+const roles = usePage().props.value.auth.roles
+const permissions = usePage().props.value.auth.permissions
 const operatorOptions = ref([])
 const operatorRole = usePage().props.value.auth.operatorRole
 const product = ref()
