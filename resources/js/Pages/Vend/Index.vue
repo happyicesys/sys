@@ -272,16 +272,16 @@
                         {{totals['thirtyDays'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
                     </dd>
                 </div>
-                <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <!-- <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                     <dt class="truncate text-sm font-medium text-gray-500">Total Count (Last 30 days)</dt>
                     <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                         {{totals['thirtyDaysCount'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                     </dd>
-                </div>
+                </div> -->
                 <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                     <dt class="truncate text-sm font-medium text-gray-500">Avg per VM (Last 30 days)</dt>
                     <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                        {{(totals['thirtyDays']/vends.meta.total).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                        {{(totals['thirtyDays']/vends.meta.to).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
                     </dd>
                 </div>
             </dl>

@@ -32,11 +32,13 @@ use App\Models\VendTransaction;
 use App\Models\PaymentGateway\Midtrans;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
+use DB;
 use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
+
 
 // use PhpMqtt\Client\Facades\MQTT;
 // use App\Jobs\ProcessVendData;
@@ -48,6 +50,7 @@ class VendController extends Controller
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
+        $page = $request->page ? $request->page : 1;
         $className = get_class(new Customer());
 
         $vends = Vend::with([
@@ -74,13 +77,18 @@ class VendController extends Controller
             })
             ->select('*', 'vends.id', 'vends.code', 'vends.name')
             ->filterIndex($request)
-            ->orderBy('vends.is_online', 'desc')->orderBy('vends.code', 'asc');
+            ->orderBy('vends.is_online', 'desc')->orderBy('vends.code', 'asc')
+            ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+            ->withQueryString();
+            // dd($request->all());
 
         $totals = [
-            'thirtyDays' => (clone $vends)->sum('vend_transaction_totals_json->thirty_days_amount')/ 100,
-            'thirtyDaysCount' => (clone $vends)->sum('vend_transaction_totals_json->thirty_days_count'),
+            'thirtyDays' => collect((clone $vends)
+                            ->items())
+                            ->sum(function($vend) {
+                                return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
+                            })/100,
         ];
-
 
         return Inertia::render('Vend/Index', [
             'categories' => CategoryResource::collection(
@@ -96,9 +104,7 @@ class VendController extends Controller
             ),
             'totals' => $totals,
             'vends' => VendResource::collection(
-                    $vends
-                    ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-                    ->withQueryString()
+                $vends
             ),
             // 'vendOptions' => VendResource::collection(Vend::orderBy('code')->get()),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
