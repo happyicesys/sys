@@ -47,8 +47,40 @@ class VendController extends Controller
 
     public function index(Request $request)
     {
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $className = get_class(new Customer());
+
+        $vends = Vend::with([
+                'latestVendBinding',
+                'latestVendBinding.customer',
+                // 'latestVendBinding.customer.addresses',
+                'latestVendBinding.customer.deliveryAddress',
+                'latestVendBinding.customer.category.categoryGroup',
+                'productMapping',
+                // 'vendSevenDaysTransactions',
+            ])
+            ->leftJoin('vend_bindings', function($query) {
+                $query->on('vend_bindings.vend_id', '=', 'vends.id')
+                        ->where('is_active', true)
+                        ->latest('begin_date')
+                        ->limit(1);
+            })
+            ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+            ->leftJoin('addresses', function($query) {
+                $query->on('addresses.modelable_id', '=', 'customers.id')
+                        ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                        ->where('addresses.type', '=', 2)
+                        ->limit(1);
+            })
+            ->select('*', 'vends.id', 'vends.code', 'vends.name')
+            ->filterIndex($request)
+            ->orderBy('vends.is_online', 'desc')->orderBy('vends.code', 'asc');
+
+        $totals = [
+            'thirtyDays' => (clone $vends)->sum('vend_transaction_totals_json->thirty_days_amount')/ 100,
+            'thirtyDaysCount' => (clone $vends)->sum('vend_transaction_totals_json->thirty_days_count'),
+        ];
+
 
         return Inertia::render('Vend/Index', [
             'categories' => CategoryResource::collection(
@@ -62,32 +94,9 @@ class VendController extends Controller
             'operatorOptions' => OperatorResource::collection(
                 Operator::all()
             ),
+            'totals' => $totals,
             'vends' => VendResource::collection(
-                Vend::with([
-                    'latestVendBinding',
-                    'latestVendBinding.customer',
-                    // 'latestVendBinding.customer.addresses',
-                    'latestVendBinding.customer.deliveryAddress',
-                    'latestVendBinding.customer.category.categoryGroup',
-                    'productMapping',
-                    // 'vendSevenDaysTransactions',
-                    ])
-                    ->leftJoin('vend_bindings', function($query) {
-                        $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                                ->where('is_active', true)
-                                ->latest('begin_date')
-                                ->limit(1);
-                    })
-                    ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
-                    ->leftJoin('addresses', function($query) {
-                        $query->on('addresses.modelable_id', '=', 'customers.id')
-                                ->where('addresses.modelable_type', '=', 'App\Models\Customer')
-                                ->where('addresses.type', '=', 2)
-                                ->limit(1);
-                    })
-                    ->select('*', 'vends.id', 'vends.code', 'vends.name')
-                    ->filterIndex($request)
-                    ->orderBy('vends.is_online', 'desc')->orderBy('vends.code', 'asc')
+                    $vends
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),

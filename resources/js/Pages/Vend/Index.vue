@@ -265,6 +265,26 @@
                     </MultiSelect>
                 </div>
             </div>
+            <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
+                <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                    <dt class="truncate text-sm font-medium text-gray-500">Total Sales (Last 30 days)</dt>
+                    <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                        {{totals['thirtyDays'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </dd>
+                </div>
+                <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                    <dt class="truncate text-sm font-medium text-gray-500">Total Count (Last 30 days)</dt>
+                    <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                        {{totals['thirtyDaysCount'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                    </dd>
+                </div>
+                <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                    <dt class="truncate text-sm font-medium text-gray-500">Avg per Day (Last 30 days)</dt>
+                    <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                        {{(totals['thirtyDays']/30).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </dd>
+                </div>
+            </dl>
         </div>
 
          <div class="mt-6 flex flex-col">
@@ -707,6 +727,7 @@
     categoryGroups: Object,
     constTempError: Number,
     operatorOptions: Object,
+    totals: [Array, Object],
     vends: Object,
     // vendOptions: Object,
     vendChannelErrors: Object,
@@ -761,6 +782,7 @@ const permissions = usePage().props.value.auth.permissions
         ...props.vendChannelErrors.data
     ]
     numberPerPageOptions.value = [
+        { id: 50, value: 50 },
         { id: 100, value: 100 },
         { id: 200, value: 200 },
         { id: 500, value: 500 },
