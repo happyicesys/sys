@@ -26,45 +26,60 @@ class PaymentController extends Controller
     $this->vendDataService = $vendDataService;
   }
 
-  public function createPaymentResult(Request $request)
+  public function createPaymentResult(Request $request, $company = 'midtrans')
   {
     $input = $request->all();
     $status = null;
-    if(isset($input['transaction_status'])) {
-      switch($input['transaction_status']) {
-        case 'pending':
-          $status = PaymentGatewayLog::STATUS_PENDING;
-          break;
-        case 'capture':
-        case 'settlement':
-          $status = PaymentGatewayLog::STATUS_APPROVE;
-          break;
-        case 'cancel':
-        case 'deny':
-        case 'expire':
-          $status = PaymentGatewayLog::STATUS_DECLINE;
-          break;
-      }
-    }
 
-    $pendingLog = PaymentGatewayLog::where('order_id', $input['order_id'])->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
-    if($pendingLog) {
-      $paymentGatewayLog = PaymentGatewayLog::create([
-        'request' => $pendingLog->request,
-        'response' => $input,
-        'order_id' => $input['order_id'],
-        'status' => $status,
-        'amount' => $input['gross_amount'],
-        'payment_gateway_id' => PaymentGateway::where('name', 'midtrans')->first() ? PaymentGateway::where('name', 'midtrans')->first()->id : null,
-        // hardcode midtrans
-      ]);
+    if($company) {
+      switch($company) {
+        case 'midtrans':
+          if(isset($input['transaction_status'])) {
+            switch($input['transaction_status']) {
+              case 'pending':
+                $status = PaymentGatewayLog::STATUS_PENDING;
+                break;
+              case 'capture':
+              case 'settlement':
+                $status = PaymentGatewayLog::STATUS_APPROVE;
+                break;
+              case 'cancel':
+              case 'deny':
+              case 'expire':
+                $status = PaymentGatewayLog::STATUS_DECLINE;
+                break;
+            }
+          }
 
-      if($paymentGatewayLog) {
-        $this->processPayment($paymentGatewayLog);
+          $pendingLog = PaymentGatewayLog::where('order_id', $input['order_id'])->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
+          if($pendingLog) {
+            $paymentGatewayLog = PaymentGatewayLog::create([
+              'request' => $pendingLog->request,
+              'response' => $input,
+              'order_id' => $input['order_id'],
+              'status' => $status,
+              'amount' => $input['gross_amount'],
+              'payment_gateway_id' => PaymentGateway::where('name', 'midtrans')->first() ? PaymentGateway::where('name', 'midtrans')->first()->id : null,
+              // hardcode midtrans
+            ]);
+
+            if($paymentGatewayLog) {
+              $this->processPayment($paymentGatewayLog);
+            }
+          }else {
+            throw new \Exception('Error: This QR isnt requested');
+          }
+          break;
+
+        case 'omise':
+
+          break;
       }
     }else {
-      throw new \Exception('Error: This QR isnt requested');
+      throw new \Exception('Error: Payment Gateway not found');
     }
+
+
   }
 
   private function processPayment(PaymentGatewayLog $paymentGatewayLog)

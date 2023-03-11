@@ -14,14 +14,14 @@ class Omise extends Model implements PaymentGatewayInterface
     const PAYMENT_METHOD_PAYNOW = 201;
 
     public static $main = 'https://api.omise.co';
-    private $apiKey;
+    private $apiKeys;
     private $action;
     private $curlData;
     private $url;
 
-    public function __construct($apiKey = '', $action = 'QRIS')
+    public function __construct($apiKeys = [], $action = 'QRIS')
     {
-        $this->apiKey = $apiKey;
+        $this->apiKeys = $apiKeys;
         $this->action = $action;
         $this->setUrl($action);
     }
