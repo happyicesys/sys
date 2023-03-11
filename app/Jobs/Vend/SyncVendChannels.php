@@ -6,6 +6,7 @@ use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Models\Vend;
 use App\Models\VendChannel;
+use App\Models\ProductMappingItem;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -54,6 +55,7 @@ class SyncVendChannels implements ShouldQueue
                         'amount' => $channel['amount'],
                         'is_active' => true,
                     ]);
+                    $this->updateProductIdByVendChannel($vendChannel);
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }else {
                     $vendChannelFalse = VendChannel::updateOrCreate([
@@ -71,20 +73,18 @@ class SyncVendChannels implements ShouldQueue
         }
     }
 
-    private function getProductIdByChannelCode($channelCode)
+    private function updateProductIdByVendChannel($vendChannel)
     {
-        $vend = $this->vend;
-        $productMapping = $vend->productMapping;
-
         if(
-            $channelCode and
-            $vend->vendChannels()->exists()  and
-            $productMapping and
-            $productMapping->productMappingItems()->exists()
+            $vendChannel->vend->productMapping()->exists() and
+            $vendChannel->vend->productMapping->productMappingItems()->exists()
         ) {
-            $productMappingItem = $productMapping->productMappingItems()->where('channel_code', $channelCode)->first();
+            $productMappingItem = ProductMappingItem::query()
+                                ->where('product_mapping_id', $vendChannel->vend->productMapping->id)
+                                ->where('channel_code', $vendChannel->code)
+                                ->first();
             if($productMappingItem) {
-                return $productMappingItem->product_id;
+                $vendChannel->update(['product_id' => $productMappingItem->product_id]);
             }
         }
 
