@@ -53,6 +53,7 @@ class SyncVendChannels implements ShouldQueue
                         'capacity' => $channel['capacity'],
                         'amount' => $channel['amount'],
                         'is_active' => true,
+                        'product_id' => $this->getProductIdByChannelCode($channel['channel_code']),
                     ]);
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }else {
@@ -69,5 +70,19 @@ class SyncVendChannels implements ShouldQueue
             }
             SaveVendChannelsJson::dispatch($vend->id)->onQueue('default');
         }
+    }
+
+    private function getProductIdByChannelCode($channelCode)
+    {
+        $vend = $this->vend;
+        $productMapping = $vend->productMapping;
+
+        if($channelCode and $vend->vendChannels()->exists() and $productMapping->productMappingItems()->exists()) {
+            $productMappingItem = $productMapping->productMappingItems()->where('channel_code', $channelCode)->first();
+            if($productMappingItem) {
+                return $productMappingItem->product_id;
+            }
+        }
+
     }
 }
