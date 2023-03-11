@@ -53,7 +53,6 @@ class SyncVendChannels implements ShouldQueue
                         'capacity' => $channel['capacity'],
                         'amount' => $channel['amount'],
                         'is_active' => true,
-                        'product_id' => $this->getProductIdByChannelCode($channel['channel_code']),
                     ]);
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }else {
