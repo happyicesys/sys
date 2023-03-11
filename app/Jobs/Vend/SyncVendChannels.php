@@ -77,7 +77,12 @@ class SyncVendChannels implements ShouldQueue
         $vend = $this->vend;
         $productMapping = $vend->productMapping;
 
-        if($channelCode and $vend->vendChannels()->exists() and $productMapping->productMappingItems()->exists()) {
+        if(
+            $channelCode and
+            $vend->vendChannels()->exists()  and
+            $productMapping and
+            $productMapping->productMappingItems()->exists()
+        ) {
             $productMappingItem = $productMapping->productMappingItems()->where('channel_code', $channelCode)->first();
             if($productMappingItem) {
                 return $productMappingItem->product_id;
