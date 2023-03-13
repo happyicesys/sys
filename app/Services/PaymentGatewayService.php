@@ -25,6 +25,11 @@ class PaymentGatewayService
             ],
             'qris' => [
               'acquirer' => 'gopay',
+            ],
+            'custom_expiry' => [
+              'order_time' => Carbon::now()->format('Y-m-d H:i:s O'),
+              'expiry_duration' => 150,
+              'unit' => 'second',
             ]
           ];
           $newObj = new Midtrans($operatorPaymentGateway->key1, 'QRIS');
