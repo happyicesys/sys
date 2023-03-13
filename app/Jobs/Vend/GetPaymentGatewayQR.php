@@ -69,7 +69,7 @@ class GetPaymentGatewayQR
                     'tz' => $operatorTimezone,
                 ]);
             }
-            dd($response);
+            // dd($response);
 
             if(isset($response) and isset($response['actions']) and isset($response['actions'][0]['url'])) {
                 PaymentGatewayLog::create([
