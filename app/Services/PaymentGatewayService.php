@@ -28,7 +28,7 @@ class PaymentGatewayService
             ],
             'custom_expiry' => [
               'order_time' => Carbon::now()->setTimeZone($params['tz'])->format('Y-m-d H:i:s O'),
-              'expiry_duration' => 150,
+              'expiry_duration' => 60,
               'unit' => 'second',
             ]
           ];
