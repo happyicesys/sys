@@ -52,8 +52,13 @@ class GetPaymentGatewayQR
 
         $vendChannel = $vend->vendChannels()->where('code', $input['SId'])->first();
         if($vendChannel) {
+            $operatorTimezone = 'Asia/Singapore';
+            if($vend->operators()->exists()) {
+              $operatorTimezone = $vend->operators()->first()->timezone;
+            }
+
             $vendCode = sprintf('%05d', $vend->code);
-            $orderId = Carbon::now()->format('ymdhis').$vendCode;
+            $orderId = Carbon::now()->setTimeZone($operatorTimezone)->format('ymdhis').$vendCode;
             $amount = $input['PRICE'];
 
             $vendOperatorPaymentGateway = $this->paymentGatewayService->getOperatorPaymentGateway($vend);
@@ -62,6 +67,7 @@ class GetPaymentGatewayQR
                 $response = $this->paymentGatewayService->create($vendOperatorPaymentGateway, [
                     'orderId' => $orderId,
                     'amount' => $amount,
+                    'now' => Carbon::now()->setTimeZone($operatorTimezone),
                 ]);
             }
 

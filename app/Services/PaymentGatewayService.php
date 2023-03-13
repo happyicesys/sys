@@ -10,7 +10,7 @@ use Carbon\Carbon;
 
 class PaymentGatewayService
 {
-  public function create(OperatorPaymentGateway $operatorPaymentGateway, $params)
+  public function create(OperatorPaymentGateway $operatorPaymentGateway, $params = [])
   {
     if($operatorPaymentGateway) {
       $response = '';
@@ -20,14 +20,14 @@ class PaymentGatewayService
           $defaultParams = [
             'payment_type' => 'qris',
             'transaction_details' => [
-              'order_id' => isset($params['orderId']) ? $params['orderId'] : Carbon::now()->format('ymdhis'),
+              'order_id' => isset($params['orderId']),
               'gross_amount' => isset($params['amount']) ? $params['amount'] : 0,
             ],
             'qris' => [
               'acquirer' => 'gopay',
             ],
             'custom_expiry' => [
-              'order_time' => Carbon::now()->format('Y-m-d H:i:s O'),
+              'order_time' => isset($params['now']) ? $params['now']->format('Y-m-d H:i:s O') : Carbon::now()->format('Y-m-d H:i:s O'),
               'expiry_duration' => 150,
               'unit' => 'second',
             ]
