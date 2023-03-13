@@ -69,6 +69,7 @@ class GetPaymentGatewayQR
                     'tz' => $operatorTimezone,
                 ]);
             }
+            dd($response);
 
             if(isset($response) and isset($response['actions']) and isset($response['actions'][0]['url'])) {
                 PaymentGatewayLog::create([
@@ -81,9 +82,11 @@ class GetPaymentGatewayQR
                 $encodeMsg = base64_encode('QRCODE'.$response['actions'][0]['url'].','.$orderId);
                 $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
             }else {
-                if($response['validation_messages']) {
+                if(isset($response['validation_messages'])) {
                     $this->mqttService->publish('CM'.$vend->code, 'Error: '.$response['validation_messages'][0]);
-                }else {
+                }else if(isset($response['status_message']) and isset($response['status_code'])) {
+                    $this->mqttService->publish('CM'.$vend->code, 'Error: '.$response['status_message'].' ('.$response['status_code'].')');
+                }else{
                     $this->mqttService->publish('CM'.$vend->code, 'Error: Api key not set or parameters error');
                 }
                 throw new \Exception('Api key not set or parameters error', 404);

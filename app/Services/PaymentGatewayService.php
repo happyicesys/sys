@@ -20,7 +20,7 @@ class PaymentGatewayService
           $defaultParams = [
             'payment_type' => 'qris',
             'transaction_details' => [
-              'order_id' => isset($params['orderId']),
+              'order_id' => isset($params['orderId']) ? $params['orderId'] : Carbon::now()->setTimeZone($params['tz'])->format('ymdhis'),
               'gross_amount' => isset($params['amount']) ? $params['amount'] : 0,
             ],
             'qris' => [
