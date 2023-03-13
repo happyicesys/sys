@@ -10,7 +10,7 @@ use Carbon\Carbon;
 
 class PaymentGatewayService
 {
-  public function create(OperatorPaymentGateway $operatorPaymentGateway, $params = [])
+  public function create(OperatorPaymentGateway $operatorPaymentGateway, $params)
   {
     if($operatorPaymentGateway) {
       $response = '';
@@ -27,7 +27,7 @@ class PaymentGatewayService
               'acquirer' => 'gopay',
             ],
             'custom_expiry' => [
-              'order_time' => isset($params['now']) ? $params['now']->format('Y-m-d H:i:s O') : Carbon::now()->format('Y-m-d H:i:s O'),
+              'order_time' => Carbon::now()->setTimeZone($params['tz'])->format('Y-m-d H:i:s O'),
               'expiry_duration' => 150,
               'unit' => 'second',
             ]
