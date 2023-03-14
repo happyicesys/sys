@@ -328,10 +328,14 @@ class VendController extends Controller
                 'Order ID' => $vendTransaction->order_id,
                 'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
                 'Vend ID' => $vendTransaction->vend->code,
-                'Customer Name' => $vendTransaction->vend->latestVendBinding ?
+                'Customer Name' => $vendTransaction->vend->latestVendBinding &&
+                                    $vendTransaction->vend->latestVendBinding->customer ?
                                     $vendTransaction->vend->latestVendBinding->customer->code.''.$vendTransaction->vend->latestVendBinding->customer->name :
                                     $vendTransaction->vend->name,
-                'Channel' => $vendTransaction->vend_transaction_json['SId'],
+                'Channel' => $vendTransaction->vend_transaction_json &&
+                            $vendTransaction->vend_transaction_json['SId'] ?
+                            $vendTransaction->vend_transaction_json['SId'] :
+                            $vendTransaction->vendChannel->code,
                 'Product Code' => $vendTransaction->product ?
                                 $vendTransaction->product->code :
                                 '',
@@ -340,7 +344,10 @@ class VendController extends Controller
                                 '',
                 'Amount' => $vendTransaction->amount/ 100,
                 'Payment Method' => $vendTransaction->paymentMethod ? $vendTransaction->paymentMethod->name : '',
-                'Error' => $vendTransaction->vend_transaction_json['SErr'] ? $vendTransaction->vend_transaction_json['SErr'] : 0,
+                'Error' => $vendTransaction->vend_transaction_json &&
+                            $vendTransaction->vend_transaction_json['SErr'] ?
+                            $vendTransaction->vend_transaction_json['SErr'] :
+                            ($vendTransaction->vendChannelError && $vendTransaction->vendChannelError->code ?? ''),
             ];
         });
     }

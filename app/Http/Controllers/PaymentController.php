@@ -129,6 +129,8 @@ class PaymentController extends Controller
           }
           break;
       }
+    }else {
+      $this->mqttService->publish('CM'.$vend->code, 'Error: QR code expired or payment gateway invalid');
     }
     // $this->paymentGatewayService()
   }

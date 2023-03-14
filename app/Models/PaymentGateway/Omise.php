@@ -19,11 +19,30 @@ class Omise extends Model implements PaymentGatewayInterface
     private $curlData;
     private $url;
 
-    public function __construct($apiKeys = [], $action = 'QRIS')
+    public function __construct($apiKeys = [])
     {
         $this->apiKeys = $apiKeys;
-        $this->action = $action;
-        $this->setUrl($action);
+    }
+
+    public function executeRequest($params = '')
+    {
+        try {
+            $response = Http::withHeaders($this->getHeaders())->post($this->getUrl(), $params);
+        } catch (ClientException $e) {
+            $response = $e->getResponse();
+        }
+        $this->curlData = $response;
+
+        return $this->curlData;
+    }
+
+    private function setUrl($action)
+    {
+        $this->url = self::$main;
+
+        if($this->action === 'QRIS') {
+            $this->url .= '/v2/charge';
+        }
     }
 
 }

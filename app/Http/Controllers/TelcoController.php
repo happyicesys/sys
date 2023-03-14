@@ -44,7 +44,7 @@ class TelcoController extends Controller
 
     public function update(Request $request, $telcoId)
     {
-        dd($request->all());
+        // dd($request->all());
         $request->validate([
             'name' => 'required',
         ]);
