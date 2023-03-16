@@ -37,7 +37,7 @@ class ProductMapping extends Model
 
     public function productMappingItems()
     {
-        return $this->hasMany(ProductMappingItem::class);
+        return $this->hasMany(ProductMappingItem::class)->orderBy('channel_code', 'asc');
     }
 
     public function operator()

@@ -39,6 +39,7 @@ class ProductMappingController extends Controller
                 // })
                 ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                 ->withQueryString()
+
             ),
             'products' => ProductResource::collection(
                 Product::with([
