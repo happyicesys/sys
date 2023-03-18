@@ -54,11 +54,27 @@ class VendController extends Controller
         $className = get_class(new Customer());
 
         $vends = Vend::with([
-                'latestVendBinding',
-                'latestVendBinding.customer',
-                // 'latestVendBinding.customer.addresses',
-                'latestVendBinding.customer.deliveryAddress',
-                'latestVendBinding.customer.category.categoryGroup',
+                'latestVendBinding.customer' => function($query) {
+                    $query->select([
+                        'id',
+                        'category_id',
+                        'code',
+                        'name',
+                        'is_active',
+                        'is_parent',
+                        'parent_id',
+                        'profile_id',
+                    ]);
+                },
+                'latestVendBinding.customer.deliveryAddress' => function($query) {
+                    $query->select([
+                        'id',
+                        'addresses.modelable_id',
+                        'addresses.modelable_type',
+                        'type',
+                        'postcode',
+                    ]);
+                },
                 'productMapping',
                 // 'vendSevenDaysTransactions',
             ])
@@ -75,12 +91,43 @@ class VendController extends Controller
                         ->where('addresses.type', '=', 2)
                         ->limit(1);
             })
-            ->select('*', 'vends.id', 'vends.code', 'vends.name')
+            ->select(
+                'vends.id',
+                'vends.code',
+                'vends.name',
+                'vends.apk_ver_json',
+                'vends.serial_num',
+                'vends.name',
+                'vends.temp',
+                'vends.temp_updated_at',
+                'vends.coin_amount',
+                'vends.firmware_ver',
+                'vends.is_online',
+                'vends.is_temp_error',
+                'vends.last_updated_at',
+                'vends.parameter_json',
+                'vends.product_mapping_id',
+                'vends.private_key',
+                'vends.vend_channels_json',
+                'vends.vend_channel_totals_json',
+                'vends.vend_channel_error_logs_json',
+                'vends.vend_transaction_totals_json',
+                'vends.vend_type_id',
+                )
             ->filterIndex($request)
             ->orderBy('vends.is_online', 'desc')->orderBy('vends.code', 'asc')
             ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
             // dd($request->all());
+
+        // $thiryDaysTotal = 0;
+
+        // foreach($vends as $vend) {
+        //     $thiryDaysTotal += $vend->vendThirtyDaysTransactions->sum('amount');
+        // }
+        // $totals = [
+        //     'thirtyDays' => $thiryDaysTotal/100,
+        // ];
 
         $totals = [
             'thirtyDays' => collect((clone $vends)
