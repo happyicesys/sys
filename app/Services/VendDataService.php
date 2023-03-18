@@ -8,6 +8,7 @@ use App\Jobs\Vend\GetPaymentGatewayQR;
 use App\Jobs\Vend\GetPurchaseConfirm;
 use App\Jobs\Vend\SyncVendChannels;
 use App\Jobs\Vend\SyncVendParameter;
+use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Jobs\Vend\UpdateApkVersion;
 use App\Jobs\Vend\UpdateVendLastUpdated;
 use Carbon\Carbon;
@@ -117,6 +118,9 @@ class VendDataService
       $vend = Vend::firstOrCreate([
           'code' => isset($originalInput['m']) ? $originalInput['m'] : $originalInput['Vid'],
       ]);
+      if(!$vend->vend_transaction_totals_json) {
+        SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
+      }
       if(isset($processedInput['Type'])) {
         switch($processedInput['Type']) {
           case 'CHANNEL':

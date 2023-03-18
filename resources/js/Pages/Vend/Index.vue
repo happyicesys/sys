@@ -537,7 +537,7 @@
                                     </div>
                                     <div
                                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-green-200"
-                                        v-if="vend.parameterJson && vend.parameterJson['fan']"
+                                        v-if="vend.parameterJson && 'fan' in vend.parameterJson"
                                     >
                                         <div class="flex flex-col">
                                             <span class="font-bold">

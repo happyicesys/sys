@@ -59,6 +59,7 @@ class GetPaymentGatewayQR
             $vendCode = sprintf('%05d', $vend->code);
             $orderId = Carbon::now()->setTimeZone($operatorTimezone)->format('ymdhis').$vendCode;
             $amount = $input['PRICE'];
+            $expirySeconds = isset($input['expiry_seconds']) ? $input['expiry_seconds'] : 150;
 
             $vendOperatorPaymentGateway = $this->paymentGatewayService->getOperatorPaymentGateway($vend);
 
@@ -67,6 +68,7 @@ class GetPaymentGatewayQR
                     'orderId' => $orderId,
                     'amount' => $amount,
                     'tz' => $operatorTimezone,
+                    'expiry_seconds' => $expirySeconds,
                 ]);
             }
             // dd($response);
