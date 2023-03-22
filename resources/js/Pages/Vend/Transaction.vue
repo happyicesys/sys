@@ -136,6 +136,22 @@
                 >
                 </MultiSelect>
             </div>
+            <div v-if="permissions.includes('admin-access transactions')">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Customer Binded?
+                </label>
+                <MultiSelect
+                    v-model="filters.is_binded_customer"
+                    :options="booleanOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+                </div>
           </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -354,6 +370,7 @@ const props = defineProps({
     vendTransactionsCount: [String, Number],
     vendChannelErrors: Object,
 })
+const booleanOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
 const roles = usePage().props.value.auth.roles
@@ -379,6 +396,11 @@ onMounted(() => {
     filters.value.numberPerPage = numberPerPageOptions.value[0]
     filters.value.paymentMethod = paymentMethodOptions.value[0]
 
+    booleanOptions.value = [
+        {id: 'all', value: 'All'},
+        {id: 'true', value: 'Yes'},
+        {id: 'false', value: 'No'},
+    ]
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
     operatorOptions.value = [
@@ -388,6 +410,7 @@ onMounted(() => {
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
     filters.value.operator = operatorOptions.value[0]
+    filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
 })
 
 const filters = ref({
@@ -399,6 +422,7 @@ const filters = ref({
     customer_name: '',
     errors: [],
     operator: '',
+    is_binded_customer: '',
     paymentMethod: '',
     date_from: moment().subtract(1, 'days').toDate(),
     date_to: moment().toDate(),
@@ -454,6 +478,7 @@ function onExportExcelClicked() {
             channel_codes: filters.value.channel_codes,
             errors: filters.value.errors.map((error) => { return error.id }),
             operator_id: filters.value.operator.id,
+            is_binded_customer: filters.value.is_binded_customer.id,
             paymentMethod: filters.value.paymentMethod.id,
             numberPerPage: filters.value.numberPerPage.id,
         },
@@ -475,6 +500,7 @@ function onSearchFilterUpdated() {
         channel_codes: filters.value.channel_codes,
         errors: filters.value.errors.map((error) => { return error.id }),
         operator_id: filters.value.operator.id,
+        is_binded_customer: filters.value.is_binded_customer.id,
         paymentMethod: filters.value.paymentMethod.id,
         numberPerPage: filters.value.numberPerPage.id,
     }, {
