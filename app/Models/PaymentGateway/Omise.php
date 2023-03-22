@@ -14,6 +14,7 @@ class Omise extends Model implements PaymentGatewayInterface
     const PAYMENT_METHOD_PAYNOW = 201;
 
     public static $main = 'https://api.omise.co';
+    private $apiKey;
     private $apiKeys;
     private $action;
     private $curlData;
@@ -27,9 +28,23 @@ class Omise extends Model implements PaymentGatewayInterface
     public function executeRequest($params = '')
     {
         try {
-            // Http::withHeaders()->post($this->getUrl)
-            // $sourceResponse = Http::withHeaders($this->getHeaders())->post($this->getUrl('sources'), $params);
-            // $response = Http::withHeaders($this->getHeaders())->post($this->getUrl(), $params);
+            $sourceResponse = Http::withHeaders($this->getHeaders())->post($this->getUrl('sources'), [
+                'type' => $params['type'],
+                'amount' => $params['amount'],
+                'currency' => $params['currency'],
+            ]);
+
+            if($sourceResponse and $sourceResponse->collect()) {
+                $source = $sourceResponse->collect();
+                $chargeResponse = Http::withHeaders($this->getHeaders())->post($this->getUrl('charges'), [
+                    'amount' => $params['amount'],
+                    'currency' => $params['currency'],
+                    'source' => $source['id'],
+                ]);
+                $this->curlData = $chargeResponse;
+
+                return $this->curlData;
+            }
 
         } catch (ClientException $e) {
             $response = $e->getResponse();
@@ -50,10 +65,23 @@ class Omise extends Model implements PaymentGatewayInterface
         return $headers;
     }
 
+
+    public function getApiKey($action)
+    {
+        switch($action) {
+            case 'sources':
+                $this->apiKey = $this->apiKeys['public'];
+                break;
+            case 'charges':
+                $this->apiKey = $this->apiKeys['secret'];
+                break;
+        }
+        return $this->apiKey;
+    }
+
     private function getUrl($action)
     {
         $this->url = self::$main;
-
         $this->url .= '/'.$action;
 
         return $this->url;

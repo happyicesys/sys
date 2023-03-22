@@ -4,6 +4,7 @@ namespace App\Services;
 use App\Models\OperatorPaymentGateway;
 use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
+use App\Models\PaymentGateway\Omise;
 use App\Models\PaymentGateway\Midtrans;
 use App\Models\Vend;
 use Carbon\Carbon;
@@ -33,6 +34,21 @@ class PaymentGatewayService
             ]
           ];
           $newObj = new Midtrans($operatorPaymentGateway->key1, 'QRIS');
+          $response = $newObj->executeRequest($defaultParams);
+          break;
+        case 'omise':
+          $defaultParams = [
+            'amount' => $params['amount'],
+            'currency' => $params['currency'],
+            'type' => $params['type'],
+            'metadata' => [
+              'order_id' => isset($params['orderId']) ? $params['orderId'] : Carbon::now()->setTimeZone($params['tz'])->format('ymdhis'),
+            ],
+          ];
+          $newObj = new Omise([
+            'public' => $operatorPaymentGateway->key1,
+            'secret' => $operatorPaymentGateway->key2
+          ]);
           $response = $newObj->executeRequest($defaultParams);
           break;
       }

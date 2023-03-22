@@ -34,6 +34,7 @@
         "v-calendar": "^3.0.0-alpha.8",
         "v-select2-component": "^0.4.7",
         "vue-disable-autocomplete": "^0.0.4",
-        "vue-multiselect": "^3.0.0-alpha.2"
+        "vue-multiselect": "^3.0.0-alpha.2",
+        "vue3-google-map": "^0.15.0"
     }
 }

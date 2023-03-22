@@ -74,6 +74,12 @@ class GetPaymentGatewayQR
             // dd($response);
 
             if(isset($response) and isset($response['actions']) and isset($response['actions'][0]['url'])) {
+                switch($vendOperatorPaymentGateway->paymentGateway->name) {
+                    case 'midtrans':
+                        break;
+                    case 'omise':
+                        break;
+                }
                 PaymentGatewayLog::create([
                     'request' => $this->input,
                     'response' => $response,
