@@ -136,7 +136,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div v-if="permissions.includes('admin-access transactions')">
+            <!-- <div v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Customer Binded?
                 </label>
@@ -151,8 +151,8 @@
                     class="mt-1"
                 >
                 </MultiSelect>
-                </div>
-          </div>
+                </div>-->
+            </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
                 <div class="mt-3">
@@ -421,7 +421,7 @@ const filters = ref({
     customer_name: '',
     errors: [],
     operator: '',
-    is_binded_customer: '',
+    // is_binded_customer: '',
     paymentMethod: '',
     date_from: moment().toDate(),
     date_to: moment().toDate(),
@@ -477,7 +477,7 @@ function onExportExcelClicked() {
             channel_codes: filters.value.channel_codes,
             errors: filters.value.errors.map((error) => { return error.id }),
             operator_id: filters.value.operator.id,
-            is_binded_customer: filters.value.is_binded_customer.id,
+            // is_binded_customer: filters.value.is_binded_customer.id,
             paymentMethod: filters.value.paymentMethod.id,
             numberPerPage: filters.value.numberPerPage.id,
         },
@@ -499,7 +499,7 @@ function onSearchFilterUpdated() {
         channel_codes: filters.value.channel_codes,
         errors: filters.value.errors.map((error) => { return error.id }),
         operator_id: filters.value.operator.id,
-        is_binded_customer: filters.value.is_binded_customer.id,
+        // is_binded_customer: filters.value.is_binded_customer.id,
         paymentMethod: filters.value.paymentMethod.id,
         numberPerPage: filters.value.numberPerPage.id,
     }, {
