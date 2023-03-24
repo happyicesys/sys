@@ -66,12 +66,12 @@ class VendTransaction extends Model
     {
         $sortKey = $request->sortKey ? $request->sortKey : 'transaction_datetime';
         $sortBy = $request->sortBy ? $request->sortBy : false;
-        $startDate =  $request->date_from ? Carbon::parse($request->date_from)->toDateString() : Carbon::today()->subDays(1)->toDateString();
+        $startDate =  $request->date_from ? Carbon::parse($request->date_from)->toDateString() : Carbon::today()->toDateString();
         $endDate =  $request->date_to ? Carbon::parse($request->date_to)->toDateString() : Carbon::today()->toDateString();
         $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
         $isBindedCustomer = auth()->user()->hasRole('operator') ? 'all' : $isBindedCustomer;
-        // dd($startDate, $endDate);
-        // return
+
+
         $query =  $query->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
@@ -99,6 +99,15 @@ class VendTransaction extends Model
                 $query->whereHas('vendChannelError', function($query) use ($search) {
                     $query->whereIn('id', $search);
                 });
+            }
+        })
+        ->when($isBindedCustomer, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->has('vend.latestVendBinding');
+                }else {
+                    $query->doesntHave('vend.latestVendBinding');
+                }
             }
         })
         ->when($request->paymentMethod, function($query, $search) {
@@ -142,15 +151,6 @@ class VendTransaction extends Model
         })
         ->when($endDate, function($query, $search) {
             $query->whereDate('transaction_datetime', '<=', $search);
-        })
-        ->when($isBindedCustomer, function($query, $search) {
-            if($search != 'all') {
-                if($search == 'true') {
-                    $query->has('vend.latestVendBinding');
-                }else {
-                    $query->doesntHave('vend.latestVendBinding');
-                }
-            }
         })
         ->when($sortKey, function($query, $search) use ($sortBy) {
             $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );

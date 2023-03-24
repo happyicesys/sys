@@ -216,13 +216,13 @@
             <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                 <dt class="truncate text-sm font-medium text-gray-500">Total Amount (Success)</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                    {{(vendTransactionsTotal/100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                    {{totals.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}}
                 </dd>
             </div>
             <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                 <dt class="truncate text-sm font-medium text-gray-500">Total Count (Success)</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                    {{vendTransactionsCount.toLocaleString(undefined, {minimumFractionDigits: 0})}}
+                    {{totals.count.toLocaleString(undefined, {minimumFractionDigits: 0})}}
                 </dd>
             </div>
         </dl>
@@ -366,8 +366,7 @@ const props = defineProps({
     paymentMethods: Object,
     vends: Object,
     vendTransactions: Object,
-    vendTransactionsTotal: [String, Number],
-    vendTransactionsCount: [String, Number],
+    totals: [Object, Array],
     vendChannelErrors: Object,
 })
 const booleanOptions = ref([])
@@ -424,7 +423,7 @@ const filters = ref({
     operator: '',
     is_binded_customer: '',
     paymentMethod: '',
-    date_from: moment().subtract(1, 'days').toDate(),
+    date_from: moment().toDate(),
     date_to: moment().toDate(),
     sortKey: '',
     sortBy: false,

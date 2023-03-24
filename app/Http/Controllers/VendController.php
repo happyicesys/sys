@@ -274,17 +274,21 @@ class VendController extends Controller
                 VendTransaction::with([
                     'paymentMethod',
                     'product',
-                    'vend',
                     'vend.latestVendBinding.customer.category.categoryGroup',
                     'vendChannel',
                     'vendChannelError',
                     ])
                     ->filterTransactionIndex($request);
 
-        $vendTransactionsTotal = clone $vendTransactions;
-        $vendTransactionsCount = clone $vendTransactions;
-        $vendTransactionsTotal = $vendTransactionsTotal->isSuccessful()->sum('amount');
-        $vendTransactionsCount = $vendTransactionsCount->isSuccessful()->count();
+        $totalsQuery = VendTransaction::filterTransactionIndex($request)->isSuccessful()->get();
+
+        $totals = [
+            'amount' => collect($totalsQuery)
+                            ->sum(function($vendTransaction) {
+                                return $vendTransaction->amount ? $vendTransaction->amount : 0;
+                            })/100,
+            'count' => collect($totalsQuery)->count(),
+        ];
 
         return Inertia::render('Vend/Transaction', [
             'categories' => CategoryResource::collection(
@@ -296,14 +300,12 @@ class VendController extends Controller
             'operatorOptions' => OperatorResource::collection(
                 Operator::all()
             ),
-            // 'vends' => VendResource::collection(Vend::orderBy('code')->get()),
             'vendTransactions' => VendTransactionResource::collection(
                 $vendTransactions
                 ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-                ->withQueryString()
+                // ->withQueryString()
             ),
-            'vendTransactionsTotal' => $vendTransactionsTotal,
-            'vendTransactionsCount' => $vendTransactionsCount,
+            'totals' => $totals,
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
             'paymentMethods' => PaymentMethodResource::collection(PaymentMethod::orderBy('name')->get()),
 

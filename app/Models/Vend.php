@@ -62,7 +62,7 @@ class Vend extends Model
 
     public function latestVendBinding()
     {
-        return $this->hasOne(VendBinding::class)->where('is_active', true)->latest('begin_date');
+        return $this->hasOne(VendBinding::class)->latest('begin_date');
     }
 
     public function vendBindings()
