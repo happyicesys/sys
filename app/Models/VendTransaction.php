@@ -68,8 +68,9 @@ class VendTransaction extends Model
         $sortBy = $request->sortBy ? $request->sortBy : false;
         $startDate =  $request->date_from ? Carbon::parse($request->date_from)->toDateString() : Carbon::today()->toDateString();
         $endDate =  $request->date_to ? Carbon::parse($request->date_to)->toDateString() : Carbon::today()->toDateString();
-        // $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
+        $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
         // $isBindedCustomer = auth()->user()->hasRole('operator') ? 'all' : $isBindedCustomer;
+        $isBindedCustomer = 'all';
 
 
         $query =  $query->when($request->codes, function($query, $search) {
@@ -101,15 +102,15 @@ class VendTransaction extends Model
                 });
             }
         })
-        // ->when($isBindedCustomer, function($query, $search) {
-        //     if($search != 'all') {
-        //         if($search == 'true') {
-        //             $query->has('vend.latestVendBinding');
-        //         }else {
-        //             $query->doesntHave('vend.latestVendBinding');
-        //         }
-        //     }
-        // })
+        ->when($isBindedCustomer, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->has('vend.latestVendBinding');
+                }else {
+                    $query->doesntHave('vend.latestVendBinding');
+                }
+            }
+        })
         ->when($request->paymentMethod, function($query, $search) {
             $query->where('payment_method_id', $search);
         })
