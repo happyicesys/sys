@@ -7,6 +7,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CategoryGroupController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\MapController;
 use App\Http\Controllers\OperatorController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\PaymentTermController;
@@ -111,6 +112,10 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/create', [CustomerController::class, 'create']);
         Route::post('/{id}/update', [CustomerController::class, 'update']);
         Route::delete('/{id}', [CustomerController::class, 'delete']);
+    });
+
+    Route::prefix('maps')->group(function() {
+        Route::get('/', [MapController::class, 'index'])->name('maps');
     });
 
     Route::prefix('operators')->group(function() {

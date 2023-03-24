@@ -1,5 +1,5 @@
 <template>
-  <GoogleMap api-key="apiKey" style="width: 100%; height: 500px" :center="center" :zoom="15">
+  <GoogleMap :api-key="apiKey" style="width: 100%; height: 500px" :center="center" :zoom="15">
     <Marker :options="{ position: center }" />
   </GoogleMap>
 </template>

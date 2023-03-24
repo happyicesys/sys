@@ -377,7 +377,6 @@ const permissions = usePage().props.value.auth.permissions
 const operatorRole = usePage().props.value.auth.operatorRole
 
 onMounted(() => {
-    // vendOptions.value = props.vends.data.map((vend) => {return {id: vend.id, code: vend.code}})
     vendChannelErrorOptions.value = [
         {'id': 'errors_only', 'desc': 'Errors Only'},
         ...props.vendChannelErrors.data.map((error) => {return {id: error.id, desc: error.desc}})
