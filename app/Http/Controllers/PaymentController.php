@@ -56,8 +56,8 @@ class PaymentController extends Controller
           break;
 
         case 'omise':
-          if(isset($input['data']['source']['status'])) {
-            switch($input['data']['source']['status']) {
+          if(isset($input['status'])) {
+            switch($input['status']) {
               case 'pending':
                 $status = PaymentGatewayLog::STATUS_PENDING;
                 break;
@@ -70,7 +70,7 @@ class PaymentController extends Controller
                 break;
             }
           }
-          $orderId = $input['data']['metadata']['order_id'];
+          $orderId = $input['metadata']['order_id'];
           break;
       }
       $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
