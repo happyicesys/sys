@@ -40,6 +40,7 @@ class Omise extends Model implements PaymentGatewayInterface
                     'amount' => $params['amount'],
                     'currency' => $params['currency'],
                     'source' => $source['id'],
+                    'metadata' => $params['metadata'],
                 ]);
                 $this->curlData = $chargeResponse;
 
