@@ -38,9 +38,9 @@ class PaymentGatewayService
           break;
         case 'omise':
           $defaultParams = [
-            'amount' => $params['amount'],
+            'amount' => $params['amount'] * 100,
             'currency' => $params['currency'],
-            'type' => $params['type'],
+            'type' => 'paynow',
             'metadata' => [
               'order_id' => isset($params['orderId']) ? $params['orderId'] : Carbon::now()->setTimeZone($params['tz'])->format('ymdhis'),
             ],

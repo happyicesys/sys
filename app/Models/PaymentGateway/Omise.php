@@ -28,7 +28,7 @@ class Omise extends Model implements PaymentGatewayInterface
     public function executeRequest($params = '')
     {
         try {
-            $sourceResponse = Http::withHeaders($this->getHeaders())->post($this->getUrl('sources'), [
+            $sourceResponse = Http::withHeaders($this->getHeaders('sources'))->post($this->getUrl('sources'), [
                 'type' => $params['type'],
                 'amount' => $params['amount'],
                 'currency' => $params['currency'],
@@ -36,7 +36,7 @@ class Omise extends Model implements PaymentGatewayInterface
 
             if($sourceResponse and $sourceResponse->collect()) {
                 $source = $sourceResponse->collect();
-                $chargeResponse = Http::withHeaders($this->getHeaders())->post($this->getUrl('charges'), [
+                $chargeResponse = Http::withHeaders($this->getHeaders('charges'))->post($this->getUrl('charges'), [
                     'amount' => $params['amount'],
                     'currency' => $params['currency'],
                     'source' => $source['id'],
@@ -54,10 +54,10 @@ class Omise extends Model implements PaymentGatewayInterface
         return $this->curlData;
     }
 
-    private function getHeaders()
+    private function getHeaders($action)
     {
         $headers = array(
-            'Authorization' => 'Basic '.base64_encode($this->getApiKey().':'),
+            'Authorization' => 'Basic '.base64_encode($this->getApiKey($action).':'),
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
         );

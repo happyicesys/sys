@@ -13,7 +13,10 @@ class MapController extends Controller
     {
         $vends = Vend::with([
                     'latestVendBinding.customer.deliveryAddress',
-                ])->get();
+                ])
+                ->has('latestVendBinding')
+                ->orderBy('code')
+                ->get();
 
         return Inertia::render('Map/Index', [
             'vends' => VendResource::collection($vends),

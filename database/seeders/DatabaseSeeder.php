@@ -60,7 +60,8 @@ class DatabaseSeeder extends Seeder
             // PaymentGatewayUpdateSeeder::class,
             // IndoMidtransSeeder::class,
             // OperatorUserSeeder::class,
-            PermissionSeeder::class,
+            // PermissionSeeder::class,
+            OmisePaymentGatewaySeeder::class,
         ]);
     }
 }

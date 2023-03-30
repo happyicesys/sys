@@ -78,13 +78,13 @@ const navigation = [
         href: 'users',
         permission: 'read users',
     },
-    {
-        name: 'Map',
-        icon: MapIcon,
-        current: false,
-        href: 'maps',
-        permission: 'read vends',
-    },
+    // {
+    //     name: 'Map',
+    //     icon: MapIcon,
+    //     current: false,
+    //     href: 'maps',
+    //     permission: 'read vends',
+    // },
     // {
     //     name: 'Data Settings',
     //     icon: FolderIcon,

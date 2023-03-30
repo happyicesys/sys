@@ -69,31 +69,51 @@ class GetPaymentGatewayQR
                     'amount' => $amount,
                     'tz' => $operatorTimezone,
                     'expiry_seconds' => $expirySeconds,
+                    'currency' => $vendOperatorPaymentGateway->paymentGateway->country->currency_name,
                 ]);
             }
-            // dd($response);
 
-            if(isset($response) and isset($response['actions']) and isset($response['actions'][0]['url'])) {
+            if(isset($response)) {
+
+                $qrCodeUrl = '';
+                $errorMsg = '';
+                $isCreateInput = false;
                 switch($vendOperatorPaymentGateway->paymentGateway->name) {
                     case 'midtrans':
+                        if(isset($response['actions']) and isset($response['actions'][0]['url'])) {
+                            $isCreateInput = true;
+                            $qrCodeUrl = $response['actions'][0]['url'];
+                        }else if(isset($response['validation_messages']) or isset($response['status_message'])) {
+                            $errorMsg .= 'Error: ';
+                            $errorMsg .= isset($response['validation_messages']) ? $response['validation_messages'][0] : $response['status_message'];
+                        }
                         break;
                     case 'omise':
+                        if(isset($response['source']['scannable_code']['image']['download_uri'])) {
+                            $isCreateInput = true;
+                            $qrCodeUrl = $response['source']['scannable_code']['image']['download_uri'];
+                        }else if(isset($response['code']) and isset($response['message'])) {
+                            $errorMsg .= 'Error: ';
+                            $errorMsg .= $response['code'].' '.$response['message'];
+                        }
                         break;
                 }
-                PaymentGatewayLog::create([
-                    'request' => $this->input,
-                    'response' => $response,
-                    'order_id' => $orderId,
-                    'amount' => $amount,
-                    'status' => PaymentGatewayLog::STATUS_PENDING,
-                ]);
-                $encodeMsg = base64_encode('QRCODE'.$response['actions'][0]['url'].','.$orderId);
+
+                if($isCreateInput) {
+                    PaymentGatewayLog::create([
+                        'request' => $this->input,
+                        'response' => $response,
+                        'order_id' => $orderId,
+                        'amount' => $amount,
+                        'status' => PaymentGatewayLog::STATUS_PENDING,
+                    ]);
+                }
+
+                $encodeMsg = base64_encode('QRCODE'.$qrCodeUrl.','.$orderId);
                 $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
             }else {
-                if(isset($response['validation_messages'])) {
-                    $this->mqttService->publish('CM'.$vend->code, 'Error: '.$response['validation_messages'][0]);
-                }else if(isset($response['status_message']) and isset($response['status_code'])) {
-                    $this->mqttService->publish('CM'.$vend->code, 'Error: '.$response['status_message'].' ('.$response['status_code'].')');
+                if($errorMsg) {
+                    $this->mqttService->publish('CM'.$vend->code, $errorMsg);
                 }else{
                     $this->mqttService->publish('CM'.$vend->code, 'Error: Api key not set or parameters error');
                 }
