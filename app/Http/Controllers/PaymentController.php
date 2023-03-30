@@ -70,11 +70,10 @@ class PaymentController extends Controller
                 break;
             }
           }
-          $orderId = $input['metadata']['order_id'];
+          $orderId = $input['data']['metadata']['order_id'];
           break;
       }
       $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
-
       if($pendingLog) {
         $paymentGatewayLog = PaymentGatewayLog::create([
           'request' => $pendingLog->request,
