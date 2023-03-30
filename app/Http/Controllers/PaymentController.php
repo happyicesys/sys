@@ -132,7 +132,8 @@ class PaymentController extends Controller
               }
             break;
           case 'omise':
-            switch($paymentGatewayLog->response['source']['type']) {
+            // dd($paymentGatewayLog->toArray());
+            switch($paymentGatewayLog->response['data']['source']['type']) {
               case 'paynow':
                 $paymentMethod = Omise::PAYMENT_METHOD_PAYNOW;
                 break;
