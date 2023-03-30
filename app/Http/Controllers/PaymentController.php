@@ -56,8 +56,8 @@ class PaymentController extends Controller
           break;
 
         case 'omise':
-          if(isset($input['status'])) {
-            switch($input['status']) {
+          if(isset($input['data']['source']['status'])) {
+            switch($input['data']['source']['status']) {
               case 'pending':
                 $status = PaymentGatewayLog::STATUS_PENDING;
                 break;
@@ -75,12 +75,13 @@ class PaymentController extends Controller
       }
       $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
       if($pendingLog) {
-        $paymentGatewayLog = PaymentGatewayLog::create([
+        $paymentGatewayLog = $pendingLog->updateOrCreate([
+          'order_id' => $orderId,
+        ],[
           'request' => $pendingLog->request,
           'response' => $input,
-          'order_id' => $orderId,
           'status' => $status,
-          'amount' => $input['gross_amount'],
+          'amount' => $pendingLog->request['PRICE'],
           'payment_gateway_id' => PaymentGateway::where('name', $company)->first() ? PaymentGateway::where('name', $company)->first()->id : null,
           // hardcode midtrans
         ]);
@@ -102,6 +103,7 @@ class PaymentController extends Controller
   private function processPayment(PaymentGatewayLog $paymentGatewayLog)
   {
     if($paymentGatewayLog->status === PaymentGatewayLog::STATUS_APPROVE and $paymentGatewayLog->paymentGateway()->exists()) {
+      // dd($paymentGatewayLog->order_id);
       $vend = Vend::where('code', ltrim(substr($paymentGatewayLog->order_id, -5)))->first();
       if($vend) {
         $paymentMethod = null;
