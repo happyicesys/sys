@@ -32,6 +32,7 @@ class PaymentController extends Controller
     $input = $request->all();
     $status = null;
     $orderId = null;
+    $paymentGatewayId = PaymentGateway::where('name', $company)->first() ? PaymentGateway::where('name', $company)->first()->id : null;
 
     if($company) {
       switch($company) {
@@ -56,12 +57,8 @@ class PaymentController extends Controller
           break;
 
         case 'omise':
-          VendData::create([
-            'value' => $input,
-            'ip_address' => '1.1.1.1'
-          ]);
-          if(isset($input['status'])) {
-            switch($input['status']) {
+          if(isset($input['data']['status'])) {
+            switch($input['data']['status']) {
               case 'pending':
                 $status = PaymentGatewayLog::STATUS_PENDING;
                 break;
@@ -74,7 +71,7 @@ class PaymentController extends Controller
                 break;
             }
           }
-          $orderId = $input['metadata']['order_id'];
+          $orderId = $input['data']['metadata']['order_id'];
           break;
       }
       $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
@@ -86,8 +83,7 @@ class PaymentController extends Controller
           'response' => $input,
           'status' => $status,
           'amount' => $pendingLog->request['PRICE'],
-          'payment_gateway_id' => PaymentGateway::where('name', $company)->first() ? PaymentGateway::where('name', $company)->first()->id : null,
-          // hardcode midtrans
+          'payment_gateway_id' => $paymentGatewayId,
         ]);
 
         if($paymentGatewayLog) {
