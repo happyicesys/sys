@@ -21,14 +21,16 @@ class MqttService
 
   public function publish($topic, $message)
   {
-    MQTT::publish($topic, $message);
+    $mqtt = MQTT::connection();
+    $mqtt->publish($topic, $message);
+    // $mqtt = MQTT::publish($topic, $message);
+    $mqtt->loop(true);
   }
 
   public function subscribe()
   {
     $mqtt = MQTT::connection();
     $mqtt->subscribe(MqttService::SUBSCRIBED_TOPIC, function (string $topic, string $message) {
-        echo sprintf("\n".'Received message on topic [%s]: %s', $topic, $message);
         $this->processData($message, MqttService::IP_ADDRESS, MqttService::CONNECTION_TYPE);
     }, 1);
     $mqtt->loop(true);

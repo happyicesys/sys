@@ -53,7 +53,7 @@ return [
 
             // Whether logging shall be enabled. The default logger will be used
             // with the log level as configured.
-            'enable_logging' => env('MQTT_ENABLE_LOGGING', true),
+            'enable_logging' => env('MQTT_ENABLE_LOGGING', false),
 
             // Defines which repository implementation shall be used. Currently,
             // only a MemoryRepository is supported.
