@@ -114,10 +114,11 @@ class GetPaymentGatewayQR
                     ]);
                 }
 
-                // $qrCodeReader = new QrReader($qrCodeUrl);
-                // $qrCodeText = $qrCodeReader->text();
+                $qrCodeReader = new QrReader($qrCodeUrl);
+                $qrCodeText = $qrCodeReader->text();
+                // dd($qrCodeText);
 
-                $encodeMsg = base64_encode('QRCODE'.$qrCodeUrl.','.$orderId);
+                $encodeMsg = base64_encode('QRCODE'.$qrCodeText.','.$orderId);
                 // dd($qrCodeText, $encodeMsg);
                 $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
             }else {
