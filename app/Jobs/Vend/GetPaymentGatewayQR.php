@@ -117,10 +117,11 @@ class GetPaymentGatewayQR
                 $qrCodeReader = new QrReader($qrCodeUrl);
                 $qrCodeText = $qrCodeReader->text();
                 // dd($qrCodeText);
+                if($qrCodeText) {
+                    $encodeMsg = base64_encode('QRCODE'.$qrCodeText.','.$orderId);
+                    $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
+                }
 
-                $encodeMsg = base64_encode('QRCODE'.$qrCodeText.','.$orderId);
-                // dd($qrCodeText, $encodeMsg);
-                $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
             }else {
                 if($errorMsg) {
                     $this->mqttService->publish('CM'.$vend->code, $errorMsg);
