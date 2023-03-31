@@ -4,16 +4,20 @@ namespace App\Jobs\Vend;
 
 use App\Models\Vend;
 use App\Models\PaymentGatewayLog;
+use App\Models\VendData;
 use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use Carbon\Carbon;
+// use Libern\QRCodeReader\QRCodeReader;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use App\Models\VendData;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use Zxing\QrReader;
 
 class GetPaymentGatewayQR
 //implements ShouldQueue
@@ -109,8 +113,17 @@ class GetPaymentGatewayQR
                         'status' => PaymentGatewayLog::STATUS_PENDING,
                     ]);
                 }
+                // $qrCodeReader = new QRCodeReader();
+                // $qrCodeText = $qrCodeReader->decode($qrCodeUrl);
 
-                $encodeMsg = base64_encode('QRCODE'.$qrCodeUrl.','.$orderId);
+                // dd($qrCodeText);
+                // $response = Http::get('http://api.qrserver.com/v1/read-qr-code/?fileurl='.$qrCodeUrl)->collect();
+                // dd($qrCodeUrl);
+                $qrCodeReader = new QrReader($qrCodeUrl);
+                $qrCodeText = $qrCodeReader->text();
+                // dd($qrCodeText);
+
+                $encodeMsg = base64_encode('QRCODE'.$qrCodeText.','.$orderId);
                 $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
             }else {
                 if($errorMsg) {
