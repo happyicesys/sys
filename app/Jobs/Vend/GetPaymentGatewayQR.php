@@ -113,17 +113,12 @@ class GetPaymentGatewayQR
                         'status' => PaymentGatewayLog::STATUS_PENDING,
                     ]);
                 }
-                // $qrCodeReader = new QRCodeReader();
-                // $qrCodeText = $qrCodeReader->decode($qrCodeUrl);
 
-                // dd($qrCodeText);
-                // $response = Http::get('http://api.qrserver.com/v1/read-qr-code/?fileurl='.$qrCodeUrl)->collect();
-                // dd($qrCodeUrl);
-                $qrCodeReader = new QrReader($qrCodeUrl);
-                $qrCodeText = $qrCodeReader->text();
-                // dd($qrCodeText);
+                // $qrCodeReader = new QrReader($qrCodeUrl);
+                // $qrCodeText = $qrCodeReader->text();
 
-                $encodeMsg = base64_encode('QRCODE'.$qrCodeText.','.$orderId);
+                $encodeMsg = base64_encode('QRCODE'.$qrCodeUrl.','.$orderId);
+                // dd($qrCodeText, $encodeMsg);
                 $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
             }else {
                 if($errorMsg) {
