@@ -114,7 +114,9 @@ class GetPaymentGatewayQR
                     ]);
                 }
                 // dd($qrCodeUrl);
-                $url = Storage::put('/qr-code/'.$orderId.'.png', file_get_contents($qrCodeUrl), 'public')->url();
+                Storage::put('/qr-code/'.$orderId.'.png', file_get_contents($qrCodeUrl), 'public');
+
+                $url = Storage::url('/qr-code/'.$orderId.'.png');
 
                 $qrCodeReader = new QrReader($url);
                 $qrCodeText = $qrCodeReader->text();
