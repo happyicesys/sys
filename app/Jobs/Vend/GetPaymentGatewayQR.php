@@ -116,9 +116,9 @@ class GetPaymentGatewayQR
                 }
                 // dd($qrCodeUrl);
 
-                ImageManager::make($qrCodeUrl)->resize(150, 150)->save(public_path('qr-code/'.$orderId.'.png'));
+                $image = ImageManager::make($qrCodeUrl)->resize(150, 150);
 
-                // Storage::put('/qr-code/'.$orderId.'.png', file_get_contents($qrCodeUrl), 'public');
+                Storage::put('/qr-code/'.$orderId.'.png', $image, 'public');
 
                 $url = Storage::url('/qr-code/'.$orderId.'.png');
 
