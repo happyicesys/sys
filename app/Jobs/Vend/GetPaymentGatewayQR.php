@@ -8,12 +8,10 @@ use App\Models\VendData;
 use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use Carbon\Carbon;
-// use Libern\QRCodeReader\QRCodeReader;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Intervention\Image\ImageManager;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
@@ -115,10 +113,11 @@ class GetPaymentGatewayQR
                     ]);
                 }
                 // dd($qrCodeUrl);
+                // dd(new ImageManager());
+                // $image = ImageManager::make($qrCodeUrl)->resize(150, 150);
+                // dd($image);
 
-                $image = ImageManager::make($qrCodeUrl)->resize(150, 150);
-
-                Storage::put('/qr-code/'.$orderId.'.png', $image, 'public');
+                $img = Storage::put('/qr-code/'.$orderId.'.png', file_get_contents($qrCodeUrl), 'public');
 
                 $url = Storage::url('/qr-code/'.$orderId.'.png');
 
