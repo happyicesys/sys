@@ -121,6 +121,11 @@ class GetPaymentGatewayQR
                 $qrCodeReader = new QrReader($url);
                 $qrCodeText = $qrCodeReader->text();
 
+                VendData::create([
+                    'value' => $qrCodeText,
+                    'ip_address' => '1.2.3.4',
+                ]);
+
                 Storage::delete($url);
                 // dd($qrCodeText);
                 $encodeMsg = base64_encode('QRCODE'.$qrCodeText.','.$orderId);

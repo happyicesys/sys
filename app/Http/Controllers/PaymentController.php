@@ -57,10 +57,6 @@ class PaymentController extends Controller
           break;
 
         case 'omise':
-          VendData::create([
-            'value' => $input,
-            'ip_address' => '8.8.8.8'
-          ]);
           if(isset($input['data']['status'])) {
             switch($input['data']['status']) {
               case 'pending':
