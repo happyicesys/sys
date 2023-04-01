@@ -107,61 +107,59 @@ class PaymentController extends Controller
   private function processPayment(PaymentGatewayLog $paymentGatewayLog)
   {
     $vend = Vend::where('code', ltrim(substr($paymentGatewayLog->order_id, -5)))->first();
-    if($paymentGatewayLog->status === PaymentGatewayLog::STATUS_APPROVE and $paymentGatewayLog->paymentGateway()->exists()) {
-      // dd($paymentGatewayLog->order_id);
-      if($vend) {
-        $paymentMethod = null;
-        switch($paymentGatewayLog->paymentGateway->name){
-          case 'midtrans':
-              switch($paymentGatewayLog->response['issuer']) {
-                case 'gopay':
-                  $paymentMethod = Midtrans::PAYMENT_METHOD_GOPAY;
-                  break;
-                case 'airpay shopee':
-                  $paymentMethod = Midtrans::PAYMENT_METHOD_AIRPAY_SHOPEE;
-                  break;
-                case 'dana':
-                  $paymentMethod = Midtrans::PAYMENT_METHOD_DANA;
-                  break;
-                case 'ovo':
-                  $paymentMethod = Midtrans::PAYMENT_METHOD_OVO;
-                  break;
-                case 'tcash':
-                  $paymentMethod = Midtrans::PAYMENT_METHOD_TCASH;
-                  break;
-              }
-            break;
-          case 'omise':
-            // dd($paymentGatewayLog->toArray());
-            switch($paymentGatewayLog->response['data']['source']['type']) {
-              case 'paynow':
-                $paymentMethod = Omise::PAYMENT_METHOD_PAYNOW;
+    if($paymentGatewayLog->status === PaymentGatewayLog::STATUS_APPROVE and $paymentGatewayLog->paymentGateway()->exists() and $vend) {
+
+      $paymentMethod = null;
+      switch($paymentGatewayLog->paymentGateway->name){
+        case 'midtrans':
+            switch($paymentGatewayLog->response['issuer']) {
+              case 'gopay':
+                $paymentMethod = Midtrans::PAYMENT_METHOD_GOPAY;
+                break;
+              case 'airpay shopee':
+                $paymentMethod = Midtrans::PAYMENT_METHOD_AIRPAY_SHOPEE;
+                break;
+              case 'dana':
+                $paymentMethod = Midtrans::PAYMENT_METHOD_DANA;
+                break;
+              case 'ovo':
+                $paymentMethod = Midtrans::PAYMENT_METHOD_OVO;
+                break;
+              case 'tcash':
+                $paymentMethod = Midtrans::PAYMENT_METHOD_TCASH;
                 break;
             }
-            break;
-        }
-        $vendChannel = $vend->vendChannels()->where('code', $paymentGatewayLog->request['SId'])->first();
-        $result = $this->vendDataService->getPurchaseRequest([
-          'orderId' => $paymentGatewayLog->order_id,
-          'amount' => $paymentGatewayLog->request['PRICE'],
-          'vendCode' => $vend->code,
-          'productCode' =>  $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->code : null,
-          'productName' => $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->name : null,
-          'channelCode' =>  $vendChannel ? $vendChannel->code : null,
-          'paymentMethod' => $paymentMethod,
-        ]);
-
-        $fid = $paymentGatewayLog->id;
-        $content = base64_encode(json_encode($result));
-        $contentLength = strlen($content);
-        $key = '123456789110138A';
-        $md5 = md5($fid.','.$contentLength.','.$content.$key);
-
-        $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+          break;
+        case 'omise':
+          // dd($paymentGatewayLog->toArray());
+          switch($paymentGatewayLog->response['data']['source']['type']) {
+            case 'paynow':
+              $paymentMethod = Omise::PAYMENT_METHOD_PAYNOW;
+              break;
+          }
+          break;
       }
+      $vendChannel = $vend->vendChannels()->where('code', $paymentGatewayLog->request['SId'])->first();
+      $result = $this->vendDataService->getPurchaseRequest([
+        'orderId' => $paymentGatewayLog->order_id,
+        'amount' => $paymentGatewayLog->request['PRICE'],
+        'vendCode' => $vend->code,
+        'productCode' =>  $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->code : null,
+        'productName' => $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->name : null,
+        'channelCode' =>  $vendChannel ? $vendChannel->code : null,
+        'paymentMethod' => $paymentMethod,
+      ]);
+
+      $fid = $paymentGatewayLog->id;
+      $content = base64_encode(json_encode($result));
+      $contentLength = strlen($content);
+      $key = '123456789110138A';
+      $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+      $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
     }else {
-      $this->mqttService->publish('CM'.$vend->code, 'Error: QR code expired or payment gateway invalid');
+      $this->mqttService->publish('CM'.ltrim(substr($paymentGatewayLog->order_id, -5)), 'Error: QR code expired or payment gateway invalid');
     }
   }
 }
