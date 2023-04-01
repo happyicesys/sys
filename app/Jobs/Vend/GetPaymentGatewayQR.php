@@ -83,6 +83,7 @@ class GetPaymentGatewayQR
                 $qrCodeUrl = '';
                 $errorMsg = '';
                 $isCreateInput = false;
+                $isResizeImage = false;
                 switch($vendOperatorPaymentGateway->paymentGateway->name) {
                     case 'midtrans':
                         if(isset($response['actions']) and isset($response['actions'][0]['url'])) {
@@ -92,6 +93,7 @@ class GetPaymentGatewayQR
                             $errorMsg .= 'Error: ';
                             $errorMsg .= isset($response['validation_messages']) ? $response['validation_messages'][0] : $response['status_message'];
                         }
+                        $isResizeImage = true;
                         break;
                     case 'omise':
                         if(isset($response['source']['scannable_code']['image']['download_uri'])) {
@@ -114,10 +116,15 @@ class GetPaymentGatewayQR
                         'status' => PaymentGatewayLog::STATUS_PENDING,
                     ]);
                 }
-                // dd($qrCodeUrl);
-                // dd(new ImageManager());
-                $image = Image::make($qrCodeUrl)->resize(150, 150);
-                $img = Storage::put('/qr-code/'.$orderId.'.png', $image->stream()->__toString(), 'public');
+
+                $img =  false;
+                if($isResizeImage) {
+                    $image = Image::make($qrCodeUrl)->resize(150, 150);
+                    $img = Storage::put('/qr-code/'.$orderId.'.png', $image->stream()->__toString(), 'public');
+                }else {
+                    $img = Storage::put('/qr-code/'.$orderId.'.png', file_get_contents($qrCodeUrl), 'public');
+                }
+
                 $url = Storage::url('/qr-code/'.$orderId.'.png');
 
                 $qrCodeReader = new QrReader($url);
