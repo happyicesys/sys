@@ -86,7 +86,7 @@ class PaymentController extends Controller
           'payment_gateway_id' => $paymentGatewayId,
         ]);
 
-        if($paymentGatewayLog) {
+        if($pendingLog and $paymentGatewayLog) {
           $this->processPayment($paymentGatewayLog);
         }
       }else {
@@ -102,7 +102,7 @@ class PaymentController extends Controller
 
   private function processPayment(PaymentGatewayLog $paymentGatewayLog)
   {
-    $vend = Vend::where('code', ltrim(substr($paymentGatewayLog->order_id, -5)))->first();
+    $vend = Vend::where('code', ltrim(substr($paymentGatewayLog->order_id, -5), '0'))->first();
     if($paymentGatewayLog->status === PaymentGatewayLog::STATUS_APPROVE and $paymentGatewayLog->paymentGateway()->exists() and $vend) {
 
       $paymentMethod = null;
@@ -155,7 +155,7 @@ class PaymentController extends Controller
       $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
     }else {
-      $this->mqttService->publish('CM'.ltrim(substr($paymentGatewayLog->order_id, -5)), 'Error: QR code expired or payment gateway invalid');
+      $this->mqttService->publish('CM'.ltrim(substr($paymentGatewayLog->order_id, -5), '0'), 'Error: QR code expired or payment gateway invalid');
     }
   }
 }
