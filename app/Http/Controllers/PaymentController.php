@@ -106,9 +106,9 @@ class PaymentController extends Controller
 
   private function processPayment(PaymentGatewayLog $paymentGatewayLog)
   {
+    $vend = Vend::where('code', ltrim(substr($paymentGatewayLog->order_id, -5)))->first();
     if($paymentGatewayLog->status === PaymentGatewayLog::STATUS_APPROVE and $paymentGatewayLog->paymentGateway()->exists()) {
       // dd($paymentGatewayLog->order_id);
-      $vend = Vend::where('code', ltrim(substr($paymentGatewayLog->order_id, -5)))->first();
       if($vend) {
         $paymentMethod = null;
         switch($paymentGatewayLog->paymentGateway->name){
