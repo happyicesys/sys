@@ -16,7 +16,9 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Image;
 use Zxing\QrReader;
+
 
 class GetPaymentGatewayQR
 //implements ShouldQueue
@@ -114,23 +116,15 @@ class GetPaymentGatewayQR
                 }
                 // dd($qrCodeUrl);
                 // dd(new ImageManager());
-                // $image = ImageManager::make($qrCodeUrl)->resize(150, 150);
-                // dd($image);
-
-                $img = Storage::put('/qr-code/'.$orderId.'.png', file_get_contents($qrCodeUrl), 'public');
-
+                $image = Image::make($qrCodeUrl)->resize(150, 150);
+                $img = Storage::put('/qr-code/'.$orderId.'.png', $image->stream()->__toString(), 'public');
                 $url = Storage::url('/qr-code/'.$orderId.'.png');
 
                 $qrCodeReader = new QrReader($url);
                 $qrCodeText = $qrCodeReader->text();
 
-                VendData::create([
-                    'value' => $qrCodeText,
-                    'ip_address' => '1.2.3.4',
-                ]);
+                Storage::disk('public')->delete('/qr-code/'.$orderId.'.png');
 
-                Storage::disk('public')->delete($url);
-                // dd($qrCodeText);
                 $encodeMsg = base64_encode('QRCODE'.$qrCodeText.','.$orderId);
                 $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
 
