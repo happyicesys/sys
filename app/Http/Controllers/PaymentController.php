@@ -86,7 +86,7 @@ class PaymentController extends Controller
           'payment_gateway_id' => $paymentGatewayId,
         ]);
 
-        if($pendingLog and $paymentGatewayLog) {
+        if($paymentGatewayLog and $paymentGatewayLog->status === PaymentGatewayLog::STATUS_APPROVE) {
           $this->processPayment($paymentGatewayLog);
         }
       }else {
