@@ -13,6 +13,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Intervention\Image\ImageManager;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
@@ -114,7 +115,10 @@ class GetPaymentGatewayQR
                     ]);
                 }
                 // dd($qrCodeUrl);
-                Storage::put('/qr-code/'.$orderId.'.png', file_get_contents($qrCodeUrl), 'public');
+
+                ImageManager::make($qrCodeUrl)->resize(150, 150)->save(public_path('qr-code/'.$orderId.'.png'));
+
+                // Storage::put('/qr-code/'.$orderId.'.png', file_get_contents($qrCodeUrl), 'public');
 
                 $url = Storage::url('/qr-code/'.$orderId.'.png');
 
@@ -126,7 +130,7 @@ class GetPaymentGatewayQR
                     'ip_address' => '1.2.3.4',
                 ]);
 
-                Storage::delete($url);
+                Storage::disk('public')->delete($url);
                 // dd($qrCodeText);
                 $encodeMsg = base64_encode('QRCODE'.$qrCodeText.','.$orderId);
                 $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);

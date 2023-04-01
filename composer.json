@@ -10,6 +10,7 @@
         "dsiddharth2/php-zxing": "^1.0",
         "guzzlehttp/guzzle": "^7.2",
         "inertiajs/inertia-laravel": "^0.5.4",
+        "intervention/image": "^2.7",
         "khanamiryan/qrcode-detector-decoder": "^2.0",
         "laravel/framework": "^9.19",
         "laravel/horizon": "^5.10",
