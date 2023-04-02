@@ -128,7 +128,10 @@ class GetPaymentGatewayQR
                 $url = Storage::url('/qr-code/'.$orderId.'.png');
 
                 $qrCodeReader = new QrReader($url);
-                $qrCodeText = $qrCodeReader->text();
+                $qrCodeText = $qrCodeReader->text([
+                    'POSSIBLE_FORMATS' => 'QR_CODE',
+                ]);
+                dd($qrCodeText);
 
                 Storage::disk('public')->delete('/qr-code/'.$orderId.'.png');
 
