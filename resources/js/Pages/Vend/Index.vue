@@ -333,9 +333,9 @@
                             <TableHead>
                                 Status
                             </TableHead>
-                            <TableHead>
+                            <TableHeadSort modelName="last_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_invoice_date')">
                                 Last Visited
-                            </TableHead>
+                            </TableHeadSort>
                             <TableHeadSort modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2')">
                                 Temp2 <br>
                                 (Evap)<br>
@@ -626,7 +626,7 @@
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.deliveryAddress ? vend.latestVendBinding.customer.deliveryAddress.postcode : null }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
+                                {{ vend.parameter && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
                                 <span class="text-blue-600" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
                                     <br>Apk: {{ vend.apkVerJson['apkver'] }}
                                     <span v-if="vend.apkVerJson && 'buildtime' in vend.apkVerJson">

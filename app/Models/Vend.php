@@ -321,6 +321,9 @@ class Vend extends Model
             }else {
                 $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }
+            if($search === 'vends.is_online') {
+                $query->orderBy('vends.code', 'asc');
+            }
         });
     }
 }

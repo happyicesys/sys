@@ -105,6 +105,7 @@ class VendController extends Controller
                 'vends.firmware_ver',
                 'vends.is_online',
                 'vends.is_temp_error',
+                DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
                 'vends.last_updated_at',
                 'vends.parameter_json',
                 'vends.product_mapping_id',
@@ -116,7 +117,6 @@ class VendController extends Controller
                 'vends.vend_type_id',
                 )
             ->filterIndex($request)
-            ->orderBy('vends.is_online', 'desc')->orderBy('vends.code', 'asc')
             ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
             // dd($request->all());
