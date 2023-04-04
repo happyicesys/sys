@@ -307,6 +307,12 @@ class Vend extends Model
                 }
             }
         })
+        ->when($request->lastVisitedGreaterThan, function($query, $search) {
+                // dd('here');
+                $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                    $query->whereDate('last_invoice_date', '<=', Carbon::now()->subDays($search)->toDateString());
+                });
+        })
         ->when($sortKey, function($query, $search) use ($sortBy) {
             if(strpos($search, '->')) {
                 $inputSearch = explode("->", $search);

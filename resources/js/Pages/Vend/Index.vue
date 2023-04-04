@@ -203,6 +203,9 @@
                     >
                     </MultiSelect>
                 </div>
+                <SearchInput placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()">
+                    Last Visited Day &gt;&gt;
+                </SearchInput>
             </div>
 
             <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -756,6 +759,7 @@
     tempHigherThan: '',
     tempDeltaHigherThan: '',
     vend_channel_error_id: '',
+    lastVisitedGreaterThan: '',
     is_online: '',
     is_sensor: '',
     is_door_open: '',
