@@ -21,6 +21,7 @@ class Customer extends Model
         'is_active',
         'is_freezer',
         'is_parent',
+        'last_invoice_date',
         'ops_note',
         'parent_id',
         'payment_method_id',

@@ -59,6 +59,7 @@ class VendController extends Controller
                         'id',
                         'category_id',
                         'code',
+                        // DB::raw('DATE(last_invoice_date) AS last_invoice_date'),
                         'name',
                         'is_active',
                         'is_parent',

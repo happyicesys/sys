@@ -112,6 +112,7 @@ class GetPaymentGatewayQR
                         'response' => $response,
                         'order_id' => $orderId,
                         'amount' => $amount,
+                        'qr_url' => $qrCodeUrl,
                         'payment_gateway_id' => $vendOperatorPaymentGateway->paymentGateway->id,
                         'status' => PaymentGatewayLog::STATUS_PENDING,
                     ]);
@@ -131,7 +132,6 @@ class GetPaymentGatewayQR
                 $qrCodeText = $qrCodeReader->text([
                     'POSSIBLE_FORMATS' => 'QR_CODE',
                 ]);
-                // dd($qrCodeText);
 
                 Storage::disk('public')->delete('/qr-code/'.$orderId.'.png');
 
