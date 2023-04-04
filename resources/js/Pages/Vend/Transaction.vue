@@ -15,7 +15,7 @@
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-5 md:col-span-1">
-                <SearchInput placeholderStr="Vend ID" v-model="filters.codes">
+                <SearchInput placeholderStr="Vend ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
                     Vend ID
                     <span class="text-[9px]">
                         ("," for multiple)
@@ -23,7 +23,7 @@
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
-                <SearchInput placeholderStr="Channel ID" v-model="filters.channel_codes">
+                <SearchInput placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
                     Channel ID
                     <span class="text-[9px]">
                         ("," for multiple)
@@ -111,12 +111,12 @@
                 </MultiSelect>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
-                <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code">
+                <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" @keyup.enter="onSearchFilterUpdated()">
                     Cust ID
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
-                <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name">
+                <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" @keyup.enter="onSearchFilterUpdated()">
                     Cust Name
                 </SearchInput>
             </div>

@@ -29,25 +29,25 @@
                     >
                     </MultiSelect>
                 </div> -->
-                <SearchInput placeholderStr="Vend ID" v-model="filters.codes">
+                <SearchInput placeholderStr="Vend ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
                     Vend ID
                     <span class="text-[9px]">
                         ("," for multiple)
                     </span>
                 </SearchInput>
-                <SearchInput placeholderStr="Channel ID" v-model="filters.channel_codes">
+                <SearchInput placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
                     Channel ID
                     <span class="text-[9px]">
                         ("," for multiple)
                     </span>
                 </SearchInput>
-                <SearchInput placeholderStr="Serial Num" v-model="filters.serialNum">
+                <SearchInput placeholderStr="Serial Num" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
                     Serial Num
                 </SearchInput>
-                <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan">
+                <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @keyup.enter="onSearchFilterUpdated()">
                     Temp &gt;&gt;
                 </SearchInput>
-                <SearchInput placeholderStr="Number" v-model="filters.tempDeltaHigherThan">
+                <SearchInput placeholderStr="Number" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()">
                     t1-t2 Delta &gt;&gt;
                 </SearchInput>
                 <div>
@@ -80,10 +80,10 @@
                     >
                     </MultiSelect> -->
                 </div>
-                <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')">
+                <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
                     Cust ID
                 </SearchInput>
-                <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')">
+                <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
                     Cust Name
                 </SearchInput>
                 <div v-if="permissions.includes('admin-access vends')">
@@ -184,7 +184,7 @@
                     >
                     </MultiSelect>
                 </div>
-                <SearchInput placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan">
+                <SearchInput placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan" @keyup.enter="onSearchFilterUpdated()">
                     Fan Speed &lt;&lt;
                 </SearchInput>
                 <div v-if="permissions.includes('admin-access vends')">
