@@ -41,10 +41,10 @@ class VendResource extends JsonResource
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
             'last_invoice_date' => $this->when($this->relationLoaded('latestVendBinding'), function() {
-                return ($this->latestVendBinding->customer && $this->latestVendBinding->customer->last_invoice_date) ? Carbon::parse($this->latestVendBinding->customer->last_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null;
+                return ($this->latestVendBinding && $this->latestVendBinding->customer && $this->latestVendBinding->customer->last_invoice_date) ? Carbon::parse($this->latestVendBinding->customer->last_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null;
             }),
             'last_invoice_diff' => $this->when($this->relationLoaded('latestVendBinding'), function() {
-                return ($this->latestVendBinding->customer && $this->latestVendBinding->customer->last_invoice_date) ? Carbon::parse($this->latestVendBinding->customer->last_invoice_date)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null;
+                return ($this->latestVendBinding && $this->latestVendBinding->customer && $this->latestVendBinding->customer->last_invoice_date) ? Carbon::parse($this->latestVendBinding->customer->last_invoice_date)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null;
             }),
             'parameterJson' => $this->parameter_json,
             'private_key' => $this->private_key,
