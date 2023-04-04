@@ -330,6 +330,9 @@
                             <TableHead>
                                 Status
                             </TableHead>
+                            <TableHead>
+                                Last Visited
+                            </TableHead>
                             <TableHeadSort modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2')">
                                 Temp2 <br>
                                 (Evap)<br>
@@ -577,6 +580,12 @@
                                         </div>
                                     </div>
                                 </div>
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                <span>
+                                    {{ vend.last_invoice_date }} <br>
+                                    {{ vend.last_invoice_diff }}
+                                </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="flex flex-col items-center space-y-1">
