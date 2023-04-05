@@ -19,6 +19,7 @@ class VendTransaction extends Model
 
     protected $casts = [
         'transaction_datetime' => 'datetime',
+        'vend_json' => 'json',
         'vend_transaction_json' => 'json',
     ];
 
@@ -32,6 +33,7 @@ class VendTransaction extends Model
         'vend_channel_id',
         'vend_channel_error_id',
         'vend_id',
+        'vend_json',
         'vend_transaction_json',
     ];
 

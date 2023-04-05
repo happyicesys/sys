@@ -103,6 +103,7 @@ class CreateVendTransaction implements ShouldQueue
             'vend_channel_error_id' => isset($vendChannelError) ? $vendChannelError->id : null,
             'vend_transaction_json' => $input,
             'product_id' => $productId,
+            'vend_json' => $vend->latestVendBinding && $vend->latestVendBinding->customer ? collect($vend)->except(['vend_channels_json', 'product_mapping']) : null,
         ]);
 
         SyncVendTransactionTotalsJson::dispatch($vendTransaction->vend)->onQueue('default');
