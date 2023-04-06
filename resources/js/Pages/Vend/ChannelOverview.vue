@@ -23,9 +23,9 @@
                 <table class="min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
                     <tr>
-                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <!-- <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         #
-                      </th>
+                      </th> -->
                       <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Channel #
                       </th>
@@ -57,9 +57,9 @@
                   </thead>
                   <tbody class="bg-white">
                     <tr v-for="(channel, channelIndex) in vend.vendChannelsJson" :key="channel.id" :class="channelIndex % 2 === 0 ? undefined : 'bg-gray-50'">
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                      <!-- <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                         {{ channelIndex + 1 }}
-                      </td>
+                      </td> -->
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                         {{ channel.code }}
                       </td>
