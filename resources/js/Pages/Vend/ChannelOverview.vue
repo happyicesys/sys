@@ -32,20 +32,26 @@
                       <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.productMapping">
                         Image
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.productMapping">
-                        Product
+                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        Sold
                       </th>
                       <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Qty
+                        Balance
                       </th>
                       <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Capacity
                       </th>
                       <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Price
+                        <span v-if="profile && profile.base_currency">
+                          ({{ profile.base_currency.currency_symbol }})
+                        </span>
                       </th>
                       <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Error
+                      </th>
+                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.productMapping">
+                        Product
                       </th>
                     </tr>
                   </thead>
@@ -62,13 +68,9 @@
                           <img class="h-16 w-16 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
                         </div>
                       </td>
-                      <td class="whitespace-nowrap py-4 text-sm font-semibold text-gray-900 text-center" v-if="vend.productMapping">
-                        <span v-if="channel.product && channel.product.code">
-                          {{ channel.product.code }}
-                        </span>
-                        <span class="break-all text-xs" v-if="channel.product && channel.product.name">
-                          <br> {{ channel.product.name }}
-                        </span>
+
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-blue-600 sm:pl-6 text-center">
+                        {{ channel.capacity - channel.qty }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                         {{ channel.qty }}
@@ -102,6 +104,14 @@
                             </div>
                         </span>
                       </td>
+                      <td class="whitespace-nowrap py-4 text-sm font-semibold text-gray-900 text-center" v-if="vend.productMapping">
+                        <span v-if="channel.product && channel.product.code">
+                          {{ channel.product.code }}
+                        </span>
+                        <span class="break-all text-xs" v-if="channel.product && channel.product.name">
+                          <br> {{ channel.product.name }}
+                        </span>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -124,10 +134,17 @@
 
 <script setup>
 import Modal from '@/Components/Modal.vue';
+import { onMounted } from 'vue';
+import { usePage } from '@inertiajs/inertia-vue3';
 
 const props = defineProps({
   vend: Object,
   showModal: Boolean,
+})
+const profile = usePage().props.value.auth.profile
+
+onMounted(() => {
+  console.log(profile.base_currency.currency_symbol)
 })
 
 const emit = defineEmits(['modalClose'])

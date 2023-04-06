@@ -312,7 +312,7 @@
                             </TableHeadSort>
                             <TableHead>
                                 Inventory Status <br>
-                                (#Channel, Sales, Balance/Capacity)
+                                (#Channel, Sold, Balance/Capacity)
                             </TableHead>
                             <TableHead>
                                 Errors
