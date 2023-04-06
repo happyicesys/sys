@@ -37,8 +37,11 @@ class SyncLastInvoiceDate extends Command
 
         if($people) {
             foreach($people as $person) {
-                $customer = Customer::whereHas('vendBinding.vend', function($query) use ($person) {
-                    $query->where('code', $person['vend_code']);
+                $customer = Customer::whereHas('vendBinding', function($query) use ($person) {
+                    $query->where('is_active', true)
+                        ->whereHas('vend', function($query) use ($person) {
+                            $query->where('code', $person['vend_code']);
+                        });
                 })->first();
 
                 if($customer) {
