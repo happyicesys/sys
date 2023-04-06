@@ -20,37 +20,37 @@
           <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
             <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
               <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table class="min-w-full divide-y divide-gray-300">
+                <table class="table-fixed min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
                     <tr>
                       <!-- <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         #
                       </th> -->
-                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Channel #
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        #
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.productMapping">
+                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.productMapping">
                         Image
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Sold
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Balance
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        Bal
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Capacity
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        Cap
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Price
                         <span v-if="profile && profile.base_currency">
                           ({{ profile.base_currency.currency_symbol }})
                         </span>
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Error
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.productMapping">
+                      <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.productMapping">
                         Product
                       </th>
                     </tr>
@@ -104,11 +104,11 @@
                             </div>
                         </span>
                       </td>
-                      <td class="whitespace-nowrap py-4 text-sm font-semibold text-gray-900 text-center" v-if="vend.productMapping">
+                      <td class="py-4 text-sm font-semibold text-gray-900 text-center" v-if="vend.productMapping">
                         <span v-if="channel.product && channel.product.code">
                           {{ channel.product.code }}
                         </span>
-                        <span class="break-all text-xs" v-if="channel.product && channel.product.name">
+                        <span class="break-normal text-xs" v-if="channel.product && channel.product.name">
                           <br> {{ channel.product.name }}
                         </span>
                       </td>
