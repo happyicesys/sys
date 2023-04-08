@@ -30,4 +30,9 @@ class Category extends Model
     {
         return $this->belongsTo(CategoryGroup::class);
     }
+
+    public function customers()
+    {
+        return $this->hasMany(Customer::class);
+    }
 }
