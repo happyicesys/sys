@@ -18,7 +18,8 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class CreateVendTransaction implements ShouldQueue
+class CreateVendTransaction
+//implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -88,9 +89,9 @@ class CreateVendTransaction implements ShouldQueue
         // check duplicated orderid
         $duplicatedOrderId = VendTransaction::where('order_id', $processedInput['orderId'])->where('vend_id', $vend->id)->first();
 
-        if($duplicatedOrderId) {
-            return;
-        }
+        // if($duplicatedOrderId) {
+        //     return;
+        // }
 
         $vendTransaction = VendTransaction::create([
             'transaction_datetime' => Carbon::now(),
@@ -104,6 +105,7 @@ class CreateVendTransaction implements ShouldQueue
             'vend_transaction_json' => $input,
             'product_id' => $productId,
             'vend_json' => $vend->latestVendBinding && $vend->latestVendBinding->customer ? collect($vend)->except(['vend_channels_json', 'product_mapping']) : null,
+            'product_json' => $productId ? collect($vend->productMapping->productMappingItems()->where('channel_code', $vendChannel->code)->first()->product)->except(['product_mapping_items']) : null,
         ]);
 
         SyncVendTransactionTotalsJson::dispatch($vendTransaction->vend)->onQueue('default');

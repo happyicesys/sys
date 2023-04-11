@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\VendTemp;
 use App\Models\Scopes\OperatorVendFilterScope;
 use Carbon\Carbon;
+use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -186,8 +187,10 @@ class Vend extends Model
         $isSensor = $request->is_sensor != null ? $request->is_sensor : 'all';
         $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
         $isBindedCustomer = auth()->user()->hasRole('operator') ? 'all' : $isBindedCustomer;
-        $sortKey = $request->sortKey ? $request->sortKey : 'vends.is_online';
+        // $sortKey = $request->sortKey ? $request->sortKey : 'vends.is_online';
+        $sortKey = $request->sortKey ? $request->sortKey : 'vend_channel_totals_json->outOfStockSkuPercent';
         $sortBy = $request->sortBy ? $request->sortBy : false;
+        // dd($sortKey);
 
         return $query->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
@@ -312,6 +315,12 @@ class Vend extends Model
                 $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
                     $query->whereDate('last_invoice_date', '<=', Carbon::now()->subDays($search)->toDateString());
                 });
+        })
+        ->when($request->balanceStockLessThan, function($query, $search) {
+            $query->where('vend_channel_totals_json->balancePercent', '<=', $search);
+        })
+        ->when($request->remainingSkuLessThan, function($query, $search) {
+            $query->where('vend_channel_totals_json->outOfStockSkuPercent', '>=', (100 - $search));
         })
         ->when($sortKey, function($query, $search) use ($sortBy) {
             if(strpos($search, '->')) {

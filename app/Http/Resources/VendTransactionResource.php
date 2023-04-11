@@ -23,10 +23,12 @@ class VendTransactionResource extends JsonResource
             'order_id' => $this->order_id,
             'paymentMethod' => PaymentMethodResource::make($this->paymentMethod),
             'product' => ProductResource::make($this->product),
+            'productJson' => $this->product_json,
             'transaction_datetime' => $this->transaction_datetime ? Carbon::parse($this->transaction_datetime)->setTimezone($this->getUserTimezone())->format('ymd h:i a') : null,
             'vend' => VendResource::make($this->vend),
             'vendChannel' => VendChannelResource::make($this->vendChannel),
             'vendChannelError' => VendChannelErrorResource::make($this->vendChannelError),
+            'vendJson' => $this->vend_json,
             'vendTransactionJson' => $this->vend_transaction_json,
         ];
     }

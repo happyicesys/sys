@@ -206,6 +206,12 @@
                 <SearchInput placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()">
                     Last Visited Day &gt;&gt;
                 </SearchInput>
+                <SearchInput placeholderStr="Balance Stock Less Than" v-model="filters.balanceStockLessThan" @keyup.enter="onSearchFilterUpdated()">
+                    Balance Stock(%) &lt;&lt;
+                </SearchInput>
+                <SearchInput placeholderStr="Remaining SKU Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()">
+                    Remaining SKU(%) &lt;&lt;
+                </SearchInput>
             </div>
 
             <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -284,7 +290,7 @@
                 <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                     <dt class="truncate text-sm font-medium text-gray-500">Avg per VM (Last 30 days)</dt>
                     <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                        {{(totals['thirtyDays']/vends.meta.to).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                        {{(totals['thirtyDays']/vends.meta.to ? totals['thirtyDays']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
                     </dd>
                 </div>
             </dl>
@@ -319,9 +325,16 @@
                             </TableHead>
                             <TableHeadSort modelName="vend_channel_totals_json->balancePercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->balancePercent')">
                                 Balance Stock
+                                <!-- <span class="flex justify-center" data-tooltip-target="balance-stock" data-tooltip-style="light">
+                                    <QuestionMarkCircleIcon class="w-4 h-4"></QuestionMarkCircleIcon>
+                                    <div id="balance-stock" role="tooltip" class="absolute z-10 invisible inline-block px-3 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg shadow-sm opacity-0 tooltip">
+                                        Tooltip content
+                                        <div class="tooltip-arrow" data-popper-arrow></div>
+                                    </div>
+                                </span> -->
                             </TableHeadSort>
                             <TableHeadSort modelName="vend_channel_totals_json->outOfStockSkuPercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->outOfStockSkuPercent')">
-                                Out of Stock SKU
+                                Remaining SKU#
                             </TableHeadSort>
                             <TableHeadSort modelName="vend_transaction_totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->thirty_days_amount')">
                                 $ Sales (qty)<br>
@@ -460,7 +473,7 @@
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <span
                                     v-if="vend.vendChannelTotalsJson"
-                                    :class="[vend.vendChannelTotalsJson['balancePercent'] <= 30 ? 'text-red-700' : (vend.vendChannelTotalsJson['balancePercent'] > 60 ? '' : 'text-blue-700')]"
+                                    :class="[vend.vendChannelTotalsJson['balancePercent'] <= 15 ? 'text-red-700' : (vend.vendChannelTotalsJson['balancePercent'] > 40 ? 'text-green-700' : 'text-blue-700')]"
                                 >
                                     {{ vend.vendChannelTotalsJson['qty'] }}/ {{ vend.vendChannelTotalsJson['capacity'] }} <br>
                                     ({{ vend.vendChannelTotalsJson['balancePercent'] }}%)
@@ -469,10 +482,10 @@
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <span
                                     v-if="vend.vendChannelTotalsJson"
-                                    :class="[vend.vendChannelTotalsJson['outOfStockSkuPercent'] > 40 ? 'text-red-700' : '']"
+                                    :class="[100 - vend.vendChannelTotalsJson['outOfStockSkuPercent'] <= 25 ? 'text-red-700' : (100 - vend.vendChannelTotalsJson['outOfStockSkuPercent'] > 40 ? 'text-green-700' : 'text-blue-700')]"
                                 >
-                                    {{ vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
-                                    ({{ vend.vendChannelTotalsJson['outOfStockSkuPercent'] }}%)
+                                    {{ vend.vendChannelTotalsJson['count'] - vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
+                                    ({{ 100 - vend.vendChannelTotalsJson['outOfStockSkuPercent'] }}%)
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -724,7 +737,7 @@
   import Paginator from '@/Components/Paginator.vue';
   import SearchInput from '@/Components/SearchInput.vue';
   import MultiSelect from '@/Components/MultiSelect.vue';
-  import { ArrowDownTrayIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
+  import { ArrowDownTrayIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon, QuestionMarkCircleIcon } from '@heroicons/vue/20/solid';
   import TableHead from '@/Components/TableHead.vue';
   import TableData from '@/Components/TableData.vue';
   import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -764,6 +777,8 @@
     is_sensor: '',
     is_door_open: '',
     fanSpeedLowerThan: '',
+    balanceStockLessThan: '',
+    remainingSkuLessThan: '',
     sortKey: '',
     sortBy: false,
     numberPerPage: '',
