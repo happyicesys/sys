@@ -292,7 +292,7 @@
                                 {{ vendTransaction.vendJson['latest_vend_binding']['customer']['code'] }} <br>
                                 {{ vendTransaction.vendJson['latest_vend_binding']['customer']['name'] }}
                             </span>
-                            <span v-else-if="!vendTransaction.vendJson && !'latest_vend_binding' in vendTransaction.vendJson && vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer">
+                            <span v-else-if="!vendTransaction.vendJson && vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer">
                                 {{ vendTransaction.vend.latestVendBinding.customer.code }} <br>
                                 {{ vendTransaction.vend.latestVendBinding.customer.name }}
                             </span>
@@ -307,16 +307,20 @@
                             <span v-if="vendTransaction.productJson && 'code' in vendTransaction.productJson">
                                 {{ vendTransaction.productJson['code'] }}
                             </span>
-                            <span v-else-if="!vendTransaction.productJson && !'code' in vendTransaction.productJson && vendTransaction.product && vendTransaction.product.code">
+                            <span v-else-if="!vendTransaction.productJson && vendTransaction.product && vendTransaction.product.code">
                                 {{ vendTransaction.product.code }}
+                            </span>
+                            <span v-else>
                             </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
                             <span v-if="vendTransaction.productJson && 'name' in vendTransaction.productJson">
                                 {{ vendTransaction.productJson['name'] }}
                             </span>
-                            <span v-else-if="!vendTransaction.productJson && !'name' in vendTransaction.productJson && vendTransaction.product && vendTransaction.product.name">
+                            <span v-else-if="!vendTransaction.productJson && vendTransaction.product && vendTransaction.product.name">
                                 {{ vendTransaction.product.name }}
+                            </span>
+                            <span v-else>
                             </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-right">
