@@ -18,8 +18,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class CreateVendTransaction
-//implements ShouldQueue
+class CreateVendTransaction implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -89,9 +88,9 @@ class CreateVendTransaction
         // check duplicated orderid
         $duplicatedOrderId = VendTransaction::where('order_id', $processedInput['orderId'])->where('vend_id', $vend->id)->first();
 
-        // if($duplicatedOrderId) {
-        //     return;
-        // }
+        if($duplicatedOrderId) {
+            return;
+        }
 
         $vendTransaction = VendTransaction::create([
             'transaction_datetime' => Carbon::now(),
