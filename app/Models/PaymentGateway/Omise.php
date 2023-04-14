@@ -2,6 +2,7 @@
 
 namespace App\Models\PaymentGateway;
 
+use App\Models\PaymentGatewayLog;
 use App\Interfaces\PaymentGatewayInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +18,7 @@ class Omise extends Model implements PaymentGatewayInterface
     private $apiKey;
     private $apiKeys;
     private $action;
+    private $chargeId;
     private $curlData;
     private $url;
 
@@ -55,6 +57,28 @@ class Omise extends Model implements PaymentGatewayInterface
         return $this->curlData;
     }
 
+    public function refund($params = '')
+    {
+        try {
+            $this->getChargeId($params['order_id']);
+
+            $refundResponse = Http::withHeaders($this->getHeaders('refund'))->post($this->getUrl('refunds'), [
+                'amount' => $params['amount'],
+                'metadata' => [
+                   'metadata' => $params['metadata']
+                ]
+            ]);
+            $this->curlData = $refundResponse;
+
+            return $this->curlData;
+        } catch (ClientException $e) {
+            $response = $e->getResponse();
+        }
+        $this->curlData = $response;
+
+        return $this->curlData;
+    }
+
     private function getHeaders($action)
     {
         $headers = array(
@@ -74,6 +98,7 @@ class Omise extends Model implements PaymentGatewayInterface
                 $this->apiKey = $this->apiKeys['public'];
                 break;
             case 'charges':
+            case 'refunds':
                 $this->apiKey = $this->apiKeys['secret'];
                 break;
         }
@@ -83,9 +108,20 @@ class Omise extends Model implements PaymentGatewayInterface
     private function getUrl($action)
     {
         $this->url = self::$main;
-        $this->url .= '/'.$action;
+        if($actions === 'refunds') {
+            $this->url .= '/charges/'.$this->chargeId.'/'.$action;
+        }else {
+            $this->url .= '/'.$action;
+        }
 
         return $this->url;
+    }
+
+    private function getChargeId($orderId)
+    {
+        $this->chargeId = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_APPROVE)->first() ? PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_APPROVE)->first()->response['data']['id'] : null;
+
+        return $this->chargeId;
     }
 
 }

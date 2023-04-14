@@ -639,7 +639,7 @@
                                 {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.deliveryAddress ? vend.latestVendBinding.customer.deliveryAddress.postcode : null }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.parameter && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
+                                {{ vend.parameterJson && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
                                 <span class="text-blue-600" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
                                     <br>Apk: {{ vend.apkVerJson['apkver'] }}
                                     <span v-if="vend.apkVerJson && 'buildtime' in vend.apkVerJson">
