@@ -70,11 +70,11 @@ class VendTransaction extends Model
     {
         $sortKey = $request->sortKey ? $request->sortKey : 'transaction_datetime';
         $sortBy = $request->sortBy ? $request->sortBy : false;
-        $startDate =  $request->date_from ? Carbon::parse($request->date_from)->toDateString() : Carbon::today()->toDateString();
-        $endDate =  $request->date_to ? Carbon::parse($request->date_to)->toDateString() : Carbon::today()->toDateString();
+        $startDate =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->toDateString() : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
+        $endDate =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->toDateString() : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
         $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
-        // $isBindedCustomer = auth()->user()->hasRole('operator') ? 'all' : $isBindedCustomer;
         $isBindedCustomer = 'all';
+        $isPaymentReceived = $request->is_payment_received != null ? $request->is_payment_received : 'all';;
 
 
         $query =  $query->when($request->codes, function($query, $search) {
@@ -98,8 +98,15 @@ class VendTransaction extends Model
             });
         })
         ->when($request->errors, function($query, $search) {
+            // dd($search);
             if(in_array('errors_only', $search)) {
                 $query->has('vendChannelError');
+            }else if(in_array('1', $search)) {
+                $query->where(function($query) {
+                    $query->whereHas('vendChannelError', function($query) {
+                        $query->where('id', 1);
+                    })->orWhereDoesntHave('vendChannelError');
+                });
             }else {
                 $query->whereHas('vendChannelError', function($query) use ($search) {
                     $query->whereIn('id', $search);
@@ -112,6 +119,15 @@ class VendTransaction extends Model
                     $query->has('vend.latestVendBinding');
                 }else {
                     $query->doesntHave('vend.latestVendBinding');
+                }
+            }
+        })
+        ->when($isPaymentReceived, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->where('is_payment_received', true);
+                }else {
+                    $query->where('is_payment_received', false);
                 }
             }
         })

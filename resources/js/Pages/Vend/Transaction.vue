@@ -152,6 +152,22 @@
                 >
                 </MultiSelect>
             </div>
+            <div>
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Payment Received
+                </label>
+                <MultiSelect
+                    v-model="filters.is_payment_received"
+                    :options="booleanOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
             </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -423,6 +439,7 @@ onMounted(() => {
     ]
     filters.value.operator = operatorOptions.value[0]
     filters.value.is_binded_customer = booleanOptions.value[0]
+    filters.value.is_payment_received = booleanOptions.value[0]
 })
 
 const filters = ref({
@@ -435,6 +452,7 @@ const filters = ref({
     errors: [],
     operator: '',
     is_binded_customer: '',
+    is_payment_received: '',
     paymentMethod: '',
     date_from: moment().toDate(),
     date_to: moment().toDate(),
@@ -491,6 +509,7 @@ function onExportExcelClicked() {
             errors: filters.value.errors.map((error) => { return error.id }),
             operator_id: filters.value.operator.id,
             is_binded_customer: filters.value.is_binded_customer.id,
+            is_payment_received: filters.value.is_payment_received.id,
             paymentMethod: filters.value.paymentMethod.id,
             numberPerPage: filters.value.numberPerPage.id,
         },
@@ -513,6 +532,7 @@ function onSearchFilterUpdated() {
         errors: filters.value.errors.map((error) => { return error.id }),
         operator_id: filters.value.operator.id,
         is_binded_customer: filters.value.is_binded_customer.id,
+        is_payment_received: filters.value.is_payment_received.id,
         paymentMethod: filters.value.paymentMethod.id,
         numberPerPage: filters.value.numberPerPage.id,
     }, {
