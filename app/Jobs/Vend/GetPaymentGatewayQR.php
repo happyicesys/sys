@@ -122,6 +122,7 @@ class GetPaymentGatewayQR
                 if($isResizeImage) {
                     $image = Image::make($qrCodeUrl)->resize(150, 150);
                     $img = Storage::put('/qr-code/'.$orderId.'.png', $image->stream()->__toString(), 'public');
+                    // $img = Storage::put('/qr-code/'.$orderId.'.png', $image->stream()->__toString(), 'public');
                 }else {
                     $img = Storage::put('/qr-code/'.$orderId.'.png', file_get_contents($qrCodeUrl), 'public');
                 }
