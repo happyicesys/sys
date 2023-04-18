@@ -203,8 +203,9 @@ class ProcessCustomerData implements ShouldQueue
                     ]);
 
                     if($profileData['contact']) {
+                        $phoneNumber = new PhoneNumber(str_replace(' ', '', $profileData['contact']), $baseCurrencyCountry->code);
                         $profile->contact()->updateOrCreate([
-                            'phone_num' => PhoneNumber::make(str_replace(' ', '', $profileData['contact']), $baseCurrencyCountry->code)->formatForCountry($baseCurrencyCountry->code),
+                            'phone_num' => $phoneNumber->formatForCountry($baseCurrencyCountry->code),
                             'phone_country_id' => $baseCurrencyCountry->id,
                         ], [
                             'name' => $profileData['attn'],

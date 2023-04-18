@@ -19,7 +19,7 @@
         "league/flysystem-aws-s3-v3": "^3.0",
         "php-mqtt/laravel-client": "^1.1",
         "predis/predis": "^2.0",
-        "propaganistas/laravel-phone": "^5.0",
+        "propaganistas/laravel-phone": "^5.0.3",
         "psr/simple-cache": "^2.0",
         "rap2hpoutre/fast-excel": "^5.0",
         "sawirricardo/laravel-midtrans": "^1.5",

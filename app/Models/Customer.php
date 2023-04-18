@@ -22,6 +22,7 @@ class Customer extends Model
         'is_freezer',
         'is_parent',
         'last_invoice_date',
+        'location_type_id',
         'ops_note',
         'parent_id',
         'payment_method_id',
@@ -83,6 +84,11 @@ class Customer extends Model
     public function firstTransaction()
     {
         return $this->belongsTo(Transaction::class, 'first_transaction_id');
+    }
+
+    public function locationType()
+    {
+        return $this->belongsTo(LocationType::class);
     }
 
     public function paymentTerm()
