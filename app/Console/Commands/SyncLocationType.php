@@ -2,8 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\ProcessCustomerLocationType;
 use App\Models\Customer;
 use Illuminate\Console\Command;
+
 
 class SyncLocationType extends Command
 {
