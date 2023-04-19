@@ -12,7 +12,7 @@ class SyncLocationType extends Command
      *
      * @var string
      */
-    protected $signature = 'app:sync-location-type';
+    protected $signature = 'sync:location-type';
 
     /**
      * The console command description.
@@ -26,7 +26,7 @@ class SyncLocationType extends Command
      */
     public function handle()
     {
-        $url = 'https://admin.happyice.com.sg/api/person/migrate';
+        $url = 'https://admin.happyice.com.sg/api/person/location-type';
 
         ProcessCustomerLocationType::dispatch(null, $url);
     }

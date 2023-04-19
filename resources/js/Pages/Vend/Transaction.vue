@@ -168,6 +168,22 @@
                 >
                 </MultiSelect>
             </div>
+            <div>
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Location Type
+                </label>
+                <MultiSelect
+                    v-model="filters.locationType"
+                    :options="locationTypeOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="name"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
             </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -393,6 +409,7 @@ const props = defineProps({
     categories: Object,
     categoryGroups: Object,
     operatorOptions: Object,
+    locationTypeOptions: Object,
     paymentMethods: Object,
     vends: Object,
     vendTransactions: Object,
@@ -402,6 +419,7 @@ const props = defineProps({
 const booleanOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
+const locationTypeOptions = ref([])
 const roles = usePage().props.value.auth.roles
 const permissions = usePage().props.value.auth.permissions
 const operatorRole = usePage().props.value.auth.operatorRole
@@ -431,10 +449,12 @@ onMounted(() => {
     ]
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
+    locationTypeOptions.value = [
+        {id: 'all', value: 'All'},
+        ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    ]
     operatorOptions.value = [
-        {
-            id: 'all', full_name: 'All'
-        },
+        {id: 'all', full_name: 'All'},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
     filters.value.operator = operatorOptions.value[0]
@@ -450,6 +470,7 @@ const filters = ref({
     customer_code: '',
     customer_name: '',
     errors: [],
+    locationType: '',
     operator: '',
     is_binded_customer: '',
     is_payment_received: '',
@@ -507,6 +528,7 @@ function onExportExcelClicked() {
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             channel_codes: filters.value.channel_codes,
             errors: filters.value.errors.map((error) => { return error.id }),
+            location_type_id: filters.value.location_type.id,
             operator_id: filters.value.operator.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_payment_received: filters.value.is_payment_received.id,
@@ -530,6 +552,7 @@ function onSearchFilterUpdated() {
         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
         channel_codes: filters.value.channel_codes,
         errors: filters.value.errors.map((error) => { return error.id }),
+        location_type_id: filters.value.location_type.id,
         operator_id: filters.value.operator.id,
         is_binded_customer: filters.value.is_binded_customer.id,
         is_payment_received: filters.value.is_payment_received.id,

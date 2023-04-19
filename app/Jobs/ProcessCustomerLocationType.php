@@ -39,10 +39,21 @@ class ProcessCustomerLocationType implements ShouldQueue
 
         if($customersCollection) {
             foreach($customersCollection as $customerCollection) {
-
                 $bindedCustomer = Customer::has('vendBinding')->where('code', $customerCollection['cust_id'])->first();
-                if($bindedCustomer) {
-                    // $bindedCustomer
+                if($bindedCustomer and isset($customerCollection['location_type'])) {
+                    $locationTypeData = $customerCollection['location_type'];
+                    $locationType = LocationType::updateOrCreate([
+                        'name' => $locationTypeData['name'],
+                    ],
+                    [
+                        'remarks' => $locationTypeData['remarks'],
+                        'sequence' => $locationTypeData['sequence'],
+
+                    ]);
+                    $locationTypeId = $locationType->id;
+
+                    $bindedCustomer->location_type_id = $locationTypeId;
+                    $bindedCustomer->save();
                 }
             }
         }

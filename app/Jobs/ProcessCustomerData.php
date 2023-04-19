@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Country;
 use App\Models\Customer;
+use App\Models\LocationType;
 use App\Models\PaymentTerm;
 use App\Models\Profile;
 use App\Models\Status;
@@ -93,6 +94,19 @@ class ProcessCustomerData implements ShouldQueue
                         ]);
                         $statusId = $status->id;
                         break;
+                }
+
+                if(isset($customerCollection['location_type'])) {
+                    $locationTypeData = $customerCollection['location_type'];
+                    $locationType = LocationType::updateOrCreate([
+                        'name' => $locationTypeData['name'],
+                    ],
+                    [
+                        'remarks' => $locationTypeData['remarks'],
+                        'sequence' => $locationTypeData['sequence'],
+
+                    ]);
+                    $locationTypeId = $locationType->id;
                 }
 
                 if(isset($customerCollection['bank'])) {
@@ -241,6 +255,7 @@ class ProcessCustomerData implements ShouldQueue
                     'bank_id' => $bankId,
                     'bank_remarks' => isset($customerCollection['account_number']) ? $customerCollection['account_number'] : null,
                     'category_id' => $categoryId,
+                    'location_type_id' => $locationTypeId,
                     'payment_term_id' => $paymentTermId,
                     'zone_id' => $zoneId,
                     'remarks' => isset($customerCollection['remark']) ? $customerCollection['remark'] : null,

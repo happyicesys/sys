@@ -203,6 +203,22 @@
                     >
                     </MultiSelect>
                 </div>
+                <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                        Location Type
+                    </label>
+                    <MultiSelect
+                        v-model="filters.locationType"
+                        :options="locationTypeOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="name"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                </div>
                 <SearchInput placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()">
                     Last Visited Day &gt;&gt;
                 </SearchInput>
@@ -363,6 +379,9 @@
                             <TableHead>
                                 Serial Num
                             </TableHead>
+                            <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
+                                Location
+                            </TableHeadSort>
                             <TableHead>
                             </TableHead>
                         </tr>
@@ -651,6 +670,9 @@
                                 {{ vend.serial_num }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                {{ vend.location_type_name }}
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="flex justify-center space-x-1">
                                     <Button
                                         type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
@@ -751,6 +773,7 @@
     categories: Object,
     categoryGroups: Object,
     constTempError: Number,
+    locationTypeOptions: Object,
     operatorOptions: Object,
     totals: [Array, Object],
     vends: Object,
@@ -767,6 +790,7 @@
     categories: [],
     categoryGroups: [],
     errors: [],
+    locationType: '',
     operator: '',
     is_binded_customer: '',
     tempHigherThan: '',
@@ -790,6 +814,7 @@
   const doorOptions = ref([])
   const enableOptions = ref([])
   const loading = ref(false)
+  const locationTypeOptions = ref([])
   const numberPerPageOptions = ref([])
   const operatorOptions = ref([])
   const showChannelOverviewModal = ref(false)
@@ -836,10 +861,12 @@ const permissions = usePage().props.value.auth.permissions
         {id: 'open', value: 'Open'},
         {id: 'close', value: 'Close'},
     ]
+    locationTypeOptions.value = [
+        {id: 'all', value: 'All'},
+        ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    ]
     operatorOptions.value = [
-        {
-            id: 'all', full_name: 'All'
-        },
+        {id: 'all', full_name: 'All'},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
 
@@ -847,6 +874,7 @@ const permissions = usePage().props.value.auth.permissions
     filters.value.is_online = booleanOptions.value[0]
     filters.value.is_sensor = enableOptions.value[0]
     filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
+    filters.value.location_type = locationTypeOptions.value[0]
     filters.value.operator = operatorOptions.value[0]
 
     // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
@@ -878,6 +906,7 @@ const permissions = usePage().props.value.auth.permissions
             categories: filters.value.categories.map((category) => { return category.id }),
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             errors: filters.value.errors.map((error) => { return error.id }),
+            location_type_id: filters.value.location_type.id,
             operator_id: filters.value.operator.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_door_open: filters.value.is_door_open.id,
@@ -917,6 +946,7 @@ function onExportChannelExcelClicked() {
             categories: filters.value.categories.map((category) => { return category.id }),
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             errors: filters.value.errors.map((error) => { return error.id }),
+            location_type_id: filters.value.location_type.id,
             operator_id: filters.value.operator.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_door_open: filters.value.is_door_open.id,

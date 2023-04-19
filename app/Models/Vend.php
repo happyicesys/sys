@@ -284,6 +284,13 @@ class Vend extends Model
             }
 
         })
+        ->when($request->location_type_id, function($query, $search) {
+            if($search != 'all') {
+                $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                    $query->where('location_type_id', $search);
+                });
+            }
+        })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
                 $query->whereHas('operators', function($query) use ($search) {

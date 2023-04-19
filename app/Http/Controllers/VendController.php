@@ -8,6 +8,7 @@ use Rap2hpoutre\FastExcel\FastExcel;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CountryResource;
+use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\VendResource;
@@ -20,6 +21,7 @@ use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Country;
 use App\Models\Customer;
+use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\PaymentMethod;
 use App\Models\Vend;
@@ -76,6 +78,7 @@ class VendController extends Controller
                         'postcode',
                     ]);
                 },
+                'latestVendBinding.customer.locationType',
                 'productMapping',
                 // 'vendSevenDaysTransactions',
             ])
@@ -86,6 +89,7 @@ class VendController extends Controller
                         ->limit(1);
             })
             ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
             ->leftJoin('addresses', function($query) {
                 $query->on('addresses.modelable_id', '=', 'customers.id')
                         ->where('addresses.modelable_type', '=', 'App\Models\Customer')
@@ -115,6 +119,8 @@ class VendController extends Controller
                 'vends.vend_channel_error_logs_json',
                 'vends.vend_transaction_totals_json',
                 'vends.vend_type_id',
+                'customers.location_type_id',
+                'location_types.name AS location_type_name'
                 )
             ->filterIndex($request)
             ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
@@ -146,6 +152,9 @@ class VendController extends Controller
                 CategoryGroup::where('classname', $className)->orderBy('name')->get()
             ),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
+            ),
             // 'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
             'operatorOptions' => OperatorResource::collection(
                 Operator::all()
@@ -297,6 +306,9 @@ class VendController extends Controller
             ),
             'categoryGroups' => CategoryGroupResource::collection(
                 CategoryGroup::where('classname', $className)->orderBy('name')->get()
+            ),
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
             ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::all()
