@@ -203,6 +203,97 @@
               </div>
             </div> -->
           </div>
+          <div v-if="form.id">
+          <!-- <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Unit Cost</span>
+                </div>
+              </div>
+            </div>
+
+
+            <div class="sm:col-span-4">
+              <FormInput v-model="form.unit_cost" :error="form.errors.unit_cost" required="true">
+                Unit Cost
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-2">
+              <DatePicker
+                    v-model="form.date_from"
+                >
+                Start Date
+                <span class="text-[9px]">
+                  (Leave blank to start NOW)
+                </span>
+              </DatePicker>
+            </div>
+
+            <div class="sm:col-span-6 flex justify-end">
+              <Button
+              type="button"
+              @click="addUnitCost()"
+              class="bg-green-500 hover:bg-green-600 text-white"
+              :class="[
+                !form.unit_cost ?
+                'opacity-50 cursor-not-allowed' : ''
+                ]"
+              :disabled="!form.unit_cost"
+              >
+                <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                <span>
+                  Add
+                </span>
+              </Button>
+            </div>
+
+            <div class="sm:col-span-6 flex flex-col mt-3">
+            <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+              <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                  <table class="min-w-full divide-y divide-gray-300">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          #
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Unit Cost
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Start Date
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                      <tr v-for="(unitCost, unitCostIndex) in product.unitCosts" :key="unitCost.id" :class="unitCostIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                          {{ unitCostIndex + 1 }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          {{ unitCost.cost }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          {{ unitCost.created_at }}
+                        </td>
+
+                      </tr>
+                      <tr v-if="!product.unitCosts.length">
+                        <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-red-600 text-center">
+                          No Results Found
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div> -->
+          </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 pt-5 justify-end">
               <Button
@@ -282,6 +373,7 @@ const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
 const showUomModal = ref(false)
 const uomOptions = ref([])
+const unitCosts = ref([])
 // const productUoms = ref(props.product.productUoms)
 const form = ref(
   useForm(getDefaultForm())
@@ -295,11 +387,13 @@ onMounted(() => {
   categoryGroupOptions.value = props.categoryGroups.data.map((categoryGroup) => {return {id: categoryGroup.id, name: categoryGroup.name}})
   uomOptions.value = props.uoms.data.map((uom) => {return {id: uom.id, name: uom.name}})
   operatorOptions.value = props.operatorOptions.slice(1)
+  unitCosts.value = props.product ? props.product.unitCosts : null
 })
 
 function getDefaultForm() {
   return {
     code: '',
+    date_from: '',
     desc: '',
     name: '',
     thumbnail: '',
@@ -309,6 +403,7 @@ function getDefaultForm() {
     category_id: '',
     category_group_id: '',
     operator_id: '',
+    unit_cost: '',
   }
 }
 

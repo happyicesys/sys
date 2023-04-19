@@ -161,6 +161,24 @@ class ProductController extends Controller
             ]);
         }
 
+        // if($request->has('operator')) {
+        //     $operator->vends()->detach();
+        //     if($request->operator['vends']) {
+        //         foreach($request->operator['vends'] as $vend) {
+        //             $operator->vends()->attach($vend['id']);
+        //         }
+        //     }
+        //     if($request->has('paymentGateways')) {
+        //         $operator->operatorPaymentGateways()->delete();
+        //         if($request->operator['operatorPaymentGateways']) {
+        //             foreach($request->operator['operatorPaymentGateways'] as $operatorPaymentGateway) {
+        //                 $operatorPaymentGateway['payment_gateway_id'] = $operatorPaymentGateway['paymentGateway']['id'];
+        //                 $operator->operatorPaymentGateways()->create($operatorPaymentGateway);
+        //             }
+        //         }
+        //     }
+        // }
+
         return redirect()->route('products');
     }
 

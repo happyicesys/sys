@@ -158,7 +158,7 @@
                 </label>
                 <MultiSelect
                     v-model="filters.is_payment_received"
-                    :options="booleanOptions"
+                    :options="successfulOptions"
                     trackBy="id"
                     valueProp="id"
                     label="value"
@@ -417,6 +417,7 @@ const props = defineProps({
     vendChannelErrors: Object,
 })
 const booleanOptions = ref([])
+const successfulOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
 const locationTypeOptions = ref([])
@@ -456,6 +457,11 @@ onMounted(() => {
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+    ]
+    successfulOptions.value = [
+        {id: 'all', value: 'All'},
+        {id: 'true', value: 'Successful'},
+        {id: 'false', value: 'Unsuccessful'},
     ]
     filters.value.locationType = locationTypeOptions.value[0]
     filters.value.operator = operatorOptions.value[0]

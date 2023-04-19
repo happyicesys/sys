@@ -15,6 +15,7 @@ class UnitCost extends Model
         'profile_id',
         'date_from',
         'date_to',
+        'is_current',
     ];
 
     protected $casts = [

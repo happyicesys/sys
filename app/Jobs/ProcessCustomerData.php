@@ -102,8 +102,8 @@ class ProcessCustomerData implements ShouldQueue
                         'name' => $locationTypeData['name'],
                     ],
                     [
-                        'remarks' => $locationTypeData['remarks'],
-                        'sequence' => $locationTypeData['sequence'],
+                        'remarks' => isset($locationTypeData['remarks']) ? $locationTypeData['remarks'] : null,
+                        'sequence' => isset($locationTypeData['sequence']) ? $locationTypeData['sequence'] : null,
 
                     ]);
                     $locationTypeId = $locationType->id;
