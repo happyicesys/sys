@@ -125,7 +125,7 @@ class VendController extends Controller
             ->filterIndex($request)
             ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
-            // dd($request->all());
+            // dd($vends->toArray());
 
         // $thiryDaysTotal = 0;
 

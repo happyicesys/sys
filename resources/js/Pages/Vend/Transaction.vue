@@ -177,7 +177,7 @@
                     :options="locationTypeOptions"
                     trackBy="id"
                     valueProp="id"
-                    label="name"
+                    label="value"
                     placeholder="Select"
                     open-direction="bottom"
                     class="mt-1"
@@ -457,6 +457,7 @@ onMounted(() => {
         {id: 'all', full_name: 'All'},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
+    filters.value.locationType = locationTypeOptions.value[0]
     filters.value.operator = operatorOptions.value[0]
     filters.value.is_binded_customer = booleanOptions.value[0]
     filters.value.is_payment_received = booleanOptions.value[0]
@@ -528,7 +529,7 @@ function onExportExcelClicked() {
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             channel_codes: filters.value.channel_codes,
             errors: filters.value.errors.map((error) => { return error.id }),
-            location_type_id: filters.value.location_type.id,
+            location_type_id: filters.value.locationType.id,
             operator_id: filters.value.operator.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_payment_received: filters.value.is_payment_received.id,
@@ -552,7 +553,7 @@ function onSearchFilterUpdated() {
         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
         channel_codes: filters.value.channel_codes,
         errors: filters.value.errors.map((error) => { return error.id }),
-        location_type_id: filters.value.location_type.id,
+        location_type_id: filters.value.locationType.id,
         operator_id: filters.value.operator.id,
         is_binded_customer: filters.value.is_binded_customer.id,
         is_payment_received: filters.value.is_payment_received.id,

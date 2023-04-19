@@ -212,7 +212,7 @@
                         :options="locationTypeOptions"
                         trackBy="id"
                         valueProp="id"
-                        label="name"
+                        label="value"
                         placeholder="Select"
                         open-direction="bottom"
                         class="mt-1"
@@ -874,7 +874,7 @@ const permissions = usePage().props.value.auth.permissions
     filters.value.is_online = booleanOptions.value[0]
     filters.value.is_sensor = enableOptions.value[0]
     filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
-    filters.value.location_type = locationTypeOptions.value[0]
+    filters.value.locationType = locationTypeOptions.value[0]
     filters.value.operator = operatorOptions.value[0]
 
     // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
@@ -899,6 +899,7 @@ const permissions = usePage().props.value.auth.permissions
     }
 
     function onSearchFilterUpdated() {
+
         Inertia.get('/vends', {
             ...filters.value,
             // codes: filters.value.codes.map((code) => { return code.id }),
@@ -906,7 +907,7 @@ const permissions = usePage().props.value.auth.permissions
             categories: filters.value.categories.map((category) => { return category.id }),
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             errors: filters.value.errors.map((error) => { return error.id }),
-            location_type_id: filters.value.location_type.id,
+            location_type_id: filters.value.locationType.id,
             operator_id: filters.value.operator.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_door_open: filters.value.is_door_open.id,
@@ -946,7 +947,7 @@ function onExportChannelExcelClicked() {
             categories: filters.value.categories.map((category) => { return category.id }),
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             errors: filters.value.errors.map((error) => { return error.id }),
-            location_type_id: filters.value.location_type.id,
+            location_type_id: filters.value.locationType.id,
             operator_id: filters.value.operator.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_door_open: filters.value.is_door_open.id,

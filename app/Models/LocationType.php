@@ -16,8 +16,8 @@ class LocationType extends Model
     ];
 
     // relationships
-    public function customer()
+    public function customers()
     {
-        return $this->hasOne(Customer::class);
+        return $this->hasMany(Customer::class);
     }
 }

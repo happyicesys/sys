@@ -26,6 +26,7 @@ class CustomerResource extends JsonResource
             'first_transaction_id' => $this->first_transaction_id,
             'handled_by' => $this->handled_by,
             'is_active' => $this->is_active,
+            'location_type_id' => $this->location_type_id,
             'parent_id' => $this->parent_id,
             'pay_term_id' => $this->pay_term_id,
             'profile_id' => $this->profile_id,
