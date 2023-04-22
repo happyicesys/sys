@@ -20,6 +20,7 @@ class VendTransaction extends Model
     protected $casts = [
         'product_json' => 'json',
         'transaction_datetime' => 'datetime',
+        'unit_cost_json' => 'json',
         'vend_json' => 'json',
         'vend_transaction_json' => 'json',
     ];
@@ -32,14 +33,31 @@ class VendTransaction extends Model
         'payment_method_id',
         'product_id',
         'product_json',
+        'unit_cost_json',
         'vend_channel_id',
         'vend_channel_error_id',
         'vend_id',
         'vend_json',
         'vend_transaction_json',
+        'unit_cost_id',
     ];
 
     // relationships
+    public function getGrossProfit()
+    {
+        return $this->getRevenue() - $this->getUnitCost();
+    }
+
+    public function getRevenue()
+    {
+        return $this->amount/(1.00 + ($this->product && $this->product->operator && $this->product->operator->gst_vat_rate ? $this->product->operator->gst_vat_rate/100 : 0));
+    }
+
+    public function getUnitCost()
+    {
+        return $this->unitCost && $this->unitCost->cost ? $this->unitCost->cost : 0;
+    }
+
     public function paymentMethod()
     {
         return $this->belongsTo(PaymentMethod::class);
@@ -48,6 +66,11 @@ class VendTransaction extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function unitCost()
+    {
+        return $this->belongsTo(UnitCost::class);
     }
 
     public function vend()

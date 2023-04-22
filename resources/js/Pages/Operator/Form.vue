@@ -27,7 +27,7 @@
                 Name
               </FormInput>
             </div>
-            <div class="sm:col-span-6">
+            <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Country
               </label>
@@ -46,7 +46,7 @@
                 {{ form.errors.country_id }}
               </div>
             </div>
-            <div class="sm:col-span-6">
+            <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Timezone
               </label>
@@ -64,6 +64,14 @@
               <div class="text-sm text-red-600" v-if="form.errors.timezone">
                 {{ form.errors.timezone }}
               </div>
+            </div>
+            <div class="sm:col-span-4">
+              <FormInput v-model="form.gst_vat_rate" :error="form.errors.gst_vat_rate">
+                GST or VAT Rate (%)
+                <span class="text-[9px]">
+                    (For Gross Margin Calculation)
+                </span>
+              </FormInput>
             </div>
             <div class="sm:col-span-6">
               <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
@@ -424,6 +432,7 @@ function getDefaultForm() {
     id: '',
     code: '',
     name: '',
+    gst_vat_rate: '',
     country_id: '',
     payment_gateway_id: '',
     payment_gateway_type: '',

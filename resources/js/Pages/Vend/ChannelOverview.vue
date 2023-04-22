@@ -134,7 +134,7 @@
 
 <script setup>
 import Modal from '@/Components/Modal.vue';
-import { onMounted } from 'vue';
+// import { onMounted } from 'vue';
 import { usePage } from '@inertiajs/inertia-vue3';
 
 const props = defineProps({
@@ -142,10 +142,6 @@ const props = defineProps({
   showModal: Boolean,
 })
 const profile = usePage().props.value.auth.profile
-
-onMounted(() => {
-  console.log(profile.base_currency.currency_symbol)
-})
 
 const emit = defineEmits(['modalClose'])
 

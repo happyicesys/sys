@@ -8,6 +8,7 @@ use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendTransaction;
+use App\Jobs\Vend\SyncUnitCostJson;
 use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use Carbon\Carbon;
@@ -108,6 +109,7 @@ class CreateVendTransaction implements ShouldQueue
         ]);
 
         SyncVendTransactionTotalsJson::dispatch($vendTransaction->vend)->onQueue('default');
+        SyncUnitCostJson::dispatch($vendTransaction)->onQueue('default');
 
         if($vendChannelError) {
             SyncVendChannelErrorLog::dispatch($vend, $processedInput['channelCode'], $processedInput['errorCode'], $vendTransaction->id)->onQueue('default');

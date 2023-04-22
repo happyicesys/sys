@@ -202,97 +202,108 @@
                 </div>
               </div>
             </div> -->
-          </div>
-          <div v-if="form.id">
-          <!-- <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-center">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Unit Cost</span>
+
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Unit Cost</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
 
-            <div class="sm:col-span-4">
-              <FormInput v-model="form.unit_cost" :error="form.errors.unit_cost" required="true">
-                Unit Cost
-              </FormInput>
-            </div>
+              <div class="sm:col-span-3" v-if="form.id">
+                <FormInput v-model="form.unit_cost" :error="form.errors.unit_cost" required="true">
+                  Unit Cost
+                </FormInput>
+              </div>
 
-            <div class="sm:col-span-2">
-              <DatePicker
-                    v-model="form.date_from"
+              <div class="sm:col-span-3" v-if="form.id">
+                <DatePicker
+                      v-model="form.date_from"
+                  >
+                  Start Date
+                  <span class="text-[9px]">
+                    (Leave blank to start NOW)
+                  </span>
+                </DatePicker>
+              </div>
+
+              <div class="sm:col-span-6 flex justify-start" v-if="form.id">
+                <Button
+                type="button"
+                @click="addUnitCost()"
+                class="bg-green-500 hover:bg-green-600 text-white"
+                :class="[
+                  !form.unit_cost || isNaN(form.unit_cost) ?
+                  'opacity-50 cursor-not-allowed' : ''
+                  ]"
+                :disabled="!form.unit_cost || isNaN(form.unit_cost)"
                 >
-                Start Date
-                <span class="text-[9px]">
-                  (Leave blank to start NOW)
-                </span>
-              </DatePicker>
-            </div>
+                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                  <span>
+                    Add
+                  </span>
+                </Button>
+              </div>
 
-            <div class="sm:col-span-6 flex justify-end">
-              <Button
-              type="button"
-              @click="addUnitCost()"
-              class="bg-green-500 hover:bg-green-600 text-white"
-              :class="[
-                !form.unit_cost ?
-                'opacity-50 cursor-not-allowed' : ''
-                ]"
-              :disabled="!form.unit_cost"
-              >
-                <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
-                <span>
-                  Add
-                </span>
-              </Button>
-            </div>
-
-            <div class="sm:col-span-6 flex flex-col mt-3">
-            <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
-              <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
-                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                  <table class="min-w-full divide-y divide-gray-300">
-                    <thead class="bg-gray-50">
-                      <tr>
-                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          #
-                        </th>
-                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Unit Cost
-                        </th>
-                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Start Date
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody class="bg-white">
-                      <tr v-for="(unitCost, unitCostIndex) in product.unitCosts" :key="unitCost.id" :class="unitCostIndex % 2 === 0 ? undefined : 'bg-gray-50'">
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                          {{ unitCostIndex + 1 }}
+              <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+              <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+                <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                  <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            #
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Unit Cost
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Start Date
+                          </th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white">
+                        <tr v-for="(unitCost, unitCostIndex) in product.unitCosts" :key="unitCost.id" :class="unitCostIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            {{ unitCostIndex + 1 }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ unitCost.cost }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ unitCost.date_from }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 text-sm text-center">
+                          <Button
+                            class="bg-red-400 hover:bg-red-500 text-white"
+                            @click="removeUnitCost(unitCost)"
+                            v-if="!unitCost.id"
+                          >
+                            <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                          </Button>
+                          <span class="inline-flex items-center rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10" v-if="unitCost.is_current">
+                            Current
+                          </span>
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                          {{ unitCost.cost }}
-                        </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                          {{ unitCost.created_at }}
-                        </td>
-
-                      </tr>
-                      <tr v-if="!product.unitCosts.length">
-                        <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-red-600 text-center">
-                          No Results Found
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                        </tr>
+                        <tr v-if="!product.unitCosts.length">
+                          <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
+                            No Results Found
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
-          </div> -->
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 pt-5 justify-end">
@@ -347,14 +358,16 @@
 
 <script setup>
 import Button from '@/Components/Button.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import Uom from '@/Pages/Product/Uom.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue'
 import Modal from '@/Components/Modal.vue';
-import { ArrowUturnLeftIcon, CheckCircleIcon, FolderMinusIcon, FolderPlusIcon, RectangleStackIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon, RectangleStackIcon } from '@heroicons/vue/20/solid';
 import { useForm, usePage } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue'
+import moment from 'moment';
 
 const props = defineProps({
   categories: Object,
@@ -404,6 +417,7 @@ function getDefaultForm() {
     category_group_id: '',
     operator_id: '',
     unit_cost: '',
+    date_from: '',
   }
 }
 
@@ -472,6 +486,17 @@ function onUomModalClicked() {
 
 function onUomModalClose() {
   showUomModal.value = false
+}
+
+function addUnitCost() {
+  unitCosts.value.unshift({
+    cost: form.value.unit_cost,
+    date_from: form.value.date_from ? form.value.date_from : moment().format('YYYY-MM-DD'),
+  })
+}
+
+function removeUnitCost(unitCost) {
+  unitCosts.value.splice(unitCosts.value.indexOf(unitCost), 1)
 }
 
 

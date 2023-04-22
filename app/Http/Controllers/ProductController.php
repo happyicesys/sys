@@ -13,6 +13,7 @@ use App\Models\Operator;
 use App\Models\Product;
 use App\Models\ProductUom;
 use App\Models\Uom;
+use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -20,6 +21,8 @@ use Inertia\Inertia;
 
 class ProductController extends Controller
 {
+    use GetUserTimezone;
+
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
@@ -52,7 +55,9 @@ class ProductController extends Controller
                         'operator',
                         'productUoms.uom',
                         'thumbnail',
-                        'unitCosts',
+                        'unitCosts' => function($query) {
+                            $query->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
+                        },
                     ])
                     ->when($request->code, function($query, $search) {
                         $query->where('code', 'LIKE', "%{$search}%");
@@ -160,24 +165,30 @@ class ProductController extends Controller
                 'local_url' => $url,
             ]);
         }
+        // $currentUnitCost = $product->unitCosts()->whereDate('date_from', '<=', Carbon::today()->setTimezone($this->getUserTimezone())->toDateString())->latest('date_from')->latest('created_at')->get();
+        // dd($currentUnitCost->toArray());
+        if($request->has('unitCosts')) {
+            $unitCosts = $request->unitCosts;
+            if($unitCosts) {
+                foreach($unitCosts as $unitCost) {
+                    if(!isset($unitCost['id'])) {
+                        if($product->unitCosts()->exists()) {
+                            $product->unitcosts()->update([
+                                'is_current' => false,
+                            ]);
+                        }
+                        $product->unitCosts()->create([
+                            'cost' => $unitCost['cost'] * 100,
+                            'date_from' => $unitCost['date_from'],
+                        ]);
 
-        // if($request->has('operator')) {
-        //     $operator->vends()->detach();
-        //     if($request->operator['vends']) {
-        //         foreach($request->operator['vends'] as $vend) {
-        //             $operator->vends()->attach($vend['id']);
-        //         }
-        //     }
-        //     if($request->has('paymentGateways')) {
-        //         $operator->operatorPaymentGateways()->delete();
-        //         if($request->operator['operatorPaymentGateways']) {
-        //             foreach($request->operator['operatorPaymentGateways'] as $operatorPaymentGateway) {
-        //                 $operatorPaymentGateway['payment_gateway_id'] = $operatorPaymentGateway['paymentGateway']['id'];
-        //                 $operator->operatorPaymentGateways()->create($operatorPaymentGateway);
-        //             }
-        //         }
-        //     }
-        // }
+                        $currentUnitCost = $product->unitCosts()->whereDate('date_from', '<=', Carbon::today()->setTimezone($this->getUserTimezone())->toDateString())->latest('created_at')->first();
+                        $currentUnitCost->is_current = true;
+                        $currentUnitCost->save();
+                    }
+                }
+            }
+        }
 
         return redirect()->route('products');
     }

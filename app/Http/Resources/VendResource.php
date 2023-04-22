@@ -46,7 +46,7 @@ class VendResource extends JsonResource
             'last_invoice_diff' => $this->when($this->relationLoaded('latestVendBinding'), function() {
                 return ($this->latestVendBinding && $this->latestVendBinding->customer && $this->latestVendBinding->customer->last_invoice_date) ? Carbon::parse($this->latestVendBinding->customer->last_invoice_date)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null;
             }),
-            'locationType' => $this->when($this->relationLoaded('latestVendBinding'), function() {
+            'locationType' => $this->when($this->relationLoaded('locationType'), function() {
                 return ($this->latestVendBinding && $this->latestVendBinding->customer && $this->latestVendBinding->customer->locationType) ? $this->latestVendBinding->customer->locationType : null;
             }),
             'location_type_id' => $this->location_type_id,

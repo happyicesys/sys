@@ -67,7 +67,12 @@ class Product extends Model
 
     public function unitCosts()
     {
-        return $this->hasMany(UnitCost::class);
+        return $this->hasMany(UnitCost::class)->orderBy('is_current', 'desc')->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
+    }
+
+    public function vendTransactions()
+    {
+        return $this->hasMany(VendTransaction::class);
     }
 
     // mutators

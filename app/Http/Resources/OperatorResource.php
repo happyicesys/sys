@@ -19,6 +19,7 @@ class OperatorResource extends JsonResource
             'id' => $this->id,
             'code' => $this->code,
             'name' => $this->name,
+            'gst_vat_rate' => $this->gst_vat_rate,
             'full_name' => $this->code.' - '.$this->name,
             'remarks' => $this->remarks,
             'timezone' => [

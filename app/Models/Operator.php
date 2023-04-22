@@ -21,6 +21,7 @@ class Operator extends Model
         'created_at',
         'created_by',
         'deactivated_at',
+        'gst_vat_rate',
         'name',
         'is_active',
         'profile_id',
