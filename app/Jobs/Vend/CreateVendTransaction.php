@@ -79,11 +79,18 @@ class CreateVendTransaction implements ShouldQueue
         }
 
         $productId = null;
+
         if(isset($vendChannel) and $vendChannel and $vend->productMapping()->exists()) {
             $productMappingItem = $vend->productMapping->productMappingItems()->where('channel_code', $vendChannel->code)->first();
             if($productMappingItem) {
                 $productId = $productMappingItem->product_id;
             }
+        }
+
+        $unitPriceId = null;
+        if($productId) {
+            $product = Product::find($productId);
+            $unitCostId = $product->unitCosts()->where('is_current', true)->first() ? $product->unitCosts()->where('is_current', true)->first()->id : null;
         }
 
         // check duplicated orderid
@@ -106,6 +113,7 @@ class CreateVendTransaction implements ShouldQueue
             'product_id' => $productId,
             'vend_json' => $vend->latestVendBinding && $vend->latestVendBinding->customer ? collect($vend)->except(['vend_channels_json', 'product_mapping']) : null,
             'product_json' => $productId ? collect($vend->productMapping->productMappingItems()->where('channel_code', $vendChannel->code)->first()->product)->except(['product_mapping_items']) : null,
+            'unit_cost_id' => $unitCostId,
         ]);
 
         SyncVendTransactionTotalsJson::dispatch($vendTransaction->vend)->onQueue('default');
