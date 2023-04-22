@@ -4,6 +4,7 @@ namespace App\Jobs\Vend;
 
 use App\Models\PaymentGateway\Midtrans;
 use App\Models\PaymentMethod;
+use App\Models\Product;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
