@@ -33,9 +33,11 @@ class SyncVendTransactionCurrentUnitCost extends Command
             if($product->vendTransactions()->exists()) {
                 $unitCostId = $product->unitCosts()->where('is_current', true)->first()->id;
                 foreach($product->vendTransactions as $vendTransaction) {
-                    $vendTransaction->unit_cost_id = $unitCostId;
-                    $vendTransaction->save();
-                    SyncUnitCostJson::dispatch($vendTransaction);
+                    if($vendTransaction->unit_cost_json == null) {
+                        $vendTransaction->unit_cost_id = $unitCostId;
+                        $vendTransaction->save();
+                        SyncUnitCostJson::dispatch($vendTransaction);
+                    }
                 }
             }
         }
