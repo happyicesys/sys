@@ -88,7 +88,7 @@ class CreateVendTransaction implements ShouldQueue
             }
         }
 
-        $unitPriceId = null;
+        $unitCostId = null;
         if($productId) {
             $product = Product::find($productId);
             $unitCostId = $product->unitCosts()->where('is_current', true)->first() ? $product->unitCosts()->where('is_current', true)->first()->id : null;
