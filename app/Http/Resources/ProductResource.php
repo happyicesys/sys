@@ -31,6 +31,7 @@ class ProductResource extends JsonResource
             'isActive' => $this->is_active ? 'Yes' : 'No',
             'isInventory' => $this->is_inventory ? 'Yes' : 'No',
             'thumbnail' => AttachmentResource::make($this->whenLoaded('thumbnail')),
+            'latestUnitCost' => UnitCostResource::make($this->whenLoaded('latestUnitCost')),
             'unitCosts' => UnitCostResource::collection($this->whenLoaded('unitCosts')),
             'productUoms' => ProductUomResource::collection($this->whenLoaded('productUoms')),
             'operator' => OperatorResource::make($this->whenLoaded('operator')),

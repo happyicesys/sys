@@ -5,7 +5,7 @@ import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link, usePage } from '@inertiajs/inertia-vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { CircleStackIcon, CommandLineIcon, CreditCardIcon, LinkIcon, MapIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
+import { CircleStackIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, LinkIcon, MapIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
 
 const navigation = [
     {
@@ -36,6 +36,13 @@ const navigation = [
         href: 'product-mappings',
         permission: 'read product-mappings',
     },
+    // {
+    //     name: 'Report',
+    //     icon: DocumentTextIcon,
+    //     current: false,
+    //     href: 'reports',
+    //     permission: 'read product-mappings',
+    // },
     // {
     //     name: 'Customers',
     //     icon: UserGroupIcon,

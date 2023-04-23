@@ -40,7 +40,7 @@ class SyncUnitCostJson implements ShouldQueue
                 'revenue' => $revenue,
                 'unit_cost' => $unitCost,
                 'gross_profit' => $grossProfit,
-                'gross_profit_margin' => $grossProfit/ $revenue,
+                'gross_profit_margin' => $grossProfit/ $revenue ? $revenue : 1,
             ]
         ]);
     }

@@ -166,6 +166,9 @@
                     <TableHead v-if="permissions.includes('admin-access products')">
                       Operator
                     </TableHead>
+                    <TableHead v-if="permissions.includes('admin-access products')">
+                      Unit Cost
+                    </TableHead>
                     <!-- <TableHead>
                       Category
                     </TableHead>
@@ -203,6 +206,9 @@
                           {{ product.operator.code }} <br>
                           {{ product.operator.name }}
                         </span>
+                      </TableData>
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-right" v-if="permissions.includes('admin-access products')">
+                        {{ product.latestUnitCost ? product.latestUnitCost.cost : null }}
                       </TableData>
                       <!-- <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         {{ product.category_id ? product.category_id.name : null }}

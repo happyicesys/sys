@@ -44,6 +44,12 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
                 'seven_days_count' => $vend->vendSevenDaysTransactions->count(),
                 'thirty_days_amount' => $vend->vendThirtyDaysTransactions->sum('amount'),
                 'thirty_days_count' => $vend->vendThirtyDaysTransactions->count(),
+                'thirty_days_revenue' => $vend->vendThirtyDaysTransactions->sum(function($vendTransaction) {
+                    return $vendTransaction->getRevenue();
+                }),
+                'thirty_days_gross_profit' => $vend->vendThirtyDaysTransactions->sum(function($vendTransaction) {
+                    return $vendTransaction->getGrossProfit();
+                }),
             ]
         ]);
     }

@@ -106,6 +106,22 @@ class Vend extends Model
         return $this->hasMany(VendTemp::class);
     }
 
+    public function vendLastMonthTransactions()
+    {
+        return $this->hasMany(VendTransaction::class)
+                    ->isSuccessful()
+                    ->whereDate('transaction_datetime', '<=', Carbon::today()->subMonth()->startOfMonth())
+                    ->whereDate('transaction_datetime', '>=', Carbon::today()->subMonth()->endOfMonth());
+    }
+
+    public function vendLast2MonthTransactions()
+    {
+        return $this->hasMany(VendTransaction::class)
+                    ->isSuccessful()
+                    ->whereDate('transaction_datetime', '<=', Carbon::today()->subMonths(2)->startOfMonth())
+                    ->whereDate('transaction_datetime', '>=', Carbon::today()->subMonths(2)->endOfMonth());
+    }
+
     public function vendThirtyDaysTransactions()
     {
         return $this->hasMany(VendTransaction::class)

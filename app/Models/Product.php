@@ -50,6 +50,11 @@ class Product extends Model
         return $this->belongsTo(CategoryGroup::class);
     }
 
+    public function latestUnitCost()
+    {
+        return $this->hasOne(UnitCost::class)->where('is_current', true)->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
+    }
+
     public function operator()
     {
         return $this->belongsTo(Operator::class);

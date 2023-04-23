@@ -52,6 +52,7 @@ class ProductController extends Controller
                         'attachments',
                         'category',
                         'categoryGroup',
+                        'latestUnitCost',
                         'operator',
                         'productUoms.uom',
                         'thumbnail',
