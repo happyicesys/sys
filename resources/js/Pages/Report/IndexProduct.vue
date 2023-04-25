@@ -26,7 +26,7 @@
               Operator
             </label>
             <MultiSelect
-              v-model="filters.operator"
+              v-model="filters.operator_id"
               :options="operatorOptions"
               trackBy="id"
               valueProp="id"
@@ -118,6 +118,27 @@
               </MultiSelect>
           </div>
         </div>
+
+        <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
+          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+            <dt class="truncate text-sm font-medium text-gray-500">Total Revenue (This Month)</dt>
+            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                {{totals['revenue'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+            </dd>
+          </div>
+          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+            <dt class="truncate text-sm font-medium text-gray-500">Total Gross Profit (This Month)</dt>
+            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                {{totals['gross_profit'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+            </dd>
+          </div>
+          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+            <dt class="truncate text-sm font-medium text-gray-500">Total Gross Profit Margin (This Month)</dt>
+            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                {{totals['gross_profit_margin'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}} %
+            </dd>
+          </div>
+        </dl>
       </div>
 
       <div class="mt-6 flex flex-col">
@@ -129,9 +150,9 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-                      Code
-                    </TableHeadSort>
+                    <TableHead>
+                      ID
+                    </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
                       Name
                     </TableHeadSort>
@@ -154,27 +175,27 @@
                     <TableHeadSort modelName="this_month_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_gross_profit')">
                       GM($)
                     </TableHeadSort>
-                    <TableHead>
+                    <TableHeadSort modelName="this_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_gross_profit_margin')">
                       GM(%)
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHeadSort modelName="last_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_revenue')">
                       Sales($)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_month_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_gross_profit')">
                       GM($)
                     </TableHeadSort>
-                    <TableHead>
+                    <TableHeadSort modelName="last_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_gross_profit_margin')">
                       GM(%)
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_revenue')">
                       Sales($)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_gross_profit')">
                       GM($)
                     </TableHeadSort>
-                    <TableHead>
+                    <TableHeadSort modelName="last_two_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_gross_profit_margin')">
                       GM(%)
-                    </TableHead>
+                    </TableHeadSort>
                   </tr>
                 </thead>
                   <tbody class="bg-white">
@@ -195,7 +216,7 @@
                         {{ product.this_month_gross_profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
-                        {{ (product.this_month_gross_profit/ product.this_month_revenue) ? (product.this_month_gross_profit/ product.this_month_revenue * 100).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 0 }}
+                        {{ product.this_month_gross_profit_margin ?? 0 }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
                         {{ product.last_month_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
@@ -204,7 +225,7 @@
                         {{ product.last_month_gross_profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
-                        {{ (product.last_month_gross_profit/ product.last_month_revenue) ? (product.last_month_gross_profit/ product.last_month_revenue * 100).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 0 }}
+                        {{ product.last_month_gross_profit_margin ?? 0 }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
                         {{ product.last_two_month_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
@@ -213,7 +234,7 @@
                         {{ product.last_two_month_gross_profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
-                        {{ (product.last_two_month_gross_profit/ product.last_two_month_revenue) ? (product.last_two_month_gross_profit/ product.last_two_month_revenue * 100).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 0 }}
+                        {{ product.last_two_month_gross_profit_margin ?? 0 }}
                       </TableData>
                     </tr>
                 <tr v-if="!products.data.length">
@@ -249,6 +270,7 @@ const props = defineProps({
   categories: Object,
   monthOptions: Object,
   operators: Object,
+  totals: [Array, Object],
   products: Object,
 })
 
@@ -257,7 +279,7 @@ const filters = ref({
   codes: '',
   currentMonth: '',
   customer_name: '',
-  operator: '',
+  operator_id: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
@@ -265,7 +287,6 @@ const filters = ref({
 const categoryOptions = ref([])
 const monthOptions = ref([])
 const operatorOptions = ref([])
-const type = ref('')
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.value.auth.permissions
 
@@ -287,12 +308,14 @@ onMounted(() => {
     {id: 'all', full_name: 'All'},
     ...props.operators.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
-  filters.value.operator = operatorOptions.value[0]
+  filters.value.operator_id = operatorOptions.value[0]
 })
 
 function onSearchFilterUpdated() {
   Inertia.get('/reports/product', {
       ...filters.value,
+      currentMonth: filters.value.currentMonth.id,
+      operator_id: filters.value.operator_id.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

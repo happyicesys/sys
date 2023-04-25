@@ -288,6 +288,8 @@ class VendController extends Controller
 
     public function transactionIndex(Request $request)
     {
+        $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->toDateString() : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
+        $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->toDateString() : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $className = get_class(new Customer());
         $vendTransactions =

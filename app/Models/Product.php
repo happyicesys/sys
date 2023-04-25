@@ -145,13 +145,14 @@ class Product extends Model
             });
         })
         ->when($request->customer_name, function($query, $search) {
-            $query->where(function($query) use ($search) {
-                $query
-                    ->whereHas('vendChannels.vend.latestVendBinding.customer', function($query) use ($search) {
+            // $query->whereHas(function($query) use ($search) {
+                $query->whereHas('vendChannels.vend.latestVendBinding.customer', function($query) use ($search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
-                    ->orWhere('vendChannels.vend.name', 'LIKE', "%{$search}%");
-            });
+                    ->orWhereHas('vendChannels.vend', function($query) use ($search) {
+                        $query->where('name', 'LIKE', "%{$search}%");
+                    });
+            // });
 
 
         })
@@ -169,7 +170,7 @@ class Product extends Model
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereHas('operators', function($query) use ($search) {
+                $query->whereHas('operator', function($query) use ($search) {
                     $query->where('operators.id', $search);
                 });
             }

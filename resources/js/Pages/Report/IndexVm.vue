@@ -26,7 +26,7 @@
               Operator
             </label>
             <MultiSelect
-              v-model="filters.operator"
+              v-model="filters.operator_id"
               :options="operatorOptions"
               trackBy="id"
               valueProp="id"
@@ -291,7 +291,7 @@ const filters = ref({
   codes: '',
   currentMonth: '',
   customer_name: '',
-  operator: '',
+  operator_id: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
@@ -299,7 +299,6 @@ const filters = ref({
 const categoryOptions = ref([])
 const monthOptions = ref([])
 const operatorOptions = ref([])
-const type = ref('')
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.value.auth.permissions
 
@@ -321,14 +320,14 @@ onMounted(() => {
     {id: 'all', full_name: 'All'},
     ...props.operators.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
-  filters.value.operator = operatorOptions.value[0]
+  filters.value.operator_id = operatorOptions.value[0]
 })
 
 function onSearchFilterUpdated() {
   Inertia.get('/reports/vm', {
       ...filters.value,
       currentMonth: filters.value.currentMonth.id,
-      operator_id: filters.value.operator.id,
+      operator_id: filters.value.operator_id.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

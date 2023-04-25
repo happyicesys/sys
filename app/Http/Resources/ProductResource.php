@@ -38,10 +38,13 @@ class ProductResource extends JsonResource
             'operator_id' => OperatorResource::make($this->whenLoaded('operator')),
             'this_month_revenue' => $this->this_month_revenue/100,
             'this_month_gross_profit' => $this->this_month_gross_profit/100,
+            'this_month_gross_profit_margin' => $this->this_month_gross_profit_margin,
             'last_month_revenue' => $this->last_month_revenue/100,
             'last_month_gross_profit' => $this->last_month_gross_profit/100,
+            'last_month_gross_profit_margin' => $this->last_month_gross_profit_margin,
             'last_two_month_revenue' => $this->last_two_month_revenue/100,
             'last_two_month_gross_profit' => $this->last_two_month_gross_profit/100,
+            'last_two_month_gross_profit_margin' => $this->last_two_month_gross_profit_margin,
         ];
     }
 }

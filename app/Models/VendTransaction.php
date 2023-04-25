@@ -97,12 +97,9 @@ class VendTransaction extends Model
     {
         $sortKey = $request->sortKey ? $request->sortKey : 'transaction_datetime';
         $sortBy = $request->sortBy ? $request->sortBy : false;
-        $startDate =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->toDateString() : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
-        $endDate =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->toDateString() : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
         $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
         $isBindedCustomer = 'all';
-        $isPaymentReceived = $request->is_payment_received != null ? $request->is_payment_received : 'all';;
-
+        $isPaymentReceived = $request->is_payment_received != null ? $request->is_payment_received : 'all';
 
         $query =  $query->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
@@ -201,15 +198,55 @@ class VendTransaction extends Model
                 });
             }
         })
-        ->when($startDate, function($query, $search) {
+        ->when($request->date_from, function($query, $search) {
             $query->whereDate('transaction_datetime', '>=', $search);
         })
-        ->when($endDate, function($query, $search) {
+        ->when($request->date_to, function($query, $search) {
             $query->whereDate('transaction_datetime', '<=', $search);
         })
         ->when($sortKey, function($query, $search) use ($sortBy) {
             $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
         });
+
+        return $query;
+    }
+
+    public function scopeFilterReport($query, $request)
+    {
+        $query->when($request->codes, function($query, $search) {
+            if(strpos($search, ',') !== false) {
+                $search = explode(',', $search);
+            }else {
+                $search = [$search];
+            }
+            $query->whereHas('vend', function($query) use ($search) {
+                $query->whereIn('code', $search);
+            });
+        })
+        ->when($request->customer_name, function($query, $search) {
+            $query->where(function($query) use ($search) {
+                $query
+                    ->whereHas('vend.latestVendBinding.customer', function($query) use ($search) {
+                        $query->where('name', 'LIKE', "%{$search}%");
+                    })
+                    ->orWhereHas('vend', function($query) use ($search) {
+                        $query->where('name', 'LIKE', "%{$search}%");
+                    });
+            });
+        })
+        ->when($request->operator_id, function($query, $search) {
+            if($search != 'all') {
+                $query->whereHas('vend.operators', function($query) use ($search) {
+                    $query->where('operators.id', $search);
+                });
+            }
+        })
+        ->when($request->categories, function($query, $search) {
+            $query->whereHas('vend.latestVendBinding.customer.category', function($query) use ($search) {
+                $query->whereIn('id', $search);
+            });
+        })
+        ->whereIn('vend_transaction_json->SErr', [0, 6]);
 
         return $query;
     }
