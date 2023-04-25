@@ -29,16 +29,20 @@ class VendTransaction extends Model
         'order_id',
         'transaction_datetime',
         'amount',
+        'gross_profit',
+        'gross_profit_margin',
         'is_payment_received',
         'payment_method_id',
         'product_id',
         'product_json',
+        'revenue',
         'unit_cost_json',
         'vend_channel_id',
         'vend_channel_error_id',
         'vend_id',
         'vend_json',
         'vend_transaction_json',
+        'unit_cost',
         'unit_cost_id',
     ];
 
@@ -55,7 +59,7 @@ class VendTransaction extends Model
 
     public function getUnitCost()
     {
-        return $this->unitCost && $this->unitCost->cost ? $this->unitCost->cost : 0;
+        return $this->unitCost ? $this->unitCost->cost : 0;
     }
 
     public function paymentMethod()

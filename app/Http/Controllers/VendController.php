@@ -142,16 +142,16 @@ class VendController extends Controller
                             ->sum(function($vend) {
                                 return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
                             })/100,
-            'thirtyDaysGrossProfit' => collect((clone $vends)
-                            ->items())
-                            ->sum(function($vend) {
-                                return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_gross_profit'] : 0;
-                            })/100,
-            'thirtyDaysRevenue' => collect((clone $vends)
-                            ->items())
-                            ->sum(function($vend) {
-                                return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_revenue'] : 0;
-                            })/100,
+            // 'thirtyDaysGrossProfit' => collect((clone $vends)
+            //                 ->items())
+            //                 ->sum(function($vend) {
+            //                     return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_gross_profit'] : 0;
+            //                 })/100,
+            // 'thirtyDaysRevenue' => collect((clone $vends)
+            //                 ->items())
+            //                 ->sum(function($vend) {
+            //                     return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_revenue'] : 0;
+            //                 })/100,
         ];
 
         return Inertia::render('Vend/Index', [
@@ -295,6 +295,7 @@ class VendController extends Controller
                     'paymentMethod',
                     'product.unitCosts',
                     'product.operator',
+                    'unitCost',
                     'vend.latestVendBinding.customer.category.categoryGroup',
                     'vendChannel',
                     'vendChannelError',
