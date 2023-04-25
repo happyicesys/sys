@@ -1,6 +1,6 @@
 <template>
 
-  <Head title="Payment Methods" />
+  <Head title="Operators" />
 
   <BreezeAuthenticatedLayout>
     <template #header>

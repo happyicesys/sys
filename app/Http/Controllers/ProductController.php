@@ -26,11 +26,6 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
-        $sortKey = $request->sortKey ? $request->sortKey : 'code';
-        $sortBy = $request->sortBy ? $request->sortBy : true;
-        $isActive = isset($request->is_active) ? $request->is_active : 1;
-        $isInventory = isset($request->is_inventory) ? $request->is_inventory : 1;
-        // $operatorId = isset($request->operator_id) ? $request->operator_id : 1;
         $className = get_class(new Product());
 
         return Inertia::render('Product/Index', [
@@ -60,49 +55,50 @@ class ProductController extends Controller
                             $query->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
                         },
                     ])
-                    ->when($request->code, function($query, $search) {
-                        $query->where('code', 'LIKE', "%{$search}%");
-                    })
-                    ->when($request->name, function($query, $search) {
-                        $query->where('name', 'LIKE', "%{$search}%");
-                    })
-                    ->when($isActive, function($query, $search) {
-                        $query->where('is_active', $search);
-                    }, function($query, $search) {
-                        if($search !== '') {
-                            $query->where('is_active', $search);
-                        }
-                    })
-                    ->when($isInventory, function($query, $search) {
-                        $query->where('is_inventory', $search);
-                    }, function($query, $search) {
-                        if($search !== '') {
-                            $query->where('is_inventory', $search);
-                        }
-                    })
-                    ->when($request->is_comm_or_sf, function($query, $search) {
-                        switch($search) {
-                            case 'comm':
-                                $query->where('is_commission', 1)->where('is_supermarket_fee', 0);
-                                break;
-                            case 'sf':
-                                $query->where('is_commission', 0)->where('is_supermarket_fee', 1);
-                                break;
-                            case 'both':
-                                $query->where(function($query)  {
-                                    $query->where('is_commission', 1)->orWhere('is_supermarket_fee', 1);
-                                });
-                                break;
-                        }
-                    })
-                    ->when($request->operator_id, function($query, $search) {
-                        if($search != 'all') {
-                            $query->where('operator_id', $search);
-                        }
-                    })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-                    })
+                    ->filterIndex($request)
+                    // ->when($request->code, function($query, $search) {
+                    //     $query->where('code', 'LIKE', "%{$search}%");
+                    // })
+                    // ->when($request->name, function($query, $search) {
+                    //     $query->where('name', 'LIKE', "%{$search}%");
+                    // })
+                    // ->when($isActive, function($query, $search) {
+                    //     $query->where('is_active', $search);
+                    // }, function($query, $search) {
+                    //     if($search !== '') {
+                    //         $query->where('is_active', $search);
+                    //     }
+                    // })
+                    // ->when($isInventory, function($query, $search) {
+                    //     $query->where('is_inventory', $search);
+                    // }, function($query, $search) {
+                    //     if($search !== '') {
+                    //         $query->where('is_inventory', $search);
+                    //     }
+                    // })
+                    // ->when($request->is_comm_or_sf, function($query, $search) {
+                    //     switch($search) {
+                    //         case 'comm':
+                    //             $query->where('is_commission', 1)->where('is_supermarket_fee', 0);
+                    //             break;
+                    //         case 'sf':
+                    //             $query->where('is_commission', 0)->where('is_supermarket_fee', 1);
+                    //             break;
+                    //         case 'both':
+                    //             $query->where(function($query)  {
+                    //                 $query->where('is_commission', 1)->orWhere('is_supermarket_fee', 1);
+                    //             });
+                    //             break;
+                    //     }
+                    // })
+                    // ->when($request->operator_id, function($query, $search) {
+                    //     if($search != 'all') {
+                    //         $query->where('operator_id', $search);
+                    //     }
+                    // })
+                    // ->when($sortKey, function($query, $search) use ($sortBy) {
+                    //     $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    // })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),

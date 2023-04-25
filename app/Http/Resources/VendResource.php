@@ -106,7 +106,13 @@ class VendResource extends JsonResource
                         return $this->vendThirtyDaysTransactions->count();
                     }),
                 ]
-            ]
+                ],
+                'this_month_revenue' => $this->this_month_revenue/100,
+                'this_month_gross_profit' => $this->this_month_gross_profit/100,
+                'last_month_revenue' => $this->last_month_revenue/100,
+                'last_month_gross_profit' => $this->last_month_gross_profit/100,
+                'last_two_month_revenue' => $this->last_two_month_revenue/100,
+                'last_two_month_gross_profit' => $this->last_two_month_gross_profit/100,
         ];
     }
 

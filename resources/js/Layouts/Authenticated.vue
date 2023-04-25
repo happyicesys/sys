@@ -36,13 +36,18 @@ const navigation = [
         href: 'product-mappings',
         permission: 'read product-mappings',
     },
-    // {
-    //     name: 'Report',
-    //     icon: DocumentTextIcon,
-    //     current: false,
-    //     href: 'reports',
-    //     permission: 'read product-mappings',
-    // },
+    {
+        name: 'Report',
+        icon: DocumentTextIcon,
+        current: false,
+        href: 'reports',
+        permission: 'read product-mappings',
+        children: [
+            {name: 'GP by VM', href: '/reports/vm'},
+            // {name: 'GP by Product', href: '/reports/product'},
+            // {name: 'GP by Category', href: '/reports/product'},
+        ]
+    },
     // {
     //     name: 'Customers',
     //     icon: UserGroupIcon,
