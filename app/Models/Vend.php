@@ -219,7 +219,6 @@ class Vend extends Model
         // $sortKey = $request->sortKey ? $request->sortKey : 'vends.is_online';
         $sortKey = $request->sortKey ? $request->sortKey : 'vend_channel_totals_json->outOfStockSkuPercent';
         $sortBy = $request->sortBy ? $request->sortBy : false;
-        // dd($sortKey);
 
         return $query->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
@@ -366,6 +365,7 @@ class Vend extends Model
             }else {
                 $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }
+
             if($search === 'vends.is_online') {
                 $query->orderBy('vends.code', 'asc');
             }

@@ -118,6 +118,27 @@
               </MultiSelect>
           </div>
         </div>
+
+        <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
+          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+            <dt class="truncate text-sm font-medium text-gray-500">Total Revenue (This Month)</dt>
+            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                {{totals['revenue'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+            </dd>
+          </div>
+          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+            <dt class="truncate text-sm font-medium text-gray-500">Total Gross Profit (This Month)</dt>
+            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                {{totals['gross_profit'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+            </dd>
+          </div>
+          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+            <dt class="truncate text-sm font-medium text-gray-500">Total Gross Profit Margin (This Month)</dt>
+            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                {{totals['gross_profit_margin'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}} %
+            </dd>
+          </div>
+        </dl>
       </div>
 
       <div class="mt-6 flex flex-col">
@@ -154,27 +175,27 @@
                     <TableHeadSort modelName="this_month_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_gross_profit')">
                       GM($)
                     </TableHeadSort>
-                    <TableHead>
+                    <TableHeadSort modelName="this_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_gross_profit_margin')">
                       GM(%)
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHeadSort modelName="last_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_revenue')">
                       Sales($)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_month_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_gross_profit')">
                       GM($)
                     </TableHeadSort>
-                    <TableHead>
+                    <TableHeadSort modelName="last_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_gross_profit_margin')">
                       GM(%)
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_revenue')">
                       Sales($)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_gross_profit')">
                       GM($)
                     </TableHeadSort>
-                    <TableHead>
+                    <TableHeadSort modelName="last_two_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_gross_profit_margin')">
                       GM(%)
-                    </TableHead>
+                    </TableHeadSort>
                   </tr>
                 </thead>
                   <tbody class="bg-white">
@@ -207,7 +228,7 @@
                         {{ vend.this_month_gross_profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-right">
-                        {{ (vend.this_month_gross_profit/ vend.this_month_revenue) ? (vend.this_month_gross_profit/ vend.this_month_revenue * 100).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 0 }}
+                        {{ vend.this_month_gross_profit_margin ?? 0 }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-right">
                         {{ vend.last_month_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
@@ -216,7 +237,7 @@
                         {{ vend.last_month_gross_profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-right">
-                        {{ (vend.last_month_gross_profit/ vend.last_month_revenue) ? (vend.last_month_gross_profit/ vend.last_month_revenue * 100).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 0 }}
+                        {{ vend.last_month_gross_profit_margin ?? 0 }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-right">
                         {{ vend.last_two_month_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
@@ -225,7 +246,7 @@
                         {{ vend.last_two_month_gross_profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-right">
-                        {{ (vend.last_two_month_gross_profit/ vend.last_two_month_revenue) ? (vend.last_two_month_gross_profit/ vend.last_two_month_revenue * 100).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 0 }}
+                        {{ vend.last_two_month_gross_profit_margin ?? 0 }}
                       </TableData>
                     </tr>
                 <tr v-if="!vends.data.length">
@@ -261,6 +282,7 @@ const props = defineProps({
   categories: Object,
   monthOptions: Object,
   operators: Object,
+  totals: [Array, Object],
   vends: Object,
 })
 
@@ -305,6 +327,8 @@ onMounted(() => {
 function onSearchFilterUpdated() {
   Inertia.get('/reports/vm', {
       ...filters.value,
+      currentMonth: filters.value.currentMonth.id,
+      operator_id: filters.value.operator.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,
