@@ -30,21 +30,22 @@ class SyncUnitCostJson implements ShouldQueue
     {
         $vendTransaction = $this->vendTransaction;
 
-        $revenue = $vendTransaction->getRevenue();
-        $unitCost = $vendTransaction->getUnitCost();
+        $revenue = round($vendTransaction->getRevenue());
+        $unitCost = rount($vendTransaction->getUnitCost());
         $grossProfit = $vendTransaction->getGrossProfit();
+        $grossProfitMargin = (int)$revenue ? (((int)$grossProfit * 100)/ (int)$revenue) : 0;
 
         $vendTransaction->update([
-            'revenue' => round($revenue),
-            'gross_profit' => round($grossProfit),
-            'gross_profit_margin' => (((int)$grossProfit * 100)/ (int)$revenue),
+            'revenue' => $revenue,
+            'gross_profit' => $grossProfit,
+            'gross_profit_margin' => $grossProfitMargin,
             'unit_cost' => $unitCost,
             'unit_cost_json' => [
                 'amount' => $vendTransaction->amount,
                 'revenue' => $revenue,
                 'unit_cost' => $unitCost,
                 'gross_profit' => $grossProfit,
-                'gross_profit_margin' => $grossProfit/ $revenue ? $revenue : 1,
+                'gross_profit_margin' =>  $grossProfitMargin,
             ]
         ]);
     }
