@@ -45,7 +45,7 @@ const navigation = [
         children: [
             {name: 'GP by VM', href: '/reports/vm'},
             {name: 'GP by Product', href: '/reports/product'},
-            // {name: 'GP by Category', href: '/reports/product'},
+            {name: 'GP by Category', href: '/reports/category'},
         ]
     },
     // {
