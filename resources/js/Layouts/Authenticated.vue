@@ -43,7 +43,7 @@ const navigation = [
         href: 'reports',
         permission: 'read product-mappings',
         children: [
-            {name: 'GP by VM', href: '/reports/vm'},
+            {name: 'GP by VM', href: '/reports/vend'},
             {name: 'GP by Product', href: '/reports/product'},
             {name: 'GP by Category', href: '/reports/category'},
         ]

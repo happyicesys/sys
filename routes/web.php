@@ -129,9 +129,12 @@ Route::middleware(['auth', 'cors'])->group(function() {
     });
 
     Route::prefix('reports')->group(function() {
-        Route::get('/vm', [ReportController::class, 'indexVm']);
+        Route::get('/vend', [ReportController::class, 'indexVm']);
         Route::get('/product', [ReportController::class, 'indexProduct']);
         Route::get('/category', [ReportController::class, 'indexCategory']);
+        Route::get('/vend/excel', [ReportController::class, 'exportUnitCostVendExcel']);
+        Route::get('/product/excel', [ReportController::class, 'exportUnitCostProductExcel']);
+        Route::get('/category/excel', [ReportController::class, 'exportUnitCostCategoryExcel']);
     });
 
     Route::prefix('resource-centers')->group(function() {

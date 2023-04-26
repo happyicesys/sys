@@ -18,6 +18,7 @@ use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Rap2hpoutre\FastExcel\FastExcel;
 
 class ReportController extends Controller
 {
@@ -26,9 +27,179 @@ class ReportController extends Controller
     public function indexVm(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
-        $page = $request->page ? $request->page : 1;
-        $currentDate = $request->currentMonth ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone()) : Carbon::today()->setTimezone($this->getUserTimezone());
         $className = get_class(new Customer());
+
+            $vends = $this->getUnitCostByVendQuery($request);
+            $vends = $vends->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+            ->withQueryString();
+
+            $revenueTotal = collect((clone $vends)->items())->sum(function($vend) {
+                return $vend->this_month_revenue/ 100;
+            });
+
+            $grossProfitTotal = collect((clone $vends)->items())->sum(function($vend) {
+                return $vend->this_month_gross_profit/ 100;
+            });
+
+        $totals = [
+            'revenue' => $revenueTotal,
+            'gross_profit' => $grossProfitTotal,
+            'gross_profit_margin' => $revenueTotal ? ($grossProfitTotal/ $revenueTotal * 100) : 0,
+        ];
+
+        return Inertia::render('Report/IndexVm', [
+            'categories' => CategoryResource::collection(
+                Category::where('classname', $className)->orderBy('name')->get()
+            ),
+            'monthOptions' => $this->getMonthOption(),
+            'operators' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'totals' => $totals,
+            'vends' => VendResource::collection($vends),
+        ]);
+    }
+
+    public function indexProduct(Request $request)
+    {
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
+        $className = get_class(new Customer());
+
+            $products = $this->getUnitCostByProductQuery($request);
+            $products = $products->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                ->withQueryString();
+
+            $revenueTotal = collect((clone $products)->items())->sum(function($product) {
+                return $product->this_month_revenue/ 100;
+            });
+
+            $grossProfitTotal = collect((clone $products)->items())->sum(function($product) {
+                return $product->this_month_gross_profit/ 100;
+            });
+
+        $totals = [
+            'revenue' => $revenueTotal,
+            'gross_profit' => $grossProfitTotal,
+            'gross_profit_margin' => $revenueTotal ? ($grossProfitTotal/ $revenueTotal * 100) : 0,
+        ];
+
+        return Inertia::render('Report/IndexProduct', [
+            'categories' => CategoryResource::collection(
+                Category::where('classname', $className)->orderBy('name')->get()
+            ),
+            'monthOptions' => $this->getMonthOption(),
+            'operators' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'totals' => $totals,
+            'products' => ProductResource::collection($products),
+        ]);
+    }
+
+    public function indexCategory(Request $request)
+    {
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
+        $className = get_class(new Customer());
+
+        $categories = $this->getUnitCostByCategoryQuery($request);
+        $categories = $categories->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+            ->withQueryString();
+
+        $revenueTotal = collect((clone $categories)->items())->sum(function($category) {
+            return $category->this_month_revenue/ 100;
+        });
+
+        $grossProfitTotal = collect((clone $categories)->items())->sum(function($category) {
+            return $category->this_month_gross_profit/ 100;
+        });
+
+        $totals = [
+            'revenue' => $revenueTotal,
+            'gross_profit' => $grossProfitTotal,
+            'gross_profit_margin' => $revenueTotal ? ($grossProfitTotal/ $revenueTotal * 100) : 0,
+        ];
+
+        return Inertia::render('Report/IndexCategory', [
+            'categories' => CategoryResource::collection(
+                Category::where('classname', $className)->orderBy('name')->get()
+            ),
+            'monthOptions' => $this->getMonthOption(),
+            'operators' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'totals' => $totals,
+            'categories' => CategoryResource::collection($categories),
+        ]);
+    }
+
+    public function exportUnitCostVendExcel(Request $request)
+    {
+        $vends = $this->getUnitCostByVendQuery($request)->get();
+
+        return (new FastExcel($this->yieldOneByOne($vends)))->download('UnitCostByVend_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vend) {
+            return [
+                'ID' => $vend->code,
+                'Customer Name' => $vend->latestVendBinding &&
+                                    $vend->latestVendBinding->customer ?
+                                    $vend->latestVendBinding->customer->code.''.$vend->latestVendBinding->customer->name :
+                                    $vend->name,
+                'Sales (thisMth)' => $vend->this_month_revenue/ 100,
+                'GP (thisMth)' => $vend->this_month_revenue/ 100,
+                'GP Margin (thisMth)' => $vend->this_month_gross_profit_margin,
+                'Sales (lastMth)' => $vend->last_month_revenue/ 100,
+                'GP (lastMth)' => $vend->last_month_gross_profit/ 100,
+                'GP Margin (lastMth)' => $vend->last_month_gross_profit_margin,
+                'Sales (last2Mth)' => $vend->last_two_month_revenue/ 100,
+                'GP (last2Mth)' => $vend->last_two_month_gross_profit/ 100,
+                'GP Margin (last2Mth)' => $vend->last_two_month_gross_profit_margin,
+            ];
+        });
+    }
+
+    public function exportUnitCostProductExcel(Request $request)
+    {
+        $products = $this->getUnitCostByProductQuery($request)->get();
+
+        return (new FastExcel($this->yieldOneByOne($products)))->download('UnitCostByProduct_'.Carbon::now()->toDateTimeString().'.xlsx', function ($product) {
+            return [
+                'ID' => $product->code,
+                'Name' => $product->name,
+                'Sales (thisMth)' => $product->this_month_revenue/ 100,
+                'GP (thisMth)' => $product->this_month_revenue/ 100,
+                'GP Margin (thisMth)' => $product->this_month_gross_profit_margin,
+                'Sales (lastMth)' => $product->last_month_revenue/ 100,
+                'GP (lastMth)' => $product->last_month_gross_profit/ 100,
+                'GP Margin (lastMth)' => $product->last_month_gross_profit_margin,
+                'Sales (last2Mth)' => $product->last_two_month_revenue/ 100,
+                'GP (last2Mth)' => $product->last_two_month_gross_profit/ 100,
+                'GP Margin (last2Mth)' => $product->last_two_month_gross_profit_margin,
+            ];
+        });
+    }
+
+    public function exportUnitCostCategoryExcel(Request $request)
+    {
+        $categories = $this->getUnitCostByCategoryQuery($request)->get();
+
+        return (new FastExcel($this->yieldOneByOne($categories)))->download('UnitCostByCategory_'.Carbon::now()->toDateTimeString().'.xlsx', function ($category) {
+            return [
+                'Name' => $category->name,
+                'Sales (thisMth)' => $category->this_month_revenue/ 100,
+                'GP (thisMth)' => $category->this_month_revenue/ 100,
+                'GP Margin (thisMth)' => $category->this_month_gross_profit_margin,
+                'Sales (lastMth)' => $category->last_month_revenue/ 100,
+                'GP (lastMth)' => $category->last_month_gross_profit/ 100,
+                'GP Margin (lastMth)' => $category->last_month_gross_profit_margin,
+                'Sales (last2Mth)' => $category->last_two_month_revenue/ 100,
+                'GP (last2Mth)' => $category->last_two_month_gross_profit/ 100,
+                'GP Margin (last2Mth)' => $category->last_two_month_gross_profit_margin,
+            ];
+        });
+    }
+
+    private function getUnitCostByVendQuery($request)
+    {
+        $currentDate = $request->currentMonth ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone()) : Carbon::today()->setTimezone($this->getUserTimezone());
 
         $queryThisMonth = VendTransaction::query()
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
@@ -99,43 +270,14 @@ class ReportController extends Controller
                 'last_two_month.gross_profit_margin AS last_two_month_gross_profit_margin',
             )
             ->filterIndex($request)
-            ->orderBy('vends.code', 'ASC')
-            ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-            ->withQueryString();
+            ->orderBy('vends.code', 'ASC');
 
-            $revenueTotal = collect((clone $vends)->items())->sum(function($vend) {
-                return $vend->this_month_revenue/ 100;
-            });
-
-            $grossProfitTotal = collect((clone $vends)->items())->sum(function($vend) {
-                return $vend->this_month_gross_profit/ 100;
-            });
-
-        $totals = [
-            'revenue' => $revenueTotal,
-            'gross_profit' => $grossProfitTotal,
-            'gross_profit_margin' => $revenueTotal ? ($grossProfitTotal/ $revenueTotal * 100) : 0,
-        ];
-
-        return Inertia::render('Report/IndexVm', [
-            'categories' => CategoryResource::collection(
-                Category::where('classname', $className)->orderBy('name')->get()
-            ),
-            'monthOptions' => $this->getMonthOption(),
-            'operators' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
-            ),
-            'totals' => $totals,
-            'vends' => VendResource::collection($vends),
-        ]);
+        return $vends;
     }
 
-    public function indexProduct(Request $request)
+    private function getUnitCostByProductQuery($request)
     {
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
-        $page = $request->page ? $request->page : 1;
         $currentDate = $request->currentMonth ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone()) : Carbon::today()->setTimezone($this->getUserTimezone());
-        $className = get_class(new Customer());
 
         $queryThisMonth = VendTransaction::query()
             ->leftJoin('products', 'vend_transactions.product_id', '=', 'products.id')
@@ -206,109 +348,81 @@ class ReportController extends Controller
                 'last_two_month.gross_profit_margin AS last_two_month_gross_profit_margin',
             )
             ->filterIndex($request)
-            ->orderBy('products.code', 'ASC')
-            ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-            ->withQueryString();
+            ->orderBy('products.code', 'ASC');
 
-            $revenueTotal = collect((clone $products)->items())->sum(function($product) {
-                return $product->this_month_revenue/ 100;
-            });
-
-            $grossProfitTotal = collect((clone $products)->items())->sum(function($product) {
-                return $product->this_month_gross_profit/ 100;
-            });
-
-        $totals = [
-            'revenue' => $revenueTotal,
-            'gross_profit' => $grossProfitTotal,
-            'gross_profit_margin' => $revenueTotal ? ($grossProfitTotal/ $revenueTotal * 100) : 0,
-        ];
-
-        return Inertia::render('Report/IndexProduct', [
-            'categories' => CategoryResource::collection(
-                Category::where('classname', $className)->orderBy('name')->get()
-            ),
-            'monthOptions' => $this->getMonthOption(),
-            'operators' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
-            ),
-            'totals' => $totals,
-            'products' => ProductResource::collection($products),
-        ]);
+        return $products;
     }
 
-    public function indexCategory(Request $request)
+    private function getUnitCostByCategoryQuery($request)
     {
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
-        $page = $request->page ? $request->page : 1;
         $currentDate = $request->currentMonth ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone()) : Carbon::today()->setTimezone($this->getUserTimezone());
         $className = get_class(new Customer());
 
         $queryThisMonth = VendTransaction::query()
-            ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
-            ->leftJoin('vend_bindings', function($join) {
-                $join->on('vend_bindings.vend_id', '=', 'vends.id')
-                    ->where('vend_bindings.is_active', true)
-                    ->orderBy('begin_date', 'DESC')
-                    ->limit(1);
-            })
-            ->leftJoin('customers', 'vend_bindings.customer_id', '=', 'customers.id')
-            ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->startOfMonth())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth())
-            ->filterReport($request)
-            ->select(
-                'categories.id',
-                'categories.name',
-                DB::raw('SUM(revenue) AS revenue'),
-                DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
-            )
-            ->groupBy('categories.id');
+        ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
+        ->leftJoin('vend_bindings', function($join) {
+            $join->on('vend_bindings.vend_id', '=', 'vends.id')
+                ->where('vend_bindings.is_active', true)
+                ->orderBy('begin_date', 'DESC')
+                ->limit(1);
+        })
+        ->leftJoin('customers', 'vend_bindings.customer_id', '=', 'customers.id')
+        ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
+        ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->startOfMonth())
+        ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth())
+        ->filterReport($request)
+        ->select(
+            'categories.id',
+            'categories.name',
+            DB::raw('SUM(revenue) AS revenue'),
+            DB::raw('SUM(gross_profit) AS gross_profit'),
+            DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
+        )
+        ->groupBy('categories.id');
 
-        $queryLastMonth = VendTransaction::query()
-            ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
-            ->leftJoin('vend_bindings', function($join) {
-                $join->on('vend_bindings.vend_id', '=', 'vends.id')
-                    ->where('vend_bindings.is_active', true)
-                    ->orderBy('begin_date', 'DESC')
-                    ->limit(1);
-            })
-            ->leftJoin('customers', 'vend_bindings.customer_id', '=', 'customers.id')
-            ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonth()->startOfMonth())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonth()->endOfMonth())
-            ->filterReport($request)
-            ->select(
-                'categories.id',
-                DB::raw('SUM(revenue) AS revenue'),
-                DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
-            )
-            ->groupBy('categories.id');
+    $queryLastMonth = VendTransaction::query()
+        ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
+        ->leftJoin('vend_bindings', function($join) {
+            $join->on('vend_bindings.vend_id', '=', 'vends.id')
+                ->where('vend_bindings.is_active', true)
+                ->orderBy('begin_date', 'DESC')
+                ->limit(1);
+        })
+        ->leftJoin('customers', 'vend_bindings.customer_id', '=', 'customers.id')
+        ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
+        ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonth()->startOfMonth())
+        ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonth()->endOfMonth())
+        ->filterReport($request)
+        ->select(
+            'categories.id',
+            DB::raw('SUM(revenue) AS revenue'),
+            DB::raw('SUM(gross_profit) AS gross_profit'),
+            DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
+        )
+        ->groupBy('categories.id');
 
-            // dd($queryLastMonth->get()->toArray());
+        // dd($queryLastMonth->get()->toArray());
 
-        $queryLastTwoMonth = VendTransaction::query()
-            ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
-            ->leftJoin('vend_bindings', function($join) {
-                $join->on('vend_bindings.vend_id', '=', 'vends.id')
-                    ->where('vend_bindings.is_active', true)
-                    ->orderBy('begin_date', 'DESC')
-                    ->limit(1);
-            })
-            ->leftJoin('customers', 'vend_bindings.customer_id', '=', 'customers.id')
-            ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonths(2)->endOfMonth())
-            ->filterReport($request)
-            ->select(
-                'categories.id',
-                DB::raw('SUM(revenue) AS revenue'),
-                DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
-            )
-            ->groupBy('categories.id');
+    $queryLastTwoMonth = VendTransaction::query()
+        ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
+        ->leftJoin('vend_bindings', function($join) {
+            $join->on('vend_bindings.vend_id', '=', 'vends.id')
+                ->where('vend_bindings.is_active', true)
+                ->orderBy('begin_date', 'DESC')
+                ->limit(1);
+        })
+        ->leftJoin('customers', 'vend_bindings.customer_id', '=', 'customers.id')
+        ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
+        ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth())
+        ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonths(2)->endOfMonth())
+        ->filterReport($request)
+        ->select(
+            'categories.id',
+            DB::raw('SUM(revenue) AS revenue'),
+            DB::raw('SUM(gross_profit) AS gross_profit'),
+            DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
+        )
+        ->groupBy('categories.id');
 
 
         $categories = Category::query()
@@ -336,34 +450,14 @@ class ReportController extends Controller
                 'last_two_month.gross_profit_margin AS last_two_month_gross_profit_margin',
             )
             ->filterIndex($request)
-            ->orderBy('categories.name', 'ASC')
-            ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-            ->withQueryString();
+            ->orderBy('categories.name', 'ASC');
 
-            $revenueTotal = collect((clone $categories)->items())->sum(function($category) {
-                return $category->this_month_revenue/ 100;
-            });
+        return $categories;
+    }
 
-            $grossProfitTotal = collect((clone $categories)->items())->sum(function($category) {
-                return $category->this_month_gross_profit/ 100;
-            });
-
-        $totals = [
-            'revenue' => $revenueTotal,
-            'gross_profit' => $grossProfitTotal,
-            'gross_profit_margin' => $revenueTotal ? ($grossProfitTotal/ $revenueTotal * 100) : 0,
-        ];
-
-        return Inertia::render('Report/IndexCategory', [
-            'categories' => CategoryResource::collection(
-                Category::where('classname', $className)->orderBy('name')->get()
-            ),
-            'monthOptions' => $this->getMonthOption(),
-            'operators' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
-            ),
-            'totals' => $totals,
-            'categories' => CategoryResource::collection($categories),
-        ]);
+    private function yieldOneByOne($items) {
+        foreach($items as $item) {
+            yield $item;
+        }
     }
 }
