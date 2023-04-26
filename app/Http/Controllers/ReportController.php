@@ -27,6 +27,8 @@ class ReportController extends Controller
     public function indexVm(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
+        $request->sortBy = $request->sortBy ? $request->sortBy : false;
         $className = get_class(new Customer());
 
             $vends = $this->getUnitCostByVendQuery($request);
@@ -63,6 +65,8 @@ class ReportController extends Controller
     public function indexProduct(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
+        $request->sortBy = $request->sortBy ? $request->sortBy : false;
         $className = get_class(new Customer());
 
             $products = $this->getUnitCostByProductQuery($request);
@@ -99,6 +103,8 @@ class ReportController extends Controller
     public function indexCategory(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
+        $request->sortBy = $request->sortBy ? $request->sortBy : false;
         $className = get_class(new Customer());
 
         $categories = $this->getUnitCostByCategoryQuery($request);
@@ -134,6 +140,9 @@ class ReportController extends Controller
 
     public function exportUnitCostVendExcel(Request $request)
     {
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
+        $request->sortBy = isset($request->sortBy) ? $request->sortBy : false;
+
         $vends = $this->getUnitCostByVendQuery($request)->get();
 
         return (new FastExcel($this->yieldOneByOne($vends)))->download('UnitCostByVend_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vend) {
@@ -158,6 +167,9 @@ class ReportController extends Controller
 
     public function exportUnitCostProductExcel(Request $request)
     {
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
+        $request->sortBy = isset($request->sortBy) ? $request->sortBy : false;
+
         $products = $this->getUnitCostByProductQuery($request)->get();
 
         return (new FastExcel($this->yieldOneByOne($products)))->download('UnitCostByProduct_'.Carbon::now()->toDateTimeString().'.xlsx', function ($product) {
@@ -179,6 +191,9 @@ class ReportController extends Controller
 
     public function exportUnitCostCategoryExcel(Request $request)
     {
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
+        $request->sortBy = isset($request->sortBy) ? $request->sortBy : false;
+
         $categories = $this->getUnitCostByCategoryQuery($request)->get();
 
         return (new FastExcel($this->yieldOneByOne($categories)))->download('UnitCostByCategory_'.Carbon::now()->toDateTimeString().'.xlsx', function ($category) {
@@ -269,8 +284,7 @@ class ReportController extends Controller
                 'last_two_month.gross_profit AS last_two_month_gross_profit',
                 'last_two_month.gross_profit_margin AS last_two_month_gross_profit_margin',
             )
-            ->filterIndex($request)
-            ->orderBy('vends.code', 'ASC');
+            ->filterIndex($request);
 
         return $vends;
     }
@@ -347,8 +361,7 @@ class ReportController extends Controller
                 'last_two_month.gross_profit AS last_two_month_gross_profit',
                 'last_two_month.gross_profit_margin AS last_two_month_gross_profit_margin',
             )
-            ->filterIndex($request)
-            ->orderBy('products.code', 'ASC');
+            ->filterIndex($request);
 
         return $products;
     }
@@ -449,8 +462,7 @@ class ReportController extends Controller
                 'last_two_month.gross_profit AS last_two_month_gross_profit',
                 'last_two_month.gross_profit_margin AS last_two_month_gross_profit_margin',
             )
-            ->filterIndex($request)
-            ->orderBy('categories.name', 'ASC');
+            ->filterIndex($request);
 
         return $categories;
     }

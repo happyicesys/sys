@@ -216,9 +216,6 @@ class Vend extends Model
         $isSensor = $request->is_sensor != null ? $request->is_sensor : 'all';
         $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
         $isBindedCustomer = auth()->user()->hasRole('operator') ? 'all' : $isBindedCustomer;
-        // $sortKey = $request->sortKey ? $request->sortKey : 'vends.is_online';
-        $sortKey = $request->sortKey ? $request->sortKey : 'vend_channel_totals_json->outOfStockSkuPercent';
-        $sortBy = $request->sortBy ? $request->sortBy : false;
 
         return $query->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
@@ -357,13 +354,13 @@ class Vend extends Model
         ->when($request->remainingSkuLessThan, function($query, $search) {
             $query->where('vend_channel_totals_json->outOfStockSkuPercent', '>=', (100 - $search));
         })
-        ->when($sortKey, function($query, $search) use ($sortBy) {
+        ->when($request->sortKey, function($query, $search) use ($request) {
             if(strpos($search, '->')) {
                 $inputSearch = explode("->", $search);
-                $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
-                ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }else {
-                $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }
 
             if($search === 'vends.is_online') {

@@ -115,9 +115,6 @@ class Product extends Model
     {
         $isActive = isset($request->is_active) ? $request->is_active : 1;
         $isInventory = isset($request->is_inventory) ? $request->is_inventory : 1;
-        $sortKey = $request->sortKey ? $request->sortKey : 'code';
-        $sortBy = $request->sortBy ? $request->sortBy : true;
-        // dd($sortKey);
 
         return $query->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
@@ -210,13 +207,13 @@ class Product extends Model
                     break;
             }
         })
-        ->when($sortKey, function($query, $search) use ($sortBy) {
+        ->when($request->sortKey, function($query, $search) use ($request) {
             if(strpos($search, '->')) {
                 $inputSearch = explode("->", $search);
-                $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
-                ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }else {
-                $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }
         });
     }

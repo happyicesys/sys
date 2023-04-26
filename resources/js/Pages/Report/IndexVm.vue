@@ -337,7 +337,7 @@ onMounted(() => {
 })
 
 function onSearchFilterUpdated() {
-  Inertia.get('/reports/vm', {
+  Inertia.get('/reports/vend', {
       ...filters.value,
       currentMonth: filters.value.currentMonth.id,
       operator_id: filters.value.operator_id.id,
@@ -349,7 +349,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/reports/vm')
+  Inertia.get('/reports/vend')
 }
 
 function sortTable(sortKey) {

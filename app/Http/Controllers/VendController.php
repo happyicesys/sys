@@ -52,7 +52,8 @@ class VendController extends Controller
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
-        $page = $request->page ? $request->page : 1;
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'vend_channel_totals_json->outOfStockSkuPercent';
+        $request->sortBy = $request->sortBy ? $request->sortBy : false;
         $className = get_class(new Customer());
 
         $vends = Vend::with([
@@ -376,29 +377,6 @@ class VendController extends Controller
             ])
             ->filterTransactionIndex($request)
             ->get();
-
-        // return (new VendTransactionExport(VendTransactionResource::collection($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx');
-
-        // return (new FastExcel($vendTransactions))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
-        //     return [
-        //         'Order ID' => $vendTransaction->order_id,
-        //         'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
-        //         'Vend ID' => $vendTransaction->vend->code,
-        //         'Customer Name' => $vendTransaction->vend->latestVendBinding ?
-        //                             $vendTransaction->vend->latestVendBinding->customer->code.''.$vendTransaction->vend->latestVendBinding->customer->name :
-        //                             $vendTransaction->vend->name,
-        //         'Channel' => $vendTransaction->vendChannel->code,
-        //         'Product Code' => $vendTransaction->product ?
-        //                         $vendTransaction->product->code :
-        //                         '',
-        //         'Product Name' => $vendTransaction->product ?
-        //                         $vendTransaction->product->name :
-        //                         '',
-        //         'Amount' => $vendTransaction->amount/ 100,
-        //         'Payment Method' => $vendTransaction->paymentMethod->name,
-        //         'Error' => $vendTransaction->vendChannelError ? $vendTransaction->vendChannelError->code : ''
-        //     ];
-        // });
 
         return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
             return [
