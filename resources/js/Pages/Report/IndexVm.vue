@@ -144,7 +144,7 @@
                   Reset
                 </span>
               </Button>
-              <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-500 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-600 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
               @click="onExportExcelClicked()"
               >
                 <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>
