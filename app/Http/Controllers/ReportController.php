@@ -3,11 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\CategoryResource;
+use App\Http\Resources\CategoryGroupResource;
+use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\VendResource;
 use App\Models\Category;
+use App\Models\CategoryGroup;
 use App\Models\Customer;
+use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\Product;
 use App\Models\Vend;
@@ -26,9 +30,11 @@ class ReportController extends Controller
 
     public function indexVm(Request $request)
     {
+        // dd($request->all());
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
+        $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : false);
         $className = get_class(new Customer());
 
             $vends = $this->getUnitCostByVendQuery($request);
@@ -53,6 +59,12 @@ class ReportController extends Controller
             'categories' => CategoryResource::collection(
                 Category::where('classname', $className)->orderBy('name')->get()
             ),
+            'categoryGroups' => CategoryGroupResource::collection(
+                CategoryGroup::where('classname', $className)->orderBy('name')->get()
+            ),
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
+            ),
             'monthOptions' => $this->getMonthOption(),
             'operators' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
@@ -67,6 +79,7 @@ class ReportController extends Controller
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
+        $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : false);
         $className = get_class(new Customer());
 
             $products = $this->getUnitCostByProductQuery($request);
@@ -90,6 +103,12 @@ class ReportController extends Controller
         return Inertia::render('Report/IndexProduct', [
             'categories' => CategoryResource::collection(
                 Category::where('classname', $className)->orderBy('name')->get()
+            ),
+            'categoryGroups' => CategoryGroupResource::collection(
+                CategoryGroup::where('classname', $className)->orderBy('name')->get()
+            ),
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
             ),
             'monthOptions' => $this->getMonthOption(),
             'operators' => OperatorResource::collection(
@@ -128,6 +147,12 @@ class ReportController extends Controller
         return Inertia::render('Report/IndexCategory', [
             'categories' => CategoryResource::collection(
                 Category::where('classname', $className)->orderBy('name')->get()
+            ),
+            'categoryGroups' => CategoryGroupResource::collection(
+                CategoryGroup::where('classname', $className)->orderBy('name')->get()
+            ),
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
             ),
             'monthOptions' => $this->getMonthOption(),
             'operators' => OperatorResource::collection(

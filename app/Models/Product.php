@@ -113,6 +113,7 @@ class Product extends Model
     // scopes
     public function scopeFilterIndex($query, $request)
     {
+        // dd($request->all());
         $isActive = isset($request->is_active) ? $request->is_active : 1;
         $isInventory = isset($request->is_inventory) ? $request->is_inventory : 1;
 
@@ -142,21 +143,31 @@ class Product extends Model
             });
         })
         ->when($request->customer_name, function($query, $search) {
-            // $query->whereHas(function($query) use ($search) {
-                $query->whereHas('vendChannels.vend.latestVendBinding.customer', function($query) use ($search) {
-                        $query->where('name', 'LIKE', "%{$search}%");
-                    })
-                    ->orWhereHas('vendChannels.vend', function($query) use ($search) {
-                        $query->where('name', 'LIKE', "%{$search}%");
-                    });
-            // });
-
-
+            $query->whereHas('vendChannels.vend.latestVendBinding.customer', function($query) use ($search) {
+                $query->where('name', 'LIKE', "%{$search}%");
+            })
+            ->orWhereHas('vendChannels.vend', function($query) use ($search) {
+                $query->where('name', 'LIKE', "%{$search}%");
+            });
         })
         ->when($request->categories, function($query, $search) {
             $query->whereHas('vendChannels.vend.latestVendBinding.customer.category', function($query) use ($search) {
                 $query->whereIn('id', $search);
             });
+        })
+        ->when($request->categoryGroups, function($query, $search) {
+            $query->whereHas('vendChannels.vend.latestVendBinding.customer.category.categoryGroup', function($query) use ($search) {
+                $query->whereIn('id', $search);
+            });
+        })
+        ->when($request->is_binded_customer, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->has('vendChannels.vend.latestVendBinding');
+                }else {
+                    $query->doesntHave('vendChannels.vend.latestVendBinding');
+                }
+            }
         })
         ->when($request->location_type_id, function($query, $search) {
             if($search != 'all') {

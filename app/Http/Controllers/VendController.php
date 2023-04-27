@@ -51,6 +51,7 @@ class VendController extends Controller
 
     public function index(Request $request)
     {
+        $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer != null ? $request->is_binded_customer : 'true');
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'vend_channel_totals_json->outOfStockSkuPercent';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;

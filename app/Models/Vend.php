@@ -214,8 +214,6 @@ class Vend extends Model
         $isDoorOpen = $request->is_door_open != null ? $request->is_door_open : 'all';
         $isOnline = $request->is_online != null ? $request->is_online : 'all';
         $isSensor = $request->is_sensor != null ? $request->is_sensor : 'all';
-        $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
-        $isBindedCustomer = auth()->user()->hasRole('operator') ? 'all' : $isBindedCustomer;
 
         return $query->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
@@ -274,8 +272,7 @@ class Vend extends Model
                 $query->where('parameter_json->door', '=', $search);
             }
         })
-        ->when($isBindedCustomer, function($query, $search) {
-            // dd($search);
+        ->when($request->is_binded_customer, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
                     $query->has('latestVendBinding');

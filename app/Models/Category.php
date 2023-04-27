@@ -39,9 +39,6 @@ class Category extends Model
     // scopes
     public function scopeFilterIndex($query, $request)
     {
-        $sortKey = $request->sortKey ? $request->sortKey : 'name';
-        $sortBy = $request->sortBy ? $request->sortBy : true;
-
         return $query->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
@@ -68,6 +65,27 @@ class Category extends Model
         ->when($request->categories, function($query, $search) {
             $query->whereIn('categories.id', $search);
         })
+        ->when($request->categoryGroups, function($query, $search) {
+            $query->whereHas('categoryGroup', function($query) use ($search) {
+                $query->whereIn('id', $search);
+            });
+        })
+        ->when($request->is_binded_customer, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->has('customers.vendBinding');
+                }else {
+                    $query->doesntHave('customers.vendBinding');
+                }
+            }
+        })
+        ->when($request->location_type_id, function($query, $search) {
+            if($search != 'all') {
+                $query->whereHas('customer', function($query) use ($search) {
+                    $query->where('location_type_id', $search);
+                });
+            }
+        })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
                 $query->whereHas('customers.vendBinding.vend.opeartors', function($query) use ($search) {
@@ -75,13 +93,13 @@ class Category extends Model
                 });
             }
         })
-        ->when($sortKey, function($query, $search) use ($sortBy) {
+        ->when($request->sortKey, function($query, $search) use ($request) {
             if(strpos($search, '->')) {
                 $inputSearch = explode("->", $search);
-                $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
-                ->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }else {
-                $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }
         });
     }

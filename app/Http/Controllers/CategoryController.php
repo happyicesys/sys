@@ -18,8 +18,8 @@ class CategoryController extends Controller
     {
         $classname = $request->classname ? $request->classname : get_class(new Customer());
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
-        $sortKey = $request->sortKey ? $request->sortKey : 'created_at';
-        $sortBy = $request->sortBy ? $request->sortBy : false;
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'created_at';
+        $request->sortBy = $request->sortBy ? $request->sortBy : false;
 
         return Inertia::render('Category/Index', [
             'categories' => CategoryResource::collection(

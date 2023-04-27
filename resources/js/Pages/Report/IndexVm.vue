@@ -18,9 +18,28 @@
               ("," for multiple)
             </span>
           </SearchInput>
+          <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+            Cust ID
+          </SearchInput>
           <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
             Cust Name
           </SearchInput>
+          <div v-if="permissions.includes('admin-access vends')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Customer Binded?
+            </label>
+            <MultiSelect
+              v-model="filters.is_binded_customer"
+              :options="booleanOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
           <div v-if="permissions.includes('admin-access vends')">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Operator
@@ -48,6 +67,39 @@
               valueProp="id"
               label="name"
               mode="tags"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div v-if="permissions.includes('admin-access vends')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Group
+            </label>
+            <MultiSelect
+              v-model="filters.categoryGroups"
+              :options="categoryGroupOptions"
+              trackBy="id"
+              valueProp="id"
+              label="name"
+              mode="tags"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Location Type
+            </label>
+            <MultiSelect
+              v-model="filters.location_type_id"
+              :options="locationTypeOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
@@ -292,6 +344,8 @@ import { Inertia } from '@inertiajs/inertia'
 
 const props = defineProps({
   categories: Object,
+  categoryGroups: Object,
+  locationTypeOptions: Object,
   monthOptions: Object,
   operators: Object,
   totals: [Array, Object],
@@ -300,18 +354,26 @@ const props = defineProps({
 
 const filters = ref({
   categories: [],
+  categoryGroups: [],
   codes: '',
   currentMonth: '',
+  customer_code: '',
   customer_name: '',
+  is_binded_customer: '',
+  location_type_id: '',
   operator_id: '',
   sortKey: '',
-  sortBy: true,
+  sortBy: false,
   numberPerPage: 100,
 })
+const booleanOptions = ref([])
 const categoryOptions = ref([])
+const categoryGroupOptions = ref([])
 const loading = ref(false)
+const locationTypeOptions = ref([])
 const monthOptions = ref([])
 const operatorOptions = ref([])
+const operatorRole = usePage().props.value.auth.operatorRole
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.value.auth.permissions
 
@@ -324,22 +386,36 @@ onMounted(() => {
     { id: 'All', value: 'All' },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
-
+  booleanOptions.value = [
+    {id: 'all', value: 'All'},
+    {id: 'true', value: 'Yes'},
+    {id: 'false', value: 'No'},
+  ]
   categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
+  categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
+  locationTypeOptions.value = [
+    {id: 'all', value: 'All'},
+    ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
+  ]
   monthOptions.value = props.monthOptions.map((data) => {return {id: data.id, name: data.name}})
   filters.value.currentMonth = monthOptions.value[0]
-
   operatorOptions.value = [
     {id: 'all', full_name: 'All'},
     ...props.operators.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
+  filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
+  filters.value.location_type_id = locationTypeOptions.value[0]
   filters.value.operator_id = operatorOptions.value[0]
 })
 
 function onSearchFilterUpdated() {
   Inertia.get('/reports/vend', {
       ...filters.value,
+      categories: filters.value.categories.map((category) => { return category.id }),
+      categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
       currentMonth: filters.value.currentMonth.id,
+      is_binded_customer: filters.value.is_binded_customer.id,
+      location_type_id: filters.value.location_type_id.id,
       operator_id: filters.value.operator_id.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -365,7 +441,11 @@ function onExportExcelClicked() {
         url: '/reports/vend/excel',
         params: {
             ...filters.value,
+            categories: filters.value.categories.map((category) => { return category.id }),
+            categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             currentMonth: filters.value.currentMonth.id,
+            is_binded_customer: filters.value.is_binded_customer.id,
+            location_type_id: filters.value.location_type_id.id,
             operator_id: filters.value.operator_id.id,
         },
         responseType: 'blob',

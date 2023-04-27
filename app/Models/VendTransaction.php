@@ -174,15 +174,13 @@ class VendTransaction extends Model
             });
         })
         ->when($request->customer_name, function($query, $search) {
-            $query->where(function($query) use ($search) {
-                $query
-                    ->whereHas('vend.latestVendBinding.customer', function($query) use ($search) {
-                        $query->where('name', 'LIKE', "%{$search}%");
-                    })
-                    ->orWhereHas('vend', function($query) use ($search) {
-                        $query->where('name', 'LIKE', "%{$search}%");
-                    });
-            });
+            $query
+                ->whereHas('vend.latestVendBinding.customer', function($query) use ($search) {
+                    $query->where('name', 'LIKE', "%{$search}%");
+                })
+                ->orWhereHas('vend', function($query) use ($search) {
+                    $query->where('name', 'LIKE', "%{$search}%");
+                });
         })
         ->when($request->location_type_id, function($query, $search) {
             if($search != 'all') {
@@ -223,6 +221,11 @@ class VendTransaction extends Model
                 $query->whereIn('code', $search);
             });
         })
+        ->when($request->customer_code, function($query, $search) {
+            $query->whereHas('vend.latestVendBinding.customer', function($query) use ($search) {
+                $query->where('code', 'LIKE', "%{$search}%");
+            });
+        })
         ->when($request->customer_name, function($query, $search) {
             $query->where(function($query) use ($search) {
                 $query
@@ -234,6 +237,22 @@ class VendTransaction extends Model
                     });
             });
         })
+        ->when($request->is_binded_customer, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->has('vend.latestVendBinding');
+                }else {
+                    $query->doesntHave('vend.latestVendBinding');
+                }
+            }
+        })
+        ->when($request->location_type_id, function($query, $search) {
+            if($search != 'all') {
+                $query->whereHas('vend.latestVendBinding.customer', function($query) use ($search) {
+                    $query->where('location_type_id', $search);
+                });
+            }
+        })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
                 $query->whereHas('vend.operators', function($query) use ($search) {
@@ -243,6 +262,11 @@ class VendTransaction extends Model
         })
         ->when($request->categories, function($query, $search) {
             $query->whereHas('vend.latestVendBinding.customer.category', function($query) use ($search) {
+                $query->whereIn('id', $search);
+            });
+        })
+        ->when($request->categoryGroups, function($query, $search) {
+            $query->whereHas('vend.latestVendBinding.customer.category.categoryGroup', function($query) use ($search) {
                 $query->whereIn('id', $search);
             });
         })
