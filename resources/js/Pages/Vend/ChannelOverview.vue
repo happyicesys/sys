@@ -135,13 +135,13 @@
 <script setup>
 import Modal from '@/Components/Modal.vue';
 // import { onMounted } from 'vue';
-import { usePage } from '@inertiajs/inertia-vue3';
+import { usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   vend: Object,
   showModal: Boolean,
 })
-const profile = usePage().props.value.auth.profile
+const profile = usePage().props.auth.profile
 
 const emit = defineEmits(['modalClose'])
 

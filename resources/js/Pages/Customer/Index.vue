@@ -363,9 +363,8 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon } from '
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia'
+import { Head, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   customers: Object,
@@ -431,7 +430,7 @@ function onEditClicked(customerValue) {
 }
 
 function onSearchFilterUpdated() {
-  Inertia.get('/customers', {
+  router.get('/customers', {
       ...filters.value,
       statuses: filters.value.statuses.map((status) => { return status.id }),
       numberPerPage: filters.value.numberPerPage.id,
@@ -442,7 +441,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/customers')
+  router.get('/customers')
 }
 
 function sortTable(sortKey) {

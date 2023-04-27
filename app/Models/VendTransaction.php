@@ -31,6 +31,7 @@ class VendTransaction extends Model
         'amount',
         'gross_profit',
         'gross_profit_margin',
+        'gst_vat_rate',
         'is_payment_received',
         'payment_method_id',
         'product_id',
@@ -54,7 +55,7 @@ class VendTransaction extends Model
 
     public function getRevenue()
     {
-        return $this->amount/(1.00 + ($this->product && $this->product->operator && $this->product->operator->gst_vat_rate ? $this->product->operator->gst_vat_rate/100 : 0));
+        return $this->amount/(1.00 + ($this->gst_vat_rate/100));
     }
 
     public function getUnitCost()

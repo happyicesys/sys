@@ -106,7 +106,7 @@ import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue'
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
-import { useForm, usePage } from '@inertiajs/inertia-vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 
 const props = defineProps({
@@ -126,7 +126,7 @@ const form = ref(
 )
 const operatorOptions = ref([])
 const roleOptions = ref([])
-const operatorRole = usePage().props.value.auth.operatorRole
+const operatorRole = usePage().props.auth.operatorRole
 
 onMounted(() => {
   form.value = props.user ? useForm({...getDefaultForm(), ...props.user}) : useForm(getDefaultForm())

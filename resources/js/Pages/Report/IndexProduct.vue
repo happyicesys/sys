@@ -185,7 +185,7 @@
 
         <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-            <dt class="truncate text-sm font-medium text-gray-500">Total Revenue (This Month)</dt>
+            <dt class="truncate text-sm font-medium text-gray-500">Total Sales before GST (This Month)</dt>
             <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                 {{totals['revenue'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
             </dd>
@@ -197,7 +197,7 @@
             </dd>
           </div>
           <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-            <dt class="truncate text-sm font-medium text-gray-500">Total Gross Profit Margin (This Month)</dt>
+            <dt class="truncate text-sm font-medium text-gray-500">Total Gross Margin (This Month)</dt>
             <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                 {{totals['gross_profit_margin'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}} %
             </dd>
@@ -234,31 +234,31 @@
                     <TableHead colspan="3">
                     </TableHead>
                     <TableHeadSort modelName="this_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_revenue')">
-                      Sales($)
+                      Sales ($)
                     </TableHeadSort>
                     <TableHeadSort modelName="this_month_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_gross_profit')">
-                      GM($)
+                      GP ($)
                     </TableHeadSort>
                     <TableHeadSort modelName="this_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_gross_profit_margin')">
-                      GM(%)
+                      GM (%)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_revenue')">
-                      Sales($)
+                      Sales ($)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_month_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_gross_profit')">
-                      GM($)
+                      GP ($)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_gross_profit_margin')">
-                      GM(%)
+                      GM (%)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_revenue')">
-                      Sales($)
+                      Sales ($)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_gross_profit" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_gross_profit')">
-                      GM($)
+                      GP ($)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_gross_profit_margin')">
-                      GM(%)
+                      GM (%)
                     </TableHeadSort>
                   </tr>
                 </thead>
@@ -326,9 +326,9 @@ import { ArrowDownTrayIcon, BackspaceIcon, MagnifyingGlassIcon } from '@heroicon
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head, usePage } from '@inertiajs/inertia-vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia'
+import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
   categories: Object,
@@ -361,9 +361,9 @@ const loading = ref(false)
 const locationTypeOptions = ref([])
 const monthOptions = ref([])
 const operatorOptions = ref([])
-const operatorRole = usePage().props.value.auth.operatorRole
+const operatorRole = usePage().props.auth.operatorRole
 const numberPerPageOptions = ref([])
-const permissions = usePage().props.value.auth.permissions
+const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -398,7 +398,7 @@ onMounted(() => {
 })
 
 function onSearchFilterUpdated() {
-  Inertia.get('/reports/product', {
+  router.get('/reports/product', {
       ...filters.value,
       categories: filters.value.categories.map((category) => { return category.id }),
       categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
@@ -414,7 +414,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/reports/product')
+  router.get('/reports/product')
 }
 
 function sortTable(sortKey) {

@@ -157,9 +157,8 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia'
+import { Head, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   uoms: Object,
@@ -197,7 +196,7 @@ function onDeleteClicked(uom) {
   if (!approval) {
       return;
   }
-  Inertia.delete('/uoms/' + uom.id)
+  router.delete('/uoms/' + uom.id)
 }
 
 function onEditClicked(uomValue) {
@@ -207,7 +206,7 @@ function onEditClicked(uomValue) {
 }
 
 function onSearchFilterUpdated() {
-  Inertia.get('/uoms', {
+  router.get('/uoms', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -217,7 +216,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/uoms')
+  router.get('/uoms')
 }
 
 function sortTable(sortKey) {

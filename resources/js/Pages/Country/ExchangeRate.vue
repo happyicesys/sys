@@ -127,7 +127,7 @@ import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
-import { useForm, usePage } from '@inertiajs/inertia-vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, computed } from 'vue'
 
 const props = defineProps({
@@ -141,7 +141,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
-const authUser = computed(() => usePage().props.value.auth.user)
+const authUser = computed(() => usePage().props.auth.user)
 
 function getDefaultForm() {
   return {

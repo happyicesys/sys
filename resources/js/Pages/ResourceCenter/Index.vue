@@ -49,7 +49,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import { Head } from '@inertiajs/inertia-vue3';
+import { Head } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { PaperClipIcon } from '@heroicons/vue/20/solid';
 

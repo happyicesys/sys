@@ -275,9 +275,9 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head, usePage } from '@inertiajs/inertia-vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted, watch } from 'vue';
-import { Inertia } from '@inertiajs/inertia'
+import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
   categories: Object,
@@ -301,10 +301,10 @@ const filters = ref({
 const booleanOptions = ref([])
 const commSfOptions = ref([])
 const showModal = ref(false)
-const roles = usePage().props.value.auth.roles
-const permissions = usePage().props.value.auth.permissions
+const roles = usePage().props.auth.roles
+const permissions = usePage().props.auth.permissions
 const operatorOptions = ref([])
-const operatorRole = usePage().props.value.auth.operatorRole
+const operatorRole = usePage().props.auth.operatorRole
 const product = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
@@ -351,7 +351,7 @@ function onDeleteClicked(product) {
   if (!approval) {
       return;
   }
-  Inertia.delete('/products/' + product.id)
+  router.delete('/products/' + product.id)
 }
 
 function onEditClicked(productValue) {
@@ -366,7 +366,7 @@ function onIsCommOrSfSelected() {
 }
 
 function onSearchFilterUpdated() {
-  Inertia.get('/products', {
+  router.get('/products', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
       operator_id: filters.value.operator.id,
@@ -380,7 +380,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/products')
+  router.get('/products')
 }
 
 function sortTable(sortKey) {

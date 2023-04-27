@@ -365,7 +365,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue'
 import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon, RectangleStackIcon } from '@heroicons/vue/20/solid';
-import { useForm, usePage } from '@inertiajs/inertia-vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 import moment from 'moment';
 
@@ -392,7 +392,7 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const operatorOptions = ref([])
-const operatorRole = usePage().props.value.auth.operatorRole
+const operatorRole = usePage().props.auth.operatorRole
 
 onMounted(() => {
   form.value = props.product ? useForm(props.product) : useForm(getDefaultForm())

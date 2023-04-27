@@ -183,9 +183,9 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head, usePage } from '@inertiajs/inertia-vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia'
+import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
   countries: Object,
@@ -206,9 +206,9 @@ const showModal = ref(false)
 const operator = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
-const operatorRole = usePage().props.value.auth.operatorRole
-const roles = usePage().props.value.auth.roles
-const permissions = usePage().props.value.auth.permissions
+const operatorRole = usePage().props.auth.operatorRole
+const roles = usePage().props.auth.roles
+const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -231,13 +231,13 @@ function onDeleteClicked(operator) {
   if (!approval) {
       return;
   }
-  Inertia.delete('/operators/' + operator.id)
+  router.delete('/operators/' + operator.id)
 }
 
 function onEditClicked(operatorValue) {
   type.value = 'update'
   operator.value = operatorValue
-  Inertia.visit(
+  router.visit(
       route('operators', {
           operator_id: operatorValue.id,
           country_id: operatorValue.country.id,
@@ -250,7 +250,7 @@ function onEditClicked(operatorValue) {
 }
 
 function onSearchFilterUpdated() {
-  Inertia.get('/operators', {
+  router.get('/operators', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -260,7 +260,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/operators')
+  router.get('/operators')
 }
 
 function sortTable(sortKey) {

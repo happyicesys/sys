@@ -191,9 +191,9 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head, usePage } from '@inertiajs/inertia-vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia'
+import { router } from '@inertiajs/vue3';router
 
 const props = defineProps({
   users: Object,
@@ -213,7 +213,7 @@ const showFormModal = ref(false)
 const user = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
-const permissions = usePage().props.value.auth.permissions
+const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -236,7 +236,7 @@ function onDeleteClicked(user) {
   if (!approval) {
       return;
   }
-  Inertia.delete('/users/' + user.id)
+  router.delete('/users/' + user.id)
 }
 
 function onEditClicked(userValue) {
@@ -246,7 +246,7 @@ function onEditClicked(userValue) {
 }
 
 function onSearchFilterUpdated() {
-  Inertia.get('/users', {
+  router.get('/users', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -256,7 +256,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/users')
+  router.get('/users')
 }
 
 function sortTable(sortKey) {

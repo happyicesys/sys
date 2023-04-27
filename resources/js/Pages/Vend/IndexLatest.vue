@@ -299,8 +299,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia';
-import { Head } from '@inertiajs/inertia-vue3';
+import { Head, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   categories: Object,
@@ -348,7 +347,7 @@ onMounted(() => {
 })
 
 function onSearchFilterUpdated() {
-  Inertia.get('/vends', {
+  router.get('/vends', {
       ...filters.value,
       vend_channel_error_id: filters.value.vend_channel_error_id.id,
       categories: filters.value.categories.map((category) => { return category.id }),
@@ -361,11 +360,11 @@ function onSearchFilterUpdated() {
 }
 
 function onVendTempClicked(vendId) {
-  Inertia.get('/vends/' + vendId + '/temp')
+  router.get('/vends/' + vendId + '/temp')
 }
 
 function resetFilters() {
-  Inertia.get('/vends')
+  router.get('/vends')
 }
 
 function sortTable(sortKey) {

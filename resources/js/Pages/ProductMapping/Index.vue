@@ -222,9 +222,9 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import { BackspaceIcon, LinkIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
-import { Head, usePage } from '@inertiajs/inertia-vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia'
+import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
   products: Object,
@@ -243,8 +243,8 @@ const showVendFormModal = ref(false)
 const productMapping = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
-const roles = usePage().props.value.auth.roles
-const permissions = usePage().props.value.auth.permissions
+const roles = usePage().props.auth.roles
+const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -267,7 +267,7 @@ function onDeleteClicked(productMapping) {
   if (!approval) {
       return;
   }
-  Inertia.delete('/product-mappings/' + productMapping.id)
+  router.delete('/product-mappings/' + productMapping.id)
 }
 
 function onEditClicked(productMappingValue) {
@@ -279,7 +279,7 @@ function onEditClicked(productMappingValue) {
 function onVendFormEditClicked(productMappingValue) {
   type.value = 'update'
   productMapping.value = productMappingValue
-  Inertia.visit(
+  router.visit(
       route('product-mappings', {
           id: productMappingValue.id
       }),{
@@ -291,7 +291,7 @@ function onVendFormEditClicked(productMappingValue) {
 }
 
 function onSearchFilterUpdated() {
-  Inertia.get('/product-mappings', {
+  router.get('/product-mappings', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -301,7 +301,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/product-mappings')
+  router.get('/product-mappings')
 }
 
 function sortTable(sortKey) {

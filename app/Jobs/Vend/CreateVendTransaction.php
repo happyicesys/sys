@@ -89,9 +89,11 @@ class CreateVendTransaction implements ShouldQueue
         }
 
         $unitCostId = null;
+        $gstVatRate = 0;
         if($productId) {
             $product = Product::find($productId);
             $unitCostId = $product->unitCosts()->where('is_current', true)->first() ? $product->unitCosts()->where('is_current', true)->first()->id : null;
+            $gstVatRate = $product->operator ? $product->operator->gst_vat_rate : 0;
         }
 
         // check duplicated orderid
@@ -115,6 +117,7 @@ class CreateVendTransaction implements ShouldQueue
             'vend_json' => $vend->latestVendBinding && $vend->latestVendBinding->customer ? collect($vend)->except(['vend_channels_json', 'product_mapping']) : null,
             'product_json' => $productId ? collect($vend->productMapping->productMappingItems()->where('channel_code', $vendChannel->code)->first()->product)->except(['product_mapping_items']) : null,
             'unit_cost_id' => $unitCostId,
+            'gst_vat_rate' => $gstVatRate,
         ]);
 
         SyncVendTransactionTotalsJson::dispatch($vendTransaction->vend)->onQueue('default');

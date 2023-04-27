@@ -189,9 +189,8 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia'
+import { Head, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   simcards: Object,
@@ -237,7 +236,7 @@ function onDeleteClicked(simcard) {
   if (!approval) {
       return;
   }
-  Inertia.delete('/simcards/' + simcard.id)
+  router.delete('/simcards/' + simcard.id)
 }
 
 function onEditClicked(telcoValue) {
@@ -247,7 +246,7 @@ function onEditClicked(telcoValue) {
 }
 
 function onSearchFilterUpdated() {
-  Inertia.get('/simcards', {
+  router.get('/simcards', {
       ...filters.value,
       telco_id: filters.value.telco_id.id,
       numberPerPage: filters.value.numberPerPage.id,
@@ -258,7 +257,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/simcards')
+  router.get('/simcards')
 }
 
 function sortTable(sortKey) {

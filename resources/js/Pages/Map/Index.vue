@@ -31,7 +31,7 @@
 
 <script setup>
   import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-  import { Head } from '@inertiajs/inertia-vue3';
+  import { Head } from '@inertiajs/vue3';
   import { ref, onMounted } from 'vue';
   import GoogleMap from '@/Components/GoogleMap.vue';
 

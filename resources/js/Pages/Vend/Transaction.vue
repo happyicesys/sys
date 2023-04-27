@@ -401,8 +401,8 @@ import TableData from '@/Components/TableData.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia';
-import { Head, usePage } from '@inertiajs/inertia-vue3';
+import { router } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 
 const props = defineProps({
@@ -421,9 +421,9 @@ const successfulOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
 const locationTypeOptions = ref([])
-const roles = usePage().props.value.auth.roles
-const permissions = usePage().props.value.auth.permissions
-const operatorRole = usePage().props.value.auth.operatorRole
+const roles = usePage().props.auth.roles
+const permissions = usePage().props.auth.permissions
+const operatorRole = usePage().props.auth.operatorRole
 
 onMounted(() => {
     vendChannelErrorOptions.value = [
@@ -553,7 +553,7 @@ function onExportExcelClicked() {
 }
 
 function onSearchFilterUpdated() {
-    Inertia.get('/vends/transactions', {
+    router.get('/vends/transactions', {
         ...filters.value,
         categories: filters.value.categories.map((category) => { return category.id }),
         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
@@ -572,7 +572,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-    Inertia.get('/vends/transactions')
+    router.get('/vends/transactions')
 }
 
 function sortTable(sortKey) {

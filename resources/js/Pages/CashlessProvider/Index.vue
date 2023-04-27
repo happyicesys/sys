@@ -157,9 +157,9 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head } from '@inertiajs/inertia-vue3';
+import { Head } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia'
+import { router } from '@inertiajs/vue3'
 
 const props = defineProps({
   cashlessProviders: Object,
@@ -197,7 +197,7 @@ function onDeleteClicked(cashlessProvider) {
   if (!approval) {
       return;
   }
-  Inertia.delete('/cashless-providers/' + cashlessProvider.id)
+  router.delete('/cashless-providers/' + cashlessProvider.id)
 }
 
 function onEditClicked(cashlessProviderValue) {
@@ -207,7 +207,7 @@ function onEditClicked(cashlessProviderValue) {
 }
 
 function onSearchFilterUpdated() {
-  Inertia.get('/cashless-providers', {
+  router.get('/cashless-providers', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -217,7 +217,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/cashless-providers')
+  router.get('/cashless-providers')
 }
 
 function sortTable(sortKey) {

@@ -199,7 +199,7 @@ import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue'
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
-import { useForm } from '@inertiajs/inertia-vue3';
+import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 
 const props = defineProps({

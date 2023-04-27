@@ -52,10 +52,8 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import FormInput from '@/Components/FormInput.vue';
-import { useForm } from '@inertiajs/inertia-vue3';
-import { Head } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia';
+import { Head, router, useForm } from '@inertiajs/vue3';
 
 onMounted(() => {
   form.value = props.user ? useForm({...getDefaultForm(), ...props.user.data}) : useForm(getDefaultForm())

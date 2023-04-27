@@ -157,9 +157,8 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia'
+import { Head, router } from '@inertiajs/vue3';
 
 defineProps({
   roles: Object,
@@ -197,7 +196,7 @@ function onDeleteClicked(role) {
   if (!approval) {
       return;
   }
-  Inertia.delete('/roles/' + role.id)
+  router.delete('/roles/' + role.id)
 }
 
 function onEditClicked(roleValue) {
@@ -207,7 +206,7 @@ function onEditClicked(roleValue) {
 }
 
 function onSearchFilterUpdated() {
-  Inertia.get('/roles', {
+  router.get('/roles', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -217,7 +216,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/roles')
+  router.get('/roles')
 }
 
 function sortTable(sortKey) {

@@ -193,8 +193,7 @@
   // import MultiSelect from '@/Components/MultiSelect.vue';
   import { ArrowDownTrayIcon, ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
   import { ref, onBeforeMount, onMounted, watch } from 'vue';
-  import { Inertia } from '@inertiajs/inertia';
-  import { Head } from '@inertiajs/inertia-vue3';
+  import { Head, router } from '@inertiajs/vue3';
   import moment from 'moment';
 
   const props = defineProps({
@@ -284,7 +283,7 @@
   })
 
   watch(types, async (newTypes, oldTypes) => {
-    Inertia.visit(
+    router.visit(
         route('temp', {
             id: vend.value.id,
             type: props.type.value,
@@ -308,7 +307,7 @@
   })
 
   watch(fans, async (newFans, oldFans) => {
-    Inertia.visit(
+    router.visit(
         route('temp', {
             id: vend.value.id,
             type: props.type.value,
@@ -334,7 +333,7 @@
 
   function onCustomDatetimeSearched() {
     // syncTimeLatest.value = false
-    Inertia.get(
+    router.get(
         '/vends/' +
         vend.value.id +
         '/temp/' +
@@ -361,7 +360,7 @@
     // })
     // forceRerender()
 
-    Inertia.get('/vends/' + vend.value.id + '/temp/'+ props.type.value +'?duration=' + duration + '&durationType=' + durationType)
+    router.get('/vends/' + vend.value.id + '/temp/'+ props.type.value +'?duration=' + duration + '&durationType=' + durationType)
   }
 
   function back() {

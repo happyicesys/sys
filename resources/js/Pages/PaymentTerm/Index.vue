@@ -157,9 +157,8 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia'
+import { Head, router } from '@inertiajs/vue3';
 
 defineProps({
   paymentTerms: Object,
@@ -197,7 +196,7 @@ function onDeleteClicked(paymentTerm) {
   if (!approval) {
       return;
   }
-  Inertia.delete('/payment-terms/' + paymentTerm.id)
+  router.delete('/payment-terms/' + paymentTerm.id)
 }
 
 function onEditClicked(paymentTermValue) {
@@ -207,7 +206,7 @@ function onEditClicked(paymentTermValue) {
 }
 
 function onSearchFilterUpdated() {
-  Inertia.get('/payment-terms', {
+  router.get('/payment-terms', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -217,7 +216,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/payment-terms')
+  router.get('/payment-terms')
 }
 
 function sortTable(sortKey) {

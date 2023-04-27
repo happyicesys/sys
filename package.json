@@ -5,9 +5,6 @@
         "build": "vite build"
     },
     "devDependencies": {
-        "@inertiajs/inertia": "^0.11.0",
-        "@inertiajs/inertia-vue3": "^0.6.0",
-        "@inertiajs/progress": "^0.2.7",
         "@tailwindcss/forms": "^0.5.2",
         "@vitejs/plugin-vue": "^3.0.0",
         "autoprefixer": "^10.4.12",
@@ -24,6 +21,7 @@
     "dependencies": {
         "@headlessui/vue": "^1.6.7",
         "@heroicons/vue": "^2.0.11",
+        "@inertiajs/vue3": "^1.0.6",
         "@j-t-mcc/vue3-chartjs": "^1.3.0",
         "@tailwindcss/aspect-ratio": "^0.4.2",
         "@vueform/multiselect": "^2.5.3",

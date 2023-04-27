@@ -770,8 +770,8 @@
   import TableData from '@/Components/TableData.vue';
   import TableHeadSort from '@/Components/TableHeadSort.vue';
   import { ref, onMounted } from 'vue';
-  import { Inertia } from '@inertiajs/inertia';
-  import { Head, usePage } from '@inertiajs/inertia-vue3';
+  import { router } from '@inertiajs/vue3';
+  import { Head, usePage } from '@inertiajs/vue3';
   import moment from 'moment';
   import axios from 'axios';
 
@@ -829,9 +829,9 @@
   const vend = ref()
   const vendChannelErrorsOptions = ref([])
 //   const vendOptions = ref([])
-  const operatorRole = usePage().props.value.auth.operatorRole
-  const roles = usePage().props.value.auth.roles
-const permissions = usePage().props.value.auth.permissions
+  const operatorRole = usePage().props.auth.operatorRole
+  const roles = usePage().props.auth.roles
+const permissions = usePage().props.auth.permissions
   const now = ref(moment().format('HH:mm:ss'))
 
   onMounted(() => {
@@ -906,10 +906,8 @@ const permissions = usePage().props.value.auth.permissions
 
     function onSearchFilterUpdated() {
 
-        Inertia.get('/vends', {
+        router.get('/vends', {
             ...filters.value,
-            // codes: filters.value.codes.map((code) => { return code.id }),
-            // vend_channel_error_id: filters.value.vend_channel_error_id.id,
             categories: filters.value.categories.map((category) => { return category.id }),
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             errors: filters.value.errors.map((error) => { return error.id }),
@@ -930,11 +928,11 @@ const permissions = usePage().props.value.auth.permissions
     }
 
     function onVendTempClicked(vendId, type) {
-        Inertia.get('/vends/' + vendId + '/temp/' + type)
+        router.get('/vends/' + vendId + '/temp/' + type)
     }
 
     function resetFilters() {
-        Inertia.get('/vends')
+        router.get('/vends')
     }
 
   function sortTable(sortKey) {

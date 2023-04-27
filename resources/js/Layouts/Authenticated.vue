@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import BreezeDropdown from '@/Components/Dropdown.vue';
 import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { Link, usePage } from '@inertiajs/inertia-vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
 import { CircleStackIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, LinkIcon, MapIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
 
@@ -46,6 +46,7 @@ const navigation = [
             {name: 'GP by VM', href: '/reports/vend'},
             {name: 'GP by Product', href: '/reports/product'},
             {name: 'GP by Category', href: '/reports/category'},
+            // {name: 'GP by Location Type', href: '/reports/location-type'},
         ]
     },
     // {
@@ -124,8 +125,8 @@ const navigation = [
 ]
 
 const showingNavigationDropdown = ref(false);
-const roles = usePage().props.value.auth.roles
-const permissions = usePage().props.value.auth.permissions
+const roles = usePage().props.auth.roles
+const permissions = usePage().props.auth.permissions
 
 </script>
 

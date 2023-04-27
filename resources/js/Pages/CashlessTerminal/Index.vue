@@ -172,7 +172,6 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-import Form from '@/Pages/CashlessTerminal/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -180,9 +179,8 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head } from '@inertiajs/inertia-vue3';
 import { ref, onMounted } from 'vue';
-import { Inertia } from '@inertiajs/inertia'
+import { Head, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   cashlessProviders: Object,
@@ -228,7 +226,7 @@ function onDeleteClicked(cashlessTerminal) {
   if (!approval) {
       return;
   }
-  Inertia.delete('/cashless-terminals/' + cashlessTerminal.id)
+  router.delete('/cashless-terminals/' + cashlessTerminal.id)
 }
 
 function onEditClicked(telcoValue) {
@@ -238,7 +236,7 @@ function onEditClicked(telcoValue) {
 }
 
 function onSearchFilterUpdated() {
-  Inertia.get('/cashless-terminals', {
+  router.get('/cashless-terminals', {
       ...filters.value,
       telco_id: filters.value.telco_id.id,
       numberPerPage: filters.value.numberPerPage.id,
@@ -249,7 +247,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/cashless-terminals')
+  router.get('/cashless-terminals')
 }
 
 function sortTable(sortKey) {

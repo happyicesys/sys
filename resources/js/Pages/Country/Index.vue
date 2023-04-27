@@ -206,9 +206,9 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, PlusCir
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head, usePage } from '@inertiajs/inertia-vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted, computed } from 'vue';
-import { Inertia } from '@inertiajs/inertia'
+import { router } from '@inertiajs/vue3';
 import ExchangeRate from './ExchangeRate.vue';
 
 defineProps({
@@ -226,7 +226,7 @@ const showExchangeRateModal = ref(false)
 const country = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
-const authUser = computed(() => usePage().props.value.auth.user)
+const authUser = computed(() => usePage().props.auth.user)
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -249,7 +249,7 @@ function onDeleteClicked(country) {
   if (!approval) {
       return;
   }
-  Inertia.delete('/countries/' + country.id)
+  router.delete('/countries/' + country.id)
 }
 
 function onEditClicked(countryValue) {
@@ -265,7 +265,7 @@ function onEditExchangeRateClicked(countryValue) {
 }
 
 function onSearchFilterUpdated() {
-  Inertia.get('/countries', {
+  router.get('/countries', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -275,7 +275,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  Inertia.get('/countries')
+  router.get('/countries')
 }
 
 function sortTable(sortKey) {

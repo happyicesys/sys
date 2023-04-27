@@ -333,7 +333,7 @@ class VendController extends Controller
             'vendTransactions' => VendTransactionResource::collection(
                 $vendTransactions
                 ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-                // ->withQueryString()
+                ->withQueryString()
             ),
             'totals' => $totals,
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
