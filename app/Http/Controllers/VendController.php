@@ -398,7 +398,10 @@ class VendController extends Controller
                 'Product Name' => $vendTransaction->product ?
                                 $vendTransaction->product->name :
                                 '',
-                'Amount' => $vendTransaction->amount/ 100,
+                'Sales (before GST)' => $vendTransaction->amount/ 100,
+                'Unit Cost' => $vendTransaction->unitCost ?
+                                $vendTransaction->unitCost->cost/ 100 :
+                                '',
                 'Payment Method' => $vendTransaction->paymentMethod ? $vendTransaction->paymentMethod->name : '',
                 'Error' => $vendTransaction->vend_transaction_json &&
                             $vendTransaction->vend_transaction_json['SErr'] ?
