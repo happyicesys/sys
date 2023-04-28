@@ -41,7 +41,7 @@ const navigation = [
         icon: DocumentTextIcon,
         current: false,
         href: 'reports',
-        permission: 'read product-mappings',
+        permission: 'read products',
         children: [
             {name: 'GP by VM', href: '/reports/vend'},
             {name: 'GP by Product', href: '/reports/product'},
