@@ -108,7 +108,7 @@ class Omise extends Model implements PaymentGatewayInterface
     private function getUrl($action)
     {
         $this->url = self::$main;
-        if($actions === 'refunds') {
+        if($action === 'refunds') {
             $this->url .= '/charges/'.$this->chargeId.'/'.$action;
         }else {
             $this->url .= '/'.$action;
