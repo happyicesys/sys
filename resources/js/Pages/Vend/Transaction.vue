@@ -125,7 +125,7 @@
                     Operator
                 </label>
                 <MultiSelect
-                    v-model="filters.operator"
+                    v-model="filters.operator_id"
                     :options="operatorOptions"
                     trackBy="id"
                     valueProp="id"
@@ -173,7 +173,7 @@
                     Location Type
                 </label>
                 <MultiSelect
-                    v-model="filters.locationType"
+                    v-model="filters.location_type_id"
                     :options="locationTypeOptions"
                     trackBy="id"
                     valueProp="id"
@@ -320,9 +320,19 @@
                             {{ vendTransaction.vend.code }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
-                            <span v-if="vendTransaction.vendJson && 'latest_vend_binding' in vendTransaction.vendJson && 'customer' in vendTransaction.vendJson['latest_vend_binding']">
+                            <span v-if="vendTransaction.customerCode">
+                                {{ vendTransaction.customerCode }} <br>
+                            </span>
+                            <span v-if="vendTransaction.customerName">
+                                {{ vendTransaction.customerName }}
+                            </span>
+                            <!-- <span v-if="vendTransaction.vendJson && 'latest_vend_binding' in vendTransaction.vendJson && 'customer' in vendTransaction.vendJson['latest_vend_binding']">
                                 {{ vendTransaction.vendJson['latest_vend_binding']['customer']['code'] }} <br>
                                 {{ vendTransaction.vendJson['latest_vend_binding']['customer']['name'] }}
+                            </span>
+                            <span v-else-if="(vendTransaction.vendJson && !('latest_vend_binding' in vendTransaction.vendJson)) && vendTransaction.customerJson && 'code' in vendTransaction.customerJson">
+                                {{ vendTransaction.customerJson['code'] }} <br>
+                                {{ vendTransaction.customerJson['name'] }}
                             </span>
                             <span v-else-if="!vendTransaction.vendJson && vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer">
                                 {{ vendTransaction.vend.latestVendBinding.customer.code }} <br>
@@ -330,7 +340,7 @@
                             </span>
                             <span v-else>
                                 {{ vendTransaction.vend.name }}
-                            </span>
+                            </span> -->
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.vendChannel.code }}
@@ -421,9 +431,7 @@ const successfulOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
 const locationTypeOptions = ref([])
-const roles = usePage().props.auth.roles
 const permissions = usePage().props.auth.permissions
-const operatorRole = usePage().props.auth.operatorRole
 
 onMounted(() => {
     vendChannelErrorOptions.value = [
@@ -463,8 +471,8 @@ onMounted(() => {
         {id: 'true', value: 'Successful'},
         {id: 'false', value: 'Unsuccessful'},
     ]
-    filters.value.locationType = locationTypeOptions.value[0]
-    filters.value.operator = operatorOptions.value[0]
+    filters.value.location_type_id = locationTypeOptions.value[0]
+    filters.value.operator_id = operatorOptions.value[0]
     filters.value.is_binded_customer = booleanOptions.value[0]
     filters.value.is_payment_received = booleanOptions.value[0]
 })
@@ -477,13 +485,13 @@ const filters = ref({
     customer_code: '',
     customer_name: '',
     errors: [],
-    locationType: '',
-    operator: '',
+    location_type_id: '',
+    operator_id: '',
     is_binded_customer: '',
     is_payment_received: '',
     paymentMethod: '',
-    date_from: moment().toDate(),
-    date_to: moment().toDate(),
+    date_from: moment().format('YYYY-MM-DD'),
+    date_to: moment().format('YYYY-MM-DD'),
     sortKey: '',
     sortBy: false,
     numberPerPage: 100,
@@ -535,8 +543,8 @@ function onExportExcelClicked() {
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             channel_codes: filters.value.channel_codes,
             errors: filters.value.errors.map((error) => { return error.id }),
-            location_type_id: filters.value.locationType.id,
-            operator_id: filters.value.operator.id,
+            location_type_id: filters.value.location_type_id.id,
+            operator_id: filters.value.operator_id.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_payment_received: filters.value.is_payment_received.id,
             paymentMethod: filters.value.paymentMethod.id,
@@ -559,8 +567,8 @@ function onSearchFilterUpdated() {
         categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
         channel_codes: filters.value.channel_codes,
         errors: filters.value.errors.map((error) => { return error.id }),
-        location_type_id: filters.value.locationType.id,
-        operator_id: filters.value.operator.id,
+        location_type_id: filters.value.location_type_id.id,
+        operator_id: filters.value.operator_id.id,
         is_binded_customer: filters.value.is_binded_customer.id,
         is_payment_received: filters.value.is_payment_received.id,
         paymentMethod: filters.value.paymentMethod.id,

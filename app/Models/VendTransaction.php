@@ -18,6 +18,9 @@ class VendTransaction extends Model
     }
 
     protected $casts = [
+        'customer_json' => 'json',
+        'location_type_json' => 'json',
+        'operator_json' => 'json',
         'product_json' => 'json',
         'transaction_datetime' => 'datetime',
         'unit_cost_json' => 'json',
@@ -26,6 +29,7 @@ class VendTransaction extends Model
     ];
 
     protected $fillable = [
+        'customer_json',
         'order_id',
         'transaction_datetime',
         'amount',
@@ -33,6 +37,8 @@ class VendTransaction extends Model
         'gross_profit_margin',
         'gst_vat_rate',
         'is_payment_received',
+        'location_type_json',
+        'operator_json',
         'payment_method_id',
         'product_id',
         'product_json',

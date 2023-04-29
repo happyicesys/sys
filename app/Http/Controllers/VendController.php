@@ -68,7 +68,7 @@ class VendController extends Controller
                         'is_active',
                         'is_parent',
                         'parent_id',
-                        'profile_id',
+                        'profile_id'
                     ]);
                 },
                 'latestVendBinding.customer.deliveryAddress' => function($query) {
@@ -371,6 +371,7 @@ class VendController extends Controller
 
     public function exportTransactionExcel(Request $request)
     {
+        // dd($request->all());
         $vendTransactions = VendTransaction::with([
             'paymentMethod',
             'vend.latestVendBinding.customer',
@@ -379,27 +380,30 @@ class VendController extends Controller
             ->filterTransactionIndex($request)
             ->get();
 
+            // dd($vendTransactions);
+
         return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
             return [
                 'Order ID' => $vendTransaction->order_id,
                 'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
                 'Vend ID' => $vendTransaction->vend->code,
-                'Customer Name' => $vendTransaction->vend->latestVendBinding &&
-                                    $vendTransaction->vend->latestVendBinding->customer ?
-                                    $vendTransaction->vend->latestVendBinding->customer->code.''.$vendTransaction->vend->latestVendBinding->customer->name :
-                                    $vendTransaction->vend->name,
+                'Customer Name' => $vendTransaction->customer_json && isset($vendTransaction->customer_json['code']) ?
+                                    $vendTransaction->customer_json['code'].' '.$vendTransaction->customer_json['name'] : (
+                                        $vendTransaction->vend_json && isset($vendTransaction->vend_json['latest_vend_binding']) ?
+                                        $vendTransaction->vend_json['latest_vend_binding']['customer']['code'].' '.$vendTransaction->vend_json['latest_vend_binding']['customer']['name'] : $vendTransaction->vend->name
+                                    ),
                 'Channel' => $vendTransaction->vend_transaction_json &&
                             $vendTransaction->vend_transaction_json['SId'] ?
                             $vendTransaction->vend_transaction_json['SId'] :
                             $vendTransaction->vendChannel->code,
-                'Product Code' => $vendTransaction->product ?
+                'Product Code' => $vendTransaction->product()->exists() ?
                                 $vendTransaction->product->code :
                                 '',
-                'Product Name' => $vendTransaction->product ?
+                'Product Name' => $vendTransaction->product()->exists() ?
                                 $vendTransaction->product->name :
                                 '',
                 'Sales (before GST)' => $vendTransaction->amount/ 100,
-                'Unit Cost' => $vendTransaction->unitCost ?
+                'Unit Cost' => $vendTransaction->unitCost()->exists() ?
                                 $vendTransaction->unitCost->cost/ 100 :
                                 '',
                 'Payment Method' => $vendTransaction->paymentMethod ? $vendTransaction->paymentMethod->name : '',

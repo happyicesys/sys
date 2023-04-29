@@ -114,7 +114,12 @@ class CreateVendTransaction implements ShouldQueue
             'vend_channel_error_id' => isset($vendChannelError) ? $vendChannelError->id : null,
             'vend_transaction_json' => $input,
             'product_id' => $productId,
-            'vend_json' => $vend->latestVendBinding && $vend->latestVendBinding->customer ? collect($vend)->except(['vend_channels_json', 'product_mapping']) : null,
+            'vend_json' => $vend ? collect($vend)->except(['latest_vend_binding', 'product_mapping', 'vend_channels_json']) : null,
+            'customer_json' => $vend->latestVendBinding()->exists() && $vend->latestVendBinding->customer()->exists() ? collect($vend->latestVendBinding->customer()->with([
+                'category.categoryGroup'
+            ])->first()) : null,
+            'location_type_json' => $vend->latestVendBinding()->exists() && $vend->latestVendBinding->customer()->exists() && $vend->latestVendBinding->customer->locationType()->exists() ? collect($vend->latestVendBinding->customer->locationType) : null,
+            'operator_json' => $vend->currentOperator()->exists() ? collect($vend->currentOperator->first()) : null,
             'product_json' => $productId ? collect($vend->productMapping->productMappingItems()->where('channel_code', $vendChannel->code)->first()->product)->except(['product_mapping_items']) : null,
             'unit_cost_id' => $unitCostId,
             'gst_vat_rate' => $gstVatRate,
