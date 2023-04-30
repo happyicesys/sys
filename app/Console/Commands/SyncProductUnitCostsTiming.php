@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Product;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class SyncProductUnitCostsTiming extends Command
