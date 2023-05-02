@@ -402,7 +402,8 @@ class VendController extends Controller
                 'Product Name' => $vendTransaction->product()->exists() ?
                                 $vendTransaction->product->name :
                                 '',
-                'Sales (before GST)' => $vendTransaction->amount/ 100,
+                'Amount' => $vendTransaction->amount/ 100,
+                'Sales (before GST)' => $vendTransaction->revenue/ 100,
                 'Unit Cost' => $vendTransaction->unitCost()->exists() ?
                                 $vendTransaction->unitCost->cost/ 100 :
                                 '',

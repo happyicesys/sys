@@ -170,16 +170,16 @@ class ReportController extends Controller
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
         $className = get_class(new Customer());
 
-        $categories = $this->getUnitCostByCategoryQuery($request);
-        $categories = $categories->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+        $locationTypes = $this->getUnitCostByLocationTypeQuery($request);
+        $locationTypes = $locationTypes->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 
-        $revenueTotal = collect((clone $categories)->items())->sum(function($category) {
-            return $category->this_month_revenue/ 100;
+        $revenueTotal = collect((clone $locationTypes)->items())->sum(function($locationType) {
+            return $locationType->this_month_revenue/ 100;
         });
 
-        $grossProfitTotal = collect((clone $categories)->items())->sum(function($category) {
-            return $category->this_month_gross_profit/ 100;
+        $grossProfitTotal = collect((clone $locationTypes)->items())->sum(function($locationType) {
+            return $locationType->this_month_gross_profit/ 100;
         });
 
         $totals = [
@@ -203,7 +203,7 @@ class ReportController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'totals' => $totals,
-            'categories' => CategoryResource::collection($categories),
+            'locationTypes' => CategoryResource::collection($locationTypes),
         ]);
     }
 
@@ -550,18 +550,17 @@ class ReportController extends Controller
                 ->limit(1);
         })
         ->leftJoin('customers', 'vend_bindings.customer_id', '=', 'customers.id')
-        ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
+        ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
         ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->startOfMonth())
         ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth())
         ->filterReport($request)
         ->select(
-            'categories.id',
-            'categories.name',
+            'location_types.id',
             DB::raw('SUM(amount) AS revenue'),
             DB::raw('SUM(gross_profit) AS gross_profit'),
             DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
         )
-        ->groupBy('categories.id');
+        ->groupBy('location_types.id');
 
     $queryLastMonth = VendTransaction::query()
         ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
@@ -572,17 +571,17 @@ class ReportController extends Controller
                 ->limit(1);
         })
         ->leftJoin('customers', 'vend_bindings.customer_id', '=', 'customers.id')
-        ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
+        ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
         ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonth()->startOfMonth())
         ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonth()->endOfMonth())
         ->filterReport($request)
         ->select(
-            'categories.id',
+            'location_types.id',
             DB::raw('SUM(amount) AS revenue'),
             DB::raw('SUM(gross_profit) AS gross_profit'),
             DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
         )
-        ->groupBy('categories.id');
+        ->groupBy('location_types.id');
 
         // dd($queryLastMonth->get()->toArray());
 
@@ -595,33 +594,32 @@ class ReportController extends Controller
                 ->limit(1);
         })
         ->leftJoin('customers', 'vend_bindings.customer_id', '=', 'customers.id')
-        ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
+        ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
         ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth())
         ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonths(2)->endOfMonth())
         ->filterReport($request)
         ->select(
-            'categories.id',
+            'location_types.id',
             DB::raw('SUM(amount) AS revenue'),
             DB::raw('SUM(gross_profit) AS gross_profit'),
             DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
         )
-        ->groupBy('categories.id');
+        ->groupBy('location_types.id');
 
 
-        $categories = Category::query()
+        $locationTypes = LocationType::query()
             ->leftJoinSub($queryThisMonth, 'this_month', function($join) {
-                $join->on('categories.id', '=', 'this_month.id');
+                $join->on('location_types.id', '=', 'this_month.id');
             })
             ->leftJoinSub($queryLastMonth, 'last_month', function($join) {
-                $join->on('categories.id', '=', 'last_month.id');
+                $join->on('location_types.id', '=', 'last_month.id');
             })
             ->leftJoinSub($queryLastTwoMonth, 'last_two_month', function($join) {
-                $join->on('categories.id', '=', 'last_two_month.id');
+                $join->on('location_types.id', '=', 'last_two_month.id');
             })
-            ->where('classname', $className)
             ->select(
-                'categories.id',
-                'categories.name',
+                'location_types.id',
+                'location_types.name',
                 'this_month.revenue AS this_month_revenue',
                 'this_month.gross_profit AS this_month_gross_profit',
                 'this_month.gross_profit_margin AS this_month_gross_profit_margin',
@@ -634,7 +632,7 @@ class ReportController extends Controller
             )
             ->filterIndex($request);
 
-        return $categories;
+        return $locationTypes;
     }
 
     private function yieldOneByOne($items) {
