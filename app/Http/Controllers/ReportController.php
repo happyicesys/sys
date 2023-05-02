@@ -287,41 +287,44 @@ class ReportController extends Controller
 
         $queryThisMonth = VendTransaction::query()
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->startOfMonth())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth())
+            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->startOfMonth()->toDateString())
+            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
+            ->isSuccessful()
             ->filterReport($request)
             ->select(
                 'vends.id',
-                DB::raw('SUM(amount) AS revenue'),
+                DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(amount), 0) AS gross_profit_margin')
+                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(amount), 1) AS gross_profit_margin')
             )
             ->groupBy('vends.id');
 
 
         $queryLastMonth = VendTransaction::query()
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonth()->startOfMonth())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonth()->endOfMonth())
+            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonth()->startOfMonth()->toDateString())
+            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonth()->endOfMonth()->toDateString())
+            ->isSuccessful()
             ->filterReport($request)
             ->select(
                 'vends.id',
-                DB::raw('SUM(amount) AS revenue'),
+                DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
+                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
             )
             ->groupBy('vends.id');
 
         $queryLastTwoMonth = VendTransaction::query()
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonths(2)->endOfMonth())
+            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->toDateString())
+            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonths(2)->endOfMonth()->toDateString())
+            ->isSuccessful()
             ->filterReport($request)
             ->select(
                 'vends.id',
-                DB::raw('SUM(amount) AS revenue'),
+                DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
+                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
             )
             ->groupBy('vends.id');
 
@@ -364,28 +367,30 @@ class ReportController extends Controller
 
         $queryThisMonth = VendTransaction::query()
             ->leftJoin('products', 'vend_transactions.product_id', '=', 'products.id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->startOfMonth())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth())
+            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->startOfMonth()->toDateString())
+            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
+            ->isSuccessful()
             ->filterReport($request)
             ->select(
                 'products.id',
                 'products.name',
-                DB::raw('SUM(amount) AS revenue'),
+                DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
+                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
             )
             ->groupBy('products.id');
 
         $queryLastMonth = VendTransaction::query()
             ->leftJoin('products', 'vend_transactions.product_id', '=', 'products.id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonth()->startOfMonth())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonth()->endOfMonth())
+            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonth()->startOfMonth()->toDateString())
+            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonth()->endOfMonth()->toDateString())
+            ->isSuccessful()
             ->filterReport($request)
             ->select(
                 'products.id',
-                DB::raw('SUM(amount) AS revenue'),
+                DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
+                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
             )
             ->groupBy('products.id');
 
@@ -393,14 +398,15 @@ class ReportController extends Controller
 
         $queryLastTwoMonth = VendTransaction::query()
             ->leftJoin('products', 'vend_transactions.product_id', '=', 'products.id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonths(2)->endOfMonth())
+            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->toDateString())
+            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonths(2)->endOfMonth()->toDateString())
+            ->isSuccessful()
             ->filterReport($request)
             ->select(
                 'products.id',
-                DB::raw('SUM(amount) AS revenue'),
+                DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
+                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
             )
             ->groupBy('products.id');
 
@@ -450,15 +456,16 @@ class ReportController extends Controller
         })
         ->leftJoin('customers', 'vend_bindings.customer_id', '=', 'customers.id')
         ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
-        ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->startOfMonth())
-        ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth())
+        ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->startOfMonth()->toDateString())
+        ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
+        ->isSuccessful()
         ->filterReport($request)
         ->select(
             'categories.id',
             'categories.name',
-            DB::raw('SUM(amount) AS revenue'),
+            DB::raw('SUM(revenue) AS revenue'),
             DB::raw('SUM(gross_profit) AS gross_profit'),
-            DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
+            DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
         )
         ->groupBy('categories.id');
 
@@ -472,14 +479,15 @@ class ReportController extends Controller
         })
         ->leftJoin('customers', 'vend_bindings.customer_id', '=', 'customers.id')
         ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
-        ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonth()->startOfMonth())
-        ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonth()->endOfMonth())
+        ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonth()->startOfMonth()->toDateString())
+        ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonth()->endOfMonth()->toDateString())
+        ->isSuccessful()
         ->filterReport($request)
         ->select(
             'categories.id',
-            DB::raw('SUM(amount) AS revenue'),
+            DB::raw('SUM(revenue) AS revenue'),
             DB::raw('SUM(gross_profit) AS gross_profit'),
-            DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
+            DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
         )
         ->groupBy('categories.id');
 
@@ -495,14 +503,15 @@ class ReportController extends Controller
         })
         ->leftJoin('customers', 'vend_bindings.customer_id', '=', 'customers.id')
         ->leftJoin('categories', 'customers.category_id', '=', 'categories.id')
-        ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth())
-        ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonths(2)->endOfMonth())
+        ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->toDateString())
+        ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonths(2)->endOfMonth()->toDateString())
+        ->isSuccessful()
         ->filterReport($request)
         ->select(
             'categories.id',
-            DB::raw('SUM(amount) AS revenue'),
+            DB::raw('SUM(revenue) AS revenue'),
             DB::raw('SUM(gross_profit) AS gross_profit'),
-            DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 0) AS gross_profit_margin')
+            DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
         )
         ->groupBy('categories.id');
 
@@ -554,6 +563,7 @@ class ReportController extends Controller
         ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->startOfMonth())
         ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth())
         ->filterReport($request)
+        ->isSuccessful()
         ->select(
             'location_types.id',
             DB::raw('SUM(amount) AS revenue'),
@@ -575,6 +585,7 @@ class ReportController extends Controller
         ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonth()->startOfMonth())
         ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonth()->endOfMonth())
         ->filterReport($request)
+        ->isSuccessful()
         ->select(
             'location_types.id',
             DB::raw('SUM(amount) AS revenue'),
@@ -598,6 +609,7 @@ class ReportController extends Controller
         ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth())
         ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonths(2)->endOfMonth())
         ->filterReport($request)
+        ->isSuccessful()
         ->select(
             'location_types.id',
             DB::raw('SUM(amount) AS revenue'),

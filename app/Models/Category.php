@@ -88,7 +88,7 @@ class Category extends Model
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereHas('customers.vendBinding.vend.opeartors', function($query) use ($search) {
+                $query->whereHas('customers.vendBinding.vend.operators', function($query) use ($search) {
                     $query->where('operators.id', $search);
                 });
             }

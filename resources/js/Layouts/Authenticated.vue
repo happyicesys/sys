@@ -46,7 +46,7 @@ const navigation = [
             {name: 'GP by VM', href: '/reports/vend'},
             {name: 'GP by Product', href: '/reports/product'},
             {name: 'GP by Category', href: '/reports/category'},
-            {name: 'GP by Location Type', href: '/reports/location-type'},
+            // {name: 'GP by Location Type', href: '/reports/location-type'},
         ]
     },
     // {

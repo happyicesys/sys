@@ -276,8 +276,7 @@ class VendTransaction extends Model
             $query->whereHas('vend.latestVendBinding.customer.category.categoryGroup', function($query) use ($search) {
                 $query->whereIn('id', $search);
             });
-        })
-        ->whereIn('vend_transaction_json->SErr', [0, 6]);
+        });
 
         return $query;
     }
