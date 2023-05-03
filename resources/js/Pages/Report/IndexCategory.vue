@@ -187,19 +187,19 @@
           <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
             <dt class="truncate text-sm font-medium text-gray-500">Total Sales before GST (This Month)</dt>
             <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                {{totals['revenue'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                {{totals['this_month_revenue_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
             </dd>
           </div>
           <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
             <dt class="truncate text-sm font-medium text-gray-500">Total Gross Profit (This Month)</dt>
             <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                {{totals['gross_profit'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                {{totals['this_month_gross_profit_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
             </dd>
           </div>
           <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
             <dt class="truncate text-sm font-medium text-gray-500">Total Gross Margin (This Month)</dt>
             <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                {{totals['gross_profit_margin'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}} %
+                {{totals['this_month_gross_margin_total'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}} %
             </dd>
           </div>
         </dl>
@@ -258,6 +258,37 @@
                       GM (%)
                     </TableHeadSort>
                   </tr>
+                  <tr class="divide-x divide-gray-200">
+                    <TableHead colspan="2">
+                    </TableHead>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['this_month_revenue_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['this_month_gross_profit_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['this_month_gross_margin_total'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['last_month_revenue_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['last_month_gross_profit_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['last_month_gross_margin_total'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['last_two_month_revenue_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['last_two_month_gross_profit_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['last_two_month_gross_margin_total'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}
+                    </TableData>
+                  </tr>
                 </thead>
                   <tbody class="bg-white">
                     <tr v-for="(category, vendIndex) in categories.data" :key="category.id" class="divide-x divide-gray-200">
@@ -295,13 +326,13 @@
                         {{ category.last_two_month_gross_profit_margin ?? 0 }}
                       </TableData>
                     </tr>
-                <tr v-if="!categories.data.length">
-                  <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                    <tr v-if="!categories.data.length">
+                      <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                          No Results Found
+                      </td>
+                    </tr>
+                  </tbody>
+              </table>
             <Paginator v-if="categories.data.length" :links="categories.links" :meta="categories.meta"></Paginator>
           </div>
       </div>

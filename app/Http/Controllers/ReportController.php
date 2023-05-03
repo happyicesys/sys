@@ -42,19 +42,7 @@ class ReportController extends Controller
         $vends = $vends->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
         ->withQueryString();
 
-        $revenueTotal = collect((clone $vends)->items())->sum(function($vend) {
-            return $vend->this_month_revenue/ 100;
-        });
-
-        $grossProfitTotal = collect((clone $vends)->items())->sum(function($vend) {
-            return $vend->this_month_gross_profit/ 100;
-        });
-
-        $totals = [
-            'revenue' => $revenueTotal,
-            'gross_profit' => $grossProfitTotal,
-            'gross_profit_margin' => $revenueTotal ? ($grossProfitTotal/ $revenueTotal * 100) : 0,
-        ];
+        $totals = $this->getSalesSubTotal($vends);
 
         return Inertia::render('Report/IndexVm', [
             'categories' => CategoryResource::collection(
@@ -84,23 +72,11 @@ class ReportController extends Controller
         $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : false);
         $className = get_class(new Customer());
 
-            $products = $this->getUnitCostByProductQuery($request);
-            $products = $products->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-                ->withQueryString();
+        $products = $this->getUnitCostByProductQuery($request);
+        $products = $products->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+            ->withQueryString();
 
-            $revenueTotal = collect((clone $products)->items())->sum(function($product) {
-                return $product->this_month_revenue/ 100;
-            });
-
-            $grossProfitTotal = collect((clone $products)->items())->sum(function($product) {
-                return $product->this_month_gross_profit/ 100;
-            });
-
-        $totals = [
-            'revenue' => $revenueTotal,
-            'gross_profit' => $grossProfitTotal,
-            'gross_profit_margin' => $revenueTotal ? ($grossProfitTotal/ $revenueTotal * 100) : 0,
-        ];
+        $totals = $this->getSalesSubTotal($products);
 
         return Inertia::render('Report/IndexProduct', [
             'categories' => CategoryResource::collection(
@@ -133,19 +109,7 @@ class ReportController extends Controller
         $categories = $categories->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 
-        $revenueTotal = collect((clone $categories)->items())->sum(function($category) {
-            return $category->this_month_revenue/ 100;
-        });
-
-        $grossProfitTotal = collect((clone $categories)->items())->sum(function($category) {
-            return $category->this_month_gross_profit/ 100;
-        });
-
-        $totals = [
-            'revenue' => $revenueTotal,
-            'gross_profit' => $grossProfitTotal,
-            'gross_profit_margin' => $revenueTotal ? ($grossProfitTotal/ $revenueTotal * 100) : 0,
-        ];
+        $totals = $this->getSalesSubTotal($categories);
 
         return Inertia::render('Report/IndexCategory', [
             'categories' => CategoryResource::collection(
@@ -647,6 +611,41 @@ class ReportController extends Controller
             ->filterIndex($request);
 
         return $locationTypes;
+    }
+
+    private function getSalesSubTotal($dataCols)
+    {
+        return collect((clone $dataCols)->items())->pipe(function($data) {
+            $thisMonthTotal = $data->sum(function($data) {
+                return $data->this_month_revenue/ 100;
+            });
+            $thisMonthGrossProfitTotal = $data->sum(function($data) {
+                return $data->this_month_gross_profit/ 100;
+            });
+            $lastMonthTotal = $data->sum(function($data) {
+                return $data->last_month_revenue/ 100;
+            });
+            $lastMonthGrossProfitTotal = $data->sum(function($data) {
+                return $data->last_month_gross_profit/ 100;
+            });
+            $lastTwoMonthTotal = $data->sum(function($data) {
+                return $data->last_two_month_revenue/ 100;
+            });
+            $lastTwoMonthGrossProfitTotal = $data->sum(function($data) {
+                return $data->last_two_month_gross_profit/ 100;
+            });
+            return [
+                'this_month_revenue_total' => $thisMonthTotal,
+                'this_month_gross_profit_total' => $thisMonthGrossProfitTotal,
+                'this_month_gross_margin_total' => round($thisMonthGrossProfitTotal/($thisMonthTotal ? $thisMonthTotal : 1) * 100, 1),
+                'last_month_revenue_total' => $lastMonthTotal,
+                'last_month_gross_profit_total' => $lastMonthGrossProfitTotal,
+                'last_month_gross_margin_total' => round($lastMonthGrossProfitTotal/($lastMonthTotal ? $lastMonthTotal : 1) * 100, 1),
+                'last_two_month_revenue_total' => $lastTwoMonthTotal,
+                'last_two_month_gross_profit_total' => $lastTwoMonthGrossProfitTotal,
+                'last_two_month_gross_margin_total' => round($lastTwoMonthGrossProfitTotal/($lastTwoMonthTotal ? $lastTwoMonthTotal : 1) * 100, 1),
+            ];
+        });
     }
 
     private function yieldOneByOne($items) {
