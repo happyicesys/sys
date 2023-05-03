@@ -108,7 +108,14 @@ class VendTransaction extends Model
         $isBindedCustomer = 'all';
         $isPaymentReceived = $request->is_payment_received != null ? $request->is_payment_received : 'all';
 
-        $query =  $query->when($request->codes, function($query, $search) {
+        $query = $query->when($request->has('visited'), function($query, $search) use ($request) {
+            if($request->visited == 'true') {
+                $query->whereRaw('1 = 1');
+            }else {
+                $query->whereRaw('1 = 0');
+            }
+        })
+        ->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
             }else {
@@ -218,7 +225,14 @@ class VendTransaction extends Model
 
     public function scopeFilterReport($query, $request)
     {
-        $query->when($request->codes, function($query, $search) {
+        $query->when($request->has('visited'), function($query, $search) use ($request) {
+            if($request->visited == 'true') {
+                $query->whereRaw('1 = 1');
+            }else {
+                $query->whereRaw('1 = 0');
+            }
+        })
+        ->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
             }else {

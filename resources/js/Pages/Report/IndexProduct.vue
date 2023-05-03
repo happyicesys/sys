@@ -353,6 +353,7 @@ const filters = ref({
   sortKey: '',
   sortBy: false,
   numberPerPage: 100,
+  visited: false,
 })
 const booleanOptions = ref([])
 const categoryOptions = ref([])
@@ -366,6 +367,7 @@ const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
+  filters.value.visited = true
   numberPerPageOptions.value = [
     { id: 50, value: 50 },
     { id: 100, value: 100 },

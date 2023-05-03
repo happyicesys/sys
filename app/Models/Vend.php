@@ -220,7 +220,14 @@ class Vend extends Model
         $isOnline = $request->is_online != null ? $request->is_online : 'all';
         $isSensor = $request->is_sensor != null ? $request->is_sensor : 'all';
 
-        return $query->when($request->codes, function($query, $search) {
+        return $query->when($request->has('visited'), function($query, $search) use ($request) {
+            if($request->visited == 'true') {
+                $query->whereRaw('1 = 1');
+            }else {
+                $query->whereRaw('1 = 0');
+            }
+        })
+        ->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
             }else {

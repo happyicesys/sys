@@ -835,6 +835,7 @@ const permissions = usePage().props.auth.permissions
   const now = ref(moment().format('HH:mm:ss'))
 
   onMounted(() => {
+
     vendChannelErrorsOptions.value = [
         // {'id': '', 'desc': 'All'},
         {'id': 'errors_only', 'desc': 'Errors Only'},

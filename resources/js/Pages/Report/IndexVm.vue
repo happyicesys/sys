@@ -161,11 +161,11 @@
           <div class="flex flex-col space-y-2">
               <p class="text-sm text-gray-700 leading-5 flex space-x-1">
                   <span>Showing</span>
-                  <span class="font-medium">{{ vends.meta.from ?? 0 }}</span>
+                  <span class="font-medium">{{ vends && vends.meta && vends.meta.from ? vends.meta.from : 0 }}</span>
                   <span>to</span>
-                  <span class="font-medium">{{ vends.meta.to ?? 0 }}</span>
+                  <span class="font-medium">{{ vends && vends.meta && vends.meta.to ? vends.meta.to : 0 }}</span>
                   <span>of</span>
-                  <span class="font-medium">{{ vends.meta.total }}</span>
+                  <span class="font-medium">{{ vends && vends.meta && vends.meta.total ? vends.meta.total : 0 }}</span>
                   <span>results</span>
               </p>
               <MultiSelect
@@ -365,6 +365,7 @@ const filters = ref({
   sortKey: '',
   sortBy: false,
   numberPerPage: 100,
+  visited: false,
 })
 const booleanOptions = ref([])
 const categoryOptions = ref([])
@@ -378,6 +379,7 @@ const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
+  filters.value.visited = true
   numberPerPageOptions.value = [
     { id: 50, value: 50 },
     { id: 100, value: 100 },

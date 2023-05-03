@@ -31,23 +31,24 @@ class ReportController extends Controller
     public function indexVm(Request $request)
     {
         // dd($request->all());
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
         $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : false);
         $className = get_class(new Customer());
 
-            $vends = $this->getUnitCostByVendQuery($request);
-            $vends = $vends->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-            ->withQueryString();
+        $vends = $this->getUnitCostByVendQuery($request);
+        $vends = $vends->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+        ->withQueryString();
 
-            $revenueTotal = collect((clone $vends)->items())->sum(function($vend) {
-                return $vend->this_month_revenue/ 100;
-            });
+        $revenueTotal = collect((clone $vends)->items())->sum(function($vend) {
+            return $vend->this_month_revenue/ 100;
+        });
 
-            $grossProfitTotal = collect((clone $vends)->items())->sum(function($vend) {
-                return $vend->this_month_gross_profit/ 100;
-            });
+        $grossProfitTotal = collect((clone $vends)->items())->sum(function($vend) {
+            return $vend->this_month_gross_profit/ 100;
+        });
 
         $totals = [
             'revenue' => $revenueTotal,
@@ -76,6 +77,7 @@ class ReportController extends Controller
 
     public function indexProduct(Request $request)
     {
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
@@ -121,6 +123,7 @@ class ReportController extends Controller
 
     public function indexCategory(Request $request)
     {
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
@@ -299,7 +302,6 @@ class ReportController extends Controller
             )
             ->groupBy('vends.id');
 
-
         $queryLastMonth = VendTransaction::query()
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonth()->startOfMonth()->toDateString())
@@ -357,7 +359,7 @@ class ReportController extends Controller
                 'last_two_month.gross_profit_margin AS last_two_month_gross_profit_margin',
             )
             ->filterIndex($request);
-
+                // dd($vends->get()->toArray());
         return $vends;
     }
 
