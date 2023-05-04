@@ -61,7 +61,7 @@
               Category
             </label>
             <MultiSelect
-              v-model="filters.locationTypes"
+              v-model="filters.categories"
               :options="categoryOptions"
               trackBy="id"
               valueProp="id"
@@ -187,19 +187,19 @@
           <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
             <dt class="truncate text-sm font-medium text-gray-500">Total Sales before GST (This Month)</dt>
             <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                {{totals['revenue'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                {{totals['this_month_revenue_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
             </dd>
           </div>
           <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
             <dt class="truncate text-sm font-medium text-gray-500">Total Gross Profit (This Month)</dt>
             <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                {{totals['gross_profit'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                {{totals['this_month_gross_profit_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
             </dd>
           </div>
           <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
             <dt class="truncate text-sm font-medium text-gray-500">Total Gross Margin (This Month)</dt>
             <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                {{totals['gross_profit_margin'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}} %
+                {{totals['this_month_gross_margin_total'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}} %
             </dd>
           </div>
         </dl>
@@ -258,40 +258,71 @@
                       GM (%)
                     </TableHeadSort>
                   </tr>
+                  <tr class="divide-x divide-gray-200">
+                    <TableHead colspan="2">
+                    </TableHead>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['this_month_revenue_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['this_month_gross_profit_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['this_month_gross_margin_total'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['last_month_revenue_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['last_month_gross_profit_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['last_month_gross_margin_total'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['last_two_month_revenue_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['last_two_month_gross_profit_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['last_two_month_gross_margin_total'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}
+                    </TableData>
+                  </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(locationType, vendIndex) in locationTypes.data" :key="locationType.id" class="divide-x divide-gray-200">
-                      <TableData :currentIndex="vendIndex" :totalLength="locationTypes.length" inputClass="text-center">
-                        {{ locationTypes.meta.from + vendIndex }}
+                    <tr v-for="(locationType, locationTypeIndex) in locationTypes.data" :key="locationType.id" class="divide-x divide-gray-200">
+                      <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-center">
+                        {{ locationTypes.meta.from + locationTypeIndex }}
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="locationTypes.length" inputClass="text-left">
+                      <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-left">
                         {{ locationType.name }}
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="locationTypes.length" inputClass="text-right">
+                      <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-right">
                         {{ locationType.this_month_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="locationTypes.length" inputClass="text-right">
+                      <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-right">
                         {{ locationType.this_month_gross_profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="locationTypes.length" inputClass="text-right">
+                      <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-right">
                         {{ locationType.this_month_gross_profit_margin ?? 0 }}
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="locationTypes.length" inputClass="text-right">
+                      <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-right">
                         {{ locationType.last_month_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="locationTypes.length" inputClass="text-right">
+                      <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-right">
                         {{ locationType.last_month_gross_profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="locationTypes.length" inputClass="text-right">
+                      <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-right">
                         {{ locationType.last_month_gross_profit_margin ?? 0 }}
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="locationTypes.length" inputClass="text-right">
+                      <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-right">
                         {{ locationType.last_two_month_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="locationTypes.length" inputClass="text-right">
+                      <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-right">
                         {{ locationType.last_two_month_gross_profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="locationTypes.length" inputClass="text-right">
+                      <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-right">
                         {{ locationType.last_two_month_gross_profit_margin ?? 0 }}
                       </TableData>
                     </tr>
@@ -325,11 +356,11 @@ import { ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
-  categoryOptions: Object,
-  categoryGroupOptions: Object,
+  categories: Object,
+  categoryGroups: Object,
   locationTypeOptions: Object,
   monthOptions: Object,
-  operatorOptions: Object,
+  operators: Object,
   totals: [Array, Object],
   locationTypes: Object,
 })
@@ -347,6 +378,7 @@ const filters = ref({
   sortKey: '',
   sortBy: false,
   numberPerPage: 100,
+  visited: false,
 })
 const booleanOptions = ref([])
 const categoryOptions = ref([])
@@ -360,6 +392,7 @@ const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
+  filters.value.visited = true
   numberPerPageOptions.value = [
     { id: 50, value: 50 },
     { id: 100, value: 100 },
@@ -380,21 +413,21 @@ onMounted(() => {
     ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   monthOptions.value = props.monthOptions.map((data) => {return {id: data.id, name: data.name}})
-  filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
-  filters.value.location_type_id = locationTypeOptions.value[0]
   filters.value.currentMonth = monthOptions.value[0]
 
   operatorOptions.value = [
     {id: 'all', full_name: 'All'},
     ...props.operators.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
+  filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
+  filters.value.location_type_id = locationTypeOptions.value[0]
   filters.value.operator_id = operatorOptions.value[0]
 })
 
 function onSearchFilterUpdated() {
   router.get('/reports/location-type', {
       ...filters.value,
-      categories: filters.value.categories.map((categories) => { return locationType.id }),
+      categories: filters.value.categories.map((category) => { return category.id }),
       categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
       currentMonth: filters.value.currentMonth.id,
       is_binded_customer: filters.value.is_binded_customer.id,
@@ -424,7 +457,7 @@ function onExportExcelClicked() {
         url: '/reports/location-type/excel',
         params: {
             ...filters.value,
-            locationTypes: filters.value.locationTypes.map((locationType) => { return locationType.id }),
+            categories: filters.value.categories.map((category) => { return category.id }),
             categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             currentMonth: filters.value.currentMonth.id,
             is_binded_customer: filters.value.is_binded_customer.id,

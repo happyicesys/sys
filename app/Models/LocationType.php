@@ -24,7 +24,14 @@ class LocationType extends Model
     // scopes
     public function scopeFilterIndex($query, $request)
     {
-        return $query->when($request->codes, function($query, $search) {
+        return $query->when($request->has('visited'), function($query, $search) use ($request) {
+            if($request->visited == 'true') {
+                $query->whereRaw('1 = 1');
+            }else {
+                $query->whereRaw('1 = 0');
+            }
+        })
+        ->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
             }else {
