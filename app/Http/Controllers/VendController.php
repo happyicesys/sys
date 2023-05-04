@@ -29,6 +29,7 @@ use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use App\Models\VendData;
+use App\Models\VendSnapshot;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
 use App\Models\PaymentGateway\Midtrans;
@@ -83,6 +84,7 @@ class VendController extends Controller
                 },
                 'latestVendBinding.customer.locationType',
                 'productMapping',
+                'vendSnapshots',
                 // 'vendSevenDaysTransactions',
             ])
             ->leftJoin('vend_bindings', function($query) {
@@ -372,6 +374,45 @@ class VendController extends Controller
             ->get();
 
             // dd($vendTransactions);
+
+        return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
+            return [
+                'Order ID' => $vendTransaction->order_id,
+                'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
+                'Vend ID' => $vendTransaction->vend->code,
+                'Customer Name' => $vendTransaction->customer_json && isset($vendTransaction->customer_json['code']) ?
+                                    $vendTransaction->customer_json['code'].' '.$vendTransaction->customer_json['name'] : (
+                                        $vendTransaction->vend_json && isset($vendTransaction->vend_json['latest_vend_binding']) ?
+                                        $vendTransaction->vend_json['latest_vend_binding']['customer']['code'].' '.$vendTransaction->vend_json['latest_vend_binding']['customer']['name'] : $vendTransaction->vend->name
+                                    ),
+                'Channel' => $vendTransaction->vend_transaction_json &&
+                            $vendTransaction->vend_transaction_json['SId'] ?
+                            $vendTransaction->vend_transaction_json['SId'] :
+                            $vendTransaction->vendChannel->code,
+                'Product Code' => $vendTransaction->product()->exists() ?
+                                $vendTransaction->product->code :
+                                '',
+                'Product Name' => $vendTransaction->product()->exists() ?
+                                $vendTransaction->product->name :
+                                '',
+                'Amount' => $vendTransaction->amount/ 100,
+                'Sales (before GST)' => $vendTransaction->revenue/ 100,
+                'Unit Cost' => $vendTransaction->unitCost()->exists() ?
+                                $vendTransaction->unitCost->cost/ 100 :
+                                '',
+                'Payment Method' => $vendTransaction->paymentMethod ? $vendTransaction->paymentMethod->name : '',
+                'Error' => $vendTransaction->vend_transaction_json &&
+                            $vendTransaction->vend_transaction_json['SErr'] ?
+                            $vendTransaction->vend_transaction_json['SErr'] :
+                            ($vendTransaction->vendChannelError && $vendTransaction->vendChannelError->code ?? ''),
+            ];
+        });
+    }
+
+    public function exportVendSnapshotExcel($vendSnapshotId)
+    {
+        $vendSnapshot = VendSnapshot::findOrFail($vendSnapshotId);
+        dd($vendSnapshot);
 
         return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
             return [

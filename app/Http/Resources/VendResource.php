@@ -57,6 +57,7 @@ class VendResource extends JsonResource
             'vendChannelsJson' => $this->vend_channels_json,
             'vendChannelErrorLogsJson' => $this->vend_channel_error_logs_json,
             'vendChannelTotalsJson' => $this->vend_channel_totals_json,
+            'vendSnapshots' => VendSnapshotResource::collection($this->whenLoaded('vendSnapshots')),
             'vendTransactionTotalsJson' => $this->vend_transaction_totals_json,
             'latestVendBinding' => VendBindingResource::make($this->whenLoaded('latestVendBinding')),
             'salesData' => [

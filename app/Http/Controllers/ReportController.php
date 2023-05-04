@@ -179,7 +179,7 @@ class ReportController extends Controller
                                     $vend->latestVendBinding->customer->code.''.$vend->latestVendBinding->customer->name :
                                     $vend->name,
                 'Sales (thisMth)' => $vend->this_month_revenue/ 100,
-                'GP (thisMth)' => $vend->this_month_revenue/ 100,
+                'GP (thisMth)' => $vend->this_month_gross_profit/ 100,
                 'GP Margin (thisMth)' => $vend->this_month_gross_profit_margin,
                 'Sales (lastMth)' => $vend->last_month_revenue/ 100,
                 'GP (lastMth)' => $vend->last_month_gross_profit/ 100,
@@ -203,7 +203,7 @@ class ReportController extends Controller
                 'ID' => $product->code,
                 'Name' => $product->name,
                 'Sales (thisMth)' => $product->this_month_revenue/ 100,
-                'GP (thisMth)' => $product->this_month_revenue/ 100,
+                'GP (thisMth)' => $product->this_month_gross_profit/ 100,
                 'GP Margin (thisMth)' => $product->this_month_gross_profit_margin,
                 'Sales (lastMth)' => $product->last_month_revenue/ 100,
                 'GP (lastMth)' => $product->last_month_gross_profit/ 100,
@@ -226,7 +226,7 @@ class ReportController extends Controller
             return [
                 'Name' => $category->name,
                 'Sales (thisMth)' => $category->this_month_revenue/ 100,
-                'GP (thisMth)' => $category->this_month_revenue/ 100,
+                'GP (thisMth)' => $category->this_month_gross_profit/ 100,
                 'GP Margin (thisMth)' => $category->this_month_gross_profit_margin,
                 'Sales (lastMth)' => $category->last_month_revenue/ 100,
                 'GP (lastMth)' => $category->last_month_gross_profit/ 100,
@@ -250,7 +250,7 @@ class ReportController extends Controller
             return [
                 'Name' => $product->name,
                 'Sales (thisMth)' => $product->this_month_revenue/ 100,
-                'GP (thisMth)' => $product->this_month_revenue/ 100,
+                'GP (thisMth)' => $product->this_month_gross_profit/ 100,
                 'GP Margin (thisMth)' => $product->this_month_gross_profit_margin,
                 'Sales (lastMth)' => $product->last_month_revenue/ 100,
                 'GP (lastMth)' => $product->last_month_gross_profit/ 100,

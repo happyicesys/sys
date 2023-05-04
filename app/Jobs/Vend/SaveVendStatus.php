@@ -4,6 +4,7 @@ namespace App\Jobs\Vend;
 
 use App\Models\Vend;
 use App\Models\VendSnapshot;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -37,5 +38,7 @@ class SaveVendStatus implements ShouldQueue
             'vend_code' => $this->vend->code,
             'vend_id' => $this->vend->id,
         ]);
+
+        VendSnapshot::whereDate('created_at', '<', Carbon::today()->subYears(2))->delete();
     }
 }
