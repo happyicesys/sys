@@ -51,6 +51,7 @@ class VendController extends Controller
 
     public function index(Request $request)
     {
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer != null ? $request->is_binded_customer : 'true');
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'vend_channel_totals_json->outOfStockSkuPercent';
@@ -144,16 +145,6 @@ class VendController extends Controller
                             ->sum(function($vend) {
                                 return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
                             })/100,
-            // 'thirtyDaysGrossProfit' => collect((clone $vends)
-            //                 ->items())
-            //                 ->sum(function($vend) {
-            //                     return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_gross_profit'] : 0;
-            //                 })/100,
-            // 'thirtyDaysRevenue' => collect((clone $vends)
-            //                 ->items())
-            //                 ->sum(function($vend) {
-            //                     return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_revenue'] : 0;
-            //                 })/100,
         ];
 
         return Inertia::render('Vend/Index', [
@@ -175,7 +166,6 @@ class VendController extends Controller
             'vends' => VendResource::collection(
                 $vends
             ),
-            // 'vendOptions' => VendResource::collection(Vend::orderBy('code')->get()),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
         ]);
     }
@@ -290,6 +280,7 @@ class VendController extends Controller
 
     public function transactionIndex(Request $request)
     {
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->toDateString() : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
         $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->toDateString() : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;

@@ -434,6 +434,7 @@ const locationTypeOptions = ref([])
 const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
+    filters.value.visited = true
     vendChannelErrorOptions.value = [
         {'id': 'errors_only', 'desc': 'Errors Only'},
         ...props.vendChannelErrors.data.map((error) => {return {id: error.id, desc: error.desc}})
@@ -495,6 +496,7 @@ const filters = ref({
     sortKey: '',
     sortBy: false,
     numberPerPage: 100,
+    visited: false,
 })
 const operatorOptions = ref([])
 // const vendOptions = ref([])

@@ -812,6 +812,7 @@
     sortKey: '',
     sortBy: false,
     numberPerPage: '',
+    visited: false,
   })
 
   const booleanOptions = ref([])
@@ -835,7 +836,7 @@ const permissions = usePage().props.auth.permissions
   const now = ref(moment().format('HH:mm:ss'))
 
   onMounted(() => {
-
+    filters.value.visited = true
     vendChannelErrorsOptions.value = [
         // {'id': '', 'desc': 'All'},
         {'id': 'errors_only', 'desc': 'Errors Only'},
