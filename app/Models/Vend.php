@@ -66,6 +66,11 @@ class Vend extends Model
         return $this->belongsToMany(Operator::class)->latest('operator_vend.created_at')->limit(1);
     }
 
+    public function latestOperator()
+    {
+        return $this->hasOne(OperatorVend::class)->latest('operator_vend.created_at');
+    }
+
     public function latestVendBinding()
     {
         return $this->hasOne(VendBinding::class)->where('is_active', true)->latest('begin_date');
