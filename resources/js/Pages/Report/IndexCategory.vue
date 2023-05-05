@@ -182,7 +182,7 @@
               </MultiSelect>
           </div>
         </div>
-
+<!--
         <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
             <dt class="truncate text-sm font-medium text-gray-500">Total Sales before GST (This Month)</dt>
@@ -202,7 +202,7 @@
                 {{totals['this_month_gross_margin_total'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}} %
             </dd>
           </div>
-        </dl>
+        </dl> -->
       </div>
 
       <div class="mt-6 flex flex-col">
