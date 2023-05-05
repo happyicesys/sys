@@ -401,10 +401,10 @@ class VendController extends Controller
                                 $vendTransaction->unitCost->cost/ 100 :
                                 '',
                 'Payment Method' => $vendTransaction->paymentMethod ? $vendTransaction->paymentMethod->name : '',
-                'Error' => $vendTransaction->vend_transaction_json &&
+                'Error Code' => $vendTransaction->vend_transaction_json &&
                             $vendTransaction->vend_transaction_json['SErr'] ?
                             $vendTransaction->vend_transaction_json['SErr'] :
-                            ($vendTransaction->vendChannelError && $vendTransaction->vendChannelError->code ?? ''),
+                            ($vendTransaction->vendChannelError && $vendTransaction->vendChannelError->code ?? 0),
             ];
         });
     }
@@ -412,7 +412,6 @@ class VendController extends Controller
     public function exportVendSnapshotExcel($vendSnapshotId)
     {
         $vendSnapshot = VendSnapshot::findOrFail($vendSnapshotId);
-        dd($vendSnapshot);
 
         return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
             return [

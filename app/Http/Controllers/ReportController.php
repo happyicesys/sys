@@ -39,10 +39,9 @@ class ReportController extends Controller
         $className = get_class(new Customer());
 
         $vends = $this->getUnitCostByVendQuery($request);
+        $totals = $this->getSalesSubTotal($vends);
         $vends = $vends->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
         ->withQueryString();
-
-        $totals = $this->getSalesSubTotal($vends);
 
         return Inertia::render('Report/IndexVm', [
             'categories' => CategoryResource::collection(
@@ -73,10 +72,9 @@ class ReportController extends Controller
         $className = get_class(new Customer());
 
         $products = $this->getUnitCostByProductQuery($request);
+        $totals = $this->getSalesSubTotal($products);
         $products = $products->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
-
-        $totals = $this->getSalesSubTotal($products);
 
         return Inertia::render('Report/IndexProduct', [
             'categories' => CategoryResource::collection(
@@ -106,10 +104,9 @@ class ReportController extends Controller
         $className = get_class(new Customer());
 
         $categories = $this->getUnitCostByCategoryQuery($request);
+        $totals = $this->getSalesSubTotal($categories);
         $categories = $categories->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
-
-        $totals = $this->getSalesSubTotal($categories);
 
         return Inertia::render('Report/IndexCategory', [
             'categories' => CategoryResource::collection(
@@ -140,10 +137,9 @@ class ReportController extends Controller
         $className = get_class(new Customer());
 
         $locationTypes = $this->getUnitCostByLocationTypeQuery($request);
+        $totals = $this->getSalesSubTotal($locationTypes);
         $locationTypes = $locationTypes->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
-
-        $totals = $this->getSalesSubTotal($locationTypes);
 
         return Inertia::render('Report/IndexLocationType', [
             'categories' => CategoryResource::collection(
@@ -628,7 +624,7 @@ class ReportController extends Controller
 
     private function getSalesSubTotal($dataCols)
     {
-        return collect((clone $dataCols)->items())->pipe(function($data) {
+        return collect((clone $dataCols)->get())->pipe(function($data) {
             $thisMonthTotal = $data->sum(function($data) {
                 return $data->this_month_revenue/ 100;
             });

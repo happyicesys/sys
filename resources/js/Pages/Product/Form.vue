@@ -446,6 +446,7 @@ function submit() {
       .transform((data) => ({
         ...data,
         operator_id: data.operator_id.id,
+        unitCosts: unitCosts.value,
         // category_id: data.category_id.id,
         // category_group_id: data.category_group_id.id,
       }))
