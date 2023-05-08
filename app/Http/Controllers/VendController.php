@@ -141,13 +141,13 @@ class VendController extends Controller
         //     'thirtyDays' => $thiryDaysTotal/100,
         // ];
 
-        $totals = [
-            'thirtyDays' => collect((clone $vends)
-                            ->items())
-                            ->sum(function($vend) {
-                                return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
-                            })/100,
-        ];
+        // $totals = [
+        //     'thirtyDays' => collect((clone $vends)
+        //                     ->items())
+        //                     ->sum(function($vend) {
+        //                         return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
+        //                     })/100,
+        // ];
 
         return Inertia::render('Vend/Index', [
             'categories' => CategoryResource::collection(
@@ -164,7 +164,7 @@ class VendController extends Controller
             'operatorOptions' => OperatorResource::collection(
                 Operator::all()
             ),
-            'totals' => $totals,
+            // 'totals' => $totals,
             'vends' => VendResource::collection(
                 $vends
             ),

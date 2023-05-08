@@ -71,6 +71,7 @@ class ReportController extends Controller
         $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : false);
         $className = get_class(new Customer());
 
+        // dd($this->getUnitCostByProductQuery($request)->toSql());
         $products = $this->getUnitCostByProductQuery($request);
         $totals = $this->getSalesSubTotal($products);
         $products = $products->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
@@ -270,6 +271,7 @@ class ReportController extends Controller
             ->filterReport($request)
             ->select(
                 'vends.id',
+                DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
                 DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(amount), 1) AS gross_profit_margin')
@@ -284,6 +286,7 @@ class ReportController extends Controller
             ->filterReport($request)
             ->select(
                 'vends.id',
+                DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
                 DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
@@ -298,6 +301,7 @@ class ReportController extends Controller
             ->filterReport($request)
             ->select(
                 'vends.id',
+                DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
                 DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
@@ -322,12 +326,15 @@ class ReportController extends Controller
                 'vends.id',
                 'vends.name',
                 'vends.code',
+                'this_month.count AS this_month_count',
                 'this_month.revenue AS this_month_revenue',
                 'this_month.gross_profit AS this_month_gross_profit',
                 'this_month.gross_profit_margin AS this_month_gross_profit_margin',
+                'last_month.count AS last_month_count',
                 'last_month.revenue AS last_month_revenue',
                 'last_month.gross_profit AS last_month_gross_profit',
                 'last_month.gross_profit_margin AS last_month_gross_profit_margin',
+                'last_two_month.count AS last_two_month_count',
                 'last_two_month.revenue AS last_two_month_revenue',
                 'last_two_month.gross_profit AS last_two_month_gross_profit',
                 'last_two_month.gross_profit_margin AS last_two_month_gross_profit_margin',
@@ -350,6 +357,7 @@ class ReportController extends Controller
             ->select(
                 'products.id',
                 'products.name',
+                DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
                 DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
@@ -364,6 +372,7 @@ class ReportController extends Controller
             ->filterReport($request)
             ->select(
                 'products.id',
+                DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
                 DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
@@ -380,6 +389,7 @@ class ReportController extends Controller
             ->filterReport($request)
             ->select(
                 'products.id',
+                DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
                 DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
@@ -402,12 +412,15 @@ class ReportController extends Controller
                 'products.id',
                 'products.name',
                 'products.code',
+                'this_month.count AS this_month_count',
                 'this_month.revenue AS this_month_revenue',
                 'this_month.gross_profit AS this_month_gross_profit',
                 'this_month.gross_profit_margin AS this_month_gross_profit_margin',
+                'last_month.count AS last_month_count',
                 'last_month.revenue AS last_month_revenue',
                 'last_month.gross_profit AS last_month_gross_profit',
                 'last_month.gross_profit_margin AS last_month_gross_profit_margin',
+                'last_two_month.count AS last_two_month_count',
                 'last_two_month.revenue AS last_two_month_revenue',
                 'last_two_month.gross_profit AS last_two_month_gross_profit',
                 'last_two_month.gross_profit_margin AS last_two_month_gross_profit_margin',
@@ -439,6 +452,7 @@ class ReportController extends Controller
         ->select(
             'categories.id',
             'categories.name',
+            DB::raw('COUNT(*) AS count'),
             DB::raw('SUM(revenue) AS revenue'),
             DB::raw('SUM(gross_profit) AS gross_profit'),
             DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
@@ -461,6 +475,7 @@ class ReportController extends Controller
         ->filterReport($request)
         ->select(
             'categories.id',
+            DB::raw('COUNT(*) AS count'),
             DB::raw('SUM(revenue) AS revenue'),
             DB::raw('SUM(gross_profit) AS gross_profit'),
             DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
@@ -485,6 +500,7 @@ class ReportController extends Controller
         ->filterReport($request)
         ->select(
             'categories.id',
+            DB::raw('COUNT(*) AS count'),
             DB::raw('SUM(revenue) AS revenue'),
             DB::raw('SUM(gross_profit) AS gross_profit'),
             DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
@@ -506,12 +522,15 @@ class ReportController extends Controller
             ->select(
                 'categories.id',
                 'categories.name',
+                'this_month.count AS this_month_count',
                 'this_month.revenue AS this_month_revenue',
                 'this_month.gross_profit AS this_month_gross_profit',
                 'this_month.gross_profit_margin AS this_month_gross_profit_margin',
+                'last_month.count AS last_month_count',
                 'last_month.revenue AS last_month_revenue',
                 'last_month.gross_profit AS last_month_gross_profit',
                 'last_month.gross_profit_margin AS last_month_gross_profit_margin',
+                'last_two_month.count AS last_two_month_count',
                 'last_two_month.revenue AS last_two_month_revenue',
                 'last_two_month.gross_profit AS last_two_month_gross_profit',
                 'last_two_month.gross_profit_margin AS last_two_month_gross_profit_margin',
@@ -541,6 +560,7 @@ class ReportController extends Controller
             ->filterReport($request)
             ->select(
                 'location_types.id',
+                DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
                 DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
@@ -563,6 +583,7 @@ class ReportController extends Controller
             ->filterReport($request)
             ->select(
                 'location_types.id',
+                DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
                 DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
@@ -587,6 +608,7 @@ class ReportController extends Controller
             ->filterReport($request)
             ->select(
                 'location_types.id',
+                DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
                 DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
@@ -607,12 +629,15 @@ class ReportController extends Controller
             ->select(
                 'location_types.id',
                 'location_types.name',
+                'this_month.count AS this_month_count',
                 'this_month.revenue AS this_month_revenue',
                 'this_month.gross_profit AS this_month_gross_profit',
                 'this_month.gross_profit_margin AS this_month_gross_profit_margin',
+                'last_month.count AS last_month_count',
                 'last_month.revenue AS last_month_revenue',
                 'last_month.gross_profit AS last_month_gross_profit',
                 'last_month.gross_profit_margin AS last_month_gross_profit_margin',
+                'last_two_month.count AS last_two_month_count',
                 'last_two_month.revenue AS last_two_month_revenue',
                 'last_two_month.gross_profit AS last_two_month_gross_profit',
                 'last_two_month.gross_profit_margin AS last_two_month_gross_profit_margin',
@@ -644,12 +669,15 @@ class ReportController extends Controller
                 return $data->last_two_month_gross_profit/ 100;
             });
             return [
+                'this_month_count_total' => $data->sum('this_month_count'),
                 'this_month_revenue_total' => $thisMonthTotal,
                 'this_month_gross_profit_total' => $thisMonthGrossProfitTotal,
                 'this_month_gross_margin_total' => round($thisMonthGrossProfitTotal/($thisMonthTotal ? $thisMonthTotal : 1) * 100, 1),
+                'last_month_count_total' => $data->sum('last_month_count'),
                 'last_month_revenue_total' => $lastMonthTotal,
                 'last_month_gross_profit_total' => $lastMonthGrossProfitTotal,
                 'last_month_gross_margin_total' => round($lastMonthGrossProfitTotal/($lastMonthTotal ? $lastMonthTotal : 1) * 100, 1),
+                'last_two_month_count_total' => $data->sum('last_two_month_count'),
                 'last_two_month_revenue_total' => $lastTwoMonthTotal,
                 'last_two_month_gross_profit_total' => $lastTwoMonthGrossProfitTotal,
                 'last_two_month_gross_margin_total' => round($lastTwoMonthGrossProfitTotal/($lastTwoMonthTotal ? $lastTwoMonthTotal : 1) * 100, 1),
