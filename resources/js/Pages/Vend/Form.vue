@@ -15,7 +15,7 @@
         <form @submit.prevent="submit" id="submit">
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6 pb-2">
             <div class="sm:col-span-6">
-              <FormInput v-model="form.name" :error="form.errors.name" required="true" :disabled="vend.latestVendBinding && vend.latestVendBinding.customer">
+              <FormInput v-model="form.name" :error="form.errors.name" required="true" :disabled="vend.customer_code && vend.customer_name">
                 Name
               </FormInput>
             </div>
@@ -134,7 +134,7 @@
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
-import { ArrowDownTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 
@@ -154,8 +154,8 @@ const form = ref(
 
 onMounted(() => {
   form.value = props.vend ? useForm(props.vend) : useForm(getDefaultForm())
-  form.value.name = props.vend.latestVendBinding ?
-                    props.vend.latestVendBinding.customer.code + '    ' + props.vend.latestVendBinding.customer.name :
+  form.value.name = props.vend.customer_code ?
+                    props.vend.customer_code + '    ' + props.vend.customer_name :
                     props.vend.name
 })
 

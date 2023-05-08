@@ -11,6 +11,7 @@ use App\Http\Resources\CountryResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentMethodResource;
+use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendChannelErrorResource;
 use App\Http\Resources\VendFanResource;
@@ -34,6 +35,7 @@ use App\Models\VendTemp;
 use App\Models\VendTransaction;
 use App\Models\PaymentGateway\Midtrans;
 use App\Traits\GetUserTimezone;
+use App\Traits\HasFilter;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Collection;
@@ -48,45 +50,18 @@ use Spatie\Permission\Models\Role;
 
 class VendController extends Controller
 {
-    use GetUserTimezone;
+    use GetUserTimezone, HasFilter;
 
     public function index(Request $request)
     {
-        $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer != null ? $request->is_binded_customer : 'true');
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'vend_channel_totals_json->outOfStockSkuPercent';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
         $className = get_class(new Customer());
 
-        $vends = Vend::with([
-                'latestVendBinding.customer' => function($query) {
-                    $query->select([
-                        'id',
-                        'category_id',
-                        'code',
-                        'last_invoice_date',
-                        'name',
-                        'is_active',
-                        'is_parent',
-                        'parent_id',
-                        'profile_id'
-                    ]);
-                },
-                'latestVendBinding.customer.deliveryAddress' => function($query) {
-                    $query->select([
-                        'id',
-                        'addresses.modelable_id',
-                        'addresses.modelable_type',
-                        'type',
-                        'postcode',
-                    ]);
-                },
-                'latestVendBinding.customer.locationType',
-                'productMapping',
-                'vendSnapshots',
-                // 'vendSevenDaysTransactions',
-            ])
+        $vends = DB::table('vends')
             ->leftJoin('vend_bindings', function($query) {
                 $query->on('vend_bindings.vend_id', '=', 'vends.id')
                         ->where('is_active', true)
@@ -94,7 +69,10 @@ class VendController extends Controller
                         ->limit(1);
             })
             ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('addresses', function($query) {
                 $query->on('addresses.modelable_id', '=', 'customers.id')
                         ->where('addresses.modelable_type', '=', 'App\Models\Customer')
@@ -112,7 +90,9 @@ class VendController extends Controller
                 'vends.temp_updated_at',
                 'vends.coin_amount',
                 'vends.firmware_ver',
+                'vends.is_door_open',
                 'vends.is_online',
+                'vends.is_sensor_normal',
                 'vends.is_temp_error',
                 DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
                 'vends.last_updated_at',
@@ -124,51 +104,56 @@ class VendController extends Controller
                 'vends.vend_channel_error_logs_json',
                 'vends.vend_transaction_totals_json',
                 'vends.vend_type_id',
+                'customers.code AS customer_code',
+                'customers.name AS customer_name',
                 'customers.location_type_id',
-                'location_types.name AS location_type_name'
-                )
-            ->filterIndex($request)
-            ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                'location_types.name AS location_type_name',
+                'product_mappings.name AS product_mapping_name',
+                'product_mappings.remarks AS product_mapping_remarks',
+                'addresses.postcode AS postcode'
+            );
+        $vends = $this->filterVendsDB($vends, $request);
+        $vends = $vends->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
-            // dd($vends->toArray());
 
-        // $thiryDaysTotal = 0;
-
-        // foreach($vends as $vend) {
-        //     $thiryDaysTotal += $vend->vendThirtyDaysTransactions->sum('amount');
-        // }
-        // $totals = [
-        //     'thirtyDays' => $thiryDaysTotal/100,
-        // ];
-
-        // $totals = [
-        //     'thirtyDays' => collect((clone $vends)
-        //                     ->items())
-        //                     ->sum(function($vend) {
-        //                         return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
-        //                     })/100,
-        // ];
+        $totals = [
+            'thirtyDays' => collect((clone $vends)
+                            ->items())
+                            ->sum(function($vend) {
+                                return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->thirty_days_amount : 0;
+                            })/100,
+        ];
 
         return Inertia::render('Vend/Index', [
-            'categories' => CategoryResource::collection(
-                Category::where('classname', $className)->orderBy('name')->get()
-            ),
-            'categoryGroups' => CategoryGroupResource::collection(
-                CategoryGroup::where('classname', $className)->orderBy('name')->get()
-            ),
+            'categories' =>
+                DB::table('categories')
+                    ->select('categories.id', 'categories.name')
+                    ->orderBy('name')
+                    ->get(),
+            'categoryGroups' =>
+                DB::table('category_groups')
+                    ->select('category_groups.id', 'category_groups.name')
+                    ->where('classname', $className)
+                    ->orderBy('name')
+                    ->get(),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
-            'locationTypeOptions' => LocationTypeResource::collection(
-                LocationType::orderBy('sequence')->get()
-            ),
-            // 'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
-            'operatorOptions' => OperatorResource::collection(
-                Operator::all()
-            ),
-            // 'totals' => $totals,
-            'vends' => VendResource::collection(
-                $vends
-            ),
-            'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
+            'locationTypeOptions' =>
+                DB::table('location_types')
+                    ->select('location_types.id', 'location_types.name')
+                    ->orderBy('sequence')
+                    ->get(),
+            'operatorOptions' =>
+                DB::table('operators')
+                    ->select('operators.id', DB::raw('CONCAT(operators.code, " - ", operators.name) AS full_name'))
+                    ->orderBy('name')
+                    ->get(),
+            'totals' => $totals,
+            'vends' => VendDBResource::collection($vends),
+            'vendChannelErrors' =>
+                DB::table('vend_channel_errors')
+                    ->select('vend_channel_errors.id', 'vend_channel_errors.code', 'vend_channel_errors.desc')
+                    ->orderBy('code')
+                    ->get(),
         ]);
     }
 

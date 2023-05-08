@@ -9,9 +9,9 @@
           <span v-if="vend.code">
             ID# {{ vend.code }}
           </span>
-          <span v-if="vend.latestVendBinding">
-            ({{ vend.latestVendBinding.customer ? vend.latestVendBinding.customer.code : null }})
-            {{ vend.latestVendBinding.customer ? vend.latestVendBinding.customer.name : null }}
+          <span v-if="vend.customer_code">
+            ({{ vend.customer_code ? vend.customer_code : null }})
+            {{ vend.customer_name ? vend.customer_name : null }}
           </span>
         </div>
       </template>
@@ -23,13 +23,10 @@
                 <table class="table-fixed min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
                     <tr>
-                      <!-- <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        #
-                      </th> -->
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         #
                       </th>
-                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.productMapping">
+                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
                         Image
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
@@ -50,20 +47,17 @@
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Error
                       </th>
-                      <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.productMapping">
+                      <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
                         Product
                       </th>
                     </tr>
                   </thead>
                   <tbody class="bg-white">
                     <tr v-for="(channel, channelIndex) in vend.vendChannelsJson" :key="channel.id" :class="channelIndex % 2 === 0 ? undefined : 'bg-gray-50'">
-                      <!-- <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                        {{ channelIndex + 1 }}
-                      </td> -->
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                         {{ channel.code }}
                       </td>
-                      <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center" v-if="vend.productMapping">
+                      <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center" v-if="vend.product_mapping_name">
                         <div class="flex justify-center items-center" >
                           <img class="h-16 w-16 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
                         </div>
@@ -104,7 +98,7 @@
                             </div>
                         </span>
                       </td>
-                      <td class="py-4 text-sm font-semibold text-gray-900 text-center" v-if="vend.productMapping">
+                      <td class="py-4 text-sm font-semibold text-gray-900 text-center" v-if="vend.product_mapping_name">
                         <span v-if="channel.product && channel.product.code">
                           {{ channel.product.code }}
                         </span>
@@ -119,12 +113,12 @@
             </div>
           </div>
         </div>
-        <p class="flex flex-col items-end text-blue-800 text-sm p-3" v-if="vend.productMapping">
-          <span class="" v-if="vend.productMapping.name">
-            {{ vend.productMapping.name }}
+        <p class="flex flex-col items-end text-blue-800 text-sm p-3" v-if="vend.product_mapping_name">
+          <span class="" v-if="vend.product_mapping_name">
+            {{ vend.product_mapping_name }}
           </span>
-          <span v-if="vend.productMapping.remarks">
-            {{ vend.productMapping.remarks }}
+          <span v-if="vend.product_mapping_remarks">
+            {{ vend.product_mapping_remarks }}
           </span>
         </p>
       </template>

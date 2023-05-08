@@ -12,23 +12,6 @@
         <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
         <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
             <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-<!--
-                <div>
-                    <label for="text" class="block text-sm font-medium text-gray-700">
-                        Vend ID
-                    </label>
-                    <MultiSelect
-                        v-model="filters.codes"
-                        :options="vendOptions"
-                        valueProp="id"
-                        label="code"
-                        mode="tags"
-                        placeholder="Select"
-                        open-direction="bottom"
-                        class="mt-1"
-                    >
-                    </MultiSelect>
-                </div> -->
                 <SearchInput placeholderStr="Vend ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
                     Vend ID
                     <span class="text-[9px]">
@@ -65,20 +48,6 @@
                         class="mt-1"
                     >
                     </MultiSelect>
-                    <!-- <label for="text" class="block text-sm font-medium text-gray-700">
-                        Errors?
-                    </label>
-                    <MultiSelect
-                        v-model="filters.vend_channel_error_id"
-                        :options="vendChannelErrorsOptions"
-                        trackBy="id"
-                        valueProp="id"
-                        label="desc"
-                        placeholder="Select"
-                        open-direction="bottom"
-                        class="mt-1"
-                    >
-                    </MultiSelect> -->
                 </div>
                 <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
                     Cust ID
@@ -290,7 +259,7 @@
                     </MultiSelect>
                 </div>
             </div>
-            <!-- <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
+            <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
                 <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                     <dt class="truncate text-sm font-medium text-gray-500">Total Sales (Last 30 days)</dt>
                     <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
@@ -303,7 +272,7 @@
                         {{(totals['thirtyDays']/vends.meta.to ? totals['thirtyDays']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
                     </dd>
                 </div>
-            </dl> -->
+            </dl>
         </div>
 
          <div class="mt-6 flex flex-col">
@@ -390,16 +359,16 @@
                                 {{ vend.code }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                                <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
+                                <span v-if="vend.customer_code">
                                     <span v-if="permissions.includes('admin-access vends')">
-                                        <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/vend-code/' + vend.code">
-                                            {{ vend.latestVendBinding.customer.code }} <br>
-                                            {{ vend.latestVendBinding.customer.name }}
+                                        <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/vend-code/' + vend.customer_code">
+                                            {{ vend.customer_code }} <br>
+                                            {{ vend.customer_name }}
                                         </a>
                                     </span>
                                     <span v-else>
-                                        {{ vend.latestVendBinding.customer.code }} <br>
-                                        {{ vend.latestVendBinding.customer.name }}
+                                        {{ vend.customer_code }} <br>
+                                        {{ vend.customer_name }}
                                     </span>
                                 </span>
                                 <span v-else>
@@ -537,7 +506,6 @@
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <!-- <div class="grid grid-cols-[90px_minmax(90px,_1fr)_90px] gap-1"> -->
                                 <div class="flex flex-col space-y-1">
                                     <div
                                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
@@ -649,7 +617,7 @@
                             </TableData>
 
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.deliveryAddress ? vend.latestVendBinding.customer.deliveryAddress.postcode : null }}
+                                {{ vend.postcode }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.parameterJson && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
@@ -771,7 +739,6 @@
     operatorOptions: Object,
     totals: [Array, Object],
     vends: Object,
-    // vendOptions: Object,
     vendChannelErrors: Object,
   })
 
@@ -800,7 +767,7 @@
     sortKey: '',
     sortBy: false,
     numberPerPage: '',
-    visited: false,
+    visited: true,
   })
 
   const booleanOptions = ref([])
@@ -819,7 +786,6 @@
   const vendChannelErrorsOptions = ref([])
 //   const vendOptions = ref([])
   const operatorRole = usePage().props.auth.operatorRole
-  const roles = usePage().props.auth.roles
 const permissions = usePage().props.auth.permissions
   const now = ref(moment().format('HH:mm:ss'))
 
@@ -828,7 +794,7 @@ const permissions = usePage().props.auth.permissions
     vendChannelErrorsOptions.value = [
         // {'id': '', 'desc': 'All'},
         {'id': 'errors_only', 'desc': 'Errors Only'},
-        ...props.vendChannelErrors.data
+        ...props.vendChannelErrors
     ]
     numberPerPageOptions.value = [
         { id: 50, value: 50 },
@@ -840,8 +806,8 @@ const permissions = usePage().props.auth.permissions
     filters.value.vend_channel_error_id = vendChannelErrorsOptions.value[0]
     filters.value.numberPerPage = numberPerPageOptions.value[0]
 
-    categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
-    categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
+    categoryOptions.value = props.categories.map((data) => {return {id: data.id, name: data.name}})
+    categoryGroupOptions.value = props.categoryGroups.map((data) => {return {id: data.id, name: data.name}})
     booleanOptions.value = [
         {id: 'all', value: 'All'},
         {id: 'true', value: 'Yes'},
@@ -859,11 +825,11 @@ const permissions = usePage().props.auth.permissions
     ]
     locationTypeOptions.value = [
         {id: 'all', value: 'All'},
-        ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
+        ...props.locationTypeOptions.map((data) => {return {id: data.id, value: data.name}})
     ]
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
-        ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+        ...props.operatorOptions.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
 
     filters.value.is_door_open = doorOptions.value[0]
