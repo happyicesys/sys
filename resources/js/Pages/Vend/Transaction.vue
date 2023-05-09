@@ -483,7 +483,7 @@ const filters = ref({
     sortKey: '',
     sortBy: false,
     numberPerPage: 50,
-    visited: true,
+    visited: false,
 })
 const operatorOptions = ref([])
 // const vendOptions = ref([])
