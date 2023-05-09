@@ -317,62 +317,48 @@
                             {{ vendTransaction.transaction_datetime }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vend.code }}
+                            {{ vendTransaction.vend_code }}
                         </TableData>
-                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
-                            <span v-if="vendTransaction.customerCode">
-                                {{ vendTransaction.customerCode }} <br>
-                            </span>
-                            <span v-if="vendTransaction.customerName">
-                                {{ vendTransaction.customerName }}
-                            </span>
-                            <!-- <span v-if="vendTransaction.vendJson && 'latest_vend_binding' in vendTransaction.vendJson && 'customer' in vendTransaction.vendJson['latest_vend_binding']">
-                                {{ vendTransaction.vendJson['latest_vend_binding']['customer']['code'] }} <br>
-                                {{ vendTransaction.vendJson['latest_vend_binding']['customer']['name'] }}
-                            </span>
-                            <span v-else-if="(vendTransaction.vendJson && !('latest_vend_binding' in vendTransaction.vendJson)) && vendTransaction.customerJson && 'code' in vendTransaction.customerJson">
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            <span v-if="vendTransaction.customerJson && 'code' in vendTransaction.customerJson">
                                 {{ vendTransaction.customerJson['code'] }} <br>
                                 {{ vendTransaction.customerJson['name'] }}
                             </span>
-                            <span v-else-if="!vendTransaction.vendJson && vendTransaction.vend.latestVendBinding && vendTransaction.vend.latestVendBinding.customer">
-                                {{ vendTransaction.vend.latestVendBinding.customer.code }} <br>
-                                {{ vendTransaction.vend.latestVendBinding.customer.name }}
+                            <span v-else-if="!vendTransaction.customerJson && vendTransaction.customer_code">
+                                {{ vendTransaction.customer_code }} <br>
+                                {{ vendTransaction.customer_name }}
                             </span>
-                            <span v-else>
-                                {{ vendTransaction.vend.name }}
-                            </span> -->
+                            <span v-else></span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vendChannel.code }}
+                            {{ vendTransaction.vend_channel_code }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.productJson && 'code' in vendTransaction.productJson">
                                 {{ vendTransaction.productJson['code'] }}
                             </span>
-                            <span v-else-if="!vendTransaction.productJson && vendTransaction.product && vendTransaction.product.code">
-                                {{ vendTransaction.product.code }}
+                            <span v-else-if="!vendTransaction.productJson && vendTransaction.product_code">
+                                {{ vendTransaction.product_code }}
                             </span>
-                            <span v-else>
-                            </span>
+                            <span v-else></span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
                             <span v-if="vendTransaction.productJson && 'name' in vendTransaction.productJson">
                                 {{ vendTransaction.productJson['name'] }}
                             </span>
-                            <span v-else-if="!vendTransaction.productJson && vendTransaction.product && vendTransaction.product.name">
-                                {{ vendTransaction.product.name }}
+                            <span v-else-if="!vendTransaction.productJson && vendTransaction.product_name">
+                                {{ vendTransaction.product_name }}
                             </span>
-                            <span v-else>
-                            </span>
+                            <span v-else></span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-right">
                             {{ vendTransaction.amount }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.paymentMethod ? vendTransaction.paymentMethod.name : null }}
+                            {{ vendTransaction.payment_method_name }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vendChannelError ? vendTransaction.vendChannelError.desc : 0 }}
+                            {{ vendTransaction.vend_channel_error_desc }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.is_payment_received">
@@ -437,13 +423,14 @@ onMounted(() => {
     filters.value.visited = true
     vendChannelErrorOptions.value = [
         {'id': 'errors_only', 'desc': 'Errors Only'},
-        ...props.vendChannelErrors.data.map((error) => {return {id: error.id, desc: error.desc}})
+        ...props.vendChannelErrors.map((error) => {return {id: error.id, desc: error.desc}})
     ]
     paymentMethodOptions.value = [
         {id: '', name: 'All'},
-        ...props.paymentMethods.data.map((paymethod) => {return {id: paymethod.id, name: paymethod.name}})
+        ...props.paymentMethods.map((paymethod) => {return {id: paymethod.id, name: paymethod.name}})
     ]
     numberPerPageOptions.value = [
+        { id: 50, value: 50 },
         { id: 100, value: 100 },
         { id: 200, value: 200 },
         { id: 500, value: 500 },
@@ -457,15 +444,15 @@ onMounted(() => {
         {id: 'true', value: 'Yes'},
         {id: 'false', value: 'No'},
     ]
-    categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
-    categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
+    categoryOptions.value = props.categories.map((data) => {return {id: data.id, name: data.name}})
+    categoryGroupOptions.value = props.categoryGroups.map((data) => {return {id: data.id, name: data.name}})
     locationTypeOptions.value = [
         {id: 'all', value: 'All'},
-        ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
+        ...props.locationTypeOptions.map((data) => {return {id: data.id, value: data.name}})
     ]
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
-        ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+        ...props.operatorOptions.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
     successfulOptions.value = [
         {id: 'all', value: 'All'},
@@ -495,8 +482,8 @@ const filters = ref({
     date_to: moment().format('YYYY-MM-DD'),
     sortKey: '',
     sortBy: false,
-    numberPerPage: 100,
-    visited: false,
+    numberPerPage: 50,
+    visited: true,
 })
 const operatorOptions = ref([])
 // const vendOptions = ref([])

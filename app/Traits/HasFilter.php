@@ -176,4 +176,106 @@ trait HasFilter {
       return $query;
     }
 
+    public function filterVendTransactionsDB($query, $request)
+    {
+        $sortKey = $request->sortKey ? $request->sortKey : 'transaction_datetime';
+        $sortBy = $request->sortBy ? $request->sortBy : false;
+        $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
+        $isBindedCustomer = 'all';
+        $isPaymentReceived = $request->is_payment_received != null ? $request->is_payment_received : 'all';
+
+        $query = $query->when($request->has('visited'), function($query, $search) use ($request) {
+            if($request->visited == 'true') {
+                $query->whereRaw('1 = 1');
+            }else {
+                $query->whereRaw('1 = 0');
+            }
+        })
+        ->when($request->codes, function($query, $search) {
+            if(strpos($search, ',') !== false) {
+                $search = explode(',', $search);
+            }else {
+                $search = [$search];
+            }
+            $query->whereIn('vends.code', $search);
+        })
+        ->when($request->channel_codes, function($query, $search) {
+            if(strpos($search, ',') !== false) {
+                $search = explode(',', $search);
+            }else {
+                $search = [$search];
+            }
+            $query->whereIn('vend_channels.code', $search);
+        })
+        ->when($request->errors, function($query, $search) {
+            if(in_array('errors_only', $search)) {
+              $query
+              ->whereIn('vend_channel_errors.id', DB::table('vend_channel_error_logs')
+                ->select('vend_channel_error_id')
+                ->where('is_error_cleared', false)
+                ->pluck('vend_channel_error_id'));
+            }else {
+              $query
+              ->whereIn('vend_channel_errors.id', $search);
+            }
+        })
+        ->when($isBindedCustomer, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->whereNotNull('customers.id');
+                }else {
+                    $query->whereNull('customers.id');
+                }
+            }
+        })
+        ->when($isPaymentReceived, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->where('is_payment_received', true);
+                }else {
+                    $query->where('is_payment_received', false);
+                }
+            }
+        })
+        ->when($request->paymentMethod, function($query, $search) {
+            $query->where('payment_method_id', $search);
+        })
+        ->when($request->categories, function($query, $search) {
+            $query->whereIn('categories.id', $search);
+        })
+        ->when($request->categoryGroups, function($query, $search) {
+            $query->whereIn('category_groups.id', $search);
+        })
+        ->when($request->customer_code, function($query, $search) {
+            $query->where('customers.code', 'LIKE', "%{$search}%");
+        })
+        ->when($request->customer_name, function($query, $search) {
+            $query->where(function($query) use ($search) {
+              $query->where('customers.name', 'LIKE', "%{$search}%")
+                    ->orWhere('vends.name', 'LIKE', "%{$search}%");
+            });
+        })
+        ->when($request->location_type_id, function($query, $search) {
+            if($search != 'all') {
+              $query->where('location_type_id', $search);
+            }
+        })
+        ->when($request->operator_id, function($query, $search) {
+            if($search != 'all') {
+              $query->whereIn('vends.id', DB::table('operator_vend')->select('vend_id')->where('operator_id', $search)->pluck('vend_id'));
+            }
+        })
+        ->when($request->date_from, function($query, $search) {
+            $query->whereDate('transaction_datetime', '>=', $search);
+        })
+        ->when($request->date_to, function($query, $search) {
+            $query->whereDate('transaction_datetime', '<=', $search);
+        })
+        ->when($sortKey, function($query, $search) use ($sortBy) {
+            $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+        });
+
+        return $query;
+    }
+
 }

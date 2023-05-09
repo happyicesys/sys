@@ -15,6 +15,7 @@ use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendChannelErrorResource;
 use App\Http\Resources\VendFanResource;
+use App\Http\Resources\VendTransactionDBResource;
 use App\Http\Resources\VendTransactionResource;
 use App\Http\Resources\VendTempResource;
 use App\Mail\VendChannelErrorLogsMail;
@@ -178,11 +179,7 @@ class VendController extends Controller
         if($request->datetime_to) {
             $endDate = Carbon::parse($request->datetime_to)->setTimezone($this->getUserTimezone());
         }
-        // $types = [$type];
-        // if($request->types) {
-        //     $types = array_merge($types, $request->types);
-        // }
-        // $types = array_unique($types);
+
         $request->types = empty($request->types) ? [1] : $request->types;
 
         $typeName = 'Temp '.$type;
@@ -221,8 +218,6 @@ class VendController extends Controller
             )
             ->get();
 
-            // dd($request->types, $vendTemps->toArray());
-
         $fans = [];
         if($request->fans) {
             $fans = array_merge($fans, $request->fans);
@@ -257,6 +252,7 @@ class VendController extends Controller
             'endDate' => $endDate->format('D M d Y H:i:s'),
             'startDateString' => $startDate->format('y-m-d H:i'),
             'endDateString' => $endDate->format('y-m-d H:i'),
+            'tempError' => VendTemp::TEMPERATURE_ERROR,
         ]);
     }
 
@@ -266,9 +262,27 @@ class VendController extends Controller
         if($request->duration) {
             $duration = $request->duration;
         }
-        // dd($request->all());
-        $vend = Vend::with('latestVendBinding.customer')->findOrFail($vendId);
-        // dd($duration);
+        $vend = DB::table('vends')
+            ->leftJoin('vend_bindings', function($query) {
+                $query->on('vend_bindings.vend_id', '=', 'vends.id')
+                        ->where('is_active', true)
+                        ->latest('begin_date')
+                        ->limit(1);
+            })
+            ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+            ->where('vends.id', $vendId)
+            ->select(
+                'vends.id',
+                'vends.code',
+                'vends.name',
+                'customers.code AS customer_code',
+                'customers.name AS customer_name',
+                'parameter_json',
+                'temp',
+
+            )
+            ->first();
+
         $startDate =  $request->durationType == 'day' || !$request->durationType ? Carbon::now()->setTimezone($this->getUserTimezone())->subDays($duration) : Carbon::now()->setTimezone($this->getUserTimezone())->subHours($duration);
         $endDate =  Carbon::now()->setTimezone($this->getUserTimezone());
         if($request->datetime_from) {
@@ -277,85 +291,146 @@ class VendController extends Controller
         if($request->datetime_to) {
             $endDate = Carbon::parse($request->datetime_to)->setTimezone($this->getUserTimezone());
         }
-        $types = [$type];
-        if($request->types) {
-            $types = array_merge($types, $request->types);
-        }
+        $request->types = empty($request->types) ? [1] : $request->types;
 
         $typeName = 'Temp '.$type;
 
-        $vendTemps = $vend
-        ->vendTemps()
-        ->whereIn('type', $types)
-        ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
-        ->where('vend_temps.created_at', '>=', $startDate)
-        ->where('vend_temps.created_at', '<=', $endDate)
-        ->get();
+        $vendTemps = DB::table('vend_temps')
+            ->leftJoin('vends', 'vends.id', '=', 'vend_temps.vend_id')
+            ->where('vend_id', $vendId)
+            ->whereIn('type', $request->types)
+            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
+            ->where('vend_temps.created_at', '>=', $startDate)
+            ->where('vend_temps.created_at', '<=', $endDate)
+            ->select(
+                'vends.code AS vend_code',
+                'vends.created_at',
+                'type',
+                'value',
+            )
+            ->get();
 
         return (new FastExcel($vendTemps))->download('Vend_Temps_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTemp) {
             return [
-                'Vend ID' => $vendTemp->vend->code,
+                'Vend ID' => $vendTemp->vend_code,
                 'Date Time' => Carbon::parse($vendTemp->created_at)->toDateTimeString(),
                 'Temp' => $vendTemp->value/ 10,
                 'Type' => 'T'.$vendTemp->type,
             ];
         });
-
-        // return (new VendTempExport(VendTempResource::collection($vendTemps)))->download('Vend_temps_'.Carbon::now()->toDateTimeString().'.xlsx');
     }
 
     public function transactionIndex(Request $request)
     {
-        $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->toDateString() : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
         $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->toDateString() : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $className = get_class(new Customer());
-        $vendTransactions =
-                VendTransaction::with([
-                    'paymentMethod',
-                    'product.unitCosts',
-                    'product.operator',
-                    'unitCost',
-                    'vend.latestVendBinding.customer.category.categoryGroup',
-                    'vendChannel',
-                    'vendChannelError',
-                    ])
-                    ->filterTransactionIndex($request);
 
-        $totalsQuery = VendTransaction::filterTransactionIndex($request)->isSuccessful()->get();
+        $vendTransactions = DB::table('vend_transactions')
+            ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+            ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
+            ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->leftJoin('vend_bindings', function($query) {
+                $query->on('vend_bindings.vend_id', '=', 'vends.id')
+                        ->where('vend_bindings.is_active', true)
+                        ->latest('begin_date')
+                        ->limit(1);
+            })
+            ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            ->leftJoin('operator_vend', function($query) {
+                $query->on('operator_vend.vend_id', '=', 'vends.id')
+                        ->latest('operator_vend.begin_date')
+                        ->limit(1);
+            })
+            ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+            ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
+            ->select(
+                'vend_transactions.id',
+                'vend_transactions.amount',
+                'vend_transactions.customer_json',
+                'vend_transactions.gross_profit',
+                'vend_transactions.is_payment_received',
+                'vend_transactions.location_type_json',
+                'vend_transactions.order_id',
+                'vend_transactions.operator_json',
+                'payment_methods.name AS payment_method_name',
+                'products.code AS product_code',
+                'products.name AS product_name',
+                'vend_transactions.product_json',
+                'vend_transactions.revenue',
+                'vend_transactions.transaction_datetime',
+                'vend_transactions.unit_cost',
+                'vends.code AS vend_code',
+                'vends.name AS vend_name',
+                'vend_channels.code AS vend_channel_code',
+                'vend_channel_errors.code AS vend_channel_error_code',
+                'vend_channel_errors.desc AS vend_channel_error_desc',
+                'vend_transactions.vend_json',
+                'vend_transactions.vend_transaction_json',
+            );
 
-        $totals = [
-            'amount' => collect($totalsQuery)
-                            ->sum(function($vendTransaction) {
-                                return $vendTransaction->amount ? $vendTransaction->amount : 0;
-                            })/100,
-            'count' => collect($totalsQuery)->count(),
+        $vendTransactions = $this->filterVendTransactionsDB($vendTransactions, $request);
+        $vendTransactions = $this->filterOperatorDB($vendTransactions);
+        $totals = (clone $vendTransactions)
+            ->whereIn('vend_transaction_json->SErr', [0, 6])
+            ->select(
+                DB::raw('ROUND(COALESCE(SUM(vend_transactions.amount)/ 100, 0), 2) AS amount'),
+                DB::raw('COUNT(*) AS count'))
+            ->first();
+        $vendTransactions = $vendTransactions
+            ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+            ->withQueryString();
 
-        ];
+
+
+        // $totals = [
+        //     'amount' => collect($totalsQuery)
+        //                     ->sum(function($vendTransaction) {
+        //                         return $vendTransaction->amount ? $vendTransaction->amount : 0;
+        //                     })/100,
+        //     'count' => collect($totalsQuery)->count(),
+        // ];
 
         return Inertia::render('Vend/Transaction', [
-            'categories' => CategoryResource::collection(
-                Category::where('classname', $className)->orderBy('name')->get()
-            ),
-            'categoryGroups' => CategoryGroupResource::collection(
-                CategoryGroup::where('classname', $className)->orderBy('name')->get()
-            ),
-            'locationTypeOptions' => LocationTypeResource::collection(
-                LocationType::orderBy('sequence')->get()
-            ),
-            'operatorOptions' => OperatorResource::collection(
-                Operator::all()
-            ),
-            'vendTransactions' => VendTransactionResource::collection(
+            'categories' =>
+                DB::table('categories')
+                    ->select('categories.id', 'categories.name')
+                    ->orderBy('name')
+                    ->get(),
+            'categoryGroups' =>
+                DB::table('category_groups')
+                    ->select('category_groups.id', 'category_groups.name')
+                    ->where('classname', $className)
+                    ->orderBy('name')
+                    ->get(),
+            'locationTypeOptions' =>
+                DB::table('location_types')
+                    ->select('location_types.id', 'location_types.name')
+                    ->orderBy('sequence')
+                    ->get(),
+            'operatorOptions' =>
+                DB::table('operators')
+                    ->select('operators.id', DB::raw('CONCAT(operators.code, " - ", operators.name) AS full_name'))
+                    ->orderBy('name')
+                    ->get(),
+            'paymentMethods' =>
+                DB::table('payment_methods')
+                    ->select('payment_methods.id', 'payment_methods.name')
+                    ->orderBy('name')
+                    ->get(),
+            'vendTransactions' => VendTransactionDBResource::collection(
                 $vendTransactions
-                ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-                ->withQueryString()
             ),
             'totals' => $totals,
-            'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
-            'paymentMethods' => PaymentMethodResource::collection(PaymentMethod::orderBy('name')->get()),
-
+            'vendChannelErrors' =>
+                DB::table('vend_channel_errors')
+                    ->select('vend_channel_errors.id', 'vend_channel_errors.code', 'vend_channel_errors.desc')
+                    ->orderBy('code')
+                    ->get(),
         ]);
     }
 

@@ -117,7 +117,9 @@ class CreateVendTransaction implements ShouldQueue
             'vend_json' => $vend ? collect($vend)->except(['latest_vend_binding', 'product_mapping', 'vend_channels_json']) : null,
             'customer_json' => $vend->latestVendBinding()->exists() && $vend->latestVendBinding->customer()->exists() ? collect($vend->latestVendBinding->customer()->with([
                 'category.categoryGroup'
-            ])->first()) : null,
+            ])->first()) : [
+                'name' => $vend->name,
+            ],
             'location_type_json' => $vend->latestVendBinding()->exists() && $vend->latestVendBinding->customer()->exists() && $vend->latestVendBinding->customer->locationType()->exists() ? collect($vend->latestVendBinding->customer->locationType) : null,
             'operator_json' => $vend->currentOperator()->exists() ? collect($vend->currentOperator->first()) : null,
             'product_json' => $productId ? collect($vend->productMapping->productMappingItems()->where('channel_code', $vendChannel->code)->first()->product)->except(['product_mapping_items']) : null,

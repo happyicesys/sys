@@ -16,6 +16,7 @@ class VendSnapshot extends Model
     ];
 
     protected $fillable = [
+        'customer_id',
         'customer_json',
         'operator_id',
         'parameter_json',

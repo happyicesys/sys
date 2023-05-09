@@ -143,19 +143,19 @@
                                         <label class="pl-2">T1</label>
                                     </span>
                                 </span>
-                                <span class="inline-flex rounded-md shadow-sm" v-if="'t2' in vend.parameterJson">
+                                <span class="inline-flex rounded-md shadow-sm" v-if="'t2' in vend.parameterJson && vend.parameterJson['t2'] != tempError">
                                     <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                     <input type="checkbox" value="2" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                         <label class="pl-2">T2</label>
                                     </span>
                                 </span>
-                                <span class="inline-flex rounded-md shadow-sm " v-if="'t3' in vend.parameterJson">
+                                <span class="inline-flex rounded-md shadow-sm " v-if="'t3' in vend.parameterJson && vend.parameterJson['t3'] != tempError">
                                     <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                     <input type="checkbox" value="3" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                         <label class="pl-2">T3</label>
                                     </span>
                                 </span>
-                                <span class="inline-flex rounded-md shadow-sm " v-if="'t4' in vend.parameterJson">
+                                <span class="inline-flex rounded-md shadow-sm " v-if="'t4' in vend.parameterJson && vend.parameterJson['t4'] != tempError">
                                     <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                     <input type="checkbox" value="4" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                         <label class="pl-2">T4</label>
@@ -204,6 +204,7 @@
     startDate: String,
     startDateString: String,
     type: [String, Object, Array],
+    tempError: [Number, String],
     fans: [String, Object, Array],
     vendObj: Object,
     vendTempsObj: Object,
