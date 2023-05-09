@@ -385,16 +385,6 @@ class VendController extends Controller
             ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 
-
-
-        // $totals = [
-        //     'amount' => collect($totalsQuery)
-        //                     ->sum(function($vendTransaction) {
-        //                         return $vendTransaction->amount ? $vendTransaction->amount : 0;
-        //                     })/100,
-        //     'count' => collect($totalsQuery)->count(),
-        // ];
-
         return Inertia::render('Vend/Transaction', [
             'categories' =>
                 DB::table('categories')
@@ -463,47 +453,83 @@ class VendController extends Controller
 
     public function exportTransactionExcel(Request $request)
     {
-        // dd($request->all());
-        $vendTransactions = VendTransaction::with([
-            'paymentMethod',
-            'vend.latestVendBinding.customer',
-            'product',
-            ])
-            ->filterTransactionIndex($request)
-            ->get();
+        $vendTransactions = DB::table('vend_transactions')
+            ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+            ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
+            ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->leftJoin('vend_bindings', function($query) {
+                $query->on('vend_bindings.vend_id', '=', 'vends.id')
+                        ->where('vend_bindings.is_active', true)
+                        ->latest('begin_date')
+                        ->limit(1);
+            })
+            ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+            ->leftJoin('operator_vend', function($query) {
+                $query->on('operator_vend.vend_id', '=', 'vends.id')
+                        ->latest('operator_vend.begin_date')
+                        ->limit(1);
+            })
+            ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+            ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
+            ->select(
+                'vend_transactions.id',
+                'vend_transactions.amount',
+                'vend_transactions.customer_json',
+                'vend_transactions.gross_profit',
+                'vend_transactions.is_payment_received',
+                'vend_transactions.location_type_json',
+                'vend_transactions.order_id',
+                'vend_transactions.operator_json',
+                'payment_methods.name AS payment_method_name',
+                'products.code AS product_code',
+                'products.name AS product_name',
+                'vend_transactions.product_json',
+                'vend_transactions.revenue',
+                'vend_transactions.transaction_datetime',
+                'vend_transactions.unit_cost',
+                'vends.code AS vend_code',
+                'vends.name AS vend_name',
+                'vend_channels.code AS vend_channel_code',
+                'vend_channel_errors.code AS vend_channel_error_code',
+                'vend_channel_errors.desc AS vend_channel_error_desc',
+                'vend_transactions.vend_json',
+                'vend_transactions.vend_transaction_json',
+            );
 
-            // dd($vendTransactions);
+        $vendTransactions = $this->filterVendTransactionsDB($vendTransactions, $request);
+        $vendTransactions = $this->filterOperatorDB($vendTransactions);
+        $vendTransactions = $vendTransactions->get();
 
         return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
             return [
                 'Order ID' => $vendTransaction->order_id,
                 'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
-                'Vend ID' => $vendTransaction->vend->code,
-                'Customer Name' => $vendTransaction->customer_json && isset($vendTransaction->customer_json['code']) ?
-                                    $vendTransaction->customer_json['code'].' '.$vendTransaction->customer_json['name'] : (
-                                        $vendTransaction->vend_json && isset($vendTransaction->vend_json['latest_vend_binding']) ?
-                                        $vendTransaction->vend_json['latest_vend_binding']['customer']['code'].' '.$vendTransaction->vend_json['latest_vend_binding']['customer']['name'] : $vendTransaction->vend->name
+                'Vend ID' => $vendTransaction->vend_code,
+                'Customer Name' => $vendTransaction->customer_json && isset(json_decode($vendTransaction->customer_json)->code) ?
+                                        json_decode($vendTransaction->customer_json)->code.' '.json_decode($vendTransaction->customer_json)->name : (
+                                        $vendTransaction->vend_json && isset(json_decode($vendTransaction->vend_json)->latest_vend_binding) ?
+                                        json_decode($vendTransaction->vend_json)->latest_vend_binding['customer']['code'].' '.json_decode($vendTransaction->vend_json)->latest_vend_binding['customer']['name'] : $vendTransaction->vend_name
                                     ),
                 'Channel' => $vendTransaction->vend_transaction_json &&
-                            $vendTransaction->vend_transaction_json['SId'] ?
-                            $vendTransaction->vend_transaction_json['SId'] :
+                            json_decode($vendTransaction->vend_transaction_json)->SId ?
+                            json_decode($vendTransaction->vend_transaction_json)->SId :
                             $vendTransaction->vendChannel->code,
-                'Product Code' => $vendTransaction->product()->exists() ?
-                                $vendTransaction->product->code :
+                'Product Code' => $vendTransaction->product_code ?
+                                $vendTransaction->product_code :
                                 '',
-                'Product Name' => $vendTransaction->product()->exists() ?
-                                $vendTransaction->product->name :
+                'Product Name' => $vendTransaction->product_name ?
+                                $vendTransaction->product_name :
                                 '',
                 'Amount' => $vendTransaction->amount/ 100,
                 'Sales (before GST)' => $vendTransaction->revenue/ 100,
-                'Unit Cost' => $vendTransaction->unitCost()->exists() ?
-                                $vendTransaction->unitCost->cost/ 100 :
+                'Unit Cost' => $vendTransaction->unit_cost ?
+                                $vendTransaction->unit_cost/ 100 :
                                 '',
-                'Payment Method' => $vendTransaction->paymentMethod ? $vendTransaction->paymentMethod->name : '',
+                'Payment Method' => $vendTransaction->payment_method_name ? $vendTransaction->payment_method_name : '',
                 'Error Code' => $vendTransaction->vend_transaction_json &&
-                            $vendTransaction->vend_transaction_json['SErr'] ?
-                            $vendTransaction->vend_transaction_json['SErr'] :
-                            ($vendTransaction->vendChannelError && $vendTransaction->vendChannelError->code ?? 0),
+                            json_decode($vendTransaction->vend_transaction_json)->SErr ?
+                            json_decode($vendTransaction->vend_transaction_json)->SErr :
+                            $vendTransaction->vend_channel_error_code,
             ];
         });
     }
