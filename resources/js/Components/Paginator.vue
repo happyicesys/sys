@@ -2,14 +2,14 @@
 <template>
     <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
         <div class="flex-1 flex justify-between sm:hidden">
-            <Link :href="links.prev"
+            <Link :href="links && links.prev ? links.prev : '#'"
                 class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md"
-                :class="[!links.prev ? 'opacity-25 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-gray-50']"
+                :class="[!links && links.prev ? 'opacity-25 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-gray-50']"
                 :disabled="!links.prev" preserve-scroll>
                 Previous </Link>
-            <Link :href="links.next"
+            <Link :href="links && links.next ? links.next : '#'"
                 class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md"
-                :class="[!links.next ? 'opacity-25 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-gray-50']"
+                :class="[!links && links.next ? 'opacity-25 cursor-not-allowed' : 'text-gray-700 bg-white hover:bg-gray-50']"
                 :disabled="!links.next" preserve-scroll>
                 Next </Link>
         </div>
@@ -33,7 +33,7 @@
             </div>
             <div>
                 <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                    <Component :is="links.prev ? 'Link' : 'span'" :href="links.prev"
+                    <Component :is="links && links.prev ? 'Link' : 'span'" :href="links && links.prev ? links.prev : '#'"
                         class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium"
                         :class="[!links.prev ? 'opacity-25 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50']"
                         :disabled="!links.prev" preserve-scroll>
@@ -42,13 +42,13 @@
                     </Component>
                     <!-- Current: "z-10 bg-indigo-50 border-indigo-500 text-indigo-600", Default: "bg-white border-gray-300 text-gray-500 hover:bg-gray-50" -->
                     <Link v-for="(link, linkIndex) in meta.links"
-                        v-show="linkIndex != 0 && linkIndex != meta.links.length - 1" :href="link.url"
+                        v-show="linkIndex != 0 && linkIndex != meta.links.length - 1" :href="link && link.url ? link.url : '#'"
                         class="relative inline-flex items-center px-4 py-2 border text-sm font-medium"
                         :class="[link.active ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50']"
                         preserve-scroll>
                     {{ link.label }}
                     </Link>
-                    <Component :is="links.next ? 'Link' : 'span'" :href="links.next"
+                    <Component :is="links && links.next ? 'Link' : 'span'" :href="links && links.next ? links.next : '#'"
                         class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium"
                         :class="[!links.next ? 'opacity-25 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50']"
                         :disabled="!links.next" preserve-scroll>
@@ -66,8 +66,9 @@
 import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon } from '@heroicons/vue/24/outline'
 import { Link } from '@inertiajs/vue3';
 
-defineProps({
+const props = defineProps({
     links: Object,
     meta: Object,
 })
+
 </script>

@@ -192,7 +192,7 @@
   import Graph from '@/Components/Graph.vue';
   // import MultiSelect from '@/Components/MultiSelect.vue';
   import { ArrowDownTrayIcon, ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
-  import { ref, onBeforeMount, onMounted, watch } from 'vue';
+  import { ref, onBeforeMount, watch } from 'vue';
   import { Head, router } from '@inertiajs/vue3';
   import moment from 'moment';
 

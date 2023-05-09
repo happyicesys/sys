@@ -72,6 +72,11 @@ class VendController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+            ->leftJoin('operator_vend', function($query) {
+                $query->on('operator_vend.vend_id', '=', 'vends.id')
+                        ->latest('operator_vend.begin_date')
+                        ->limit(1);
+            })
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('addresses', function($query) {
                 $query->on('addresses.modelable_id', '=', 'customers.id')
@@ -113,6 +118,7 @@ class VendController extends Controller
                 'addresses.postcode AS postcode'
             );
         $vends = $this->filterVendsDB($vends, $request);
+        $vends = $this->filterOperatorDB($vends);
         $vends = $vends->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 

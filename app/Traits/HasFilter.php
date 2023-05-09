@@ -7,6 +7,20 @@ use Illuminate\Support\Facades\Http;
 
 trait HasFilter {
 
+    public function filterOperatorDB($query) {
+        if(auth()->check()) {
+            $operatorId = auth()->user()->operator_id;
+            $isHappyIce = $operatorId == 1 ? true : false;
+            if($isHappyIce) {
+              $operatorId = null;
+            }
+            if($operatorId) {
+                $query = $query->where('operator_vend.operator_id', $operatorId);
+            }
+        }
+        return $query;
+    }
+
     public function filterVendsDB($query, $request)
     {
       $isDoorOpen = $request->is_door_open != null ? $request->is_door_open : 'all';

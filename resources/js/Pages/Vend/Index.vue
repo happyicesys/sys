@@ -721,7 +721,7 @@
   import Paginator from '@/Components/Paginator.vue';
   import SearchInput from '@/Components/SearchInput.vue';
   import MultiSelect from '@/Components/MultiSelect.vue';
-  import { ArrowDownTrayIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon, QuestionMarkCircleIcon } from '@heroicons/vue/20/solid';
+  import { ArrowDownTrayIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon} from '@heroicons/vue/20/solid';
   import TableHead from '@/Components/TableHead.vue';
   import TableData from '@/Components/TableData.vue';
   import TableHeadSort from '@/Components/TableHeadSort.vue';
