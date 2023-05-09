@@ -24,11 +24,11 @@
         <!-- <div class="max-w-10xl mx-auto sm:px-6 lg:px-8"> -->
         <div class="p-4 sm:px-6 lg:px-8">
             <div class="flex flex-col items-start pl-1">
-                <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
-                    {{ vend.latestVendBinding.customer.code }}
+                <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.customer_code">
+                    {{ vend.customer_code }}
                 </h2>
-                <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
-                    {{ vend.latestVendBinding.customer.name }}
+                <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.customer_name">
+                    {{ vend.customer_name }}
                 </h2>
             </div>
             <div class="flex space-x-2 font-semibold text-md text-gray-500 leading-tight pl-1">
@@ -149,13 +149,13 @@
                                         <label class="pl-2">T2</label>
                                     </span>
                                 </span>
-                                <span class="inline-flex rounded-md shadow-sm " v-if="vend.parameterJson['t3']">
+                                <span class="inline-flex rounded-md shadow-sm " v-if="'t3' in vend.parameterJson">
                                     <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                     <input type="checkbox" value="3" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                         <label class="pl-2">T3</label>
                                     </span>
                                 </span>
-                                <span class="inline-flex rounded-md shadow-sm " v-if="vend.parameterJson['t4']">
+                                <span class="inline-flex rounded-md shadow-sm " v-if="'t4' in vend.parameterJson">
                                     <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
                                     <input type="checkbox" value="4" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                         <label class="pl-2">T4</label>
@@ -295,7 +295,7 @@
             preserveScroll: true,
             replace: true,
             onSuccess: (page) => {
-                Inertia.reload({
+                router.reload({
                     only: ['vendTempsObj'],
                     preserveState: true,
                     preserveScroll: true,
@@ -320,7 +320,7 @@
             preserveScroll: true,
             replace: true,
             onSuccess: (page) => {
-                Inertia.reload({
+                router.reload({
                     only: ['vendTempsObj'],
                     preserveState: true,
                     preserveScroll: true,

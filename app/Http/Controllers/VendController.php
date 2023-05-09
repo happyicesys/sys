@@ -163,8 +163,7 @@ class VendController extends Controller
         if($request->duration) {
             $duration = $request->duration;
         }
-        $vend = Vend::with('latestVendBinding.customer')->findOrFail($vendId);
-        // dd($duration);
+
         $startDate =  $request->durationType == 'day' || !$request->durationType ? Carbon::now()->setTimezone($this->getUserTimezone())->subDays($duration) : Carbon::now()->setTimezone($this->getUserTimezone())->subHours($duration);
         $endDate =  Carbon::now()->setTimezone($this->getUserTimezone());
         if($request->datetime_from) {
@@ -173,20 +172,50 @@ class VendController extends Controller
         if($request->datetime_to) {
             $endDate = Carbon::parse($request->datetime_to)->setTimezone($this->getUserTimezone());
         }
-        $types = [$type];
-        if($request->types) {
-            $types = array_merge($types, $request->types);
-        }
+        // $types = [$type];
+        // if($request->types) {
+        //     $types = array_merge($types, $request->types);
+        // }
+        // $types = array_unique($types);
+        $request->types = empty($request->types) ? [1] : $request->types;
 
         $typeName = 'Temp '.$type;
 
-        $vendTemps = $vend
-        ->vendTemps()
-        ->whereIn('type', $types)
-        ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
-        ->where('vend_temps.created_at', '>=', $startDate)
-        ->where('vend_temps.created_at', '<=', $endDate)
-        ->get();
+        $vend = DB::table('vends')
+            ->leftJoin('vend_bindings', function($query) {
+                $query->on('vend_bindings.vend_id', '=', 'vends.id')
+                        ->where('is_active', true)
+                        ->latest('begin_date')
+                        ->limit(1);
+            })
+            ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+            ->where('vends.id', $vendId)
+            ->select(
+                'vends.id',
+                'vends.code',
+                'vends.name',
+                'customers.code AS customer_code',
+                'customers.name AS customer_name',
+                'parameter_json',
+                'temp',
+
+            )
+            ->first();
+
+        $vendTemps = DB::table('vend_temps')
+            ->where('vend_id', $vendId)
+            ->whereIn('type', $request->types)
+            ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
+            ->where('vend_temps.created_at', '>=', $startDate)
+            ->where('vend_temps.created_at', '<=', $endDate)
+            ->select(
+                'created_at',
+                'type',
+                'value',
+            )
+            ->get();
+
+            // dd($request->types, $vendTemps->toArray());
 
         $fans = [];
         if($request->fans) {
@@ -194,24 +223,28 @@ class VendController extends Controller
         }else {
             $fans = [];
         }
-        // dd($fans);
-        $vendFans = $vend
-            ->vendFans()
+
+        $vendFans = DB::table('vend_fans')
+            ->where('vend_id', $vendId)
             ->whereIn('type', $fans)
             ->where('vend_fans.created_at', '>=', $startDate)
             ->where('vend_fans.created_at', '<=', $endDate)
+            ->select(
+                'created_at',
+                'type',
+                'value',
+            )
             ->get();
 
-        // dd($vendTemps->toArray(), $vendFans->toArray());
         return Inertia::render('Vend/Temp', [
             'duration' => $duration,
             'type' => [
                 'name' => $typeName,
                 'value' => $type,
             ],
-            'types' => $types,
+            'types' => $request->types,
             'fans' => $fans,
-            'vendObj' => VendResource::make($vend),
+            'vendObj' => VendDBResource::make($vend),
             'vendTempsObj' => VendTempResource::collection($vendTemps),
             'vendFansObj' => VendFanResource::collection($vendFans),
             'startDate' => $startDate->format('D M d Y H:i:s'),
