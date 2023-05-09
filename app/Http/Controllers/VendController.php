@@ -607,13 +607,14 @@ class VendController extends Controller
 
     public function exportChannelExcel(Request $request)
     {
-        // dd($request->all());
-        $vendChannels = VendChannel::with([
-            'vend.latestVendBinding.customer.deliveryAddress',
-            'vend.latestVendBinding.customer.category.categoryGroup',
-            'product',
-            ])
+        $vendChannels = DB::table('vend_channels')
+            ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
             ->leftJoin('vends', 'vends.id', '=', 'vend_channels.vend_id')
+            ->leftJoin('operator_vend', function($query) {
+                $query->on('operator_vend.vend_id', '=', 'vends.id')
+                        ->latest('operator_vend.begin_date')
+                        ->limit(1);
+            })
             ->leftJoin('vend_bindings', function($query) {
                 $query->on('vend_bindings.vend_id', '=', 'vends.id')
                         ->where('vend_bindings.is_active', true)
@@ -621,37 +622,37 @@ class VendController extends Controller
                         ->limit(1);
             })
             ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
-            ->leftJoin('addresses', function($query) {
-                $query->on('addresses.modelable_id', '=', 'customers.id')
-                        ->where('addresses.modelable_type', '=', 'App\Models\Customer')
-                        ->where('addresses.type', '=', 2)
-                        ->limit(1);
-            })
-            ->select('*', 'vends.id', 'vends.code AS vend_code', 'vend_channels.code AS vend_channel_code', 'vends.name')
-            ->when($request->channel_codes, function($query, $search) {
-                if(strpos($search, ',') !== false) {
-                    $search = explode(',', $search);
-                }else {
-                    $search = [$search];
-                }
-            })
-            ->where('capacity', '>', 0)
-            ->filterIndex($request)
-            ->get();
-            // die($vendChannels);
+            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            ->select(
+                'customers.code AS customer_code',
+                'customers.name AS customer_name',
+                'products.code AS product_code',
+                'products.name AS product_name',
+                'vend_channels.code AS channel_code',
+                'vend_channels.amount',
+                'vend_channels.capacity',
+                'vend_channels.qty',
+                'vends.code AS vend_code',
+                'vends.name AS vend_name',
+            )
+            ->where('capacity', '>', 0);
+        $vendChannels = $this->filterVendChannelsDB($vendChannels, $request);
+        $vendChannels = $this->filterOperatorDB($vendChannels);
+        $vendChannels = $vendChannels->get();
 
         return (new FastExcel($this->yieldOneByOne($vendChannels)))->download('Vend_channels_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendChannel) {
             return [
                 'Vend ID' => $vendChannel->vend_code,
-                'Customer Name' => $vendChannel->vend->latestVendBinding ?
-                                    $vendChannel->vend->latestVendBinding->customer->code.' '.$vendChannel->vend->latestVendBinding->customer->name :
-                                    $vendChannel->vend->name,
-                'Channel' => $vendChannel->vend_channel_code,
-                'Product Code' => $vendChannel->product ?
-                                $vendChannel->product->code :
+                'Customer Name' => $vendChannel->customer_code ?
+                                    $vendChannel->customer_code.' '.$vendChannel->customer_name :
+                                    $vendChannel->vend_name,
+                'Channel' => $vendChannel->channel_code,
+                'Product Code' => $vendChannel->product_code ?
+                                $vendChannel->product_code :
                                 '',
-                'Product Name' => $vendChannel->product ?
-                                $vendChannel->product->name :
+                'Product Name' => $vendChannel->product_name ?
+                                $vendChannel->product_name :
                                 '',
                 'Qty' => $vendChannel->qty,
                 'Capacity' => $vendChannel->capacity,
@@ -659,7 +660,6 @@ class VendController extends Controller
                 'Balance Percent(%)' => $vendChannel->capacity ? round($vendChannel->qty/ $vendChannel->capacity * 100) : '',
             ];
         });
-        // return true;
     }
 
     private function processVendTempTiming($vendTemps)

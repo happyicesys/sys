@@ -1605,13 +1605,13 @@
     "file": "assets/MultiSelect.fa611136.css",
     "src": "MultiSelect.css"
   },
-  "resources/js/Pages/Welcome.css": {
-    "file": "assets/Welcome.b7da5231.css",
-    "src": "resources/js/Pages/Welcome.css"
-  },
   "resources/js/app.css": {
     "file": "assets/app.41f9c262.css",
     "src": "resources/js/app.css"
+  },
+  "resources/js/Pages/Welcome.css": {
+    "file": "assets/Welcome.b7da5231.css",
+    "src": "resources/js/Pages/Welcome.css"
   },
   "main.css": {
     "file": "assets/main.768eba40.css",
