@@ -34,9 +34,7 @@ class ReportController extends Controller
 
     public function indexVm(Request $request)
     {
-        // $request->visited = isset($request->visited) ? $request->visited : false;
-        // $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : false);
-        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
