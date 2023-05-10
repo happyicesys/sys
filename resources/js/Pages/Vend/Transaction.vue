@@ -423,11 +423,11 @@ onMounted(() => {
     filters.value.visited = true
     vendChannelErrorOptions.value = [
         {'id': 'errors_only', 'desc': 'Errors Only'},
-        ...props.vendChannelErrors.map((error) => {return {id: error.id, desc: error.desc}})
+        ...props.vendChannelErrors.data.map((error) => {return {id: error.id, desc: error.desc}})
     ]
     paymentMethodOptions.value = [
         {id: '', name: 'All'},
-        ...props.paymentMethods.map((paymethod) => {return {id: paymethod.id, name: paymethod.name}})
+        ...props.paymentMethods.data.map((paymethod) => {return {id: paymethod.id, name: paymethod.name}})
     ]
     numberPerPageOptions.value = [
         { id: 50, value: 50 },
@@ -444,15 +444,15 @@ onMounted(() => {
         {id: 'true', value: 'Yes'},
         {id: 'false', value: 'No'},
     ]
-    categoryOptions.value = props.categories.map((data) => {return {id: data.id, name: data.name}})
-    categoryGroupOptions.value = props.categoryGroups.map((data) => {return {id: data.id, name: data.name}})
+    categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
+    categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
     locationTypeOptions.value = [
         {id: 'all', value: 'All'},
-        ...props.locationTypeOptions.map((data) => {return {id: data.id, value: data.name}})
+        ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
-        ...props.operatorOptions.map((data) => {return {id: data.id, full_name: data.full_name}})
+        ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
     successfulOptions.value = [
         {id: 'all', value: 'All'},

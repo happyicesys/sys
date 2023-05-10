@@ -132,35 +132,22 @@ class VendController extends Controller
         ];
 
         return Inertia::render('Vend/Index', [
-            'categories' =>
-                DB::table('categories')
-                    ->select('categories.id', 'categories.name')
-                    ->orderBy('name')
-                    ->get(),
-            'categoryGroups' =>
-                DB::table('category_groups')
-                    ->select('category_groups.id', 'category_groups.name')
-                    ->where('classname', $className)
-                    ->orderBy('name')
-                    ->get(),
+            'categories' => CategoryResource::collection(
+                Category::where('classname', $className)->orderBy('name')->get()
+            ),
+            'categoryGroups' => CategoryGroupResource::collection(
+                CategoryGroup::where('classname', $className)->orderBy('name')->get()
+            ),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
-            'locationTypeOptions' =>
-                DB::table('location_types')
-                    ->select('location_types.id', 'location_types.name')
-                    ->orderBy('sequence')
-                    ->get(),
-            'operatorOptions' =>
-                DB::table('operators')
-                    ->select('operators.id', DB::raw('CONCAT(operators.code, " - ", operators.name) AS full_name'))
-                    ->orderBy('name')
-                    ->get(),
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
+            ),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
             'totals' => $totals,
             'vends' => VendDBResource::collection($vends),
-            'vendChannelErrors' =>
-                DB::table('vend_channel_errors')
-                    ->select('vend_channel_errors.id', 'vend_channel_errors.code', 'vend_channel_errors.desc')
-                    ->orderBy('code')
-                    ->get(),
+            'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
         ]);
     }
 
@@ -386,41 +373,24 @@ class VendController extends Controller
             ->withQueryString();
 
         return Inertia::render('Vend/Transaction', [
-            'categories' =>
-                DB::table('categories')
-                    ->select('categories.id', 'categories.name')
-                    ->orderBy('name')
-                    ->get(),
-            'categoryGroups' =>
-                DB::table('category_groups')
-                    ->select('category_groups.id', 'category_groups.name')
-                    ->where('classname', $className)
-                    ->orderBy('name')
-                    ->get(),
-            'locationTypeOptions' =>
-                DB::table('location_types')
-                    ->select('location_types.id', 'location_types.name')
-                    ->orderBy('sequence')
-                    ->get(),
-            'operatorOptions' =>
-                DB::table('operators')
-                    ->select('operators.id', DB::raw('CONCAT(operators.code, " - ", operators.name) AS full_name'))
-                    ->orderBy('name')
-                    ->get(),
-            'paymentMethods' =>
-                DB::table('payment_methods')
-                    ->select('payment_methods.id', 'payment_methods.name')
-                    ->orderBy('name')
-                    ->get(),
+            'categories' => CategoryResource::collection(
+                Category::where('classname', $className)->orderBy('name')->get()
+            ),
+            'categoryGroups' => CategoryGroupResource::collection(
+                CategoryGroup::where('classname', $className)->orderBy('name')->get()
+            ),
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
+            ),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::all()
+            ),
+            'paymentMethods' => PaymentMethodResource::collection(PaymentMethod::orderBy('name')->get()),
             'vendTransactions' => VendTransactionDBResource::collection(
                 $vendTransactions
             ),
             'totals' => $totals,
-            'vendChannelErrors' =>
-                DB::table('vend_channel_errors')
-                    ->select('vend_channel_errors.id', 'vend_channel_errors.code', 'vend_channel_errors.desc')
-                    ->orderBy('code')
-                    ->get(),
+            'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
         ]);
     }
 

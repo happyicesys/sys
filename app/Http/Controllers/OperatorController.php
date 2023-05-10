@@ -94,6 +94,9 @@ class OperatorController extends Controller
             'name' => 'required',
         ]);
 
+        if(!$request->has('gst_vat_rate') or $request->gst_vat_rate == null) {
+            $request->merge(['gst_vat_rate' => 0]);
+        }
         Operator::create($request->all());
 
         return redirect()->route('operators');

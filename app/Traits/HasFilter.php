@@ -21,6 +21,69 @@ trait HasFilter {
         return $query;
     }
 
+    public function filterVendTransactionReport($query, $request)
+    {
+        $query->when($request->has('visited'), function($query, $search) use ($request) {
+            if($request->visited == 'true') {
+                $query->whereRaw('1 = 1');
+            }else {
+                $query->whereRaw('1 = 0');
+            }
+        })
+        ->when($request->categories, function($query, $search) {
+            $query->whereIn('categories.id', $search);
+        })
+        ->when($request->categoryGroups, function($query, $search) {
+            $query->whereIn('category_groups.id', $search);
+        })
+        ->when($request->codes, function($query, $search) {
+            if(strpos($search, ',') !== false) {
+                $search = explode(',', $search);
+            }else {
+                $search = [$search];
+            }
+            $query->whereIn('vends.code', $search);
+        })
+        ->when($request->customer_code, function($query, $search) {
+            $query->where('customers.code', 'LIKE', "%{$search}%");
+        })
+        ->when($request->customer_name, function($query, $search) {
+            $query->where(function($query) use ($search) {
+              $query->where('customers.name', 'LIKE', "%{$search}%")
+                    ->orWhere('vends.name', 'LIKE', "%{$search}%");
+            });
+        })
+        ->when($request->is_binded_customer, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->whereNotNull('customers.id');
+                }else {
+                    $query->whereNull('customers.id');
+                }
+            }
+        })
+        ->when($request->location_type_id, function($query, $search) {
+            if($search != 'all') {
+              $query->where('location_type_id', $search);
+            }
+        })
+        ->when($request->operator_id, function($query, $search) {
+            if($search != 'all') {
+              $query->whereIn('vends.id', DB::table('operator_vend')->select('vend_id')->where('operator_id', $search)->pluck('vend_id'));
+            }
+        })
+        ->when($request->product_id, function($query, $search) {
+            if($search != 'all') {
+              $query->where('products.id', $search);
+            }
+        })
+        ->when($request->product_name, function($query, $search) {
+            $query->where('products.name', 'LIKE', "%{$search}%");
+        });
+
+        return $query;
+    }
+
     public function filterVendsDB($query, $request)
     {
       $isDoorOpen = $request->is_door_open != null ? $request->is_door_open : 'all';
@@ -80,11 +143,12 @@ trait HasFilter {
           }
       })
       ->when($request->is_binded_customer, function($query, $search) {
+        // dd('here1');
           if($search != 'all') {
               if($search == 'true') {
-                  $query->whereNotNull('customers.id');
+                $query->whereNotNull('customers.id');
               }else {
-                  $query->whereNull('customers.id');
+                $query->whereNull('customers.id');
               }
           }
       })

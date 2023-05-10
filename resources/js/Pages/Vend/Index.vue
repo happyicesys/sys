@@ -794,7 +794,7 @@ const permissions = usePage().props.auth.permissions
     vendChannelErrorsOptions.value = [
         // {'id': '', 'desc': 'All'},
         {'id': 'errors_only', 'desc': 'Errors Only'},
-        ...props.vendChannelErrors
+        ...props.vendChannelErrors.data
     ]
     numberPerPageOptions.value = [
         { id: 50, value: 50 },
@@ -806,8 +806,8 @@ const permissions = usePage().props.auth.permissions
     filters.value.vend_channel_error_id = vendChannelErrorsOptions.value[0]
     filters.value.numberPerPage = numberPerPageOptions.value[0]
 
-    categoryOptions.value = props.categories.map((data) => {return {id: data.id, name: data.name}})
-    categoryGroupOptions.value = props.categoryGroups.map((data) => {return {id: data.id, name: data.name}})
+    categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
+    categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
     booleanOptions.value = [
         {id: 'all', value: 'All'},
         {id: 'true', value: 'Yes'},
@@ -825,11 +825,11 @@ const permissions = usePage().props.auth.permissions
     ]
     locationTypeOptions.value = [
         {id: 'all', value: 'All'},
-        ...props.locationTypeOptions.map((data) => {return {id: data.id, value: data.name}})
+        ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
-        ...props.operatorOptions.map((data) => {return {id: data.id, full_name: data.full_name}})
+        ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
 
     filters.value.is_door_open = doorOptions.value[0]
