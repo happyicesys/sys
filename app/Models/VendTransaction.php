@@ -29,6 +29,7 @@ class VendTransaction extends Model
     ];
 
     protected $fillable = [
+        'customer_id',
         'customer_json',
         'order_id',
         'transaction_datetime',
@@ -38,6 +39,7 @@ class VendTransaction extends Model
         'gst_vat_rate',
         'is_payment_received',
         'location_type_json',
+        'operator_id',
         'operator_json',
         'payment_method_id',
         'product_id',
@@ -45,6 +47,7 @@ class VendTransaction extends Model
         'revenue',
         'unit_cost_json',
         'vend_channel_id',
+        'vend_channel_code',
         'vend_channel_error_id',
         'vend_id',
         'vend_json',
@@ -67,6 +70,16 @@ class VendTransaction extends Model
     public function getUnitCost()
     {
         return $this->unitCost ? $this->unitCost->cost : 0;
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function operator()
+    {
+        return $this->belongsTo(Operator::class);
     }
 
     public function paymentMethod()
