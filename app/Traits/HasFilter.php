@@ -56,9 +56,9 @@ trait HasFilter {
         ->when($request->is_binded_customer, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
-                    $query->whereNotNull('customers.id');
+                    $query->whereNotNull('customer_id');
                 }else {
-                    $query->whereNull('customers.id');
+                    $query->whereNull('customers_id');
                 }
             }
         })
@@ -72,10 +72,10 @@ trait HasFilter {
               $query->whereIn('vends.id', DB::table('operator_vend')->select('vend_id')->where('operator_id', $search)->pluck('vend_id'));
             }
         })
-        ->when($request->product_id, function($query, $search) {
-            if($search != 'all') {
-              $query->where('products.id', $search);
-            }
+        ->when($request->product_code, function($query, $search) {
+            // if($search != 'all') {
+              $query->where('products.code', $search);
+            // }
         })
         ->when($request->product_name, function($query, $search) {
             $query->where('products.name', 'LIKE', "%{$search}%");
@@ -126,6 +126,12 @@ trait HasFilter {
                   ->orWhere('vends.name', 'LIKE', "%{$search}%");
           });
       })
+      ->when($request->product_code, function($query, $search) {
+        $query->where('products.code', 'LIKE', "%{$search}%");
+    })
+    ->when($request->product_name, function($query, $search) {
+        $query->where('products.name', 'LIKE', "%{$search}%");
+    })
       ->when($request->categories, function($query, $search) {
           $query->whereIn('categories.id', $search);
       })
@@ -146,9 +152,9 @@ trait HasFilter {
         // dd('here1');
           if($search != 'all') {
               if($search == 'true') {
-                $query->whereNotNull('customers.id');
+                $query->whereNotNull('customer_id');
               }else {
-                $query->whereNull('customers.id');
+                $query->whereNull('customer_id');
               }
           }
       })

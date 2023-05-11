@@ -24,6 +24,12 @@
           <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
             Cust Name
           </SearchInput>
+          <SearchInput placeholderStr="Product ID" v-model="filters.product_code" @keyup.enter="onSearchFilterUpdated()">
+              Product ID
+          </SearchInput>
+          <SearchInput placeholderStr="Product Name" v-model="filters.product_name" @keyup.enter="onSearchFilterUpdated()">
+              Product Name
+          </SearchInput>
           <div v-if="permissions.includes('admin-access vends')">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Customer Binded?
@@ -182,27 +188,6 @@
               </MultiSelect>
           </div>
         </div>
-<!--
-        <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
-          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-            <dt class="truncate text-sm font-medium text-gray-500">Total Sales before GST (This Month)</dt>
-            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                {{totals['this_month_revenue_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
-            </dd>
-          </div>
-          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-            <dt class="truncate text-sm font-medium text-gray-500">Total Gross Profit (This Month)</dt>
-            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                {{totals['this_month_gross_profit_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
-            </dd>
-          </div>
-          <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-            <dt class="truncate text-sm font-medium text-gray-500">Total Gross Margin (This Month)</dt>
-            <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                {{totals['this_month_gross_margin_total'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}} %
-            </dd>
-          </div>
-        </dl> -->
       </div>
 
       <div class="mt-6 flex flex-col">
@@ -214,25 +199,28 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHead>
+                    <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
                       ID
-                    </TableHead>
-                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
                     </TableHeadSort>
-                    <TableHead colspan="3">
+                    <TableHead>
+                      Name
+                    </TableHead>
+                    <TableHead colspan="4">
                       This Month
                     </TableHead>
-                    <TableHead colspan="3">
+                    <TableHead colspan="4">
                       Last Month
                     </TableHead>
-                    <TableHead colspan="3">
+                    <TableHead colspan="4">
                       Last 2 Month
                     </TableHead>
                   </tr>
                   <tr class="divide-x divide-gray-200">
                     <TableHead colspan="3">
                     </TableHead>
+                    <TableHeadSort modelName="this_month_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_count')">
+                      Sales (#)
+                    </TableHeadSort>
                     <TableHeadSort modelName="this_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_revenue')">
                       Sales ($)
                     </TableHeadSort>
@@ -242,6 +230,9 @@
                     <TableHeadSort modelName="this_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_gross_profit_margin')">
                       GM (%)
                     </TableHeadSort>
+                    <TableHeadSort modelName="last_month_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_count')">
+                      Sales (#)
+                    </TableHeadSort>
                     <TableHeadSort modelName="last_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_revenue')">
                       Sales ($)
                     </TableHeadSort>
@@ -250,6 +241,9 @@
                     </TableHeadSort>
                     <TableHeadSort modelName="last_month_gross_profit_margin" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_gross_profit_margin')">
                       GM (%)
+                    </TableHeadSort>
+                    <TableHeadSort modelName="last_two_month_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_count')">
+                      Sales (#)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_revenue')">
                       Sales ($)
@@ -265,6 +259,9 @@
                     <TableHead colspan="3">
                     </TableHead>
                     <TableData inputClass="text-right font-semibold">
+                      {{totals['this_month_count_total'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
                       {{totals['this_month_revenue_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
                     </TableData>
                     <TableData inputClass="text-right font-semibold">
@@ -274,6 +271,9 @@
                       {{totals['this_month_gross_margin_total'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}
                     </TableData>
                     <TableData inputClass="text-right font-semibold">
+                      {{totals['last_month_count_total'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
                       {{totals['last_month_revenue_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
                     </TableData>
                     <TableData inputClass="text-right font-semibold">
@@ -281,6 +281,9 @@
                     </TableData>
                     <TableData inputClass="text-right font-semibold">
                       {{totals['last_month_gross_margin_total'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}
+                    </TableData>
+                    <TableData inputClass="text-right font-semibold">
+                      {{totals['last_two_month_count_total'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                     </TableData>
                     <TableData inputClass="text-right font-semibold">
                       {{totals['last_two_month_revenue_total'].toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
@@ -305,6 +308,9 @@
                         {{ product.name }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
+                        {{ product.this_month_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
                         {{ product.this_month_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
@@ -314,6 +320,9 @@
                         {{ product.this_month_gross_profit_margin ?? 0 }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
+                        {{ product.last_month_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
                         {{ product.last_month_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
@@ -321,6 +330,9 @@
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
                         {{ product.last_month_gross_profit_margin ?? 0 }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
+                        {{ product.last_two_month_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="products.length" inputClass="text-right">
                         {{ product.last_two_month_revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
@@ -378,12 +390,14 @@ const filters = ref({
   currentMonth: '',
   customer_code: '',
   customer_name: '',
+  product_code: '',
+  product_name: '',
   is_binded_customer: '',
   location_type_id: '',
   operator_id: '',
   sortKey: '',
   sortBy: false,
-  numberPerPage: 100,
+  numberPerPage: 30,
   visited: false,
 })
 const booleanOptions = ref([])
@@ -400,6 +414,7 @@ const permissions = usePage().props.auth.permissions
 onMounted(() => {
   filters.value.visited = true
   numberPerPageOptions.value = [
+    { id: 30, value: 30 },
     { id: 50, value: 50 },
     { id: 100, value: 100 },
     { id: 200, value: 200 },

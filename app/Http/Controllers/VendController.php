@@ -120,6 +120,7 @@ class VendController extends Controller
             );
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends);
+
         $vends = $vends->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 

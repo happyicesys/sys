@@ -6,6 +6,7 @@ use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\ProductDBResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendResource;
@@ -69,13 +70,12 @@ class ReportController extends Controller
     public function indexProduct(Request $request)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
+        $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
-        $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : false);
         $className = get_class(new Customer());
 
-        // dd($this->getUnitCostByProductQuery($request)->toSql());
         $products = $this->getUnitCostByProductQuery($request);
         $totals = $this->getSalesSubTotal($products);
         $products = $products->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
@@ -96,7 +96,7 @@ class ReportController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'totals' => $totals,
-            'products' => ProductResource::collection($products),
+            'products' => ProductDBResource::collection($products),
         ]);
     }
 
@@ -303,10 +303,11 @@ class ReportController extends Controller
                 DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
+                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin'),
+                DB::raw('SUM(CASE WHEN PERIOD_DIFF(DATE_FORMAT(NOW(), "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) = 0 THEN revenue ELSE 0 END) AS this_month_revenue'),
             )
             ->groupBy('vends.id', 'month_diff');
-
+            // dd($queryVendTransactions->toSql());
 
         $vends = DB::query()
             ->fromSub($queryVendTransactions, 'transac')
@@ -341,7 +342,7 @@ class ReportController extends Controller
                 $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }
         });
-        // dd($vends->get());
+
         return $vends;
     }
 
@@ -349,86 +350,159 @@ class ReportController extends Controller
     {
         $currentDate = $request->currentMonth ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone()) : Carbon::today()->setTimezone($this->getUserTimezone());
 
-        $queryThisMonth = VendTransaction::query()
+        $queryVendTransactions = DB::table('vend_transactions')
+            ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->leftJoin('products', 'vend_transactions.product_id', '=', 'products.id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->startOfMonth()->toDateString())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
-            ->isSuccessful()
-            ->filterReport($request)
-            ->select(
-                'products.id',
-                'products.name',
-                DB::raw('COUNT(*) AS count'),
-                DB::raw('SUM(revenue) AS revenue'),
-                DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
-            )
-            ->groupBy('products.id');
-
-        $queryLastMonth = VendTransaction::query()
-            ->leftJoin('products', 'vend_transactions.product_id', '=', 'products.id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonth()->startOfMonth()->toDateString())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonth()->endOfMonth()->toDateString())
-            ->isSuccessful()
-            ->filterReport($request)
-            ->select(
-                'products.id',
-                DB::raw('COUNT(*) AS count'),
-                DB::raw('SUM(revenue) AS revenue'),
-                DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
-            )
-            ->groupBy('products.id');
-
-            // dd($queryLastMonth->get()->toArray());
-
-        $queryLastTwoMonth = VendTransaction::query()
-            ->leftJoin('products', 'vend_transactions.product_id', '=', 'products.id')
+            ->leftJoin('vend_bindings', function($query) {
+                $query->on('vend_bindings.vend_id', '=', 'vends.id')
+                        ->where('vend_bindings.is_active', true)
+                        ->latest('begin_date')
+                        ->limit(1);
+            })
+            ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            ->leftJoin('operator_vend', function($query) {
+                $query->on('operator_vend.vend_id', '=', 'vends.id')
+                        ->limit(1);
+            })
             ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->toDateString())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonths(2)->endOfMonth()->toDateString())
-            ->isSuccessful()
-            ->filterReport($request)
-            ->select(
-                'products.id',
-                DB::raw('COUNT(*) AS count'),
-                DB::raw('SUM(revenue) AS revenue'),
-                DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
-            )
-            ->groupBy('products.id');
-
-
-        $products = Product::query()
-            ->leftJoinSub($queryThisMonth, 'this_month', function($join) {
-                $join->on('products.id', '=', 'this_month.id');
-            })
-            ->leftJoinSub($queryLastMonth, 'last_month', function($join) {
-                $join->on('products.id', '=', 'last_month.id');
-            })
-            ->leftJoinSub($queryLastTwoMonth, 'last_two_month', function($join) {
-                $join->on('products.id', '=', 'last_two_month.id');
-            })
-            ->where('products.is_inventory', true)
+            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
+            ->whereIn('vend_transaction_json->SErr', [0, 6]);
+        $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
+        $queryVendTransactions = $this->filterOperatorDB($queryVendTransactions);
+        $queryVendTransactions = $queryVendTransactions
             ->select(
                 'products.id',
                 'products.name',
                 'products.code',
-                'this_month.count AS this_month_count',
-                'this_month.revenue AS this_month_revenue',
-                'this_month.gross_profit AS this_month_gross_profit',
-                'this_month.gross_profit_margin AS this_month_gross_profit_margin',
-                'last_month.count AS last_month_count',
-                'last_month.revenue AS last_month_revenue',
-                'last_month.gross_profit AS last_month_gross_profit',
-                'last_month.gross_profit_margin AS last_month_gross_profit_margin',
-                'last_two_month.count AS last_two_month_count',
-                'last_two_month.revenue AS last_two_month_revenue',
-                'last_two_month.gross_profit AS last_two_month_gross_profit',
-                'last_two_month.gross_profit_margin AS last_two_month_gross_profit_margin',
+                DB::raw('PERIOD_DIFF(DATE_FORMAT(NOW(), "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) AS month_diff'),
+                DB::raw('COUNT(*) AS count'),
+                DB::raw('SUM(revenue) AS revenue'),
+                DB::raw('SUM(gross_profit) AS gross_profit'),
+                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin'),
+                DB::raw('SUM(CASE WHEN PERIOD_DIFF(DATE_FORMAT(NOW(), "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) = 0 THEN revenue ELSE 0 END) AS this_month_revenue'),
             )
-            ->filterIndex($request);
+            ->groupBy('products.id', 'month_diff');
+
+        $products = DB::query()
+            ->fromSub($queryVendTransactions, 'transac')
+            ->select(
+                'id',
+                'name',
+                'code',
+                'month_diff',
+                DB::raw('SUM(CASE WHEN month_diff = 0 THEN count ELSE 0 END) AS this_month_count'),
+                DB::raw('SUM(CASE WHEN month_diff = 0 THEN revenue ELSE 0 END) AS this_month_revenue'),
+                DB::raw('SUM(CASE WHEN month_diff = 0 THEN gross_profit ELSE 0 END) AS this_month_gross_profit'),
+                DB::raw('SUM(CASE WHEN month_diff = 0 THEN gross_profit_margin ELSE 0 END) AS this_month_gross_profit_margin'),
+                DB::raw('SUM(CASE WHEN month_diff = 1 THEN count ELSE 0 END) AS last_month_count'),
+                DB::raw('SUM(CASE WHEN month_diff = 1 THEN revenue ELSE 0 END) AS last_month_revenue'),
+                DB::raw('SUM(CASE WHEN month_diff = 1 THEN gross_profit ELSE 0 END) AS last_month_gross_profit'),
+                DB::raw('SUM(CASE WHEN month_diff = 1 THEN gross_profit_margin ELSE 0 END) AS last_month_gross_profit_margin'),
+                DB::raw('SUM(CASE WHEN month_diff = 2 THEN count ELSE 0 END) AS last_two_month_count'),
+                DB::raw('SUM(CASE WHEN month_diff = 2 THEN revenue ELSE 0 END) AS last_two_month_revenue'),
+                DB::raw('SUM(CASE WHEN month_diff = 2 THEN gross_profit ELSE 0 END) AS last_two_month_gross_profit'),
+                DB::raw('SUM(CASE WHEN month_diff = 2 THEN gross_profit_margin ELSE 0 END) AS last_two_month_gross_profit_margin'),
+            )
+            ->groupBy('id');
+
+        $products = $products->when($request->sortKey, function($query, $search) use ($request) {
+            if(strpos($search, '->')) {
+                $inputSearch = explode("->", $search);
+                $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            }else {
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            }
+        });
 
         return $products;
+
+
+
+        // $currentDate = $request->currentMonth ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone()) : Carbon::today()->setTimezone($this->getUserTimezone());
+
+        // $queryThisMonth = VendTransaction::query()
+        //     ->leftJoin('products', 'vend_transactions.product_id', '=', 'products.id')
+        //     ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->startOfMonth()->toDateString())
+        //     ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
+        //     ->isSuccessful()
+        //     ->filterReport($request)
+        //     ->select(
+        //         'products.id',
+        //         'products.name',
+        //         DB::raw('COUNT(*) AS count'),
+        //         DB::raw('SUM(revenue) AS revenue'),
+        //         DB::raw('SUM(gross_profit) AS gross_profit'),
+        //         DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
+        //     )
+        //     ->groupBy('products.id');
+
+        // $queryLastMonth = VendTransaction::query()
+        //     ->leftJoin('products', 'vend_transactions.product_id', '=', 'products.id')
+        //     ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonth()->startOfMonth()->toDateString())
+        //     ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonth()->endOfMonth()->toDateString())
+        //     ->isSuccessful()
+        //     ->filterReport($request)
+        //     ->select(
+        //         'products.id',
+        //         DB::raw('COUNT(*) AS count'),
+        //         DB::raw('SUM(revenue) AS revenue'),
+        //         DB::raw('SUM(gross_profit) AS gross_profit'),
+        //         DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
+        //     )
+        //     ->groupBy('products.id');
+
+        //     // dd($queryLastMonth->get()->toArray());
+
+        // $queryLastTwoMonth = VendTransaction::query()
+        //     ->leftJoin('products', 'vend_transactions.product_id', '=', 'products.id')
+        //     ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->toDateString())
+        //     ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->subMonths(2)->endOfMonth()->toDateString())
+        //     ->isSuccessful()
+        //     ->filterReport($request)
+        //     ->select(
+        //         'products.id',
+        //         DB::raw('COUNT(*) AS count'),
+        //         DB::raw('SUM(revenue) AS revenue'),
+        //         DB::raw('SUM(gross_profit) AS gross_profit'),
+        //         DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin')
+        //     )
+        //     ->groupBy('products.id');
+
+
+        // $products = Product::query()
+        //     ->leftJoinSub($queryThisMonth, 'this_month', function($join) {
+        //         $join->on('products.id', '=', 'this_month.id');
+        //     })
+        //     ->leftJoinSub($queryLastMonth, 'last_month', function($join) {
+        //         $join->on('products.id', '=', 'last_month.id');
+        //     })
+        //     ->leftJoinSub($queryLastTwoMonth, 'last_two_month', function($join) {
+        //         $join->on('products.id', '=', 'last_two_month.id');
+        //     })
+        //     ->where('products.is_inventory', true)
+        //     ->select(
+        //         'products.id',
+        //         'products.name',
+        //         'products.code',
+        //         'this_month.count AS this_month_count',
+        //         'this_month.revenue AS this_month_revenue',
+        //         'this_month.gross_profit AS this_month_gross_profit',
+        //         'this_month.gross_profit_margin AS this_month_gross_profit_margin',
+        //         'last_month.count AS last_month_count',
+        //         'last_month.revenue AS last_month_revenue',
+        //         'last_month.gross_profit AS last_month_gross_profit',
+        //         'last_month.gross_profit_margin AS last_month_gross_profit_margin',
+        //         'last_two_month.count AS last_two_month_count',
+        //         'last_two_month.revenue AS last_two_month_revenue',
+        //         'last_two_month.gross_profit AS last_two_month_gross_profit',
+        //         'last_two_month.gross_profit_margin AS last_two_month_gross_profit_margin',
+        //     )
+        //     ->filterIndex($request);
+
+        // return $products;
     }
 
     private function getUnitCostByCategoryQuery($request)
@@ -650,6 +724,8 @@ class ReportController extends Controller
 
     private function getSalesSubTotal($dataCols)
     {
+
+
         return collect((clone $dataCols)->get())->pipe(function($data) {
             $thisMonthTotal = $data->sum(function($data) {
                 return $data->this_month_revenue/ 100;

@@ -24,6 +24,12 @@
           <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
             Cust Name
           </SearchInput>
+          <SearchInput placeholderStr="Product ID" v-model="filters.product_code" @keyup.enter="onSearchFilterUpdated()">
+              Product ID
+          </SearchInput>
+          <SearchInput placeholderStr="Product Name" v-model="filters.product_name" @keyup.enter="onSearchFilterUpdated()">
+              Product Name
+          </SearchInput>
           <div v-if="permissions.includes('admin-access vends')">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Customer Binded?
@@ -193,12 +199,12 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHead>
+                    <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
                       ID
-                    </TableHead>
-                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
                     </TableHeadSort>
+                    <TableHead>
+                      Name
+                    </TableHead>
                     <TableHead colspan="4">
                       This Month
                     </TableHead>
@@ -399,6 +405,8 @@ const filters = ref({
   is_binded_customer: '',
   location_type_id: '',
   operator_id: '',
+  product_code: '',
+  product_name: '',
   sortKey: '',
   sortBy: false,
   numberPerPage: 30,
