@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\VendTransaction;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,11 +14,11 @@ class SyncDecenteriseVendTransactions implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected $vendTransactions;
+    protected $vendTransaction;
 
-    public function __construct($vendTransactions)
+    public function __construct($vendTransaction)
     {
-        $this->vendTransactions = $vendTransactions;
+        $this->vendTransaction = $vendTransaction;
     }
 
     /**
@@ -25,13 +26,10 @@ class SyncDecenteriseVendTransactions implements ShouldQueue
      */
     public function handle(): void
     {
-        foreach ($this->vendTransactions as $vendTransaction) {
-            $vend = $vendTransaction->vend;
-
-            $vendTransaction->customer_id = $vend->latestVendBinding()->exists() && $vend->latestVendBinding->customer()->exists() ? $vend->latestVendBinding->customer->id : null;
-            $vendTransaction->operator_id = $vend->currentOperator()->exists() ? $vend->currentOperator->first()->id : null;
-            $vendTransaction->vend_channel_code = $vendTransaction->vendChannel->code;
-            $vendTransaction->save();
-        }
+        VendTransaction::where('id', $this->vendTransaction->id)->update([
+            'customer_id' => $this->vendTransaction->customer_id,
+            'operator_id' => $this->vendTransaction->operator_id,
+            'vend_channel_code' => $this->vendTransaction->vend_channel_code,
+        ]);
     }
 }

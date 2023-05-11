@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\VendTransaction;
 use App\Jobs\SyncDecenteriseVendTransactions;
+use DB;
 use Illuminate\Console\Command;
 
 class DecenteriseVendTransactions extends Command
@@ -27,19 +28,27 @@ class DecenteriseVendTransactions extends Command
      */
     public function handle()
     {
-        $vendTransactions = VendTransaction::whereNull('customer_id')
-            ->orWhereNull('operator_id')
-            ->orWhereNull('vend_channel_code')
-            ->get();
+        $vendTransactions = DB::table('vend_transactions')
+        ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+        ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
+        ->leftJoin('vend_bindings', function($query) {
+            $query->on('vend_bindings.vend_id', '=', 'vends.id')
+                    ->where('vend_bindings.is_active', true)
+                    ->latest('begin_date')
+                    ->limit(1);
+        })
+        ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+        ->leftJoin('operator_vend', function($query) {
+            $query->on('operator_vend.vend_id', '=', 'vends.id')
+                    ->latest('operator_vend.begin_date')
+                    ->limit(1);
+        })
+        ->whereNull('vend_transactions.vend_channel_code')
+        ->select('vend_transactions.id', 'customers.id as customer_id', 'operator_vend.operator_id', 'vend_channels.code as vend_channel_code')
+        ->get();
 
-        SyncDecenteriseVendTransactions::dispatch($vendTransactions);
         foreach ($vendTransactions as $vendTransaction) {
-            $vend = $vendTransaction->vend;
-
-            $vendTransaction->customer_id = $vend->latestVendBinding()->exists() && $vend->latestVendBinding->customer()->exists() ? $vend->latestVendBinding->customer->id : null;
-            $vendTransaction->operator_id = $vend->currentOperator()->exists() ? $vend->currentOperator->first()->id : null;
-            $vendTransaction->vend_channel_code = $vendTransaction->vendChannel->code;
-            $vendTransaction->save();
+            SyncDecenteriseVendTransactions::dispatch($vendTransaction);
         }
     }
 }
