@@ -139,6 +139,10 @@ class GetPaymentGatewayQR
                 $encodeMsg = base64_encode('QRCODE'.$qrCodeText.','.$orderId);
                 $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
 
+                if($errorMsg) {
+                    $this->mqttService->publish('CM'.$vend->code, $errorMsg);
+                }
+
             }else {
                 if($errorMsg) {
                     $this->mqttService->publish('CM'.$vend->code, $errorMsg);
