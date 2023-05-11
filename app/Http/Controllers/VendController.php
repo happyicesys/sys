@@ -336,6 +336,8 @@ class VendController extends Controller
             ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
             ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
             ->select(
+                'customers.code AS customer_code',
+                'customers.name AS customer_name',
                 'vend_transactions.id',
                 'vend_transactions.amount',
                 'vend_transactions.customer_json',

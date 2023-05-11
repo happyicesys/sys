@@ -294,6 +294,7 @@ class ReportController extends Controller
         $queryVendTransactions = $queryVendTransactions
             ->select(
                 'vends.id',
+                'customers.id AS customer_id',
                 'customers.code AS customer_code',
                 'customers.name AS customer_name',
                 'vends.name',
@@ -338,10 +339,6 @@ class ReportController extends Controller
                 ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }else {
                 $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-            }
-
-            if($search === 'vends.is_online') {
-                $query->orderBy('vends.code', 'asc');
             }
         });
         // dd($vends->get());

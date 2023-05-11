@@ -32,7 +32,7 @@ class VendTransactionDBResource extends JsonResource
             'revenue' => number_format($this->revenue/ 100, 2, '.', ','),
             'transaction_datetime' => isset($this->transaction_datetime) ? Carbon::parse($this->transaction_datetime)->setTimezone($this->getUserTimezone())->format('ymd h:i a') : null,
             'unit_cost' => number_format($this->unit_cost/ 100, 2, '.', ','),
-            'gross_profit_margin' => number_format($this->gross_profit/ $this->revenue * 100, 2, '.', ','),
+            'gross_profit_margin' => $this->revenue ? number_format($this->gross_profit/ $this->revenue * 100, 2, '.', ',') : 0,
             'vend_code' => isset($this->vend_code) ? $this->vend_code : null,
             'vend_channel_code' => isset($this->vend_channel_code) ? $this->vend_channel_code : null,
             'vend_channel_error_code' => isset($this->vend_channel_error_code) ? $this->vend_channel_error_code : null,

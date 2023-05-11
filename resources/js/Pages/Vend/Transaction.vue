@@ -120,6 +120,16 @@
                     Cust Name
                 </SearchInput>
             </div>
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+                <SearchInput placeholderStr="Product ID" v-model="filters.product_code" @keyup.enter="onSearchFilterUpdated()">
+                    Product ID
+                </SearchInput>
+            </div>
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+                <SearchInput placeholderStr="Product Name" v-model="filters.product_name" @keyup.enter="onSearchFilterUpdated()">
+                    Product Name
+                </SearchInput>
+            </div>
             <div v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Operator
@@ -472,6 +482,8 @@ const filters = ref({
     categoryGroups: [],
     customer_code: '',
     customer_name: '',
+    product_code: '',
+    product_name: '',
     errors: [],
     location_type_id: '',
     operator_id: '',
