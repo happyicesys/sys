@@ -74,7 +74,7 @@ trait HasFilter {
         })
         ->when($request->product_code, function($query, $search) {
             // if($search != 'all') {
-              $query->where('products.code', $search);
+              $query->where('products.code', 'LIKE', "%{$search}%");
             // }
         })
         ->when($request->product_name, function($query, $search) {
