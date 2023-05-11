@@ -480,7 +480,7 @@ class VendController extends Controller
                 'Customer Name' => $vendTransaction->customer_json && isset(json_decode($vendTransaction->customer_json)->code) ?
                                         json_decode($vendTransaction->customer_json)->code.' '.json_decode($vendTransaction->customer_json)->name : (
                                         $vendTransaction->vend_json && isset(json_decode($vendTransaction->vend_json)->latest_vend_binding) ?
-                                        json_decode($vendTransaction->vend_json)->latest_vend_binding['customer']['code'].' '.json_decode($vendTransaction->vend_json)->latest_vend_binding['customer']['name'] : $vendTransaction->vend_name
+                                        json_decode($vendTransaction->vend_json)->latest_vend_binding->customer->code.' '.json_decode($vendTransaction->vend_json)->latest_vend_binding->customer->name : $vendTransaction->vend_name
                                     ),
                 'Channel' => $vendTransaction->vend_transaction_json &&
                             json_decode($vendTransaction->vend_transaction_json)->SId ?
