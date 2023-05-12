@@ -328,6 +328,9 @@
                             <TableHeadSort modelName="last_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_invoice_date')">
                                 Last Visited
                             </TableHeadSort>
+                            <TableHeadSort modelName="next_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_invoice_date')">
+                                Next Planned Visit
+                            </TableHeadSort>
                             <TableHeadSort modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2')">
                                 Temp2 <br>
                                 (Evap)<br>
@@ -582,6 +585,12 @@
                                 <span>
                                     {{ vend.last_invoice_date }} <br>
                                     {{ vend.last_invoice_diff }}
+                                </span>
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                <span>
+                                    {{ vend.next_invoice_date }} <br>
+                                    {{ vend.next_invoice_diff }}
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">

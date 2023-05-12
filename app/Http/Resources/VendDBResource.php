@@ -32,6 +32,8 @@ class VendDBResource extends JsonResource
             'is_temp_error' => isset($this->is_temp_error) && $this->is_temp_error ? true : false,
             'last_invoice_date' => isset($this->last_invoice_date) ? Carbon::parse($this->last_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'last_invoice_diff' => isset($this->last_invoice_date) ? Carbon::parse($this->last_invoice_date)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
+            'next_invoice_date' => isset($this->next_invoice_date) ? Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
+            'next_invoice_diff' => isset($this->next_invoice_date) ? Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'location_type_id' => isset($this->location_type_id) ? $this->location_type_id : null,
             'location_type_name' => isset($this->location_type_name) ? $this->location_type_name : null,
             'parameterJson' => isset($this->parameter_json) ? json_decode($this->parameter_json) : null,

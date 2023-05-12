@@ -102,6 +102,7 @@ class VendController extends Controller
                 'vends.is_sensor_normal',
                 'vends.is_temp_error',
                 DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
+                DB::raw('DATE(customers.next_invoice_date) AS next_invoice_date'),
                 'vends.last_updated_at',
                 'vends.parameter_json',
                 'vends.product_mapping_id',
