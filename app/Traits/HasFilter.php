@@ -405,8 +405,6 @@ trait HasFilter {
     {
         $sortKey = $request->sortKey ? $request->sortKey : 'transaction_datetime';
         $sortBy = $request->sortBy ? $request->sortBy : false;
-        $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
-        $isBindedCustomer = 'all';
         $isPaymentReceived = $request->is_payment_received != null ? $request->is_payment_received : 'all';
 
         $query = $query->when($request->has('visited'), function($query, $search) use ($request) {
@@ -444,7 +442,7 @@ trait HasFilter {
               ->whereIn('vend_channel_errors.id', $search);
             }
         })
-        ->when($isBindedCustomer, function($query, $search) {
+        ->when($request->is_binded_customer, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
                     $query->whereNotNull('customers.id');
