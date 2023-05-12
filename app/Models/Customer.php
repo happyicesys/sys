@@ -9,6 +9,11 @@ class Customer extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'last_invoice_date' => 'datetime',
+        'next_invoice_date' => 'datetime',
+    ];
+
     protected $fillable = [
         'category_id',
         'code',
@@ -23,6 +28,7 @@ class Customer extends Model
         'is_parent',
         'last_invoice_date',
         'location_type_id',
+        'next_invoice_date',
         'ops_note',
         'parent_id',
         'payment_method_id',

@@ -46,7 +46,8 @@ class SyncLastInvoiceDate extends Command
 
                 if($customer) {
                     $customer->update([
-                        'last_invoice_date' => $person['last_delivery_date']
+                        'last_invoice_date' => $person['last_delivery_date'],
+                        'next_invoice_date' => $person['next_delivery_date']
                     ]);
                 }
             }
