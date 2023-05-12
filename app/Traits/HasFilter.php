@@ -15,6 +15,20 @@ trait HasFilter {
               $operatorId = null;
             }
             if($operatorId) {
+                $query = $query->where('operator_vend.operator_id', $operatorId);
+            }
+        }
+        return $query;
+    }
+
+    public function filterOperatorVendTransactionDB($query) {
+        if(auth()->check()) {
+            $operatorId = auth()->user()->operator_id;
+            $isHappyIce = $operatorId == 1 ? true : false;
+            if($isHappyIce) {
+              $operatorId = null;
+            }
+            if($operatorId) {
                 $query = $query->where('operators.id', $operatorId);
             }
         }

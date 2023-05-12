@@ -292,7 +292,7 @@ class ReportController extends Controller
             ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
             ->whereIn('vend_transaction_json->SErr', [0, 6]);
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
-        $queryVendTransactions = $this->filterOperatorDB($queryVendTransactions);
+        $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
         $queryVendTransactions = $queryVendTransactions
             ->select(
                 'vends.id',
@@ -363,7 +363,7 @@ class ReportController extends Controller
             ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
             ->whereIn('vend_transaction_json->SErr', [0, 6]);
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
-        $queryVendTransactions = $this->filterOperatorDB($queryVendTransactions);
+        $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
         $queryVendTransactions = $queryVendTransactions
             ->select(
                 'products.id',
@@ -429,7 +429,7 @@ class ReportController extends Controller
             ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
             ->whereIn('vend_transaction_json->SErr', [0, 6]);
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
-        $queryVendTransactions = $this->filterOperatorDB($queryVendTransactions);
+        $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
         $queryVendTransactions = $queryVendTransactions
             ->select(
                 'categories.id',
@@ -495,7 +495,7 @@ class ReportController extends Controller
             ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
             ->whereIn('vend_transaction_json->SErr', [0, 6]);
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
-        $queryVendTransactions = $this->filterOperatorDB($queryVendTransactions);
+        $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
         $queryVendTransactions = $queryVendTransactions
             ->select(
                 'location_types.id',

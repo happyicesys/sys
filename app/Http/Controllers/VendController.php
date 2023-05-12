@@ -86,6 +86,7 @@ class VendController extends Controller
                         ->limit(1);
             })
             ->select(
+                'operator_vend.operator_id',
                 'vends.id',
                 'vends.code',
                 'vends.name',
@@ -353,7 +354,7 @@ class VendController extends Controller
             );
 
         $vendTransactions = $this->filterVendTransactionsDB($vendTransactions, $request);
-        $vendTransactions = $this->filterOperatorDB($vendTransactions);
+        $vendTransactions = $this->filterOperatorVendTransactionDB($vendTransactions);
         $totals = (clone $vendTransactions)
             ->whereIn('vend_transaction_json->SErr', [0, 6])
             ->select(
@@ -459,7 +460,7 @@ class VendController extends Controller
             );
 
         $vendTransactions = $this->filterVendTransactionsDB($vendTransactions, $request);
-        $vendTransactions = $this->filterOperatorDB($vendTransactions);
+        $vendTransactions = $this->filterOperatorVendTransactionDB($vendTransactions);
         $vendTransactions = $vendTransactions->get();
 
         return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
