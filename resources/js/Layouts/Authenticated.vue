@@ -43,6 +43,7 @@ const navigation = [
         href: 'reports',
         permission: 'read products',
         children: [
+            // {name: 'Month End Stock Count', href: '/reports/stock-count'},
             {name: 'GP by VM', href: '/reports/vend'},
             {name: 'GP by Product', href: '/reports/product'},
             {name: 'GP by Category', href: '/reports/category'},

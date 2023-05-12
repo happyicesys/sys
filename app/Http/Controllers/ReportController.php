@@ -167,6 +167,39 @@ class ReportController extends Controller
         ]);
     }
 
+    public function indexStockCount(Request $request)
+    {
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
+        $request->sortBy = $request->sortBy ? $request->sortBy : false;
+        $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : false);
+        $className = get_class(new Customer());
+
+        $stockCounts = $this->getUnitCostByStockCountQuery($request);
+        $totals = $this->getSalesSubTotal($stockCounts);
+        $stockCounts = $stockCounts->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+            ->withQueryString();
+
+        return Inertia::render('Report/IndexStockCount', [
+            'categories' => CategoryResource::collection(
+                Category::where('classname', $className)->orderBy('name')->get()
+            ),
+            'categoryGroups' => CategoryGroupResource::collection(
+                CategoryGroup::where('classname', $className)->orderBy('name')->get()
+            ),
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
+            ),
+            'monthOptions' => $this->getMonthOption(),
+            'operators' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'totals' => $totals,
+            'stockCounts' => StockCountDBResource::collection($stockCounts),
+        ]);
+    }
+
     public function exportUnitCostVendExcel(Request $request)
     {
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';

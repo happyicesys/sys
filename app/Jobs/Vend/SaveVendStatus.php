@@ -31,6 +31,7 @@ class SaveVendStatus implements ShouldQueue
     public function handle(): void
     {
         VendSnapshot::create([
+            'customer_id' => $this->vend->latestVendBinding && $this->vend->latestVendBinding->customer ? $this->vend->latestVendBinding->customer->id : null,
             'customer_json' => $this->vend->latestVendBinding && $this->vend->latestVendBinding->customer ? $this->vend->latestVendBinding->customer  : [
                 'name' => $this->vend->name,
             ],
