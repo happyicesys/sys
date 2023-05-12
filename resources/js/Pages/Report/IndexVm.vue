@@ -219,7 +219,7 @@
                     <TableHead colspan="3">
                     </TableHead>
                     <TableHeadSort modelName="this_month_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_count')">
-                      Sales (#)
+                      Sales (Qty)
                     </TableHeadSort>
                     <TableHeadSort modelName="this_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('this_month_revenue')">
                       Sales ($)
@@ -231,7 +231,7 @@
                       GM (%)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_month_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_count')">
-                      Sales (#)
+                      Sales (Qty)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_month_revenue')">
                       Sales ($)
@@ -243,7 +243,7 @@
                       GM (%)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_count')">
-                      Sales (#)
+                      Sales (Qty)
                     </TableHeadSort>
                     <TableHeadSort modelName="last_two_month_revenue" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_two_month_revenue')">
                       Sales ($)

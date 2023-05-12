@@ -15,7 +15,7 @@ trait HasFilter {
               $operatorId = null;
             }
             if($operatorId) {
-                $query = $query->where('operator_vend.operator_id', $operatorId);
+                $query = $query->where('operators.id', $operatorId);
             }
         }
         return $query;
@@ -56,9 +56,9 @@ trait HasFilter {
         ->when($request->is_binded_customer, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
-                    $query->whereNotNull('customer_id');
+                    $query->whereNotNull('customers.id');
                 }else {
-                    $query->whereNull('customers_id');
+                    $query->whereNull('customers.id');
                 }
             }
         })
@@ -69,13 +69,11 @@ trait HasFilter {
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-              $query->whereIn('vends.id', DB::table('operator_vend')->select('vend_id')->where('operator_id', $search)->pluck('vend_id'));
+              $query->where('operators.id', $search);
             }
         })
         ->when($request->product_code, function($query, $search) {
-            // if($search != 'all') {
-              $query->where('products.code', 'LIKE', "%{$search}%");
-            // }
+            $query->where('products.code', 'LIKE', "%{$search}%");
         })
         ->when($request->product_name, function($query, $search) {
             $query->where('products.name', 'LIKE', "%{$search}%");
@@ -418,7 +416,7 @@ trait HasFilter {
             }else {
                 $search = [$search];
             }
-            $query->whereIn('vend_channels.code', $search);
+            $query->whereIn('vend_channel_code', $search);
         })
         ->when($request->errors, function($query, $search) {
             if(in_array('errors_only', $search)) {
@@ -481,7 +479,7 @@ trait HasFilter {
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-              $query->whereIn('vends.id', DB::table('operator_vend')->select('vend_id')->where('operator_id', $search)->pluck('vend_id'));
+              $query->where('operators.id', $search);
             }
         })
         ->when($request->date_from, function($query, $search) {

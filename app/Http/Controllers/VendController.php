@@ -318,22 +318,11 @@ class VendController extends Controller
 
         $vendTransactions = DB::table('vend_transactions')
             ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-            ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
-            ->leftJoin('vend_bindings', function($query) {
-                $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                        ->where('vend_bindings.is_active', true)
-                        ->latest('begin_date')
-                        ->limit(1);
-            })
-            ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+            ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->leftJoin('operator_vend', function($query) {
-                $query->on('operator_vend.vend_id', '=', 'vends.id')
-                        ->latest('operator_vend.begin_date')
-                        ->limit(1);
-            })
+            ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
             ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
             ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
             ->select(
@@ -354,9 +343,9 @@ class VendController extends Controller
                 'vend_transactions.revenue',
                 'vend_transactions.transaction_datetime',
                 'vend_transactions.unit_cost',
+                'vend_transactions.vend_channel_code',
                 'vends.code AS vend_code',
                 'vends.name AS vend_name',
-                'vend_channels.code AS vend_channel_code',
                 'vend_channel_errors.code AS vend_channel_error_code',
                 'vend_channel_errors.desc AS vend_channel_error_desc',
                 'vend_transactions.vend_json',
@@ -483,10 +472,7 @@ class VendController extends Controller
                                         $vendTransaction->vend_json && isset(json_decode($vendTransaction->vend_json)->latest_vend_binding) ?
                                         json_decode($vendTransaction->vend_json)->latest_vend_binding->customer->code.' '.json_decode($vendTransaction->vend_json)->latest_vend_binding->customer->name : $vendTransaction->vend_name
                                     ),
-                'Channel' => $vendTransaction->vend_transaction_json &&
-                            json_decode($vendTransaction->vend_transaction_json)->SId ?
-                            json_decode($vendTransaction->vend_transaction_json)->SId :
-                            $vendTransaction->vendChannel->code,
+                'Channel' => $vendTransaction->vend_channel_code,
                 'Product Code' => $vendTransaction->product_code ?
                                 $vendTransaction->product_code :
                                 '',
