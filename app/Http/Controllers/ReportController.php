@@ -12,6 +12,7 @@ use App\Http\Resources\ProductDBResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendResource;
+use App\Http\Resources\VendSnapshotDBResource;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Customer;
@@ -171,13 +172,12 @@ class ReportController extends Controller
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
-        $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'month_number';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
         $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : false);
         $className = get_class(new Customer());
 
-        $stockCounts = $this->getUnitCostByStockCountQuery($request);
-        $totals = $this->getSalesSubTotal($stockCounts);
+        $stockCounts = $this->getStockCountQuery($request);
         $stockCounts = $stockCounts->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 
@@ -195,8 +195,7 @@ class ReportController extends Controller
             'operators' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
-            'totals' => $totals,
-            'stockCounts' => StockCountDBResource::collection($stockCounts),
+            'stockCounts' => VendSnapshotDBResource::collection($stockCounts),
         ]);
     }
 
@@ -574,6 +573,35 @@ class ReportController extends Controller
         });
 
         return $locationTypes;
+    }
+
+    public function getStockCountQuery($request)
+    {
+        $currentDate = $request->currentMonth ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone()) : Carbon::today()->setTimezone($this->getUserTimezone());
+
+        $vendSnapshots = DB::table('vend_snapshots')
+            ->leftJoin('vends', 'vends.id', '=', 'vend_snapshots.vend_id')
+            ->leftJoin('customers', 'customers.id', '=', 'vend_snapshots.customer_id')
+            ->leftJoin('operators', 'operators.id', '=', 'vend_snapshots.operator_id')
+            ->whereDate('vend_snapshots.created_at', '>=', $currentDate->copy()->startOfMonth()->toDateString())
+            ->whereDate('vend_snapshots.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString());
+
+        $vendSnapshots = $this->filterOperatorVendTransactionDB($vendSnapshots);
+        $vendSnapshots = $vendSnapshots->select(
+                'vend_snapshots.id AS id',
+                'customers.code AS customer_code',
+                'customers.name AS customer_name',
+                DB::raw('MONTH(vend_snapshots.created_at) AS month_number'),
+                DB::raw('YEAR(vend_snapshots.created_at) AS year_number'),
+                'vends.code AS vend_code',
+                'vends.name AS vend_name',
+                'vend_snapshots.created_at AS created_at',
+                'vend_snapshots.parameter_json',
+                'vend_snapshots.vend_channels_json',
+            )
+            ->groupBy('vends.id', 'year_number', 'month_number');
+
+        return $vendSnapshots;
     }
 
     private function getSalesSubTotal($dataCols)

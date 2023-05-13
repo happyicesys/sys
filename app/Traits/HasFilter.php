@@ -185,22 +185,29 @@ trait HasFilter {
       })
       ->when($request->errors, function($query, $search) {
           if(in_array('errors_only', $search)) {
-            $query
-            ->whereIn('vends.id', DB::table('vend_channels')
-              ->select('vend_id')
-              ->whereIn('id', DB::table('vend_channel_error_logs')
-                ->select('vend_channel_id')
-                ->where('is_error_cleared', false)
-                ->pluck('vend_channel_id')));
+            $query->whereIn('vends.id',
+                DB::table('vend_channels')
+                ->select('vend_id')
+                ->where('is_active', true)
+                ->whereIn('vend_channels.id', DB::table('vend_channel_error_logs')
+                    ->select('vend_channel_id')
+                    ->where('is_error_cleared', false)
+                    ->pluck('vend_channel_id'))
+                ->pluck('vend_id')
+            );
           }else {
-            $query
-            ->whereIn('vends.id', DB::table('vend_channels')
-              ->select('vend_id')
-              ->whereIn('id', DB::table('vend_channel_error_logs')
-                ->select('vend_channel_id')
-                ->whereIn('vend_channel_error_id', $search)
-                ->where('is_error_cleared', false)
-                ->pluck('vend_channel_id')));
+            $query->whereIn('vends.id',
+                DB::table('vend_channels')
+                ->select('vend_id')
+                ->where('is_active', true)
+                ->whereIn('vend_channels.id', DB::table('vend_channel_error_logs')
+                    ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_channel_error_logs.vend_channel_error_id')
+                    ->select('vend_channel_id')
+                    ->where('is_error_cleared', false)
+                    ->whereIn('vend_channel_errors.id', $search)
+                    ->pluck('vend_channel_id'))
+                ->pluck('vend_id')
+            );
           }
       })
       ->when($request->location_type_id, function($query, $search) {
