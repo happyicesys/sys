@@ -113,6 +113,7 @@ class GetPaymentGatewayQR
                         'order_id' => $orderId,
                         'amount' => $amount,
                         'qr_url' => $qrCodeUrl,
+                        'operator_payment_gateway_id' => $vendOperatorPaymentGateway->id,
                         'payment_gateway_id' => $vendOperatorPaymentGateway->paymentGateway->id,
                         'status' => PaymentGatewayLog::STATUS_PENDING,
                     ]);

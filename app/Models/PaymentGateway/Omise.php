@@ -67,7 +67,7 @@ class Omise extends Model implements PaymentGatewayInterface
             $refundResponse = Http::withHeaders($this->getHeaders('refund'))->post($this->getUrl('refunds'), [
                 'amount' => $params['amount'],
                 'metadata' => [
-                   'metadata' => $params['metadata']
+                   'order_id' => $params['order_id']
                 ]
             ]);
             $this->curlData = $refundResponse;

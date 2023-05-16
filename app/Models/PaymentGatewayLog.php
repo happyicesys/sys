@@ -9,6 +9,7 @@ class PaymentGatewayLog extends Model
 {
     const STATUS_PENDING = 1;
     const STATUS_APPROVE = 2;
+    const STATUS_REFUND = 98;
     const STATUS_DECLINE = 99;
 
     use HasFactory;
@@ -29,6 +30,11 @@ class PaymentGatewayLog extends Model
         'request' => 'json',
         'response' => 'json',
     ];
+
+    public function operatorPaymentGateway()
+    {
+        return $this->belongsTo(OperatorPaymentGateway::class);
+    }
 
     public function paymentGateway()
     {
