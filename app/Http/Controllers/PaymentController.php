@@ -57,24 +57,38 @@ class PaymentController extends Controller
           break;
 
         case 'omise':
-          if(isset($input['data']['status'])) {
-            switch($input['data']['status']) {
-              case 'pending':
-                $status = PaymentGatewayLog::STATUS_PENDING;
-                break;
-              case 'successful':
-                $status = PaymentGatewayLog::STATUS_APPROVE;
-                break;
-              case 'failed':
-              case 'expired':
-                $status = PaymentGatewayLog::STATUS_DECLINE;
-                break;
-            }
+          $objectName = $input['data']['object'];
+          switch($objectName) {
+            case 'charge':
+              if(isset($input['data']['status'])) {
+                switch($input['data']['status']) {
+                  case 'pending':
+                    $status = PaymentGatewayLog::STATUS_PENDING;
+                    break;
+                  case 'successful':
+                    $status = PaymentGatewayLog::STATUS_APPROVE;
+                    break;
+                  case 'failed':
+                  case 'expired':
+                    $status = PaymentGatewayLog::STATUS_DECLINE;
+                    break;
+                }
+              }
+              $orderId = $input['data']['metadata']['order_id'];
+              break;
+            case 'refund':
+              $status = PaymentGatewayLog::STATUS_REFUND;
+              $orderId = $input['data']['metadata']['order_id'];
+              break;
           }
-          $orderId = $input['data']['metadata']['order_id'];
           break;
       }
-      $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
+      if($status === PaymentGatewayLog::STATUS_REFUND) {
+        $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
+      }else {
+        $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
+      }
+
       if($pendingLog) {
         $paymentGatewayLog = $pendingLog->updateOrCreate([
           'order_id' => $orderId,
