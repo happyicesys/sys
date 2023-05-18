@@ -38,9 +38,11 @@ class VendTransaction extends Model
         'gross_profit_margin',
         'gst_vat_rate',
         'is_payment_received',
+        'is_refunded',
         'location_type_json',
         'operator_id',
         'operator_json',
+        'payment_gateway_log_id',
         'payment_method_id',
         'product_id',
         'product_json',
@@ -80,6 +82,11 @@ class VendTransaction extends Model
     public function operator()
     {
         return $this->belongsTo(Operator::class);
+    }
+
+    public function paymentGatewayLog()
+    {
+        return $this->belongsTo(PaymentGatewayLog::class);
     }
 
     public function paymentMethod()

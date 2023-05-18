@@ -3,12 +3,15 @@
 namespace App\Jobs\Vend;
 
 use App\Models\PaymentGateway\Midtrans;
+use App\Models\PaymentGateway\Omise;
+use App\Models\PaymentGatewayLog;
 use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendTransaction;
+use App\Jobs\HandleFailedVendTransaction;
 use App\Jobs\Vend\SyncUnitCostJson;
 use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
@@ -44,7 +47,6 @@ class CreateVendTransaction implements ShouldQueue
      */
     public function handle()
     {
-        $isPaymentReceived = false;
 
         $input = $this->input;
         $vend = $this->vend;
@@ -63,8 +65,11 @@ class CreateVendTransaction implements ShouldQueue
 
         $vendChannelError = VendChannelError::where('code', $processedInput['errorCode'])->where('code', '!=', 0)->first();
 
+        $isPaymentReceived = false;
+        $isSuccessful = false;
         if($processedInput['errorCode'] == 0 or $processedInput['errorCode'] == '6') {
             $isPaymentReceived = true;
+            $isFailed = true;
         }
 
         if($paymentMethod) {
@@ -73,7 +78,8 @@ class CreateVendTransaction implements ShouldQueue
                 $paymentMethod->code == Midtrans::PAYMENT_METHOD_AIRPAY_SHOPEE or
                 $paymentMethod->code == Midtrans::PAYMENT_METHOD_DANA or
                 $paymentMethod->code == Midtrans::PAYMENT_METHOD_OVO or
-                $paymentMethod->code == Midtrans::PAYMENT_METHOD_TCASH
+                $paymentMethod->code == Midtrans::PAYMENT_METHOD_TCASH or
+                $paymentMethod->code == Omise::PAYMENT_METHOD_PAYNOW
             ) {
                 $isPaymentReceived = true;
             }
@@ -103,6 +109,9 @@ class CreateVendTransaction implements ShouldQueue
             return;
         }
 
+        // check is from payment gateway log
+        $paymentGatewayLog = PaymentGatewayLog::where('order_id', $processedInput['orderId'])->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
+
         $vendTransaction = VendTransaction::create([
             'transaction_datetime' => Carbon::now(),
             'amount' => $processedInput['amount'],
@@ -114,6 +123,7 @@ class CreateVendTransaction implements ShouldQueue
             'vend_channel_id' => isset($vendChannel) ? $vendChannel->id : 0,
             'vend_channel_error_id' => isset($vendChannelError) ? $vendChannelError->id : null,
             'vend_transaction_json' => $input,
+            'payment_gateway_log_id' => $paymentGatewayLog ? $paymentGatewayLog->id : null,
             'product_id' => $productId,
             'vend_json' => $vend ? collect($vend)->except(['latest_vend_binding', 'product_mapping', 'vend_channels_json']) : null,
             'customer_id' => $vend->latestVendBinding()->exists() && $vend->latestVendBinding->customer()->exists() ? $vend->latestVendBinding->customer->id : null,
@@ -129,6 +139,10 @@ class CreateVendTransaction implements ShouldQueue
             'unit_cost_id' => $unitCostId,
             'gst_vat_rate' => $gstVatRate,
         ]);
+
+        if(!$isSuccessful) {
+            HandleFailedVendTransaction::dispatch($vendTransaction)->onQueue('default');
+        }
 
         SyncVendTransactionTotalsJson::dispatch($vendTransaction->vend)->onQueue('default');
         SyncUnitCostJson::dispatch($vendTransaction)->onQueue('default');
