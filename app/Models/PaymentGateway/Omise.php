@@ -22,9 +22,10 @@ class Omise extends Model implements PaymentGatewayInterface
     private $curlData;
     private $url;
 
-    public function __construct($apiKeys = [])
+    public function __construct($apiKeys = [], $chargeId = null)
     {
         $this->apiKeys = $apiKeys;
+        $this->chargeId = $chargeId;
     }
 
     public function executeRequest($params = '')
@@ -59,12 +60,12 @@ class Omise extends Model implements PaymentGatewayInterface
         return $this->curlData;
     }
 
-    public function refund($params = '')
+    public function refunds($params = '')
     {
         try {
             $this->getChargeId($params['order_id']);
 
-            $refundResponse = Http::withHeaders($this->getHeaders('refund'))->post($this->getUrl('refunds'), [
+            $refundResponse = Http::withHeaders($this->getHeaders('refunds'))->post($this->getUrl('refunds'), [
                 'amount' => $params['amount'],
                 'metadata' => [
                    'order_id' => $params['order_id']

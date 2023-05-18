@@ -38,12 +38,12 @@ class RefundOmiseJob implements ShouldQueue
             'public' => $paymentGatewayLog->operatorPaymentGateway->key1,
             'secret' => $paymentGatewayLog->operatorPaymentGateway->key2
           ]);
-        $response = $newObj->refund([
+        $response = $newObj->refunds([
             'order_id' => $this->orderId,
             'amount' => $paymentGatewayLog->amount,
-        ]);
+        ], $paymentGatewayLog->response['data']['id']); // charge id
 
-
+        dd($response->collect());
 
         $paymentGatewayLog->update([
             'status' => PaymentGatewayLog::STATUS_REFUND,
