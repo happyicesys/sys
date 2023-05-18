@@ -15,6 +15,7 @@ class RefundOmiseJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    protected $orderId;
     /**
      * Create a new job instance.
      */
