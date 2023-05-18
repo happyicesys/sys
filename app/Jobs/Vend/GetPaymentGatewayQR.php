@@ -110,6 +110,7 @@ class GetPaymentGatewayQR
                     PaymentGatewayLog::create([
                         'request' => $this->input,
                         'response' => $response,
+                        'history_json' => $response,
                         'order_id' => $orderId,
                         'amount' => $amount,
                         'qr_url' => $qrCodeUrl,

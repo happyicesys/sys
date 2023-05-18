@@ -15,6 +15,7 @@ class PaymentGatewayLog extends Model
     use HasFactory;
 
     protected $fillable = [
+        'history_json',
         'request',
         'response',
         'order_id',
@@ -27,6 +28,7 @@ class PaymentGatewayLog extends Model
     ];
 
     protected $casts = [
+        'history_json' => 'json',
         'request' => 'json',
         'response' => 'json',
     ];

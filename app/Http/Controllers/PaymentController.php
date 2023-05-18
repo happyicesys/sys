@@ -89,12 +89,20 @@ class PaymentController extends Controller
         $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
       }
 
+      $historyArr = [];
+      if($input and $pendingLog->history_json) {
+        $historyArr = array_merge($pendingLog->history_json, $input);
+      }else {
+        $historyArr = $input;
+      }
+
       if($pendingLog) {
         $paymentGatewayLog = $pendingLog->updateOrCreate([
           'order_id' => $orderId,
         ],[
           'request' => $pendingLog->request,
           'response' => $input,
+          'history_json' => $historyArr,
           'status' => $status,
           'amount' => $pendingLog->request['PRICE'],
           'payment_gateway_id' => $paymentGatewayId,
