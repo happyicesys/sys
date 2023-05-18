@@ -104,7 +104,7 @@ class PaymentController extends Controller
           'response' => $input,
           'history_json' => $historyArr,
           'status' => $status,
-          'amount' => $pendingLog->request['PRICE'],
+          'amount' => $pendingLog->request['PRICE'] * 100,
           'payment_gateway_id' => $paymentGatewayId,
         ]);
 

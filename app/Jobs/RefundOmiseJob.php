@@ -44,8 +44,6 @@ class RefundOmiseJob implements ShouldQueue
             'amount' => $paymentGatewayLog->amount,
         ], $paymentGatewayLog->response['data']['id']); // charge id
 
-        dd($response->collect());
-
         $paymentGatewayLog->update([
             'status' => PaymentGatewayLog::STATUS_REFUND,
         ]);
