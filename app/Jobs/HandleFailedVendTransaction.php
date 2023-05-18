@@ -29,12 +29,12 @@ class HandleFailedVendTransaction implements ShouldQueue
      */
     public function handle(): void
     {
-        if($this->$vendTransaction->paymentGatewayLog()->exists()) {
-            $paymentGateway = $this->$vendTransaction->paymentGatewayLog->operatorPaymentGateway->paymentGateway;
+        if($this->vendTransaction->paymentGatewayLog()->exists()) {
+            $paymentGateway = $this->vendTransaction->paymentGatewayLog->operatorPaymentGateway->paymentGateway;
 
             switch($paymentGateway->name) {
                 case('omise'):
-                    RefundOmiseJob::dispatch($this->$vendTransaction->order_id);
+                    RefundOmiseJob::dispatch($this->vendTransaction->order_id);
                     $this->vendTransaction->update([
                         'is_refunded' => true,
                     ]);
