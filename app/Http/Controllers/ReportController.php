@@ -601,6 +601,20 @@ class ReportController extends Controller
             )
             ->groupBy('vends.id', 'year_number', 'month_number');
 
+        $vendSnapshots = $vendSnapshots
+        ->when($request->codes, function($query, $search) use ($request) {
+            $query->whereIn('vends.code', explode(',', $search));
+        })
+        ->when($request->sortKey, function($query, $search) use ($request) {
+            if(strpos($search, '->')) {
+                $inputSearch = explode("->", $search);
+                $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            }else {
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            }
+        });
+
         return $vendSnapshots;
     }
 

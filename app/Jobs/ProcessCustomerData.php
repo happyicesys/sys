@@ -258,7 +258,7 @@ class ProcessCustomerData implements ShouldQueue
                         'bank_id' => $bankId,
                         'bank_remarks' => isset($customerCollection['account_number']) ? $customerCollection['account_number'] : null,
                         'category_id' => $categoryId,
-                        'location_type_id' => $locationTypeId,
+                        'location_type_id' => isset($locationTypeId) ? $locationTypeId : null,
                         'payment_term_id' => $paymentTermId,
                         'zone_id' => $zoneId,
                         'remarks' => isset($customerCollection['remark']) ? $customerCollection['remark'] : null,
