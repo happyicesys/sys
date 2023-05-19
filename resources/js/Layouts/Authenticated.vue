@@ -41,7 +41,7 @@ const navigation = [
         icon: DocumentTextIcon,
         current: false,
         href: 'reports',
-        permission: 'read products',
+        permission: 'read transactions',
         children: [
             {name: 'Month End Stock Count', href: '/reports/stock-count'},
             {name: 'GP by VM', href: '/reports/vend'},

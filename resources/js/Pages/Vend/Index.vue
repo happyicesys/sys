@@ -220,6 +220,7 @@
                         </Button>
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-gray-600 bg-white px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                         @click="onExportChannelExcelClicked()"
+                        v-if="permissions.includes('export excel')"
                         >
                             <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>
                             <svg v-if="loading" aria-hidden="true" class="mr-2 w-4 h-4 text-gray-200 animate-spin dark:text-gray-400 fill-red-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -795,10 +796,13 @@
   const vendChannelErrorsOptions = ref([])
 //   const vendOptions = ref([])
   const operatorRole = usePage().props.auth.operatorRole
+  const roles = usePage().props.auth.roles
 const permissions = usePage().props.auth.permissions
   const now = ref(moment().format('HH:mm:ss'))
 
   onMounted(() => {
+    console.log(roles)
+
     filters.value.visited = true
     vendChannelErrorsOptions.value = [
         // {'id': '', 'desc': 'All'},
