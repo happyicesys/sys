@@ -305,6 +305,7 @@ const permissions = usePage().props.auth.permissions
                             </div>
                             <Disclosure as="div" v-else class="space-y-1" v-slot="{ open }">
                                 <DisclosureButton
+                                    v-if="permissions.includes(item.permission)"
                                     :class="[item.current ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 pr-1 py-2 text-left text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
                                     <component :is="item.icon"
                                         class="mr-3 flex-shrink-0 h-6 w-6 text-gray-400 group-hover:text-gray-500"
@@ -400,7 +401,7 @@ const permissions = usePage().props.auth.permissions
                             </BreezeResponsiveNavLink>
                         </div>
                         <Disclosure as="div" v-else class="space-y-1" v-slot="{ open }">
-                            <DisclosureButton class="pt-2 pb-2 mb-1 pl-4 space-y-1 flex">
+                            <DisclosureButton class="pt-2 pb-2 mb-1 pl-4 space-y-1 flex" v-if="permissions.includes(item.permission)">
                                 <span class="">
                                     {{ item.name }}
                                 </span>
