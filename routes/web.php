@@ -138,7 +138,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/product/excel', [ReportController::class, 'exportUnitCostProductExcel']);
         Route::get('/category/excel', [ReportController::class, 'exportUnitCostCategoryExcel']);
         Route::get('/location-type/excel', [ReportController::class, 'exportUnitCostLocationTypeExcel']);
-        Route::get('/stock-count/excel', [ReportController::class, 'exportStockCountExcel']);
+        Route::get('/stock-count/excel', [ReportController::class, 'exportStockCountChannelExcel']);
     });
 
     Route::prefix('resource-centers')->group(function() {

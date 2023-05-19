@@ -98,6 +98,7 @@ trait HasFilter {
 
     public function filterVendsDB($query, $request)
     {
+        // dd($request->all());
       $isDoorOpen = $request->is_door_open != null ? $request->is_door_open : 'all';
       $isOnline = $request->is_online != null ? $request->is_online : 'all';
       $isSensor = $request->is_sensor != null ? $request->is_sensor : 'all';
@@ -124,7 +125,7 @@ trait HasFilter {
               $search = [$search];
           }
 
-          $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->pluck('vend_id'));
+          $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->where('is_active', true)->pluck('vend_id'));
       })
       ->when($request->serialNum, function($query, $search) {
           $query->where('serial_num', 'LIKE', "%{$search}%");

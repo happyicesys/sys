@@ -128,12 +128,16 @@
 
 <script setup>
 import Modal from '@/Components/Modal.vue';
-// import { onMounted } from 'vue';
+import { onMounted } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   vend: Object,
   showModal: Boolean,
+})
+
+onMounted(() => {
+  console.log(props.vend)
 })
 const profile = usePage().props.auth.profile
 
