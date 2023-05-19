@@ -194,7 +194,7 @@
   // import MultiSelect from '@/Components/MultiSelect.vue';
   import { ArrowDownTrayIcon, ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
   import { ref, onBeforeMount, watch } from 'vue';
-  import { Head, router } from '@inertiajs/vue3';
+  import { Head, router, usePage } from '@inertiajs/vue3';
   import moment from 'moment';
 
   const props = defineProps({
@@ -221,6 +221,7 @@
   })
   const labels = ref([])
   const datasets = ref([])
+  const permissions = usePage().props.auth.permissions
   const vend = ref(props.vendObj.data)
   const vendTemps = ref()
   const vendFans = ref()

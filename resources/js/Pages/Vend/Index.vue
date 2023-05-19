@@ -796,12 +796,10 @@
   const vendChannelErrorsOptions = ref([])
 //   const vendOptions = ref([])
   const operatorRole = usePage().props.auth.operatorRole
-  const roles = usePage().props.auth.roles
 const permissions = usePage().props.auth.permissions
   const now = ref(moment().format('HH:mm:ss'))
 
   onMounted(() => {
-    console.log(roles)
 
     filters.value.visited = true
     vendChannelErrorsOptions.value = [
