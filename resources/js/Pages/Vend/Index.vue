@@ -365,7 +365,7 @@
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                                 <span v-if="vend.customer_code">
                                     <span v-if="permissions.includes('admin-access vends')">
-                                        <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/vend-code/' + vend.customer_code">
+                                        <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/vend-code/' + vend.code">
                                             {{ vend.customer_code }} <br>
                                             {{ vend.customer_name }}
                                         </a>
