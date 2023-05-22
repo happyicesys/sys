@@ -58,7 +58,7 @@ class VendController extends Controller
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer != null ? $request->is_binded_customer : 'true');
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
-        $request->sortKey = $request->sortKey ? $request->sortKey : 'vend_channel_totals_json->outOfStockSkuPercent';
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'out_of_stock_sku_percent';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
         $className = get_class(new Customer());
 
@@ -104,6 +104,7 @@ class VendController extends Controller
                 DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
                 DB::raw('DATE(customers.next_invoice_date) AS next_invoice_date'),
                 'vends.last_updated_at',
+                'vends.out_of_stock_sku_percent',
                 'vends.parameter_json',
                 'vends.product_mapping_id',
                 'vends.private_key',
@@ -353,12 +354,13 @@ class VendController extends Controller
                 'vend_channel_errors.desc AS vend_channel_error_desc',
                 'vend_transactions.vend_json',
                 'vend_transactions.vend_transaction_json',
+                'vend_transactions.error_code_normalized',
             );
 
         $vendTransactions = $this->filterVendTransactionsDB($vendTransactions, $request);
         $vendTransactions = $this->filterOperatorVendTransactionDB($vendTransactions);
         $totals = (clone $vendTransactions)
-            ->whereIn('vend_transaction_json->SErr', [0, 6])
+            ->whereIn('error_code_normalized', [0, 6])
             ->select(
                 DB::raw('ROUND(COALESCE(SUM(vend_transactions.amount)/ 100, 0), 2) AS amount'),
                 DB::raw('COUNT(*) AS count'))

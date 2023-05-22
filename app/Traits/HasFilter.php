@@ -247,7 +247,7 @@ trait HasFilter {
           $query->where('vend_channel_totals_json->balancePercent', '<=', $search);
       })
       ->when($request->remainingSkuLessThan, function($query, $search) {
-          $query->where('vend_channel_totals_json->outOfStockSkuPercent', '>=', (100 - $search));
+          $query->where('out_of_stock_sku_percent', '>=', (100 - $search));
       })
       ->when($request->sortKey, function($query, $search) use ($request) {
           if(strpos($search, '->')) {
