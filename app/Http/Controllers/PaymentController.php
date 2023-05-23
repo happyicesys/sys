@@ -83,14 +83,14 @@ class PaymentController extends Controller
           }
           break;
       }
-      if($status === PaymentGatewayLog::STATUS_REFUND) {
+      if($status == PaymentGatewayLog::STATUS_REFUND) {
         $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
-      }else {
+      }else if ($status == PaymentGatewayLog::STATUS_PENDING) {
         $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
       }
 
       $historyArr = [];
-      if($input and $pendingLog->history_json) {
+      if($input and $pendingLog and $pendingLog->history_json) {
         $historyArr = array_merge($pendingLog->history_json, $input);
       }else {
         $historyArr = $input;

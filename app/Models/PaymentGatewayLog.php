@@ -20,6 +20,7 @@ class PaymentGatewayLog extends Model
         'response',
         'order_id',
         'qr_url',
+        'qr_text',
         'vend_transaction_id',
         'operator_payment_gateway_id',
         'payment_gateway_id',
