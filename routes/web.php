@@ -129,15 +129,15 @@ Route::middleware(['auth', 'cors'])->group(function() {
     });
 
     Route::prefix('reports')->group(function() {
-        Route::get('/vend', [ReportController::class, 'indexVm']);
-        Route::get('/product', [ReportController::class, 'indexProduct']);
-        Route::get('/category', [ReportController::class, 'indexCategory']);
-        Route::get('/location-type', [ReportController::class, 'indexLocationType']);
+        Route::get('/gp/vend', [ReportController::class, 'indexGpVm']);
+        Route::get('/gp/product', [ReportController::class, 'indexGpProduct']);
+        Route::get('/gp/category', [ReportController::class, 'indexGpCategory']);
+        Route::get('/gp/location-type', [ReportController::class, 'indexGpLocationType']);
         Route::get('/stock-count', [ReportController::class, 'indexStockCount']);
-        Route::get('/vend/excel', [ReportController::class, 'exportUnitCostVendExcel']);
-        Route::get('/product/excel', [ReportController::class, 'exportUnitCostProductExcel']);
-        Route::get('/category/excel', [ReportController::class, 'exportUnitCostCategoryExcel']);
-        Route::get('/location-type/excel', [ReportController::class, 'exportUnitCostLocationTypeExcel']);
+        Route::get('/gp/vend/excel', [ReportController::class, 'exportUnitCostVendExcel']);
+        Route::get('/gp/product/excel', [ReportController::class, 'exportUnitCostProductExcel']);
+        Route::get('/gp/category/excel', [ReportController::class, 'exportUnitCostCategoryExcel']);
+        Route::get('/gp/location-type/excel', [ReportController::class, 'exportUnitCostLocationTypeExcel']);
         Route::get('/stock-count/excel', [ReportController::class, 'exportStockCountChannelExcel']);
     });
 

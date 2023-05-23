@@ -44,10 +44,10 @@ const navigation = [
         permission: 'read transactions',
         children: [
             {name: 'Month End Stock Count', href: '/reports/stock-count'},
-            {name: 'GP by VM', href: '/reports/vend'},
-            {name: 'GP by Product', href: '/reports/product'},
-            {name: 'GP by Category', href: '/reports/category'},
-            {name: 'GP by Location Type', href: '/reports/location-type'},
+            {name: 'GP by VM', href: '/reports/gp/vend'},
+            {name: 'GP by Product', href: '/reports/gp/product'},
+            {name: 'GP by Category', href: '/reports/gp/category'},
+            {name: 'GP by Location Type', href: '/reports/gp/location-type'},
         ]
     },
     // {
