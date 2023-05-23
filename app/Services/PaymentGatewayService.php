@@ -44,6 +44,7 @@ class PaymentGatewayService
             'metadata' => [
               'order_id' => isset($params['orderId']) ? $params['orderId'] : Carbon::now()->setTimeZone($params['tz'])->format('ymdhis'),
             ],
+            'return_uri' => 'https://sys.happyice.com.sg',
           ];
           $newObj = new Omise([
             'public' => $operatorPaymentGateway->key1,

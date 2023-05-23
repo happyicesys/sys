@@ -81,7 +81,6 @@ class GetPaymentGatewayQR
             }
 
             if(isset($response)) {
-
                 $qrCodeUrl = '';
                 $errorMsg = '';
                 $isCreateInput = false;
@@ -98,9 +97,14 @@ class GetPaymentGatewayQR
                         $isResizeImage = true;
                         break;
                     case 'omise':
-                        if(isset($response['source']['scannable_code']['image']['download_uri'])) {
+                        if((isset($response['source']['flow']) and $response['source']['flow'] == 'offline' and isset($response['source']['scannable_code']['image']['download_uri'])) or (isset($response['source']['flow']) and $response['source']['flow'] == 'redirect' and isset($response['authorize_uri']))) {
                             $isCreateInput = true;
-                            $qrCodeUrl = $response['source']['scannable_code']['image']['download_uri'];
+                            if($response['source']['flow'] == 'offline') {
+                                $qrCodeUrl = $response['source']['scannable_code']['image']['download_uri'];
+                            }else if($response['source']['flow'] == 'redirect') {
+                                $qrCodeUrl = $response['authorize_uri'];
+                            }
+
                         }else if(isset($response['code']) and isset($response['message'])) {
                             $errorMsg .= 'Error: ';
                             $errorMsg .= $response['code'].' '.$response['message'];
