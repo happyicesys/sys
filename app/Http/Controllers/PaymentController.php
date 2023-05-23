@@ -90,7 +90,7 @@ class PaymentController extends Controller
       }
 
       $historyArr = [];
-      if($input and $pendingLog and $pendingLog->history_json) {
+      if($input and isset($pendingLog) and $pendingLog->history_json) {
         $historyArr = array_merge($pendingLog->history_json, $input);
       }else {
         $historyArr = $input;
