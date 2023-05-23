@@ -411,7 +411,7 @@ trait HasFilter {
 
     public function filterVendTransactionsDB($query, $request)
     {
-        $sortKey = $request->sortKey ? $request->sortKey : 'transaction_datetime';
+        $sortKey = $request->sortKey ? $request->sortKey : 'vend_transactions.created_at';
         $sortBy = $request->sortBy ? $request->sortBy : false;
         $isPaymentReceived = $request->is_payment_received != null ? $request->is_payment_received : 'all';
 
@@ -503,10 +503,10 @@ trait HasFilter {
             }
         })
         ->when($request->date_from, function($query, $search) {
-            $query->whereDate('transaction_datetime', '>=', $search);
+            $query->whereDate('vend_transactions.created_at', '>=', $search);
         })
         ->when($request->date_to, function($query, $search) {
-            $query->whereDate('transaction_datetime', '<=', $search);
+            $query->whereDate('vend_transactions.created_at', '<=', $search);
         })
         ->when($sortKey, function($query, $search) use ($sortBy) {
             $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );

@@ -372,17 +372,12 @@ class ReportController extends Controller
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
             ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->toDateString())
             ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
-            ->whereIn('vend_transaction_json->SErr', [0, 6]);
+            ->whereIn('error_code_normalized', [0, 6]);
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
         $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
         $queryVendTransactions = $queryVendTransactions
             ->select(
                 'vends.id',
-                'customers.id AS customer_id',
-                'customers.code AS customer_code',
-                'customers.name AS customer_name',
-                'vends.name',
-                'vends.code',
                 DB::raw('PERIOD_DIFF(DATE_FORMAT(NOW(), "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) AS month_diff'),
                 DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
@@ -391,16 +386,24 @@ class ReportController extends Controller
                 DB::raw('SUM(CASE WHEN PERIOD_DIFF(DATE_FORMAT(NOW(), "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) = 0 THEN revenue ELSE 0 END) AS this_month_revenue'),
             )
             ->groupBy('vends.id', 'month_diff');
-            // dd($queryVendTransactions->toSql());
 
-        $vends = DB::query()
-            ->fromSub($queryVendTransactions, 'transac')
+        $vends = DB::table('vends')
+            ->rightJoinSub($queryVendTransactions, 'transac', function ($join) {
+                $join->on('vends.id', '=', 'transac.id');
+            })
+            ->leftJoin('vend_bindings', function($query) {
+                $query->on('vend_bindings.vend_id', '=', 'vends.id')
+                        ->where('is_active', true)
+                        ->latest('begin_date')
+                        ->limit(1);
+            })
+            ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
             ->select(
-                'customer_code',
-                'customer_name',
-                'id',
-                'name',
-                'code',
+                'customers.code AS customer_code',
+                'customers.name AS customer_name',
+                'vends.id',
+                'vends.name',
+                'vends.code',
                 'month_diff',
                 DB::raw('SUM(CASE WHEN month_diff = 0 THEN count ELSE 0 END) AS this_month_count'),
                 DB::raw('SUM(CASE WHEN month_diff = 0 THEN revenue ELSE 0 END) AS this_month_revenue'),
