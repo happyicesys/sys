@@ -60,6 +60,7 @@ class PaymentController extends Controller
           $objectName = $input['data']['object'];
           switch($objectName) {
             case 'charge':
+            case 'source':
               if(isset($input['data']['status'])) {
                 switch($input['data']['status']) {
                   case 'pending':
@@ -83,6 +84,7 @@ class PaymentController extends Controller
           }
           break;
       }
+
       if($status == PaymentGatewayLog::STATUS_REFUND) {
         $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
       }else if ($status == PaymentGatewayLog::STATUS_PENDING) {
