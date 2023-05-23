@@ -36,4 +36,15 @@ trait HasMonthOption{
 
     return array_reverse($monthOption);
   }
+
+  public function getCustomDateOption()
+  {
+    $date = Carbon::today()->setTimezone($this->getUserTimezone());
+    $options = [
+      Carbon::today()->toDateString().','.Carbon::today()->toDateString() => 'Today',
+      Carbon::yesterday()->toDateString().','.Carbon::yesterday()->toDateString() => 'Yesterday',
+
+
+    ];
+  }
 }

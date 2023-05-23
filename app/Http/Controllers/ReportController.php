@@ -36,6 +36,61 @@ class ReportController extends Controller
 {
     use HasFilter, HasMonthOption, GetUserTimezone;
 
+    public function indexSales(Request $request, $type)
+    {
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
+        $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
+        $request->merge(['date_from' => $request->date_from ? $request->date_from : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
+        $request->merge(['date_to' => $request->date_to ? $request->date_to : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'amount';
+        $request->sortBy = $request->sortBy ? $request->sortBy : false;
+        $categoryClassName = get_class(new Customer());
+        $modelName = 'vends';
+
+        switch($type) {
+            case 'category':
+                $modelName = 'categories';
+                break;
+            case 'location-type':
+                $modelName = 'location_types';
+                break;
+            case 'product':
+                $modelName = 'products';
+                break;
+            case 'operator':
+                $modelName = 'operators';
+                break;
+            case 'vend':
+                $modelName = 'vends';
+                break;
+        }
+
+        $items = $this->getSalesQuery($request, $modelName);
+
+        $items = $items->when($sortKey, function($query, $search) use ($sortBy) {
+            $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+        });
+
+        return Inertia::render('Report/Sales/Vend', [
+            'categories' => CategoryResource::collection(
+                Category::where('classname', $className)->orderBy('name')->get()
+            ),
+            'categoryGroups' => CategoryGroupResource::collection(
+                CategoryGroup::where('classname', $className)->orderBy('name')->get()
+            ),
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
+            ),
+            'monthOptions' => $this->getMonthOption(),
+            'operators' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'items' => $items,
+        ]);
+    }
+
+
     public function indexGpVm(Request $request)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
@@ -357,6 +412,62 @@ class ReportController extends Controller
                 'Balance Percent(%)' => $vendChannel['balance_percent'],
             ];
         });
+    }
+
+    private function getSalesQuery($request, $className)
+    {
+        $transactionsQuery = DB::table('vend_transactions')
+            ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
+            ->leftJoin('products', 'vend_transactions.product_id', '=', 'products.id')
+            ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+            ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
+            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+            ->whereDate('vend_transactions.created_at', '>=', $request->date_from)
+            ->whereDate('vend_transactions.created_at', '<=', $request->date_to)
+            ->whereIn('error_code_normalized', [0, 6]);
+
+        $transactionsQuery = $this->filterVendTransactionReport($transactionsQuery, $request);
+        $transactionsQuery = $this->filterOperatorVendTransactionDB($transactionsQuery);
+
+        switch($className) {
+            case 'categories':
+                $transactionsQuery
+                    ->selectRaw('categories.id as id')
+                    ->selectRaw('categories.name as name');
+                break;
+            case 'location_types':
+                $transactionsQuery
+                    ->selectRaw('location_types.id as id')
+                    ->selectRaw('location_types.name as name');
+                break;
+            case 'products':
+                $transactionsQuery
+                    ->selectRaw('products.id as id')
+                    ->selectRaw('products.code as code')
+                    ->selectRaw('products.name as name');
+                break;
+            case 'operators':
+                $transactionsQuery
+                    ->selectRaw('operators.id as id')
+                    ->selectRaw('operators.code as code')
+                    ->selectRaw('operators.name as name');
+                break;
+            case 'vends':
+                $transactionsQuery
+                    ->selectRaw('vends.id as id')
+                    ->selectRaw('vends.code as code')
+                    ->selectRaw('CASE WHEN customers.id THEN CONCAT(customers.code, " ", customers.name) ELSE vends.name END as name');
+                break;
+        }
+
+        $transactionsQuery = $transactionsQuery
+            ->selectRaw('COUNT(*) AS count')
+            ->selectRaw('SUM(amount) AS amount')
+            ->groupBy('id');
+
+        return $transactionsQuery;
     }
 
     private function getUnitCostByVendQuery($request)

@@ -75,6 +75,8 @@ class GetPaymentGatewayQR
                     'tz' => $operatorTimezone,
                     'expiry_seconds' => $expirySeconds,
                     'currency' => $vendOperatorPaymentGateway->paymentGateway->country->currency_name,
+                    // temporary hardcode until android can give info
+                    'type' => $vendOperatorPaymentGateway->paymentGateway->country->code == 'SG' ? 'paynow' :($vendOperatorPaymentGateway->paymentGateway->country->code == 'MY' ? 'duitnow_qr' : 'midtrans'),
                 ]);
             }
 
