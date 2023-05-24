@@ -88,10 +88,8 @@ class PaymentController extends Controller
 
       if($status == PaymentGatewayLog::STATUS_REFUND) {
         $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
-      }else if ($status == PaymentGatewayLog::STATUS_PENDING) {
+      }else if ($status == PaymentGatewayLog::STATUS_PENDING or $status == PaymentGatewayLog::STATUS_APPROVE) {
         $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
-      }else {
-        $pendingLog = new PaymentGatewayLog();
       }
 
       $historyArr = [];
