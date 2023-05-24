@@ -118,8 +118,6 @@ class GetPaymentGatewayQR
                         break;
                 }
 
-                Log::debug('iscreateinputqr:'.$isCreateInput);
-
                 $img = false;
                 if($isRequiredDecode) {
                     if($isResizeImage) {
