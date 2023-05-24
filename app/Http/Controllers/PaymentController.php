@@ -94,7 +94,7 @@ class PaymentController extends Controller
       Log::debug('Status: '.$status);
       Log::debug('OrderId: '.$orderId);
       Log::debug('param:'.$pendingLog);
-      Log::debug('is exists order:'.PaymentGatewayLog::where('order_id', $orderId)->first());
+      Log::debug('is exists order:'.PaymentGatewayLog::where('order_id', $orderId)->first()->id);
 
       $historyArr = [];
       if($input and isset($pendingLog) and $pendingLog->history_json) {
