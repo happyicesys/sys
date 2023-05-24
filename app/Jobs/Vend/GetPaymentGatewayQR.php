@@ -118,7 +118,7 @@ class GetPaymentGatewayQR
                         break;
                 }
 
-
+                Log::debug('iscreateinputqr:'.$isCreateInput);
 
                 $img = false;
                 if($isRequiredDecode) {
@@ -164,7 +164,6 @@ class GetPaymentGatewayQR
                         'status' => PaymentGatewayLog::STATUS_PENDING,
                     ]);
                 }
-                Log::debug('iscreateinputqr:'.$isCreateInput);
 
                 $encodeMsg = base64_encode('QRCODE'.$qrCodeText.','.$orderId);
                 $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
