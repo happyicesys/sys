@@ -12,6 +12,7 @@ use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use App\Services\VendDataService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
@@ -90,6 +91,9 @@ class PaymentController extends Controller
       }else if ($status == PaymentGatewayLog::STATUS_PENDING) {
         $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
       }
+      Log::debug('Status: '.$status);
+      Log::debug('OrderId: '.$orderId);
+      Log::debug('param:'.$pendingLog);
 
       $historyArr = [];
       if($input and isset($pendingLog) and $pendingLog->history_json) {
