@@ -19,6 +19,7 @@ class VendDBResource extends JsonResource
             'serial_num' => isset($this->serial_num) ? $this->serial_num : null,
             'last_updated_at' => isset($this->last_updated_at) ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'name' => $this->name,
+            'cms_invoice_history' => isset($this->cms_invoice_history) ? json_decode($this->cms_invoice_history) : null,
             'customer_code' => isset($this->customer_code) ? $this->customer_code : null,
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,
             'full_name' => isset($this->customer_code) ? $this->customer_code . ' - ' . $this->customer_name : $this->name,

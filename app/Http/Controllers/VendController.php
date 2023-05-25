@@ -113,6 +113,7 @@ class VendController extends Controller
                 'vends.vend_channel_error_logs_json',
                 'vends.vend_transaction_totals_json',
                 'vends.vend_type_id',
+                'customers.cms_invoice_history',
                 'customers.code AS customer_code',
                 'customers.name AS customer_name',
                 'customers.location_type_id',

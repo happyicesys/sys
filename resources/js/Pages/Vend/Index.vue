@@ -584,6 +584,7 @@
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <span>
+                                    {{ vend.cms_invoice_history['last_delivery_driver'] }} <br>
                                     {{ vend.last_invoice_date }} <br>
                                     {{ vend.last_invoice_diff }}
                                 </span>
