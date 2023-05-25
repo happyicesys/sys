@@ -13,6 +13,7 @@ class Omise extends Model implements PaymentGateway
     use HasFactory;
 
     const PAYMENT_METHOD_PAYNOW = 201;
+    const PAYMENT_METHOD_DUITNOW = 301;
     public static $production = 'https://api.omise.co';
     protected $publicKey;
     protected $secretKey;
@@ -25,13 +26,13 @@ class Omise extends Model implements PaymentGateway
 
     public function createPayment($amount, $currency)
     {
-        $this->createSource();
-        $this->createCharge();
+        $sourceId = $this->createSource($params);
+        $this->createCharge($params, $sourceId);
     }
 
-    private function createSource($params = [])
+    public function createSource($params = [])
     {
-        $response = Http::withHeaders($this->getHeaders('sources'))
+        $response = Http::withHeaders($this->getHeaders($this->publicKey))
             ->post('https://api.omise.co/sources', [
                 'type' => $params['type'],
                 'amount' => $params['amount'],
@@ -47,108 +48,50 @@ class Omise extends Model implements PaymentGateway
     }
 
 
-
-
-    public function executeRequest($params = '')
+    public function createCharge($params = [], $sourceId)
     {
-        try {
-            $sourceResponse = Http::withHeaders($this->getHeaders('sources'))->post($this->getUrl('sources'), [
-                'type' => $params['type'],
+        $response = Http::withHeaders($this->getHeaders($this->secretKey))
+            ->post('https://api.omise.co/charges', [
                 'amount' => $params['amount'],
                 'currency' => $params['currency'],
+                'source' => $sourceId,
+                'metadata' => $params['metadata'],
+                'return_uri' => $params['return_uri'],
             ]);
 
-            // dd($sourceResponse->collect());
-
-            if($sourceResponse and $sourceResponse->collect()) {
-                $source = $sourceResponse->collect();
-                $chargeResponse = Http::withHeaders($this->getHeaders('charges'))->post($this->getUrl('charges'), [
-                    'amount' => $params['amount'],
-                    'currency' => $params['currency'],
-                    'source' => $source['id'],
-                    'metadata' => $params['metadata'],
-                    'return_uri' => $params['return_uri'],
-                ]);
-                $this->curlData = $chargeResponse;
-
-                return $this->curlData;
-            }
-
-        } catch (ClientException $e) {
-            $response = $e->getResponse();
+        if ($response->successful()) {
+            $charge = $response->json();
+            return $charge['id'];
         }
-        $this->curlData = $response;
 
-        return $this->curlData;
+        throw new \Exception('Charge creation failed: ' . $response->body());
     }
 
-    public function refunds($params = '')
+    public function refundCharge($params = [], $sourceId)
     {
-        try {
-            $this->getChargeId($params['order_id']);
-
-            $refundResponse = Http::withHeaders($this->getHeaders('refunds'))->post($this->getUrl('refunds'), [
+        $response = Http::withHeaders($this->getHeaders($this->secretKey))
+            ->post('https://api.omise.co/charges/' . $chargeId . '/refunds', [
                 'amount' => $params['amount'],
-                'metadata' => [
-                   'order_id' => $params['order_id']
-                ]
+                'metadata' => $params['metadata'],
             ]);
-            $this->curlData = $refundResponse;
 
-            return $this->curlData;
-        } catch (ClientException $e) {
-            $response = $e->getResponse();
+        if ($response->successful()) {
+            $refund = $response->json();
+            return $refund['id'];
         }
-        $this->curlData = $response;
 
-        return $this->curlData;
+        throw new \Exception('Refund creation failed: ' . $response->body());
     }
 
-    private function getHeaders($action)
+    private function getHeaders($apiKey)
     {
         $headers = array(
-            'Authorization' => 'Basic '.base64_encode($this->getApiKey($action).':'),
+            'Authorization' => 'Basic '.base64_encode($apiKey.':'),
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
         );
 
         return $headers;
-    }
-
-
-    public function getApiKey($action)
-    {
-        $apiKey = '';
-
-        switch($action) {
-            case 'sources':
-                $apiKey = $this->publicKey;
-                break;
-            case 'charges':
-            case 'refunds':
-                $apiKey = $this->secretKey;
-                break;
-        }
-        return $apiKey;
-    }
-
-    private function getUrl($action)
-    {
-        $this->url = self::$main;
-        if($action === 'refunds') {
-            $this->url .= '/charges/'.$this->chargeId.'/'.$action;
-        }else {
-            $this->url .= '/'.$action;
-        }
-
-        return $this->url;
-    }
-
-    private function getChargeId($orderId)
-    {
-        $this->chargeId = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_APPROVE)->first() ? PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_APPROVE)->first()->response['data']['id'] : null;
-
-        return $this->chargeId;
     }
 
 }

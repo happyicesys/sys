@@ -19,18 +19,19 @@ class Midtrans extends Model implements PaymentGateway
 
     public static $sandbox = 'https://api.sandbox.midtrans.com';
     public static $production = 'https://api.midtrans.com';
-    private $apiKey;
-    private $action;
-    private $curlData;
-    private $url;
+    protected $apiKey;
 
-
-    public function __construct($apiKey = '', $action = 'QRIS')
+    public function __construct($apiKey)
     {
         $this->apiKey = $apiKey;
-        $this->action = $action;
-        $this->setUrl($action);
     }
+
+    public function createPayment($amount, $currency)
+    {
+        $sourceId = $this->createSource($params);
+        $this->createCharge($params, $sourceId);
+    }
+
 
     public function executeRequest($params = '')
     {
