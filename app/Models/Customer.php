@@ -10,12 +10,14 @@ class Customer extends Model
     use HasFactory;
 
     protected $casts = [
+        'cms_invoice_history' => 'json',
         'last_invoice_date' => 'datetime',
         'next_invoice_date' => 'datetime',
     ];
 
     protected $fillable = [
         'category_id',
+        'cms_invoice_history',
         'code',
         'created_at',
         'created_by',
