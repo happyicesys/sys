@@ -1,32 +1,53 @@
 <?php
 
-namespace App\Models\PaymentGateway;
+namespace App\Models\PaymentGateways;
 
 use App\Models\PaymentGatewayLog;
-use App\Interfaces\PaymentGatewayInterface;
+use App\Interfaces\PaymentGateway;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 
-class Omise extends Model implements PaymentGatewayInterface
+class Omise extends Model implements PaymentGateway
 {
     use HasFactory;
 
     const PAYMENT_METHOD_PAYNOW = 201;
+    public static $production = 'https://api.omise.co';
+    protected $publicKey;
+    protected $secretKey;
 
-    public static $main = 'https://api.omise.co';
-    private $apiKey;
-    private $apiKeys;
-    private $action;
-    private $chargeId;
-    private $curlData;
-    private $url;
-
-    public function __construct($apiKeys = [], $chargeId = null)
+    public function __construct($publicKey, $secretKey)
     {
-        $this->apiKeys = $apiKeys;
-        $this->chargeId = $chargeId;
+        $this->publicKey = $publicKey;
+        $this->secretKey = $secretKey;
     }
+
+    public function createPayment($amount, $currency)
+    {
+        $this->createSource();
+        $this->createCharge();
+    }
+
+    private function createSource($params = [])
+    {
+        $response = Http::withHeaders($this->getHeaders('sources'))
+            ->post('https://api.omise.co/sources', [
+                'type' => $params['type'],
+                'amount' => $params['amount'],
+                'currency' => $params['currency'],
+            ]);
+
+        if ($response->successful()) {
+            $source = $response->json();
+            return $source['id'];
+        }
+
+        throw new \Exception('Source creation failed: ' . $response->body());
+    }
+
+
+
 
     public function executeRequest($params = '')
     {
@@ -97,16 +118,18 @@ class Omise extends Model implements PaymentGatewayInterface
 
     public function getApiKey($action)
     {
+        $apiKey = '';
+
         switch($action) {
             case 'sources':
-                $this->apiKey = $this->apiKeys['public'];
+                $apiKey = $this->publicKey;
                 break;
             case 'charges':
             case 'refunds':
-                $this->apiKey = $this->apiKeys['secret'];
+                $apiKey = $this->secretKey;
                 break;
         }
-        return $this->apiKey;
+        return $apiKey;
     }
 
     private function getUrl($action)

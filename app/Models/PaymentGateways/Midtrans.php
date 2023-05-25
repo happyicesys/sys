@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Models\PaymentGateway;
+namespace App\Models\PaymentGateways;
 
-use App\Interfaces\PaymentGatewayInterface;
+use App\Interfaces\PaymentGateway;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 
-class Midtrans extends Model implements PaymentGatewayInterface
+class Midtrans extends Model implements PaymentGateway
 {
     use HasFactory;
 
