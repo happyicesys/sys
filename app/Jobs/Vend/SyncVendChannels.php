@@ -54,8 +54,8 @@ class SyncVendChannels implements ShouldQueue
                         'capacity' => $channel['capacity'],
                         'amount' => $channel['amount'],
                         'is_active' => true,
+                        'product_id' => $vend->productMapping()->exists() and $vend->productMapping->productMappingItems()->exists() and $vend->productMapping->productMappingItems()->where('channel_code', $channel['channel_code'])->first() ? $vend->productMapping->productMappingItems()->where('channel_code', $channel['channel_code'])->first()->product_id : null
                     ]);
-                    $this->updateProductIdByVendChannel($vendChannel);
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }else {
                     $vendChannelFalse = VendChannel::updateOrCreate([
@@ -73,20 +73,20 @@ class SyncVendChannels implements ShouldQueue
         }
     }
 
-    private function updateProductIdByVendChannel($vendChannel)
-    {
-        if(
-            $vendChannel->vend->productMapping()->exists() and
-            $vendChannel->vend->productMapping->productMappingItems()->exists()
-        ) {
-            $productMappingItem = ProductMappingItem::query()
-                                ->where('product_mapping_id', $vendChannel->vend->productMapping->id)
-                                ->where('channel_code', $vendChannel->code)
-                                ->first();
-            if($productMappingItem) {
-                $vendChannel->update(['product_id' => $productMappingItem->product_id]);
-            }
-        }
+    // private function updateProductIdByVendChannel($vendChannel)
+    // {
+    //     if(
+    //         $vendChannel->vend->productMapping()->exists() and
+    //         $vendChannel->vend->productMapping->productMappingItems()->exists()
+    //     ) {
+    //         $productMappingItem = ProductMappingItem::query()
+    //                             ->where('product_mapping_id', $vendChannel->vend->productMapping->id)
+    //                             ->where('channel_code', $vendChannel->code)
+    //                             ->first();
+    //         if($productMappingItem) {
+    //             $vendChannel->update(['product_id' => $productMappingItem->product_id]);
+    //         }
+    //     }
 
-    }
+    // }
 }
