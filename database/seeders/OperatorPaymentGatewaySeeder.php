@@ -6,7 +6,7 @@ use App\Models\Country;
 use App\Models\Operator;
 use App\Models\OperatorPaymentGateway;
 use App\Models\PaymentGateway;
-use App\Models\PaymentGateway\Midtrans;
+use App\Models\PaymentGateways\Midtrans;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 

@@ -2,8 +2,8 @@
 
 namespace App\Jobs\Vend;
 
-use App\Models\PaymentGateway\Midtrans;
-use App\Models\PaymentGateway\Omise;
+use App\Models\PaymentGateways\Midtrans;
+use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentGatewayLog;
 use App\Models\PaymentMethod;
 use App\Models\Product;

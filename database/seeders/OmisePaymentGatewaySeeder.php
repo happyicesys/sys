@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\PaymentGateway;
 use App\Models\PaymentMethod;
-use App\Models\PaymentGateway\Omise;
+use App\Models\PaymentGateways\Omise;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 

@@ -2,12 +2,13 @@
 
 namespace App\Models\PaymentGateways;
 
-use App\Interfaces\PaymentGateway;
+use App\Models\PaymentGateway;
+use App\Interfaces\PaymentGateway AS PaymentGatewayInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 
-class Midtrans extends Model implements PaymentGateway
+class Midtrans extends PaymentGateway implements PaymentGatewayInterface
 {
     use HasFactory;
 
@@ -20,6 +21,8 @@ class Midtrans extends Model implements PaymentGateway
     public static $sandbox = 'https://api.sandbox.midtrans.com';
     public static $production = 'https://api.midtrans.com';
     protected $apiKey;
+    private $orderId;
+    private $refId;
 
     public function __construct($apiKey)
     {
@@ -28,52 +31,70 @@ class Midtrans extends Model implements PaymentGateway
 
     public function createPayment($amount, $currency)
     {
-        $sourceId = $this->createSource($params);
-        $this->createCharge($params, $sourceId);
+        $response = $this->createCharge($params);
+
+        $this->orderId = isset($response['order_id']) ? $response['order_id'] : null;
+        $this->refId = isset($response['transaction_id']) ? $response['transaction_id'] : null;
+
+        return $response;
     }
 
-
-    public function executeRequest($params = '')
+    public function createCharge($params = [])
     {
-        // dd($this->getHeaders(), $this->getUrl(), $params);
-        try {
-            $response = Http::withHeaders($this->getHeaders())->post($this->getUrl(), $params);
-        } catch (ClientException $e) {
-            $response = $e->getResponse();
+        $response = Http::withHeaders($this->getHeaders($this->secretKey))
+            ->post($this->getEndpoint(), [
+                'payment_type' => 'qris',
+                'transaction_details' => [
+                    'order_id' => $params['metadata']['order_id'],
+                    'gross_amount' => $params['amount'],
+                  ],
+                  'qris' => [
+                    'acquirer' => $params['type'],
+                  ],
+                  'custom_expiry' => [
+                    'order_time' => Carbon::now()->setTimeZone($params['timezone'])->format('Y-m-d H:i:s O'),
+                    'expiry_duration' => $params['expiry_seconds'],
+                    'unit' => 'second',
+                  ]
+            ]);
+
+        if ($response->successful()) {
+            return $response->json();
         }
-        $this->curlData = $response;
 
-        return $this->curlData;
+        throw new \Exception('Charge creation failed: ' . $response->body());
     }
 
-    public function getApiKey()
+    private function getEndpoint()
     {
-        return $this->apiKey;
-    }
+        $endpoint = '';
 
-    private function setUrl($action)
-    {
-        $this->url = self::$sandbox;
-        // if(config('app.env') === 'production') {
-        //     $this->url = self::$production;
-        // }else {
-        //     $this->url = self::$sandbox;
-        // }
-
-        if($this->action === 'QRIS') {
-            $this->url .= '/v2/charge';
+        if(config('app.env') === 'production') {
+            $endpoint = self::$production;
+        }else {
+            $endpoint = self::$sandbox;
         }
+
+        $endpoint .= '/v2/charge';
+
+        return $endpoint;
     }
 
-    private function getUrl()
+
+    public function getOrderId()
     {
-        return $this->url;
+        return $this->orderId;
     }
 
-    private function getHeaders()
+    public function getRefId()
+    {
+        return $this->refId;
+    }
+
+    private function getHeaders($apiKey)
     {
         $headers = array(
-            'Authorization' => 'Basic '.base64_encode($this->getApiKey().':'),
+            'Authorization' => 'Basic '.base64_encode($apiKey.':'),
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
         );

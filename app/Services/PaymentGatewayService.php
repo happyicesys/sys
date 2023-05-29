@@ -4,60 +4,33 @@ namespace App\Services;
 use App\Models\OperatorPaymentGateway;
 use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
-use App\Models\PaymentGateway\Omise;
-use App\Models\PaymentGateway\Midtrans;
+use App\Models\PaymentGateways\Omise;
+use App\Models\PaymentGateways\Midtrans;
 use App\Models\Vend;
 use Carbon\Carbon;
 
 class PaymentGatewayService
 {
-  public function create(OperatorPaymentGateway $operatorPaymentGateway, $params)
+  public function createPaymentRequest(Vend $vend, $params)
   {
-    if($operatorPaymentGateway) {
-      $response = '';
-      $defaultParams = [];
-      switch($operatorPaymentGateway->paymentGateway->name) {
-        case 'midtrans':
-          $defaultParams = [
-            'payment_type' => 'qris',
-            'transaction_details' => [
-              'order_id' => isset($params['orderId']) ? $params['orderId'] : Carbon::now()->setTimeZone($params['tz'])->format('ymdhis'),
-              'gross_amount' => isset($params['amount']) ? $params['amount'] : 0,
-            ],
-            'qris' => [
-              'acquirer' => 'gopay',
-            ],
-            'custom_expiry' => [
-              'order_time' => Carbon::now()->setTimeZone($params['tz'])->format('Y-m-d H:i:s O'),
-              'expiry_duration' => $params['expiry_seconds'],
-              'unit' => 'second',
-            ]
-          ];
-          $newObj = new Midtrans($operatorPaymentGateway->key1, 'QRIS');
-          $response = $newObj->executeRequest($defaultParams);
-          break;
-        case 'omise':
-          $defaultParams = [
-            'amount' => $params['amount'] * 100,
-            'currency' => $params['currency'],
-            'type' => $params['type'],
-            'metadata' => [
-              'order_id' => isset($params['orderId']) ? $params['orderId'] : Carbon::now()->setTimeZone($params['tz'])->format('ymdhis'),
-            ],
-            'return_uri' => 'https://sys.happyice.com.sg',
-          ];
-          $newObj = new Omise([
-            'public' => $operatorPaymentGateway->key1,
-            'secret' => $operatorPaymentGateway->key2
-          ]);
-          $response = $newObj->executeRequest($defaultParams);
-          break;
-      }
-      return $response->collect();
-    }
+    $paymentGateway = $this->getOperatorPaymentGateway($vend);
+
+    $processedParams = [
+      'amount' => isset($params['amount']) ? $params['amount'] : throw new \Exception('Amount is not set'),
+      'currency' => isset($params['currency']) ? $params['currency'] : $paymentGateway->country->currency_name,
+      'expiry_seconds' => isset($params['expiry_seconds']) ? $params['expiry_seconds'] : 150,
+      'metadata' => isset($params['metadata'])  ? $params['metadata']['order_id'] : throw new \Exception('OrderID is not set within metadata'),
+      'timezone' => isset($params['timezone']) ? $params['timezone'] : throw new \Exception('Timezone is not set in operator'),
+      'type' => isset($params['type']) ? $params['type'] : ($this->defaultPaymentMethod->exists() ? $this->defaultPaymentMethod->type_name : throw new \Exception('Payment Method is not set')),
+      'return_uri' => isset($params['return_uri']) ? $params['return_uri'] : 'https://sys.happyice.com.sg',
+    ];
+
+    $response = $paymentGateway->createPayment($processedParams);
+
+    return $response;
   }
 
-  public function getOperatorPaymentGateway(Vend $vend)
+  private function getOperatorPaymentGateway(Vend $vend)
   {
     if($vend->operators()->exists()) {
       $operator = $vend->operators()->first();
@@ -65,8 +38,25 @@ class PaymentGatewayService
       if($operator->operatorPaymentGateways()->exists()) {
         $operatorPaymentGateway = $operator->operatorPaymentGateways()->where('type', $this->getAppEnvironment())->first();
 
-        return $operatorPaymentGateway;
+        if($operatorPaymentGateway) {
+          switch($operatorPaymentGateway->paymentGateway->name) {
+            case 'midtrans':
+              return new Midtrans($operatorPaymentGateway->paymentGateway->key1);
+              break;
+            case 'omise' :
+              return new Omise($operatorPaymentGateway->paymentGateway->key1, $operatorPaymentGateway->paymentGateway->key2);
+              break;
+          }
+          throw new InvalidArgumentException('Invalid payment gateway specified.');
+        }else {
+          throw new \Exception('Api key environment not match with current environment');
+        }
+
+      }else {
+        throw new \Exception('Payment Gateway is not set within operator');
       }
+    }else {
+      throw new \Exception('Vend is not set to any operator');
     }
   }
 

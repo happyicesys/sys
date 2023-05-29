@@ -2,13 +2,13 @@
 
 namespace App\Models\PaymentGateways;
 
-use App\Models\PaymentGatewayLog;
-use App\Interfaces\PaymentGateway;
+use App\Models\PaymentGateway;
+use App\Interfaces\PaymentGateway AS PaymentGatewayInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 
-class Omise extends Model implements PaymentGateway
+class Omise extends PaymentGateway implements PaymentGatewayInterface
 {
     use HasFactory;
 
@@ -17,6 +17,8 @@ class Omise extends Model implements PaymentGateway
     public static $production = 'https://api.omise.co';
     protected $publicKey;
     protected $secretKey;
+    private $orderId;
+    private $refId;
 
     public function __construct($publicKey, $secretKey)
     {
@@ -24,10 +26,15 @@ class Omise extends Model implements PaymentGateway
         $this->secretKey = $secretKey;
     }
 
-    public function createPayment($amount, $currency)
+    public function createPayment($params = [])
     {
         $sourceId = $this->createSource($params);
-        $this->createCharge($params, $sourceId);
+        $response = $this->createCharge($params, $sourceId);
+
+        $this->refId = isset($response['id']) ? $response['id'] : null;
+        $this->orderId = isset($response['metadata']) && isset($response['metadata']['order_id']) ? $response['metadata']['order_id'] : null;
+
+        return $this->createCharge($params, $sourceId);
     }
 
     public function createSource($params = [])
@@ -40,8 +47,7 @@ class Omise extends Model implements PaymentGateway
             ]);
 
         if ($response->successful()) {
-            $source = $response->json();
-            return $source['id'];
+            return $response->json();
         }
 
         throw new \Exception('Source creation failed: ' . $response->body());
@@ -60,11 +66,21 @@ class Omise extends Model implements PaymentGateway
             ]);
 
         if ($response->successful()) {
-            $charge = $response->json();
-            return $charge['id'];
+            return $response->json();
+            // return $charge['id'];
         }
 
         throw new \Exception('Charge creation failed: ' . $response->body());
+    }
+
+    public function getOrderId()
+    {
+        return $this->orderId;
+    }
+
+    public function getRefId()
+    {
+        return $this->refId;
     }
 
     public function refundCharge($params = [], $sourceId)
@@ -76,8 +92,8 @@ class Omise extends Model implements PaymentGateway
             ]);
 
         if ($response->successful()) {
-            $refund = $response->json();
-            return $refund['id'];
+            return $response->json();
+            // return $refund['id'];
         }
 
         throw new \Exception('Refund creation failed: ' . $response->body());

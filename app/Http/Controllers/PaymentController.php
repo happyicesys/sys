@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PaymentGateway\Midtrans;
-use App\Models\PaymentGateway\Omise;
+use App\Models\Country;
+use App\Models\PaymentGateways\Midtrans;
+use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
 use App\Models\Vend;
@@ -31,9 +32,9 @@ class PaymentController extends Controller
   public function createPaymentResult(Request $request, $company = 'midtrans')
   {
     $input = $request->all();
+    $currencyName = null;
     $status = null;
     $orderId = null;
-    $paymentGatewayId = PaymentGateway::where('name', $company)->first() ? PaymentGateway::where('name', $company)->first()->id : null;
 
     if($company) {
       switch($company) {
@@ -55,7 +56,8 @@ class PaymentController extends Controller
             }
           }
           $orderId = $input['order_id'];
-          break;
+          $currencyName = $input['currency'];
+        break;
 
         case 'omise':
           $objectName = $input['data']['object'];
@@ -76,22 +78,25 @@ class PaymentController extends Controller
                     break;
                 }
               }
-              $orderId = $input['data']['metadata']['order_id'];
               break;
             case 'refund':
               $status = PaymentGatewayLog::STATUS_REFUND;
-              $orderId = $input['data']['metadata']['order_id'];
               break;
           }
-          break;
+          $orderId = $input['data']['metadata']['order_id'];
+          $currencyName = $input['data']['currency'];
+        break;
       }
+
+      $paymentGatewayId = PaymentGateway::where('name', $company)->where('country_id', Country::where('currency_name', $currencyName))->first() ?
+        PaymentGateway::where('name', $company)->where('country_id', Country::where('currency_name', $currencyName)->first()->id)->first()->id :
+        throw new \Exception('No payment gateway with such name and currency');
+
 
       if($status == PaymentGatewayLog::STATUS_REFUND) {
         $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
-      }else if ($status == PaymentGatewayLog::STATUS_PENDING) {
+      }else if ($status == PaymentGatewayLog::STATUS_APPROVE) {
         $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
-      }else {
-        $pendingLog = new PaymentGatewayLog();
       }
 
       $historyArr = [];

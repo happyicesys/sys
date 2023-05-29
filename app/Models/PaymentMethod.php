@@ -12,6 +12,8 @@ class PaymentMethod extends Model
     protected $fillable = [
         'code',
         'name',
+        'payment_gateway_id',
+        'type_name',
     ];
 
     // relationships
