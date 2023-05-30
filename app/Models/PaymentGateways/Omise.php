@@ -58,14 +58,29 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
     public function createCharge($params = [], $sourceId)
     {
         // dd($params, $params['metadata'], $sourceId);
-        $response = Http::withHeaders($this->getHeaders($this->secretKey))
-            ->post('https://api.omise.co/charges', [
+        $response = Http::withHeaders($this->getHeaders($this->secretKey))->post('https://api.omise.co/charges', [
                 'amount' => $params['amount'],
                 'currency' => $params['currency'],
                 'source' => $sourceId,
                 'metadata' => $params['metadata'],
                 'return_uri' => $params['return_uri'],
             ]);
+
+
+
+            // if($sourceResponse and $sourceResponse->collect()) {
+            //     $source = $sourceResponse->collect();
+            //     $chargeResponse = Http::withHeaders($this->getHeaders('charges'))->post($this->getUrl('charges'), [
+            //         'amount' => $params['amount'],
+            //         'currency' => $params['currency'],
+            //         'source' => $source['id'],
+            //         'metadata' => $params['metadata'],
+            //         'return_uri' => $params['return_uri'],
+            //     ]);
+            //     $this->curlData = $chargeResponse;
+
+            //     return $this->curlData;
+            // }
 
         if ($response->successful()) {
             return $response->json();
