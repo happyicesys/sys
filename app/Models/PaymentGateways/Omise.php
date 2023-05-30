@@ -30,7 +30,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
     public function createPayment($params = [])
     {
         $sourceId = $this->createSource($params);
-        $response = $this->createCharge($params, $sourceId);
+        $response = $this->createCharge($params, $sourceId['id']);
 
         $this->referenceId = isset($response['id']) ? $response['id'] : null;
         $this->orderId = isset($response['metadata']) && isset($response['metadata']['order_id']) ? $response['metadata']['order_id'] : null;
@@ -57,6 +57,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
 
     public function createCharge($params = [], $sourceId)
     {
+        // dd($params, $params['metadata'], $sourceId);
         $response = Http::withHeaders($this->getHeaders($this->secretKey))
             ->post('https://api.omise.co/charges', [
                 'amount' => $params['amount'],
@@ -65,6 +66,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
                 'metadata' => $params['metadata'],
                 'return_uri' => $params['return_uri'],
             ]);
+
         if ($response->successful()) {
             return $response->json();
             // return $charge['id'];
