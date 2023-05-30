@@ -14,17 +14,16 @@ class PaymentGatewayService
   public function createPaymentRequest(Vend $vend, $params)
   {
     $paymentGateway = $this->getOperatorPaymentGateway($vend);
-
+    $operatorPaymentGateway = $paymentGateway->getOperatorPaymentGateway();
     $processedParams = [
       'amount' => isset($params['amount']) ? $params['amount'] : throw new \Exception('Amount is not set'),
-      'currency' => isset($params['currency']) ? $params['currency'] : $paymentGateway->country->currency_name,
+      'currency' => isset($params['currency']) ? $params['currency'] : $operatorPaymentGateway->paymentGateway->country->currency_name,
       'expiry_seconds' => isset($params['expiry_seconds']) ? $params['expiry_seconds'] : 150,
-      'metadata' => isset($params['metadata'])  ? $params['metadata']['order_id'] : throw new \Exception('OrderID is not set within metadata'),
-      'timezone' => isset($params['timezone']) ? $params['timezone'] : throw new \Exception('Timezone is not set in operator'),
-      'type' => isset($params['type']) ? $params['type'] : ($this->defaultPaymentMethod->exists() ? $this->defaultPaymentMethod->type_name : throw new \Exception('Payment Method is not set')),
+      'metadata' => isset($params['metadata'])  ? $params['metadata'] : throw new \Exception('OrderID is not set within metadata'),
+      'timezone' => isset($params['timezone']) ? $params['timezone'] : $operatorPaymentGateway->paymentGateway->country->timezone,
+      'type' => isset($params['type']) ? $params['type'] : ($operatorPaymentGateway->paymentGateway->defaultPaymentMethod->exists() ? $operatorPaymentGateway->paymentGateway->defaultPaymentMethod->type_name : throw new \Exception('Payment Method is not set')),
       'return_uri' => isset($params['return_uri']) ? $params['return_uri'] : 'https://sys.happyice.com.sg',
     ];
-
     $response = $paymentGateway->createPayment($processedParams);
 
     return $response;
@@ -32,19 +31,22 @@ class PaymentGatewayService
 
   private function getOperatorPaymentGateway(Vend $vend)
   {
-    if($vend->operators()->exists()) {
-      $operator = $vend->operators()->first();
-
+    if($this->getOperator($vend)) {
+      $operator = $this->getOperator($vend);
+      // dd($operator->toArray());
       if($operator->operatorPaymentGateways()->exists()) {
         $operatorPaymentGateway = $operator->operatorPaymentGateways()->where('type', $this->getAppEnvironment())->first();
-
         if($operatorPaymentGateway) {
           switch($operatorPaymentGateway->paymentGateway->name) {
             case 'midtrans':
-              return new Midtrans($operatorPaymentGateway->paymentGateway->key1);
+              $obj = new Midtrans($operatorPaymentGateway->key1);
+              $obj->setOperatorPaymentGateway($operatorPaymentGateway);
+              return $obj;
               break;
             case 'omise' :
-              return new Omise($operatorPaymentGateway->paymentGateway->key1, $operatorPaymentGateway->paymentGateway->key2);
+              $obj = new Omise($operatorPaymentGateway->key1, $operatorPaymentGateway->key2);
+              $obj->setOperatorPaymentGateway($operatorPaymentGateway);
+              return $obj;
               break;
           }
           throw new InvalidArgumentException('Invalid payment gateway specified.');
@@ -57,6 +59,13 @@ class PaymentGatewayService
       }
     }else {
       throw new \Exception('Vend is not set to any operator');
+    }
+  }
+
+  private function getOperator(Vend $vend)
+  {
+    if($vend->operators()->exists()) {
+      return $vend->operators()->first();
     }
   }
 

@@ -22,7 +22,8 @@ class Midtrans extends PaymentGateway implements PaymentGatewayInterface
     public static $production = 'https://api.midtrans.com';
     protected $apiKey;
     private $orderId;
-    private $refId;
+    private $operatorPaymentGateway;
+    private $referenceId;
 
     public function __construct($apiKey)
     {
@@ -34,7 +35,7 @@ class Midtrans extends PaymentGateway implements PaymentGatewayInterface
         $response = $this->createCharge($params);
 
         $this->orderId = isset($response['order_id']) ? $response['order_id'] : null;
-        $this->refId = isset($response['transaction_id']) ? $response['transaction_id'] : null;
+        $this->referenceId = isset($response['transaction_id']) ? $response['transaction_id'] : null;
 
         return $response;
     }
@@ -80,15 +81,24 @@ class Midtrans extends PaymentGateway implements PaymentGatewayInterface
         return $endpoint;
     }
 
+    public function getOperatorPaymentGateway()
+    {
+       return $this->operatorPaymentGateway;
+    }
 
     public function getOrderId()
     {
         return $this->orderId;
     }
 
-    public function getRefId()
+    public function getReferenceId()
     {
-        return $this->refId;
+        return $this->referenceId;
+    }
+
+    public function setOperatorPaymentGateway($operatorPaymentGateway)
+    {
+        $this->operatorPaymentGateway = $operatorPaymentGateway;
     }
 
     private function getHeaders($apiKey)

@@ -18,7 +18,8 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
     protected $publicKey;
     protected $secretKey;
     private $orderId;
-    private $refId;
+    private $operatorPaymentGateway;
+    private $referenceId;
 
     public function __construct($publicKey, $secretKey)
     {
@@ -31,7 +32,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         $sourceId = $this->createSource($params);
         $response = $this->createCharge($params, $sourceId);
 
-        $this->refId = isset($response['id']) ? $response['id'] : null;
+        $this->referenceId = isset($response['id']) ? $response['id'] : null;
         $this->orderId = isset($response['metadata']) && isset($response['metadata']['order_id']) ? $response['metadata']['order_id'] : null;
 
         return $this->createCharge($params, $sourceId);
@@ -64,7 +65,6 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
                 'metadata' => $params['metadata'],
                 'return_uri' => $params['return_uri'],
             ]);
-
         if ($response->successful()) {
             return $response->json();
             // return $charge['id'];
@@ -73,14 +73,19 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         throw new \Exception('Charge creation failed: ' . $response->body());
     }
 
+    public function getOperatorPaymentGateway()
+    {
+       return $this->operatorPaymentGateway;
+    }
+
     public function getOrderId()
     {
         return $this->orderId;
     }
 
-    public function getRefId()
+    public function getReferenceId()
     {
-        return $this->refId;
+        return $this->referenceId;
     }
 
     public function refundCharge($params = [], $sourceId)
@@ -97,6 +102,11 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         }
 
         throw new \Exception('Refund creation failed: ' . $response->body());
+    }
+
+    public function setOperatorPaymentGateway($operatorPaymentGateway)
+    {
+        $this->operatorPaymentGateway = $operatorPaymentGateway;
     }
 
     private function getHeaders($apiKey)

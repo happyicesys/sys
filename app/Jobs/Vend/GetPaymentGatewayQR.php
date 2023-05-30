@@ -64,22 +64,15 @@ class GetPaymentGatewayQR
 
             $vendCode = sprintf('%05d', $vend->code);
             $orderId = Carbon::now()->setTimeZone($operatorTimezone)->format('ymdhis').$vendCode;
-            $amount = $input['PRICE'];
-            $expirySeconds = isset($input['expiry_seconds']) ? $input['expiry_seconds'] : 150;
-
-            $vendOperatorPaymentGateway = $this->paymentGatewayService->getOperatorPaymentGateway($vend);
-
-            if($vendOperatorPaymentGateway) {
-                $response = $this->paymentGatewayService->create($vendOperatorPaymentGateway, [
-                    'orderId' => $orderId,
-                    'amount' => $amount,
-                    'tz' => $operatorTimezone,
-                    'expiry_seconds' => $expirySeconds,
-                    'currency' => $vendOperatorPaymentGateway->paymentGateway->country->currency_name,
-                    // temporary hardcode until android can give info
-                    'type' => $vendOperatorPaymentGateway->paymentGateway->country->code == 'SG' ? 'paynow' :($vendOperatorPaymentGateway->paymentGateway->country->code == 'MY' ? 'duitnow_qr' : 'midtrans'),
-                ]);
-            }
+            $response = $this->paymentGatewayService->createPaymentRequest($vend, [
+                'amount' => $input['PRICE'] * 100,
+                'expiry_seconds' => isset($input['expiry_seconds']) ? $input['expiry_seconds'] : null,
+                'metadata' => [
+                    'order_id' => $orderId
+                ],
+            ]);
+            dd($response);
+            dd('heredude');
 
             if(isset($response)) {
                 $qrCodeText = '';
