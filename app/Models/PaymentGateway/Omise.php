@@ -41,6 +41,7 @@ class Omise extends Model implements PaymentGatewayInterface
 
             if($sourceResponse and $sourceResponse->collect()) {
                 $source = $sourceResponse->collect();
+                // dd($this->getHeaders('charges'), $this->getUrl('charges'), $params['amount'], $params['currency'], $source['id'], $params['metadata'], $params['return_uri']);
                 $chargeResponse = Http::withHeaders($this->getHeaders('charges'))->post($this->getUrl('charges'), [
                     'amount' => $params['amount'],
                     'currency' => $params['currency'],
