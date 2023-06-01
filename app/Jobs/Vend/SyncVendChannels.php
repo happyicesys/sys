@@ -54,7 +54,8 @@ class SyncVendChannels implements ShouldQueue
                         'amount' => $channel['amount'],
                         'is_active' => true,
                         'product_id' => $vend->productMapping()->exists() &&
-                            $vend->productMapping->productMappingItems()->exists() ?
+                            $vend->productMapping->productMappingItems()->exists() &&
+                            $vend->productMapping->productMappingItems()->where('channel_code', $channel['channel_code'])->first() ?
                             $vend->productMapping->productMappingItems()->where('channel_code', $channel['channel_code'])->first()->product_id :
                             null
                     ]);

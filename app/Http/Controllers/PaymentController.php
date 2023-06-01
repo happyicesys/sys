@@ -9,7 +9,7 @@ use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
 use App\Models\Vend;
 use App\Models\VendData;
-use App\Services\MqttService;
+// use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use App\Services\VendDataService;
 use Illuminate\Http\Request;
@@ -22,9 +22,11 @@ class PaymentController extends Controller
   protected $paymentGatewayService;
   protected $vendDataService;
 
-  public function __construct(MqttService $mqttService, PaymentGatewayService $paymentGatewayService, VendDataService $vendDataService)
+  public function __construct(
+    // MqttService $mqttService,
+    PaymentGatewayService $paymentGatewayService, VendDataService $vendDataService)
   {
-    $this->mqttService = $mqttService;
+    // $this->mqttService = $mqttService;
     $this->paymentGatewayService = $paymentGatewayService;
     $this->vendDataService = $vendDataService;
   }
@@ -187,10 +189,10 @@ class PaymentController extends Controller
       $key = '123456789110138A';
       $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-      $this->mqttService->publish('CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5);
+      // $this->mqttService->publish('CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5);
 
     }else {
-      $this->mqttService->publish('CM'.$paymentGatewayLog->vend_code, 'Error: QR code expired or payment gateway invalid');
+      // $this->mqttService->publish('CM'.$paymentGatewayLog->vend_code, 'Error: QR code expired or payment gateway invalid');
     }
   }
 }
