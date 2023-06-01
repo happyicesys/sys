@@ -14,7 +14,8 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class SyncVendChannels implements ShouldQueue
+class SyncVendChannels
+//implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -43,7 +44,6 @@ class SyncVendChannels implements ShouldQueue
 
         if(isset($input) and isset($input['channels'])) {
             $channels = $input['channels'];
-            $vend->vendChannels()->update(['is_active' => false]);
             foreach($channels as $channel) {
                 if($channel['capacity'] > 0 and $channel['channel_code'] >= 10 and $channel['channel_code'] <= 69) {
                     $vendChannel = VendChannel::updateOrCreate([
@@ -54,8 +54,11 @@ class SyncVendChannels implements ShouldQueue
                         'capacity' => $channel['capacity'],
                         'amount' => $channel['amount'],
                         'is_active' => true,
+                        'product_id' => $vend->productMapping()->exists() &&
+                            $vend->productMapping->productMappingItems()->exists() ?
+                            $vend->productMapping->productMappingItems()->where('channel_code', $channel['channel_code'])->first()->product_id :
+                            null
                     ]);
-                    $this->updateProductIdByVendChannel($vendChannel);
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }else {
                     $vendChannelFalse = VendChannel::updateOrCreate([
@@ -73,20 +76,20 @@ class SyncVendChannels implements ShouldQueue
         }
     }
 
-    private function updateProductIdByVendChannel($vendChannel)
-    {
-        if(
-            $vendChannel->vend->productMapping()->exists() and
-            $vendChannel->vend->productMapping->productMappingItems()->exists()
-        ) {
-            $productMappingItem = ProductMappingItem::query()
-                                ->where('product_mapping_id', $vendChannel->vend->productMapping->id)
-                                ->where('channel_code', $vendChannel->code)
-                                ->first();
-            if($productMappingItem) {
-                $vendChannel->update(['product_id' => $productMappingItem->product_id]);
-            }
-        }
+    // private function updateProductIdByVendChannel($vendChannel)
+    // {
+    //     if(
+    //         $vendChannel->vend->productMapping()->exists() and
+    //         $vendChannel->vend->productMapping->productMappingItems()->exists()
+    //     ) {
+    //         $productMappingItem = ProductMappingItem::query()
+    //                             ->where('product_mapping_id', $vendChannel->vend->productMapping->id)
+    //                             ->where('channel_code', $vendChannel->code)
+    //                             ->first();
+    //         if($productMappingItem) {
+    //             $vendChannel->update(['product_id' => $productMappingItem->product_id]);
+    //         }
+    //     }
 
-    }
+    // }
 }
