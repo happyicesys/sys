@@ -14,6 +14,14 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
 
     const PAYMENT_METHOD_PAYNOW = 201;
     const PAYMENT_METHOD_DUITNOW = 301;
+    const PAYMENT_METHOD_PROMPTPAY = 301;
+
+    const PAYMENT_METHOD_MAPPING = [
+        self::PAYMENT_METHOD_PAYNOW => 'paynow',
+        self::PAYMENT_METHOD_DUITNOW => 'duitnow_qr',
+        self::PAYMENT_METHOD_PROMPTPAY => 'promptpay',
+    ];
+
     public static $production = 'https://api.omise.co';
     protected $publicKey;
     protected $secretKey;
@@ -31,11 +39,10 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
     {
         $sourceId = $this->createSource($params);
         $response = $this->createCharge($params, $sourceId['id']);
-
         $this->referenceId = isset($response['id']) ? $response['id'] : null;
         $this->orderId = isset($response['metadata']) && isset($response['metadata']['order_id']) ? $response['metadata']['order_id'] : null;
 
-        return $this->createCharge($params, $sourceId);
+        return $response;
     }
 
     public function createSource($params = [])
@@ -58,7 +65,8 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
     public function createCharge($params = [], $sourceId)
     {
         // dd($params, $params['metadata'], $sourceId);
-        $response = Http::withHeaders($this->getHeaders($this->secretKey))->post('https://api.omise.co/charges', [
+        $response = Http::withHeaders($this->getHeaders($this->secretKey))
+            ->post('https://api.omise.co/charges', [
                 'amount' => $params['amount'],
                 'currency' => $params['currency'],
                 'source' => $sourceId,
@@ -66,27 +74,9 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
                 'return_uri' => $params['return_uri'],
             ]);
 
-
-
-            // if($sourceResponse and $sourceResponse->collect()) {
-            //     $source = $sourceResponse->collect();
-            //     $chargeResponse = Http::withHeaders($this->getHeaders('charges'))->post($this->getUrl('charges'), [
-            //         'amount' => $params['amount'],
-            //         'currency' => $params['currency'],
-            //         'source' => $source['id'],
-            //         'metadata' => $params['metadata'],
-            //         'return_uri' => $params['return_uri'],
-            //     ]);
-            //     $this->curlData = $chargeResponse;
-
-            //     return $this->curlData;
-            // }
-
-        if ($response->successful()) {
+        if($response->successful()) {
             return $response->json();
-            // return $charge['id'];
         }
-
         throw new \Exception('Charge creation failed: ' . $response->body());
     }
 

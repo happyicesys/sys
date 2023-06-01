@@ -8,6 +8,10 @@ use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\Vend;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use Image;
+use Zxing\QrReader;
 
 class PaymentGatewayService
 {
@@ -26,7 +30,114 @@ class PaymentGatewayService
     ];
     $response = $paymentGateway->createPayment($processedParams);
 
-    return $response;
+    return [
+      'response' => $response,
+      'operatorPaymentGateway' => $operatorPaymentGateway,
+    ];
+  }
+
+  public function createPaymentQrText(Vend $vend, $params)
+  {
+    $qrCodeText = '';
+    $qrCodeUrl = '';
+    $errorMsg = '';
+    $isCreateInput = false;
+    $isResizeImage = false;
+    $isRequiredDecode = false;
+
+    $paymentRequest = $this->createPaymentRequest($vend, $params);
+    $response = $paymentRequest['response'];
+    $operatorPaymentGateway = $paymentRequest['operatorPaymentGateway'];
+
+    switch($operatorPaymentGateway->paymentGateway->name) {
+        case 'midtrans':
+            if(isset($response['actions']) and isset($response['actions'][0]['url'])) {
+                $isCreateInput = true;
+                $qrCodeUrl = $response['actions'][0]['url'];
+            }else if(isset($response['validation_messages']) or isset($response['status_message'])) {
+                $errorMsg .= 'Error: ';
+                $errorMsg .= isset($response['validation_messages']) ? $response['validation_messages'][0] : $response['status_message'];
+            }
+            $isResizeImage = true;
+            $isRequiredDecode = true;
+            break;
+        case 'omise':
+            if((isset($response['source']['flow']) and $response['source']['flow'] == 'offline' and isset($response['source']['scannable_code']['image']['download_uri'])) or (isset($response['source']['flow']) and $response['source']['flow'] == 'redirect' and isset($response['authorize_uri']))) {
+                $isCreateInput = true;
+                if($response['source']['flow'] == 'offline') {
+                    $qrCodeUrl = $response['source']['scannable_code']['image']['download_uri'];
+                    $isRequiredDecode = true;
+                }else if($response['source']['flow'] == 'redirect') {
+                    $qrCodeUrl = $response['authorize_uri'];
+                    $isRequiredDecode = false;
+                }
+
+            }else if(isset($response['code']) and isset($response['message'])) {
+                $errorMsg .= 'Error: ';
+                $errorMsg .= $response['code'].' '.$response['message'];
+            }
+            break;
+    }
+
+    $img = false;
+    if($isRequiredDecode) {
+        if($isResizeImage) {
+            $image = Image::make($qrCodeUrl)->resize(150, 150);
+            $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $image->stream()->__toString(), 'public');
+        }else {
+            $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', file_get_contents($qrCodeUrl), 'public');
+        }
+        $url = Storage::url('/qr-code/'.$params['metadata']['order_id'].'.png');
+
+        $qrCodeReader = new QrReader($url);
+        $qrCodeText = $qrCodeReader->text([
+            'POSSIBLE_FORMATS' => 'QR_CODE',
+        ]);
+        Storage::disk('public')->delete('/qr-code/'.$params['metadata']['order_id'].'.png');
+    }else {
+        switch($operatorPaymentGateway->paymentGateway->name) {
+            case 'omise':
+                $htmlString = Http::get($qrCodeUrl)->body();
+
+                $doc = new \DOMDocument;
+                $doc->loadHTML($htmlString);
+                $xpath = new \DOMXpath($doc);
+                $val= $xpath->query('//input[@type="hidden" and @name = "qr_data"]/@value'
+                );
+                $qrCodeText = isset($val[0]) ? $val[0]->nodeValue : null;
+                break;
+        }
+    }
+
+    if($isCreateInput) {
+      $vendChannel = $vend->vendChannels()->where('code', $params['request']['SId'])->first();
+      $paymentGatewayLog = PaymentGatewayLog::create([
+          'request' => $params['request'],
+          'response' => $response,
+          'history_json' => $response,
+          'order_id' => $params['metadata']['order_id'],
+          'amount' => $params['amount'],
+          'qr_url' => $qrCodeUrl,
+          'qr_text' => $qrCodeText,
+          'operator_payment_gateway_id' => $operatorPaymentGateway->id,
+          'payment_gateway_id' => $operatorPaymentGateway->paymentGateway->id,
+          'status' => PaymentGatewayLog::STATUS_PENDING,
+          'vend_channel_code' => $params['request']['SId'],
+          'vend_channel_id' => $vendChannel ? $vendChannel->id : null,
+          'vend_code' => $vend->code,
+          'vend_id' => $vend->id,
+      ]);
+
+      return [
+        'paymentGatewayLog' => $paymentGatewayLog,
+        'errorMsg' => null
+      ];
+    }
+
+    return [
+      'paymentGatewayLog' => null,
+      'errorMsg' => $errorMsg
+    ];
   }
 
   private function getOperatorPaymentGateway(Vend $vend)
@@ -36,6 +147,7 @@ class PaymentGatewayService
       // dd($operator->toArray());
       if($operator->operatorPaymentGateways()->exists()) {
         $operatorPaymentGateway = $operator->operatorPaymentGateways()->where('type', $this->getAppEnvironment())->first();
+        // dd($operatorPaymentGateway->toArray());
         if($operatorPaymentGateway) {
           switch($operatorPaymentGateway->paymentGateway->name) {
             case 'midtrans':

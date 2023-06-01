@@ -29,152 +29,155 @@ class PaymentController extends Controller
     $this->vendDataService = $vendDataService;
   }
 
-  public function createPaymentResult(Request $request, $company = 'midtrans')
+  public function createPaymentGatewayLog(Request $request, $company)
   {
+    if(!$company) {
+      throw new \Exception('Payment gateway not parsed in url');
+    }
+
     $input = $request->all();
-    $currencyName = null;
     $status = null;
     $orderId = null;
+    $refId = null;
 
-    if($company) {
-      switch($company) {
-        case 'midtrans':
-          if(isset($input['transaction_status'])) {
-            switch($input['transaction_status']) {
-              case 'pending':
-                $status = PaymentGatewayLog::STATUS_PENDING;
-                break;
-              case 'capture':
-              case 'settlement':
-                $status = PaymentGatewayLog::STATUS_APPROVE;
-                break;
-              case 'cancel':
-              case 'deny':
-              case 'expire':
-                $status = PaymentGatewayLog::STATUS_DECLINE;
-                break;
-            }
-          }
-          $orderId = $input['order_id'];
-          $currencyName = $input['currency'];
-        break;
-
-        case 'omise':
-          $objectName = $input['data']['object'];
-          switch($objectName) {
-            case 'charge':
-            case 'source':
-              if(isset($input['data']['status'])) {
-                switch($input['data']['status']) {
-                  case 'pending':
-                    $status = PaymentGatewayLog::STATUS_PENDING;
-                    break;
-                  case 'successful':
-                    $status = PaymentGatewayLog::STATUS_APPROVE;
-                    break;
-                  case 'failed':
-                  case 'expired':
-                    $status = PaymentGatewayLog::STATUS_DECLINE;
-                    break;
-                }
-              }
+    switch($company) {
+      case 'midtrans':
+        if(isset($input['transaction_status'])) {
+          switch($input['transaction_status']) {
+            case 'pending':
+              $status = PaymentGatewayLog::STATUS_PENDING;
+              break;
+            case 'capture':
+            case 'settlement':
+              $status = PaymentGatewayLog::STATUS_APPROVE;
+              break;
+            case 'cancel':
+            case 'deny':
+            case 'expire':
+              $status = PaymentGatewayLog::STATUS_DECLINE;
               break;
             case 'refund':
+            case 'partial_refund':
               $status = PaymentGatewayLog::STATUS_REFUND;
               break;
           }
-          $orderId = $input['data']['metadata']['order_id'];
-          $currencyName = $input['data']['currency'];
-        break;
-      }
-
-      $paymentGatewayId = PaymentGateway::where('name', $company)->where('country_id', Country::where('currency_name', $currencyName))->first() ?
-        PaymentGateway::where('name', $company)->where('country_id', Country::where('currency_name', $currencyName)->first()->id)->first()->id :
-        throw new \Exception('No payment gateway with such name and currency');
-
-
-      if($status == PaymentGatewayLog::STATUS_REFUND) {
-        $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
-      }else if ($status == PaymentGatewayLog::STATUS_APPROVE) {
-        $pendingLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', PaymentGatewayLog::STATUS_PENDING)->first();
-      }
-
-      $historyArr = [];
-      if($input and isset($pendingLog) and $pendingLog->history_json) {
-        $historyArr = array_merge($pendingLog->history_json, $input);
-      }else {
-        $historyArr = $input;
-      }
-
-      if($pendingLog) {
-        $paymentGatewayLog = $pendingLog->updateOrCreate([
-          'order_id' => $orderId,
-        ],[
-          'request' => $pendingLog->request,
-          'response' => $input,
-          'history_json' => $historyArr,
-          'status' => $status,
-          'amount' => $pendingLog->request['PRICE'] * 100,
-          'payment_gateway_id' => $paymentGatewayId,
-        ]);
-
-        if($paymentGatewayLog and $paymentGatewayLog->status === PaymentGatewayLog::STATUS_APPROVE) {
-          $this->processPayment($paymentGatewayLog);
         }
-      }else {
-        throw new \Exception('Error: This QR isnt requested');
-      }
+        $orderId = $input['order_id'];
+        $refId = $input['transaction_id'];
+      break;
 
-    }else {
-      throw new \Exception('Error: Payment Gateway not found');
+      case 'omise':
+        switch($input['data']['object']) {
+          case 'charge':
+          case 'source':
+            if(isset($input['data']['status'])) {
+              switch($input['data']['status']) {
+                case 'pending':
+                  $status = PaymentGatewayLog::STATUS_PENDING;
+                  break;
+                case 'successful':
+                  $status = PaymentGatewayLog::STATUS_APPROVE;
+                  break;
+                case 'failed':
+                case 'expired':
+                  $status = PaymentGatewayLog::STATUS_DECLINE;
+                  break;
+              }
+            }
+            break;
+          case 'refund':
+            $status = PaymentGatewayLog::STATUS_REFUND;
+            break;
+          default:
+            throw new \Exception('Payment gateway is not found');
+        }
+        $orderId = $input['data']['metadata']['order_id'];
+        $refId = $input['data']['id'];
+      break;
     }
 
+    $paymentGatewayLogSearchStatus = PaymentGatewayLog::STATUS_PENDING;
+    switch($status) {
+      case PaymentGatewayLog::STATUS_PENDING:
+      case PaymentGatewayLog::STATUS_APPROVE:
+      case PaymentGatewayLog::STATUS_DECLINE:
+        $paymentGatewayLogSearchStatus = PaymentGatewayLog::STATUS_PENDING;
+        break;
+      case PaymentGatewayLog::STATUS_REFUND:
+        $paymentGatewayLogSearchStatus = PaymentGatewayLog::STATUS_APPROVE;
+    }
+    $paymentGatewayLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', $paymentGatewayLogSearchStatus)->first();
+    // dd($paymentGatewayLog, $orderId, $paymentGatewayLogSearchStatus);
+    if(!$paymentGatewayLog) {
+      throw new \Exception('This payment is not trigger before');
+    }
 
+    $updatedPaymentGatewayLog = PaymentGatewayLog::updateOrCreate([
+      'order_id' => $orderId,
+    ], [
+      'response' => $input,
+      'history_json' => $paymentGatewayLog->history_json ? array_merge($paymentGatewayLog->history_json, $input) : $input,
+      'ref_id' => $refId,
+      'status' => $status,
+    ]);
+
+    if($updatedPaymentGatewayLog and $status === PaymentGatewayLog::STATUS_APPROVE) {
+      $this->processPayment($updatedPaymentGatewayLog);
+    }
   }
 
   private function processPayment(PaymentGatewayLog $paymentGatewayLog)
   {
-    $vend = Vend::where('code', ltrim(substr($paymentGatewayLog->order_id, -5), '0'))->first();
-    if($paymentGatewayLog->status === PaymentGatewayLog::STATUS_APPROVE and $paymentGatewayLog->paymentGateway()->exists() and $vend) {
+    // $vend = Vend::where('code', ltrim(substr($paymentGatewayLog->order_id, -5), '0'))->first();
+    if($paymentGatewayLog->status === PaymentGatewayLog::STATUS_APPROVE and $paymentGatewayLog->paymentGateway()->exists()) {
 
       $paymentMethod = null;
       switch($paymentGatewayLog->paymentGateway->name){
         case 'midtrans':
-            switch($paymentGatewayLog->response['issuer']) {
-              case 'gopay':
-                $paymentMethod = Midtrans::PAYMENT_METHOD_GOPAY;
-                break;
-              case 'airpay shopee':
-                $paymentMethod = Midtrans::PAYMENT_METHOD_AIRPAY_SHOPEE;
-                break;
-              case 'dana':
-                $paymentMethod = Midtrans::PAYMENT_METHOD_DANA;
-                break;
-              case 'ovo':
-                $paymentMethod = Midtrans::PAYMENT_METHOD_OVO;
-                break;
-              case 'tcash':
-                $paymentMethod = Midtrans::PAYMENT_METHOD_TCASH;
-                break;
-            }
+            $paymentMethod = array_search($paymentGatewayLog->response['issuer'], Midtrans::PAYMENT_METHOD_MAPPING);
+
+            // switch($paymentGatewayLog->response['issuer']) {
+            //   case 'gopay':
+            //     $paymentMethod = Midtrans::PAYMENT_METHOD_GOPAY;
+            //     break;
+            //   case 'airpay shopee':
+            //     $paymentMethod = Midtrans::PAYMENT_METHOD_AIRPAY_SHOPEE;
+            //     break;
+            //   case 'dana':
+            //     $paymentMethod = Midtrans::PAYMENT_METHOD_DANA;
+            //     break;
+            //   case 'ovo':
+            //     $paymentMethod = Midtrans::PAYMENT_METHOD_OVO;
+            //     break;
+            //   case 'tcash':
+            //     $paymentMethod = Midtrans::PAYMENT_METHOD_TCASH;
+            //     break;
+            // }
           break;
         case 'omise':
-          // dd($paymentGatewayLog->toArray());
-          switch($paymentGatewayLog->response['data']['source']['type']) {
-            case 'paynow':
-              $paymentMethod = Omise::PAYMENT_METHOD_PAYNOW;
-              break;
-          }
+          $paymentMethod = array_search($paymentGatewayLog->response['data']['source']['type'], Omise::PAYMENT_METHOD_MAPPING);
+
+          // switch($paymentGatewayLog->response['data']['source']['type']) {
+          //   case 'paynow':
+          //     $paymentMethod = Omise::PAYMENT_METHOD_PAYNOW;
+          //     break;
+          //   case 'duitnow_qr':
+          //     $paymentMethod = Omise::PAYMENT_METHOD_DUITNOW;
+          //     break;
+          //   case 'promptpay':
+          //     $paymentMethod = Omise::PAYMENT_METHOD_PROMPTPAY;
+          //     break;
+          // }
           break;
       }
-      $vendChannel = $vend->vendChannels()->where('code', $paymentGatewayLog->request['SId'])->first();
+
       $result = $this->vendDataService->getPurchaseRequest([
         'orderId' => $paymentGatewayLog->order_id,
         'amount' => $paymentGatewayLog->request['PRICE'],
-        'vendCode' => $vend->code,
-        'productCode' =>  $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->code : null,
-        'productName' => $vendChannel && $vendChannel->product()->exists() ? $vendChannel->product->name : null,
-        'channelCode' =>  $vendChannel ? $vendChannel->code : null,
+        'vendCode' => $paymentGatewayLog->vend_code,
+        'productCode' =>  $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->code : null,
+        'productName' => $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->name : null,
+        'channelCode' =>  $paymentGatewayLog->vendChannel ? $paymentGatewayLog->vend_chanenl_code : null,
         'paymentMethod' => $paymentMethod,
       ]);
 
@@ -184,10 +187,10 @@ class PaymentController extends Controller
       $key = '123456789110138A';
       $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-      $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+      $this->mqttService->publish('CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5);
 
     }else {
-      $this->mqttService->publish('CM'.ltrim(substr($paymentGatewayLog->order_id, -5), '0'), 'Error: QR code expired or payment gateway invalid');
+      $this->mqttService->publish('CM'.$paymentGatewayLog->vend_code, 'Error: QR code expired or payment gateway invalid');
     }
   }
 }

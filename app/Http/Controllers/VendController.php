@@ -45,6 +45,8 @@ use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
 
+use App\Models\PaymentGateways\Omise;
+
 
 // use PhpMqtt\Client\Facades\MQTT;
 // use App\Jobs\ProcessVendData;

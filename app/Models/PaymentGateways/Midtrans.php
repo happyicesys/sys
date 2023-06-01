@@ -4,6 +4,7 @@ namespace App\Models\PaymentGateways;
 
 use App\Models\PaymentGateway;
 use App\Interfaces\PaymentGateway AS PaymentGatewayInterface;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
@@ -18,6 +19,14 @@ class Midtrans extends PaymentGateway implements PaymentGatewayInterface
     const PAYMENT_METHOD_OVO = 104;
     const PAYMENT_METHOD_TCASH = 105;
 
+    const PAYMENT_METHOD_MAPPING = [
+        self::PAYMENT_METHOD_GOPAY => 'gopay',
+        self::PAYMENT_METHOD_AIRPAY_SHOPEE => 'airpay shopee',
+        self::PAYMENT_METHOD_DANA => 'dana',
+        self::PAYMENT_METHOD_OVO => 'ovo',
+        self::PAYMENT_METHOD_TCASH => 'tcash',
+    ];
+
     public static $sandbox = 'https://api.sandbox.midtrans.com';
     public static $production = 'https://api.midtrans.com';
     protected $apiKey;
@@ -30,7 +39,7 @@ class Midtrans extends PaymentGateway implements PaymentGatewayInterface
         $this->apiKey = $apiKey;
     }
 
-    public function createPayment($amount, $currency)
+    public function createPayment($params = [])
     {
         $response = $this->createCharge($params);
 
@@ -42,7 +51,7 @@ class Midtrans extends PaymentGateway implements PaymentGatewayInterface
 
     public function createCharge($params = [])
     {
-        $response = Http::withHeaders($this->getHeaders($this->secretKey))
+        $response = Http::withHeaders($this->getHeaders($this->apiKey))
             ->post($this->getEndpoint(), [
                 'payment_type' => 'qris',
                 'transaction_details' => [
