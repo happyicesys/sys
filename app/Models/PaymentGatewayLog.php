@@ -15,6 +15,7 @@ class PaymentGatewayLog extends Model
     use HasFactory;
 
     protected $fillable = [
+        'amount',
         'history_json',
         'request',
         'response',
@@ -24,8 +25,12 @@ class PaymentGatewayLog extends Model
         'vend_transaction_id',
         'operator_payment_gateway_id',
         'payment_gateway_id',
-        'amount',
+        'ref_id',
         'status',
+        'vend_channel_code',
+        'vend_channel_id',
+        'vend_code',
+        'vend_id',
     ];
 
     protected $casts = [
@@ -42,5 +47,15 @@ class PaymentGatewayLog extends Model
     public function paymentGateway()
     {
         return $this->belongsTo(PaymentGateway::class);
+    }
+
+    public function vend()
+    {
+        return $this->belongsTo(Vend::class);
+    }
+
+    public function vendChannel()
+    {
+        return $this->belongsTo(VendChannel::class);
     }
 }

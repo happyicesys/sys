@@ -34,7 +34,7 @@ use App\Models\VendData;
 use App\Models\VendSnapshot;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
-use App\Models\PaymentGateway\Midtrans;
+use App\Models\PaymentGateways\Midtrans;
 use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
@@ -44,6 +44,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
+
+use App\Models\PaymentGateways\Omise;
 
 
 // use PhpMqtt\Client\Facades\MQTT;

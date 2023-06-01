@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\PaymentGatewayLog;
-use App\Models\PaymentGateway\Omise;
+use App\Models\PaymentGateways\Omise;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;

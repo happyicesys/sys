@@ -2,8 +2,8 @@
 
 namespace App\Jobs\Vend;
 
-use App\Models\PaymentGateway\Midtrans;
-use App\Models\PaymentGateway\Omise;
+use App\Models\PaymentGateways\Midtrans;
+use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentGatewayLog;
 use App\Models\PaymentMethod;
 use App\Models\Product;
@@ -74,12 +74,13 @@ class CreateVendTransaction implements ShouldQueue
 
         if($paymentMethod) {
             if(
-                $paymentMethod->code == Midtrans::PAYMENT_METHOD_GOPAY or
-                $paymentMethod->code == Midtrans::PAYMENT_METHOD_AIRPAY_SHOPEE or
-                $paymentMethod->code == Midtrans::PAYMENT_METHOD_DANA or
-                $paymentMethod->code == Midtrans::PAYMENT_METHOD_OVO or
-                $paymentMethod->code == Midtrans::PAYMENT_METHOD_TCASH or
-                $paymentMethod->code == Omise::PAYMENT_METHOD_PAYNOW
+                isset(Midtrans::PAYMENT_METHOD_MAPPING[$paymentMethod->code]) or isset(Omise::PAYMENT_METHOD_MAPPING[$paymentMethod->code])
+                // $paymentMethod->code == Midtrans::PAYMENT_METHOD_GOPAY or
+                // $paymentMethod->code == Midtrans::PAYMENT_METHOD_AIRPAY_SHOPEE or
+                // $paymentMethod->code == Midtrans::PAYMENT_METHOD_DANA or
+                // $paymentMethod->code == Midtrans::PAYMENT_METHOD_OVO or
+                // $paymentMethod->code == Midtrans::PAYMENT_METHOD_TCASH or
+                // $paymentMethod->code == Omise::PAYMENT_METHOD_PAYNOW
             ) {
                 $isPaymentReceived = true;
             }
