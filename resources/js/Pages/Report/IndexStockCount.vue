@@ -202,6 +202,9 @@
                           <TableHead>
                               #
                           </TableHead>
+                          <TableHeadSort modelName="vend_snapshots.month_number" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_snapshots.month_number')">
+                            Month
+                          </TableHeadSort>
                           <TableHeadSort modelName="vend_snapshots.created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_snapshots.created_at')">
                               Capture Datetime
                           </TableHeadSort>
@@ -226,6 +229,9 @@
                           <TableData :currentIndex="vendIndex" :totalLength="vendSnapshots.length" inputClass="text-center">
                               {{ vendSnapshots.meta.from + vendIndex }}
                           </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vendSnapshots.length" inputClass="text-center">
+                                {{ vendSnapshot.month_number }}
+                            </TableData>
                           <TableData :currentIndex="vendIndex" :totalLength="vendSnapshots.length" inputClass="text-center">
                             {{ vendSnapshot.created_at }}
                           </TableData>

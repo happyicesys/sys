@@ -234,6 +234,7 @@ class ReportController extends Controller
         $className = get_class(new Customer());
 
         $vendSnapshots = $this->getStockCountQuery($request);
+        // dd($vendSnapshots->get()->toArray());
         $vendSnapshots = $vendSnapshots->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 
@@ -750,7 +751,7 @@ class ReportController extends Controller
                 'vend_snapshots.id AS id',
                 'customers.code AS customer_code',
                 'customers.name AS customer_name',
-                DB::raw('MONTH(vend_snapshots.created_at) AS month_number'),
+                DB::raw('MONTH(vend_snapshots.created_at) - 1 AS month_number'),
                 DB::raw('YEAR(vend_snapshots.created_at) AS year_number'),
                 'product_mappings.name AS product_mapping_name',
                 'vends.code AS vend_code',
@@ -764,9 +765,10 @@ class ReportController extends Controller
         $vendSnapshots = $this->filterVendsDB($vendSnapshots, $request);
         $vendSnapshots = $vendSnapshots
             ->when($request->currentMonth, function($query, $search) {
+                // dd('here', $search->copy()->startOfMonth()->toDateString());
                 $query
-                    ->whereDate('vend_snapshots.created_at', '>=', $search->copy()->startOfMonth()->toDateString())
-                    ->whereDate('vend_snapshots.created_at', '<=', $search->copy()->endOfMonth()->toDateString());
+                    ->whereDate('vend_snapshots.created_at', '>=', $search->copy()->startOfMonth()->addDay()->toDateString())
+                    ->whereDate('vend_snapshots.created_at', '<=', $search->copy()->endOfMonth()->addDay()->toDateString());
             });
         $vendSnapshots = $vendSnapshots->groupBy('vends.id', 'year_number', 'month_number');
 
