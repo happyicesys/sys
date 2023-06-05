@@ -179,7 +179,7 @@ class PaymentController extends Controller
         'vendCode' => $paymentGatewayLog->vend_code,
         'productCode' =>  $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->code : null,
         'productName' => $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->name : null,
-        'channelCode' =>  $paymentGatewayLog->vendChannel ? $paymentGatewayLog->vend_chanenl_code : null,
+        'channelCode' =>  $paymentGatewayLog->vendChannel ? $paymentGatewayLog->vend_channel_code : null,
         'paymentMethod' => $paymentMethod,
       ]);
 
