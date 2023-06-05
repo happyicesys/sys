@@ -129,12 +129,9 @@ Route::middleware(['auth', 'cors'])->group(function() {
     });
 
     Route::prefix('reports')->group(function() {
+        Route::get('/sales/{type}/excel', [ReportController::class, 'exportSalesExcel']);
         Route::get('/sales/{type}', [ReportController::class, 'indexSales']);
-        // Route::get('/sales/vend', [ReportController::class, 'indexSalesVend']);
-        // Route::get('/sales/operator', [ReportController::class, 'indexSalesProduct']);
-        // Route::get('/sales/product', [ReportController::class, 'indexSalesProduct']);
-        // Route::get('/sales/category', [ReportController::class, 'indexSalesCategory']);
-        // Route::get('/sales/location-type', [ReportController::class, 'indexSalesLocationType']);
+
 
         Route::get('/gp/vend', [ReportController::class, 'indexGpVm']);
         Route::get('/gp/product', [ReportController::class, 'indexGpProduct']);

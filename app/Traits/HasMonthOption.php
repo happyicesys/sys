@@ -37,14 +37,30 @@ trait HasMonthOption{
     return array_reverse($monthOption);
   }
 
-  public function getCustomDateOption()
+  public function getReportDateOptions()
   {
     $date = Carbon::today()->setTimezone($this->getUserTimezone());
+    $processedOptions = [];
     $options = [
       Carbon::today()->toDateString().','.Carbon::today()->toDateString() => 'Today',
       Carbon::yesterday()->toDateString().','.Carbon::yesterday()->toDateString() => 'Yesterday',
-
-
+      Carbon::today()->startOfWeek()->toDateString().','.Carbon::today()->endOfWeek()->toDateString() => 'This Week',
+      Carbon::today()->subWeek()->startOfWeek()->toDateString().','.Carbon::today()->subWeek()->endOfWeek()->toDateString() => 'Last Week',
+      Carbon::today()->subWeeks(2)->startOfWeek()->toDateString().','.Carbon::today()->subWeeks(2)->endOfWeek()->toDateString() => 'Last Two Weeks',
+      Carbon::today()->startOfMonth()->toDateString().','.Carbon::today()->endOfMonth()->toDateString() => 'This Month',
+      Carbon::today()->subMonth()->startOfMonth()->toDateString().','.Carbon::today()->subMonth()->endOfMonth()->toDateString() => 'Last Month',
+      Carbon::today()->subMonths(2)->startOfMonth()->toDateString().','.Carbon::today()->subMonths(2)->endOfMonth()->toDateString() => 'Last 2 Months',
+      Carbon::today()->startOfYear()->toDateString().','.Carbon::today()->endOfYear()->toDateString() => 'This Year',
+      Carbon::today()->subYear()->startOfYear()->toDateString().','.Carbon::today()->subYear()->endOfYear()->toDateString() => 'Last Year',
     ];
+
+    foreach($options as $optionIndex => $option) {
+      $processedOptions [] = [
+        'id' => $optionIndex,
+        'name' => $option,
+      ];
+    }
+
+    return $processedOptions;
   }
 }

@@ -10,6 +10,7 @@ use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductDBResource;
 use App\Http\Resources\ProductResource;
+use App\Http\Resources\SalesReportResource;
 use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendSnapshotDBResource;
@@ -40,8 +41,11 @@ class ReportController extends Controller
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
-        $request->merge(['date_from' => $request->date_from ? $request->date_from : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
-        $request->merge(['date_to' => $request->date_to ? $request->date_to : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
+        $dateFrom = $request->currentFilterDate ? explode(',',$request->currentFilterDate)[0] : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
+        $dateTo = $request->currentFilterDate ? explode(',',$request->currentFilterDate)[1] : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
+        $request->merge(['date_from' => $dateFrom]);
+        $request->merge(['date_to' => $dateTo]);
+
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'amount';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
@@ -67,26 +71,30 @@ class ReportController extends Controller
         }
 
         $items = $this->getSalesQuery($request, $modelName);
-
-        $items = $items->when($sortKey, function($query, $search) use ($sortBy) {
-            $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+        $totals = $this->getSalesReportTotals($items);
+        $items = $items->when($request->sortKey, function($query, $search) use ($request) {
+            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
         });
 
-        return Inertia::render('Report/Sales/Vend', [
+        $items = $items->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+            ->withQueryString();
+
+        return Inertia::render('Report/Sales/Index', [
             'categories' => CategoryResource::collection(
-                Category::where('classname', $className)->orderBy('name')->get()
+                Category::where('classname', $categoryClassName)->orderBy('name')->get()
             ),
             'categoryGroups' => CategoryGroupResource::collection(
-                CategoryGroup::where('classname', $className)->orderBy('name')->get()
+                CategoryGroup::where('classname', $categoryClassName)->orderBy('name')->get()
             ),
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
-            'monthOptions' => $this->getMonthOption(),
+            'reportDateOptions' => $this->getReportDateOptions(),
             'operators' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
-            'items' => $items,
+            'items' => SalesReportResource::collection($items),
+            'totals' => $totals,
         ]);
     }
 
@@ -415,6 +423,49 @@ class ReportController extends Controller
         });
     }
 
+    public function exportSalesExcel($request, $type)
+    {
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
+        $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
+        $dateFrom = $request->currentFilterDate ? explode(',',$request->currentFilterDate)[0] : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
+        $dateTo = $request->currentFilterDate ? explode(',',$request->currentFilterDate)[1] : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
+        $request->merge(['date_from' => $dateFrom]);
+        $request->merge(['date_to' => $dateTo]);
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'amount';
+        $request->sortBy = $request->sortBy ? $request->sortBy : false;
+        $categoryClassName = get_class(new Customer());
+        $modelName = 'vends';
+
+        switch($type) {
+            case 'category':
+                $modelName = 'categories';
+                break;
+            case 'location-type':
+                $modelName = 'location_types';
+                break;
+            case 'product':
+                $modelName = 'products';
+                break;
+            case 'operator':
+                $modelName = 'operators';
+                break;
+            case 'vend':
+                $modelName = 'vends';
+                break;
+        }
+
+        $items = $this->getSalesQuery($request, $modelName)->get();
+
+        return (new FastExcel($this->yieldOneByOne($items)))->download('SalesReport_'.$type.'_'.Carbon::now()->toDateTimeString().'.xlsx', function ($item) {
+            return [
+                'ID' => $item->code,
+                'Name' => $item->name,
+                'Count' => $item->count,
+                'Amount' => $item->amount/ 100,
+            ];
+        });
+    }
+
     private function getSalesQuery($request, $className)
     {
         $transactionsQuery = DB::table('vend_transactions')
@@ -428,9 +479,6 @@ class ReportController extends Controller
             ->whereDate('vend_transactions.created_at', '>=', $request->date_from)
             ->whereDate('vend_transactions.created_at', '<=', $request->date_to)
             ->whereIn('error_code_normalized', [0, 6]);
-
-        $transactionsQuery = $this->filterVendTransactionReport($transactionsQuery, $request);
-        $transactionsQuery = $this->filterOperatorVendTransactionDB($transactionsQuery);
 
         switch($className) {
             case 'categories':
@@ -465,8 +513,12 @@ class ReportController extends Controller
 
         $transactionsQuery = $transactionsQuery
             ->selectRaw('COUNT(*) AS count')
-            ->selectRaw('SUM(amount) AS amount')
-            ->groupBy('id');
+            ->selectRaw('SUM(amount) AS amount');
+
+
+        $transactionsQuery = $this->filterVendTransactionReport($transactionsQuery, $request);
+        $transactionsQuery = $this->filterOperatorVendTransactionDB($transactionsQuery);
+        $transactionsQuery = $transactionsQuery->groupBy('id');
 
         return $transactionsQuery;
     }
@@ -809,6 +861,22 @@ class ReportController extends Controller
                 'last_two_month_revenue_total' => $lastTwoMonthTotal,
                 'last_two_month_gross_profit_total' => $lastTwoMonthGrossProfitTotal,
                 'last_two_month_gross_margin_total' => round($lastTwoMonthGrossProfitTotal/($lastTwoMonthTotal ? $lastTwoMonthTotal : 1) * 100, 1),
+            ];
+        });
+    }
+
+    private function getSalesReportTotals($items)
+    {
+        return collect((clone $items)->get())->pipe(function($item) {
+            $total_count = $item->sum(function($item) {
+                return $item->count;
+            });
+            $total_amount = $item->sum(function($item) {
+                return $item->amount/ 100;
+            });
+            return [
+                'total_count' => $total_count,
+                'total_amount' => $total_amount,
             ];
         });
     }
