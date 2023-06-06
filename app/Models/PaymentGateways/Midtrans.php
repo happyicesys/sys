@@ -13,6 +13,8 @@ class Midtrans extends PaymentGateway implements PaymentGatewayInterface
 {
     use HasFactory;
 
+    const AMOUNT_MULTIPLIER = 1;
+
     const PAYMENT_METHOD_GOPAY = 101;
     const PAYMENT_METHOD_AIRPAY_SHOPEE = 102;
     const PAYMENT_METHOD_DANA = 103;
@@ -56,7 +58,7 @@ class Midtrans extends PaymentGateway implements PaymentGatewayInterface
                 'payment_type' => 'qris',
                 'transaction_details' => [
                     'order_id' => $params['metadata']['order_id'],
-                    'gross_amount' => $params['amount'],
+                    'gross_amount' => $params['amount'] * self::AMOUNT_MULTIPLIER,
                   ],
                   'qris' => [
                     'acquirer' => $params['type'],

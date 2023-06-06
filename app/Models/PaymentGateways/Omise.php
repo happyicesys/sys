@@ -12,6 +12,8 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
 {
     use HasFactory;
 
+    const AMOUNT_MULTIPLIER = 100;
+
     const PAYMENT_METHOD_PAYNOW = 201;
     const PAYMENT_METHOD_DUITNOW = 301;
     const PAYMENT_METHOD_PROMPTPAY = 401;
@@ -50,7 +52,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         $response = Http::withHeaders($this->getHeaders($this->publicKey))
             ->post('https://api.omise.co/sources', [
                 'type' => $params['type'],
-                'amount' => $params['amount'],
+                'amount' => $params['amount'] * self::AMOUNT_MULTIPLIER,
                 'currency' => $params['currency'],
             ]);
 

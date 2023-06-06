@@ -63,7 +63,7 @@ class GetPaymentGatewayQR
             $orderId = Carbon::now()->setTimeZone($operatorTimezone)->format('ymdhis').$vendCode;
             $response = $this->paymentGatewayService->createPaymentQrText($vend, [
                 'request' => $this->input,
-                'amount' => $input['PRICE'] * 100,
+                'amount' => $input['PRICE'],
                 'expiry_seconds' => isset($input['expiry_seconds']) ? $input['expiry_seconds'] : null,
                 'metadata' => [
                     'order_id' => $orderId
