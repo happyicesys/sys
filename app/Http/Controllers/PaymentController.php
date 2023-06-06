@@ -111,32 +111,18 @@ class PaymentController extends Controller
     $paymentGatewayLog = PaymentGatewayLog::where('order_id', $orderId)->where('status', $paymentGatewayLogSearchStatus)->first();
 
     if(!$paymentGatewayLog) {
+      return;
       // throw new \Exception('This payment is not trigger before');
-      $updatedPaymentGatewayLog = PaymentGatewayLog::create([
-        'order_id' => $orderId,
-        'response' => $input,
-        'history_json' => $input,
-        'ref_id' => $refId,
-        'status' => $status,
-      ]);
-    }else {
-      $updatedPaymentGatewayLog = $paymentGatewayLog->update([
-        // 'order_id' => $orderId,
-        'response' => $input,
-        'history_json' => $paymentGatewayLog->history_json ? array_merge($paymentGatewayLog->history_json, $input) : $input,
-        'ref_id' => $refId,
-        'status' => $status,
-      ]);
     }
 
-    // $updatedPaymentGatewayLog = PaymentGatewayLog::updateOrCreate([
-    //   'order_id' => $orderId,
-    // ], [
-    //   'response' => $input,
-    //   'history_json' => $paymentGatewayLog->history_json ? array_merge($paymentGatewayLog->history_json, $input) : $input,
-    //   'ref_id' => $refId,
-    //   'status' => $status,
-    // ]);
+    $updatedPaymentGatewayLog = PaymentGatewayLog::updateOrCreate([
+      'order_id' => $orderId,
+    ], [
+      'response' => $input,
+      'history_json' => $paymentGatewayLog->history_json ? array_merge($paymentGatewayLog->history_json, $input) : $input,
+      'ref_id' => $refId,
+      'status' => $status,
+    ]);
 
     if($updatedPaymentGatewayLog and $status === PaymentGatewayLog::STATUS_APPROVE) {
       $this->processPayment($updatedPaymentGatewayLog);
