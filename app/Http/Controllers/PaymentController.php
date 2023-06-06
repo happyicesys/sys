@@ -112,18 +112,16 @@ class PaymentController extends Controller
 
     if(!$paymentGatewayLog) {
       // throw new \Exception('This payment is not trigger before');
-      $updatedPaymentGatewayLog = PaymentGatewayLog::updateOrCreate([
+      $updatedPaymentGatewayLog = PaymentGatewayLog::create([
         'order_id' => $orderId,
-      ], [
         'response' => $input,
         'history_json' => $input,
         'ref_id' => $refId,
         'status' => $status,
       ]);
     }else {
-      $updatedPaymentGatewayLog = PaymentGatewayLog::updateOrCreate([
-        'order_id' => $orderId,
-      ], [
+      $updatedPaymentGatewayLog = $paymentGatewayLog->update([
+        // 'order_id' => $orderId,
         'response' => $input,
         'history_json' => $paymentGatewayLog->history_json ? array_merge($paymentGatewayLog->history_json, $input) : $input,
         'ref_id' => $refId,
