@@ -35,10 +35,10 @@ class RefundOmiseJob implements ShouldQueue
             return;
         }
 
-        $newObj = new Omise([
-            'public' => $paymentGatewayLog->operatorPaymentGateway->key1,
-            'secret' => $paymentGatewayLog->operatorPaymentGateway->key2
-          ]);
+        $newObj = new Omise(
+            $paymentGatewayLog->operatorPaymentGateway->key1,
+            $paymentGatewayLog->operatorPaymentGateway->key2
+          );
         $response = $newObj->refunds([
             'order_id' => $this->orderId,
             'amount' => $paymentGatewayLog->amount,
