@@ -434,11 +434,12 @@ class VendController extends Controller
                         ->limit(1);
             })
             ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
-            ->leftJoin('operator_vend', function($query) {
-                $query->on('operator_vend.vend_id', '=', 'vends.id')
-                        ->latest('operator_vend.begin_date')
-                        ->limit(1);
-            })
+            ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+            // ->leftJoin('operator_vend', function($query) {
+            //     $query->on('operator_vend.vend_id', '=', 'vends.id')
+            //             ->latest('operator_vend.begin_date')
+            //             ->limit(1);
+            // })
             ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
             ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
             ->select(
