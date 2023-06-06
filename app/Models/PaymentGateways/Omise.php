@@ -14,7 +14,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
 
     const PAYMENT_METHOD_PAYNOW = 201;
     const PAYMENT_METHOD_DUITNOW = 301;
-    const PAYMENT_METHOD_PROMPTPAY = 301;
+    const PAYMENT_METHOD_PROMPTPAY = 401;
 
     const PAYMENT_METHOD_MAPPING = [
         self::PAYMENT_METHOD_PAYNOW => 'paynow',
