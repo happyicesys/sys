@@ -435,7 +435,7 @@ function onExportExcelClicked() {
     loading.value = true
     axios({
         method: 'get',
-        url: currentUrl.value + 'excel',
+        url: currentUrl.value + '/excel',
         params: {
             ...filters.value,
             categories: filters.value.categories.map((category) => { return category.id }),

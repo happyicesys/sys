@@ -423,7 +423,7 @@ class ReportController extends Controller
         });
     }
 
-    public function exportSalesExcel($request, $type)
+    public function exportSalesExcel(Request $request, $type)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
@@ -458,7 +458,7 @@ class ReportController extends Controller
 
         return (new FastExcel($this->yieldOneByOne($items)))->download('SalesReport_'.$type.'_'.Carbon::now()->toDateTimeString().'.xlsx', function ($item) {
             return [
-                'ID' => $item->code,
+                'ID' => isset($item->code) ? $item->code : null,
                 'Name' => $item->name,
                 'Count' => $item->count,
                 'Amount' => $item->amount/ 100,
