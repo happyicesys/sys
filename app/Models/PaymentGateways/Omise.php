@@ -69,7 +69,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         // dd($params, $params['metadata'], $sourceId);
         $response = Http::withHeaders($this->getHeaders($this->secretKey))
             ->post('https://api.omise.co/charges', [
-                'amount' => $params['amount'],
+                'amount' => $params['amount'] * self::AMOUNT_MULTIPLIER,
                 'currency' => $params['currency'],
                 'source' => $sourceId,
                 'metadata' => $params['metadata'],
