@@ -7,6 +7,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CategoryGroupController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\OperatorController;
 use App\Http\Controllers\PaymentMethodController;
@@ -113,6 +114,13 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/create', [CustomerController::class, 'create']);
         Route::post('/{id}/update', [CustomerController::class, 'update']);
         Route::delete('/{id}', [CustomerController::class, 'delete']);
+    });
+
+    Route::prefix('holidays')->group(function() {
+        Route::get('/', [HolidayController::class, 'index'])->name('holidays');
+        Route::post('/create', [HolidayController::class, 'create']);
+        Route::post('/{id}/update', [HolidayController::class, 'update']);
+        Route::delete('/{id}', [HolidayController::class, 'delete']);
     });
 
     Route::prefix('maps')->group(function() {

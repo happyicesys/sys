@@ -37,6 +37,25 @@ trait HasMonthOption{
     return array_reverse($monthOption);
   }
 
+  public function getYearOptions()
+  {
+    $today = Carbon::today();
+    $nextYear = $today->copy()->addYear();
+    $yearOptions = [];
+      $yearOptions[] = [
+        'id' => $nextYear->year,
+        'name' => $nextYear->year,
+      ];
+    for($i = 0; $i < 5; $i++) {
+      $yearOptions [] = [
+        'id' => $today->copy()->subYears($i)->year,
+        'name' => $today->copy()->subYears($i)->year,
+      ];
+    }
+
+    return $yearOptions;
+  }
+
   public function getReportDateOptions()
   {
     $date = Carbon::today()->setTimezone($this->getUserTimezone());

@@ -111,6 +111,11 @@ class Vend extends Model
         return $this->vendChannels()->where('qty', '=', 0);
     }
 
+    public function vendCriterias()
+    {
+        return $this->belongsToMany(VendCriteria::class)->using(VendCriteriaBinding::class);
+    }
+
     public function vendFans()
     {
         return $this->hasMany(VendFan::class);

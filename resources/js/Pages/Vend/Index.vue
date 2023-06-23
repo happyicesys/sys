@@ -583,8 +583,10 @@
                                 </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span>
+                                <span v-if="vend.cms_invoice_history && 'last_delivery_driver' in vend.cms_invoice_history">
                                     {{ vend.cms_invoice_history['last_delivery_driver'] }} <br>
+                                </span>
+                                <span>
                                     {{ vend.last_invoice_date }} <br>
                                     {{ vend.last_invoice_diff }}
                                 </span>
