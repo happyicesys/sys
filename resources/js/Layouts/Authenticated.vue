@@ -5,7 +5,7 @@ import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, LinkIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
+import { ArrowsPointingInIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, LinkIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
 
 const navigation = [
     {
@@ -96,11 +96,14 @@ const navigation = [
         permission: 'read users',
     },
     {
-        name: 'Holidays',
-        icon: CalendarDaysIcon,
+        name: 'Operations',
+        icon: ArrowsPointingInIcon,
         current: false,
         href: 'holidays',
         permission: 'admin-access vends',
+        children: [
+            {name: 'Holidays', href: '/holidays'},
+        ]
     },
     // {
     //     name: 'Map',

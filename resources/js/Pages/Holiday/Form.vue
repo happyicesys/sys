@@ -23,12 +23,12 @@
               </FormInput>
             </div>
             <div class="sm:col-span-6">
-              <DatePicker v-model="form.date_from" :error="form.errors.date_from">
+              <DatePicker v-model="form.date_from" :error="form.errors.date_from" @input="onDateFromChanged()">
                 Date From
               </DatePicker>
             </div>
             <div class="sm:col-span-6">
-              <DatePicker v-model="form.date_to" :error="form.errors.date_to">
+              <DatePicker v-model="form.date_to" :error="form.errors.date_to" :minDate="form.date_from">
                 Date To
               </DatePicker>
             </div>
@@ -72,7 +72,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 
 const props = defineProps({
   holiday: Object,
@@ -98,6 +98,13 @@ function getDefaultForm() {
     date_from: '',
     date_to: '',
     desc: '',
+  }
+}
+
+function onDateFromChanged() {
+  console.log('herer')
+  if(form.value.date_from) {
+    form.value.date_to = moment(form.value.date_from).format('YYYY-MM-DD')
   }
 }
 

@@ -242,6 +242,7 @@ function onEditClicked(bankValue) {
 function onSearchFilterUpdated() {
   router.get('/holidays', {
       ...filters.value,
+      currentYear: filters.value.currentYear.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

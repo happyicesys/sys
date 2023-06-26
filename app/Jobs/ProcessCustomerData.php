@@ -72,7 +72,7 @@ class ProcessCustomerData implements ShouldQueue
                     $customerCollection = collect($customerCollection[0]);
                 }
 
-                if(isset($customerCollection['vend_code']) and Vend::where('code', $customerCollection['vend_code'])->first()) {
+                if(isset($customerCollection['vend_code']) and $customerCollection['vend_code'] != '0' and Vend::where('code', $customerCollection['vend_code'])->first()) {
 
                     switch($statusData = $customerCollection['active']) {
                         case 'Yes':
