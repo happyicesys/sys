@@ -67,9 +67,9 @@ class CreateVendTransaction implements ShouldQueue
 
         $isPaymentReceived = false;
         $isSuccessful = false;
-        if($processedInput['errorCode'] == 0 or $processedInput['errorCode'] == '6') {
+        if($processedInput['errorCode'] == '0' or $processedInput['errorCode'] == '6') {
             $isPaymentReceived = true;
-            $isFailed = true;
+            $isSuccessful = true;
         }
 
         if($paymentMethod) {
