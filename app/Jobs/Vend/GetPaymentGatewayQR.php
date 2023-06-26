@@ -52,8 +52,8 @@ class GetPaymentGatewayQR
         $originalInput = $this->originalInput;
         $vend = $this->vend;
         $input = $this->input;
-        $vendChannel = $vend->vendChannels()->where('code', $input['SId'])->first();
-        if($vendChannel) {
+        // $vendChannel = $vend->vendChannels()->where('code', $input['SId'])->first();
+        // if($vendChannel) {
             $operatorTimezone = 'Asia/Singapore';
             if($vend->operators()->exists()) {
               $operatorTimezone = $vend->operators()->first()->timezone;
@@ -79,9 +79,9 @@ class GetPaymentGatewayQR
                 $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
             }
 
-        }else {
-            $this->mqttService->publish('CM'.$vend->code, 'This vending channel is not available');
-            throw new \Exception('This vending channel is not available', 404);
-        }
+        // }else {
+        //     $this->mqttService->publish('CM'.$vend->code, 'This vending channel is not available');
+        //     throw new \Exception('This vending channel is not available', 404);
+        // }
     }
 }
