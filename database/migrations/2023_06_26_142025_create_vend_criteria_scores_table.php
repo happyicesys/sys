@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('vend_criteria_scores', function (Blueprint $table) {
             $table->id();
-            $table->decimals('value', 10, 2);
+            $table->integer('value')->default(0);
             $table->bigInteger('vend_criteria_id');
             $table->bigInteger('vend_id');
             $table->integer('weightage')->default(0);
