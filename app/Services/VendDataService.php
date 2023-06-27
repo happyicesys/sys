@@ -192,7 +192,7 @@ class VendDataService
         [
         'port_type' => 0,
         'goods_id' => isset($params['productCode']) ? $params['productCode'] : null,
-        'goods_name' => isset($params['productName']) ? $params['productName'] : null,
+        'goods_name' => null,
         'goodroadid' => isset($params['channelCode']) ? $params['channelCode'] : null,
         'num' => 1,
         'uselift' => 0,
