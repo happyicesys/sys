@@ -498,6 +498,9 @@ class VendController extends Controller
                             json_decode($vendTransaction->vend_transaction_json)->SErr ?
                             json_decode($vendTransaction->vend_transaction_json)->SErr :
                             $vendTransaction->vend_channel_error_code,
+                'Location Type' => $vendTransaction->location_type_json ?
+                                json_decode($vendTransaction->location_type_json)->name :
+                                '',
             ];
         });
     }
