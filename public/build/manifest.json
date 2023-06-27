@@ -1687,6 +1687,10 @@
       "_CheckCircleIcon.2400bd12.js"
     ]
   },
+  "resources/js/Pages/Welcome.css": {
+    "file": "assets/Welcome.b7da5231.css",
+    "src": "resources/js/Pages/Welcome.css"
+  },
   "resources/js/Pages/Report/IndexStockCount.css": {
     "file": "assets/IndexStockCount.8b3a4ee5.css",
     "src": "resources/js/Pages/Report/IndexStockCount.css"
@@ -1694,10 +1698,6 @@
   "resources/js/Pages/Vend/Index.css": {
     "file": "assets/Index.8b3a4ee5.css",
     "src": "resources/js/Pages/Vend/Index.css"
-  },
-  "resources/js/Pages/Welcome.css": {
-    "file": "assets/Welcome.b7da5231.css",
-    "src": "resources/js/Pages/Welcome.css"
   },
   "MultiSelect.css": {
     "file": "assets/MultiSelect.fa611136.css",
