@@ -187,13 +187,13 @@ class VendDataService
       'score' => 1,
       'receivetime' => Carbon::now()->timestamp,
       'action' => 'TRADE',
-      'mid' => isset($params['vendCode']) ? $params['vendCode'] : null,
+      'mid' => isset($params['vendCode']) ? (int)$params['vendCode'] : null,
       'shipment_info' => [
         [
         'port_type' => 0,
-        'goods_id' => isset($params['productCode']) ? $params['productCode'] : null,
+        'goods_id' => 0,
         'goods_name' => null,
-        'goodroadid' => isset($params['channelCode']) ? $params['channelCode'] : null,
+        'goodroadid' => isset($params['channelCode']) ? (int)$params['channelCode'] : null,
         'num' => 1,
         'uselift' => 0,
         'usedropchk' => 1,
