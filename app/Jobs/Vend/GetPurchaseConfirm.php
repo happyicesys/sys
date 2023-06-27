@@ -52,7 +52,7 @@ class GetPurchaseConfirm
           $fid = $this->orderId;
           $content = base64_encode(json_encode($result));
           $contentLength = strlen($content);
-          $key = '123456789110138A';
+          $key = $paymentGatewayLog->vend && $paymentGatewayLog->vend->private_key ? $paymentGatewayLog->vend->private_key : '123456789110138A';
           $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
           $this->mqttService->publish('CM'.$this->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
