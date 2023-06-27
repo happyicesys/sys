@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class GetPurchaseConfirm
 // implements ShouldQueue
@@ -53,6 +54,7 @@ class GetPurchaseConfirm
           $content = base64_encode(json_encode($result));
           $contentLength = strlen($content);
           $key = $paymentGatewayLog->vend && $paymentGatewayLog->vend->private_key ? $paymentGatewayLog->vend->private_key : '123456789110138A';
+          Log::info('key: '.$key);
           $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
           $this->mqttService->publish('CM'.$this->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
