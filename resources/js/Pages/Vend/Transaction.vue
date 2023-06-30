@@ -328,7 +328,7 @@
                             {{ vendTransaction.transaction_datetime }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vend_code }}
+                            {{ vendTransaction.vend.code }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.customerJson && 'code' in vendTransaction.customerJson">
@@ -336,8 +336,8 @@
                                 {{ vendTransaction.customerJson['name'] }}
                             </span>
                             <span v-else-if="!vendTransaction.customerJson && vendTransaction.customer_code">
-                                {{ vendTransaction.customer_code }} <br>
-                                {{ vendTransaction.customer_name }}
+                                {{ vendTransaction.customerCode }} <br>
+                                {{ vendTransaction.customerName }}
                             </span>
                             <span v-else></span>
                         </TableData>
@@ -366,10 +366,10 @@
                             {{ vendTransaction.amount }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.payment_method_name }}
+                            {{ vendTransaction.paymentMethod.name }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vend_channel_error_desc }}
+                            {{ vendTransaction.vendChannelError ? vendTransaction.vendChannelError.desc : null }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.is_payment_received">

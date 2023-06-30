@@ -4,23 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\Pivot;
 
-class VendCriteriaBinding extends Pivot
+class VendSubCriteria extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'weightage',
-        'vend_criteria_id',
-        'vend_id',
+        'desc',
+        'name',
+        'options_json',
+        'sequence',
         'value',
+        'vend_criteria_id',
+        'weightage',
     ];
 
-    public function vend()
-    {
-        return $this->belongsTo(Vend::class);
-    }
+    protected $casts = [
+        'options_json' => 'array',
+    ];
 
     public function vendCriteria()
     {

@@ -30,14 +30,15 @@ class VendTransactionResource extends JsonResource
             'product' => ProductResource::make($this->product),
             'productJson' => $this->product_json,
             'transaction_datetime' => $this->transaction_datetime ? Carbon::parse($this->transaction_datetime)->setTimezone($this->getUserTimezone())->format('ymd h:i a') : null,
-            'grossProfit' => $this->when($this->relationLoaded('product'), function(){
-                number_format($this->getGrossProfit()/ 100, 2, '.', ',');
-            }),
-            'unitCost' => $this->when($this->relationLoaded('unitCost'), function(){
-                number_format($this->getUnitCost()/ 100, 2, '.', ',');
-            }),
+            // 'grossProfit' => $this->when($this->relationLoaded('product'), function(){
+            //     number_format($this->getGrossProfit()/ 100, 2, '.', ',');
+            // }),
+            // 'unitCost' => $this->when($this->relationLoaded('unitCost'), function(){
+            //     number_format($this->getUnitCost()/ 100, 2, '.', ',');
+            // }),
             'vend' => VendResource::make($this->vend),
-            'vendChannel' => VendChannelResource::make($this->vendChannel),
+            // 'vendChannel' => VendChannelResource::make($this->vendChannel),
+            'vend_channel_code' => $this->vend_channel_code,
             'vendChannelError' => VendChannelErrorResource::make($this->vendChannelError),
             'vendJson' => $this->vend_json,
             'vendTransactionJson' => $this->vend_transaction_json,

@@ -86,6 +86,11 @@ class Vend extends Model
         return $this->hasMany(VendChannel::class)->where('is_active', true)->where('capacity', '>', 0)->orderBy('code');
     }
 
+    // public function vendCriterias()
+    // {
+    //     return $this->belongsToMany(VendCriteria::class)->using(VendCriteriaBinding::class);
+    // }
+
     public function vendSnapshots()
     {
         return $this->hasMany(VendSnapshot::class)->latest();

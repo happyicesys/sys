@@ -122,10 +122,6 @@ class VendTransaction extends Model
     // scopes
     public function scopeFilterTransactionIndex($query, $request)
     {
-        $sortKey = $request->sortKey ? $request->sortKey : 'transaction_datetime';
-        $sortBy = $request->sortBy ? $request->sortBy : false;
-        $isBindedCustomer = $request->is_binded_customer != null ? $request->is_binded_customer : 'true';
-        $isBindedCustomer = 'all';
         $isPaymentReceived = $request->is_payment_received != null ? $request->is_payment_received : 'all';
 
         $query = $query->when($request->has('visited'), function($query, $search) use ($request) {
@@ -171,7 +167,7 @@ class VendTransaction extends Model
                 });
             }
         })
-        ->when($isBindedCustomer, function($query, $search) {
+        ->when($request->is_binded_customer, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
                     $query->has('vend.latestVendBinding');
@@ -235,9 +231,6 @@ class VendTransaction extends Model
         })
         ->when($request->date_to, function($query, $search) {
             $query->whereDate('transaction_datetime', '<=', $search);
-        })
-        ->when($sortKey, function($query, $search) use ($sortBy) {
-            $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
         });
 
         return $query;

@@ -24,7 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('vend_criterias', function (Blueprint $table) {
-            //
+            $table->dropColumn('classname');
         });
     }
 };
