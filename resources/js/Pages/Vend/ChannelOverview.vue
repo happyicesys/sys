@@ -99,11 +99,26 @@
                         </span>
                       </td>
                       <td class="py-4 text-sm font-semibold text-gray-900 text-center" v-if="vend.product_mapping_name">
-                        <span v-if="channel.product && channel.product.code">
-                          {{ channel.product.code }}
+                        <span v-if="!editable">
+                          <span v-if="channel.product && channel.product.code">
+                            {{ channel.product.code }}
+                          </span>
+                          <span class="break-normal text-xs" v-if="channel.product && channel.product.name">
+                            <br> {{ channel.product.name }}
+                          </span>
                         </span>
-                        <span class="break-normal text-xs" v-if="channel.product && channel.product.name">
-                          <br> {{ channel.product.name }}
+                        <span v-else>
+                          <MultiSelect
+                              v-model="filters.errors"
+                              :options="vendChannelErrorsOptions"
+                              valueProp="id"
+                              label="desc"
+                              mode="tags"
+                              placeholder="Select"
+                              open-direction="bottom"
+                              class="mt-1"
+                          >
+                          </MultiSelect>
                         </span>
                       </td>
                     </tr>
@@ -113,35 +128,55 @@
             </div>
           </div>
         </div>
-        <p class="flex flex-col items-end text-blue-800 text-sm p-3" v-if="vend.product_mapping_name">
-          <span class="" v-if="vend.product_mapping_name">
+        <div class="flex justify-between">
+          <span>
+            <!-- <Button
+                type="button" class="bg-gray-300 hover:bg-gray-400 px-2 py-1 mt-2 ml-1 text-xs text-gray-800 flex space-x-1"
+                @click="onEditClicked()"
+            >
+                <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                <span>
+                    Edit Product
+                </span>
+            </Button> -->
+          </span>
+          <span class="flex flex-col text-blue-800 text-sm p-3" v-if="vend.product_mapping_name">
+            <span class="" v-if="vend.product_mapping_name">
             {{ vend.product_mapping_name }}
+            </span>
+            <span v-if="vend.product_mapping_remarks">
+              {{ vend.product_mapping_remarks }}
+            </span>
           </span>
-          <span v-if="vend.product_mapping_remarks">
-            {{ vend.product_mapping_remarks }}
-          </span>
-        </p>
+        </div>
       </template>
     </Modal>
   </Teleport>
 </template>
 
 <script setup>
+import { PencilSquareIcon} from '@heroicons/vue/20/solid';
+import Button from '@/Components/Button.vue';
 import Modal from '@/Components/Modal.vue';
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
+  productOptions: Object,
   vend: Object,
   showModal: Boolean,
 })
 
 onMounted(() => {
-  console.log(props.vend)
+  console.log(props.productOptions)
 })
 const profile = usePage().props.auth.profile
-
+const editable = ref(false)
 const emit = defineEmits(['modalClose'])
+
+function onEditClicked() {
+  editable.value = true
+}
 
 function formatDatetime(value) {
   return moment(value).format('YYMMDD hh:mm A');

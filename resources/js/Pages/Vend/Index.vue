@@ -675,6 +675,7 @@
     </div>
     <ChannelOverview
         v-if="showChannelOverviewModal"
+        :productOptions="productOptions"
         :vend="vend"
         :showModal="showChannelOverviewModal"
         @modalClose="onChannelOverviewClosed"
@@ -750,6 +751,7 @@
     constTempError: Number,
     locationTypeOptions: Object,
     operatorOptions: Object,
+    productOptions: Object,
     totals: [Array, Object],
     vends: Object,
     vendChannelErrors: Object,
@@ -803,7 +805,6 @@ const permissions = usePage().props.auth.permissions
   const now = ref(moment().format('HH:mm:ss'))
 
   onMounted(() => {
-
     filters.value.visited = true
     vendChannelErrorsOptions.value = [
         // {'id': '', 'desc': 'All'},

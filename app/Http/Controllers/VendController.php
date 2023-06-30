@@ -11,6 +11,7 @@ use App\Http\Resources\CountryResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentMethodResource;
+use App\Http\Resources\ProductResource;
 use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendChannelErrorResource;
@@ -26,6 +27,7 @@ use App\Models\Customer;
 use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\PaymentMethod;
+use App\Models\Product;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
@@ -151,6 +153,14 @@ class VendController extends Controller
             ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
+            ),
+            'productOptions' => ProductResource::collection(
+                Product::query()
+                    ->select('id', 'code', 'name')
+                    ->where('is_active', true)
+                    ->where('is_inventory', true)
+                    ->orderBy('code')
+                    ->get()
             ),
             'totals' => $totals,
             'vends' => VendDBResource::collection($vends),
@@ -511,7 +521,7 @@ class VendController extends Controller
             return [
                 'Order ID' => $vendTransaction->order_id,
                 'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
-                'Vend ID' => $vendTransaction->code,
+                'Vend ID' => $vendTransaction->vend->code,
                 'Customer Name' => $vendTransaction->customer_json && isset($vendTransaction->customer_json['code']) ?
                                         $vendTransaction->customer_json['code'].' '.$vendTransaction->customer_json['name'] : (
                                         $vendTransaction->vend_json && isset($vendTransaction->vend_json['latest_vend_binding']) ?
