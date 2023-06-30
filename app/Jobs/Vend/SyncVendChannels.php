@@ -52,13 +52,17 @@ class SyncVendChannels implements ShouldQueue
                         'qty' => $channel['qty'],
                         'capacity' => $channel['capacity'],
                         'amount' => $channel['amount'],
-                        'is_active' => true,
-                        'product_id' => $vend->productMapping()->exists() &&
+                        'is_active' => true
+                    ]);
+                    if(!$vendChannel->product_id) {
+                        $vendChannel->update(['product_id' =>
+                            $vend->productMapping()->exists() &&
                             $vend->productMapping->productMappingItems()->exists() &&
                             $vend->productMapping->productMappingItems()->where('channel_code', $channel['channel_code'])->first() ?
                             $vend->productMapping->productMappingItems()->where('channel_code', $channel['channel_code'])->first()->product_id :
                             null
-                    ]);
+                        ]);
+                    }
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }else {
                     $vendChannelFalse = VendChannel::updateOrCreate([

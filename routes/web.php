@@ -281,6 +281,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/channel-error-logs-email', [VendController::class, 'channelErrorLogsEmail']);
         Route::post('/{id}/update', [VendController::class, 'update']);
         Route::post('/{id}/unbind', [VendController::class, 'unbindCustomer']);
+        Route::post('/{id}/edit-products', [VendController::class, 'editProducts']);
     });
 
     Route::prefix('zones')->group(function() {

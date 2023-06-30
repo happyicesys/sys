@@ -19,6 +19,7 @@ use App\Http\Resources\VendFanResource;
 use App\Http\Resources\VendTransactionDBResource;
 use App\Http\Resources\VendTransactionResource;
 use App\Http\Resources\VendTempResource;
+use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Mail\VendChannelErrorLogsMail;
 use App\Models\Category;
 use App\Models\CategoryGroup;
@@ -156,7 +157,7 @@ class VendController extends Controller
             ),
             'productOptions' => ProductResource::collection(
                 Product::query()
-                    ->select('id', 'code', 'name')
+                    ->select('id', 'code', 'desc', 'name')
                     ->where('is_active', true)
                     ->where('is_inventory', true)
                     ->orderBy('code')
@@ -677,6 +678,24 @@ class VendController extends Controller
                 'Balance Percent(%)' => $vendChannel->capacity ? round($vendChannel->qty/ $vendChannel->capacity * 100) : '',
             ];
         });
+    }
+
+    public function editProducts(Request $request, $vendId)
+    {
+        $vend = Vend::findOrFail($vendId);
+        $channels = $request->channels;
+
+        foreach($channels as $channel) {
+            if($channel['product_id'] === $channel['edited_product_id']) {
+                continue;
+            }else {
+                $vendChannel = VendChannel::findOrFail($channel['id']);
+                $vendChannel->update([
+                    'product_id' => $channel['edited_product_id'],
+                ]);
+            }
+        }
+        SaveVendChannelsJson::dispatch($vend->id)->onQueue('default');
     }
 
     private function processVendTempTiming($vendTemps)

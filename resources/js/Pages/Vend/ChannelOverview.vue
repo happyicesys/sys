@@ -53,7 +53,7 @@
                     </tr>
                   </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(channel, channelIndex) in vend.vendChannelsJson" :key="channel.id" :class="channelIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                    <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="channelIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                         {{ channel.code }}
                       </td>
@@ -107,16 +107,17 @@
                             <br> {{ channel.product.name }}
                           </span>
                         </span>
-                        <span v-else>
+                        <span class="font-normal text-xs text-gray-700" v-else>
+                          <!-- {{ channel.option_data }} -->
                           <MultiSelect
-                              v-model="filters.errors"
-                              :options="vendChannelErrorsOptions"
-                              valueProp="id"
-                              label="desc"
-                              mode="tags"
-                              placeholder="Select"
-                              open-direction="bottom"
-                              class="mt-1"
+                            v-model="channel.product.option_data"
+                            :options="productOptions"
+                            trackBy="id"
+                            valueProp="id"
+                            label="full_name"
+                            placeholder="Select"
+                            open-direction="bottom"
+                            class="mt-1"
                           >
                           </MultiSelect>
                         </span>
@@ -130,15 +131,26 @@
         </div>
         <div class="flex justify-between">
           <span>
-            <!-- <Button
-                type="button" class="bg-gray-300 hover:bg-gray-400 px-2 py-1 mt-2 ml-1 text-xs text-gray-800 flex space-x-1"
+            <Button
+                type="button"
+                class=" px-2 py-1 mt-2 ml-1 text-xs  flex space-x-1"
+                :class="[editable ? 'bg-green-300 hover:bg-green-400 text-green-800' : 'bg-gray-300 hover:bg-gray-400 text-gray-800']"
                 @click="onEditClicked()"
+                v-if="vend.product_mapping_name"
             >
+              <span class="flex space-x-1" v-if="!editable">
                 <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                 <span>
                     Edit Product
                 </span>
-            </Button> -->
+              </span>
+              <span class="flex space-x-1" v-else>
+                <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                <span>
+                  Save
+                </span>
+              </span>
+            </Button>
           </span>
           <span class="flex flex-col text-blue-800 text-sm p-3" v-if="vend.product_mapping_name">
             <span class="" v-if="vend.product_mapping_name">
@@ -155,11 +167,12 @@
 </template>
 
 <script setup>
-import { PencilSquareIcon} from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
 import Button from '@/Components/Button.vue';
 import Modal from '@/Components/Modal.vue';
+import MultiSelect from '@/Components/MultiSelect.vue';
 import { onMounted, ref } from 'vue';
-import { usePage } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   productOptions: Object,
@@ -167,15 +180,50 @@ const props = defineProps({
   showModal: Boolean,
 })
 
+const productOptions = ref([])
+const channels = ref([])
+
 onMounted(() => {
-  console.log(props.productOptions)
+  productOptions.value = props.productOptions.data.map((data) => {return {id: data.id, full_name: data.full_name + (data.desc ?  ' ' + data.desc  : '')}})
+
+  channels.value = props.vend.vendChannelsJson.map((channel) => {
+    return {
+      ...channel,
+      product: channel.product ? {
+        ...channel.product,
+        option_data: {
+          'id' : channel.product.id,
+          'full_name' : channel.product.code + ' - ' + channel.product.name + (channel.product.desc ?  ' ' + channel.product.desc  : '')
+        }
+      } : null
+    }
+  })
 })
 const profile = usePage().props.auth.profile
 const editable = ref(false)
 const emit = defineEmits(['modalClose'])
 
 function onEditClicked() {
-  editable.value = true
+  if(editable.value) {
+    router.post('/vends/' + props.vend.id + '/edit-products', {
+      channels: channels.value.map((channel) => {
+        return {
+          id: channel.id,
+          product_id : channel.product.id,
+          edited_product_id: channel.product.option_data.id
+        }
+      })
+    }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        editable.value = false
+        emit('modalClose')
+      }
+    })
+
+  }else {
+    editable.value = true
+  }
 }
 
 function formatDatetime(value) {
