@@ -39,21 +39,21 @@ class SaveVendChannelsJson implements ShouldQueue
             ])->findOrFail($this->vendId);
 
         $vendTotals = [
-            'vendChannelsTotalQty' => $vend->vendChannelsTotalQty,
-            'vendChannelsTotalCapacity' => $vend->vendChannelsTotalCapacity,
+            'vendChannelsTotalQtyWithoutClaw' => $vend->vendChannelsTotalQtyWithoutClaw,
+            'vendChannelsTotalCapacityWithoutClaw' => $vend->vendChannelsTotalCapacityWithoutClaw,
             'vendChannelsOutOfStock' => $vend->vendChannelsOutOfStock,
             'vendChannelsErrorLogsActive' => $vend->vendChannelsErrorLogsActive,
             'vendChannelsCount' => $vend->vendChannelsCount,
         ];
         $totals = [
             'qty'
-                => $vendTotals['vendChannelsTotalQty'],
+                => $vendTotals['vendChannelsTotalQtyWithoutClaw'],
             'capacity'
-                => $vendTotals['vendChannelsTotalCapacity'],
+                => $vendTotals['vendChannelsTotalCapacityWithoutClaw'],
             'sales'
-                => $vendTotals['vendChannelsTotalCapacity'] - $vendTotals['vendChannelsTotalQty'],
+                => $vendTotals['vendChannelsTotalCapacityWithoutClaw'] - $vendTotals['vendChannelsTotalQtyWithoutClaw'],
             'balancePercent'
-                => $vendTotals['vendChannelsTotalCapacity'] ? round($vendTotals['vendChannelsTotalQty']/ $vendTotals['vendChannelsTotalCapacity'] * 100) : 0,
+                => $vendTotals['vendChannelsTotalCapacityWithoutClaw'] ? round($vendTotals['vendChannelsTotalQtyWithoutClaw']/ $vendTotals['vendChannelsTotalCapacityWithoutClaw'] * 100) : 0,
             'outOfStock'
                 => $vendTotals['vendChannelsOutOfStock'],
             'activeErrorLogs'

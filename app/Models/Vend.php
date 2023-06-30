@@ -86,6 +86,11 @@ class Vend extends Model
         return $this->hasMany(VendChannel::class)->where('is_active', true)->where('capacity', '>', 0)->orderBy('code');
     }
 
+    public function vendChannelsWithoutClaw()
+    {
+        return $this->hasMany(VendChannel::class)->where('is_active', true)->where('capacity', '>', 0)->where('code', '<', 50)->where('code', '>', 59)->orderBy('code');
+    }
+
     // public function vendCriterias()
     // {
     //     return $this->belongsToMany(VendCriteria::class)->using(VendCriteriaBinding::class);
@@ -204,6 +209,16 @@ class Vend extends Model
     public function getVendChannelsTotalQtyAttribute()
     {
         return $this->vendChannels->sum('qty');
+    }
+
+    public function getVendChannelsTotalCapacityWithoutClawAttribute()
+    {
+        return $this->vendChannelsWithoutClaw->sum('capacity');
+    }
+
+    public function getVendChannelsTotalQtyWithoutClawAttribute()
+    {
+        return $this->vendChannelsWithoutClaw->sum('qty');
     }
 
     public function getVendChannelsOutOfStockAttribute()
