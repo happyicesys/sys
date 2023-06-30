@@ -88,7 +88,9 @@ class Vend extends Model
 
     public function vendChannelsWithoutClaw()
     {
-        return $this->hasMany(VendChannel::class)->where('is_active', true)->where('capacity', '>', 0)->where('code', '<', 50)->where('code', '>', 59)->orderBy('code');
+        return $this->hasMany(VendChannel::class)->where('is_active', true)->where('capacity', '>', 0)->where(function($query) {
+            $query->where('code', '<', 50)->orWhere('code', '>', 59);
+        })->orderBy('code');
     }
 
     // public function vendCriterias()

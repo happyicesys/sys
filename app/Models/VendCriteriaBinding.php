@@ -13,6 +13,7 @@ class VendCriteriaBinding extends Pivot
     protected $fillable = [
         'weightage',
         'vend_criteria_id',
+        'vend_sub_criteria_id',
         'vend_id',
         'value',
     ];
@@ -25,5 +26,10 @@ class VendCriteriaBinding extends Pivot
     public function vendCriteria()
     {
         return $this->belongsTo(VendCriteria::class);
+    }
+
+    public function vendSubCriteria()
+    {
+        return $this->belongsTo(VendSubCriteria::class);
     }
 }

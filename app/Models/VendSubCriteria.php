@@ -27,4 +27,9 @@ class VendSubCriteria extends Model
     {
         return $this->belongsTo(VendCriteria::class);
     }
+
+    public function vendCriteriaBindings()
+    {
+        return $this->hasMany(VendCriteriaBinding::class);
+    }
 }
