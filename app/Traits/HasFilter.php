@@ -503,10 +503,10 @@ trait HasFilter {
             }
         })
         ->when($request->date_from, function($query, $search) {
-            $query->whereDate('vend_transactions.created_at', '>=', $search);
+            $query->where('vend_transactions.created_at', '>=', Carbon::parse($search)->startOfDay());
         })
         ->when($request->date_to, function($query, $search) {
-            $query->whereDate('vend_transactions.created_at', '<=', $search);
+            $query->where('vend_transactions.created_at', '<=', Carbon::parse($search)->endOfDay());
         })
         ->when($sortKey, function($query, $search) use ($sortBy) {
             $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );

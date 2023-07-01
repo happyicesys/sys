@@ -476,8 +476,8 @@ class ReportController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
-            ->whereDate('vend_transactions.created_at', '>=', $request->date_from)
-            ->whereDate('vend_transactions.created_at', '<=', $request->date_to)
+            ->where('vend_transactions.created_at', '>=', Carbon::parse($request->date_from)->startOfDay())
+            ->where('vend_transactions.created_at', '<=', Carbon::parse($request->date_to)->endOfDay())
             ->whereIn('error_code_normalized', [0, 6]);
 
         switch($className) {
@@ -534,8 +534,8 @@ class ReportController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->toDateString())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
+            ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
+            ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
             ->whereIn('error_code_normalized', [0, 6]);
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
         $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
@@ -605,8 +605,8 @@ class ReportController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->toDateString())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
+            ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
+            ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
             ->whereIn('vend_transaction_json->SErr', [0, 6]);
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
         $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
@@ -671,8 +671,8 @@ class ReportController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->toDateString())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
+            ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
+            ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
             ->whereIn('vend_transaction_json->SErr', [0, 6]);
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
         $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
@@ -737,8 +737,8 @@ class ReportController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
-            ->whereDate('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->toDateString())
-            ->whereDate('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->toDateString())
+            ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
+            ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
             ->whereIn('vend_transaction_json->SErr', [0, 6]);
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
         $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
@@ -819,8 +819,8 @@ class ReportController extends Controller
             ->when($request->currentMonth, function($query, $search) {
                 // dd('here', $search->copy()->startOfMonth()->toDateString());
                 $query
-                    ->whereDate('vend_snapshots.created_at', '>=', $search->copy()->startOfMonth()->addDay()->toDateString())
-                    ->whereDate('vend_snapshots.created_at', '<=', $search->copy()->endOfMonth()->addDay()->toDateString());
+                    ->where('vend_snapshots.created_at', '>=', $search->copy()->startOfMonth()->addDay()->startOfDay())
+                    ->where('vend_snapshots.created_at', '<=', $search->copy()->endOfMonth()->addDay()->endOfDay());
             });
         $vendSnapshots = $vendSnapshots->groupBy('vends.id', 'year_number', 'month_number');
 
