@@ -329,7 +329,7 @@ class VendController extends Controller
     {
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'transaction_datetime']);
         $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
-        $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         $request->merge(['is_binded_customer' => isset($request->is_binded_customer) ? $request->is_binded_customer : 'all']);
         $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
         $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
