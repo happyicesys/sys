@@ -331,8 +331,8 @@ class VendController extends Controller
         $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $request->merge(['is_binded_customer' => isset($request->is_binded_customer) ? $request->is_binded_customer : 'all']);
-        $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->toDateString() : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
-        $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->toDateString() : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
+        $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
+        $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $className = get_class(new Customer());
 
@@ -463,6 +463,12 @@ class VendController extends Controller
 
     public function exportTransactionExcel(Request $request)
     {
+        $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'transaction_datetime']);
+        $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
+        $request->merge(['is_binded_customer' => isset($request->is_binded_customer) ? $request->is_binded_customer : 'all']);
+        $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
+        $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
+
         $vendTransactions = VendTransaction::query()
         ->with([
             'vend:id,code,name',
