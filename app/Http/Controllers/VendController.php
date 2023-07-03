@@ -212,7 +212,7 @@ class VendController extends Controller
 
         $vendTemps = DB::table('vend_temps')
             ->where('vend_id', $vendId)
-            ->whereIn('type', $request->types)
+            // ->whereIn('type', $request->types)
             ->where('value', '!=', VendTemp::TEMPERATURE_ERROR)
             ->where('vend_temps.created_at', '>=', $startDate)
             ->where('vend_temps.created_at', '<=', $endDate)
