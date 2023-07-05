@@ -13,6 +13,7 @@ class LocationType extends Model
         'sequence',
         'name',
         'remarks',
+        'weightage',
     ];
 
     // relationships

@@ -31,6 +31,7 @@ class LocationTypeResource extends JsonResource
             'last_two_month_revenue' => $this->last_two_month_revenue/100,
             'last_two_month_gross_profit' => $this->last_two_month_gross_profit/100,
             'last_two_month_gross_profit_margin' => $this->last_two_month_gross_profit_margin,
+            'weightage' => $this->weightage,
         ];
     }
 }

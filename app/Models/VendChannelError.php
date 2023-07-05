@@ -11,7 +11,8 @@ class VendChannelError extends Model
 
     protected $fillable = [
         'code',
-        'desc'
+        'desc',
+        'weightage',
     ];
 
     // protected $dates = [

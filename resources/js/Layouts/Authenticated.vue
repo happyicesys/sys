@@ -5,9 +5,16 @@ import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { ArrowsPointingInIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, LinkIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
+import { ArrowsPointingInIcon, ClipboardDocumentListIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, LinkIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
 
 const navigation = [
+    // {
+    //     name: 'Dashboard',
+    //     icon: ClipboardDocumentListIcon,
+    //     current: false,
+    //     href: 'dashboard',
+    //     permission: 'read vends',
+    // },
     {
         name: 'Vending Machines',
         icon: CommandLineIcon,
@@ -102,6 +109,9 @@ const navigation = [
         href: 'holidays',
         permission: 'admin-access vends',
         children: [
+            {name: 'Criteria', href: '/vend-criterias'},
+            {name: 'Weightage (Location Type)', href: '/location-types'},
+            {name: 'Weightage (Error Code)', href: '/vend-channel-errors'},
             {name: 'Holidays', href: '/holidays'},
         ]
     },

@@ -26,7 +26,10 @@ class Vend extends Model
         'vend_channel_error_logs_json' => 'json',
         'vend_channels_json' => 'json',
         'vend_channel_totals_json' => 'json',
+        'vend_criteria_score_json' => 'json',
+        'vend_criteria_weightage_json' => 'json',
         'vend_transaction_totals_json' => 'json',
+
     ];
 
     protected $fillable = [
@@ -51,6 +54,8 @@ class Vend extends Model
         'vend_channel_error_logs_json',
         'vend_channels_json',
         'vend_channel_totals_json',
+        'vend_criteria_score_json',
+        'vend_criteria_weightage_json',
         'vend_transaction_totals_json',
         'vend_type_id',
     ];
@@ -142,54 +147,56 @@ class Vend extends Model
     {
         return $this->hasMany(VendTransaction::class)
                     ->isSuccessful()
-                    ->where('transaction_datetime', '<=', Carbon::today()->startOfMonth()->startOfDay())
-                    ->where('transaction_datetime', '>=', Carbon::today()->endOfMonth()->endOfDay());
+                    ->where('transaction_datetime', '>=', Carbon::today()->startOfMonth()->startOfDay())
+                    ->where('transaction_datetime', '<=', Carbon::today()->endOfMonth()->endOfDay());
     }
 
     public function vendLastMonthTransactions()
     {
         return $this->hasMany(VendTransaction::class)
                     ->isSuccessful()
-                    ->where('transaction_datetime', '<=', Carbon::today()->subMonth()->startOfMonth()->startOfDay())
-                    ->where('transaction_datetime', '>=', Carbon::today()->subMonth()->endOfMonth()->endOfDay());
+                    ->where('transaction_datetime', '>=', Carbon::today()->subMonth()->startOfMonth()->startOfDay())
+                    ->where('transaction_datetime', '<=', Carbon::today()->subMonth()->endOfMonth()->endOfDay());
     }
 
     public function vendLast2MonthTransactions()
     {
         return $this->hasMany(VendTransaction::class)
                     ->isSuccessful()
-                    ->whereDate('transaction_datetime', '<=', Carbon::today()->subMonths(2)->startOfMonth()->startOfDay())
-                    ->whereDate('transaction_datetime', '>=', Carbon::today()->subMonths(2)->endOfMonth()->endOfDay());
+                    ->where('transaction_datetime', '>=', Carbon::today()->subMonths(2)->startOfMonth()->startOfDay())
+                    ->where('transaction_datetime', '<=', Carbon::today()->subMonths(2)->endOfMonth()->endOfDay());
     }
 
     public function vendThirtyDaysTransactions()
     {
         return $this->hasMany(VendTransaction::class)
                     ->isSuccessful()
-                    ->whereDate('transaction_datetime', '<=', Carbon::today())
-                    ->whereDate('transaction_datetime', '>=', Carbon::today()->subDays(29));
+                    ->where('transaction_datetime', '>=', Carbon::today()->subDays(29)->startOfDay())
+                    ->where('transaction_datetime', '<=', Carbon::today()->endOfDay());
     }
 
     public function vendSevenDaysTransactions()
     {
         return $this->hasMany(VendTransaction::class)
                     ->isSuccessful()
-                    ->whereDate('transaction_datetime', '<=', Carbon::today())
-                    ->whereDate('transaction_datetime', '>=', Carbon::today()->subDays(6));
+                    ->where('transaction_datetime', '>=', Carbon::today()->subDays(6)->startOfDay())
+                    ->where('transaction_datetime', '<=', Carbon::today()->endOfDay());
     }
 
     public function vendYesterdayTransactions()
     {
         return $this->hasMany(VendTransaction::class)
                     ->isSuccessful()
-                    ->whereDate('transaction_datetime', '=', Carbon::yesterday());
+                    ->where('transaction_datetime', '>=', Carbon::yesterday()->startOfDay())
+                    ->where('transaction_datetime', '<=', Carbon::yesterday()->endOfDay());
     }
 
     public function vendTodayTransactions()
     {
         return $this->hasMany(VendTransaction::class)
                     ->isSuccessful()
-                    ->whereDate('transaction_datetime', '=', Carbon::today());
+                    ->where('transaction_datetime', '>=', Carbon::today()->startOfDay())
+                    ->where('transaction_datetime', '<=', Carbon::today()->endOfDay());
     }
 
     public function vendTransactions()

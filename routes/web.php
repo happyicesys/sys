@@ -8,6 +8,7 @@ use App\Http\Controllers\CategoryGroupController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\LocationTypeController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\OperatorController;
 use App\Http\Controllers\PaymentMethodController;
@@ -27,6 +28,8 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UomController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendController;
+use App\Http\Controllers\VendChannelErrorController;
+use App\Http\Controllers\VendCriteriaController;
 use App\Http\Controllers\ZoneController;
 use Carbon\Carbon;
 use Illuminate\Foundation\Application;
@@ -109,6 +112,11 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [CountryController::class, 'delete']);
     });
 
+    Route::prefix('vend-criterias')->group(function() {
+        Route::get('/', [VendCriteriaController::class, 'index'])->name('vend-criterias');
+        Route::post('/{id}/update', [VendCriteriaController::class, 'update']);
+    });
+
     Route::prefix('customers')->group(function() {
         Route::get('/', [CustomerController::class, 'index'])->name('customers');
         Route::post('/create', [CustomerController::class, 'create']);
@@ -159,6 +167,13 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/create', [ResourceCenterController::class, 'create']);
         Route::post('/{id}/update', [ResourceCenterController::class, 'update']);
         Route::delete('/{id}', [ResourceCenterController::class, 'delete']);
+    });
+
+    Route::prefix('location-types')->group(function() {
+        Route::get('/', [LocationTypeController::class, 'index'])->name('location-types');
+        Route::post('/create', [LocationTypeController::class, 'create']);
+        Route::post('/{id}/update', [LocationTypeController::class, 'update']);
+        Route::delete('/{id}', [LocationTypeController::class, 'delete']);
     });
 
     Route::prefix('payment-methods')->group(function() {
@@ -282,6 +297,13 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/update', [VendController::class, 'update']);
         Route::post('/{id}/unbind', [VendController::class, 'unbindCustomer']);
         Route::post('/{id}/edit-products', [VendController::class, 'editProducts']);
+    });
+
+    Route::prefix('vend-channel-errors')->group(function() {
+        Route::get('/', [VendChannelErrorController::class, 'index'])->name('vend-channel-errors');
+        Route::post('/create', [VendChannelErrorController::class, 'create']);
+        Route::post('/{id}/update', [VendChannelErrorController::class, 'update']);
+        Route::delete('/{id}', [VendChannelErrorController::class, 'delete']);
     });
 
     Route::prefix('zones')->group(function() {

@@ -25,10 +25,10 @@ class VendCriteriaSeeder extends Seeder
             'name' => 'Sales Frequency',
             'code' => 'sales_frequency',
             'sequence' => 1,
-            'value' =>  48,
+            'value' =>  'lte_days',
+            'value2' => 7,
             'options_json' => [
-                '24' => 'Last 24 hours',
-                '48' => 'Last 48 hours',
+                'lte_days' => 'Within Day(s) Count',
             ],
         ]);
 
@@ -52,8 +52,7 @@ class VendCriteriaSeeder extends Seeder
             'name' => 'Channel Errors',
             'code' => 'channel_error',
             'sequence' => 3,
-            'value' =>  'in',
-            'value2' => '9',
+            'value' =>  'weighted',
             'options_json' => [
                 'all' => 'Any Error (Same Weightage)',
                 'weighted' => 'Weighted Error (Based on Configured Weightage)',
@@ -67,7 +66,8 @@ class VendCriteriaSeeder extends Seeder
             'name' => 'Remaining SKU',
             'code' => 'remaining_sku_percentage',
             'sequence' => 4,
-            'value' =>  25,
+            'value' =>  'lte',
+            'value2' => 25,
             'options_json' => [
                 'lte' => 'Percentage Lower Than',
             ],
@@ -79,7 +79,8 @@ class VendCriteriaSeeder extends Seeder
             'name' => 'Balance Stock',
             'code' => 'balance_stock_percentage',
             'sequence' => 5,
-            'value' =>  15,
+            'value' =>  'lte',
+            'value2' => 15,
             'options_json' => [
                 'lte' => 'Percentage Lower Than',
             ],
@@ -94,7 +95,7 @@ class VendCriteriaSeeder extends Seeder
             'value' =>  'gte_days',
             'value2' => 7,
             'options_json' => [
-                'lte_days' => 'More Than Day(s)',
+                'gte_days' => 'More Than Day(s) Count',
             ],
         ]);
 
@@ -106,7 +107,7 @@ class VendCriteriaSeeder extends Seeder
             'sequence' => 7,
             'value' =>  'weighted',
             'options_json' => [
-                'weighted' => 'Weigted Location (Based on Configured Weightage)',
+                'weighted' => 'Weighted Location (Based on Configured Weightage)',
             ],
         ]);
     }

@@ -19,6 +19,7 @@ class VendChannelErrorResource extends JsonResource
             'id' => $this->id,
             'code' => $this->code,
             'desc' => $this->desc,
+            'weightage' => $this->weightage,
         ];
     }
 }

@@ -63,8 +63,8 @@ class DatabaseSeeder extends Seeder
             // PermissionSeeder::class,
             // OmisePaymentGatewaySeeder::class,
             // ExportPermissionSeeder::class,
-
-            MsiaThaiPaymentMethodSeeder::class,
+            // MsiaThaiPaymentMethodSeeder::class,
+            VendCriteriaSeeder::class,
         ]);
     }
 }
