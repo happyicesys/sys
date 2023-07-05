@@ -30,6 +30,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendController;
 use App\Http\Controllers\VendChannelErrorController;
 use App\Http\Controllers\VendCriteriaController;
+use App\Http\Controllers\VendCriteriaBindingController;
 use App\Http\Controllers\ZoneController;
 use Carbon\Carbon;
 use Illuminate\Foundation\Application;
@@ -115,6 +116,13 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('vend-criterias')->group(function() {
         Route::get('/', [VendCriteriaController::class, 'index'])->name('vend-criterias');
         Route::post('/{id}/update', [VendCriteriaController::class, 'update']);
+    });
+
+    Route::prefix('vend-criteria-bindings')->group(function() {
+        Route::get('/', [VendCriteriaBindingController::class, 'index'])->name('vend-criteria-bindings');
+        Route::post('/create', [VendCriteriaBindingController::class, 'create']);
+        Route::post('/{id}/update', [VendCriteriaBindingController::class, 'update']);
+        Route::delete('/{id}', [VendCriteriaBindingController::class, 'delete']);
     });
 
     Route::prefix('customers')->group(function() {

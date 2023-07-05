@@ -109,6 +109,7 @@ const navigation = [
         href: 'holidays',
         permission: 'admin-access vends',
         children: [
+            {name: 'Vend & Criteria Bindings', href: '/vend-criteria-bindings'},
             {name: 'Criteria', href: '/vend-criterias'},
             {name: 'Weightage (Location Type)', href: '/location-types'},
             {name: 'Weightage (Error Code)', href: '/vend-channel-errors'},
