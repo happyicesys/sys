@@ -67,6 +67,7 @@ trait HasMonthOption{
       Carbon::today()->subWeek()->startOfWeek()->toDateString().','.Carbon::today()->subWeek()->endOfWeek()->toDateString() => 'Last Week',
       Carbon::today()->subWeeks(2)->startOfWeek()->toDateString().','.Carbon::today()->subWeeks(2)->endOfWeek()->toDateString() => 'Last Two Weeks',
       Carbon::today()->startOfMonth()->toDateString().','.Carbon::today()->endOfMonth()->toDateString() => 'This Month',
+      Carbon::today()->subDays(29)->toDateString().','.Carbon::today()->toDateString() => 'Last 30 Days',
       Carbon::today()->subMonth()->startOfMonth()->toDateString().','.Carbon::today()->subMonth()->endOfMonth()->toDateString() => 'Last Month',
       Carbon::today()->subMonths(2)->startOfMonth()->toDateString().','.Carbon::today()->subMonths(2)->endOfMonth()->toDateString() => 'Last 2 Months',
       Carbon::today()->subMonths(3)->startOfMonth()->toDateString().','.Carbon::today()->subMonths(3)->endOfMonth()->toDateString() => 'Last 3 Months',
