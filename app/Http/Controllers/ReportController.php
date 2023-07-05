@@ -41,10 +41,19 @@ class ReportController extends Controller
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
-        $dateFrom = $request->currentFilterDate ? explode(',',$request->currentFilterDate)[0] : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
-        $dateTo = $request->currentFilterDate ? explode(',',$request->currentFilterDate)[1] : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
-        $request->merge(['date_from' => $dateFrom]);
-        $request->merge(['date_to' => $dateTo]);
+
+        if($request->currentFilterDate) {
+            if($request->currentFilterDate != '-1') {
+                $request->merge(['date_from' => explode(',',$request->currentFilterDate)[0]]);
+                $request->merge(['date_to' => explode(',',$request->currentFilterDate)[1]]);
+            }
+        }
+        if(!$request->date_from) {
+            $request->merge(['date_from' => Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
+        }
+        if(!$request->date_to) {
+            $request->merge(['date_to' => Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
+        }
 
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'amount';

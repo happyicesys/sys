@@ -165,7 +165,7 @@
             >
             </MultiSelect>
           </div>
-          <div>
+          <div v-if="filters.currentFilterDate.id != '-1'">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Filter Date
             </label>
@@ -180,6 +180,21 @@
               class="mt-1"
             >
             </MultiSelect>
+          </div>
+          <div v-if="filters.currentFilterDate.id == '-1'">
+            <DatePicker
+                v-model="filters.date_from"
+            >
+                Date From
+            </DatePicker>
+          </div>
+          <div v-if="filters.currentFilterDate.id == '-1'">
+            <DatePicker
+                v-model="filters.date_to"
+                :minDate="filters.date_from"
+            >
+                Date To
+            </DatePicker>
           </div>
         </div>
 
@@ -312,6 +327,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -320,7 +336,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -340,6 +356,8 @@ const filters = ref({
   currentFilterDate: '',
   customer_code: '',
   customer_name: '',
+  date_from: '',
+  date_to: '',
   is_binded_customer: '',
   location_type_id: '',
   operator_id: '',
@@ -395,6 +413,10 @@ onMounted(() => {
     ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   reportDateOptions.value = props.reportDateOptions.map((data) => {return {id: data.id, name: data.name}})
+  reportDateOptions.value = [
+    ...reportDateOptions.value,
+    {'id': '-1', 'name': 'Custom Date'}
+  ]
   filters.value.currentFilterDate = reportDateOptions.value[0]
   operatorOptions.value = [
     {id: 'all', full_name: 'All'},
