@@ -210,7 +210,7 @@
                       Last Month
                     </TableHead>
                     <TableHead colspan="4">
-                      Last 2 Month
+                      2 Months Ago
                     </TableHead>
                   </tr>
                   <tr class="divide-x divide-gray-200">
