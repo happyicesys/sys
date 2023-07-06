@@ -221,9 +221,10 @@ class VendTransaction extends Model
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereHas('vend.operators', function($query) use ($search) {
-                    $query->where('operators.id', $search);
-                });
+                // $query->whereHas('vend.operators', function($query) use ($search) {
+                //     $query->where('operators.id', $search);
+                // });
+                $query->where('operator_id', $search);
             }
         })
         ->when($request->date_from, function($query, $search) {
@@ -289,9 +290,10 @@ class VendTransaction extends Model
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereHas('vend.operators', function($query) use ($search) {
-                    $query->where('operators.id', $search);
-                });
+                // $query->whereHas('vend.operators', function($query) use ($search) {
+                //     $query->where('operators.id', $search);
+                // });
+                $query->where('operator_id', $search);
             }
         })
         ->when($request->categories, function($query, $search) {

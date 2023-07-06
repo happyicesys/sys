@@ -1,10 +1,10 @@
 <template>
     <div class="md:hidden overflow-scroll">
-        <Vue3ChartJs :height="410" id="chartjs" type="line" :data="data" ref="chartRef" :plugins="plugins" :options="options">
+        <Vue3ChartJs :height="410" id="chartjs" :type="type" :data="data" ref="chartRef" :plugins="plugins" :options="options">
         </Vue3ChartJs>
     </div>
     <div class="hidden md:block overflow-scroll">
-        <Vue3ChartJs id="chartjs" type="line" :data="data" ref="chartRef"  :plugins="plugins" :options="options">
+        <Vue3ChartJs id="chartjs" :type="type" :data="data" ref="chartRef"  :plugins="plugins" :options="options">
         </Vue3ChartJs>
     </div>
 </template>
@@ -16,7 +16,10 @@
     import { ref } from 'vue'
 
     const props = defineProps({
-        type: String,
+        type: {
+            type: String,
+            default: 'line',
+        },
         labels: [Array, Object, String],
         values: Object,
         options: Object,

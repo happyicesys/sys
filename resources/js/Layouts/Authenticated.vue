@@ -8,13 +8,13 @@ import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
 import { ArrowsPointingInIcon, ClipboardDocumentListIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, LinkIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
 
 const navigation = [
-    // {
-    //     name: 'Dashboard',
-    //     icon: ClipboardDocumentListIcon,
-    //     current: false,
-    //     href: 'dashboard',
-    //     permission: 'read vends',
-    // },
+    {
+        name: 'Dashboard',
+        icon: ClipboardDocumentListIcon,
+        current: false,
+        href: 'dashboard',
+        permission: 'read vends',
+    },
     {
         name: 'Vending Machines',
         icon: CommandLineIcon,

@@ -7,6 +7,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CategoryGroupController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\LocationTypeController;
 use App\Http\Controllers\MapController;
@@ -64,10 +65,6 @@ Route::get('/', function () {
     // ]);
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
-
 Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('banks')->group(function() {
@@ -111,6 +108,10 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/update', [CountryController::class, 'update']);
         Route::post('/{id}/exchange-rate', [CountryController::class, 'updateExchangeRate']);
         Route::delete('/{id}', [CountryController::class, 'delete']);
+    });
+
+    Route::prefix('dashboard')->group(function() {
+        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     });
 
     Route::prefix('vend-criterias')->group(function() {
