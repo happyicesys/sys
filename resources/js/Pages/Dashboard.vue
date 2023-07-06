@@ -103,13 +103,13 @@
 
         dayGraphData.value = JSON.parse(JSON.stringify(props.dayGraphData))
         let months = []
-        let colors = ['#3e95cd', '#ff7f7f', '#3cba9f', '#c45850', '#c45850']
+        let colors = ['#3e95cd', '#ff7f7f', '#007500', '#808080', '#c45850']
         months = _.groupBy(JSON.parse(JSON.stringify(props.dayGraphData)).data, 'month_name')
         Object.keys(months).forEach((month, monthIndex) => {
             datasets.value.push({
                 label: month + ' ($)',
                 data: months[month].map((data) => {return data.amount}),
-                backgroundColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex], 0.4) : hexToRGBA(colors[monthIndex], 0.9),
+                backgroundColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex], 0.2) : hexToRGBA(colors[monthIndex], 1),
                 borderColor: colors[monthIndex],
                 fill: false,
                 yAxisID: 'y',
@@ -119,8 +119,8 @@
             datasets.value.push({
                 label: month + ' (#)',
                 data: months[month].map((data) => {return data.count}),
-                backgroundColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex + 2], 0.4) : hexToRGBA(colors[monthIndex + 2], 0.9),
-                borderColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex + 2], 0.4) : hexToRGBA(colors[monthIndex + 2], 0.9),
+                backgroundColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex + 2], 0.2) : hexToRGBA(colors[monthIndex + 2], 0.9),
+                borderColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex + 2], 0.2) : hexToRGBA(colors[monthIndex + 2], 0.9),
                 yAxisID: 'y1',
                 type: 'line',
                 order: 1,
