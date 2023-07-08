@@ -28,6 +28,7 @@ class DashboardController extends Controller
             $day_date_to = Carbon::parse($request->day_date_to)->setTimezone($this->getUserTimezone());
         }
 
+        // 2 months
         $dayGraph = VendTransaction::query()
             ->whereIn('id', function($query) use ($day_date_from, $day_date_to) {
                 $query->select('id')
@@ -48,18 +49,61 @@ class DashboardController extends Controller
             )
             ->get();
 
-        // $dayGraphDataArr = [];
-        // $dayGraph->each(function($item) use (&$dayGraphDataArr) {
-        //     $dayGraphDataArr[$item->month_name][$item->day] = [
-        //         'day' => $item->day,
-        //         'amount' => $item->amount/ 100,
-        //         'count' => $item->count,
-        //     ];
-        // });
+        // 7 days
+        // products
+        $seven_days_date_from = Carbon::today()->subDays(6)->setTimezone($this->getUserTimezone());
+        $seven_days_date_to = Carbon::today()->setTimezone($this->getUserTimezone());
+        $productGraph = VendTransaction::query()
+            ->with('product:id,code,name')
+            ->whereIn('id', function($query) use ($seven_days_date_from, $seven_days_date_to) {
+                $query->select('id')
+                ->from('vend_transactions')
+                ->where('created_at', '>=', $seven_days_date_from->copy()->startOfDay())
+                ->where('created_at', '<=', $seven_days_date_to->copy()->endOfDay());
+            })
+            ->filterTransactionIndex($request)
+            ->whereIn('error_code_normalized', [0, 6])
+            ->groupBy('product_id')
+            ->select(
+                'id',
+                DB::raw('product_id as product_id'),
+                DB::raw('SUM(amount) as amount'),
+                DB::raw('COUNT(id) as count'),
+            )
+            ->orderBy('count', 'desc')
+            ->limit(10)
+            ->get();
+
+        $bestPerformer = VendTransaction::query()
+            ->with([
+                'customer:id,code,name',
+                'product:id,code,name',
+                'vend:id,code,name',
+            ])
+            ->whereIn('id', function($query) use ($seven_days_date_from, $seven_days_date_to) {
+                $query->select('id')
+                ->from('vend_transactions')
+                ->where('created_at', '>=', $seven_days_date_from->copy()->startOfDay())
+                ->where('created_at', '<=', $seven_days_date_to->copy()->endOfDay());
+            })
+            ->filterTransactionIndex($request)
+            ->whereIn('error_code_normalized', [0, 6])
+            ->groupBy('vend_id')
+            ->select(
+                'id',
+                'customer_id',
+                'vend_id',
+                DB::raw('SUM(amount) as amount'),
+                DB::raw('COUNT(id) as count'),
+            )
+            ->orderBy('amount', 'desc')
+            ->limit(10)
+            ->get();
 
         return Inertia::render('Dashboard', [
             'dayGraphData' => VendTransactionGraphResource::collection($dayGraph),
-            // 'dayGraphDataArr' => $dayGraphDataArr,
+            'productGraphData' => VendTransactionGraphResource::collection($productGraph),
+            'performerGraphData' => VendTransactionGraphResource::collection($bestPerformer),
         ]);
     }
 }
