@@ -15,7 +15,7 @@ class VendTransactionGraphResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'amount' => number_format($this->amount/ 100, 2, '.', ','),
+            'amount' => $this->amount/ 100,
             'count' => $this->count,
             'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'date' => $this->date,
