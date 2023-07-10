@@ -12,17 +12,18 @@
         </template>
 
 
-        <div class="py-12">
+        <div class="p-3">
             <div class="max-w-7xl mx-auto sm:px-3 lg:px-2">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="p-1 bg-white border-b border-gray-200 flex flex-col space-x-6">
+                    <div class="p-1 bg-white border-b border-gray-200 flex flex-col space-y-6">
                         <Graph
                             key="dayGraphData"
                             type="scatter"
                             :labels="dayGraphLabels"
                             :datasets="dayGraphDatasets"
                             :options="dayGraphOptions"
-                        ></Graph>
+                        >
+                        </Graph>
 
                         <div class="flex flex-col md:flex-row pt-5">
                             <div class="md:basis-1/3 m-1">
@@ -34,7 +35,7 @@
                                     :options="productGraphOptions"
                                 ></Graph>
                             </div>
-                            <div class="md:basis-2/3 my-2 mx-4 px-4">
+                            <div class="md:basis-2/3 my-1 mx-4 px-4">
                                 <p class="text-sm">
                                     Past 7 Days - Top 10 Best Performance
                                 </p>
@@ -61,10 +62,10 @@
                                             </thead>
                                             <tbody class="divide-y divide-gray-200 bg-white">
                                                 <tr v-for="(vend, vendIndex) in performerGraphData.data" :key="vend.id">
-                                                    <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                                                    <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                                                         {{ vendIndex + 1 }}
                                                     </td>
-                                                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-600">
+                                                    <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600">
                                                         <span v-if="vend.customer">
                                                             {{ vend.customer.code }} <br>
                                                             {{ vend.customer.name }}
@@ -73,10 +74,10 @@
                                                             {{ vend.name }}
                                                         </span>
                                                     </td>
-                                                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500 text-right mx-3">
+                                                    <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-500 text-right mx-3">
                                                         {{ vend.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                                                     </td>
-                                                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500 text-right mx-3">
+                                                    <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-500 text-right mx-3">
                                                         {{ vend.count }}
                                                     </td>
                                                 </tr>
@@ -93,6 +94,18 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="pt-5">
+                            <Graph
+                                key="monthGraphData"
+                                type="scatter"
+                                :labels="monthGraphLabels"
+                                :datasets="monthGraphDatasets"
+                                :options="monthGraphOptions"
+                            >
+                            </Graph>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -107,6 +120,7 @@
 
     const props = defineProps({
         dayGraphData: Object,
+        monthGraphData: Object,
         productGraphData: Object,
         performerGraphData: Object,
     });
@@ -119,7 +133,7 @@
     const componentKey = ref(0);
 
     const operator = usePage().props.auth.operator
-        const forceRerender = () => {
+    const forceRerender = () => {
         componentKey.value += 1;
     };
 
@@ -142,6 +156,7 @@
                     text: 'Sales($)'
                 },
                 beginAtZero: true
+
             },
             y1: {
                 position: 'right',
@@ -151,16 +166,52 @@
                 },
                 beginAtZero: true
             },
-            yAxes: [
-                {
-
-                }
-            ]
         },
         plugins: {
             title: {
                 display: true,
                 text: 'Sales by Days (' + operator.name + ')'
+            },
+            legend: {
+                reverse: true,
+            }
+        }
+    })
+
+    const monthGraphData = ref([]);
+    const monthGraphDatasets = ref([])
+    const monthGraphLabels = ref([])
+    const monthGraphOptions = ref({
+        scales: {
+            x: {
+                ticks: {
+                    min: 1,  // Minimum value on the x-axis
+                    max: 12, // Maximum value on the x-axis
+                    stepSize: 1 // Increment between ticks
+                }
+            },
+            y: {
+                position: 'left',
+                title: {
+                    display: true,
+                    text: 'Sales($)'
+                },
+                beginAtZero: true
+
+            },
+            y1: {
+                position: 'right',
+                title: {
+                    display: true,
+                    text: 'Sales(#)'
+                },
+                beginAtZero: true
+            },
+        },
+        plugins: {
+            title: {
+                display: true,
+                text: 'Sales by Months (' + operator.name + ')'
             },
             legend: {
                 reverse: true,
@@ -187,9 +238,6 @@
 
 
     onBeforeMount(() => {
-
-        dayGraphData.value = JSON.parse(JSON.stringify(props.dayGraphData))
-        let months = []
         let colors = ['#3e95cd', '#ff7f7f', '#007500', '#808080', '#c45850']
         let generalColors = [
             '#37a2eb',
@@ -200,6 +248,8 @@
             '#ffcd56',
             '#c9cbcf'
         ]
+        dayGraphData.value = JSON.parse(JSON.stringify(props.dayGraphData))
+        let months = []
         months = _.groupBy(JSON.parse(JSON.stringify(props.dayGraphData)).data, 'month_name')
         Object.keys(months).forEach((month, monthIndex) => {
             dayGraphDatasets.value.push({
@@ -224,6 +274,34 @@
         })
         for(let i = 1; i <= 31; i++) {
             dayGraphLabels.value.push(i)
+        }
+
+        monthGraphData.value = JSON.parse(JSON.stringify(props.monthGraphData))
+        let years = []
+        years = JSON.parse(JSON.stringify(props.monthGraphData))
+        Object.keys(years).forEach((month, monthIndex) => {
+            monthGraphDatasets.value.push({
+                label: month + ' (#)',
+                data: Object.values(years[month]).map((data) => {return data.count}),
+                backgroundColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex + 2], 0.2) : hexToRGBA(colors[monthIndex + 2], 0.9),
+                borderColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex + 2], 0.2) : hexToRGBA(colors[monthIndex + 2], 0.9),
+                yAxisID: 'y1',
+                type: 'line',
+                order: 1,
+            })
+            monthGraphDatasets.value.push({
+                label: month + ' ($)',
+                data: Object.values(years[month]).map((data) => {return data.amount}),
+                backgroundColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex], 0.2) : hexToRGBA(colors[monthIndex], 1),
+                borderColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex], 0.2) : hexToRGBA(colors[monthIndex], 1),
+                fill: false,
+                yAxisID: 'y',
+                type: 'bar',
+                order: 2,
+            })
+        })
+        for(let i = 1; i <= 12; i++) {
+            monthGraphLabels.value.push(i)
         }
 
         productGraphData.value = JSON.parse(JSON.stringify(props.productGraphData))

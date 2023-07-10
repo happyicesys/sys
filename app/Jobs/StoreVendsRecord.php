@@ -85,9 +85,9 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COUNT(
                         CASE
-                            WHEN error_code_normalized = 0 THEN 0
-                            WHEN error_code_normalized = 6 THEN 0
-                            ELSE vend_transactions.id
+                            WHEN error_code_normalized = 0 THEN NULL
+                            WHEN error_code_normalized = 6 THEN NULL
+                            ELSE 1
                         END
                     ) as failure_count'
                 )

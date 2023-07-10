@@ -25,6 +25,7 @@ class VendTransactionGraphResource extends JsonResource
             'product' => ProductResource::make($this->whenLoaded('product')),
             'product_id' => isset($this->product_id) ? $this->product_id : null,
             'vend' => VendResource::make($this->whenLoaded('vend')),
+            'year' => $this->year,
         ];
     }
 }

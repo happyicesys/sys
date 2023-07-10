@@ -104,24 +104,54 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
+        // 2 years
+        $lastYear = $today->copy()->subYear()->startOfYear();
+        $thisYear = $today->copy()->endOfYear()->endOfDay();
+        $monthsArrInit = [];
+        $yearsArrInit = [
+            $lastYear->copy()->year,
+            $thisYear->copy()->year,
+        ];
+        foreach($yearsArrInit as $year) {
+            for($i = 1; $i <= 12; $i++) {
+
+                if($today->copy()->year == $year && $i > $today->copy()->month) {
+                    continue;
+                }
+
+                $monthsArrInit[$year][$i] = [
+                    'month' => $i,
+                    'month_name' => Carbon::createFromDate($year, $i, 1)->format('F'),
+                    'year' => $year,
+                    'amount' => 0,
+                    'count' => 0,
+                ];
+            }
+        }
+
         $monthGraph = VendRecord::query()
-            ->where('date' , '>=', $today->copy()->subYear()->startOfYear()->startOfDay())
-            ->where('date', '<=', $today->copy()->endOfYear()->endOfDay())
+            ->where('date' , '>=', $lastYear->copy()->startOfDay())
+            ->where('date', '<=', $thisYear->copy()->endOfDay())
             ->filterIndex($request)
             ->groupBy('year', 'month')
             ->select(
                 DB::raw('month'),
                 DB::raw('monthname AS month_name'),
+                DB::raw('year'),
                 DB::raw('SUM(total_amount) as amount'),
                 DB::raw('SUM(total_count) as count'),
             )
+            ->orderBy('month', 'asc')
             ->get();
 
-        // dd($monthGraph->toArray());
+        foreach($monthGraph as $month) {
+            $monthsArrInit[$month->year][$month->month]['amount'] = $month->amount/ 100;
+            $monthsArrInit[$month->year][$month->month]['count'] = $month->count;
+        }
 
         return Inertia::render('Dashboard', [
             'dayGraphData' => VendTransactionGraphResource::collection($dayGraph),
-            'monthGraphData' => VendTransactionGraphResource::collection($monthGraph),
+            'monthGraphData' => collect($monthsArrInit),
             'productGraphData' => VendTransactionGraphResource::collection($productGraph),
             'performerGraphData' => VendTransactionGraphResource::collection($bestPerformer),
         ]);
