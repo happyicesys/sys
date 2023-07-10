@@ -141,9 +141,7 @@
                     display: true,
                     text: 'Sales($)'
                 },
-                ticks: {
-                    beginAtZero: true
-                }
+                beginAtZero: true
             },
             y1: {
                 position: 'right',
@@ -151,10 +149,13 @@
                     display: true,
                     text: 'Sales(#)'
                 },
-                ticks: {
-                    beginAtZero: true
-                }
+                beginAtZero: true
             },
+            yAxes: [
+                {
+
+                }
+            ]
         },
         plugins: {
             title: {

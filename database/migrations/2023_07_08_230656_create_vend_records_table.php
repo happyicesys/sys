@@ -13,6 +13,19 @@ return new class extends Migration
     {
         Schema::create('vend_records', function (Blueprint $table) {
             $table->id();
+            $table->bigInteger('customer_id')->nullable()->index();
+            $table->datetime('date')->index();
+            $table->integer('day');
+            $table->integer('failure_amount')->default(0);
+            $table->integer('failure_count')->default(0);
+            $table->integer('month');
+            $table->string('monthname')->nullable();
+            $table->bigInteger('operator_id')->nullable()->index();
+            $table->integer('total_amount')->default(0);
+            $table->integer('total_count')->default(0);
+            $table->integer('vend_code');
+            $table->bigInteger('vend_id')->index();
+            $table->integer('year');
             $table->timestamps();
         });
     }
