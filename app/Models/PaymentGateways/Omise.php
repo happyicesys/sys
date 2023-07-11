@@ -60,7 +60,6 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         if ($response->successful()) {
             return $response->json();
         }
-        return 'Source creation failed: ' . $response->body();
         throw new \Exception('Source creation failed: ' . $response->body());
     }
 
@@ -80,7 +79,6 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         if($response->successful()) {
             return $response->json();
         }
-        return 'Charge creation failed: ' . $response->body();
         throw new \Exception('Charge creation failed: ' . $response->body());
     }
 
@@ -111,7 +109,6 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         if ($response->successful()) {
             return $response->json();
         }
-        return 'Refund creation failed: ' . $response->body();
         throw new \Exception('Refund creation failed: ' . $response->body());
     }
 
