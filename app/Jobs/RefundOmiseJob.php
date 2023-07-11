@@ -48,6 +48,8 @@ class RefundOmiseJob implements ShouldQueue
 
         $paymentGatewayLog->update([
             'status' => PaymentGatewayLog::STATUS_REFUND,
+            'response' => $response,
+            'history_json' => $paymentGatewayLog->history_json ? array_merge($paymentGatewayLog->history_json, $response) : $response,
         ]);
     }
 }

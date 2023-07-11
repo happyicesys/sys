@@ -106,12 +106,6 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
             ]);
 
         if ($response->successful()) {
-            $paymentGatewayLog = PaymentGatewayLog::where('order_id', $params['metadata']['order_id'])->first();
-            $paymentGatewayLog->update([
-                'response' => $response->json(),
-                'history_json' => $paymentGatewayLog->history_json ? array_merge($paymentGatewayLog->history_json, $response->json()) : $response->json(),
-            ]);
-
             return $response->json();
         }
 
