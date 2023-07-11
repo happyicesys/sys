@@ -15,11 +15,11 @@
             <div class="max-w-7xl mx-auto sm:px-3 lg:px-2">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-4">
-                        <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-200 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-200 px-4 py-3 md:px-4 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                         @click="showFilters = true"
                         v-if="!showFilters"
                         >
-                            <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
+                            <ChevronDoubleDownIcon class="h-4 w-4" aria-hidden="true"/>
                             <span>
                                 Show Filters
                             </span>
@@ -33,12 +33,6 @@
                                 ("," for multiple)
                             </span>
                         </SearchInput>
-                        <!-- <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
-                            Cust ID
-                        </SearchInput>
-                        <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
-                            Cust Name
-                        </SearchInput> -->
                         <div v-if="permissions.includes('admin-access vends')">
                             <label for="text" class="block text-sm font-medium text-gray-700">
                                 Category
@@ -73,22 +67,6 @@
                             >
                             </MultiSelect>
                         </div>
-                        <!-- <div v-if="permissions.includes('admin-access vends')">
-                            <label for="text" class="block text-sm font-medium text-gray-700">
-                                Customer Binded?
-                            </label>
-                            <MultiSelect
-                                v-model="filters.is_binded_customer"
-                                :options="booleanOptions"
-                                trackBy="id"
-                                valueProp="id"
-                                label="value"
-                                placeholder="Select"
-                                open-direction="bottom"
-                                class="mt-1"
-                            >
-                            </MultiSelect>
-                        </div> -->
                         <div v-if="permissions.includes('admin-access vends')">
                             <label for="text" class="block text-sm font-medium text-gray-700">
                                 Operator
@@ -145,7 +123,7 @@
                                 <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                                 @click="showFilters = false"
                                 >
-                                    <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
+                                    <ChevronDoubleUpIcon class="h-4 w-4" aria-hidden="true"/>
                                     <span>
                                         Hide Filters
                                     </span>
@@ -254,7 +232,9 @@
     </BreezeAuthenticatedLayout>
 </template>
 <script setup>
+    import { ChevronDoubleDownIcon, ChevronDoubleUpIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon} from '@heroicons/vue/20/solid';
     import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+    import Button from '@/Components/Button.vue';
     import Graph from '@/Components/Graph.vue';
     import MultiSelect from '@/Components/MultiSelect.vue';
     import SearchInput from '@/Components/SearchInput.vue';

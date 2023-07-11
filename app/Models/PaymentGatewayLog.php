@@ -16,6 +16,7 @@ class PaymentGatewayLog extends Model
 
     protected $fillable = [
         'amount',
+        'error_json',
         'history_json',
         'request',
         'response',
@@ -26,6 +27,7 @@ class PaymentGatewayLog extends Model
         'operator_payment_gateway_id',
         'payment_gateway_id',
         'ref_id',
+        'request_history_json',
         'status',
         'vend_channel_code',
         'vend_channel_id',
@@ -35,7 +37,9 @@ class PaymentGatewayLog extends Model
 
     protected $casts = [
         'history_json' => 'json',
+        'error_json' => 'json',
         'request' => 'json',
+        'request_history_json' => 'json',
         'response' => 'json',
     ];
 

@@ -7,6 +7,7 @@ use App\Interfaces\PaymentGateway AS PaymentGatewayInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class Omise extends PaymentGateway implements PaymentGatewayInterface
 {
@@ -59,7 +60,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         if ($response->successful()) {
             return $response->json();
         }
-
+        return 'Source creation failed: ' . $response->body();
         throw new \Exception('Source creation failed: ' . $response->body());
     }
 
@@ -79,6 +80,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         if($response->successful()) {
             return $response->json();
         }
+        return 'Charge creation failed: ' . $response->body();
         throw new \Exception('Charge creation failed: ' . $response->body());
     }
 
@@ -99,6 +101,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
 
     public function refundCharge($params = [], $chargeId)
     {
+        Log::info('Refund params: ' . 'amount = '.$params['amount'] * self::AMOUNT_MULTIPLIER. ', orderId = '.$params['metadata']['order_id']);
         $response = Http::withHeaders($this->getHeaders($this->secretKey))
             ->post('https://api.omise.co/charges/' . $chargeId . '/refunds', [
                 'amount' => $params['amount'] * self::AMOUNT_MULTIPLIER,
@@ -108,7 +111,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         if ($response->successful()) {
             return $response->json();
         }
-
+        return 'Refund creation failed: ' . $response->body();
         throw new \Exception('Refund creation failed: ' . $response->body());
     }
 
