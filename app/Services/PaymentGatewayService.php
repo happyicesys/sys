@@ -38,6 +38,7 @@ class PaymentGatewayService
 
   public function createPaymentQrText(Vend $vend, $params)
   {
+    $curedAmount = 0;
     $qrCodeText = '';
     $qrCodeUrl = '';
     $errorMsg = '';
@@ -60,6 +61,7 @@ class PaymentGatewayService
             }
             $isResizeImage = true;
             $isRequiredDecode = true;
+            $curedAmount = $params['amount'] * Midtrans::AMOUNT_MULTIPLIER;
             break;
         case 'omise':
             if((isset($response['source']['flow']) and $response['source']['flow'] == 'offline' and isset($response['source']['scannable_code']['image']['download_uri'])) or (isset($response['source']['flow']) and $response['source']['flow'] == 'redirect' and isset($response['authorize_uri']))) {
@@ -76,6 +78,7 @@ class PaymentGatewayService
                 $errorMsg .= 'Error: ';
                 $errorMsg .= $response['code'].' '.$response['message'];
             }
+            $curedAmount = $params['amount'] * Omise::AMOUNT_MULTIPLIER;
             break;
     }
 
@@ -116,7 +119,7 @@ class PaymentGatewayService
           'response' => $response,
           'history_json' => $response,
           'order_id' => $params['metadata']['order_id'],
-          'amount' => $params['amount'],
+          'amount' => $curedAmount,
           'qr_url' => $qrCodeUrl,
           'qr_text' => $qrCodeText,
           'operator_payment_gateway_id' => $operatorPaymentGateway->id,
