@@ -11,10 +11,151 @@
             </div>
         </template>
 
-
         <div class="p-3">
             <div class="max-w-7xl mx-auto sm:px-3 lg:px-2">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div class="p-4">
+                        <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-200 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        @click="showFilters = true"
+                        v-if="!showFilters"
+                        >
+                            <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
+                            <span>
+                                Show Filters
+                            </span>
+                        </Button> -->
+                    </div>
+                    <div class="p-4 mx-2" v-if="showFilters">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+                        <SearchInput placeholderStr="Vend ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+                            Vend ID
+                            <span class="text-[9px]">
+                                ("," for multiple)
+                            </span>
+                        </SearchInput>
+                        <!-- <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+                            Cust ID
+                        </SearchInput>
+                        <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+                            Cust Name
+                        </SearchInput> -->
+                        <div v-if="permissions.includes('admin-access vends')">
+                            <label for="text" class="block text-sm font-medium text-gray-700">
+                                Category
+                            </label>
+                            <MultiSelect
+                                v-model="filters.categories"
+                                :options="categoryOptions"
+                                trackBy="id"
+                                valueProp="id"
+                                label="name"
+                                mode="tags"
+                                placeholder="Select"
+                                open-direction="bottom"
+                                class="mt-1"
+                            >
+                            </MultiSelect>
+                        </div>
+                        <div v-if="permissions.includes('admin-access vends')">
+                            <label for="text" class="block text-sm font-medium text-gray-700">
+                                Group
+                            </label>
+                            <MultiSelect
+                                v-model="filters.categoryGroups"
+                                :options="categoryGroupOptions"
+                                trackBy="id"
+                                valueProp="id"
+                                label="name"
+                                mode="tags"
+                                placeholder="Select"
+                                open-direction="bottom"
+                                class="mt-1"
+                            >
+                            </MultiSelect>
+                        </div>
+                        <!-- <div v-if="permissions.includes('admin-access vends')">
+                            <label for="text" class="block text-sm font-medium text-gray-700">
+                                Customer Binded?
+                            </label>
+                            <MultiSelect
+                                v-model="filters.is_binded_customer"
+                                :options="booleanOptions"
+                                trackBy="id"
+                                valueProp="id"
+                                label="value"
+                                placeholder="Select"
+                                open-direction="bottom"
+                                class="mt-1"
+                            >
+                            </MultiSelect>
+                        </div> -->
+                        <div v-if="permissions.includes('admin-access vends')">
+                            <label for="text" class="block text-sm font-medium text-gray-700">
+                                Operator
+                            </label>
+                            <MultiSelect
+                                v-model="filters.operator"
+                                :options="operatorOptions"
+                                trackBy="id"
+                                valueProp="id"
+                                label="full_name"
+                                placeholder="Select"
+                                open-direction="bottom"
+                                class="mt-1"
+                            >
+                            </MultiSelect>
+                        </div>
+                        <div>
+                            <label for="text" class="block text-sm font-medium text-gray-700">
+                                Location Type
+                            </label>
+                            <MultiSelect
+                                v-model="filters.locationType"
+                                :options="locationTypeOptions"
+                                trackBy="id"
+                                valueProp="id"
+                                label="value"
+                                placeholder="Select"
+                                open-direction="bottom"
+                                class="mt-1"
+                            >
+                            </MultiSelect>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
+                        <div class="mt-3">
+                            <div class="flex space-x-1">
+                                <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                @click="onSearchFilterUpdated()"
+                                >
+                                    <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
+                                    <span>
+                                        Search
+                                    </span>
+                                </Button>
+                                <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                @click="resetFilters()"
+                                >
+                                    <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
+                                    <span>
+                                        Reset
+                                    </span>
+                                </Button>
+                                <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                @click="showFilters = false"
+                                >
+                                    <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
+                                    <span>
+                                        Hide Filters
+                                    </span>
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+
+
                     <div class="p-1 bg-white border-b border-gray-200 flex flex-col space-y-6">
                         <Graph
                             key="dayGraphData"
@@ -115,6 +256,8 @@
 <script setup>
     import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
     import Graph from '@/Components/Graph.vue';
+    import MultiSelect from '@/Components/MultiSelect.vue';
+    import SearchInput from '@/Components/SearchInput.vue';
     import { ref, onBeforeMount, watch } from 'vue';
     import { Head, router, usePage } from '@inertiajs/vue3';
 
@@ -124,18 +267,17 @@
         productGraphData: Object,
         performerGraphData: Object,
     });
-
     const filters = ref({
         day_date_from: '',
         day_date_to: '',
     })
-
     const componentKey = ref(0);
-
-    const operator = usePage().props.auth.operator
     const forceRerender = () => {
         componentKey.value += 1;
     };
+    const operator = usePage().props.auth.operator
+    const permissions = usePage().props.auth.permissions
+    const showFilters = ref(false)
 
     const dayGraphData = ref([]);
     const dayGraphDatasets = ref([])
