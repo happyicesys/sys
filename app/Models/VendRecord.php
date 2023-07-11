@@ -63,8 +63,8 @@ class VendRecord extends Model
             }else {
                 $search = [$search];
             }
-            $query->whereHas('vend', function($query) use ($search) {
-                $query->whereIn('code', $search);
+            $query->whereIn('vend_id', function($query) use ($search) {
+                $query->select('id')->from('vends')->whereIn('code', $search);
             });
         })
         ->when($request->is_binded_customer, function($query, $search) {
@@ -77,14 +77,19 @@ class VendRecord extends Model
             }
         })
         ->when($request->categories, function($query, $search) {
-            $query->whereHas('customer.category', function($query) use ($search) {
-                $query->whereIn('id', $search);
+            $query->whereIn('customer_id', function($query) use ($search) {
+                $query->select('id')->from('customers')->whereIn('category_id', $search);
             });
         })
         ->when($request->categoryGroups, function($query, $search) {
-            $query->whereHas('customer.category.categoryGroup', function($query) use ($search) {
-                $query->whereIn('id', $search);
+            $query->whereIn('customer_id', function($query) use ($search) {
+                $query->select('id')->from('customers')->whereIn('category_id', function($query) use ($search) {
+                    $query->select('id')->from('categories')->whereIn('category_group_id', $search);
+                });
             });
+            // $query->whereHas('customer.category.categoryGroup', function($query) use ($search) {
+            //     $query->whereIn('id', $search);
+            // });
         })
         ->when($request->customer_code, function($query, $search) {
             $query->whereHas('customer', function($query) use ($search) {
@@ -102,8 +107,8 @@ class VendRecord extends Model
         })
         ->when($request->location_type_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereHas('customer', function($query) use ($search) {
-                    $query->where('location_type_id', $search);
+                $query->whereIn('customer_id', function($query) use ($search) {
+                    $query->select('id')->from('customers')->where('location_type_id', $search);
                 });
             }
         })

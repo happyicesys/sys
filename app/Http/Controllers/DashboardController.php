@@ -2,7 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\OptionResource;
 use App\Http\Resources\VendTransactionGraphResource;
+use App\Models\Category;
+use App\Models\CategoryGroup;
+use App\Models\Customer;
+use App\Models\LocationType;
+use App\Models\Operator;
 use App\Models\VendRecord;
 use App\Models\VendTransaction;
 use App\Traits\GetUserTimezone;
@@ -19,7 +25,7 @@ class DashboardController extends Controller
     {
         $request->merge(['is_binded_customer' => isset($request->is_binded_customer) ? $request->is_binded_customer : true]);
         $request->merge(['operator_id' => isset($request->operator_id) ? $request->operator_id : auth()->user()->operator->id]);
-
+        $className = get_class(new Customer());
         $day_date_from = Carbon::today()->setTimezone($this->getUserTimezone())->startOfMonth();
         $day_date_to = Carbon::today()->setTimezone($this->getUserTimezone())->endOfMonth();
         if($request->day_date_from) {
@@ -150,8 +156,20 @@ class DashboardController extends Controller
         }
 
         return Inertia::render('Dashboard', [
+            'categories' => OptionResource::collection(
+                Category::toBase()->where('classname', $className)->select('id', 'name')->orderBy('name')->get()
+            ),
+            'categoryGroups' => OptionResource::collection(
+                CategoryGroup::toBase()->where('classname', $className)->select('id', 'name')->orderBy('name')->get()
+            ),
             'dayGraphData' => VendTransactionGraphResource::collection($dayGraph),
+            'locationTypeOptions' => OptionResource::collection(
+                LocationType::toBase()->select('id', 'name')->orderBy('sequence')->get()
+            ),
             'monthGraphData' => collect($monthsArrInit),
+            'operatorOptions' => OptionResource::collection(
+                Operator::toBase()->select('id', 'code', 'name')->orderBy('name')->get()
+            ),
             'productGraphData' => VendTransactionGraphResource::collection($productGraph),
             'performerGraphData' => VendTransactionGraphResource::collection($bestPerformer),
         ]);

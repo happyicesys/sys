@@ -15,15 +15,15 @@
             <div class="max-w-7xl mx-auto sm:px-3 lg:px-2">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-4">
-                        <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-200 px-4 py-3 md:px-4 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-200 px-4 py-3 md:px-4 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                         @click="showFilters = true"
-                        v-if="!showFilters"
+                        v-if="!showFilters && permissions.includes('admin-access vends')"
                         >
                             <ChevronDoubleDownIcon class="h-4 w-4" aria-hidden="true"/>
                             <span>
                                 Show Filters
                             </span>
-                        </Button> -->
+                        </Button>
                     </div>
                     <div class="p-4 mx-2" v-if="showFilters">
                     <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
@@ -76,7 +76,7 @@
                                 :options="operatorOptions"
                                 trackBy="id"
                                 valueProp="id"
-                                label="full_name"
+                                label="name"
                                 placeholder="Select"
                                 open-direction="bottom"
                                 class="mt-1"
@@ -92,7 +92,7 @@
                                 :options="locationTypeOptions"
                                 trackBy="id"
                                 valueProp="id"
-                                label="value"
+                                label="name"
                                 placeholder="Select"
                                 open-direction="bottom"
                                 class="mt-1"
@@ -105,7 +105,7 @@
                         <div class="mt-3">
                             <div class="flex space-x-1">
                                 <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                                @click="onSearchFilterUpdated()"
+                                @click.prevent="onSearchFilterUpdated()"
                                 >
                                     <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                                     <span>
@@ -135,8 +135,11 @@
 
 
                     <div class="p-1 bg-white border-b border-gray-200 flex flex-col space-y-6">
+                        <p class="text-center p-2">
+                            {{ (filters && filters.operator ? filters.operator.name : operator.name)  }}
+                        </p>
                         <Graph
-                            key="dayGraphData"
+                            :key="componentKey1"
                             type="scatter"
                             :labels="dayGraphLabels"
                             :datasets="dayGraphDatasets"
@@ -147,7 +150,7 @@
                         <div class="flex flex-col md:flex-row pt-5">
                             <div class="md:basis-1/3 m-1">
                                 <Graph
-                                    key="productGraphData"
+                                    :key="componentKey2"
                                     type="pie"
                                     :labels="productGraphLabels"
                                     :datasets="productGraphDatasets"
@@ -216,7 +219,7 @@
 
                         <div class="pt-5">
                             <Graph
-                                key="monthGraphData"
+                                :key="componentKey3"
                                 type="scatter"
                                 :labels="monthGraphLabels"
                                 :datasets="monthGraphDatasets"
@@ -242,20 +245,41 @@
     import { Head, router, usePage } from '@inertiajs/vue3';
 
     const props = defineProps({
+        categories: Object,
+        categoryGroups: Object,
         dayGraphData: Object,
+        locationTypeOptions: Object,
         monthGraphData: Object,
+        operatorOptions: Object,
         productGraphData: Object,
         performerGraphData: Object,
     });
     const filters = ref({
+        categories: [],
+        categoryGroups: [],
+        codes: '',
         day_date_from: '',
         day_date_to: '',
+        locationType: '',
+        operator: '',
     })
-    const componentKey = ref(0);
-    const forceRerender = () => {
-        componentKey.value += 1;
+    const categoryOptions = ref([])
+    const categoryGroupOptions = ref([])
+    const componentKey1 = ref(0);
+    const componentKey2 = ref(0);
+    const componentKey3 = ref(0);
+    const forceRerender1 = () => {
+        componentKey1.value += 1;
     };
+    const forceRerender2 = () => {
+        componentKey2.value += 1;
+    };
+    const forceRerender3 = () => {
+        componentKey3.value += 1;
+    };
+    const locationTypeOptions = ref([])
     const operator = usePage().props.auth.operator
+    const operatorOptions = ref([])
     const permissions = usePage().props.auth.permissions
     const showFilters = ref(false)
 
@@ -292,7 +316,7 @@
         plugins: {
             title: {
                 display: true,
-                text: 'Sales by Days (' + operator.name + ')'
+                text: 'Sales by Days'
             },
             legend: {
                 reverse: true,
@@ -333,7 +357,7 @@
         plugins: {
             title: {
                 display: true,
-                text: 'Sales by Months (' + operator.name + ')'
+                text: 'Sales by Months'
             },
             legend: {
                 reverse: true,
@@ -351,7 +375,7 @@
             },
             title: {
                 display: true,
-                text: 'Past 7 Days - 10 Best Sellers (' + operator.name + ')'
+                text: 'Past 7 Days - 10 Best Sellers'
             },
         }
     })
@@ -360,6 +384,72 @@
 
 
     onBeforeMount(() => {
+        categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
+        categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
+        locationTypeOptions.value = [
+            {id: 'all', name: 'All'},
+            ...props.locationTypeOptions.data.map((data) => {return {id: data.id, name: data.name}})
+        ]
+        operatorOptions.value = [
+            {id: 'all', name: 'All'},
+            ...props.operatorOptions.data.map((data) => {return {id: data.id, name: data.name}})
+        ]
+        filters.value.locationType = locationTypeOptions.value[0]
+        filters.value.operator = operatorOptions.value.find(data =>  data.id == operator.id)
+        syncDashboardData()
+    })
+
+    function hexToRGBA(hex, alpha) {
+        var r = parseInt(hex.slice(1, 3), 16);
+        var g = parseInt(hex.slice(3, 5), 16);
+        var b = parseInt(hex.slice(5, 7), 16);
+
+        return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+    }
+
+    function onSearchFilterUpdated() {
+        router.visit(
+            route('dashboard', {
+                ...filters.value,
+                categories: filters.value.categories.map((category) => { return category.id }),
+                categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
+                location_type_id: filters.value.locationType.id,
+                operator_id: filters.value.operator.id,
+            }),{
+                only: ['dayGraphData', 'monthGraphData', 'productGraphData', 'performerGraphData'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onSuccess: (page) => {
+                    router.reload({
+                        only: ['dayGraphData', 'monthGraphData', 'productGraphData', 'performerGraphData'],
+                        preserveState: true,
+                        preserveScroll: true,
+                    })
+                    syncDashboardData()
+                },
+            }
+        );
+    }
+
+    function resetFilters() {
+        router.get('/dashboard', {}, {
+            preserveState: false,
+            preserveScroll: true,
+        })
+    }
+
+    function syncDashboardData () {
+        dayGraphData.value = []
+        dayGraphDatasets.value = []
+        dayGraphLabels.value = []
+        monthGraphData.value = []
+        monthGraphDatasets.value = []
+        monthGraphLabels.value = []
+        productGraphData.value = []
+        productGraphDatasets.value = []
+        productGraphLabels.value = []
+
         let colors = ['#3e95cd', '#ff7f7f', '#007500', '#808080', '#c45850']
         let generalColors = [
             '#37a2eb',
@@ -432,18 +522,13 @@
             data: productGraphData.value.data.map((data) => {return data.count}),
             backgroundColor: generalColors,
         })
-        productGraphLabels.value = productGraphData.value.data.map((data) => {return data.product.code + ' - ' + data.product.name})
+        productGraphLabels.value = productGraphData.value.data.map((data) => {return data.product ? data.product.code + ' - ' + data.product.name : null})
 
         performerGraphData.value = JSON.parse(JSON.stringify(props.performerGraphData))
 
-    })
-
-    function hexToRGBA(hex, alpha) {
-        var r = parseInt(hex.slice(1, 3), 16);
-        var g = parseInt(hex.slice(3, 5), 16);
-        var b = parseInt(hex.slice(5, 7), 16);
-
-        return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+        forceRerender1()
+        forceRerender2()
+        forceRerender3()
     }
 
 </script>
