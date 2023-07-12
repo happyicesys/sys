@@ -33,6 +33,12 @@
                                 ("," for multiple)
                             </span>
                         </SearchInput>
+                        <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" @keyup.enter="onSearchFilterUpdated()">
+                            Cust ID
+                        </SearchInput>
+                        <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" @keyup.enter="onSearchFilterUpdated()">
+                            Cust Name
+                        </SearchInput>
                         <div v-if="permissions.includes('admin-access vends')">
                             <label for="text" class="block text-sm font-medium text-gray-700">
                                 Category
@@ -40,23 +46,6 @@
                             <MultiSelect
                                 v-model="filters.categories"
                                 :options="categoryOptions"
-                                trackBy="id"
-                                valueProp="id"
-                                label="name"
-                                mode="tags"
-                                placeholder="Select"
-                                open-direction="bottom"
-                                class="mt-1"
-                            >
-                            </MultiSelect>
-                        </div>
-                        <div v-if="permissions.includes('admin-access vends')">
-                            <label for="text" class="block text-sm font-medium text-gray-700">
-                                Group
-                            </label>
-                            <MultiSelect
-                                v-model="filters.categoryGroups"
-                                :options="categoryGroupOptions"
                                 trackBy="id"
                                 valueProp="id"
                                 label="name"
@@ -258,6 +247,8 @@
         categories: [],
         categoryGroups: [],
         codes: '',
+        customer_code: '',
+        customer_name: '',
         day_date_from: '',
         day_date_to: '',
         locationType: '',

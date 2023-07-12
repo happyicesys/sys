@@ -92,18 +92,29 @@ class VendRecord extends Model
             // });
         })
         ->when($request->customer_code, function($query, $search) {
-            $query->whereHas('customer', function($query) use ($search) {
-                $query->where('code', 'LIKE', "{$search}%");
+            // $query->whereHas('customer', function($query) use ($search) {
+            //     $query->where('code', 'LIKE', "{$search}%");
+            // });
+            $query->whereIn('customer_id', function($query) use ($search) {
+                $query->select('id')->from('customers')->where('code', 'LIKE', "%{$search}%");
             });
         })
         ->when($request->customer_name, function($query, $search) {
-            $query
-                ->whereHas('customer', function($query) use ($search) {
-                    $query->where('name', 'LIKE', "{$search}%");
-                })
-                ->orWhereHas('vend', function($query) use ($search) {
-                    $query->where('name', 'LIKE', "{$search}%");
+            // $query
+            //     ->whereHas('customer', function($query) use ($search) {
+            //         $query->where('name', 'LIKE', "{$search}%");
+            //     })
+            //     ->orWhereHas('vend', function($query) use ($search) {
+            //         $query->where('name', 'LIKE', "{$search}%");
+            //     });
+            $query->where(function($query) use ($search) {
+                $query->whereIn('customer_id', function($query) use ($search) {
+                    $query->select('id')->from('customers')->where('name', 'LIKE', "{$search}%");
                 });
+                $query->orWhereIn('vend_id', function($query) use ($search) {
+                    $query->select('id')->from('vends')->where('name', 'LIKE', "{$search}%");
+                });
+            });
         })
         ->when($request->location_type_id, function($query, $search) {
             if($search != 'all') {
