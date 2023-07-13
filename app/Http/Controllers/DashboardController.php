@@ -9,6 +9,7 @@ use App\Models\CategoryGroup;
 use App\Models\Customer;
 use App\Models\LocationType;
 use App\Models\Operator;
+use App\Models\Vend;
 use App\Models\VendRecord;
 use App\Models\VendTransaction;
 use App\Traits\GetUserTimezone;
@@ -110,6 +111,11 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
+        $vendCount = Vend::query()
+        ->filterIndex($request)
+        ->count();
+        // dd($vendCount);
+
         // 2 years
         $lastYear = $today->copy()->subYear()->startOfYear();
         $thisYear = $today->copy()->endOfYear()->endOfDay();
@@ -172,6 +178,7 @@ class DashboardController extends Controller
             ),
             'productGraphData' => VendTransactionGraphResource::collection($productGraph),
             'performerGraphData' => VendTransactionGraphResource::collection($bestPerformer),
+            'vendCount' => $vendCount,
         ]);
     }
 }

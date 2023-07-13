@@ -147,8 +147,13 @@
                                 ></Graph>
                             </div>
                             <div class="md:basis-2/3 my-1 mx-4 px-4">
-                                <p class="text-sm">
-                                    Past 7 Days - Top 10 Best Performance
+                                <p class="text-sm flex justify-between">
+                                    <div>
+                                        Past 7 Days - Top 10 Best Performance
+                                    </div>
+                                    <div>
+                                        Based on {{ vendCount }} active machine(s)
+                                    </div>
                                 </p>
                                 <div class="mt-2 flow-root">
                                     <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
@@ -242,6 +247,7 @@
         operatorOptions: Object,
         productGraphData: Object,
         performerGraphData: Object,
+        vendCount: Number,
     });
     const filters = ref({
         categories: [],
@@ -407,13 +413,13 @@
                 location_type_id: filters.value.locationType.id,
                 operator_id: filters.value.operator.id,
             }),{
-                only: ['dayGraphData', 'monthGraphData', 'productGraphData', 'performerGraphData'],
+                only: ['dayGraphData', 'monthGraphData', 'productGraphData', 'performerGraphData', 'vendCount'],
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
                 onSuccess: (page) => {
                     router.reload({
-                        only: ['dayGraphData', 'monthGraphData', 'productGraphData', 'performerGraphData'],
+                        only: ['dayGraphData', 'monthGraphData', 'productGraphData', 'performerGraphData', 'vendCount'],
                         preserveState: true,
                         preserveScroll: true,
                     })
