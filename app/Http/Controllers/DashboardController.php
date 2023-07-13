@@ -111,11 +111,14 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
-        $vendCount = Vend::query()
-        ->filterIndex($request)
-        ->has('latestVendBinding')
-        ->count();
-        // dd($vendCount);
+        // $vendCount = Vend::query()
+        // ->filterIndex($request)
+        // ->has('latestVendBinding')
+        // ->count();
+        $vendCount = VendRecord::query()
+            ->filterIndex($request)
+            ->whereDate('date', '=', $today->copy()->subDay())
+            ->count();
 
         // 2 years
         $lastYear = $today->copy()->subYear()->startOfYear();
@@ -162,7 +165,53 @@ class DashboardController extends Controller
             $monthsArrInit[$month->year][$month->month]['count'] = $month->count;
         }
 
+        // 2 years
+        $activeYears = [
+            $lastYear->copy()->year,
+            $thisYear->copy()->year,
+        ];
+        $activeMonths = [];
+        $activeMachineGraph = VendRecord::query()
+            ->where('date' , '>=', $lastYear->copy()->startOfDay())
+            ->where('date', '<=', $thisYear->copy()->endOfDay())
+            ->whereIn('date', function($query) {
+                $query->select(DB::raw('MAX(date)'))
+                    ->from('vend_records')
+                    ->groupBy('year', 'month');
+            })
+            ->filterIndex($request)
+            ->select(
+                'date',
+                'month',
+                'monthname',
+                DB::raw('COUNT(vend_id) AS count'),
+                'year'
+            )
+            ->groupBy('year', 'month')
+            ->orderBy('month', 'asc')
+            ->get();
+
+        foreach($activeYears as $year) {
+            for($i = 1; $i <= 12; $i++) {
+
+                if($today->copy()->year == $year && $i > $today->copy()->month) {
+                    continue;
+                }
+
+                $activeMonths[$year][$i] = [
+                    'month' => $i,
+                    'month_name' => Carbon::createFromDate($year, $i, 1)->format('F'),
+                    'year' => $year,
+                    'count' => 0,
+                ];
+            }
+        }
+        foreach($activeMachineGraph as $activeMachine) {
+            $activeMonths[$activeMachine->year][$activeMachine->month]['count'] = $activeMachine->count;
+        }
+
         return Inertia::render('Dashboard', [
+            'activeMachineGraphData' => $activeMonths,
             'categories' => OptionResource::collection(
                 Category::toBase()->where('classname', $className)->select('id', 'name')->orderBy('name')->get()
             ),

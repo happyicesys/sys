@@ -221,6 +221,16 @@
                             >
                             </Graph>
                         </div>
+                        <div class="pt-5">
+                            <Graph
+                                :key="componentKey4"
+                                type="scatter"
+                                :labels="activeMachineGraphLabels"
+                                :datasets="activeMachineGraphDatasets"
+                                :options="activeMachineGraphOptions"
+                            >
+                            </Graph>
+                        </div>
 
                     </div>
                 </div>
@@ -229,7 +239,7 @@
     </BreezeAuthenticatedLayout>
 </template>
 <script setup>
-    import { ChevronDoubleDownIcon, ChevronDoubleUpIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon} from '@heroicons/vue/20/solid';
+    import { ChevronDoubleDownIcon, ChevronDoubleUpIcon, MagnifyingGlassIcon, BackspaceIcon} from '@heroicons/vue/20/solid';
     import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
     import Button from '@/Components/Button.vue';
     import Graph from '@/Components/Graph.vue';
@@ -239,6 +249,7 @@
     import { Head, router, usePage } from '@inertiajs/vue3';
 
     const props = defineProps({
+        activeMachineGraphData: Object,
         categories: Object,
         categoryGroups: Object,
         dayGraphData: Object,
@@ -265,6 +276,7 @@
     const componentKey1 = ref(0);
     const componentKey2 = ref(0);
     const componentKey3 = ref(0);
+    const componentKey4 = ref(0);
     const forceRerender1 = () => {
         componentKey1.value += 1;
     };
@@ -273,6 +285,9 @@
     };
     const forceRerender3 = () => {
         componentKey3.value += 1;
+    };
+    const forceRerender4 = () => {
+        componentKey4.value += 1;
     };
     const locationTypeOptions = ref([])
     const operator = usePage().props.auth.operator
@@ -379,6 +394,36 @@
 
     const performerGraphData = ref([])
 
+    const activeMachineGraphData = ref([]);
+    const activeMachineGraphDatasets = ref([])
+    const activeMachineGraphLabels = ref([])
+    const activeMachineGraphOptions = ref({
+        scales: {
+            x: {
+                ticks: {
+                    min: 1,  // Minimum value on the x-axis
+                    max: 12, // Maximum value on the x-axis
+                    stepSize: 1 // Increment between ticks
+                }
+            },
+            y: {
+                position: 'left',
+                title: {
+                    display: true,
+                    text: 'Count(#)'
+                },
+                beginAtZero: true
+
+            },
+        },
+        plugins: {
+            title: {
+                display: true,
+                text: 'VM Deployment Count By Month'
+            },
+        }
+    })
+
 
     onBeforeMount(() => {
         categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
@@ -413,13 +458,13 @@
                 location_type_id: filters.value.locationType.id,
                 operator_id: filters.value.operator.id,
             }),{
-                only: ['dayGraphData', 'monthGraphData', 'productGraphData', 'performerGraphData', 'vendCount'],
+                only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'productGraphData', 'performerGraphData', 'vendCount'],
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
                 onSuccess: (page) => {
                     router.reload({
-                        only: ['dayGraphData', 'monthGraphData', 'productGraphData', 'performerGraphData', 'vendCount'],
+                        only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'productGraphData', 'performerGraphData', 'vendCount'],
                         preserveState: true,
                         preserveScroll: true,
                     })
@@ -437,6 +482,9 @@
     }
 
     function syncDashboardData () {
+        activeMachineGraphData.value = []
+        activeMachineGraphDatasets.value = []
+        activeMachineGraphLabels.value = []
         dayGraphData.value = []
         dayGraphDatasets.value = []
         dayGraphLabels.value = []
@@ -523,9 +571,27 @@
 
         performerGraphData.value = JSON.parse(JSON.stringify(props.performerGraphData))
 
+
+        activeMachineGraphData.value = JSON.parse(JSON.stringify(props.activeMachineGraphData))
+        let activeYears = []
+        activeYears = JSON.parse(JSON.stringify(props.activeMachineGraphData))
+        Object.keys(activeYears).forEach((activeMonth, activeMonthIndex) => {
+            activeMachineGraphDatasets.value.push({
+                label: activeMonth + ' (#)',
+                data: Object.values(activeYears[activeMonth]).map((data) => {return data.count}),
+                backgroundColor: activeMonthIndex % 2 == 0 ? hexToRGBA(colors[activeMonthIndex + 2], 0.2) : hexToRGBA(colors[activeMonthIndex + 2], 0.9),
+                borderColor: activeMonthIndex % 2 == 0 ? hexToRGBA(colors[activeMonthIndex + 2], 0.2) : hexToRGBA(colors[activeMonthIndex + 2], 0.9),
+                type: 'line',
+            })
+        })
+        for(let i = 1; i <= 12; i++) {
+            activeMachineGraphLabels.value.push(i)
+        }
+
         forceRerender1()
         forceRerender2()
         forceRerender3()
+        forceRerender4()
     }
 
 </script>
