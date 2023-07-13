@@ -113,6 +113,7 @@ class DashboardController extends Controller
 
         $vendCount = Vend::query()
         ->filterIndex($request)
+        ->has('latestVendBinding')
         ->count();
         // dd($vendCount);
 
