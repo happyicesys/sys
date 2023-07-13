@@ -13,7 +13,7 @@ const navigation = [
         icon: ClipboardDocumentListIcon,
         current: false,
         href: 'dashboard',
-        permission: 'read vends',
+        permission: 'read dashboard',
     },
     {
         name: 'Vending Machines',

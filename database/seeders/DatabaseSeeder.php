@@ -65,7 +65,8 @@ class DatabaseSeeder extends Seeder
             // ExportPermissionSeeder::class,
             // MsiaThaiPaymentMethodSeeder::class,
             // VendCriteriaSeeder::class,
-            VendBindingFromToSeeder::class,
+            // VendBindingFromToSeeder::class,
+            ObserverRoleSeeder::class,
         ]);
     }
 }
