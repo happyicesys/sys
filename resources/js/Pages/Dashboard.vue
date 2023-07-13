@@ -419,7 +419,7 @@
         plugins: {
             title: {
                 display: true,
-                text: 'VM Deployment Count By Month'
+                text: 'Number of Active Vending Machine in Market, by Month'
             },
         }
     })
@@ -579,8 +579,8 @@
             activeMachineGraphDatasets.value.push({
                 label: activeMonth + ' (#)',
                 data: Object.values(activeYears[activeMonth]).map((data) => {return data.count}),
-                backgroundColor: activeMonthIndex % 2 == 0 ? hexToRGBA(colors[activeMonthIndex + 2], 0.2) : hexToRGBA(colors[activeMonthIndex + 2], 0.9),
-                borderColor: activeMonthIndex % 2 == 0 ? hexToRGBA(colors[activeMonthIndex + 2], 0.2) : hexToRGBA(colors[activeMonthIndex + 2], 0.9),
+                backgroundColor: activeMonthIndex % 2 == 0 ? hexToRGBA(colors[activeMonthIndex], 0.2) : hexToRGBA(colors[activeMonthIndex], 0.9),
+                borderColor: activeMonthIndex % 2 == 0 ? hexToRGBA(colors[activeMonthIndex], 0.2) : hexToRGBA(colors[activeMonthIndex], 0.9),
                 type: 'line',
             })
         })
