@@ -42,6 +42,7 @@ class Vend extends Model
         'coin_amount',
         'firmware_ver',
         'is_door_open',
+        'is_mqtt',
         'is_offline_notification_sent',
         'is_online',
         'is_sensor_normal',

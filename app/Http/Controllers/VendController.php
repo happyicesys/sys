@@ -103,6 +103,7 @@ class VendController extends Controller
                 'vends.coin_amount',
                 'vends.firmware_ver',
                 'vends.is_door_open',
+                'vends.is_mqtt',
                 'vends.is_online',
                 'vends.is_sensor_normal',
                 'vends.is_temp_error',

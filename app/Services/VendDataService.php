@@ -3,6 +3,7 @@
 namespace App\Services;
 use App\Models\Vend;
 use App\Models\VendData;
+use App\Jobs\SyncIsMqttVend;
 use App\Jobs\Vend\CreateVendTransaction;
 use App\Jobs\Vend\GetPaymentGatewayQR;
 use App\Jobs\Vend\GetPurchaseConfirm;
@@ -137,6 +138,7 @@ class VendDataService
             break;
           case 'PWRON':
             UpdateApkVersion::dispatch($processedInput, $vend)->onQueue('default');
+            SyncIsMqttVend::dispatch($vend)->onQueue('default');
             break;
           case 'REQQR':
             GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
