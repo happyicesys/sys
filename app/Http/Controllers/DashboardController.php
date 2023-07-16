@@ -89,23 +89,20 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
-        $bestPerformer = VendTransaction::query()
+        $bestPerformer = VendRecord::query()
             ->with([
                 'customer:id,code,name',
-                'product:id,code,name',
                 'vend:id,code,name',
             ])
-            ->filterTransactionIndex($request)
-            ->where('created_at', '>=', $seven_days_date_from->copy()->startOfDay())
-            ->where('created_at', '<=', $seven_days_date_to->copy()->endOfDay())
-            ->whereIn('error_code_normalized', [0, 6])
+            ->filterIndex($request)
+            ->where('date', '>=', $today->copy()->subDays(29)->startOfDay())
+            ->where('date', '<=', $today->copy()->endOfDay())
             ->groupBy('vend_id')
             ->select(
                 'id',
                 'customer_id',
-                'vend_id',
-                DB::raw('SUM(amount) as amount'),
-                DB::raw('COUNT(id) as count'),
+                DB::raw('SUM(total_amount) as amount'),
+                DB::raw('SUM(total_count) as count'),
             )
             ->orderBy('amount', 'desc')
             ->limit(10)

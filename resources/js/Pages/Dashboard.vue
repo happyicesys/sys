@@ -149,7 +149,7 @@
                             <div class="md:basis-2/3 my-1 mx-4 px-4">
                                 <p class="text-sm flex justify-between">
                                     <div>
-                                        Past 7 Days - Top 10 Best Performance
+                                        Past 30 Days - Top 10 Best Performance
                                     </div>
                                     <div>
                                         Based on {{ vendCount }} active machine(s)
