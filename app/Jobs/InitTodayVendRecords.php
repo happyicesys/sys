@@ -46,15 +46,16 @@ class InitTodayVendRecords implements ShouldQueue
             ->get();
 
         foreach($vends as $vend) {
-            VendRecord::create([
-                'customer_id' => $vend->customer_id,
+            VendRecord::updateOrCreate([
+                'vend_id' => $vend->id,
                 'date' => Carbon::yesterday()->toDateString(),
+            ], [
+                'customer_id' => $vend->customer_id,
                 'day' => Carbon::yesterday()->day,
                 'month' => Carbon::yesterday()->month,
                 'monthname' => Carbon::yesterday()->format('F'),
                 'operator_id' => $vend->operator_id,
                 'year' => Carbon::yesterday()->year,
-                'vend_id' => $vend->id,
                 'vend_code' => $vend->code,
             ]);
         }
