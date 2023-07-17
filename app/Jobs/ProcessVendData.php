@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Jobs\SaveVendChannelErrorLogsJson;
 use App\Jobs\SaveVendChannelsJson;
+use App\Jobs\SyncIsMqttVend;
 use App\Models\LogData;
 use App\Models\PaymentMethod;
 use App\Models\Vend;
@@ -153,6 +154,10 @@ class ProcessVendData implements ShouldQueue
             if($vendData) {
                 $vend = Vend::where('code', $vendData->value['m'])->first();
                 $this->logTempUpdatedAtVariance($vend, $vendData);
+
+                if($this->connectionType === 'mqtt') {
+                    SyncIsMqttVend::dispatch($vend)->onQueue('default');
+                }
             }
 
             if(isset($input['Vid'])) {
