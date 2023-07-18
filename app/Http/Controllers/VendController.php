@@ -38,6 +38,9 @@ use App\Models\VendSnapshot;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
 use App\Models\PaymentGateways\Midtrans;
+use App\Services\MqttService;
+use App\Services\PaymentGatewayService;
+use App\Services\VendDataService;
 use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
@@ -57,6 +60,17 @@ use App\Models\PaymentGateways\Omise;
 class VendController extends Controller
 {
     use GetUserTimezone, HasFilter;
+
+    protected $paymentGatewayService;
+    protected $vendDataService;
+
+
+    public function __construct( MqttService $mqttService, PaymentGatewayService $paymentGatewayService, VendDataService $vendDataService)
+    {
+        $this->mqttService = $mqttService;
+        $this->paymentGatewayService = $paymentGatewayService;
+        $this->vendDataService = $vendDataService;
+    }
 
     public function index(Request $request)
     {
@@ -703,6 +717,36 @@ class VendController extends Controller
             }
         }
         SaveVendChannelsJson::dispatch($vend->id)->onQueue('default');
+    }
+
+    public function dispenseProduct(Request $request)
+    {
+        $channelId = $request->channel_id;
+        $vendChannel = VendChannel::findOrFail($channelId);
+
+        $operatorTimezone = 'Asia/Singapore';
+        if($vendChannel->vend->operators()->exists()) {
+            $operatorTimezone = $vendChannel->vend->operators()->first()->timezone;
+        }
+        $orderId = Carbon::now()->setTimeZone($operatorTimezone)->format('ymdhis').$vendChannel->code;
+
+        $result = $this->vendDataService->getPurchaseRequest([
+            'orderId' => $orderId,
+            'amount' => 0,
+            'vendCode' => $vendChannel->vend->code,
+            'productCode' =>  0,
+            'productName' => null,
+            'channelCode' => $vendChannel->code,
+            'paymentMethod' => 10,
+          ]);
+
+          $fid = $vendChannel->id;
+          $content = base64_encode(json_encode($result));
+          $contentLength = strlen($content);
+          $key = $vendChannel->vend && $vendChannel->vend->private_key ? $vendChannel->vend->private_key : '123456789110138A';
+          $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+          $this->mqttService->publish('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
     }
 
     private function processVendTempTiming($vendTemps)

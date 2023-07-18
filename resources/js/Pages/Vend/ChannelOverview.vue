@@ -50,9 +50,9 @@
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
                         Product
                       </th>
-                      <!-- <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Action
-                      </th> -->
+                      </th>
                     </tr>
                   </thead>
                   <tbody class="bg-white">
@@ -125,7 +125,7 @@
                           </MultiSelect>
                         </span>
                       </td>
-                      <!-- <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                         <div class="flex justify-center space-x-1">
                           <Button
                             type="button" class="bg-yellow-300 hover:bg-yellow-400 px-1 py-1 text-xs text-gray-800 flex space-x-1"
@@ -137,7 +137,7 @@
                             </span>
                           </Button>
                         </div>
-                      </td> -->
+                      </td>
                     </tr>
                   </tbody>
                 </table>

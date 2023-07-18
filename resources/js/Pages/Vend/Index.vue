@@ -580,6 +580,16 @@
                                             </span>
                                         </div>
                                     </div>
+                                    <div
+                                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-green-200"
+                                        v-if="vend.is_mqtt"
+                                    >
+                                        <div class="flex flex-col">
+                                            <span class="font-bold">
+                                                MQTT
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">

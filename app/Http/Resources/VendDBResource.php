@@ -28,6 +28,7 @@ class VendDBResource extends JsonResource
             'coin_amount' => isset($this->coin_amount) ? $this->coin_amount/ 100 : null,
             'firmware_ver' => isset($this->firmware_ver) && $this->firmware_ver ? dechex($this->firmware_ver) : null,
             'is_door_open' => isset($this->is_door_open) && $this->is_door_open ? 'Yes' : 'No',
+            'is_mqtt' => isset($this->is_mqtt) ? $this->is_mqtt : null,
             'is_online' => isset($this->is_online) ? $this->is_online : null,
             'is_sensor_normal' => isset($this->is_sensor_normal) && $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => isset($this->is_temp_error) && $this->is_temp_error ? true : false,

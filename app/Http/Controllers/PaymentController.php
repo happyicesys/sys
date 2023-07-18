@@ -138,39 +138,9 @@ class PaymentController extends Controller
       switch($paymentGatewayLog->paymentGateway->name){
         case 'midtrans':
             $paymentMethod = array_search($paymentGatewayLog->response['issuer'], Midtrans::PAYMENT_METHOD_MAPPING);
-
-            // switch($paymentGatewayLog->response['issuer']) {
-            //   case 'gopay':
-            //     $paymentMethod = Midtrans::PAYMENT_METHOD_GOPAY;
-            //     break;
-            //   case 'airpay shopee':
-            //     $paymentMethod = Midtrans::PAYMENT_METHOD_AIRPAY_SHOPEE;
-            //     break;
-            //   case 'dana':
-            //     $paymentMethod = Midtrans::PAYMENT_METHOD_DANA;
-            //     break;
-            //   case 'ovo':
-            //     $paymentMethod = Midtrans::PAYMENT_METHOD_OVO;
-            //     break;
-            //   case 'tcash':
-            //     $paymentMethod = Midtrans::PAYMENT_METHOD_TCASH;
-            //     break;
-            // }
           break;
         case 'omise':
           $paymentMethod = array_search($paymentGatewayLog->response['data']['source']['type'], Omise::PAYMENT_METHOD_MAPPING);
-
-          // switch($paymentGatewayLog->response['data']['source']['type']) {
-          //   case 'paynow':
-          //     $paymentMethod = Omise::PAYMENT_METHOD_PAYNOW;
-          //     break;
-          //   case 'duitnow_qr':
-          //     $paymentMethod = Omise::PAYMENT_METHOD_DUITNOW;
-          //     break;
-          //   case 'promptpay':
-          //     $paymentMethod = Omise::PAYMENT_METHOD_PROMPTPAY;
-          //     break;
-          // }
           break;
       }
 

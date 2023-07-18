@@ -306,6 +306,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/update', [VendController::class, 'update']);
         Route::post('/{id}/unbind', [VendController::class, 'unbindCustomer']);
         Route::post('/{id}/edit-products', [VendController::class, 'editProducts']);
+        Route::post('/{id}/dispense-product', [VendController::class, 'dispenseProduct']);
     });
 
     Route::prefix('vend-channel-errors')->group(function() {
