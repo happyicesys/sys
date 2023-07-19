@@ -28,6 +28,7 @@ use App\Models\Customer;
 use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\PaymentMethod;
+use App\Models\PaymentGatewayLog;
 use App\Models\Product;
 use App\Models\Vend;
 use App\Models\VendChannel;
