@@ -728,14 +728,14 @@ class VendController extends Controller
         if($vendChannel->vend->operators()->exists()) {
             $operatorTimezone = $vendChannel->vend->operators()->first()->timezone;
         }
-        $orderId = Carbon::now()->setTimeZone($operatorTimezone)->format('ymdhis').$vendChannel->code;
+        $orderId = Carbon::now()->setTimeZone($operatorTimezone)->format('ymdhis').$vendChannel->vend->code;
 
         $result = $this->vendDataService->getPurchaseRequest([
             'orderId' => $orderId,
             'amount' => 0,
             'vendCode' => $vendChannel->vend->code,
             'productCode' =>  0,
-            'productName' => null,
+            'productName' => '',
             'channelCode' => $vendChannel->code,
             'paymentMethod' => 10,
           ]);
