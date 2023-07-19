@@ -740,6 +740,16 @@ class VendController extends Controller
             'paymentMethod' => 10,
           ]);
 
+          $paymentGatewayLog = PaymentGatewayLog::create([
+            'order_id' => $orderId,
+            'amount' => 0,
+            'vend_channel_code' => $vendChannel->code,
+            'vend_channel_id' => $vendChannel->id,
+            'vend_code' => $vendChannel->vend->code,
+            'vend_id' => $vendChannel->vend->id,
+            'status' => 2,
+          ]);
+
           $fid = $vendChannel->id;
           $content = base64_encode(json_encode($result));
           $contentLength = strlen($content);
@@ -747,6 +757,8 @@ class VendController extends Controller
           $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
           $this->mqttService->publish('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+
+          return;
     }
 
     private function processVendTempTiming($vendTemps)
