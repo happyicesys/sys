@@ -343,9 +343,6 @@
                             <TableHead>
                                 Firmware Ver
                             </TableHead>
-                            <TableHead>
-                                Serial Num
-                            </TableHead>
                             <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
                                 Location
                             </TableHeadSort>
@@ -650,9 +647,6 @@
                                         {{ moment(new Date(vend.apkVerJson['buildtime'])).format('YYMMDD HH:mm:ss')  }}
                                     </span>
                                 </span>
-                            </TableData>
-                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.serial_num }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.location_type_name }}

@@ -19,11 +19,11 @@
                 Name
               </FormInput>
             </div>
-            <div class="sm:col-span-6">
+            <!-- <div class="sm:col-span-6">
               <FormInput v-model="form.serial_num" :error="form.errors.serial_num" :disabled="!permissions.includes('update vends')">
                 Serial Number
               </FormInput>
-            </div>
+            </div> -->
             <div class="sm:col-span-6">
               <FormInput v-model="form.private_key" :error="form.errors.private_key" :disabled="!permissions.includes('update vends')">
                 Private Key
