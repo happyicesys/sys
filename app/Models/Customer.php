@@ -35,6 +35,7 @@ class Customer extends Model
         'parent_id',
         'payment_method_id',
         'payment_term_id',
+        'person_id',
         'profile_id',
         'price_template_id',
         'remarks',

@@ -108,6 +108,7 @@ class VendController extends Controller
             ->select(
                 'operator_vend.operator_id',
                 'vends.id',
+                'vends.begin_date',
                 'vends.code',
                 'vends.name',
                 'vends.apk_ver_json',
@@ -115,6 +116,7 @@ class VendController extends Controller
                 'vends.name',
                 'vends.temp',
                 'vends.temp_updated_at',
+                'vends.termination_date',
                 'vends.coin_amount',
                 'vends.firmware_ver',
                 'vends.is_door_open',
@@ -644,8 +646,9 @@ class VendController extends Controller
 
         $vend->update([
             'name' => $request->name,
-            'serial_num' => $request->serial_num,
+            'begin_date' => $request->begin_date,
             'private_key' => $request->private_key,
+            'termination_date' => $request->termination_date,
         ]);
 
         return redirect()->route('vends');

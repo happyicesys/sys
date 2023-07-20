@@ -30,13 +30,13 @@
               </FormInput>
             </div>
             <div class="sm:col-span-6">
-              <DatePicker v-model="form.date_from" :error="form.errors.date_from" @input="onDateFromChanged()"
+              <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
               v-if="permissions.includes('update vends')">
                 Begin Date (Default is the Creation/ First Invoice Date)
               </DatePicker>
             </div>
             <div class="sm:col-span-6">
-              <DatePicker v-model="form.date_to" :error="form.errors.date_to" :minDate="form.date_from"
+              <DatePicker v-model="form.termination_date" :error="form.errors.termination_date" :minDate="form.begin_date"
               v-if="permissions.includes('update vends')">
                 Termination Date (Default is the Unbinding Date, from admin.happyice Vend Code Field)
               </DatePicker>

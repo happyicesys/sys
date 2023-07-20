@@ -321,17 +321,19 @@ class ProcessCustomerData implements ShouldQueue
                     }
 
                     if($customerCollection['is_dvm'] or $customerCollection['is_vending'] or $customerCollection['is_combi']) {
-                        $vend = Vend::where('code', $customerCollection['vend_code'])->latest()->first();
+                        $vend = Vend::where('code', $customerCollection['vend_code'])->first();
                         if($vend and $vend->vendBindings()->exists()) {
-                            $vend->vendBindings()->update(['is_active' => false]);
+                            $vend->vendBindings()->update(['is_active' => false, 'termination_date' => Carbon::now()]);
                         }
 
                         if($vend) {
                             $customer->vendBinding()->updateOrCreate([
                                 'vend_id' => $vend->id,
+                                // 'person_id' => $customerCollection['id']
                                 ],[
                                 'begin_date' => $customerCollection['created_at'],
                                 'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? true : false,
+                                'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? null : Carbon::now(),
                                 'is_rental' => isset($customerCollection['cooperate_method']) && $customerCollection['cooperate_method'] == 2 ? true: false,
                                 'is_profit_sharing' => isset($customerCollection['cooperate_method']) && $customerCollection['cooperate_method'] == 1 ? true: false,
                                 'is_profit_sharing_percentage' => isset($customerCollection['commission_type']) && $customerCollection['commission_type'] == 2 ? true: false,
@@ -343,6 +345,7 @@ class ProcessCustomerData implements ShouldQueue
                                 'adjustment_rate' => isset($customerCollection['vending_clocker_adjustment']) ? $customerCollection['vending_clocker_adjustment'] * 100 : null,
                                 'is_pwp' => isset($customerCollection['is_pwp']) ? $customerCollection['is_pwp'] : false,
                                 'pwp_adjustment_rate' => isset($customerCollection['pwp_adj_rate']) ? $customerCollection['pwp_adj_rate'] * 100 : null,
+                                'person_id' => $customerCollection['id'],
                             ]);
                         }
                     }
