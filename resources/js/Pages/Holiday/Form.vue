@@ -102,7 +102,6 @@ function getDefaultForm() {
 }
 
 function onDateFromChanged() {
-  console.log('herer')
   if(form.value.date_from) {
     form.value.date_to = moment(form.value.date_from).format('YYYY-MM-DD')
   }

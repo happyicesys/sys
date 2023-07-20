@@ -116,9 +116,16 @@ class VendDataService
     $requiredMd5 = false;
 
     if(isset($originalInput['m']) or isset($originalInput['Vid'])) {
-      $vend = Vend::with('latestVendBinding.customer')->firstOrCreate([
-          'code' => isset($originalInput['m']) ? $originalInput['m'] : $originalInput['Vid'],
-      ]);
+
+      $vend = Vend::with('latestVendBinding.customer')->where('code', isset($originalInput['m']) ? $originalInput['m'] : $originalInput['Vid'])->first();
+
+      if(!$vend) {
+        return $response;
+      }
+
+      // $vend = Vend::with('latestVendBinding.customer')->firstOrCreate([
+      //     'code' => isset($originalInput['m']) ? $originalInput['m'] : $originalInput['Vid'],
+      // ]);
       if(!$vend->vend_transaction_totals_json) {
         SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
       }

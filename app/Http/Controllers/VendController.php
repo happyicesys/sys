@@ -618,10 +618,25 @@ class VendController extends Controller
         }
     }
 
+    public function create(Request $request)
+    {
+        $request->validate([
+            'code' => 'required|unique:vends',
+        ]);
+
+        $vend = Vend::create([
+            'begin_date' => Carbon::now(),
+            'code' => $request->code,
+            'name' => $request->name,
+            'private_key' => $request->private_key,
+        ]);
+
+        return redirect()->route('vends');
+    }
+
     public function update(Request $request, $vendId)
     {
         $request->validate([
-            'serial_num' => 'nullable|numeric',
             'private_key' => 'nullable',
         ]);
 

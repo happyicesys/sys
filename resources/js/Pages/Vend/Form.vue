@@ -29,6 +29,18 @@
                 Private Key
               </FormInput>
             </div>
+            <div class="sm:col-span-6">
+              <DatePicker v-model="form.date_from" :error="form.errors.date_from" @input="onDateFromChanged()"
+              v-if="permissions.includes('update vends')">
+                Begin Date (Default is the Creation/ First Invoice Date)
+              </DatePicker>
+            </div>
+            <div class="sm:col-span-6">
+              <DatePicker v-model="form.date_to" :error="form.errors.date_to" :minDate="form.date_from"
+              v-if="permissions.includes('update vends')">
+                Termination Date (Default is the Unbinding Date, from admin.happyice Vend Code Field)
+              </DatePicker>
+            </div>
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">
@@ -132,6 +144,7 @@
 
 <script setup>
 import Button from '@/Components/Button.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import { ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
@@ -162,7 +175,9 @@ onMounted(() => {
 function getDefaultForm() {
   return {
     name: '',
+    begin_date: '',
     serial_num: '',
+    termination_date: '',
     private_key: '',
   }
 }

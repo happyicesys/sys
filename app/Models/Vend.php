@@ -20,9 +20,11 @@ class Vend extends Model
 
     protected $casts = [
         'apk_ver_json' => 'json',
+        'begin_date' => 'datetime',
         'last_updated_at' => 'datetime',
         'parameter_json' => 'json',
         'temp_updated_at' => 'datetime',
+        'termination_date' => 'datetime',
         'vend_channel_error_logs_json' => 'json',
         'vend_channels_json' => 'json',
         'vend_channel_totals_json' => 'json',
@@ -34,6 +36,7 @@ class Vend extends Model
 
     protected $fillable = [
         'apk_ver_json',
+        'begin_date',
         'code',
         'serial_num',
         'name',
@@ -51,6 +54,7 @@ class Vend extends Model
         'parameter_json',
         'private_key',
         'product_mapping_id',
+        'termination_date',
         'keylock_number',
         'vend_channel_error_logs_json',
         'vend_channels_json',
