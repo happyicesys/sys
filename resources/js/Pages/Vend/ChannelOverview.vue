@@ -50,7 +50,7 @@
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
                         Product
                       </th>
-                      <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"  v-if="permissions.includes('admin-access vends')">
                         Action
                       </th>
                     </tr>
@@ -125,7 +125,8 @@
                           </MultiSelect>
                         </span>
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
+                      v-if="permissions.includes('admin-access vends')">
                         <div class="flex justify-center space-x-1">
                           <Button
                             type="button" class="bg-yellow-300 hover:bg-yellow-400 px-1 py-1 text-xs text-gray-800 flex space-x-1"
@@ -196,8 +197,10 @@ const props = defineProps({
   showModal: Boolean,
 })
 
-const productOptions = ref([])
 const channels = ref([])
+const permissions = usePage().props.auth.permissions
+const productOptions = ref([])
+
 
 onMounted(() => {
   productOptions.value = props.productOptions.data.map((data) => {return {id: data.id, full_name: data.full_name + (data.desc ?  ' ' + data.desc  : '')}})
@@ -222,6 +225,11 @@ const emit = defineEmits(['modalClose'])
 function onDispenseClicked(channel) {
   router.post('/vends/' + props.vend.id + '/dispense-product', {
     channel_id: channel.id
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      emit('modalClose')
+    }
   })
 }
 

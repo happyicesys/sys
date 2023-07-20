@@ -759,7 +759,7 @@ class VendController extends Controller
 
           $this->mqttService->publish('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
-          return;
+          return true;
     }
 
     private function processVendTempTiming($vendTemps)
