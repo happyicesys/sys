@@ -66,7 +66,8 @@ class DatabaseSeeder extends Seeder
             // MsiaThaiPaymentMethodSeeder::class,
             // VendCriteriaSeeder::class,
             // VendBindingFromToSeeder::class,
-            ObserverRoleSeeder::class,
+            // ObserverRoleSeeder::class,
+            InitVendBeginTerminationDateSeeder::class,
         ]);
     }
 }
