@@ -324,6 +324,7 @@ class ProcessCustomerData implements ShouldQueue
                         $vend = Vend::where('code', $customerCollection['vend_code'])->first();
                         if($vend and $vend->vendBindings()->exists()) {
                             $vend->vendBindings()->update(['is_active' => false, 'termination_date' => Carbon::now()]);
+                            $vend->update(['termination_date' => Carbon::now()]);
                         }
 
                         if($vend) {
@@ -331,7 +332,7 @@ class ProcessCustomerData implements ShouldQueue
                                 'vend_id' => $vend->id,
                                 // 'person_id' => $customerCollection['id']
                                 ],[
-                                'begin_date' => $customerCollection['created_at'],
+                                'begin_date' => $customerCollection['first_transaction_date'],
                                 'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? true : false,
                                 'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? null : Carbon::now(),
                                 'is_rental' => isset($customerCollection['cooperate_method']) && $customerCollection['cooperate_method'] == 2 ? true: false,
@@ -347,6 +348,8 @@ class ProcessCustomerData implements ShouldQueue
                                 'pwp_adjustment_rate' => isset($customerCollection['pwp_adj_rate']) ? $customerCollection['pwp_adj_rate'] * 100 : null,
                                 'person_id' => $customerCollection['id'],
                             ]);
+
+                            $vend->update(['termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? null : Carbon::now()]);
                         }
                     }
                 }
