@@ -201,7 +201,7 @@
 
             <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
                 <div class="mt-3">
-                    <div class="flex space-x-1">
+                    <div class="flex flex-col md:flex-row">
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                         @click="onSearchFilterUpdated()"
                         >
