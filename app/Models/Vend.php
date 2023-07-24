@@ -204,6 +204,13 @@ class Vend extends Model
                     ->where('transaction_datetime', '<=', Carbon::today()->endOfDay());
     }
 
+    public function vendRecordsLatest()
+    {
+        return $this->hasMany(VendRecord::class)
+                    ->where('date', '>=', Carbon::parse($this->begin_date)->startOfDay())
+                    ->where('date', '<=', $this->termination_date ? Carbon::parse($this->termination_date)->endOfDay() : Carbon::today()->endOfDay());
+    }
+
     public function vendTransactions()
     {
         return $this->hasMany(VendTransaction::class);

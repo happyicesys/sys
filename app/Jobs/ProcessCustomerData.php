@@ -333,7 +333,7 @@ class ProcessCustomerData implements ShouldQueue
                                 'vend_id' => $vend->id,
                                 // 'person_id' => $customerCollection['id']
                                 ],[
-                                'begin_date' => $customerCollection['first_transaction_date'],
+                                'begin_date' => isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'],
                                 'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? true : false,
                                 'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? null : Carbon::now(),
                                 'is_rental' => isset($customerCollection['cooperate_method']) && $customerCollection['cooperate_method'] == 2 ? true: false,

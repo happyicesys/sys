@@ -3,6 +3,7 @@
 namespace App\Jobs\Vend;
 
 use App\Models\Vend;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -50,6 +51,8 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
                 'thirty_days_gross_profit' => $vend->vendThirtyDaysTransactions->sum(function($vendTransaction) {
                     return $vendTransaction->getGrossProfit();
                 }),
+                'vend_records_amount_latest' => $vend->vendRecordsLatest->sum('total_amount'),
+                'vend_records_amount_average_day' => $vend->vendRecordsLatest->sum('total_amount')/ (Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?? Carbon::now())) ?: 1),
             ]
         ]);
     }

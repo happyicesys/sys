@@ -358,6 +358,11 @@
                             <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
                                 Location
                             </TableHeadSort>
+                            <TableHeadSort modelName="vend_transaction_totals_json->vend_records_amount_latest" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_records_amount_latest')">
+                                Lifetime Sales ($)<br>
+                                Begin Date <br>
+                                Avg Sales/ Day ($)
+                            </TableHeadSort>
                             <TableHead>
                             </TableHead>
                         </tr>
@@ -665,6 +670,25 @@
                                 {{ vend.location_type_name }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                <span
+                                v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_latest' in vend.vendTransactionTotalsJson"
+                                >
+                                    {{(vend.vendTransactionTotalsJson['vend_records_amount_latest'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                                </span>
+                                <span
+                                v-if="vend.begin_date"
+                                >
+                                    <br>
+                                    {{ vend.begin_date }}
+                                </span>
+                                <span
+                                v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson"
+                                >
+                                    <br>
+                                    {{(vend.vendTransactionTotalsJson['vend_records_amount_average_day'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                                </span>
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="flex justify-center space-x-1">
                                     <Button
                                         type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
@@ -878,9 +902,15 @@ const permissions = usePage().props.auth.permissions
     filters.value.is_door_open = doorOptions.value[0]
     filters.value.is_online = booleanOptions.value[0]
     filters.value.is_sensor = enableOptions.value[0]
-    filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
+    // filters.value.is_binded_customer = operatorRole.value == 'admin'  ? booleanOptions.value[0] : booleanOptions.value[1]
     filters.value.locationType = locationTypeOptions.value[0]
     filters.value.operator = operatorOptions.value[0]
+
+    if(operatorRole.value == 'admin' || operatorRole.value == 'supervisor' || operatorRole.value == 'driver') {
+        filters.value.is_binded_customer = booleanOptions.value[1]
+    } else {
+        filters.value.is_binded_customer = booleanOptions.value[0]
+    }
 
     // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
   })
