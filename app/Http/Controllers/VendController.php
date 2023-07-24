@@ -76,7 +76,7 @@ class VendController extends Controller
     public function index(Request $request)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
-        $request->is_binded_customer = auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer != null ? $request->is_binded_customer : 'true');
+        $request->is_binded_customer = (auth()->user()->hasRole('operator') or auth()->user()->hasRole('user')) ? 'all' : ($request->is_binded_customer != null ? $request->is_binded_customer : 'true');
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'out_of_stock_sku_percent';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
