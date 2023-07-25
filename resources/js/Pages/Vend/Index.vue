@@ -673,7 +673,7 @@
                                 <span
                                 v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_latest' in vend.vendTransactionTotalsJson"
                                 >
-                                    {{(vend.vendTransactionTotalsJson['vend_records_amount_latest'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                                    {{(vend.vendTransactionTotalsJson['vend_records_amount_latest'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
                                 </span>
                                 <span
                                 v-if="vend.begin_date"
@@ -685,7 +685,7 @@
                                 v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson"
                                 >
                                     <br>
-                                    {{(vend.vendTransactionTotalsJson['vend_records_amount_average_day'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                                    {{(vend.vendTransactionTotalsJson['vend_records_amount_average_day'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
