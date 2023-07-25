@@ -10,37 +10,31 @@ class Customer extends Model
     use HasFactory;
 
     protected $casts = [
+        'account_manager_json' => 'json',
         'cms_invoice_history' => 'json',
         'last_invoice_date' => 'datetime',
         'next_invoice_date' => 'datetime',
     ];
 
     protected $fillable = [
+        'account_manager_json',
         'category_id',
         'cms_invoice_history',
         'code',
         'created_at',
-        'created_by',
-        'deactivated_at',
         'first_transaction_id',
-        'handled_by',
         'name',
         'is_active',
         'is_freezer',
-        'is_parent',
         'last_invoice_date',
         'location_type_id',
         'next_invoice_date',
         'ops_note',
-        'parent_id',
-        'payment_method_id',
         'payment_term_id',
         'person_id',
         'profile_id',
-        'price_template_id',
         'remarks',
         'status_id',
-        'updated_by',
         'zone_id',
     ];
 

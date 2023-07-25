@@ -253,6 +253,9 @@ class ProcessCustomerData implements ShouldQueue
                     $customer = Customer::updateOrCreate([
                         'code' => $customerCollection['cust_id'],
                     ], [
+                        'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
+                        'begin_date' => isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'],
+                        'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
                         'name' => isset($customerCollection['company']) ? $customerCollection['company'] : null,
                         'profile_id' => $profileId,
                         'status_id' => $statusId,
@@ -261,6 +264,8 @@ class ProcessCustomerData implements ShouldQueue
                         'category_id' => $categoryId,
                         'location_type_id' => isset($locationTypeId) ? $locationTypeId : null,
                         'payment_term_id' => $paymentTermId,
+                        'person_id' => $customerCollection['id'],
+                        'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? null : Carbon::now(),
                         'zone_id' => $zoneId,
                         'remarks' => isset($customerCollection['remark']) ? $customerCollection['remark'] : null,
                         'ops_note' => isset($customerCollection['operation_note']) ?  $customerCollection['operation_note'] : null,
@@ -333,7 +338,9 @@ class ProcessCustomerData implements ShouldQueue
                                 'vend_id' => $vend->id,
                                 // 'person_id' => $customerCollection['id']
                                 ],[
+                                'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
                                 'begin_date' => isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'],
+                                'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
                                 'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? true : false,
                                 'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? null : Carbon::now(),
                                 'is_rental' => isset($customerCollection['cooperate_method']) && $customerCollection['cooperate_method'] == 2 ? true: false,
