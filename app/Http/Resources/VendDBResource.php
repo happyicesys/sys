@@ -15,6 +15,7 @@ class VendDBResource extends JsonResource
         return [
             'id' => $this->id,
             'code' => $this->code,
+            'amount_average_day' => isset($this->amount_average_day) ? $this->amount_average_day/100 : null,
             'apkVerJson' => isset($this->apk_ver_json) ? json_decode($this->apk_ver_json) : null,
             'begin_date' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'begin_date_short' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,

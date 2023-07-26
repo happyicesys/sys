@@ -35,6 +35,7 @@ class Vend extends Model
     ];
 
     protected $fillable = [
+        'amount_average_day',
         'apk_ver_json',
         'begin_date',
         'code',

@@ -346,7 +346,7 @@
                             <TableHeadSort modelName="next_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_invoice_date')">
                                 Next Planned Visit
                             </TableHeadSort>
-                            <TableHeadSort modelName="vend_transaction_totals_json->vend_records_amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_records_amount_average_day')">
+                            <TableHeadSort modelName="amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount_average_day')">
                                 Lifetime Sales,<br>
                                 Begin Date, <br>
                                 Avg Sales/ Day
@@ -856,7 +856,6 @@
   const now = ref(moment().format('HH:mm:ss'))
 
   onMounted(() => {
-    console.log(operatorCountry)
     filters.value.visited = true
     vendChannelErrorsOptions.value = [
         // {'id': '', 'desc': 'All'},

@@ -108,6 +108,7 @@ class VendController extends Controller
             ->select(
                 'operator_vend.operator_id',
                 'vends.id',
+                'vends.amount_average_day',
                 'vends.begin_date',
                 'vends.code',
                 'vends.name',
