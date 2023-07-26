@@ -41,6 +41,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
                 'operator' => $request->user() && $request->user()->operator ? $request->user()->operator : null,
                 'operator.name' => $request->user() && $request->user()->operator ? $request->user()->operator->name : null,
+                'operatorCountry' => $request->user() && $request->user()->operator ? $request->user()->operator->country : null,
                 'roles' => function () use ($request) {
                     return ( $request->user() ? $request->user()->roles->pluck('name')->all() : null );
                 },

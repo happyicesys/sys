@@ -346,7 +346,7 @@
                             <TableHeadSort modelName="next_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_invoice_date')">
                                 Next Planned Visit
                             </TableHeadSort>
-                            <TableHeadSort modelName="vend_transaction_totals_json->vend_records_amount_latest" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_records_amount_latest')">
+                            <TableHeadSort modelName="vend_transaction_totals_json->vend_records_amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_records_amount_average_day')">
                                 Lifetime Sales,<br>
                                 Begin Date, <br>
                                 Avg Sales/ Day
@@ -524,7 +524,7 @@
                                 :class="[
                                     (vend.vendTransactionTotalsJson['today_amount']/ 100) >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
-                                    {{(vend.vendTransactionTotalsJson['today_amount'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                                    {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['today_amount'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
                                     ({{vend.vendTransactionTotalsJson['today_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                                 </span>
                                 <span
@@ -533,7 +533,7 @@
                                     (vend.vendTransactionTotalsJson['yesterday_amount']/ 100) >= 30 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     <br>
-                                    {{(vend.vendTransactionTotalsJson['yesterday_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
+                                    {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['yesterday_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}
                                     ({{vend.vendTransactionTotalsJson['yesterday_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                                 </span>
                                 <span
@@ -542,7 +542,7 @@
                                     (vend.vendTransactionTotalsJson['seven_days_amount']/ 100) > 200 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     <br>
-                                    {{(vend.vendTransactionTotalsJson['seven_days_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.vendTransactionTotalsJson['seven_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
+                                    {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['seven_days_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.vendTransactionTotalsJson['seven_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                                 </span>
                                 <span
                                 v-if="vend.vendTransactionTotalsJson && 'thirty_days_amount' in vend.vendTransactionTotalsJson"
@@ -550,7 +550,7 @@
                                     (vend.vendTransactionTotalsJson['thirty_days_amount']/ 100) > 1000 ? 'text-green-700' : 'text-red-700'
                                 ]">
                                     <br>
-                                    {{(vend.vendTransactionTotalsJson['thirty_days_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
+                                    {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['thirty_days_amount']/ 100).toLocaleString(undefined, {minimumFractionDigits: 2})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -655,19 +655,19 @@
                                 <span
                                 v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_latest' in vend.vendTransactionTotalsJson"
                                 >
-                                    {{(vend.vendTransactionTotalsJson['vend_records_amount_latest'] / 100).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                                {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_latest'] / 100).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                                 </span>
                                 <span
                                 v-if="vend.begin_date"
                                 >
                                     <br>
-                                    {{ vend.begin_date }}
+                                    {{ vend.begin_date_short }}
                                 </span>
                                 <span
                                 v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson"
                                 >
                                     <br>
-                                    {{(vend.vendTransactionTotalsJson['vend_records_amount_average_day'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                                    {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_average_day'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
                                 </span>
                             </TableData>
 
@@ -850,11 +850,13 @@
   const vend = ref()
   const vendChannelErrorsOptions = ref([])
 //   const vendOptions = ref([])
+  const operatorCountry = usePage().props.auth.operatorCountry
   const operatorRole = usePage().props.auth.operatorRole
-const permissions = usePage().props.auth.permissions
+  const permissions = usePage().props.auth.permissions
   const now = ref(moment().format('HH:mm:ss'))
 
   onMounted(() => {
+    console.log(operatorCountry)
     filters.value.visited = true
     vendChannelErrorsOptions.value = [
         // {'id': '', 'desc': 'All'},
