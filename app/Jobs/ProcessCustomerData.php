@@ -250,6 +250,11 @@ class ProcessCustomerData implements ShouldQueue
                         $zoneId = $zone->id;
                     }
 
+                    $beginDate = isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'];
+                    if($beginDate and Carbon::parse($beginDate)->lt(Carbon::parse('2023-01-01')->startOfDay())) {
+                        $beginDate = '2023-01-01';
+                    }
+
                     $customer = Customer::updateOrCreate([
                         'code' => $customerCollection['cust_id'],
                     ], [
@@ -331,6 +336,11 @@ class ProcessCustomerData implements ShouldQueue
                         if($vend and $vend->vendBindings()->exists()) {
                             $vend->vendBindings()->update(['is_active' => false, 'termination_date' => Carbon::now()]);
                             $vend->update(['termination_date' => Carbon::now()]);
+                        }
+
+                        $beginDate = isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'];
+                        if($beginDate and Carbon::parse($beginDate)->lt(Carbon::parse('2023-01-01')->startOfDay())) {
+                            $beginDate = '2023-01-01';
                         }
 
                         if($vend) {

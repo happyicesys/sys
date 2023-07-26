@@ -50,7 +50,7 @@
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
                         Product
                       </th>
-                      <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"  v-if="permissions.includes('admin-access vends')">
+                      <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"  v-if="permissions.includes('admin-access vends') && vend.is_mqtt">
                         Action
                       </th>
                     </tr>
