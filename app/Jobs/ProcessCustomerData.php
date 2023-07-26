@@ -367,7 +367,10 @@ class ProcessCustomerData implements ShouldQueue
                                 'person_id' => $customerCollection['id'],
                             ]);
 
-                            $vend->update(['termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? null : Carbon::now()]);
+                            $vend->update([
+                                'begin_date' => $beginDate,
+                                'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? null : Carbon::now()
+                            ]);
                         }
                     }
                 }
