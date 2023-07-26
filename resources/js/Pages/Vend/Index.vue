@@ -330,7 +330,7 @@
                             <TableHeadSort modelName="vend_channel_totals_json->outOfStockSkuPercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->outOfStockSkuPercent')">
                                 Remaining SKU#
                             </TableHeadSort>
-                            <TableHeadSort modelName="vend_transaction_totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->thirty_days_amount')">
+                            <TableHeadSort modelName="vend_transaction_totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->thirty_days_amount', true)">
                                 Sales(qty)<br>
                                 Today <br>
                                 Y'day<br>
@@ -346,7 +346,7 @@
                             <TableHeadSort modelName="next_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_invoice_date')">
                                 Next Planned Visit
                             </TableHeadSort>
-                            <TableHeadSort modelName="amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount_average_day')">
+                            <TableHeadSort modelName="amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount_average_day', true)">
                                 Lifetime Sales,<br>
                                 Begin Date, <br>
                                 Avg Sales/ Day
@@ -663,10 +663,11 @@
                                     <br>
                                     {{ vend.begin_date_short }}
                                 </span>
+                                <br>
                                 <span
                                 v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson"
+                                :class="getVendRecordsAmountAverageDayClass(vend.vendTransactionTotalsJson['vend_records_amount_average_day'])"
                                 >
-                                    <br>
                                     {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_average_day'] / 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
                                 </span>
                             </TableData>
@@ -839,6 +840,7 @@
   const categoryGroupOptions = ref([])
   const doorOptions = ref([])
   const enableOptions = ref([])
+  const initSortInverse = ref(false)
   const loading = ref(false)
   const locationTypeOptions = ref([])
   const numberPerPageOptions = ref([])
@@ -914,6 +916,20 @@
     // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
   })
 
+    function getVendRecordsAmountAverageDayClass(amount) {
+        if(amount >= 3000) {
+            return 'text-green-700'
+        } else if(amount >= 2000 && amount < 3000) {
+            return 'text-blue-700'
+        } else if(amount >= 1500 && amount < 2000) {
+            return 'text-gray-700'
+        } else if(amount >= 1000 && amount < 1500) {
+            return 'text-red-700'
+        }else {
+            return 'text-gray-700 bg-red-300 px-1 rounded-sm'
+        }
+    }
+
     function onChannelOverviewClicked(vendData) {
         vend.value = vendData
         showChannelOverviewModal.value = true
@@ -974,9 +990,12 @@
         router.get('/vends')
     }
 
-  function sortTable(sortKey) {
-    filters.value.sortKey = sortKey
+  function sortTable(sortKey, inverse = false) {
     filters.value.sortBy = !filters.value.sortBy
+    if(inverse && filters.value.sortKey != sortKey) {
+        filters.value.sortBy = !filters.value.sortBy
+    }
+    filters.value.sortKey = sortKey
     onSearchFilterUpdated()
   }
 

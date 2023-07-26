@@ -26,6 +26,9 @@
 defineProps({
   modelName: String,
   sortKey: String,
-  sortBy: Boolean,
+  sortBy: {
+      type: Boolean,
+      default: true,
+  },
 })
 </script>
