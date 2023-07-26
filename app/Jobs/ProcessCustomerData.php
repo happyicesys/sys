@@ -259,7 +259,7 @@ class ProcessCustomerData implements ShouldQueue
                         'code' => $customerCollection['cust_id'],
                     ], [
                         'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
-                        'begin_date' => isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'],
+                        'begin_date' => $beginDate,
                         'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
                         'name' => isset($customerCollection['company']) ? $customerCollection['company'] : null,
                         'profile_id' => $profileId,
@@ -349,7 +349,7 @@ class ProcessCustomerData implements ShouldQueue
                                 // 'person_id' => $customerCollection['id']
                                 ],[
                                 'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
-                                'begin_date' => isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'],
+                                'begin_date' => $beginDate,
                                 'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
                                 'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? true : false,
                                 'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? null : Carbon::now(),
