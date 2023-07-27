@@ -31,7 +31,7 @@
                     Temp &gt;&gt;
                 </SearchInput>
                 <SearchInput placeholderStr="Number" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()">
-                    t1-t2 Delta &gt;&gt;
+                    T1-T2 Delta &gt;&gt;
                 </SearchInput>
                 <div>
                     <label for="text" class="block text-sm font-medium text-gray-700">
@@ -308,7 +308,7 @@
                                 <br>
                                 T2&#8451;(evap)
                                 <br>
-                                &Delta;t1-t2
+                                &Delta;T1-T2
                             </TableHeadSort>
                             <TableHead>
                                 Inventory Status <br>
