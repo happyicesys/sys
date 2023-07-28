@@ -24,6 +24,7 @@ use App\Models\VendData;
 use App\Models\Zone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
 
 class CustomerController extends Controller
@@ -127,5 +128,32 @@ class CustomerController extends Controller
             'value' => $request->all(),
         ]);
         ProcessCustomerData::dispatch($request->all(), null);
+    }
+
+    public function syncNextDeliveryDate()
+    {
+        $response = Http::get(env('CMS_URL') . '/api/people/last-invoice-date');
+        $people = $response->collect();
+
+        if($people) {
+            foreach($people as $person) {
+                $customer = Customer::whereHas('vendBinding', function($query) use ($person) {
+                    $query->where('is_active', true)
+                        ->whereHas('vend', function($query) use ($person) {
+                            $query->where('code', $person['vend_code']);
+                        });
+                })->first();
+
+                if($customer) {
+                    $customer->update([
+                        'cms_invoice_history' => $person,
+                        'last_invoice_date' => $person['last_delivery_date'],
+                        'next_invoice_date' => $person['next_delivery_date']
+                    ]);
+                }
+            }
+        }
+
+        return true;
     }
 }

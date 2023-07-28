@@ -131,6 +131,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/create', [CustomerController::class, 'create']);
         Route::post('/{id}/update', [CustomerController::class, 'update']);
         Route::delete('/{id}', [CustomerController::class, 'delete']);
+        Route::get('/sync-next-delivery-date', [CustomerController::class, 'syncNextDeliveryDate']);
     });
 
     Route::prefix('holidays')->group(function() {
