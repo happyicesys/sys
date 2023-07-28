@@ -38,7 +38,7 @@
             <div class="sm:col-span-6">
               <DatePicker v-model="form.termination_date" :error="form.errors.termination_date" :minDate="form.begin_date"
               v-if="permissions.includes('update vends')">
-                Termination Date (Default is the Unbinding Date from admin.happyice, status change)
+                Termination Date (Default is the Unbinding Date from CMS, status change)
               </DatePicker>
             </div>
           </div>

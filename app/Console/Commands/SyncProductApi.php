@@ -31,11 +31,12 @@ class SyncProductApi extends Command
      * @return int
      */
 
-    public $endPointUrl = 'https://admin.happyice.com.sg/api/items/migrate';
+    // public $endPointUrl = 'https://admin.happyice.com.sg/api/items/migrate';
+
 
     public function handle()
     {
-        $response = Http::get($this->endPointUrl);
+        $response = Http::get(env('CMS_URL') . '/api/items/migrate');
 
         $items = $response->collect();
         $className = get_class(new Product());

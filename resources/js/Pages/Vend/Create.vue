@@ -33,7 +33,7 @@
             </div>
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name">
-                Name (Leave Blank if Bind from admin.happyice)
+                Name (Leave Blank if Bind from CMS)
               </FormInput>
             </div>
             <div class="sm:col-span-6">

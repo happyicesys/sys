@@ -23,7 +23,6 @@ class VendTransaction extends Model
         'operator_json' => 'json',
         'product_json' => 'json',
         'transaction_datetime' => 'datetime',
-        'unit_cost_json' => 'json',
         'vend_json' => 'json',
         'vend_transaction_json' => 'json',
     ];
@@ -47,7 +46,6 @@ class VendTransaction extends Model
         'product_id',
         'product_json',
         'revenue',
-        'unit_cost_json',
         'vend_channel_id',
         'vend_channel_code',
         'vend_channel_error_id',

@@ -28,17 +28,26 @@ class PermissionSeeder extends Seeder
             'users',
         ];
 
-        $roles[] = Role::where('name', 'superadmin')->first();
-        $roles[] = Role::where('name', 'admin')->first();
-        $roles[] = Role::where('name', 'driver')->first();
-        $roles[] = Role::where('name', 'operator')->first();
-        $roles[] = Role::where('name', 'operator_user')->first();
-        $roles[] = Role::where('name', 'supervisor')->first();
-        $roles[] = Role::where('name', 'user')->first();
+        foreach($actions as $action) {
+            foreach($models as $model) {
+                Permission::create([
+                    'name' => $action . ' ' . $model,
+                    'guard_name' => 'api',
+                ]);
+            }
+        }
+
+        // $roles[] = Role::where('name', 'superadmin')->first();
+        // $roles[] = Role::where('name', 'admin')->first();
+        // $roles[] = Role::where('name', 'driver')->first();
+        // $roles[] = Role::where('name', 'operator')->first();
+        // $roles[] = Role::where('name', 'operator_user')->first();
+        // $roles[] = Role::where('name', 'supervisor')->first();
+        // $roles[] = Role::where('name', 'user')->first();
 
         $permissions = Permission::all();
 
-        foreach($roles as $role){
+        foreach(Role::all() as $role){
             foreach($permissions as $permission) {
                 $role->givePermissionTo($permission);
             }
@@ -57,12 +66,17 @@ class PermissionSeeder extends Seeder
             $operatorRole->revokePermissionTo('admin-access users');
         }
 
+        $admin = Role::where('name' , 'admin')->first();
+        $users = User::all();
+        foreach($users as $user) {
+            $user->assignRole($admin);
+        }
+
         $superadmin = Role::where('name', 'superadmin')->first();
         $user = User::where('email', 'leehongjie91@gmail.com')->first();
         $user->assignRole($superadmin);
 
-        $normalUserRoles[] = Role::where('name', 'user')->first();
-        $normalUserRoles[] = Role::where('name', 'operator_user')->first();
+        $normalUserRoles = Role::whereIn('name', ['user', 'operator_user'])->get();
         foreach($normalUserRoles as $normalUserRole) {
             foreach($models as $model) {
                 foreach($actions as $action) {

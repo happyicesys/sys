@@ -28,7 +28,8 @@ class SyncLocationType extends Command
      */
     public function handle()
     {
-        $url = 'https://admin.happyice.com.sg/api/person/location-type';
+        // $url = 'https://admin.happyice.com.sg/api/person/location-type';
+        $url = env('CMS_URL') . '/api/person/location-type';
 
         ProcessCustomerLocationType::dispatch(null, $url);
     }

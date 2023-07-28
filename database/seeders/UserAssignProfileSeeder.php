@@ -16,7 +16,12 @@ class UserAssignProfileSeeder extends Seeder
      */
     public function run()
     {
-        $profile = Profile::where('name', 'HAPPY ICE PTE LTD')->first();
+        $profile = Profile::firstOrCreate([
+            'name' => 'HAPPY ICE PTE LTD',
+            'alias' => 'HI',
+            'uen' => '201302530W',
+            'base_currency_id' => 1,
+        ]);
 
         if($profile) {
             $users = User::all();

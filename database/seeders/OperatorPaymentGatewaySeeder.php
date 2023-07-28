@@ -37,7 +37,6 @@ class OperatorPaymentGatewaySeeder extends Seeder
 
         $paymentGateway = PaymentGateway::create([
             'name' => 'midtrans',
-            'classname' => get_class(new Midtrans()),
         ]);
 
         OperatorPaymentGateway::create([

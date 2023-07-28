@@ -27,11 +27,11 @@ class SyncUnitCostProducts extends Command
      * Execute the console command.
      */
 
-    public $endPointUrl = 'https://admin.happyice.com.sg/api/items/unitcosts/profile/2';
+    // public $endPointUrl = 'https://admin.happyice.com.sg/api/items/unitcosts/profile/2';
 
     public function handle()
     {
-        $response = Http::get($this->endPointUrl);
+        $response = Http::get(env('CMS_URL') . '/api/items/unitcosts/profile/2');
         $obj = $response->collect();
 
         if($obj and isset($obj['unitcosts'])) {

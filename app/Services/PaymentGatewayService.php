@@ -26,7 +26,7 @@ class PaymentGatewayService
       'metadata' => isset($params['metadata'])  ? $params['metadata'] : throw new \Exception('OrderID is not set within metadata'),
       'timezone' => isset($params['timezone']) ? $params['timezone'] : $operatorPaymentGateway->paymentGateway->country->timezone,
       'type' => isset($params['type']) ? $params['type'] : ($operatorPaymentGateway->paymentGateway->defaultPaymentMethod->exists() ? $operatorPaymentGateway->paymentGateway->defaultPaymentMethod->type_name : throw new \Exception('Payment Method is not set')),
-      'return_uri' => isset($params['return_uri']) ? $params['return_uri'] : 'https://sys.happyice.com.sg',
+      'return_uri' => isset($params['return_uri']) ? $params['return_uri'] : env('APP_URL'),
     ];
     $response = $paymentGateway->createPayment($processedParams);
 

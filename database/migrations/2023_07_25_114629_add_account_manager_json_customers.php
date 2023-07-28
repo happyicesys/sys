@@ -12,16 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('customers', function (Blueprint $table) {
-            $table->dropColumn('handled_by');
-            $table->dropColumn('created_by');
-            $table->dropColumn('deactivated_at');
-            $table->dropColumn('is_parent');
-            $table->dropColumn('parent_id');
-            $table->dropColumn('payment_method_id');
-            $table->dropColumn('price_template_id');
-            $table->dropColumn('updated_by');
             $table->json('account_manager_json')->nullable();
-
         });
     }
 

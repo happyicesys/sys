@@ -13,10 +13,6 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::table('customers', function (Blueprint $table) {
-            $table->dropColumn('vend_binding_id');
-        });
-
         Schema::table('vend_bindings', function (Blueprint $table) {
             $table->bigInteger('customer_id');
         });

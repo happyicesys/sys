@@ -15,20 +15,20 @@ class OperatorSeeder extends Seeder
      */
     public function run()
     {
-        Operator::create([
-            'code' => 'HIPL',
-            'name' => 'Happy Ice Pte Ltd',
-            'country_id' => 1,
-            'is_active' => true,
-            'timezone' => 'Asia/Singapore'
-        ]);
+        // Operator::create([
+        //     'code' => 'HIPL',
+        //     'name' => 'Happy Ice Pte Ltd',
+        //     'country_id' => 1,
+        //     'is_active' => true,
+        //     'timezone' => 'Asia/Singapore'
+        // ]);
 
-        Operator::create([
-            'code' => 'UTH',
-            'name' => 'Unilever Thailand',
-            'country_id' => 4,
-            'is_active' => true,
-            'timezone' => 'Asia/Bangkok'
-        ]);
+        // Operator::create([
+        //     'code' => 'UTH',
+        //     'name' => 'Unilever Thailand',
+        //     'country_id' => 4,
+        //     'is_active' => true,
+        //     'timezone' => 'Asia/Bangkok'
+        // ]);
     }
 }

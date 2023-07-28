@@ -28,11 +28,12 @@ class SyncLastInvoiceDate extends Command
      *
      * @return int
      */
-    public $endPointUrl = 'https://admin.happyice.com.sg/api/people/last-invoice-date';
+    // public $endPointUrl = 'https://admin.happyice.com.sg/api/people/last-invoice-date';
+    // public $endPointUrl = env('CMS_URL') . '/api/people/last-invoice-date';
 
     public function handle()
     {
-        $response = Http::get($this->endPointUrl);
+        $response = Http::get(env('CMS_URL') . '/api/people/last-invoice-date');
         $people = $response->collect();
 
         if($people) {

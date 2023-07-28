@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('vend_transactions', function (Blueprint $table) {
-            $table->integer('gst_vat_rate')->default(0)->after('unit_cost_json');
+            $table->integer('gst_vat_rate')->default(0);
         });
     }
 

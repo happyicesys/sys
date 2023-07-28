@@ -27,7 +27,6 @@ return new class extends Migration
             $table->index('code')->change();
             $table->index('created_at')->change();
             $table->index('is_active')->change();
-            $table->index('payment_method_id')->change();
         });
 
         Schema::table('location_types', function (Blueprint $table) {

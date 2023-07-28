@@ -45,7 +45,8 @@ class SyncCustomerApi extends Command
 
     public function handle()
     {
-        $url = 'https://admin.happyice.com.sg/api/person/migrate';
+        // $url = 'https://admin.happyice.com.sg/api/person/migrate';
+        $url = env('CMS_URL') . '/api/person/migrate';
 
         ProcessCustomerData::dispatch(null, $url);
     }

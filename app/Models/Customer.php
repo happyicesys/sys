@@ -64,11 +64,6 @@ class Customer extends Model
         return $this->morphOne(Contact::class, 'modelable');
     }
 
-    public function children()
-    {
-        return $this->hasMany(Customer::class, 'parent_id');
-    }
-
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -97,16 +92,6 @@ class Customer extends Model
     public function paymentTerm()
     {
         return $this->belongsTo(PaymentTerm::class);
-    }
-
-    public function parent()
-    {
-        return $this->belongsTo(Customer::class, 'parent_id');
-    }
-
-    public function priceTemplate()
-    {
-        return $this->belongsTo(PriceTemplate::class);
     }
 
     public function profile()

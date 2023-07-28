@@ -15,7 +15,6 @@ return new class extends Migration
             $table->json('operator_json')->after('unit_cost_id')->nullable();
             $table->json('location_type_json')->after('unit_cost_id')->nullable();
             $table->json('customer_json')->after('unit_cost_id')->nullable();
-            $table->dropColumn('unit_cost_json');
         });
     }
 
