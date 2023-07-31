@@ -1005,9 +1005,7 @@
             method: 'get',
             url: '/customers/sync-next-delivery-date',
         }).then(response => {
-            console.log(response)
         }).catch(error => {
-            console.log(error)
         }).finally(() => {
             loadingSyncNextDeliveryDate.value = false
         })
