@@ -15,64 +15,65 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
-        User::create([
-            'name' => 'Brian',
-            'username' => 'brian',
-            'email' => 'leehongjie91@gmail.com',
-            'password' => 'brian1234',
-        ]);
+        // User::create([
+        //     'name' => 'Brian',
+        //     'username' => 'brian',
+        //     'email' => 'leehongjie91@gmail.com',
+        //     'password' => 'brian1234',
+        // ]);
 
-        User::create([
-            'name' => 'Daniel',
-            'username' => 'daniel',
-            'email' => 'daniel.ma@happyice.com.sg',
-            'password' => 'daniel1234',
-        ]);
+        // User::create([
+        //     'name' => 'Daniel',
+        //     'username' => 'daniel',
+        //     'email' => 'daniel.ma@happyice.com.sg',
+        //     'password' => 'daniel1234',
+        // ]);
 
-        User::create([
-            'name' => 'Kent',
-            'username' => 'kent',
-            'email' => 'kent@happyice.com.sg',
-            'password' => 'kent1234',
-        ]);
+        // User::create([
+        //     'name' => 'Kent',
+        //     'username' => 'kent',
+        //     'email' => 'kent@happyice.com.sg',
+        //     'password' => 'kent1234',
+        // ]);
 
-        User::create([
-            'name' => 'Stephen',
-            'username' => 'stephen',
-            'email' => 'stephen@happyice.com.sg',
-            'password' => 'stephen1234',
-        ]);
+        // User::create([
+        //     'name' => 'Stephen',
+        //     'username' => 'stephen',
+        //     'email' => 'stephen@happyice.com.sg',
+        //     'password' => 'stephen1234',
+        // ]);
 
 
         $this->call([
-            PaymentMethodSeeder::class,
-            VendChannelErrorSeeder::class,
-            CountrySeeder::class,
+                // PaymentMethodSeeder::class,
+                // VendChannelErrorSeeder::class,
+                // CountrySeeder::class,
             // PaymentTermSeeder::class,
             // TaxSeeder::class,
 
             // CashlessProviderSeeder::class,
             // TelcoSeeder::class,
             // VendTypeSeeder::class,
-            UomSeeder::class,
-            UserAssignProfileSeeder::class,
-            RoleSeeder::class,
+                // UomSeeder::class,
+                // UserAssignProfileSeeder::class,
+                // RoleSeeder::class,
             // ThaiCountrySeeder::class,
-            OperatorSeeder::class,
-            OperaterRoleSeeder::class,
-            OperatorPaymentGatewaySeeder::class,
+                // OperatorSeeder::class,
+                // OperaterRoleSeeder::class,
+                // OperatorPaymentGatewaySeeder::class,
             // UmamiTokenSeeder::class,
-            PaymentGatewayUpdateSeeder::class,
-            IndoMidtransSeeder::class,
-            OperatorUserSeeder::class,
-            PermissionSeeder::class,
+                // PaymentGatewayUpdateSeeder::class,
+                // IndoMidtransSeeder::class,
+                // OperatorUserSeeder::class,
+                // PermissionSeeder::class,
             // OmisePaymentGatewaySeeder::class,
-            ExportPermissionSeeder::class,
+                // ExportPermissionSeeder::class,
             // MsiaThaiPaymentMethodSeeder::class,
-            VendCriteriaSeeder::class,
+                // VendCriteriaSeeder::class,
             // VendBindingFromToSeeder::class,
-            ObserverRoleSeeder::class,
-            InitVendBeginTerminationDateSeeder::class,
+                // ObserverRoleSeeder::class,
+                // InitVendBeginTerminationDateSeeder::class,
+            OperatorBindingSync::class,
         ]);
     }
 }
