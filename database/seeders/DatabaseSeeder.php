@@ -74,6 +74,7 @@ class DatabaseSeeder extends Seeder
                 // ObserverRoleSeeder::class,
                 // InitVendBeginTerminationDateSeeder::class,
             OperatorBindingSync::class,
+            // SyncTransactionsRecordsSeeder::class,
         ]);
     }
 }
