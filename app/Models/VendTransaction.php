@@ -251,6 +251,16 @@ class VendTransaction extends Model
                 $query->where('operator_id', $search);
             }
         })
+        ->when($request->product_code, function($query, $search) {
+            $query->whereIn('product_id', function($query) use ($search) {
+                $query->select('id')->from('products')->where('code', 'LIKE', "{$search}%");
+            });
+        })
+        ->when($request->product_name, function($query, $search) {
+            $query->whereIn('product_id', function($query) use ($search) {
+                $query->select('id')->from('products')->where('name', 'LIKE', "%{$search}%");
+            });
+        })
         ->when($request->date_from, function($query, $search) {
             $query->where('transaction_datetime', '>=', $search);
         })
