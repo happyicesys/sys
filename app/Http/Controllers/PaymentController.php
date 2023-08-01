@@ -137,7 +137,7 @@ class PaymentController extends Controller
       $paymentMethod = null;
       switch($paymentGatewayLog->paymentGateway->name){
         case 'midtrans':
-            $paymentMethod = array_search($paymentGatewayLog->response['issuer'], Midtrans::PAYMENT_METHOD_MAPPING);
+            $paymentMethod = array_search($paymentGatewayLog->response['acquirer'], Midtrans::PAYMENT_METHOD_MAPPING);
           break;
         case 'omise':
           $paymentMethod = array_search($paymentGatewayLog->response['data']['source']['type'], Omise::PAYMENT_METHOD_MAPPING);
