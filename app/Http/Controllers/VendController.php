@@ -98,6 +98,7 @@ class VendController extends Controller
                         ->latest('operator_vend.begin_date')
                         ->limit(1);
             })
+            ->leftJoin('operators', 'operators.id', '=', 'operator_vend.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('addresses', function($query) {
                 $query->on('addresses.modelable_id', '=', 'customers.id')
@@ -144,6 +145,7 @@ class VendController extends Controller
                 'location_types.name AS location_type_name',
                 'product_mappings.name AS product_mapping_name',
                 'product_mappings.remarks AS product_mapping_remarks',
+                'operators.name AS operator_name',
                 'addresses.postcode AS postcode'
             );
         $vends = $this->filterVendsDB($vends, $request);
@@ -328,7 +330,7 @@ class VendController extends Controller
             ->where('vend_temps.created_at', '<=', $endDate)
             ->select(
                 'vends.code AS vend_code',
-                'vends.created_at',
+                'vend_temps.created_at',
                 'type',
                 'value',
             )

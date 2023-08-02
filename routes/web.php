@@ -19,6 +19,7 @@ use App\Http\Controllers\ProductMappingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ResourceCenterController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StatusController;
 use App\Http\Controllers\SimcardController;
 use App\Http\Controllers\RolePermissionController;
@@ -232,6 +233,11 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/create', [RolePermissionController::class, 'createPermission']);
         Route::post('/{id}/update', [RolePermissionController::class, 'updatePermission']);
         Route::delete('/{id}', [RolePermissionController::class, 'deletePermission']);
+    });
+
+    Route::prefix('settings')->group(function() {
+        Route::get('/', [SettingController::class, 'index'])->name('settings');
+
     });
 
     Route::prefix('simcards')->group(function() {
