@@ -1,5 +1,5 @@
 <template>
-    <svg class="h-14 w-auto mx-auto" viewBox="0 0 316 316" xmlns="http://www.w3.org/2000/svg">
+    <!-- <svg class="h-14 w-auto mx-auto" viewBox="0 0 316 316" xmlns="http://www.w3.org/2000/svg">
     </svg>
     <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
                         class="h-32 w-52" viewBox="0 200 600 300"
@@ -149,5 +149,7 @@
                         -96 50 -98 84 -98 l35 0 0 120 c0 113 -1 120 -20 120 -19 0 -20 -7 -21 -97 l0
                         -98 -50 98 c-48 95 -50 97 -84 97 l-35 0 0 -120z"/>
                         </g>
-    </svg>
+    </svg> -->
+
+    <img class="object-cover h-36 w-52" src="/img/logo.png" alt="Company Logo">
 </template>

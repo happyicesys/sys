@@ -6,6 +6,7 @@ use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\VendResource;
 use App\Http\Resources\VendDBResource;
 use App\Models\Category;
 use App\Models\Customer;
@@ -45,6 +46,7 @@ class SettingController extends Controller
                         ->latest('operator_vend.begin_date')
                         ->limit(1);
             })
+            ->leftJoin('operators', 'operators.id', '=', 'operator_vend.operator_id')
             ->select(
                 'operator_vend.operator_id',
                 'vends.id',
@@ -62,6 +64,7 @@ class SettingController extends Controller
                 'customers.name AS customer_name',
                 'customers.location_type_id',
                 'location_types.name AS location_type_name',
+                'operators.name AS operator_name',
             );
         $vends = $this->filterVendsDB($vends, $request);
         // $vends = $this->filterOperatorDB($vends);
@@ -85,6 +88,18 @@ class SettingController extends Controller
             'vends' => VendDBResource::collection(
                 $vends
             ),
+        ]);
+    }
+
+    public function edit($id)
+    {
+        $vend = Vend::findOrFail($id);
+
+        return Inertia::render('Setting/Edit', [
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'vend' => VendResource::make($vend),
         ]);
     }
 }

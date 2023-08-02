@@ -872,6 +872,7 @@
   const operatorCountry = usePage().props.auth.operatorCountry
   const operatorRole = usePage().props.auth.operatorRole
   const permissions = usePage().props.auth.permissions
+  const initBinded = usePage().props.initBinded
   const now = ref(moment().format('HH:mm:ss'))
 
   onMounted(() => {
@@ -920,16 +921,12 @@
     filters.value.is_door_open = doorOptions.value[0]
     filters.value.is_online = booleanOptions.value[0]
     filters.value.is_sensor = enableOptions.value[0]
-    // filters.value.is_binded_customer = operatorRole.value == 'admin'  ? booleanOptions.value[0] : booleanOptions.value[1]
+    // filters.value.is_binded_customer = booleanOptions.value[0]
+    console.log(initBinded)
+    console.log(operatorRole)
+    filters.value.is_binded_customer = initBinded && (operatorRole.value == 'admin' ||  operatorRole.value == 'supervisor' || operatorRole.value == 'driver') ? booleanOptions.value[0] : booleanOptions.value[1]
     filters.value.locationType = locationTypeOptions.value[0]
     filters.value.operator = operatorOptions.value[0]
-
-    if(operatorRole.value == 'admin' || operatorRole.value == 'supervisor' || operatorRole.value == 'driver') {
-        filters.value.is_binded_customer = booleanOptions.value[1]
-    } else {
-        filters.value.is_binded_customer = booleanOptions.value[0]
-    }
-
     // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
   })
 
