@@ -29,12 +29,12 @@ class OperatorController extends Controller
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
             'operators' => OperatorResource::collection(
                 Operator::with([
-                    'address',
-                    'address.country',
-                    'country',
+                    'address:id,postcode',
+                    // 'address.country',
+                    'country:id,name,code,currency_name,currency_symbol',
                     'operatorPaymentGateways.paymentGateway',
-                    'vends',
-                    'vends.latestVendBinding.customer',
+                    'vends:id,code,name',
+                    'vends.latestVendBinding.customer:id,code,name',
                     ])
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
@@ -60,12 +60,19 @@ class OperatorController extends Controller
             'unbindedVends' => fn () =>
                 VendResource::collection(
                     Vend::with([
-                        'latestVendBinding.customer'
-                    ])->whereDoesntHave('operators', function($query) use ($request) {
-                        $query->where('operators.id', '!=', $request->operator_id);
+                        'latestVendBinding.customer:id,code,name'
+                    ])->whereNotIn('id', function($query) use ($request) {
+                        $query->select('vend_id')
+                            ->from('operator_vend')
+                            ->where('operator_id', $request->operator_id);
                     })
                     ->orderBy('code')
                     ->get()
+
+                    // ->whereDoesntHave('operators', function($query) use ($request) {
+                    //     $query->where('operators.id', '!=', $request->operator_id);
+                    // })
+
                 )
             ,
             'operator' => fn() => OperatorResource::make(
@@ -111,13 +118,28 @@ class OperatorController extends Controller
         $operator = Operator::findOrFail($operatorId);
         $operator->update($request->all());
 
-        if($request->has('operator')) {
-            $operator->vends()->detach();
-            if($request->operator['vends']) {
-                foreach($request->operator['vends'] as $vend) {
-                    $operator->vends()->attach($vend['id']);
-                }
+        $originalVends = collect($request->vends)->transform(function($vend) {
+            return $vend['id'];
+        });
+        $editedVends = collect($request->operator['vends'])->transform(function($vend) {
+            return $vend['id'];
+        });
+
+        $removeVends = $originalVends->diff($editedVends);
+        $addVends = $editedVends->diff($originalVends);
+
+        if($removeVends) {
+            foreach($removeVends as $removeVend) {
+                $operator->vends()->detach($removeVend);
             }
+        }
+        if($addVends) {
+            foreach($addVends as $addVend) {
+                $operator->vends()->attach($addVend);
+            }
+        }
+
+        if($request->has('operator')) {
             if($request->has('paymentGateways')) {
                 $operator->operatorPaymentGateways()->delete();
                 if($request->operator['operatorPaymentGateways']) {

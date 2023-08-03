@@ -504,7 +504,6 @@ function submit() {
         ...data,
         timezone: data.timezone.name,
         country_id: data.country_id.id,
-        // payment_gateway_id: data.payment_gateway.id,
         operator: props.operator,
         paymentGateways:  operatorPaymentGateways.value,
       }))
