@@ -76,13 +76,26 @@ class VendController extends Controller
     public function index(Request $request)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
+        // if(!isset($request->is_binded_customer)) {
+        //     $request->merge(['is_binded_customer' => env('VEND_INIT_BINDED') and  (
+        //         auth()->user()->hasRole('superadmin') or
+        //         auth()->user()->hasRole('admin') or
+        //         auth()->user()->hasRole('supervisor') or
+        //         auth()->user()->hasRole('driver')
+        //     ) ? 'true' : 'all']);
+        // }
         if(!isset($request->is_binded_customer)) {
-            $request->merge(['is_binded_customer' => env('VEND_INIT_BINDED') and  (
-                auth()->user()->hasRole('superadmin') or
+            if(
+                env('VEND_INIT_BINDED') and
+                (auth()->user()->hasRole('superadmin') or
                 auth()->user()->hasRole('admin') or
                 auth()->user()->hasRole('supervisor') or
-                auth()->user()->hasRole('driver')
-            ) ? 'true' : 'all']);
+                auth()->user()->hasRole('driver'))
+            ) {
+                $request->merge(['is_binded_customer' => 'true']);
+            }else {
+                $request->merge(['is_binded_customer' => 'all']);
+            }
         }
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'out_of_stock_sku_percent';
