@@ -162,8 +162,7 @@ trait HasFilter {
           }
       })
       ->when($request->is_binded_customer, function($query, $search) {
-        // dd('here1');
-          if($search != 'all') {
+          if($search !== 'all') {
               if($search == 'true') {
                 $query->whereNotNull('customer_id');
               }else {
