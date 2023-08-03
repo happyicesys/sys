@@ -319,7 +319,9 @@ const permissions = usePage().props.auth.permissions
                         -98 -50 98 c-48 95 -50 97 -84 97 l-35 0 0 -120z"/>
                         </g>
                     </svg> -->
-                        <img class="object-cover h-24 w-40" src="/img/logo.png" alt="Company Logo">
+                        <div class="h-fit w-fit">
+                            <img class="object-cover h-24 w-36" src="/img/logo.png" alt="Company Logo">
+                        </div>
                     </Link>
                 </div>
                 <div class="mt-5 flex-grow flex flex-col border-t border-gray-200 pt-2">
