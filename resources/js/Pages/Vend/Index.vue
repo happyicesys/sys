@@ -302,12 +302,12 @@
                         {{(totals['thirtyDays']/vends.meta.to ? totals['thirtyDays']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
                     </dd>
                 </div>
-                <!-- <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                     <dt class="truncate text-sm font-medium text-gray-500">Avg per Day per VM (Last 30 days)</dt>
                     <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                         {{(totals['thirthyDaysAvg']/vends.meta.to ? totals['thirthyDaysAvg']/vends.meta.to : 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
                     </dd>
-                </div> -->
+                </div>
             </dl>
         </div>
 
@@ -710,11 +710,6 @@
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 {{ vend.location_type_name }}
                             </TableData>
-                            <!-- <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span v-if="vend.vend_transaction_totals_json && vend_records_thirty_days_amount_average in vend.vend_transaction_totals_json">
-                                    {{ vend.vend_transaction_totals_json['vend_records_amount_average_day'] }}
-                                </span>
-                            </TableData> -->
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="flex justify-center space-x-1">
                                     <Button
