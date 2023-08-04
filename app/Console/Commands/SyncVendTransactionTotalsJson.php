@@ -50,6 +50,14 @@ class SyncVendTransactionTotalsJson extends Command
                     }),
                     'vend_records_amount_latest' => $vend->vendRecordsLatest->sum('total_amount'),
                     'vend_records_amount_average_day' => $vend->vendRecordsLatest->sum('total_amount')/ (Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?? Carbon::now())) ?: 1),
+                    'vend_records_thirty_days_amount' => $vend->vendRecordsThirtyDays->sum('total_amount'),
+                    'vend_records_thirty_days_amount_average' =>
+                        $vend->vendRecordsThirtyDays->sum('total_amount')/
+                        (
+                            Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) < 30 ?
+                            (Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($vend->begin_date)->diffInDays(Carbon::now())) :
+                            30
+                        ),
                 ]
             ]);
         }

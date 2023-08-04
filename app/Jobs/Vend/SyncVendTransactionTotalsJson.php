@@ -58,7 +58,7 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
                     $vend->vendRecordsThirtyDays->sum('total_amount')/
                     (
                         Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) < 30 ?
-                        Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) :
+                        (Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($vend->begin_date)->diffInDays(Carbon::now())) :
                         30
                     ),
             ]
