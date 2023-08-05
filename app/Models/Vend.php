@@ -74,12 +74,12 @@ class Vend extends Model
 
     public function currentOperator()
     {
-        return $this->belongsToMany(Operator::class)->latest('operator_vend.created_at')->limit(1);
+        return $this->operators()->latest('operator_vend.created_at')->limit(1);
     }
 
     public function latestOperator()
     {
-        return $this->hasOne(OperatorVend::class)->latest('operator_vend.created_at');
+        return $this->operators()->latest('operator_vend.created_at')->limit(1);
     }
 
     public function latestVendBinding()

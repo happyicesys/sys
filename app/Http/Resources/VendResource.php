@@ -24,8 +24,14 @@ class VendResource extends JsonResource
             'id' => $this->id,
             'code' => $this->code,
             'apkVerJson' => $this->apk_ver_json,
+            'begin_date' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
+            'begin_date_short' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
+            'currentOperator' => OperatorResource::make($this->whenLoaded('currentOperator')),
             'serial_num' => $this->serial_num,
             'last_updated_at' => $this->last_updated_at ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
+            'latestOperator' => $this->when($this->relationLoaded('latestOperator'), function() {
+                return $this->latestOperator and $this->latestOperator->count() > 0 ? OperatorResource::make($this->latestOperator->first()->toArray()) : null;
+            }),
             'name' => $this->name,
             'full_name' => $this->code.$this->when($this->relationLoaded('latestVendBinding'), function() {
                 return $this->latestVendBinding && $this->latestVendBinding->customer ? (' - '.$this->latestVendBinding->customer->code.' - '.$this->latestVendBinding->customer->name) : ($this->name ? ' - '.$this->name : '');
@@ -34,6 +40,8 @@ class VendResource extends JsonResource
             }),
             'temp' => $this->temp/ 10,
             'temp_updated_at' => $this->temp_updated_at ? Carbon::parse($this->temp_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
+            'termination_date' => isset($this->termination_date) ? Carbon::parse($this->termination_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
+            'termination_date_short' => isset($this->termination_date) ? Carbon::parse($this->termination_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'coin_amount' => $this->coin_amount/ 100,
             'firmware_ver' => $this->firmware_ver ? dechex($this->firmware_ver) : null,
             'is_door_open' => $this->is_door_open ? 'Yes' : 'No',

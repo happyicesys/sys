@@ -39,11 +39,11 @@ class StoreVendsRecord implements ShouldQueue
             ->rightJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->where('vend_transactions.created_at', '>=', Carbon::parse($this->dateFrom)->startOfDay())
             ->where('vend_transactions.created_at', '<=', Carbon::parse($this->dateTo)->endOfDay())
-            ->whereIn('vend_id', function($query) {
-                $query->select('vend_id')
-                    ->from('vend_bindings')
-                    ->where('is_active', true);
-            })
+            // ->whereIn('vend_id', function($query) {
+            //     $query->select('vend_id')
+            //         ->from('vend_bindings')
+            //         ->where('is_active', true);
+            // })
             ->groupBy('date', 'vend_id')
             ->select(
                 'vend_transactions.id',
@@ -94,12 +94,13 @@ class StoreVendsRecord implements ShouldQueue
             )
             ->get();
 
+
         foreach($vends as $vend) {
             VendRecord::updateOrCreate([
                 'vend_id' => $vend->vend_id,
                 'date' => $vend->date,
             ], [
-                'customer_id' => $vend->customer_id,
+                'customer_id' => isset($vend->customer_id) ? $vend->customer_id : null,
                 'day' => $vend->day,
                 'failure_amount' => $vend->failure_amount,
                 'failure_count' => $vend->failure_count,

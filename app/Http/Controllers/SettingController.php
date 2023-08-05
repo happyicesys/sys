@@ -30,25 +30,16 @@ class SettingController extends Controller
         $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : true]);
         $className = get_class(new Customer());
 
-        $vends = DB::table('vends')
-            ->leftJoin('vend_bindings', function($query) {
-                $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                        ->where('is_active', true)
-                        ->latest('begin_date')
-                        ->limit(1);
-            })
-            ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
-            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-            ->leftJoin('operator_vend', function($query) {
-                $query->on('operator_vend.vend_id', '=', 'vends.id')
-                        ->latest('operator_vend.begin_date')
-                        ->limit(1);
-            })
-            ->leftJoin('operators', 'operators.id', '=', 'operator_vend.operator_id')
+        $vends = Vend::query()
+            ->with([
+                'operators' => function($query) {
+                    $query->latest('created_at')->first();
+                },
+                'latestVendBinding.customer:id,code,name',
+            ])
+            ->filterIndex($request)
             ->select(
-                'operator_vend.operator_id',
+                'id',
                 'vends.id',
                 'vends.begin_date',
                 'vends.code',
@@ -59,14 +50,50 @@ class SettingController extends Controller
                 'vends.termination_date',
                 'vends.firmware_ver',
                 'vends.last_updated_at',
-                'vends.private_key',
-                'customers.code AS customer_code',
-                'customers.name AS customer_name',
-                'customers.location_type_id',
-                'location_types.name AS location_type_name',
-                'operators.name AS operator_name',
+                'vends.private_key'
             );
-        $vends = $this->filterVendsDB($vends, $request);
+            dd($vends->where('code', '2550')->get()->toArray());
+
+        // $vends = DB::table('vends')
+        //     ->leftJoin('vend_bindings', function($query) {
+        //         $query->on('vend_bindings.vend_id', '=', 'vends.id')
+        //                 ->where('is_active', true)
+        //                 ->latest('begin_date')
+        //                 ->limit(1);
+        //     })
+        //     ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+        //     ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+        //     ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+        //     ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+        //     ->leftJoin('operator_vend', function($query) {
+        //         $query->on('operator_vend.vend_id', '=', 'vends.id')
+        //                 ->latest('operator_vend.begin_date')
+        //                 ->limit(1);
+        //     })
+        //     ->leftJoin('operators', 'operators.id', '=', 'operator_vend.operator_id')
+        //     ->select(
+        //         'customers.id AS customer_id',
+        //         'customers.code AS customer_code',
+        //         'customers.name AS customer_name',
+        //         'operator_vend.operator_id',
+        //         'vends.id',
+        //         'vends.begin_date',
+        //         'vends.code',
+        //         'vends.apk_ver_json',
+        //         'vends.serial_num',
+        //         'vends.last_updated_at',
+        //         'vends.name',
+        //         'vends.termination_date',
+        //         'vends.firmware_ver',
+        //         'vends.last_updated_at',
+        //         'vends.private_key',
+        //         'customers.code AS customer_code',
+        //         'customers.name AS customer_name',
+        //         'customers.location_type_id',
+        //         'location_types.name AS location_type_name',
+        //         'operators.name AS operator_name',
+        //     );
+        // $vends = $this->filterVendsDB($vends, $request);
         // $vends = $this->filterOperatorDB($vends);
 
         $vends = $vends->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
@@ -85,21 +112,27 @@ class SettingController extends Controller
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
-            'vends' => VendDBResource::collection(
+            'vends' => VendResource::collection(
                 $vends
             ),
         ]);
     }
 
-    public function edit($id)
+    public function editOrCreate($id = null, $type)
     {
-        $vend = Vend::findOrFail($id);
+        if($id) {
+            $vend = Vend::findOrFail($id);
+        }else {
+            $vend = new Vend();
+        }
+
 
         return Inertia::render('Setting/Edit', [
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
             'vend' => VendResource::make($vend),
+            'type' => $type,
         ]);
     }
 }

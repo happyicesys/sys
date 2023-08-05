@@ -71,7 +71,7 @@ class SyncActiveVendRecord implements ShouldQueue
             })
             ->leftJoin('operator_vend', function($query) {
                 $query->on('operator_vend.vend_id', '=', 'vends.id')
-                        ->latest('operator_vend.begin_date')
+                        ->latest('operator_vend.created_at')
                         ->limit(1);
             })
             ->whereIn('vends.id', function($query) use ($date) {
@@ -84,10 +84,17 @@ class SyncActiveVendRecord implements ShouldQueue
             })
             ->select('*', 'vends.id');
 
+        // $unbindVends = Vend::query()
+        //     ->leftJoin('operator_vend', function($query) {
+        //         $query->on('operator_vend.vend_id', '=', 'vends.id')
+        //                 ->latest('operator_vend.created_at')
+        //                 ->limit(1);
+        //     })
 
-        $vends = $activeVends->union($inactiveVends)
-            ->orderBy('code')
-            ->get();
+
+            $vends = $activeVends->union($inactiveVends)
+                ->orderBy('code')
+                ->get();
 
             foreach($vends as $vend) {
                 VendRecord::updateOrCreate([
@@ -104,8 +111,34 @@ class SyncActiveVendRecord implements ShouldQueue
                     'vend_code' => $vend->code,
                 ]);
             }
+
+            $unbindVends = Vend::query()
+                ->leftJoin('operator_vend', function($query) {
+                    $query->on('operator_vend.vend_id', '=', 'vends.id')
+                            ->latest('operator_vend.created_at')
+                            ->limit(1);
+                })
+                ->doesntHave('latestVendBinding')
+                ->has('operators')
+                ->select('*', 'vends.id')
+                ->whereNull('vends.termination_date')
+                ->where('vends.last_updated_at', '>=', Carbon::now()->subDays(3)->startOfDay())
+                ->get();
+
+            foreach($unbindVends as $unbindVend) {
+                VendRecord::updateOrCreate([
+                    'vend_id' => $unbindVend->id,
+                    'date' => $date->copy()->toDateString(),
+                ],
+                [
+                    'day' => $date->copy()->day,
+                    'month' => $date->copy()->month,
+                    'monthname' => $date->copy()->format('F'),
+                    'operator_id' => $vend->operator_id,
+                    'year' => $date->copy()->year,
+                    'vend_code' => $vend->code,
+                ]);
+            }
         }
-
-
     }
 }

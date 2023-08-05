@@ -5,7 +5,18 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Edit Vend {{ vend.code }}
+        {{ typeName }} Vending Machine
+        <span v-if="type == 'update'">
+          {{ vend.data.code }}
+        </span>
+        <span v-if="vend.customer_name">
+          <br>
+          {{ vend.customer_code }} - {{ vend.customer_name }}
+        </span>
+        <span v-else-if="!vend.customer_name && vend.name">
+          <br>
+          {{ vend.name }}
+        </span>
       </h2>
     </template>
 
@@ -13,7 +24,7 @@
       <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
-            Dude
+            {{vend.data}}
           </div>
       </div>
     </div>
@@ -32,21 +43,26 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 const props = defineProps({
     operatorOptions: Object,
     vend: Object,
+    type: String,
   })
 
   const booleanOptions = ref([])
   const loading = ref(false)
   const locationTypeOptions = ref([])
   const operatorOptions = ref([])
-  const type = ref('')
-  const vend = ref()
+  const typeName = ref('')
   const operatorCountry = usePage().props.auth.operatorCountry
   const operatorRole = usePage().props.auth.operatorRole
   const permissions = usePage().props.auth.permissions
   const now = ref(moment().format('HH:mm:ss'))
 
 onMounted(() => {
-  console.log(props.vend)
+
+    if(props.type == 'create') {
+        typeName.value = 'Create New'
+    } else {
+        typeName.value = 'Edit'
+    }
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})

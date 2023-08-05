@@ -12,14 +12,15 @@
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="flex justify-end">
-          <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          @click="onCreateClicked()"
-          >
-            <PlusIcon class="h-4 w-4" aria-hidden="true"/>
-            <span>
-              Create
-            </span>
-          </Button>
+          <Link href="/settings/vend/0/create">
+            <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            >
+              <PlusIcon class="h-4 w-4" aria-hidden="true"/>
+              <span>
+                Create
+              </span>
+            </Button>
+          </Link>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
@@ -204,17 +205,12 @@
                         {{ vend.code }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                        <span v-if="vend.customer_code">
-                          <span v-if="permissions.includes('admin-access vends')">
-                            <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/vend-code/' + vend.code">
-                              {{ vend.customer_code }} <br>
-                              {{ vend.customer_name }}
-                            </a>
-                          </span>
-                          <span v-else>
-                            {{ vend.customer_code }} <br>
-                            {{ vend.customer_name }}
-                          </span>
+                        <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
+                          <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/vend-code/' + vend.code">
+                            {{ vend.latestVendBinding.customer.code }}
+                            <br>
+                            {{ vend.latestVendBinding.customer.name }}
+                          </a>
                         </span>
                         <span v-else>
                           {{ vend.name }}
@@ -227,11 +223,13 @@
                         {{ vend.termination_date_short }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.operator_name }}
+                        <span v-if="vend.latestOperator">
+                          {{ vend }}
+                        </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
-                          <Link :href="'/settings/vend/' + vend.id + '/edit'">
+                          <Link :href="'/settings/vend/' + vend.id + '/update'">
                             <Button
                               type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                             >
