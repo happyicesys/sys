@@ -92,7 +92,6 @@
             <div class="pl-1 py-3 grid grid-cols-1 md:grid-cols-5 gap-2">
                 <DatetimePicker
                     v-model="filters.datetime_from"
-                    :maxDate="new Date()"
                     class="col-span-5 md:col-span-1"
                 >
                     From
@@ -100,7 +99,6 @@
                 <DatetimePicker
                     v-model="filters.datetime_to"
                     :minDate="filters.datetime_from"
-                    :maxDate="new Date()"
                     class="col-span-5 md:col-span-1"
                 >
                     To
@@ -215,8 +213,8 @@
   const hourDurationFilters = ref([6])
   const durationFilters = ref([1, 3, 7, 14])
   const filters = ref({
-    datetime_from: props.startDate ? new Date(props.startDate) : new Date(),
-    datetime_to: props.endDate ? new Date(props.endDate) : new Date(),
+    datetime_from: props.startDate ? props.startDate : moment().format('YYYY-MM-DD HH:mm:ss'),
+    datetime_to: props.endDate ? props.endDate : moment().format('YYYY-MM-DD HH:mm:ss'),
     duration: props.duration,
   })
   const labels = ref([])
@@ -237,7 +235,7 @@
                 displayFormats: {
                     hour: 'ha (DD)'
                 },
-                tooltipFormat: 'YYMMDD hh:mma'
+                tooltipFormat: 'YYMMDD hh:mma',
             }
         },
         y: {
