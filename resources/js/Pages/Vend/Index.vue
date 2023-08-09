@@ -340,7 +340,7 @@
                             <TableHead>
                                 Errors
                             </TableHead>
-                            <TableHeadSort modelName="vend_channel_totals_json->balancePercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->balancePercent')">
+                            <TableHeadSort modelName="balance_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('balance_percent')">
                                 Balance Stock
                                 <!-- <span class="flex justify-center" data-tooltip-target="balance-stock" data-tooltip-style="light">
                                     <QuestionMarkCircleIcon class="w-4 h-4"></QuestionMarkCircleIcon>
@@ -350,7 +350,7 @@
                                     </div>
                                 </span> -->
                             </TableHeadSort>
-                            <TableHeadSort modelName="vend_channel_totals_json->outOfStockSkuPercent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_totals_json->outOfStockSkuPercent')">
+                            <TableHeadSort modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent')">
                                 Remaining SKU#
                             </TableHeadSort>
                             <TableHeadSort modelName="vend_transaction_totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->thirty_days_amount', true)">
@@ -526,19 +526,19 @@
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <span
                                     v-if="vend.vendChannelTotalsJson"
-                                    :class="[vend.vendChannelTotalsJson['balancePercent'] <= 20 ? 'text-red-700' : (vend.vendChannelTotalsJson['balancePercent'] > 50 ? 'text-green-700' : 'text-blue-700')]"
+                                    :class="[vend.balance_percent <= 20 ? 'text-red-700' : (vend.balance_percent > 50 ? 'text-green-700' : 'text-blue-700')]"
                                 >
                                     {{ vend.vendChannelTotalsJson['qty'] }}/ {{ vend.vendChannelTotalsJson['capacity'] }} <br>
-                                    ({{ vend.vendChannelTotalsJson['balancePercent'] }}%)
+                                    ({{ vend.balance_percent }}%)
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <span
                                     v-if="vend.vendChannelTotalsJson"
-                                    :class="[100 - vend.vendChannelTotalsJson['outOfStockSkuPercent'] <= 40 ? 'text-red-700' : (100 - vend.vendChannelTotalsJson['outOfStockSkuPercent'] > 70 ? 'text-green-700' : 'text-blue-700')]"
+                                    :class="[100 - vend.out_of_stock_sku_percent <= 40 ? 'text-red-700' : (100 - vend.out_of_stock_sku_percent > 70 ? 'text-green-700' : 'text-blue-700')]"
                                 >
                                     {{ vend.vendChannelTotalsJson['count'] - vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
-                                    ({{ 100 - vend.vendChannelTotalsJson['outOfStockSkuPercent'] }}%)
+                                    ({{ 100 - vend.out_of_stock_sku_percent }}%)
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -853,7 +853,7 @@
     balanceStockLessThan: '',
     remainingSkuLessThan: '',
     sortKey: '',
-    sortBy: false,
+    sortBy: true,
     numberPerPage: '',
     visited: true,
   })

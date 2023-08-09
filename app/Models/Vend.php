@@ -422,10 +422,10 @@ class Vend extends Model
                 });
         })
         ->when($request->balanceStockLessThan, function($query, $search) {
-            $query->where('vend_channel_totals_json->balancePercent', '<=', $search);
+            $query->where('balance_percent', '<=', $search);
         })
         ->when($request->remainingSkuLessThan, function($query, $search) {
-            $query->where('vend_channel_totals_json->outOfStockSkuPercent', '>=', (100 - $search));
+            $query->where('out_of_stock_sku_percent', '>=', (100 - $search));
         })
         ->when($request->sortKey, function($query, $search) use ($request) {
             if(strpos($search, '->')) {
@@ -433,12 +433,18 @@ class Vend extends Model
                 $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
                 ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             }else {
-                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                if($search == 'vends.balance_percent' or $search == 'vends.out_of_stock_sku_percent') {
+                    $query->orderByRaw('ISNULL(?), ? ASC', [$search, $search]);
+                }else {
+                    $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                }
             }
+
 
             if($search === 'vends.is_online') {
                 $query->orderBy('vends.code', 'asc');
             }
+
         });
     }
 }

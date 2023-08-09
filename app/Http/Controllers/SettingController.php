@@ -17,6 +17,7 @@ use App\Models\Vend;
 use App\Traits\HasFilter;
 use DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
 
 class SettingController extends Controller
@@ -94,11 +95,14 @@ class SettingController extends Controller
             $vend = new Vend();
         }
 
+        $response = Http::get(env('CMS_URL') . '/api/vends');
+
 
         return Inertia::render('Setting/Edit', [
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
+            'adminCustomerOptions' => $response->collect(),
             'vend' => $vend,
             'type' => $type,
         ]);

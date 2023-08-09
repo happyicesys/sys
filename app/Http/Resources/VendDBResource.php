@@ -14,6 +14,7 @@ class VendDBResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'balance_percent' => isset($this->balance_percent) ? $this->balance_percent : null,
             'code' => $this->code,
             'amount_average_day' => isset($this->amount_average_day) ? $this->amount_average_day/100 : null,
             'apkVerJson' => isset($this->apk_ver_json) ? json_decode($this->apk_ver_json) : null,
@@ -39,6 +40,7 @@ class VendDBResource extends JsonResource
             'is_temp_error' => isset($this->is_temp_error) && $this->is_temp_error ? true : false,
             'last_invoice_date' => isset($this->last_invoice_date) ? Carbon::parse($this->last_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'last_invoice_diff' => isset($this->last_invoice_date) ? Carbon::parse($this->last_invoice_date)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
+            'out_of_stock_sku_percent' => isset($this->out_of_stock_sku_percent) ? $this->out_of_stock_sku_percent : null,
             'next_invoice_date' => isset($this->next_invoice_date) ? Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'next_invoice_diff' => isset($this->next_invoice_date) ? Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'location_type_id' => isset($this->location_type_id) ? $this->location_type_id : null,

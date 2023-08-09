@@ -249,16 +249,25 @@ trait HasFilter {
           $query->where('out_of_stock_sku_percent', '>=', (100 - $search));
       })
       ->when($request->sortKey, function($query, $search) use ($request) {
+            // if($search === 'balance_percent') {
+            //     $query->orderBy('is_online', 'desc');
+            // }
+
           if(strpos($search, '->')) {
               $inputSearch = explode("->", $search);
               $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
               ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
           }else {
-              $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            // dd($search);
+            if($search == 'balance_percent' or $search == 'out_of_stock_sku_percent') {
+                $query->orderByRaw('ISNULL('.$search.'), '.$search.' ASC');
+            }else {
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            }
           }
 
           if($search === 'vends.is_online') {
-              $query->orderBy('vends.code', 'asc');
+            $query->orderBy('vends.code', 'asc');
           }
       });
 

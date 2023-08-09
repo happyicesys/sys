@@ -25,7 +25,7 @@
        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll p-5">
           <form @submit.prevent="submit" id="submit">
-            <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6 pb-2">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2">
               <div class="sm:col-span-6">
                 <FormInput v-model="form.code" :error="form.errors.code" required="true" :disabled="vend.code">
                   Code
@@ -36,13 +36,13 @@
                   Name
                 </FormInput>
               </div>
-              <div class="sm:col-span-6">
+              <div class="sm:col-span-3">
                 <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
                 v-if="permissions.includes('update vends')">
                   Begin Date (Default is the Creation/ First Invoice Date)
                 </DatePicker>
               </div>
-              <div class="sm:col-span-6">
+              <div class="sm:col-span-3">
                 <DatePicker v-model="form.termination_date" :error="form.errors.termination_date" :minDate="form.begin_date"
                 v-if="permissions.includes('update vends')">
                   Termination Date (Default is the Unbinding Date from CMS, status change)
@@ -108,17 +108,18 @@ import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
+    adminCustomerOptions: Object,
     operatorOptions: Object,
     vend: Object,
     type: String,
   })
 
+  const adminCustomerOptions = ref([])
   const booleanOptions = ref([])
   const form = ref(
     useForm(getDefaultForm())
   )
   const loading = ref(false)
-  const locationTypeOptions = ref([])
   const operatorOptions = ref([])
   const typeName = ref('')
   const operatorCountry = usePage().props.auth.operatorCountry
@@ -127,12 +128,12 @@ const props = defineProps({
   const now = ref(moment().format('HH:mm:ss'))
 
 onMounted(() => {
-console.log(props.vend)
     if(props.type == 'create') {
         typeName.value = 'Create New'
     } else {
         typeName.value = 'Edit'
     }
+    adminCustomerOptions.value = props.adminCustomerOptions.map((data) => {return {id: data.id, full_name: data.cust_id + ' - ' + data.company}})
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
