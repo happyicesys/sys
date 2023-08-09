@@ -223,9 +223,7 @@
                         {{ vend.termination_date_short }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        <span v-if="vend.latestOperator">
-                          {{ vend }}
-                        </span>
+                          {{ vend.latestOperator ? vend.latestOperator.full_name : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
@@ -272,21 +270,12 @@
       </div>
     </div>
   </div>
-  <Form
-      v-if="showModal"
-      :vend="vend"
-      :type="type"
-      :showModal="showModal"
-      @modalClose="onModalClose"
-  >
-  </Form>
   </BreezeAuthenticatedLayout>
 </template>
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-import Form from '@/Pages/Simcard/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -315,13 +304,14 @@ const filters = ref({
     operator: '',
     is_binded_customer: '',
     sortKey: '',
-    sortBy: false,
+    sortBy: true,
     numberPerPage: '',
     visited: true,
   })
   const booleanOptions = ref([])
   const categoryOptions = ref([])
   const categoryGroupOptions = ref([])
+  const initBinded = usePage().props.initBinded
   const loading = ref(false)
   const locationTypeOptions = ref([])
   const numberPerPageOptions = ref([])
@@ -331,6 +321,7 @@ const filters = ref({
   const operatorCountry = usePage().props.auth.operatorCountry
   const operatorRole = usePage().props.auth.operatorRole
   const permissions = usePage().props.auth.permissions
+  const roles = usePage().props.auth.roles
   const now = ref(moment().format('HH:mm:ss'))
 
 onMounted(() => {
@@ -361,11 +352,7 @@ onMounted(() => {
     filters.value.locationType = locationTypeOptions.value[0]
     filters.value.operator = operatorOptions.value[0]
 
-    if(operatorRole.value == 'admin' || operatorRole.value == 'supervisor' || operatorRole.value == 'driver') {
-        filters.value.is_binded_customer = booleanOptions.value[1]
-    } else {
-        filters.value.is_binded_customer = booleanOptions.value[0]
-    }
+    filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]
 })
 
 function onCreateClicked() {
@@ -382,16 +369,14 @@ function onDeleteClicked(vend) {
   router.delete('/vends/' + vend.id)
 }
 
-function onEditClicked(telcoValue) {
-  type.value = 'update'
-  vend.value = telcoValue
-  showModal.value = true
-}
-
 function onSearchFilterUpdated() {
-  router.get('/vends', {
+  router.get('/settings', {
       ...filters.value,
-      telco_id: filters.value.telco_id.id,
+      categories: filters.value.categories.map((category) => { return category.id }),
+      categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
+      location_type_id: filters.value.locationType.id,
+      operator_id: filters.value.operator.id,
+      is_binded_customer: filters.value.is_binded_customer.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,
@@ -400,16 +385,12 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  router.get('/vends')
+  router.get('/settings')
 }
 
 function sortTable(sortKey) {
   filters.value.sortKey = sortKey
   filters.value.sortBy = !filters.value.sortBy
   onSearchFilterUpdated()
-}
-
-function onModalClose() {
-  showModal.value = false
 }
 </script>

@@ -76,14 +76,6 @@ class VendController extends Controller
     public function index(Request $request)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
-        // if(!isset($request->is_binded_customer)) {
-        //     $request->merge(['is_binded_customer' => env('VEND_INIT_BINDED') and  (
-        //         auth()->user()->hasRole('superadmin') or
-        //         auth()->user()->hasRole('admin') or
-        //         auth()->user()->hasRole('supervisor') or
-        //         auth()->user()->hasRole('driver')
-        //     ) ? 'true' : 'all']);
-        // }
         if(!isset($request->is_binded_customer)) {
             if(
                 env('VEND_INIT_BINDED') and
@@ -98,8 +90,8 @@ class VendController extends Controller
             }
         }
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
-        $request->sortKey = $request->sortKey ? $request->sortKey : 'out_of_stock_sku_percent';
-        $request->sortBy = $request->sortBy ? $request->sortBy : false;
+        $request->sortKey = $request->sortKey ? $request->sortKey : 'balance_percent';
+        $request->sortBy = $request->sortBy ? $request->sortBy : true;
         $className = get_class(new Customer());
 
         $vends = DB::table('vends')
@@ -134,6 +126,7 @@ class VendController extends Controller
                 'vends.code',
                 'vends.name',
                 'vends.apk_ver_json',
+                'vends.balance_percent',
                 'vends.serial_num',
                 'vends.name',
                 'vends.temp',

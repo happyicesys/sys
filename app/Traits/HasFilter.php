@@ -243,7 +243,7 @@ trait HasFilter {
           $query->whereDate('customers.last_invoice_date', '<=', Carbon::now()->subDays($search)->toDateString());
       })
       ->when($request->balanceStockLessThan, function($query, $search) {
-          $query->where('vend_channel_totals_json->balancePercent', '<=', $search);
+          $query->where('balance_percent', '<=', $search);
       })
       ->when($request->remainingSkuLessThan, function($query, $search) {
           $query->where('out_of_stock_sku_percent', '>=', (100 - $search));

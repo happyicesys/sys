@@ -187,6 +187,7 @@
                                                             {{ vend.customer.name }}
                                                         </span>
                                                         <span v-else>
+                                                            {{ vend.code }} <br>
                                                             {{ vend.name }}
                                                         </span>
                                                     </td>

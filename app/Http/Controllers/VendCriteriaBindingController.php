@@ -70,6 +70,7 @@ class VendCriteriaBindingController extends Controller
                 'vends.firmware_ver',
                 DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
                 DB::raw('DATE(customers.next_invoice_date) AS next_invoice_date'),
+                'vends.balance_percent',
                 'vends.last_updated_at',
                 'vends.out_of_stock_sku_percent',
                 'vends.parameter_json',

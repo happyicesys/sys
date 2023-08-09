@@ -29,8 +29,11 @@ class VendResource extends JsonResource
             'currentOperator' => OperatorResource::make($this->whenLoaded('currentOperator')),
             'serial_num' => $this->serial_num,
             'last_updated_at' => $this->last_updated_at ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
-            'latestOperator' => $this->when($this->relationLoaded('latestOperator'), function() {
-                return $this->latestOperator and $this->latestOperator->count() > 0 ? OperatorResource::make($this->latestOperator->first()->toArray()) : null;
+            'latestOperator' =>  $this->when($this->relationLoaded('latestOperator'), function() {
+                return OperatorResource::make($this->operators()->first());
+            }),
+            'operators' => $this->when($this->relationLoaded('operators'), function() {
+                return OperatorResource::collection($this->operators);
             }),
             'name' => $this->name,
             'full_name' => $this->code.$this->when($this->relationLoaded('latestVendBinding'), function() {
