@@ -90,7 +90,17 @@ class SettingController extends Controller
     public function editOrCreate($id = null, $type)
     {
         if($id) {
-            $vend = Vend::findOrFail($id);
+            $vend = Vend::query()
+                ->leftJoin('vend_bindings', function($query) {
+                    $query->on('vend_bindings.vend_id', '=', 'vends.id')
+                            ->where('is_active', true)
+                            ->latest('begin_date')
+                            ->limit(1);
+                })
+                ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+                ->select('*', 'vends.id', 'customers.id AS customer_id', 'customers.code AS customer_code', 'customers.name AS customer_name')
+                ->where('vends.id', $id)
+                ->first();
         }else {
             $vend = new Vend();
         }

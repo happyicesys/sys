@@ -353,13 +353,21 @@
                             <TableHeadSort modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent')">
                                 Remaining SKU#
                             </TableHeadSort>
-                            <TableHeadSort modelName="vend_transaction_totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->thirty_days_amount', true)">
-                                Sales(qty)<br>
-                                Today <br>
-                                Y'day<br>
-                                Last7d <br>
-                                Last30d
-                            </TableHeadSort>
+                            <TableHead>
+                                Sales(qty)
+                                <SingleSortItem modelName="vend_transaction_totals_json->today_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->today_amount', true)">
+                                    Today
+                                </SingleSortItem>
+                                <SingleSortItem modelName="vend_transaction_totals_json->yesterday_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->yesterday_amount', true)">
+                                    Y'day
+                                </SingleSortItem>
+                                <SingleSortItem modelName="vend_transaction_totals_json->seven_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->seven_days_amount', true)">
+                                    Last7d
+                                </SingleSortItem>
+                                <SingleSortItem modelName="vend_transaction_totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->thirty_days_amount', true)">
+                                    Last30d
+                                </SingleSortItem>
+                            </TableHead>
                             <TableHead>
                                 Status
                             </TableHead>
@@ -655,6 +663,10 @@
                                             <span class="font-bold">
                                                 MQTT
                                             </span>
+                                            <span v-if="vend.mqtt_updated_at">
+                                                <br>
+                                                {{ vend.mqtt_updated_at }}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -812,6 +824,7 @@
   import TableHead from '@/Components/TableHead.vue';
   import TableData from '@/Components/TableData.vue';
   import TableHeadSort from '@/Components/TableHeadSort.vue';
+  import SingleSortItem from '@/Components/SingleSortItem.vue';
   import { ref, onMounted } from 'vue';
   import { router } from '@inertiajs/vue3';
   import { Head, usePage } from '@inertiajs/vue3';
@@ -853,7 +866,7 @@
     balanceStockLessThan: '',
     remainingSkuLessThan: '',
     sortKey: '',
-    sortBy: true,
+    sortBy: false,
     numberPerPage: '',
     visited: true,
   })

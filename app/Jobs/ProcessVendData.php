@@ -156,7 +156,10 @@ class ProcessVendData implements ShouldQueue
                 $this->logTempUpdatedAtVariance($vend, $vendData);
 
                 if($this->connectionType === 'mqtt') {
-                    SyncIsMqttVend::dispatch($vend)->onQueue('default');
+                    $vend->update([
+                        'is_mqtt' => true,
+                        'mqtt_updated_at' => Carbon::now(),
+                    ]);
                 }
             }
 

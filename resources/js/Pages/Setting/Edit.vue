@@ -32,6 +32,42 @@
                 </FormInput>
               </div>
               <div class="sm:col-span-6">
+                <div class="relative flex items-start">
+                  <div class="flex h-6 items-center">
+                    <input
+                      aria-describedby="is_customer"
+                      v-model="form.is_customer"
+                      @change="onIsCustomerChecked()"
+                      :disabled="form.is_customer && type == 'update'"
+                      name="is_customer" type="checkbox"
+                      class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                      :class="[form.is_customer && type == 'update' ? 'bg-gray-200 hover:cursor-not-allowed' : '']"
+                    />
+                  </div>
+                  <div class="ml-3 text-sm leading-6">
+                    <label for="is_customer" class="font-medium text-gray-900">Customer Binding?</label>
+                    {{ ' ' }}
+                    <span id="is_customer" class="text-gray-500"><span class="sr-only">Customer Binding?</span>retrieve customer data from cms</span>
+                  </div>
+                </div>
+              </div>
+              <div class="sm:col-span-6" v-if="form.is_customer">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Customer
+                </label>
+                <MultiSelect
+                  v-model="form.customer_id"
+                  :options="adminCustomerOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="full_name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+              </div>
+              <div class="sm:col-span-6" v-if="!form.is_customer">
                 <FormInput v-model="form.name" :error="form.errors.name" :disabled="vend.customer_code && vend.customer_name">
                   Name
                 </FormInput>
@@ -39,13 +75,13 @@
               <div class="sm:col-span-3">
                 <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
                 v-if="permissions.includes('update vends')">
-                  Begin Date (Default is the Creation/ First Invoice Date)
+                  Begin Date
                 </DatePicker>
               </div>
               <div class="sm:col-span-3">
                 <DatePicker v-model="form.termination_date" :error="form.errors.termination_date" :minDate="form.begin_date"
                 v-if="permissions.includes('update vends')">
-                  Termination Date (Default is the Unbinding Date from CMS, status change)
+                  Termination Date
                 </DatePicker>
               </div>
               <div class="sm:col-span-6">
@@ -128,6 +164,7 @@ const props = defineProps({
   const now = ref(moment().format('HH:mm:ss'))
 
 onMounted(() => {
+  console.log(JSON.parse(JSON.stringify(props.vend)))
     if(props.type == 'create') {
         typeName.value = 'Create New'
     } else {
@@ -140,9 +177,14 @@ onMounted(() => {
     ]
 
     form.value = props.vend ? useForm(props.vend) : useForm(getDefaultForm())
-    form.value.name = props.vend.customer_code ?
-                      props.vend.customer_code + '    ' + props.vend.customer_name :
-                      props.vend.name
+    form.value.name = props.vend.name
+    if(props.vend.customer_id) {
+        form.value.is_customer = true
+        form.value.customer_id = {
+          'id': props.vend.customer_id,
+          'full_name': props.vend.customer_code + ' - ' + props.vend.customer_name
+        }
+    }
 })
 
 function getDefaultForm() {
@@ -152,6 +194,12 @@ function getDefaultForm() {
     serial_num: '',
     termination_date: '',
     private_key: '',
+  }
+}
+
+function onIsCustomerChecked() {
+  if(form.value.is_customer) {
+
   }
 }
 </script>

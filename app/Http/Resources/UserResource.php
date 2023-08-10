@@ -22,7 +22,10 @@ class UserResource extends JsonResource
             'operator_id' => OperatorResource::make($this->whenLoaded('operator')),
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'roles' => $this->whenLoaded('roles'),
-            'role_id' => $this->whenLoaded('roles'),
+            // 'role_id' => $this->whenLoaded('roles'),
+            'role_id' =>  $this->when($this->relationLoaded('roles'), function() {
+                return $this->roles()->first();
+            }),
         ];
     }
 }
