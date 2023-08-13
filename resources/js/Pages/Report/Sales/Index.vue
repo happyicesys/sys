@@ -11,58 +11,27 @@
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
-      <div class="pb-3 mb-2">
-        <div class="sm:hidden">
-          <label for="tabs" class="sr-only">Select a tab</label>
-          <select id="tabs" name="tabs" class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm">
-            <option v-for="tab in tabs" :key="tab.name" :selected="tab.current">
-              {{ tab.name }}
-            </option>
-          </select>
-        </div>
-        <div class="hidden sm:block">
-          <div class="border-b border-gray-200">
-            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-              <Link v-for="tab in tabs" :key="tab.name"
-              :class="[tab.current ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-200 hover:text-gray-700', 'flex whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium']"
-              :href="tab.href"
-              >
+        <div class="pb-3 mb-2">
+          <div class="sm:hidden">
+            <label for="tabs" class="sr-only">Select a tab</label>
+            <select id="tabs" name="tabs" class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm" @change="onTabChanged($event)">
+              <option v-for="tab in tabs" :key="tab" :value="tab.href" :selected="tab.current">
                 {{ tab.name }}
-            </Link>
-            </nav>
+              </option>
+            </select>
           </div>
-<!--
-            <div v-if="!item.children" class="py-1 space-y-1">
-              <BreezeResponsiveNavLink
-              v-if="permissions.includes(item.permission)"
-              :href="route(item.href)" :active="route().current(item.href)">
-                  {{ item.name }}
-              </BreezeResponsiveNavLink>
+          <div class="hidden sm:block">
+            <div class="border-b border-gray-200">
+              <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <Link v-for="tab in tabs" :key="tab.name"
+                :class="[tab.current ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-200 hover:text-gray-700', 'flex whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium']"
+                :href="tab.href"
+                >
+                  {{ tab.name }}
+              </Link>
+              </nav>
             </div>
-
-            <Disclosure as="div" v-else class="space-y-1" v-slot="{ open }">
-                <DisclosureButton class="pt-2 pb-2 mb-1 pl-4 space-y-1 flex" v-if="permissions.includes(item.permission)">
-                    <span class="">
-                        {{ item.name }}
-                    </span>
-                    <svg :class="[open ? 'text-gray-400 rotate-90' : 'text-gray-300', 'ml-3 flex-shrink-0 h-5 w-5 transform group-hover:text-gray-400 transition-colors ease-in-out duration-150']"
-                        viewBox="0 0 20 20" aria-hidden="true">
-                        <path d="M6 6L14 10L6 14V6Z" fill="currentColor" />
-                    </svg>
-                </DisclosureButton>
-                <DisclosurePanel class="py-1 space-y-1">
-                    <Link v-for="subItem in item.children" :key="subItem.name" as="a"
-                            :href="subItem.href">
-                        <DisclosureButton
-                            class="group w-full flex items-center pl-11 pr-2 py-3 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-50">
-                            {{ subItem.name }}
-                        </DisclosureButton>
-                    </Link>
-                </DisclosurePanel>
-            </Disclosure> -->
-
-
-        </div>
+          </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="Vend ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
@@ -445,6 +414,10 @@ function onSearchFilterUpdated() {
       preserveState: true,
       replace: true,
   })
+}
+
+function onTabChanged(event) {
+  router.get(event.target.value)
 }
 
 function resetFilters() {

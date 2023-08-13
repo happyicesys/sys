@@ -98,7 +98,12 @@ class SettingController extends Controller
                             ->limit(1);
                 })
                 ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
-                ->select('*', 'vends.id', 'customers.id AS customer_id', 'customers.code AS customer_code', 'customers.name AS customer_name')
+                ->leftJoin('operator_vend', function($query) {
+                    $query->on('operator_vend.vend_id', '=', 'vends.id')
+                            ->latest('operator_vend.begin_date')
+                            ->limit(1);
+                })
+                ->select('*', 'vends.id', 'vends.code', 'customers.id AS customer_id', 'customers.code AS customer_code', 'customers.name AS customer_name')
                 ->where('vends.id', $id)
                 ->first();
         }else {

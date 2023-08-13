@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ProcessCustomerData;
+use App\Jobs\SyncSingleCustomer;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CustomerResource;
@@ -123,11 +124,14 @@ class CustomerController extends Controller
 
     public function migrate(Request $request)
     {
+        $value = $request->all();
         VendData::create([
             'ip_address' => $request->ip(),
-            'value' => $request->all(),
+            'value' => $value,
         ]);
-        ProcessCustomerData::dispatch($request->all(), null);
+
+        SyncSingleCustomer::dispatch($value[0]['id']);
+        // ProcessCustomerData::dispatch($request->all(), null);
     }
 
     public function syncNextDeliveryDate()

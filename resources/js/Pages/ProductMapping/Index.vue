@@ -1,6 +1,6 @@
 <template>
 
-  <Head title="Payment Methods" />
+  <Head title="Product Mappings" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
@@ -26,6 +26,9 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="Name" v-model="filters.name">
             Name
+          </SearchInput>
+          <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code">
+            Vend ID#
           </SearchInput>
         </div>
 
@@ -136,7 +139,7 @@
                         </ul>
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-center">
-                        <div class="flex justify-center space-x-1" v-if="permissions.includes('update product-mappings')">
+                        <div class="flex justify-center flex-col space-y-1" v-if="permissions.includes('update product-mappings')">
                           <Button
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                             @click="onEditClicked(productMapping)"
@@ -234,6 +237,7 @@ const props = defineProps({
 
 const filters = ref({
   name: '',
+  vend_code: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,

@@ -50,8 +50,19 @@
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
                         Product
                       </th>
-                      <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"  v-if="permissions.includes('admin-access vends') && vend.is_mqtt">
-                        Action
+                      <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"  v-if="permissions.includes('admin-access vends')">
+                        <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-200 px-4 py-2 md:px-3 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        @click="showFilters = true"
+                        v-if="!showFilters && vend.is_mqtt"
+                        >
+                          <ChevronDoubleDownIcon class="h-3 w-3" aria-hidden="true"/>
+                        </Button>
+                        <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-4 py-2 md:px-3 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        @click="showFilters = false"
+                        v-if="showFilters && vend.is_mqtt"
+                        >
+                          <ChevronDoubleUpIcon class="h-3 w-3" aria-hidden="true"/>
+                        </Button>
                       </th>
                     </tr>
                   </thead>
@@ -131,7 +142,7 @@
                           <Button
                             type="button" class="bg-yellow-300 hover:bg-yellow-400 px-1 py-1 text-xs text-gray-800 flex space-x-1"
                             @click="onDispenseClicked(channel)"
-                            v-if="vend.is_mqtt"
+                            v-if="vend.is_mqtt && showFilters"
                           >
                             <span>
                               Dispense
@@ -184,7 +195,7 @@
 </template>
 
 <script setup>
-import { CheckCircleIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
+import { ChevronDoubleDownIcon, ChevronDoubleUpIcon, CheckCircleIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
 import Button from '@/Components/Button.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -200,6 +211,7 @@ const props = defineProps({
 const channels = ref([])
 const permissions = usePage().props.auth.permissions
 const productOptions = ref([])
+const showFilters = ref(false)
 
 
 onMounted(() => {

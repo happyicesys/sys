@@ -234,7 +234,7 @@
                                 </span>
                             </div>
                         </Button>
-                        <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                         @click="onCreateClicked()"
                         v-if="permissions.includes('admin-access vends')"
                         >
@@ -242,7 +242,7 @@
                             <span>
                                 New Machine
                             </span>
-                        </Button>
+                        </Button> -->
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-blue-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                         @click="onSyncNextDeliveryDate()"
                         v-if="permissions.includes('admin-access vends')"

@@ -123,7 +123,7 @@
                     </div>
 
 
-                    <div class="p-1 bg-white border-b border-gray-200 flex flex-col space-y-6">
+                    <div class="p-1 py-4 bg-white border-b border-gray-200 flex flex-col space-y-6">
                         <p class="text-center p-2">
                             {{ (filters && filters.operator ? filters.operator.name : operator.name)  }}
                         </p>
@@ -233,6 +233,106 @@
                             </Graph>
                         </div>
 
+                        <div class="pt-5 my-1 mx-4 px-4" v-if="permissions.includes('admin-access vends')">
+                            <p class="text-sm flex justify-between">
+                                <div>
+                                    Monthly Analytics By Criteria
+                                </div>
+                            </p>
+                            <div class="pb-3 mb-2">
+                                <div class="sm:hidden">
+                                    <label for="tabs" class="sr-only">Select a tab</label>
+                                    <select id="tabs" name="tabs" class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm" @change="onTabChanged($event)">
+                                        <option v-for="tab in tabs" :key="tab" :value="tab.href" :selected="tab.current">
+                                            {{ tab.name }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div class="hidden sm:block">
+                                    <div class="border-b border-gray-200">
+                                        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                                            <span v-for="tab in tabs" :key="tab.name"
+                                            class="hover:cursor-pointer"
+                                            :class="[tab.current ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-200 hover:text-gray-700', 'flex whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium']"
+                                            @click="onTabChanged(tab)"
+                                            >
+                                                {{ tab.name }}
+                                        </span>
+                                        </nav>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2 flow-root">
+                                <div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+                                    <div class="inline-block min-w-full py-2 align-middle sm:px-3 lg:px-4">
+                                    <div class="overflow-auto shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                                        <table class="min-w-full divide-y divide-gray-300">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th scope="col" class="px-3 py-2 text-center text-sm font-semibold text-gray-900">
+                                                    Name
+                                                </th>
+                                                <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
+                                                </th>
+                                                <th scope="col" class="px-3 py-2 text-center text-sm font-semibold text-gray-900" v-for="month in months.data">
+                                                    {{ month.short_name }}
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-200 bg-white" v-for="(item, itemIndex) in monthsByModel">
+
+                                            <tr >
+                                                <td rowspan="3" class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 row-span-3">
+                                                    {{ itemIndex }}
+                                                </td>
+                                                <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 row-span-3">
+                                                    Avg Daily Sales
+                                                </td>
+                                                <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
+                                                    <span v-for="(data, dataIndex) in item">
+                                                        <span v-if="month.number == dataIndex">
+                                                            {{ data.average.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                                                        </span>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 row-span-3">
+                                                    Machine Count
+                                                </td>
+                                                <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
+                                                    <span v-for="(data, dataIndex) in item">
+                                                        <span v-if="month.number == dataIndex">
+                                                            {{ data.vend_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                                                        </span>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 row-span-3">
+                                                    Total Sales
+                                                </td>
+                                                <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
+                                                    <span v-for="(data, dataIndex) in item">
+                                                        <span v-if="month.number == dataIndex">
+                                                            {{ data.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                                                        </span>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr v-if="!performerGraphData.data.length">
+                                                <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                                                    No Results Found
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                        </table>
+                                    </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -247,7 +347,7 @@
     import MultiSelect from '@/Components/MultiSelect.vue';
     import SearchInput from '@/Components/SearchInput.vue';
     import { ref, onBeforeMount, watch } from 'vue';
-    import { Head, router, usePage } from '@inertiajs/vue3';
+    import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
     const props = defineProps({
         activeMachineGraphData: Object,
@@ -256,6 +356,8 @@
         dayGraphData: Object,
         locationTypeOptions: Object,
         monthGraphData: Object,
+        months: Object,
+        monthsByModel: Object,
         operatorOptions: Object,
         productGraphData: Object,
         performerGraphData: Object,
@@ -271,6 +373,7 @@
         day_date_to: '',
         locationType: '',
         operator: '',
+        monthlyTypeName: 'location-type',
     })
     const categoryOptions = ref([])
     const categoryGroupOptions = ref([])
@@ -295,6 +398,11 @@
     const operatorOptions = ref([])
     const permissions = usePage().props.auth.permissions
     const showFilters = ref(false)
+    const tabs = ref([
+        { name: 'Location Type', slug: 'location-type', current: true, href: '#' },
+        { name: 'Category', slug: 'category', current: false, href: '#' },
+        { name: 'Operator', slug: 'operator', current: false, href: '#' },
+    ])
 
     const dayGraphData = ref([]);
     const dayGraphDatasets = ref([])
@@ -427,6 +535,7 @@
 
 
     onBeforeMount(() => {
+        console.log(props.monthsByModel)
         categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
         categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
         locationTypeOptions.value = [
@@ -459,13 +568,13 @@
                 location_type_id: filters.value.locationType.id,
                 operator_id: filters.value.operator.id,
             }),{
-                only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'productGraphData', 'performerGraphData', 'vendCount'],
+                only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'vendCount'],
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
                 onSuccess: (page) => {
                     router.reload({
-                        only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'productGraphData', 'performerGraphData', 'vendCount'],
+                        only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'vendCount'],
                         preserveState: true,
                         preserveScroll: true,
                     })
@@ -473,6 +582,11 @@
                 },
             }
         );
+    }
+
+    function onTabChanged(tab) {
+        filters.value.monthlyTypeName = tab.slug
+        onSearchFilterUpdated()
     }
 
     function resetFilters() {

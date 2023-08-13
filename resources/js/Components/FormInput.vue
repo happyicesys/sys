@@ -45,6 +45,6 @@ defineProps({
     type: String,
     default: 'text',
   },
-  disabled: [Boolean, Object, String],
+  disabled: [Boolean, Object, String, Number],
 })
 </script>

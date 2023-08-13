@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\VendController;
 use App\Http\Controllers\Api\Client\ClientController;
 use App\Http\Controllers\Api\V1\VendDataController;
 use Illuminate\Http\Request;
@@ -25,6 +26,11 @@ Route::prefix('v1')->middleware(['throttle:api'])->group(function() {
     Route::post('/customer/migrate', [CustomerController::class, 'migrate']);
     Route::post('/payment-gateway-status/{company?}', [PaymentController::class, 'createPaymentGatewayLog']);
     Route::get('/binded-vends', [VendDataController::class, 'getBindedVends']);
+});
+
+// Internal api
+Route::prefix('vends')->group(function() {
+    Route::get('/search/{code?}', [VendController::class, 'searchVendCode']);
 });
 
 

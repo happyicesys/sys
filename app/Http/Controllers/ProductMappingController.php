@@ -24,15 +24,20 @@ class ProductMappingController extends Controller
         return Inertia::render('ProductMapping/Index', [
             'productMappings' => ProductMappingResource::collection(
                 ProductMapping::with([
-                    'attachments',
+                    // 'attachments',
                     'productMappingItems',
-                    'productMappingItems.product',
+                    'productMappingItems.product:id,code,name,is_active',
                     'productMappingItems.product.thumbnail',
                     'vends',
                     'vends.latestVendBinding.customer',
                 ])
                 ->when($request->name, function($query, $search) {
                     $query->where('name', 'LIKE', "%{$search}%");
+                })
+                ->when($request->vend_code, function($query, $search) {
+                    $query->whereHas('vends', function($query) use ($search) {
+                        $query->where('code', 'LIKE', "{$search}%");
+                    });
                 })
                 // ->when($sortKey, function($query, $search) use ($sortBy) {
                 //     $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
@@ -54,9 +59,12 @@ class ProductMappingController extends Controller
                 VendResource::collection(
                     Vend::with([
                         'latestVendBinding.customer'
-                    ])->whereDoesntHave('productMapping', function($query) use ($request) {
-                        $query->where('product_mappings.id', '!=', $request->id);
-                    })
+                    ])
+                    ->whereNull('product_mapping_id')
+
+                    // ->whereDoesntHave('productMapping', function($query) use ($request) {
+                    //     $query->where('product_mappings.id', '!=', $request->id);
+                    // })
                     ->orderBy('code')
                     ->get()
                 ),

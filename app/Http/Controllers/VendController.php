@@ -19,6 +19,7 @@ use App\Http\Resources\VendFanResource;
 use App\Http\Resources\VendTransactionDBResource;
 use App\Http\Resources\VendTransactionResource;
 use App\Http\Resources\VendTempResource;
+use App\Jobs\SyncVendCustomerCms;
 use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Mail\VendChannelErrorLogsMail;
 use App\Models\Category;
@@ -31,6 +32,7 @@ use App\Models\PaymentMethod;
 use App\Models\PaymentGatewayLog;
 use App\Models\Product;
 use App\Models\Vend;
+use App\Models\VendBinding;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
@@ -206,6 +208,18 @@ class VendController extends Controller
             'vends' => VendDBResource::collection($vends),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
         ]);
+    }
+
+    public function searchVendCode($vendCode)
+    {
+        $vends = Vend::query()
+            ->where('code', 'LIKE', "%{$vendCode}%")
+            ->select(
+                'id', 'code'
+            )
+            ->get();
+
+        return $vends;
     }
 
     public function temp(Request $request, $vendId, $type)
@@ -520,49 +534,6 @@ class VendController extends Controller
         ->filterTransactionIndex($request)
         ->get();
 
-        // $vendTransactions = DB::table('vend_transactions')
-        //     ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-        //     ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
-        //     ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
-        //     ->leftJoin('vend_bindings', function($query) {
-        //         $query->on('vend_bindings.vend_id', '=', 'vends.id')
-        //                 ->where('vend_bindings.is_active', true)
-        //                 ->latest('begin_date')
-        //                 ->limit(1);
-        //     })
-        //     ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
-        //     ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
-        //     ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
-        //     ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
-        //     ->select(
-        //         'vend_transactions.id',
-        //         'vend_transactions.amount',
-        //         'vend_transactions.customer_json',
-        //         'vend_transactions.gross_profit',
-        //         'vend_transactions.is_payment_received',
-        //         'vend_transactions.location_type_json',
-        //         'vend_transactions.order_id',
-        //         'vend_transactions.operator_json',
-        //         'payment_methods.name AS payment_method_name',
-        //         'products.code AS product_code',
-        //         'products.name AS product_name',
-        //         'vend_transactions.product_json',
-        //         'vend_transactions.revenue',
-        //         'vend_transactions.transaction_datetime',
-        //         'vend_transactions.unit_cost',
-        //         'vends.code AS vend_code',
-        //         'vends.name AS vend_name',
-        //         'vend_channels.code AS vend_channel_code',
-        //         'vend_channel_errors.code AS vend_channel_error_code',
-        //         'vend_channel_errors.desc AS vend_channel_error_desc',
-        //         'vend_transactions.vend_json',
-        //         'vend_transactions.vend_transaction_json',
-        //     );
-
-        // $vendTransactions = $this->filterVendTransactionsDB($vendTransactions, $request);
-        // $vendTransactions = $this->filterOperatorVendTransactionDB($vendTransactions);
-        // $vendTransactions = $vendTransactions->get();
-
         return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
             return [
                 'Order ID' => $vendTransaction->order_id,
@@ -648,17 +619,26 @@ class VendController extends Controller
         ]);
 
         $vend = Vend::create([
-            'begin_date' => Carbon::now(),
+            'begin_date' => $request->begin_date,
             'code' => $request->code,
             'name' => $request->name,
             'private_key' => $request->private_key,
         ]);
 
-        return redirect()->route('vends');
+        if($request->customer_id) {
+            SyncVendCustomerCms::dispatch($vend->id, $request->customer_id)->onQueue('default');
+        }
+
+        if($request->operator_id) {
+            $vend->operators()->sync([$request->operator_id]);
+        }
+
+        return redirect()->route('settings');
     }
 
     public function update(Request $request, $vendId)
     {
+        // dd($request->all());
         $request->validate([
             'private_key' => 'nullable',
         ]);
@@ -672,7 +652,15 @@ class VendController extends Controller
             'termination_date' => $request->termination_date,
         ]);
 
-        return redirect()->route('vends');
+        if($request->customer_id) {
+            SyncVendCustomerCms::dispatch($vend->id, $request->customer_id)->onQueue('default');
+        }
+        if($request->operator_id) {
+            $vend->operators()->sync([$request->operator_id]);
+        }
+
+
+        return redirect()->route('settings');
     }
 
     public function unbindCustomer($vendId)

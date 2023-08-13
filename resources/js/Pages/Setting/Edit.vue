@@ -27,9 +27,12 @@
           <form @submit.prevent="submit" id="submit">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2">
               <div class="sm:col-span-6">
-                <FormInput v-model="form.code" :error="form.errors.code" required="true" :disabled="vend.code">
+                <FormInput v-model="form.code" :error="form.errors.code" required="true" :disabled="vend.code" v-if="type == 'update'">
                   Code
                 </FormInput>
+                <SearchVendCodeInput v-model="form.code" @selected="onVendCodeSelected" required="true" :error="form.errors.code" v-if="type == 'create'">
+                  Code
+                </SearchVendCodeInput>
               </div>
               <div class="sm:col-span-6">
                 <div class="relative flex items-start">
@@ -37,11 +40,10 @@
                     <input
                       aria-describedby="is_customer"
                       v-model="form.is_customer"
-                      @change="onIsCustomerChecked()"
-                      :disabled="form.is_customer && type == 'update'"
+                      :disabled="vend.customer_id && type == 'update'"
                       name="is_customer" type="checkbox"
                       class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-                      :class="[form.is_customer && type == 'update' ? 'bg-gray-200 hover:cursor-not-allowed' : '']"
+                      :class="[vend.customer_id && type == 'update' ? 'bg-gray-200 hover:cursor-not-allowed' : '']"
                     />
                   </div>
                   <div class="ml-3 text-sm leading-6">
@@ -68,9 +70,25 @@
                 </MultiSelect>
               </div>
               <div class="sm:col-span-6" v-if="!form.is_customer">
-                <FormInput v-model="form.name" :error="form.errors.name" :disabled="vend.customer_code && vend.customer_name">
+                <FormInput v-model="form.name" :error="form.errors.name">
                   Name
                 </FormInput>
+              </div>
+              <div class="sm:col-span-6">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Operator
+                </label>
+                <MultiSelect
+                  v-model="form.operator_id"
+                  :options="operatorOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="full_name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
               </div>
               <div class="sm:col-span-3">
                 <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
@@ -92,16 +110,16 @@
             </div>
             <div class="sm:col-span-6">
               <div class="flex space-x-1 mt-5 justify-end">
-                <Button
-                  class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
-                  @click="$emit('modalClose')"
-                  form="submit"
-                >
-                  <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                  <span>
-                    Back
-                  </span>
-                </Button>
+                <Link href="/settings">
+                  <Button
+                    class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                  >
+                    <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                    <span>
+                      Back
+                    </span>
+                  </Button>
+                </Link>
                 <Button
                   type="button"
                   class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1"
@@ -139,9 +157,11 @@ import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import SearchVendCodeInput from '@/Components/SearchVendCodeInput.vue';
 import { ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import moment from 'moment';
 
 const props = defineProps({
     adminCustomerOptions: Object,
@@ -164,7 +184,6 @@ const props = defineProps({
   const now = ref(moment().format('HH:mm:ss'))
 
 onMounted(() => {
-  console.log(JSON.parse(JSON.stringify(props.vend)))
     if(props.type == 'create') {
         typeName.value = 'Create New'
     } else {
@@ -172,34 +191,70 @@ onMounted(() => {
     }
     adminCustomerOptions.value = props.adminCustomerOptions.map((data) => {return {id: data.id, full_name: data.cust_id + ' - ' + data.company}})
     operatorOptions.value = [
-        {id: 'all', full_name: 'All'},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
 
-    form.value = props.vend ? useForm(props.vend) : useForm(getDefaultForm())
+    form.value = props.vend && props.vend.id ? useForm(props.vend) : useForm(getDefaultForm())
+    // console.log(JSON.parse(JSON.stringify(form.value)))
     form.value.name = props.vend.name
     if(props.vend.customer_id) {
         form.value.is_customer = true
         form.value.customer_id = {
-          'id': props.vend.customer_id,
-          'full_name': props.vend.customer_code + ' - ' + props.vend.customer_name
+          id: props.vend.person_id,
+          full_name: props.vend.customer_code + ' - ' + props.vend.customer_name
+        }
+    }
+    if(props.vend.operator_id) {
+        form.value.operator_id = {
+          id: props.vend.operator_id,
+          full_name: props.vend.operator_name
         }
     }
 })
 
 function getDefaultForm() {
   return {
+    code: '',
     name: '',
-    begin_date: '',
+    begin_date: moment().format('YYYY-MM-DD'),
+    customer_id: '',
+    operator_id: '',
     serial_num: '',
     termination_date: '',
     private_key: '',
   }
 }
 
-function onIsCustomerChecked() {
-  if(form.value.is_customer) {
+function onVendCodeSelected(vend) {
+  form.value.code = vend.code
+}
 
+function submit() {
+  form.value.clearErrors()
+  if(props.type === 'create') {
+    form.value
+    .transform((data) => ({
+      ...data,
+      customer_id: data.customer_id ? data.customer_id.id : null,
+      operator_id: data.operator_id ? data.operator_id.id : null,
+    }))
+    .post('/vends/create', {
+      preserveState: true,
+      replace: true,
+    })
+  }
+
+  if(props.type === 'update') {
+    form.value
+      .transform((data) => ({
+        ...data,
+        customer_id: data.customer_id ? data.customer_id.id : null,
+        operator_id: data.operator_id ? data.operator_id.id : null,
+      }))
+      .post('/vends/' + form.value.id + '/update', {
+      preserveState: true,
+      replace: true,
+    })
   }
 }
 </script>
