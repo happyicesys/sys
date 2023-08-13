@@ -227,12 +227,24 @@ class DashboardController extends Controller
 
         $monthsByModel = [];
         $months = Month::all();
+        $currentMonthNumber = Carbon::today()->month;
 
         foreach($items as $item) {
             foreach($months as $month) {
                 if($item->id and $item->month == $month->number) {
                     $monthsByModel[$item->name][$month->number] =
                     [
+                        'current' => $currentMonthNumber == $month->number ? true : false,
+                        'month_short_name' => $month->short_name,
+                        'amount' => $item->amount ? $item->amount/ 100 : 0,
+                        'vend_count' => $item->vend_count ? $item->vend_count : 0,
+                        'average' => $item->average/ 100 ? $item->average/ 100 : 0,
+                    ];
+                }
+                if(!$item->id and $item->month == $month->number) {
+                    $monthsByModel['Undefined'][$month->number] =
+                    [
+                        'current' => $currentMonthNumber == $month->number ? true : false,
                         'month_short_name' => $month->short_name,
                         'amount' => $item->amount ? $item->amount/ 100 : 0,
                         'vend_count' => $item->vend_count ? $item->vend_count : 0,
@@ -241,6 +253,7 @@ class DashboardController extends Controller
                 }
             }
         }
+        $monthsByModel = collect($monthsByModel)->sortKeys();
 
         return Inertia::render('Dashboard', [
             'activeMachineGraphData' => $activeMonths,

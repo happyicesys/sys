@@ -275,7 +275,11 @@
                                                 <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
                                                 </th>
                                                 <th scope="col" class="px-3 py-2 text-center text-sm font-semibold text-gray-900" v-for="month in months.data">
-                                                    {{ month.short_name }}
+                                                    <span :class="[
+                                                        month.number == moment().format('M') ? 'bg-yellow-300 rounded p-2' : ''
+                                                    ]">
+                                                        {{ month.short_name }}
+                                                    </span>
                                                 </th>
                                             </tr>
                                         </thead>
@@ -286,11 +290,16 @@
                                                     {{ itemIndex }}
                                                 </td>
                                                 <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-600 sm:pl-6 row-span-3">
-                                                    Avg Daily Sales
+                                                    Daily Sales/ VM
                                                 </td>
                                                 <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
                                                     <span v-for="(data, dataIndex) in item">
-                                                        <span v-if="month.number == dataIndex">
+                                                        <span v-if="month.number == dataIndex"
+                                                            :class="[
+                                                                data.current ? 'font-bold' : 'font-medium',
+                                                                item[dataIndex - 1] && item[dataIndex - 1].average < data.average ? 'text-green-600' : (!item[dataIndex - 1] ? '' : 'text-red-600' )
+                                                            ]"
+                                                        >
                                                             {{ data.average.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                                                         </span>
                                                     </span>
@@ -302,7 +311,12 @@
                                                 </td>
                                                 <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
                                                     <span v-for="(data, dataIndex) in item">
-                                                        <span v-if="month.number == dataIndex">
+                                                        <span v-if="month.number == dataIndex"
+                                                            :class="[
+                                                                    data.current ? 'font-bold' : 'font-medium',
+                                                                    item[dataIndex - 1] && item[dataIndex - 1].average < data.average ? 'text-green-600' : (!item[dataIndex - 1] ? '' : 'text-red-600' )
+                                                            ]"
+                                                        >
                                                             {{ data.vend_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                                                         </span>
                                                     </span>
@@ -314,7 +328,12 @@
                                                 </td>
                                                 <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 text-right" v-for="month in months.data">
                                                     <span v-for="(data, dataIndex) in item">
-                                                        <span v-if="month.number == dataIndex">
+                                                        <span v-if="month.number == dataIndex"
+                                                            :class="[
+                                                                    data.current ? 'font-bold' : 'font-medium',
+                                                                    item[dataIndex - 1] && item[dataIndex - 1].average < data.average ? 'text-green-600' : (!item[dataIndex - 1] ? '' : 'text-red-600' )
+                                                            ]"
+                                                        >
                                                             {{ data.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                                                         </span>
                                                     </span>
@@ -348,6 +367,7 @@
     import SearchInput from '@/Components/SearchInput.vue';
     import { ref, onBeforeMount, watch } from 'vue';
     import { Head, Link, router, usePage } from '@inertiajs/vue3';
+    import moment from 'moment';
 
     const props = defineProps({
         activeMachineGraphData: Object,
@@ -535,7 +555,6 @@
 
 
     onBeforeMount(() => {
-        console.log(props.monthsByModel)
         categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
         categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
         locationTypeOptions.value = [
@@ -585,6 +604,10 @@
     }
 
     function onTabChanged(tab) {
+        tabs.value.forEach((tab) => {
+            tab.current = false
+        })
+        tab.current = true
         filters.value.monthlyTypeName = tab.slug
         onSearchFilterUpdated()
     }
