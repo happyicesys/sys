@@ -313,8 +313,7 @@
                                                     <span v-for="(data, dataIndex) in item">
                                                         <span v-if="month.number == dataIndex"
                                                             :class="[
-                                                                    data.current ? 'font-bold' : 'font-medium',
-                                                                    item[dataIndex - 1] && item[dataIndex - 1].average < data.average ? 'text-green-600' : (!item[dataIndex - 1] ? '' : 'text-red-600' )
+                                                                    data.current ? 'font-bold' : 'font-medium'
                                                             ]"
                                                         >
                                                             {{ data.vend_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
@@ -330,8 +329,7 @@
                                                     <span v-for="(data, dataIndex) in item">
                                                         <span v-if="month.number == dataIndex"
                                                             :class="[
-                                                                    data.current ? 'font-bold' : 'font-medium',
-                                                                    item[dataIndex - 1] && item[dataIndex - 1].average < data.average ? 'text-green-600' : (!item[dataIndex - 1] ? '' : 'text-red-600' )
+                                                                    data.current ? 'font-bold' : 'font-medium'
                                                             ]"
                                                         >
                                                             {{ data.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
