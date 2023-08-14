@@ -316,7 +316,7 @@
                                                                     data.current ? 'font-bold' : 'font-medium'
                                                             ]"
                                                         >
-                                                            {{ data.vend_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                                                            {{ data.vend_count.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                                                         </span>
                                                     </span>
                                                 </td>

@@ -237,7 +237,7 @@ class DashboardController extends Controller
                         'current' => $currentMonthNumber == $month->number ? true : false,
                         'month_short_name' => $month->short_name,
                         'amount' => $item->amount ? $item->amount/ 100 : 0,
-                        'vend_count' => $item->vend_count ? $item->vend_count : 0,
+                        'vend_count' => $item->count ? $item->count : 0,
                         'average' => $item->average/ 100 ? $item->average/ 100 : 0,
                     ];
                 }
@@ -247,7 +247,7 @@ class DashboardController extends Controller
                         'current' => $currentMonthNumber == $month->number ? true : false,
                         'month_short_name' => $month->short_name,
                         'amount' => $item->amount ? $item->amount/ 100 : 0,
-                        'vend_count' => $item->vend_count ? $item->vend_count : 0,
+                        'vend_count' => $item->count ? $item->count : 0,
                         'average' => $item->average/ 100 ? $item->average/ 100 : 0,
                     ];
                 }
@@ -282,6 +282,31 @@ class DashboardController extends Controller
 
     private function getMonthlySalesQuery($request, $className)
     {
+        $vendRecords = VendRecord::query()
+            ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
+            ->leftJoin('customers', 'customers.id', '=', 'vend_records.customer_id')
+            ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
+            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            ->leftJoin('operators', 'operators.id', '=', 'vend_records.operator_id')
+            ->where('vend_records.date', '>=', Carbon::parse($request->monthlyDateFrom))
+            ->where('vend_records.date', '<=', Carbon::parse($request->monthlyDateTo))
+            ->filterIndex($request)
+            ->select('date', DB::raw('COUNT(DISTINCT(vend_id)) as count'));
+
+            switch($className) {
+                case 'categories':
+                    $vendRecords->selectRaw('categories.id as id');
+                    break;
+                case 'location_types':
+                    $vendRecords->selectRaw('location_types.id as id');
+                    break;
+                case 'operators':
+                    $vendRecords->selectRaw('operators.id as id');
+                    break;
+            }
+            $vendRecords = $vendRecords->groupBy('id', 'date');
+
         $query = VendRecord::query()
             ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'customers.id', '=', 'vend_records.customer_id')
@@ -289,6 +314,20 @@ class DashboardController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_records.operator_id')
+            ->leftJoinSub($vendRecords, 'x', function ($join) use ($className) {
+                switch($className) {
+                    case 'categories':
+                        $join->on('categories.id', '=', 'x.id');
+                        break;
+                    case 'location_types':
+                        $join->on('location_types.id', '=', 'x.id');
+                        break;
+                    case 'operators':
+                        $join->on('operators.id', '=', 'x.id');
+                        break;
+                }
+                $join->on('vend_records.date', '=', 'x.date');
+            })
             ->where('vend_records.date', '>=', Carbon::parse($request->monthlyDateFrom))
             ->where('vend_records.date', '<=', Carbon::parse($request->monthlyDateTo))
             ->filterIndex($request);
@@ -314,13 +353,15 @@ class DashboardController extends Controller
         $query = $query
             ->selectRaw('SUM(total_count) AS count')
             ->selectRaw('SUM(total_amount) AS amount')
-            ->selectRaw('COUNT(DISTINCT(vend_id)) AS vend_count')
+            ->selectRaw('COUNT(DISTINCT(vend_records.vend_id)) AS vend_count')
             ->selectRaw('AVG(total_amount) AS average')
-            ->selectRaw('month');
+            ->selectRaw('vend_records.month')
+            ->selectRaw('ROUND(AVG(x.count), 2) AS count');
 
-        $query = $query->groupBy('id', 'month')
+        $query = $query
+            ->groupBy('id', 'vend_records.month')
             ->orderBy('name', 'asc')
-            ->orderBy('month', 'asc');
+            ->orderBy('vend_records.month', 'asc');
 
         return $query;
     }
