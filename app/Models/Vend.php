@@ -301,10 +301,10 @@ class Vend extends Model
         ->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
+                $query->whereIn('vends.code', $search);
             }else {
-                $search = [$search];
+                $query->where('vends.code', 'LIKE', "%{$search}%");
             }
-            $query->whereIn('vends.code', $search);
         })
         ->when($request->channel_codes, function($query, $search) {
             if(strpos($search, ',') !== false) {

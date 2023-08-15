@@ -132,12 +132,14 @@ class VendTransaction extends Model
         ->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
+                $query->whereHas('vend', function($query) use ($search) {
+                    $query->whereIn('code', $search);
+                });
             }else {
-                $search = [$search];
+                $query->whereHas('vend', function($query) use ($search) {
+                    $query->where('code', 'LIKE', "%{$search}%");
+                });
             }
-            $query->whereHas('vend', function($query) use ($search) {
-                $query->whereIn('code', $search);
-            });
         })
         ->when($request->channel_codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
@@ -283,12 +285,14 @@ class VendTransaction extends Model
         ->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
+                $query->whereHas('vend', function($query) use ($search) {
+                    $query->whereIn('code', $search);
+                });
             }else {
-                $search = [$search];
+                $query->whereHas('vend', function($query) use ($search) {
+                    $query->where('code', 'LIKE', "%{$search}%");
+                });
             }
-            $query->whereHas('vend', function($query) use ($search) {
-                $query->whereIn('code', $search);
-            });
         })
         ->when($request->customer_code, function($query, $search) {
             // $query->whereHas('customer', function($query) use ($search) {

@@ -53,10 +53,10 @@ trait HasFilter {
         ->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
+                $query->whereIn('vends.code', $search);
             }else {
-                $search = [$search];
+                $query->where('vends.code', 'LIKE', "%{$search}%");
             }
-            $query->whereIn('vends.code', $search);
         })
         ->when($request->customer_code, function($query, $search) {
             $query->where('customers.code', 'LIKE', "%{$search}%");
@@ -111,12 +111,12 @@ trait HasFilter {
           }
       })
       ->when($request->codes, function($query, $search) {
-          if(strpos($search, ',') !== false) {
-              $search = explode(',', $search);
-          }else {
-              $search = [$search];
-          }
-          $query->whereIn('vends.code', $search);
+        if(strpos($search, ',') !== false) {
+            $search = explode(',', $search);
+            $query->whereIn('vends.code', $search);
+        }else {
+            $query->where('vends.code', 'LIKE', "%{$search}%");
+        }
       })
       ->when($request->channel_codes, function($query, $search) {
           if(strpos($search, ',') !== false) {
@@ -286,10 +286,10 @@ trait HasFilter {
         return $query->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
+                $query->whereIn('vends.code', $search);
             }else {
-                $search = [$search];
+                $query->where('vends.code', 'LIKE', "%{$search}%");
             }
-            $query->whereIn('vends.code', $search);
         })
         ->when($request->channel_codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
@@ -432,10 +432,10 @@ trait HasFilter {
         ->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
+                $query->whereIn('vends.code', $search);
             }else {
-                $search = [$search];
+                $query->where('vends.code', 'LIKE', "%{$search}%");
             }
-            $query->whereIn('vends.code', $search);
         })
         ->when($request->channel_codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
