@@ -233,7 +233,7 @@
                             </Graph>
                         </div>
 
-                        <div class="pt-5 my-1 mx-4 px-4" v-if="permissions.includes('admin-access vends')">
+                        <div class="pt-5 my-1 mx-4 px-4" v-if="permissions.includes('admin-access analytics')">
                             <p class="text-sm flex justify-between">
                                 <div>
                                     Monthly Analytics By Criteria
