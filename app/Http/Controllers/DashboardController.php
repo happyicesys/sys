@@ -253,6 +253,7 @@ class DashboardController extends Controller
                 }
             }
         }
+        // dd($monthsByModel);
         $monthsByModel = collect($monthsByModel)->sortKeys();
 
         return Inertia::render('Dashboard', [
@@ -360,8 +361,7 @@ class DashboardController extends Controller
 
         $query = $query
             ->groupBy('id', 'vend_records.month')
-            ->orderBy('name', 'asc')
-            ->orderBy('vend_records.month', 'asc');
+            ->orderBy('name', 'asc');
 
         return $query;
     }
