@@ -12,7 +12,7 @@ class ResourceCenterController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['permission: read resource-centers']);
+        // $this->middleware(['permission: read resource-centers']);
     }
 
     public function index(Request $request)

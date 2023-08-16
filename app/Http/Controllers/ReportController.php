@@ -39,7 +39,7 @@ class ReportController extends Controller
 
     public function __construct()
     {
-        $this->middleware(['permission: read transactions']);
+        // $this->middleware(['permission: read transactions']);
     }
 
     public function indexSales(Request $request, $type)

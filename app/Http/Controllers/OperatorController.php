@@ -20,7 +20,7 @@ class OperatorController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['permission: read operators']);
+        // $this->middleware(['permission: read operators']);
     }
 
     public function index(Request $request)
