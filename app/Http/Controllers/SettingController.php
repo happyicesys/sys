@@ -26,7 +26,7 @@ class SettingController extends Controller
 
     public function __construct()
     {
-        // $this->middleware(['permission: admin-access vends']);
+        $this->middleware(['permission:admin-access vends']);
     }
 
     public function index(Request $request)

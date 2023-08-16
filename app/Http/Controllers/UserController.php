@@ -18,7 +18,7 @@ class UserController extends Controller
 {
     public function __construct()
     {
-        // $this->middleware(['permission: read users']);
+        $this->middleware(['permission:read users']);
     }
 
     public function index(Request $request)

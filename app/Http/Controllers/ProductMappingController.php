@@ -17,7 +17,7 @@ class ProductMappingController extends Controller
 {
     public function __construct()
     {
-        // $this->middleware(['permission: read product-mappings']);
+        $this->middleware(['permission:read product-mappings']);
     }
 
     public function index(Request $request)

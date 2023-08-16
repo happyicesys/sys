@@ -70,8 +70,9 @@ class VendController extends Controller
 
     public function __construct( MqttService $mqttService, PaymentGatewayService $paymentGatewayService, VendDataService $vendDataService)
     {
-        // $this->middleware(['permission: read vends'])->only('index');
-        // $this->middleware(['permission: read transactions'])->only('transactionIndex');
+        $this->middleware(['auth']);
+        $this->middleware(['permission:read vends'])->only('index');
+        $this->middleware(['permission:read transactions'])->only('transactionIndex');
         $this->mqttService = $mqttService;
         $this->paymentGatewayService = $paymentGatewayService;
         $this->vendDataService = $vendDataService;

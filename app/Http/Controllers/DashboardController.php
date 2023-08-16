@@ -24,6 +24,11 @@ class DashboardController extends Controller
 {
     use GetUserTimezone;
 
+    public function __construct()
+    {
+        $this->middleware(['permission:read dashboard']);
+    }
+
     public function index(Request $request)
     {
         $request->merge(['is_binded_customer' => isset($request->is_binded_customer) ? $request->is_binded_customer : true]);

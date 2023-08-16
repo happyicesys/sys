@@ -25,7 +25,7 @@ class ProductController extends Controller
 
     public function __construct()
     {
-        // $this->middleware(['permission: read products']);
+        $this->middleware(['permission:read products']);
     }
 
     public function index(Request $request)
