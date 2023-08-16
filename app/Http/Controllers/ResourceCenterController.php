@@ -10,6 +10,11 @@ use Inertia\Inertia;
 
 class ResourceCenterController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(['permission: read resource-centers']);
+    }
+
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;

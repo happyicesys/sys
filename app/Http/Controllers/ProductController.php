@@ -23,6 +23,11 @@ class ProductController extends Controller
 {
     use GetUserTimezone;
 
+    public function __construct()
+    {
+        $this->middleware(['permission: read products']);
+    }
+
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;

@@ -31,6 +31,11 @@ class VendCriteriaBindingController extends Controller
 {
     use GetUserTimezone, HasFilter, HasWeightage;
 
+    public function __construct()
+    {
+        $this->middleware(['permission: admin-access vends']);
+    }
+
     public function index(Request $request)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);

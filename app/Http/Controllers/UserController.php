@@ -16,6 +16,11 @@ use Spatie\Permission\Models\Permission;
 
 class UserController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(['permission: read users']);
+    }
+
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;

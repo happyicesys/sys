@@ -18,6 +18,11 @@ use Inertia\Inertia;
 
 class OperatorController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(['permission: read operators']);
+    }
+
     public function index(Request $request)
     {
         $timezones = DateTimeZone::listIdentifiers();

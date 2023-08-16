@@ -15,6 +15,11 @@ use Inertia\Inertia;
 
 class ProductMappingController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(['permission: read product-mappings']);
+    }
+
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;

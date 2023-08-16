@@ -37,6 +37,11 @@ class ReportController extends Controller
 {
     use HasFilter, HasMonthOption, GetUserTimezone;
 
+    public function __construct()
+    {
+        $this->middleware(['permission: read transactions']);
+    }
+
     public function indexSales(Request $request, $type)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);

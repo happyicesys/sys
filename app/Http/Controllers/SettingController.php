@@ -24,6 +24,11 @@ class SettingController extends Controller
 {
     use HasFilter;
 
+    public function __construct()
+    {
+        $this->middleware(['permission: admin-access vends']);
+    }
+
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
