@@ -15,7 +15,7 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
-    protected $guard_name = 'api';
+    protected $guard_name = 'web';
     /**
      * The attributes that are mass assignable.
      *
@@ -70,14 +70,19 @@ class User extends Authenticatable
 
     public function getRedirectRoute()
     {
-        // dd((int)$this->roles()->first()->id);
-        $currentRole = (int)$this->roles()->first()->id;
-
-        if($currentRole === 14) {
+        // dd($this->toArray(), $this->roles()->first()->toArray());
+        if($this->hasRole('vc_observer') or $this->roles()->exists() == false) {
             return '/dashboard';
         }else {
             return '/vends';
         }
+        // $currentRole = (int)$this->roles()->first()->id;
+
+        // if($currentRole == 14) {
+        //     return '/dashboard';
+        // }else {
+        //     return '/vends';
+        // }
         // return match((int)$this->roles()->first()->id) {
         //     1 => '/vends',
         //     2 => '/vends',
