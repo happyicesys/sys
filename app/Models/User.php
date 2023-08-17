@@ -71,22 +71,29 @@ class User extends Authenticatable
     public function getRedirectRoute()
     {
         // dd((int)$this->roles()->first()->id);
-        return match((int)$this->roles()->first()->id) {
-            1 => '/vends',
-            2 => '/vends',
-            3 => '/vends',
-            4 => '/vends',
-            5 => '/vends',
-            6 => '/vends',
-            7 => '/vends',
-            8 => '/vends',
-            9 => '/vends',
-            10 => '/vends',
-            11 => '/vends',
-            12 => '/vends',
-            13 => '/vends',
-            14 => '/dashboard',
-        };
+        $currentRole = (int)$this->roles()->first()->id;
+
+        if($currentRole === 14) {
+            return '/dashboard';
+        }else {
+            return '/vends';
+        }
+        // return match((int)$this->roles()->first()->id) {
+        //     1 => '/vends',
+        //     2 => '/vends',
+        //     3 => '/vends',
+        //     4 => '/vends',
+        //     5 => '/vends',
+        //     6 => '/vends',
+        //     7 => '/vends',
+        //     8 => '/vends',
+        //     9 => '/vends',
+        //     10 => '/vends',
+        //     11 => '/vends',
+        //     12 => '/vends',
+        //     13 => '/vends',
+        //     14 => '/dashboard',
+        // };
     }
 
     // relationships
