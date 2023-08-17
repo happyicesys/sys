@@ -201,24 +201,24 @@ class SyncSingleCustomer implements ShouldQueue
 
                 if($customer->vendBinding()->exists() and $customer->vendBinding->vend->exists()) {
                     $vend = $customer->vendBinding->vend;
+
+                    $vend->update([
+                        'begin_date' => $beginDate,
+                        'termination_date' => $vend->termination_date ? $vend->termination_date : (isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null),
+                    ]);
+
+                    $customer->vendBinding()->updateOrCreate([
+                        'vend_id' => $vend->id,
+                        'customer_id' => $customer->id,
+                        ],[
+                        'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
+                        'begin_date' => $beginDate,
+                        'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
+                        'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' && !$vend->termination_date ? true : false,
+                        'termination_date' => $vend->termination_date ? $vend->termination_date : (isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null),
+                        'person_id' => $customerCollection['id'],
+                    ]);
                 }
-
-                $vend->update([
-                    'begin_date' => $beginDate,
-                    'termination_date' => $vend->termination_date ? $vend->termination_date : (isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null),
-                ]);
-
-                $customer->vendBinding()->updateOrCreate([
-                    'vend_id' => $vend->id,
-                    'customer_id' => $customer->id,
-                    ],[
-                    'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
-                    'begin_date' => $beginDate,
-                    'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
-                    'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' && !$vend->termination_date ? true : false,
-                    'termination_date' => $vend->termination_date ? $vend->termination_date : (isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null),
-                    'person_id' => $customerCollection['id'],
-                ]);
         }
     }
 }
