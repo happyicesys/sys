@@ -5,7 +5,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        VM Management
+        Device Management
       </h2>
     </template>
 
@@ -70,12 +70,28 @@
             >
             </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vends')">
+          <!-- <div v-if="permissions.includes('admin-access vends')">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Customer Binded?
             </label>
             <MultiSelect
                 v-model="filters.is_binded_customer"
+                :options="booleanOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div> -->
+          <div v-if="permissions.includes('admin-access vends')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Is Active?
+            </label>
+            <MultiSelect
+                v-model="filters.is_active"
                 :options="booleanOptions"
                 trackBy="id"
                 valueProp="id"
@@ -184,10 +200,13 @@
                       Name
                     </TableHead>
                     <TableHead>
+                      Status
+                    </TableHead>
+                    <TableHead>
                       Begin Date
                     </TableHead>
                     <TableHead>
-                      Termination Date
+                      Deactivation Date
                     </TableHead>
                     <TableHead>
                       Operator
@@ -215,6 +234,20 @@
                         <span v-else>
                           {{ vend.name }}
                         </span>
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        <div class="flex flex-col space-y-1">
+                          <div
+                            class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                            :class="[vend.is_active ? 'bg-green-200' : 'bg-red-200']"
+                          >
+                            <div class="flex flex-col">
+                              <span class="font-bold">
+                                {{vend.is_active ? 'Active' : 'Inactive'}}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.begin_date_short }}
@@ -302,6 +335,7 @@ const filters = ref({
     categoryGroups: [],
     locationType: '',
     operator: '',
+    is_active: '',
     is_binded_customer: '',
     sortKey: '',
     sortBy: true,
@@ -352,6 +386,7 @@ onMounted(() => {
     filters.value.locationType = locationTypeOptions.value[0]
     filters.value.operator = operatorOptions.value[0]
 
+    filters.value.is_active = booleanOptions.value[1]
     filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]
 })
 
@@ -376,6 +411,7 @@ function onSearchFilterUpdated() {
       categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
       location_type_id: filters.value.locationType.id,
       operator_id: filters.value.operator.id,
+      is_active: filters.value.is_active.id,
       is_binded_customer: filters.value.is_binded_customer.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {

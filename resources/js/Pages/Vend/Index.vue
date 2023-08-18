@@ -105,12 +105,28 @@
                     >
                     </MultiSelect>
                 </div>
-                <div v-if="permissions.includes('admin-access vends')">
+                <!-- <div v-if="permissions.includes('admin-access vends')">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Customer Binded?
                     </label>
                     <MultiSelect
                         v-model="filters.is_binded_customer"
+                        :options="booleanOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="value"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                </div> -->
+                <div v-if="permissions.includes('admin-access vends')">
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                        Is Active?
+                    </label>
+                    <MultiSelect
+                        v-model="filters.is_active"
                         :options="booleanOptions"
                         trackBy="id"
                         valueProp="id"
@@ -865,6 +881,7 @@
     errors: [],
     locationType: '',
     operator: '',
+    is_active: true,
     is_binded_customer: '',
     tempHigherThan: '',
     tempDeltaHigherThan: '',
@@ -877,12 +894,13 @@
     balanceStockLessThan: '',
     remainingSkuLessThan: '',
     sortKey: '',
-    sortBy: false,
+    sortBy: true,
     numberPerPage: '',
     visited: true,
   })
 
   const booleanOptions = ref([])
+  const booleanStrictOptions = ref([])
   const categoryOptions = ref([])
   const categoryGroupOptions = ref([])
   const doorOptions = ref([])
@@ -930,6 +948,10 @@
         {id: 'true', value: 'Yes'},
         {id: 'false', value: 'No'},
     ]
+    booleanStrictOptions.value = [
+        {id: 'true', value: 'Yes'},
+        {id: 'false', value: 'No'},
+    ]
     enableOptions.value = [
         {id: 'all', value: 'All'},
         {id: 'true', value: 'Enabled'},
@@ -949,6 +971,7 @@
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
 
+    filters.value.is_active = booleanOptions.value[1]
     filters.value.is_door_open = doorOptions.value[0]
     filters.value.is_online = booleanOptions.value[0]
     filters.value.is_sensor = enableOptions.value[0]
@@ -1011,6 +1034,7 @@
             errors: filters.value.errors.map((error) => { return error.id }),
             location_type_id: filters.value.locationType.id,
             operator_id: filters.value.operator.id,
+            is_active: filters.value.is_active.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_door_open: filters.value.is_door_open.id,
             is_online: filters.value.is_online.id,
@@ -1066,6 +1090,7 @@ function onExportChannelExcelClicked() {
             errors: filters.value.errors.map((error) => { return error.id }),
             location_type_id: filters.value.locationType.id,
             operator_id: filters.value.operator.id,
+            is_active: filters.value.is_active.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_door_open: filters.value.is_door_open.id,
             is_online: filters.value.is_online.id,

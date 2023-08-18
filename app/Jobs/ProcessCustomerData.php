@@ -333,20 +333,26 @@ class ProcessCustomerData implements ShouldQueue
 
                     if($customerCollection['is_dvm'] or $customerCollection['is_vending'] or $customerCollection['is_combi']) {
                         $vend = Vend::where('code', $customerCollection['vend_code'])->first();
-                        if($vend and $vend->vendBindings()->exists()) {
-                            $vend->vendBindings()->update(['is_active' => false, 'termination_date' => Carbon::now()]);
-                            $vend->update(['termination_date' => Carbon::now()]);
-                        }
-
-                        $beginDate = isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'];
-                        if($beginDate and Carbon::parse($beginDate)->lt(Carbon::parse('2023-01-01')->startOfDay())) {
-                            $beginDate = '2023-01-01';
-                        }
 
                         if($vend) {
+                            if($vend->vendBindings()->exists()) {
+                                $vend->vendBindings()->update(['is_active' => false, 'termination_date' => Carbon::now()]);
+                            }
+
+                            $beginDate = isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'];
+                            if($beginDate and Carbon::parse($beginDate)->lt(Carbon::parse('2023-01-01')->startOfDay())) {
+                                $beginDate = '2023-01-01';
+                            }
+
+                            $vend->update([
+                                'begin_date' => $beginDate,
+                                'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? true : false,
+                                'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? null : Carbon::now(),
+                            ]);
+
                             $customer->vendBinding()->updateOrCreate([
                                 'vend_id' => $vend->id,
-                                // 'person_id' => $customerCollection['id']
+                                'person_id' => $customerCollection['id']
                                 ],[
                                 'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
                                 'begin_date' => $beginDate,
@@ -365,11 +371,6 @@ class ProcessCustomerData implements ShouldQueue
                                 'is_pwp' => isset($customerCollection['is_pwp']) ? $customerCollection['is_pwp'] : false,
                                 'pwp_adjustment_rate' => isset($customerCollection['pwp_adj_rate']) ? $customerCollection['pwp_adj_rate'] * 100 : null,
                                 'person_id' => $customerCollection['id'],
-                            ]);
-
-                            $vend->update([
-                                'begin_date' => $beginDate,
-                                'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? null : Carbon::now()
                             ]);
                         }
                     }

@@ -18,6 +18,18 @@
           {{ vend.name }}
         </span>
       </h2>
+      <span>
+        <div
+          class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-fit"
+          :class="[vend.is_active ? 'bg-green-200' : 'bg-red-200']"
+        >
+          <div class="flex flex-col">
+            <span class="font-bold">
+              {{vend.is_active ? 'Active' : 'Inactive'}}
+            </span>
+          </div>
+        </div>
+      </span>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
@@ -96,12 +108,12 @@
                   Begin Date
                 </DatePicker>
               </div>
-              <div class="sm:col-span-3">
+              <!-- <div class="sm:col-span-3">
                 <DatePicker v-model="form.termination_date" :error="form.errors.termination_date" :minDate="form.begin_date"
                 v-if="permissions.includes('update vends')">
                   Termination Date
                 </DatePicker>
-              </div>
+              </div> -->
               <div class="sm:col-span-6">
                 <FormInput v-model="form.private_key" :error="form.errors.private_key" :disabled="!permissions.includes('update vends')">
                   Private Key
@@ -120,7 +132,7 @@
                     </span>
                   </Button>
                 </Link>
-                <Button
+                <!-- <Button
                   type="button"
                   class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1"
                   v-if="vend.latestVendBinding && vend.latestVendBinding.customer && permissions.includes('update vends')"
@@ -129,6 +141,20 @@
                   <ArrowUturnDownIcon class="w-4 h-4"></ArrowUturnDownIcon>
                   <span>
                     Unbind
+                  </span>
+                </Button> -->
+                <Button
+                  type="button"
+                  class="text-white flex space-x-1"
+                  :class="[!vend.is_active ? 'bg-green-500 hover:bg-green-600' : 'bg-yellow-500 hover:bg-yellow-600']"
+                  v-if="permissions.includes('update vends')"
+                  @click="toggleActivation()"
+                >
+                  <span class="flex" v-if="!vend.is_active">
+                    <PlayIcon class="w-4 h-4 pt-1"></PlayIcon>Activate
+                  </span>
+                  <span class="flex" v-if="vend.is_active">
+                    <PauseCircleIcon class="w-4 h-4 pt-1"></PauseCircleIcon>Deactivate
                   </span>
                 </Button>
                 <Button
@@ -158,7 +184,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchVendCodeInput from '@/Components/SearchVendCodeInput.vue';
-import { ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PauseCircleIcon, PlayIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
@@ -256,5 +282,12 @@ function submit() {
       replace: true,
     })
   }
+}
+
+function toggleActivation()
+{
+  form.value
+    .post('/settings/' + form.value.id + '/toggle-activation', {
+    })
 }
 </script>

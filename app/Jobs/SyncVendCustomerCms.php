@@ -212,6 +212,7 @@ class SyncVendCustomerCms implements ShouldQueue
 
                 $vend->update([
                     'begin_date' => $beginDate,
+                    'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' && !$vend->termination_date ? true : false,
                     'termination_date' => $vend->termination_date ? $vend->termination_date : (isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null),
                 ]);
 
@@ -222,7 +223,6 @@ class SyncVendCustomerCms implements ShouldQueue
                     'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
                     'begin_date' => $beginDate,
                     'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
-                    'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' && !$vend->termination_date ? true : false,
                     'termination_date' => $vend->termination_date ? $vend->termination_date : (isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null),
                     'person_id' => $customerCollection['id'],
                 ]);

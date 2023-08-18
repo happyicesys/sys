@@ -15,6 +15,7 @@ use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\Vend;
 use App\Traits\HasFilter;
+use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -31,21 +32,20 @@ class SettingController extends Controller
 
     public function index(Request $request)
     {
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
+        $request->merge(['numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100]);
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'code']);
         $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : true]);
         $className = get_class(new Customer());
-        if(!isset($request->is_binded_customer)) {
+        if(!isset($request->is_active)) {
             if(
-                env('VEND_INIT_BINDED') and
-                (auth()->user()->hasRole('superadmin') or
+                auth()->user()->hasRole('superadmin') or
                 auth()->user()->hasRole('admin') or
                 auth()->user()->hasRole('supervisor') or
-                auth()->user()->hasRole('driver'))
+                auth()->user()->hasRole('driver')
             ) {
-                $request->merge(['is_binded_customer' => 'true']);
+                $request->merge(['is_active' => 'true']);
             }else {
-                $request->merge(['is_binded_customer' => 'all']);
+                $request->merge(['is_active' => 'all']);
             }
         }
 
@@ -62,6 +62,7 @@ class SettingController extends Controller
                 'vends.code',
                 'vends.apk_ver_json',
                 'vends.serial_num',
+                'vends.is_active',
                 'vends.last_updated_at',
                 'vends.name',
                 'vends.termination_date',
@@ -70,9 +71,10 @@ class SettingController extends Controller
                 'vends.private_key'
             );
 
-        $vends = $vends->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+        $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
 
+            // dd($request->all());
         return Inertia::render('Setting/Index', [
             'categories' => CategoryResource::collection(
                 Category::where('classname', $className)->orderBy('name')->get()
@@ -98,7 +100,7 @@ class SettingController extends Controller
             $vend = Vend::query()
                 ->leftJoin('vend_bindings', function($query) {
                     $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                            ->where('is_active', true)
+                            // ->where('is_active', true)
                             ->latest('begin_date')
                             ->limit(1);
                 })
@@ -108,7 +110,15 @@ class SettingController extends Controller
                             ->latest('operator_vend.begin_date')
                             ->limit(1);
                 })
-                ->select('*', 'vends.id', 'vends.code', 'customers.id AS customer_id', 'customers.code AS customer_code', 'customers.name AS customer_name')
+                ->select(
+                    '*',
+                    'vends.id',
+                    'vends.code',
+                    'customers.id AS customer_id',
+                    'customers.code AS customer_code',
+                    'customers.name AS customer_name',
+                    'vends.is_active'
+                    )
                 ->where('vends.id', $id)
                 ->first();
         }else {
@@ -126,5 +136,36 @@ class SettingController extends Controller
             'vend' => $vend,
             'type' => $type,
         ]);
+    }
+
+    public function toggleActivation($vendId)
+    {
+        $vend = Vend::findOrFail($vendId);
+
+        if($vend->is_active) {
+            $vend->update([
+                'is_active' => false,
+                'termination_date' => Carbon::now(),
+            ]);
+            if($vend->firstVendBinding()->exists()) {
+                $vend->firstVendBinding->update([
+                    'is_active' => false,
+                    'termination_date' => Carbon::now(),
+                ]);
+            }
+        }else {
+            $vend->update([
+                'is_active' => true,
+                'termination_date' => null,
+            ]);
+            if($vend->firstVendBinding()->exists()) {
+                $vend->firstVendBinding->update([
+                    'is_active' => true,
+                    'termination_date' => null,
+                ]);
+            }
+        }
+
+        return redirect()->route('settings.edit', [$vendId, 'update']);
     }
 }

@@ -80,6 +80,11 @@ class Vend extends Model
         return $this->operators()->latest('operator_vend.created_at')->limit(1);
     }
 
+    public function firstVendBinding()
+    {
+        return $this->hasOne(VendBinding::class)->latest('begin_date');
+    }
+
     public function latestOperator()
     {
         return $this->operators()->latest('operator_vend.created_at')->limit(1);
@@ -356,15 +361,20 @@ class Vend extends Model
                 $query->where('parameter_json->door', '=', $search);
             }
         })
-        ->when($request->is_binded_customer, function($query, $search) {
+        ->when($request->is_active, function($query, $search) {
             if($search != 'all') {
-                if($search == 'true') {
-                    $query->has('latestVendBinding');
-                }else {
-                    $query->doesntHave('latestVendBinding');
-                }
+                $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
             }
         })
+        // ->when($request->is_binded_customer, function($query, $search) {
+        //     if($search != 'all') {
+        //         if($search == 'true') {
+        //             $query->has('latestVendBinding');
+        //         }else {
+        //             $query->doesntHave('latestVendBinding');
+        //         }
+        //     }
+        // })
         ->when($request->tempHigherThan, function($query, $search) {
             if(is_numeric($search)) {
                 $query->where('temp', '>=', $search * 10);

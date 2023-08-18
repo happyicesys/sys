@@ -33,7 +33,7 @@ class InitTodayVendRecords implements ShouldQueue
             ->has('latestVendBinding')
             ->leftJoin('vend_bindings', function($query) {
                 $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                        ->where('is_active', true)
+                        // ->where('is_active', true)
                         ->latest('begin_date')
                         ->limit(1);
             })
@@ -48,6 +48,7 @@ class InitTodayVendRecords implements ShouldQueue
                 'operator_vend.operator_id as operator_id',
                 'vend_bindings.customer_id as customer_id'
             )
+            ->where('vends.is_active', true)
             ->get();
 
         foreach($vends as $vend) {
@@ -71,7 +72,7 @@ class InitTodayVendRecords implements ShouldQueue
                     ->latest('operator_vend.created_at')
                     ->limit(1);
         })
-        ->doesntHave('latestVendBinding')
+        ->doesntHave('vendBindings')
         ->has('operators')
         ->select(
             'vends.id as id',

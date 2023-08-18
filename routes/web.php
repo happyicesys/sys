@@ -237,7 +237,8 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('settings')->group(function() {
         Route::get('/', [SettingController::class, 'index'])->name('settings');
-        Route::get('/vend/{id}/{type}', [SettingController::class, 'editOrCreate']);
+        Route::get('/vend/{id}/{type}', [SettingController::class, 'editOrCreate'])->name('settings.edit');
+        Route::post('/{id}/toggle-activation', [SettingController::class, 'toggleActivation']);
     });
 
     Route::prefix('simcards')->group(function() {

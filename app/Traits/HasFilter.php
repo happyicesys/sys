@@ -99,6 +99,7 @@ trait HasFilter {
     public function filterVendsDB($query, $request)
     {
         // dd($request->all());
+        // $isActive = $request->is_active != null ? $request->is_active : 'all';
       $isDoorOpen = $request->is_door_open != null ? $request->is_door_open : 'all';
       $isOnline = $request->is_online != null ? $request->is_online : 'all';
       $isSensor = $request->is_sensor != null ? $request->is_sensor : 'all';
@@ -125,7 +126,7 @@ trait HasFilter {
               $search = [$search];
           }
 
-          $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->where('vend_bindings.is_active', true)->pluck('vend_id'));
+          $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->where('vends.is_active', true)->pluck('vend_id'));
       })
       ->when($request->serialNum, function($query, $search) {
           $query->where('serial_num', 'LIKE', "%{$search}%");
@@ -156,23 +157,26 @@ trait HasFilter {
               $query->where('parameter_json->fan', '<=', $search)->where('parameter_json->fan', '>', 0);
           }
       })
-    //   ->when($request->is_active, function($query, $search) {
-    //     $query->where('vend_bindings.is_active', $search);
-    // })
+      ->when($request->is_active, function($query, $search) {
+        // dd($search);
+        if($search != 'all') {
+            $query->where('vends.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+        }
+    })
       ->when($isDoorOpen, function($query, $search) {
           if($search != 'all') {
               $query->where('parameter_json->door', '=', $search);
           }
       })
-      ->when($request->is_binded_customer, function($query, $search) {
-          if($search !== 'all') {
-              if($search == 'true') {
-                $query->whereNotNull('customer_id');
-              }else {
-                $query->whereNull('customer_id');
-              }
-          }
-      })
+    //   ->when($request->is_binded_customer, function($query, $search) {
+    //       if($search !== 'all') {
+    //           if($search == 'true') {
+    //             $query->whereNotNull('customer_id');
+    //           }else {
+    //             $query->whereNull('customer_id');
+    //           }
+    //       }
+    //   })
       ->when($request->tempHigherThan, function($query, $search) {
           if(is_numeric($search)) {
               $query->where('temp', '>=', $search * 10);
@@ -191,7 +195,7 @@ trait HasFilter {
             $query->whereIn('vends.id',
                 DB::table('vend_channels')
                 ->select('vend_id')
-                ->where('vend_bindings.is_active', true)
+                ->where('vends.is_active', true)
                 ->whereIn('vend_channels.id', DB::table('vend_channel_error_logs')
                     ->select('vend_channel_id')
                     ->where('is_error_cleared', false)
@@ -202,7 +206,7 @@ trait HasFilter {
             $query->whereIn('vends.id',
                 DB::table('vend_channels')
                 ->select('vend_id')
-                ->where('vend_bindings.is_active', true)
+                ->where('vends.is_active', true)
                 ->whereIn('vend_channels.id', DB::table('vend_channel_error_logs')
                     ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_channel_error_logs.vend_channel_error_id')
                     ->select('vend_channel_id')
@@ -326,9 +330,7 @@ trait HasFilter {
             }
         })
         ->when($request->is_active, function($query, $search) {
-            if($search != 'all') {
-                $query->where('vend_bindings.is_active', $search);
-            }
+            $query->where('vends.is_active', $search);
         })
         ->when($isDoorOpen, function($query, $search) {
             if($search != 'all') {

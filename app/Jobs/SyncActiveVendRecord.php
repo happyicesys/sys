@@ -45,7 +45,7 @@ class SyncActiveVendRecord implements ShouldQueue
             $activeVends = Vend::query()
             ->leftJoin('vend_bindings', function($query) {
                 $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                        ->where('is_active', true)
+                        // ->where('is_active', true)
                         ->latest('begin_date')
                         ->limit(1);
             })
@@ -57,10 +57,11 @@ class SyncActiveVendRecord implements ShouldQueue
             ->whereIn('vends.id', function($query) use ($date) {
                 $query->select('vend_id')
                     ->from('vend_bindings')
-                    ->where('is_active', true)
+                    // ->where('is_active', true)
                     ->whereNull('termination_date')
                     ->whereDate('begin_date', '<=', $date);
             })
+            ->where('vends.is_active', true)
             ->select('*', 'vends.id');
 
         $inactiveVends = Vend::query()
@@ -77,11 +78,12 @@ class SyncActiveVendRecord implements ShouldQueue
             ->whereIn('vends.id', function($query) use ($date) {
                 $query->select('vend_id')
                     ->from('vend_bindings')
-                    ->where('is_active', false)
+                    // ->where('is_active', false)
                     ->whereNotNull('termination_date')
                     ->whereDate('begin_date', '<=', $date)
                     ->whereDate('termination_date', '>=', $date);
             })
+            ->where('vends.is_active', false)
             ->select('*', 'vends.id');
 
         // $unbindVends = Vend::query()

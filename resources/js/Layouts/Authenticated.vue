@@ -117,7 +117,7 @@ const navigation = [
         ]
     },
     {
-        name: 'VM Management',
+        name: 'Device Management',
         icon: Cog8ToothIcon,
         current: false,
         href: 'settings',

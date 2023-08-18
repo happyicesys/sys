@@ -39,6 +39,7 @@ class StoreVendsRecord implements ShouldQueue
             ->rightJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->where('vend_transactions.created_at', '>=', Carbon::parse($this->dateFrom)->startOfDay())
             ->where('vend_transactions.created_at', '<=', Carbon::parse($this->dateTo)->endOfDay())
+            ->where('vends.is_active', true)
             // ->whereIn('vend_id', function($query) {
             //     $query->select('vend_id')
             //         ->from('vend_bindings')

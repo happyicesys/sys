@@ -80,29 +80,30 @@ class VendController extends Controller
     public function index(Request $request)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
-        $request->merge(['is_active' => isset($request->is_active) ? $request->is_active : true]);
-        if(!isset($request->is_binded_customer)) {
+        if(!isset($request->is_active)) {
             if(
-                env('VEND_INIT_BINDED') and
-                (auth()->user()->hasRole('superadmin') or
+                auth()->user()->hasRole('superadmin') or
                 auth()->user()->hasRole('admin') or
                 auth()->user()->hasRole('supervisor') or
-                auth()->user()->hasRole('driver'))
+                auth()->user()->hasRole('driver')
             ) {
-                $request->merge(['is_binded_customer' => 'true']);
+                $request->merge(['is_active' => 'true']);
             }else {
-                $request->merge(['is_binded_customer' => 'all']);
+                $request->merge(['is_active' => 'all']);
             }
         }
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
-        $request->sortKey = $request->sortKey ? $request->sortKey : 'balance_percent';
-        $request->sortBy = $request->sortBy ? $request->sortBy : true;
+        $request->merge(['numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50]);
+        $request->merge(['sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent']);
+        $request->merge(['sortBy' => isset($request->sortBy) ? $request->sortBy : true]);
+        // $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
+        // $request->sortKey = $request->sortKey ? $request->sortKey : 'balance_percent';
+        // $request->sortBy = $request->sortBy ? $request->sortBy : true;
         $className = get_class(new Customer());
 
         $vends = DB::table('vends')
             ->leftJoin('vend_bindings', function($query) {
                 $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                        ->where('vend_bindings.is_active', true)
+                        // ->where('vend_bindings.is_active', true)
                         ->latest('begin_date')
                         ->limit(1);
             })
@@ -156,7 +157,7 @@ class VendController extends Controller
                 'vends.vend_channel_error_logs_json',
                 'vends.vend_transaction_totals_json',
                 'vends.vend_type_id',
-                'vend_bindings.is_active',
+                'vends.is_active',
                 'customers.cms_invoice_history',
                 'customers.code AS customer_code',
                 'customers.name AS customer_name',
@@ -170,7 +171,7 @@ class VendController extends Controller
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends);
 
-        $vends = $vends->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+        $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
 
         $totals = [
@@ -185,6 +186,7 @@ class VendController extends Controller
                                 return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->vend_records_thirty_days_amount_average : 0;
                             })/100,
         ];
+        // dd($request->all());
 
         return Inertia::render('Vend/Index', [
             'categories' => CategoryResource::collection(
