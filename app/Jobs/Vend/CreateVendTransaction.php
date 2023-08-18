@@ -75,12 +75,6 @@ class CreateVendTransaction implements ShouldQueue
         if($paymentMethod) {
             if(
                 isset(Midtrans::PAYMENT_METHOD_MAPPING[$paymentMethod->code]) or isset(Omise::PAYMENT_METHOD_MAPPING[$paymentMethod->code])
-                // $paymentMethod->code == Midtrans::PAYMENT_METHOD_GOPAY or
-                // $paymentMethod->code == Midtrans::PAYMENT_METHOD_AIRPAY_SHOPEE or
-                // $paymentMethod->code == Midtrans::PAYMENT_METHOD_DANA or
-                // $paymentMethod->code == Midtrans::PAYMENT_METHOD_OVO or
-                // $paymentMethod->code == Midtrans::PAYMENT_METHOD_TCASH or
-                // $paymentMethod->code == Omise::PAYMENT_METHOD_PAYNOW
             ) {
                 $isPaymentReceived = true;
             }

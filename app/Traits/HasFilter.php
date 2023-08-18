@@ -156,6 +156,9 @@ trait HasFilter {
               $query->where('parameter_json->fan', '<=', $search)->where('parameter_json->fan', '>', 0);
           }
       })
+    //   ->when($request->is_active, function($query, $search) {
+    //     $query->where('vend_bindings.is_active', $search);
+    // })
       ->when($isDoorOpen, function($query, $search) {
           if($search != 'all') {
               $query->where('parameter_json->door', '=', $search);
@@ -320,6 +323,11 @@ trait HasFilter {
         ->when($request->fanSpeedLowerThan, function($query, $search) {
             if(is_numeric($search)) {
                 $query->where('parameter_json->fan', '<=', $search)->where('parameter_json->fan', '>', 0);
+            }
+        })
+        ->when($request->is_active, function($query, $search) {
+            if($search != 'all') {
+                $query->where('is_active', $search);
             }
         })
         ->when($isDoorOpen, function($query, $search) {

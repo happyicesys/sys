@@ -13,6 +13,7 @@ class PaymentMethod extends Model
         'code',
         'name',
         'payment_gateway_id',
+        'payment_merchant_id',
         'type_name',
     ];
 
@@ -20,5 +21,10 @@ class PaymentMethod extends Model
     public function category()
     {
         return $this->morphOne(Category::class, 'modelable');
+    }
+
+    public function paymentGateway()
+    {
+        return $this->belongsTo(PaymentGateway::class);
     }
 }

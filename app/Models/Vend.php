@@ -45,6 +45,7 @@ class Vend extends Model
         'temp_updated_at',
         'coin_amount',
         'firmware_ver',
+        'is_active',
         'is_customer',
         'is_door_open',
         'is_mqtt',

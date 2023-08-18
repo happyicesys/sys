@@ -80,6 +80,7 @@ class VendController extends Controller
     public function index(Request $request)
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
+        $request->merge(['is_active' => isset($request->is_active) ? $request->is_active : true]);
         if(!isset($request->is_binded_customer)) {
             if(
                 env('VEND_INIT_BINDED') and
@@ -155,6 +156,7 @@ class VendController extends Controller
                 'vends.vend_channel_error_logs_json',
                 'vends.vend_transaction_totals_json',
                 'vends.vend_type_id',
+                'vend_bindings.is_active',
                 'customers.cms_invoice_history',
                 'customers.code AS customer_code',
                 'customers.name AS customer_name',

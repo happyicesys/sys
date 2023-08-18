@@ -34,6 +34,7 @@ class VendDBResource extends JsonResource
             'termination_date_short' => isset($this->termination_date) ? Carbon::parse($this->termination_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'coin_amount' => isset($this->coin_amount) ? $this->coin_amount/ 100 : null,
             'firmware_ver' => isset($this->firmware_ver) && $this->firmware_ver ? dechex($this->firmware_ver) : null,
+            'is_active' => isset($this->is_active) && $this->is_active ? true : false,
             'is_door_open' => isset($this->is_door_open) && $this->is_door_open ? 'Yes' : 'No',
             'is_mqtt' => isset($this->is_mqtt) ? $this->is_mqtt : null,
             'is_online' => isset($this->is_online) ? $this->is_online : null,

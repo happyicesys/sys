@@ -588,6 +588,17 @@
                                 <div class="flex flex-col space-y-1">
                                     <div
                                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                        :class="[vend.is_active ? 'bg-green-200' : 'bg-red-200']"
+                                    >
+                                        <div class="flex flex-col">
+                                            <span class="font-bold">
+                                                {{vend.is_active ? 'Active' : 'Inactive'}}
+                                            </span>
+                                        </div>
+
+                                    </div>
+                                    <div
+                                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                                         :class="[vend.is_online ? 'bg-green-200' : 'bg-red-200']"
                                     >
                                         <div class="flex flex-col">
