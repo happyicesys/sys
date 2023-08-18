@@ -125,7 +125,7 @@ trait HasFilter {
               $search = [$search];
           }
 
-          $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->where('is_active', true)->pluck('vend_id'));
+          $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->where('vend_bindings.is_active', true)->pluck('vend_id'));
       })
       ->when($request->serialNum, function($query, $search) {
           $query->where('serial_num', 'LIKE', "%{$search}%");
@@ -191,7 +191,7 @@ trait HasFilter {
             $query->whereIn('vends.id',
                 DB::table('vend_channels')
                 ->select('vend_id')
-                ->where('is_active', true)
+                ->where('vend_bindings.is_active', true)
                 ->whereIn('vend_channels.id', DB::table('vend_channel_error_logs')
                     ->select('vend_channel_id')
                     ->where('is_error_cleared', false)
@@ -202,7 +202,7 @@ trait HasFilter {
             $query->whereIn('vends.id',
                 DB::table('vend_channels')
                 ->select('vend_id')
-                ->where('is_active', true)
+                ->where('vend_bindings.is_active', true)
                 ->whereIn('vend_channels.id', DB::table('vend_channel_error_logs')
                     ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_channel_error_logs.vend_channel_error_id')
                     ->select('vend_channel_id')
@@ -327,7 +327,7 @@ trait HasFilter {
         })
         ->when($request->is_active, function($query, $search) {
             if($search != 'all') {
-                $query->where('is_active', $search);
+                $query->where('vend_bindings.is_active', $search);
             }
         })
         ->when($isDoorOpen, function($query, $search) {
