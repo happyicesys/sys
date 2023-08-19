@@ -101,12 +101,21 @@ class VendController extends Controller
         $className = get_class(new Customer());
 
         $vends = DB::table('vends')
-            ->leftJoin('vend_bindings', function($query) {
-                $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                        // ->where('vend_bindings.is_active', true)
-                        ->latest('begin_date')
-                        ->limit(1);
-            })
+            ->leftJoinSub(
+                VendBinding::query()
+                    ->select('vend_id', 'customer_id', DB::raw('MAX(begin_date) as begin_date'))
+                    ->groupBy('vend_id'),
+                'vend_bindings',
+                function ($join) {
+                    $join->on('vend_bindings.vend_id', '=', 'vends.id');
+                }
+            )
+            // ->leftJoin('vend_bindings', function($query) {
+            //     $query->on('vend_bindings.vend_id', '=', 'vends.id')
+            //             // ->where('vend_bindings.is_active', true)
+            //             ->latest('begin_date')
+            //             ->limit(1);
+            // })
             ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')

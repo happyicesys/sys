@@ -18,7 +18,7 @@ class Grab extends Model
     private $environment;
     private $scope;
 
-    public function __construct($clientId, $clientSecret, $environment = 'staging', $scope = 'food:partner_api')
+    public function __construct($clientId, $clientSecret, $environment = 'staging', $scope = 'mart:partner_api')
     {
         $this->clientId = $clientId;
         $this->clientSecret = $clientSecret;
