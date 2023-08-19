@@ -7,6 +7,7 @@ use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
+use App\Models\PaymentMethod;
 use App\Models\Vend;
 use App\Models\VendData;
 use App\Services\MqttService;
@@ -127,6 +128,40 @@ class PaymentController extends Controller
     if($updatedPaymentGatewayLog and $status === PaymentGatewayLog::STATUS_APPROVE) {
       $this->processPayment($updatedPaymentGatewayLog);
     }
+  }
+
+  public function getPaymentMerchantsApi($countryCode = 'SG', $paymentGatewayName = 'omise')
+  {
+
+    $paymentMethods = PaymentMethod::query()
+      ->with([
+        'paymentGateway',
+        'paymentMerchant',
+      ])
+      ->whereHas('paymentGateway', function($query) use ($countryCode, $paymentGatewayName) {
+        $query
+        ->where('name', $paymentGatewayName)
+        ->whereHas('country', function($query) use ($countryCode) {
+          $query->where('code', $countryCode);
+        });
+      })
+      ->get();
+      // dd($paymentMethods->toArray());
+
+      if($paymentMethods) {
+        $dataArr = [];
+        foreach($paymentMethods as $paymentMethod) {
+          array_push($dataArr, [
+            'name' => $paymentMethod->paymentMerchant->name,
+            'image_url' => $paymentMethod->paymentMerchant->image_url,
+            'slug' => $paymentMethod->type_name,
+            'timeout_seconds' => 150,
+            'is_default' => $paymentMethod->paymentGateway->default_payment_method_id === $paymentMethod->id,
+          ]);
+        }
+      }
+
+      return $dataArr;
   }
 
   private function processPayment(PaymentGatewayLog $paymentGatewayLog)

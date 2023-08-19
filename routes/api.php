@@ -26,6 +26,7 @@ Route::prefix('v1')->middleware(['throttle:api'])->group(function() {
     Route::post('/customer/migrate', [CustomerController::class, 'migrate']);
     Route::post('/payment-gateway-status/{company?}', [PaymentController::class, 'createPaymentGatewayLog']);
     Route::get('/binded-vends', [VendDataController::class, 'getBindedVends']);
+    Route::get('/payment-merchants/{countryCode}/{paymentGatewayName}', [PaymentController::class, 'getPaymentMerchantsApi']);
 });
 
 // Internal api

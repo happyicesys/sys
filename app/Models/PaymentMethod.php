@@ -27,4 +27,9 @@ class PaymentMethod extends Model
     {
         return $this->belongsTo(PaymentGateway::class);
     }
+
+    public function paymentMerchant()
+    {
+        return $this->belongsTo(PaymentMerchant::class);
+    }
 }
