@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\VendDataController;
 use App\Http\Controllers\BankController;
 use App\Http\Controllers\CashlessProviderController;
 use App\Http\Controllers\CashlessTerminalController;
@@ -65,6 +66,8 @@ Route::get('/', function () {
     //     'phpVersion' => PHP_VERSION,
     // ]);
 });
+
+Route::post('/SetPara2', [VendDataController::class, 'create']);
 
 Route::middleware(['auth', 'cors'])->group(function() {
 
