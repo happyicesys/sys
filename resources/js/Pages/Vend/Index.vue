@@ -213,6 +213,9 @@
                 <SearchInput placeholderStr="Remaining SKU Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()">
                     Remaining SKU(%) &lt;&lt;
                 </SearchInput>
+                <SearchInput placeholderStr="Firmware Ver" v-model="filters.virtual_firmware_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+                    Firmware Ver
+                </SearchInput>
             </div>
 
             <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">

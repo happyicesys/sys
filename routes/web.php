@@ -12,6 +12,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\LocationTypeController;
 use App\Http\Controllers\MapController;
+use App\Http\Controllers\OauthController;
 use App\Http\Controllers\OperatorController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\PaymentTermController;
@@ -147,6 +148,10 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('maps')->group(function() {
         Route::get('/', [MapController::class, 'index'])->name('maps');
+    });
+
+    Route::prefix('oauth-clients')->group(function() {
+        Route::get('/', [OauthController::class, 'index'])->name('oauth-clients');
     });
 
     Route::prefix('operators')->group(function() {

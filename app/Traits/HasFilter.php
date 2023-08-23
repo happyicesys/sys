@@ -255,6 +255,9 @@ trait HasFilter {
       ->when($request->remainingSkuLessThan, function($query, $search) {
           $query->where('out_of_stock_sku_percent', '>=', (100 - $search));
       })
+      ->when($request->virtual_firmware_ver, function($query, $search) {
+        $query->where('virtual_firmware_ver', 'LIKE', "%{$search}%");
+        })
       ->when($request->sortKey, function($query, $search) use ($request) {
             // if($search === 'balance_percent') {
             //     $query->orderBy('is_online', 'desc');
