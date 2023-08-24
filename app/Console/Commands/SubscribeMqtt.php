@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Http\Controllers\VendDataController;
-use App\Jobs\ProcessVendData;
 use App\Services\MqttService;
 use Illuminate\Console\Command;
 // use PhpMqtt\Client\Facades\MQTT;

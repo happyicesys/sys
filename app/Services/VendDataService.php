@@ -3,6 +3,8 @@
 namespace App\Services;
 use App\Models\Vend;
 use App\Models\VendData;
+use App\Jobs\SyncAcbVmcPa;
+use App\Jobs\SyncAcbStatus;
 use App\Jobs\SyncIsMqttVend;
 use App\Jobs\Vend\CreateVendTransaction;
 use App\Jobs\Vend\GetPaymentGatewayQR;
@@ -77,29 +79,81 @@ class VendDataService
 
           if(!empty($byteData) && $byteData[1] == 83) {
             $byteSize = (sizeof($byteData) - 5)/ 11;
-            $i = 2;
-            $i += 4;
+            if($byteSize == 60) {
+              // INT16U id;
+              // INT8U Col_FaultCode;
+              // INT8U Col_Capacity;
+              // INT8U Col_GoodsCount;
+              // INT32U Col_Price;
+              // INT16U Col_ProductId;
+              $i = 2;
+              $i += 4;
+              for($j = 0; $j < $byteSize; $j++) {
+                $channelArr = [];
+                $channelCode = $byteData[$i++];
+                $channelCode += $byteData[$i++]*0x100;
+                $channelArr['channel_code'] = $channelCode;
 
-            for($j = 0; $j < $byteSize; $j++) {
-              $channelArr = [];
-              $channelCode = $byteData[$i++];
-              $channelCode += $byteData[$i++]*0x100;
-              $channelArr['channel_code'] = $channelCode;
+                $channelArr['error_code'] = $byteData[$i++];
+                $channelArr['capacity'] = $byteData[$i++];
+                $channelArr['qty'] = $byteData[$i++];
 
-              $channelArr['error_code'] = $byteData[$i++];
-              $channelArr['capacity'] = $byteData[$i++];
-              $channelArr['qty'] = $byteData[$i++];
-
-              $amount = $byteData[$i++];
-              $amount += $byteData[$i++]*0x100;
-              $amount += $byteData[$i++]*0x10000;
-              $amount += $byteData[$i++]*0x1000000;
-              $channelArr['amount'] = $amount;
-              $i += 2;
-              if(is_array($channelArr)) {
-                array_push($processedDataArr['data']['channels'], $channelArr);
+                $amount = $byteData[$i++];
+                $amount += $byteData[$i++]*0x100;
+                $amount += $byteData[$i++]*0x10000;
+                $amount += $byteData[$i++]*0x1000000;
+                $channelArr['amount'] = $amount;
+                $i += 2;
+                if(is_array($channelArr)) {
+                  array_push($processedDataArr['data']['channels'], $channelArr);
+                }
+              }
+            }else {
+              // INT16U id;
+              // INT8U Col_FaultCode;
+              // INT8U Col_Capacity;
+              // INT8U Col_GoodsCount;
+              // INT32U Col_Price;
+              // INT16U Col_ProductId;
+              // INT16U discount_grp;
+              // INT32U Col_Price2;
+              // INT16U lock_cnt;
+              $byteSize = (sizeof($byteData) - 5)/ 19;
+              $i = 2;
+              $i += 4;
+              for($j = 0; $j < $byteSize; $j++) {
+                $channelArr = [];
+                $channelCode = $byteData[$i++];
+                $channelCode += $byteData[$i++]*0x100;
+                $channelArr['channel_code'] = $channelCode;
+                $channelArr['error_code'] = $byteData[$i++];
+                $channelArr['capacity'] = $byteData[$i++];
+                $channelArr['qty'] = $byteData[$i++];
+                $amount = $byteData[$i++];
+                $amount += $byteData[$i++]*0x100;
+                $amount += $byteData[$i++]*0x10000;
+                $amount += $byteData[$i++]*0x1000000;
+                $channelArr['amount'] = $amount;
+                $productId = $byteData[$i++];
+                $productId += $byteData[$i++]*0x100;
+                $channelArr['product_id'] = $productId;
+                $discountGroup = $byteData[$i++];
+                $discountGroup += $byteData[$i++]*0x100;
+                $channelArr['discount_group'] = $discountGroup;
+                $amount2 = $byteData[$i++];
+                $amount2 += $byteData[$i++]*0x100;
+                $amount2 += $byteData[$i++]*0x10000;
+                $amount2 += $byteData[$i++]*0x1000000;
+                $channelArr['amount2'] = $amount2;
+                $lockQty = $byteData[$i++];
+                $lockQty += $byteData[$i++]*0x100;
+                $channelArr['lock_qty'] = $lockQty;
+                if(is_array($channelArr)) {
+                  array_push($processedDataArr['data']['channels'], $channelArr);
+                }
               }
             }
+
           }
         }
       $data = $processedDataArr['data'];
@@ -115,9 +169,9 @@ class VendDataService
     $saveVendData = true;
     $requiredMd5 = false;
 
-    if(isset($originalInput['m']) or isset($originalInput['Vid'])) {
+    if(isset($originalInput['m'])) {
 
-      $vend = Vend::with('latestVendBinding.customer')->where('code', isset($originalInput['m']) ? $originalInput['m'] : $originalInput['Vid'])->first();
+      $vend = Vend::with('latestVendBinding.customer')->where('code', $originalInput['m'])->first();
 
       if(!$vend) {
         return $response;
@@ -131,6 +185,12 @@ class VendDataService
       }
       if(isset($processedInput['Type'])) {
         switch($processedInput['Type']) {
+          case 'ACBVMCPA':
+            SyncAcbVmcPa::dispatch($processedInput, $vend)->onQueue('default');
+            break;
+          case 'ACBSTATUS':
+            SyncAcbStatus::dispatch($processedInput, $vend)->onQueue('default');
+            break;
           case 'CHANNEL':
             SyncVendChannels::dispatch($processedInput, $vend)->onQueue('default');
             break;
@@ -176,8 +236,10 @@ class VendDataService
       VendData::create([
         'connection' => $connectionType,
         'ip_address' => $ipAddress,
-        'value' => $originalInput,
         'processed' => $processedInput,
+        'type' => isset($processedInput['Type']) ? $processedInput['Type'] : null,
+        'value' => $originalInput,
+        'vend_code' => isset($originalInput['m']) ? $originalInput['m'] : null,
       ]);
     }
 

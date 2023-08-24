@@ -19,6 +19,8 @@ class Vend extends Model
     }
 
     protected $casts = [
+        'acb_vmc_pa_json' => 'json',
+        'acb_status_json' => 'json',
         'apk_ver_json' => 'json',
         'begin_date' => 'datetime',
         'last_updated_at' => 'datetime',
@@ -35,6 +37,8 @@ class Vend extends Model
     ];
 
     protected $fillable = [
+        'acb_vmc_pa_json',
+        'acb_status_json',
         'amount_average_day',
         'apk_ver_json',
         'begin_date',
@@ -68,6 +72,7 @@ class Vend extends Model
         'vend_transaction_totals_json',
         'vend_type_id',
         'virtual_firmware_ver',
+
     ];
 
     // relationships

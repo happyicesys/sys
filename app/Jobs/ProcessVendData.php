@@ -25,7 +25,7 @@ use Illuminate\Queue\SerializesModels;
 use Log;
 
 class ProcessVendData implements ShouldQueue
-//
+
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 

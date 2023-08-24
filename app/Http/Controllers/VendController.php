@@ -58,7 +58,6 @@ use App\Models\PaymentGateways\Omise;
 
 
 // use PhpMqtt\Client\Facades\MQTT;
-// use App\Jobs\ProcessVendData;
 
 class VendController extends Controller
 {

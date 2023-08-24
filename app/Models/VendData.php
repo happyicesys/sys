@@ -11,9 +11,11 @@ class VendData extends Model
 
     protected $fillable = [
         'connection',
-        'processed',
         'ip_address',
+        'processed',
+        'type',
         'value',
+        'vend_code',
     ];
 
     protected $casts = [

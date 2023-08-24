@@ -11,7 +11,6 @@ use App\Models\VendChannelErrorLog;
 use App\Models\VendData;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
-use App\Jobs\ProcessVendData;
 use App\Services\VendDataService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
