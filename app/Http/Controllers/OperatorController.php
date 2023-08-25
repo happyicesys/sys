@@ -118,14 +118,46 @@ class OperatorController extends Controller
     {
         $operator = Operator::query()
             ->with([
-                'address',
-                'address.country',
                 'country',
                 'operatorPaymentGateways.paymentGateway',
                 'vends',
-                'vends.latestVendBinding.customer',
+                'vends.latestVendBindingAll.customer',
             ])
             ->find($id);
+        $unbindedVends = Vend::query()
+            ->with([
+                'latestVendBindingAll.customer',
+            ])
+            ->whereNotIn('id', function($query) use ($id) {
+                $query->select('vend_id')
+                    ->from('operator_vend')
+                    ->where('operator_id', $id);
+            })
+            ->orderBy('code')
+            ->get();
+
+        return Inertia::render('Operator/Edit', [
+            'countries' => CountryResource::collection(
+                Country::query()
+                    ->orderBy('sequence')
+                    ->orderBy('name')
+                    ->get()
+            ),
+            'countryPaymentGateways' =>
+                PaymentGatewayResource::collection(
+                    PaymentGateway::with(['country'])
+                    ->orderBy('name')
+                    ->get()
+                )
+            ,
+            'operatorPaymentGatewayTypes' => [
+                OperatorPaymentGateway::TYPE_SANDBOX,
+                OperatorPaymentGateway::TYPE_PRODUCTION
+            ],
+            'operator' => $operator,
+            'timezones' => $timezones,
+            'unbindedVends' => $unbindedVends,
+        ]);
     }
 
     public function update(Request $request, $operatorId)
