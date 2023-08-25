@@ -60,7 +60,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
                 'amount' => $params['amount'] * self::AMOUNT_MULTIPLIER,
                 'currency' => $params['currency'],
             ]);
-
+        // dd($response->json());
         if ($response->successful()) {
             return $response->json();
         }
