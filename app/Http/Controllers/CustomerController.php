@@ -130,7 +130,7 @@ class CustomerController extends Controller
             'value' => $value,
         ]);
 
-        SyncSingleCustomer::dispatch($value[0]['id']);
+        SyncSingleCustomer::dispatch($value['id']);
         // ProcessCustomerData::dispatch($request->all(), null);
     }
 

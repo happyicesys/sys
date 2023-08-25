@@ -120,7 +120,17 @@
                         {{ operator.timezone.name }}
                       </TableData>
                       <TableData :currentIndex="operatorIndex" :totalLength="operators.length" inputClass="text-center">
-                        <div class="flex justify-center space-x-1" v-if="!operatorRole">
+                        <div class="flex justify-center space-x-1">
+                          <!-- <Link :href="'/operators/' + operator.id + '/edit'">
+                            <Button
+                              type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                            >
+                              <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                              <span>
+                                  Edit
+                              </span>
+                            </Button>
+                          </Link> -->
                           <Button
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                             @click="onEditClicked(operator)"
@@ -185,7 +195,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, Link } from '@inertiajs/vue3';
 
 const props = defineProps({
   countries: Object,

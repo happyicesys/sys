@@ -114,6 +114,20 @@ class OperatorController extends Controller
         return redirect()->route('operators');
     }
 
+    public function edit($id)
+    {
+        $operator = Operator::query()
+            ->with([
+                'address',
+                'address.country',
+                'country',
+                'operatorPaymentGateways.paymentGateway',
+                'vends',
+                'vends.latestVendBinding.customer',
+            ])
+            ->find($id);
+    }
+
     public function update(Request $request, $operatorId)
     {
         $request->validate([

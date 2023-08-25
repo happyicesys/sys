@@ -157,6 +157,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('operators')->group(function() {
         Route::get('/', [OperatorController::class, 'index'])->name('operators');
         Route::post('/create', [OperatorController::class, 'create']);
+        Route::get('/{id}/edit', [OperatorController::class, 'edit']);
         Route::post('/{id}/update', [OperatorController::class, 'update']);
         Route::delete('/{id}', [OperatorController::class, 'delete']);
         Route::post('/bind-vend', [OperatorController::class, 'bindVend']);

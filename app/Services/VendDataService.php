@@ -225,6 +225,8 @@ class VendDataService
           case 'VENDER':
             SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
             break;
+          default:
+            throw new \Exception('Type is not set or please check the parameters');
         }
       }else {
         UpdateVendLastUpdated::dispatch($vend)->onQueue('default');

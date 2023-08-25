@@ -21,7 +21,7 @@ Route::prefix('client')
         Route::post('/channels', [ClientController::class, 'getChannels']);
     });
 
-Route::prefix('v1')->middleware(['throttle:api'])->group(function() {
+Route::prefix('v1')->group(function() {
     Route::post('/vend-data', [VendDataController::class, 'create']);
     Route::post('/customer/migrate', [CustomerController::class, 'migrate']);
     Route::post('/payment-gateway-status/{company?}', [PaymentController::class, 'createPaymentGatewayLog']);
