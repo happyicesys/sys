@@ -4,10 +4,12 @@ namespace App\Models\PaymentGateways;
 
 use App\Models\PaymentGateway;
 use App\Interfaces\PaymentGateway AS PaymentGatewayInterface;
+// use Goutte\Client;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+
 
 class Omise extends PaymentGateway implements PaymentGatewayInterface
 {
@@ -54,6 +56,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
 
     public function createSource($params = [])
     {
+        // dd($params, $this->publicKey, $this->secretKey);
         $response = Http::withHeaders($this->getHeaders($this->publicKey))
             ->post('https://api.omise.co/sources', [
                 'type' => $params['type'],
@@ -70,7 +73,6 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
 
     public function createCharge($params = [], $sourceId)
     {
-        // dd($params, $params['metadata'], $sourceId);
         $response = Http::withHeaders($this->getHeaders($this->secretKey))
             ->post('https://api.omise.co/charges', [
                 'amount' => $params['amount'] * self::AMOUNT_MULTIPLIER,
@@ -79,6 +81,16 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
                 'metadata' => $params['metadata'],
                 'return_uri' => $params['return_uri'],
             ]);
+    // $client = new Client();
+    // $crawler = $client->request('GET', $response->json()['authorize_uri'], [
+    //     'allow_redirects' => true
+    // ]);
+    // while ($client->getResponse() instanceof RedirectResponse ) {
+    //     $crawler = $client->followRedirect();
+    // }
+    // $form = $crawler->filter('form[name="paymentForm"]')->form();
+    // dd($client->submit($form));
+    // dd($crawler->filter('form[name="paymentForm"]')->form());
 
         if($response->successful()) {
             return $response->json();

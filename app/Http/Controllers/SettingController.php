@@ -100,7 +100,7 @@ class SettingController extends Controller
             $vend = Vend::query()
                 ->leftJoin('vend_bindings', function($query) {
                     $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                            // ->where('is_active', true)
+                            ->where('vend_bindings.is_active', true)
                             ->latest('begin_date')
                             ->limit(1);
                 })
@@ -114,6 +114,7 @@ class SettingController extends Controller
                     '*',
                     'vends.id',
                     'vends.code',
+                    'vends.name',
                     'customers.id AS customer_id',
                     'customers.code AS customer_code',
                     'customers.name AS customer_name',
@@ -158,12 +159,12 @@ class SettingController extends Controller
                 'is_active' => true,
                 'termination_date' => null,
             ]);
-            if($vend->firstVendBinding()->exists()) {
-                $vend->firstVendBinding->update([
-                    'is_active' => true,
-                    'termination_date' => null,
-                ]);
-            }
+            // if($vend->firstVendBinding()->exists()) {
+            //     $vend->firstVendBinding->update([
+            //         'is_active' => true,
+            //         'termination_date' => null,
+            //     ]);
+            // }
         }
 
         return redirect()->route('settings.edit', [$vendId, 'update']);

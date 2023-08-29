@@ -132,17 +132,17 @@
                     </span>
                   </Button>
                 </Link>
-                <!-- <Button
+                <Button
                   type="button"
                   class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1"
-                  v-if="vend.latestVendBinding && vend.latestVendBinding.customer && permissions.includes('update vends')"
+                  v-if="vend.customer_id && permissions.includes('update vends')"
                   @click="unbindCustomer(form.id)"
                 >
                   <ArrowUturnDownIcon class="w-4 h-4"></ArrowUturnDownIcon>
                   <span>
-                    Unbind
+                    Unbind Customer
                   </span>
-                </Button> -->
+                </Button>
                 <Button
                   type="button"
                   class="text-white flex space-x-1"
@@ -210,6 +210,7 @@ const props = defineProps({
   const now = ref(moment().format('HH:mm:ss'))
 
 onMounted(() => {
+
     if(props.type == 'create') {
         typeName.value = 'Create New'
     } else {
@@ -282,6 +283,19 @@ function submit() {
       replace: true,
     })
   }
+}
+
+function unbindCustomer(vendId) {
+  form.value
+      .post('/vends/' + vendId + '/unbind', {
+        onSuccess: () => {
+          form.value.is_customer = false
+          form.value.customer_id = ''
+          form.value.begin_date = ''
+        },
+        preserveState: true,
+        replace: true,
+      })
 }
 
 function toggleActivation()

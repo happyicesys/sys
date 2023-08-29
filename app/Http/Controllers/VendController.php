@@ -667,8 +667,18 @@ class VendController extends Controller
         ]);
 
         if($request->customer_id) {
+            // dd('1');
             SyncVendCustomerCms::dispatch($vend->id, $request->customer_id)->onQueue('default');
+        }else {
+            // dd('2');
+            if($vend->latestVendBinding) {
+                $vend->latestVendBinding->update([
+                    'is_active' => false,
+                    'termination_date' => Carbon::now()->toDateString(),
+                ]);
+            }
         }
+
         if($request->operator_id) {
             $vend->operators()->sync([$request->operator_id]);
         }
@@ -681,9 +691,13 @@ class VendController extends Controller
     {
         $vend = Vend::findOrFail($vendId);
 
-        $vend->latestVendBinding->delete();
+        $vend->latestVendBinding->update([
+            'is_active' => false,
+            'termination_date' => Carbon::now()->toDateString(),
+        ]);
 
-        return redirect()->route('vends');
+        // return redirect()->route('vends');
+        return redirect()->route('settings.edit', [$vendId, 'update']);
     }
 
     public function exportChannelExcel(Request $request)

@@ -51,7 +51,7 @@ class SyncVendCustomerCms implements ShouldQueue
         $profileId = null;
         $statusId = null;
 
-        if($customerCollection) {
+        if($customerCollection and isset($customerCollection[0])) {
             $customerCollection = collect($customerCollection[0]);
             if($this->vendId) {
                 $vend = Vend::findOrFail($this->vendId);
@@ -225,6 +225,7 @@ class SyncVendCustomerCms implements ShouldQueue
                     'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
                     'termination_date' => $vend->termination_date ? $vend->termination_date : (isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null),
                     'person_id' => $customerCollection['id'],
+                    'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' && !$vend->termination_date ? true : false,
                 ]);
 
 
