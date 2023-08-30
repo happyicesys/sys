@@ -28,6 +28,13 @@ class OperatorVendFilterScope implements Scope
             $builder->where('operators.id', $operatorId);
           });
         }
+        // dd(auth()->user()->vends()->exists());
+        // $vendIds = auth()->user()->vends()->exists() ? auth()->user()->vends->pluck('id')->toArray() : null;
+        // if($vendIds) {
+        //   $builder = $builder->whereHas('vends', function($builder) use ($vendIds) {
+        //     $builder->whereIn('vends.id', $vendIds);
+        //   });
+        // }
       }
     }
 }

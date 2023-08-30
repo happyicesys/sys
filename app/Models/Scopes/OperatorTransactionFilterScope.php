@@ -24,9 +24,12 @@ class OperatorTransactionFilterScope implements Scope
           $operatorId = null;
         }
         if($operatorId) {
-          // $builder = $builder->whereHas('vend.operators', function($builder) use ($operatorId) {
             $builder->where('operator_id', $operatorId);
-          // });
+        }
+
+        $vendIds = auth()->user()->vends()->exists() ? auth()->user()->vends->pluck('id')->toArray() : null;
+        if($vendIds) {
+            $builder->whereIn('vend_id', $vendIds);
         }
       }
     }

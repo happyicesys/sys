@@ -72,6 +72,113 @@
                 {{ form.errors.operator_id }}
               </div>
             </div>
+
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Access Vending Machine(s) </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sm:col-span-5" v-if="form.id">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Vending Machine to Bind
+              </label>
+              <MultiSelect
+                v-model="form.vend_id"
+                :options="unbindedVendOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                ref="multiselect"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.vend_id">
+                {{ form.errors.vend_id }}
+              </div>
+            </div>
+
+            <div class="sm:col-span-1" v-if="form.id">
+              <Button
+              type="button"
+              @click="bindOperatorVend()"
+              class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
+              :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
+              :disabled="!form.vend_id && !permissions.includes('update operators')"
+              >
+                <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                <span>
+                  Add
+                </span>
+              </Button>
+            </div>
+
+            <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+            <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+              <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                  <table class="min-w-full divide-y divide-gray-300">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          #
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Vend ID
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Name
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                      <tr v-for="(vend, vendIndex) in user.vends" :key="vend.id" :class="vendIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                          {{ vendIndex + 1 }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          {{ vend.code }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                          <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
+                            {{ vend.latestVendBinding.customer.code }} <br>
+                            {{ vend.latestVendBinding.customer.name }}
+                          </span>
+                          <span v-else>
+                            {{ vend.name }}
+                          </span>
+                        </td>
+                        <td class="whitespace-nowrap py-4 text-sm text-center">
+                          <Button
+                            class="bg-red-400 hover:bg-red-500 text-white"
+                            @click="unbindOperatorVend(vend)"
+                            v-if="permissions.includes('update operators')"
+                          >
+                            <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                          </Button>
+                        </td>
+                      </tr>
+                      <tr v-if="!user.vends.length">
+                        <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-red-600 text-center">
+                          No Binding = Access to All
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            </div>
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">
@@ -105,7 +212,7 @@ import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue'
-import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 
@@ -117,6 +224,7 @@ const props = defineProps({
   roles: Object,
   type: String,
   showModal: Boolean,
+  unbindedVends: [Array, Object],
 })
 
 const emit = defineEmits(['modalClose'])
@@ -127,6 +235,7 @@ const form = ref(
 const operatorOptions = ref([])
 const roleOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
+const unbindedVendOptions = ref([])
 
 onMounted(() => {
   form.value = props.user ? useForm({...getDefaultForm(), ...props.user}) : useForm(getDefaultForm())
@@ -137,7 +246,23 @@ onMounted(() => {
       return role.name == 'operator' || role.name == 'operator_user'
     })
   }
+  unbindedVendOptions.value = props.unbindedVends.data
 })
+
+function bindOperatorVend() {
+  if(props.user.vends.indexOf(form.value.vend_id) < 0) {
+    props.user.vends.push(form.value.vend_id)
+    props.user.vends.sort((a, b) => a.code - b.code)
+    unbindedVendOptions.value.splice(unbindedVendOptions.value.indexOf(form.value.vend_id), 1)
+    unbindedVendOptions.value.sort((a, b) => a.code - b.code)
+  }
+}
+
+function unbindOperatorVend(vend) {
+  props.user.vends.splice(props.user.vends.indexOf(vend), 1)
+  unbindedVendOptions.value.push(vend)
+  unbindedVendOptions.value.sort((a, b) => a.code - b.code)
+}
 
 function getDefaultForm() {
   return {
@@ -175,6 +300,7 @@ function submit() {
         ...data,
         operator_id: data.operator_id.id,
         role_id: data.role_id.id,
+        user: props.user,
       }))
       .post('/users/' + form.value.id + '/update', {
       onSuccess: () => {

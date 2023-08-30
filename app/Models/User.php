@@ -112,4 +112,9 @@ class User extends Authenticatable
         return $this->belongsTo(Profile::class);
     }
 
+    public function vends()
+    {
+        return $this->belongsToMany(Vend::class);
+    }
+
 }

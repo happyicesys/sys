@@ -174,6 +174,7 @@
       :type="type"
       :showModal="showFormModal"
       :permissions="permissions"
+      :unbindedVends="unbindedVends"
       @modalClose="onModalClose"
   >
   </Form>
@@ -200,6 +201,7 @@ const props = defineProps({
   countries: Object,
   operators: Object,
   roles: Object,
+  unbindedVends: Object,
 })
 
 const filters = ref({
@@ -240,9 +242,29 @@ function onDeleteClicked(user) {
 }
 
 function onEditClicked(userValue) {
+    // router.reload({
+    //     only: ['unbindedVends'],
+    //     preserveState: true,
+    //     preserveScroll: true,
+    // })
+    router.visit(
+      route('users', {
+          id: userValue.id
+      }),{
+          only: ['unbindedVends'],
+          preserveState: true,
+          replace: true,
+            onSuccess: (page) => {
+
+            },
+      }
+    );
+    // console.log(props.unbindedVends)
   type.value = 'update'
   user.value = userValue
   showFormModal.value = true
+//   router.only['unbindedVends']({ id: userValue.id })
+
 }
 
 function onSearchFilterUpdated() {

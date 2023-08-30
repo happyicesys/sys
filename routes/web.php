@@ -309,6 +309,8 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/create', [UserController::class, 'create']);
         Route::post('/{id}/update', [UserController::class, 'update']);
         Route::delete('/{id}', [UserController::class, 'delete']);
+        Route::post('/bind-vend', [UserController::class, 'bindVend']);
+        Route::post('/unbind-vend', [UserController::class, 'unbindVend']);
     });
 
     Route::prefix('vends')->group(function() {

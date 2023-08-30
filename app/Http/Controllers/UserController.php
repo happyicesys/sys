@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\RoleResource;
 use App\Http\Resources\UserResource;
+use App\Http\Resources\VendResource;
 use App\Models\Operator;
 use App\Models\User;
+use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules;
@@ -32,7 +34,9 @@ class UserController extends Controller
             'users' => UserResource::collection(
                 User::with([
                     'operator',
-                    'roles'
+                    'roles',
+                    'vends:id,code,name',
+                    'vends.latestVendBinding.customer:id,code,name',
                 ])
                 ->when($request->name, function($query, $search) {
                     $query->where('name', 'LIKE', "%{$search}%");
@@ -53,6 +57,19 @@ class UserController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'roles' => RoleResource::collection(Role::orderBy('name')->get()),
+            'unbindedVends' => fn () =>
+                VendResource::collection(
+                    Vend::with([
+                        'latestVendBinding.customer:id,code,name'
+                    ])->whereNotIn('id', function($query) use ($request) {
+                        $query->select('vend_id')
+                            ->from('user_vend')
+                            ->where('user_id', $request->user_id);
+                    })
+                    ->orderBy('code')
+                    ->get()
+            )
+
         ]);
     }
 
@@ -128,10 +145,33 @@ class UserController extends Controller
 
         $user->update($validated);
 
+        // role update
         $role = Role::find($request->role_id);
         if($role) {
             $user->roles()->detach();
             $user->assignRole($role->name);
+        }
+
+        // vend list sync
+        $originalVends = collect($request->vends)->transform(function($vend) {
+            return $vend['id'];
+        });
+        $editedVends = collect($request->user['vends'])->transform(function($vend) {
+            return $vend['id'];
+        });
+
+        $removeVends = $originalVends->diff($editedVends);
+        $addVends = $editedVends->diff($originalVends);
+
+        if($removeVends) {
+            foreach($removeVends as $removeVend) {
+                $user->vends()->detach($removeVend);
+            }
+        }
+        if($addVends) {
+            foreach($addVends as $addVend) {
+                $user->vends()->attach($addVend);
+            }
         }
 
         return redirect()->route('users');
@@ -141,6 +181,22 @@ class UserController extends Controller
     {
         $user = User::findOrFail($userId);
         $user->delete();
+
+        return redirect()->route('users');
+    }
+
+    public function bindVend(Request $request)
+    {
+        $user = User::findOrFail($request->operator_id);
+        $user->vends()->attach($request->vend_id);
+
+        return redirect()->route('users');
+    }
+
+    public function unbindVend(Request $request)
+    {
+        $user = User::findOrFail($request->operator_id);
+        $user->vends()->detach($request->vend_id);
 
         return redirect()->route('users');
     }
