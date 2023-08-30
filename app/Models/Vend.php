@@ -83,7 +83,7 @@ class Vend extends Model
 
     public function currentOperator()
     {
-        return $this->operators()->latest('operator_vend.created_at')->limit(1);
+        return $this->operators()->latest('operator_vend.created_at')->where('is_main', true)->limit(1);
     }
 
     public function firstVendBinding()
@@ -93,7 +93,7 @@ class Vend extends Model
 
     public function latestOperator()
     {
-        return $this->operators()->latest('operator_vend.created_at')->limit(1);
+        return $this->operators()->latest('operator_vend.created_at')->where('is_main', true)->limit(1);
     }
 
     public function latestVendBinding()

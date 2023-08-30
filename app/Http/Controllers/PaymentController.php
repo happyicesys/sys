@@ -145,6 +145,7 @@ class PaymentController extends Controller
           $query->where('code', $countryCode);
         });
       })
+      ->where('is_active', true)
       ->get();
       // dd($paymentMethods->toArray());
 

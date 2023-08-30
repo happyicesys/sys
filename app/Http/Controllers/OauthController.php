@@ -11,12 +11,12 @@ class OauthController extends Controller
 {
     public function index(Request $request)
     {
-        $clients = Client::all();
-        $personalAccessTokens = Token::all();
+        $clients = Client::with('tokens')->get();
+        // $personalAccessTokens = Token::all();
 
         return Inertia::render('Oauth/Index', [
             'clients' => $clients,
-            'personal_access_tokens' => $personalAccessTokens,
+            // 'personal_access_tokens' => $personalAccessTokens,
         ]);
     }
 }
