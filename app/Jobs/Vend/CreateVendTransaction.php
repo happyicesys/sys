@@ -29,15 +29,17 @@ class CreateVendTransaction implements ShouldQueue
 
     protected $input;
     protected $vend;
+    protected $isCurrentTime;
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct($input, Vend $vend)
+    public function __construct($input, Vend $vend, $isCurrentTime = true)
     {
         $this->input = $input;
         $this->vend = $vend;
+        $this->isCurrentTime = $isCurrentTime;
     }
 
     /**
@@ -108,7 +110,7 @@ class CreateVendTransaction implements ShouldQueue
         $paymentGatewayLog = PaymentGatewayLog::where('order_id', $processedInput['orderId'])->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
 
         $vendTransaction = VendTransaction::create([
-            'transaction_datetime' => Carbon::now(),
+            'transaction_datetime' => $this->isCurrentTime ? Carbon::now() : Carbon::parse($input['TIME']),
             'amount' => $processedInput['amount'],
             'order_id' => $processedInput['orderId'],
             'is_payment_received' => $isPaymentReceived,

@@ -220,7 +220,7 @@ class VendDataService
             true;
             break;
           case 'TRADE':
-            CreateVendTransaction::dispatch($processedInput, $vend)->onQueue('default');
+            CreateVendTransaction::dispatch($processedInput, $vend, true)->onQueue('default');
             break;
           case 'VENDER':
             SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');

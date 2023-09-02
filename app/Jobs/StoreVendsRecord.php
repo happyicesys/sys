@@ -37,9 +37,9 @@ class StoreVendsRecord implements ShouldQueue
         $vends = VendTransaction::query()
             ->with('vend:id,code,name')
             ->rightJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
-            ->where('vend_transactions.created_at', '>=', Carbon::parse($this->dateFrom)->startOfDay())
-            ->where('vend_transactions.created_at', '<=', Carbon::parse($this->dateTo)->endOfDay())
-            ->where('vends.is_active', true)
+            ->where('vend_transactions.transaction_datetime', '>=', Carbon::parse($this->dateFrom)->startOfDay())
+            ->where('vend_transactions.transaction_datetime', '<=', Carbon::parse($this->dateTo)->endOfDay())
+            // ->where('vends.is_active', true)
             // ->whereIn('vend_id', function($query) {
             //     $query->select('vend_id')
             //         ->from('vend_bindings')
@@ -49,13 +49,13 @@ class StoreVendsRecord implements ShouldQueue
             ->select(
                 'vend_transactions.id',
                 'customer_id',
-                DB::raw('DATE(vend_transactions.created_at) as date'),
-                DB::raw('DAY(vend_transactions.created_at) as day'),
-                DB::raw('MONTH(vend_transactions.created_at) as month'),
-                DB::raw('MONTHNAME(vend_transactions.created_at) AS month_name'),
+                DB::raw('DATE(vend_transactions.transaction_datetime) as date'),
+                DB::raw('DAY(vend_transactions.transaction_datetime) as day'),
+                DB::raw('MONTH(vend_transactions.transaction_datetime) as month'),
+                DB::raw('MONTHNAME(vend_transactions.transaction_datetime) AS month_name'),
                 'operator_id',
                 'vend_id',
-                DB::raw('YEAR(vend_transactions.created_at) as year'),
+                DB::raw('YEAR(vend_transactions.transaction_datetime) as year'),
                 DB::raw(
                     'SUM(
                         CASE

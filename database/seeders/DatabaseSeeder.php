@@ -76,7 +76,10 @@ class DatabaseSeeder extends Seeder
             // OperatorBindingSync::class,
             // SyncTransactionsRecordsSeeder::class,
             // MonthSeeder::class,
-            PaymentMerchantSeeder::class,
+            // PaymentMerchantSeeder::class,
+
+            ConvertTempVendTransactionDatetime::class,
+            SyncTempVendTransaction::class,
         ]);
     }
 }
