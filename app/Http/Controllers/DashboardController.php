@@ -61,13 +61,13 @@ class DashboardController extends Controller
         $todayGraph = VendTransaction::query()
             ->filterTransactionIndex($request)
             ->whereIn('error_code_normalized', [0, 6])
-            ->where('created_at', '>=', Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay())
-            ->where('created_at', '<=', Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay())
+            ->where('transaction_datetime', '>=', Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay())
+            ->where('transaction_datetime', '<=', Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay())
             ->select(
-                DB::raw('MONTH(created_at) as month'),
-                DB::raw('MONTHNAME(created_at) AS month_name'),
-                DB::raw('DATE(created_at) as date'),
-                DB::raw('DAY(created_at) as day'),
+                DB::raw('MONTH(transaction_datetime) as month'),
+                DB::raw('MONTHNAME(transaction_datetime) AS month_name'),
+                DB::raw('DATE(transaction_datetime) as date'),
+                DB::raw('DAY(transaction_datetime) as day'),
                 DB::raw('SUM(amount) as amount'),
                 DB::raw('COUNT(id) as count'),
             );
@@ -82,8 +82,8 @@ class DashboardController extends Controller
         $productGraph = VendTransaction::query()
             ->with('product:id,code,name')
             ->filterTransactionIndex($request)
-            ->where('created_at', '>=', $seven_days_date_from->copy()->startOfDay())
-            ->where('created_at', '<=', $seven_days_date_to->copy()->endOfDay())
+            ->where('transaction_datetime', '>=', $seven_days_date_from->copy()->startOfDay())
+            ->where('transaction_datetime', '<=', $seven_days_date_to->copy()->endOfDay())
             ->whereIn('error_code_normalized', [0, 6])
             ->groupBy('product_id')
             ->select(
