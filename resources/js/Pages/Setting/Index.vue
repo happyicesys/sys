@@ -225,7 +225,7 @@
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                         <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
-                          <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/vend-code/' + vend.code">
+                          <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.latestVendBinding.customer.person_id + '/edit'">
                             {{ vend.latestVendBinding.customer.code }}
                             <br>
                             {{ vend.latestVendBinding.customer.name }}

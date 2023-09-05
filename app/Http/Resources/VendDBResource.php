@@ -27,6 +27,7 @@ class VendDBResource extends JsonResource
             'cms_invoice_history' => isset($this->cms_invoice_history) ? json_decode($this->cms_invoice_history) : null,
             'customer_code' => isset($this->customer_code) ? $this->customer_code : null,
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,
+            'customer_person_id' => isset($this->customer_person_id) ? $this->customer_person_id : null,
             'full_name' => isset($this->customer_code) ? $this->customer_code . ' - ' . $this->customer_name : $this->name,
             'temp' => isset($this->temp) ? $this->temp/ 10 : null,
             'temp_updated_at' => isset($this->temp_updated_at) ? Carbon::parse($this->temp_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,

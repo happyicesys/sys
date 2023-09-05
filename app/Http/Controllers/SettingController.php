@@ -52,7 +52,7 @@ class SettingController extends Controller
         $vends = Vend::query()
             ->with([
                 'latestOperator:id,code,name',
-                'latestVendBinding.customer:id,code,name',
+                'latestVendBinding.customer:id,code,name,is_active,person_id',
             ])
             ->filterIndex($request)
             ->select(
@@ -148,8 +148,8 @@ class SettingController extends Controller
                 'is_active' => false,
                 'termination_date' => Carbon::now(),
             ]);
-            if($vend->firstVendBinding()->exists()) {
-                $vend->firstVendBinding->update([
+            if($vend->latestVendBinding()->exists()) {
+                $vend->latestVendBinding->update([
                     'is_active' => false,
                     'termination_date' => Carbon::now(),
                 ]);
@@ -159,12 +159,12 @@ class SettingController extends Controller
                 'is_active' => true,
                 'termination_date' => null,
             ]);
-            // if($vend->firstVendBinding()->exists()) {
-            //     $vend->firstVendBinding->update([
-            //         'is_active' => true,
-            //         'termination_date' => null,
-            //     ]);
-            // }
+            if($vend->firstVendBinding()->exists()) {
+                $vend->firstVendBinding->update([
+                    'is_active' => true,
+                    'termination_date' => null,
+                ]);
+            }
         }
 
         return redirect()->route('settings.edit', [$vendId, 'update']);

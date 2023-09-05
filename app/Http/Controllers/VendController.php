@@ -103,6 +103,7 @@ class VendController extends Controller
             ->leftJoinSub(
                 VendBinding::query()
                     ->select('vend_id', 'customer_id', DB::raw('MAX(begin_date) as begin_date'))
+                    ->where('is_active', true)
                     ->groupBy('vend_id'),
                 'vend_bindings',
                 function ($join) {
@@ -169,6 +170,7 @@ class VendController extends Controller
                 'customers.cms_invoice_history',
                 'customers.code AS customer_code',
                 'customers.name AS customer_name',
+                'customers.person_id AS customer_person_id',
                 'customers.location_type_id',
                 'location_types.name AS location_type_name',
                 'product_mappings.name AS product_mapping_name',

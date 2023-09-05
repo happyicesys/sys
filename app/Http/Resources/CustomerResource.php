@@ -25,6 +25,7 @@ class CustomerResource extends JsonResource
             'is_active' => $this->is_active,
             'location_type_id' => $this->location_type_id,
             'pay_term_id' => $this->pay_term_id,
+            'person_id' => $this->person_id,
             'profile_id' => $this->profile_id,
             'ops_note' => $this->ops_note,
             'remarks' => $this->remarks,

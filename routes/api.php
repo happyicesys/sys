@@ -29,6 +29,11 @@ Route::prefix('v1')->group(function() {
     Route::get('/payment-merchants/{countryCode}/{paymentGatewayName}', [PaymentController::class, 'getPaymentMerchantsApi']);
 });
 
+Route::prefix('delivery')->group(function() {
+    Route::get('/merchant/menu', [DeliveryController::class, 'getMenu']);
+    Route::get('/grab/mart-categories', [DeliveryController::class, 'getMartCategories']);
+});
+
 // Internal api
 Route::prefix('vends')->group(function() {
     Route::get('/search/{code?}', [VendController::class, 'searchVendCode']);

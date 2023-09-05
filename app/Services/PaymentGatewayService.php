@@ -8,10 +8,12 @@ use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\Vend;
 use Carbon\Carbon;
+use Goutte\Client;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Image;
 use Zxing\QrReader;
+use Symfony\Component\DomCrawler\Crawler;
 
 class PaymentGatewayService
 {
@@ -98,13 +100,45 @@ class PaymentGatewayService
     }else {
         switch($operatorPaymentGateway->paymentGateway->name) {
             case 'omise':
-                $htmlString = Http::get($qrCodeUrl)->body();
+                $htmlString = Http::get($qrCodeUrl)->getBody()->getContents();
+
+                // Create a DOMCrawler instance from the HTML content
+                $crawler = new Crawler($htmlString);
+
+                // Find the form element you want to inspect (adjust the selector as needed)
+                $form = $crawler->filter('form')->first();
+
+                $action = $form->attr('action');
+
+                // Get the form name attribute
+                $formName = $form->attr('name');
+
+                // Find hidden input elements within the form
+                $hiddenInputs = $form->filter('input[type="hidden"]');
+                                // Extract the hidden input values
+                $hiddenInputValues = [];
+                $hiddenInputs->each(function (Crawler $input) use (&$hiddenInputValues) {
+                    $name = $input->attr('name');
+                    $value = $input->attr('value');
+                    $hiddenInputValues[$name] = $value;
+                });
+
+                // dd($htmlString,$formName, $hiddenInputValues);
+                $response = Http::post($action, $hiddenInputValues)->body();
+                dd($response);
+
+                $crawler->filterXPath('//script')->each(function ($node) {
+                  $node->getNode(0)->parentNode->removeChild($node->getNode(0));
+                });
+                $html = $crawler->html();
+                dd($html);
 
                 $doc = new \DOMDocument;
                 $doc->loadHTML($htmlString);
                 $xpath = new \DOMXpath($doc);
-                $val= $xpath->query('//input[@type="hidden" and @name = "qr_data"]/@value'
-                );
+                // $val= $xpath->query('//input[@type="hidden" and @name = "qr_data"]/@value');
+                $val= $xpath->query('//input[@type="hidden" and @id = "qr_string"]/@value');
+                dd($xpath);
                 $qrCodeText = isset($val[0]) ? $val[0]->nodeValue : null;
                 break;
         }

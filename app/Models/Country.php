@@ -13,6 +13,7 @@ class Country extends Model
         'name',
         'code',
         'currency_name',
+        'currency_exponent',
         'currency_symbol',
         'phone_code',
         'is_state',
