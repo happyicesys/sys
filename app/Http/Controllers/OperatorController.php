@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\CountryResource;
+use App\Http\Resources\DeliveryPlatformResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentGatewayResource;
 use App\Http\Resources\VendResource;
 use App\Models\Country;
+use App\Models\DeliveryPlatform;
+use App\Models\DeliveryPlatformOperator;
 use App\Models\Operator;
 use App\Models\OperatorPaymentGateway;
 use App\Models\PaymentGateway;
@@ -32,10 +35,14 @@ class OperatorController extends Controller
 
         return Inertia::render('Operator/Index', [
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
+            'deliveryPlatformOperatorTypes' => [
+                DeliveryPlatformOperator::TYPE_SANDBOX,
+                DeliveryPlatformOperator::TYPE_PRODUCTION
+            ],
             'operators' => OperatorResource::collection(
                 Operator::with([
                     'address:id,postcode',
-                    // 'address.country',
+                    'deliveryPlatformOperators.deliveryPlatform',
                     'country:id,name,code,currency_name,currency_symbol',
                     'operatorPaymentGateways.paymentGateway',
                     'vends:id,code,name',
@@ -55,9 +62,22 @@ class OperatorController extends Controller
                 OperatorPaymentGateway::TYPE_PRODUCTION
             ],
             'timezones' => $timezones,
+            'countryDeliveryPlatforms' =>
+                DeliveryPlatformResource::collection(
+                    DeliveryPlatform::with(['country'])
+                    ->when($request->country_id, function($query, $search) {
+                        $query->where('country_id', $search);
+                    })
+                    ->orderBy('name')
+                    ->get()
+                )
+            ,
             'countryPaymentGateways' =>
                 PaymentGatewayResource::collection(
                     PaymentGateway::with(['country'])
+                    ->when($request->country_id, function($query, $search) {
+                        $query->where('country_id', $search);
+                    })
                     ->orderBy('name')
                     ->get()
                 )
@@ -73,11 +93,6 @@ class OperatorController extends Controller
                     })
                     ->orderBy('code')
                     ->get()
-
-                    // ->whereDoesntHave('operators', function($query) use ($request) {
-                    //     $query->where('operators.id', '!=', $request->operator_id);
-                    // })
-
                 )
             ,
             'operator' => fn() => OperatorResource::make(

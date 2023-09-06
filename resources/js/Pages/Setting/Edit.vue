@@ -22,10 +22,11 @@
         <div
           class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-fit"
           :class="[vend.is_active ? 'bg-green-200' : 'bg-red-200']"
+          v-if="vend.is_active != null"
         >
           <div class="flex flex-col">
             <span class="font-bold">
-              {{vend.is_active ? 'Active' : 'Inactive'}}
+              {{ vend.is_active ? 'Active' : 'Inactive'}}
             </span>
           </div>
         </div>
@@ -147,7 +148,7 @@
                   type="button"
                   class="text-white flex space-x-1"
                   :class="[!vend.is_active ? 'bg-green-500 hover:bg-green-600' : 'bg-yellow-500 hover:bg-yellow-600']"
-                  v-if="permissions.includes('update vends')"
+                  v-if="permissions.includes('update vends') && vend.is_active != null"
                   @click="toggleActivation()"
                 >
                   <span class="flex" v-if="!vend.is_active">
