@@ -100,45 +100,45 @@ class PaymentGatewayService
     }else {
         switch($operatorPaymentGateway->paymentGateway->name) {
             case 'omise':
-                $htmlString = Http::get($qrCodeUrl)->getBody()->getContents();
+                $htmlString = Http::get($qrCodeUrl)->body();
 
-                // Create a DOMCrawler instance from the HTML content
-                $crawler = new Crawler($htmlString);
+                // // Create a DOMCrawler instance from the HTML content
+                // $crawler = new Crawler($htmlString);
 
-                // Find the form element you want to inspect (adjust the selector as needed)
-                $form = $crawler->filter('form')->first();
+                // // Find the form element you want to inspect (adjust the selector as needed)
+                // $form = $crawler->filter('form')->first();
 
-                $action = $form->attr('action');
+                // $action = $form->attr('action');
 
-                // Get the form name attribute
-                $formName = $form->attr('name');
+                // // Get the form name attribute
+                // $formName = $form->attr('name');
 
-                // Find hidden input elements within the form
-                $hiddenInputs = $form->filter('input[type="hidden"]');
-                                // Extract the hidden input values
-                $hiddenInputValues = [];
-                $hiddenInputs->each(function (Crawler $input) use (&$hiddenInputValues) {
-                    $name = $input->attr('name');
-                    $value = $input->attr('value');
-                    $hiddenInputValues[$name] = $value;
-                });
+                // // Find hidden input elements within the form
+                // $hiddenInputs = $form->filter('input[type="hidden"]');
+                //                 // Extract the hidden input values
+                // $hiddenInputValues = [];
+                // $hiddenInputs->each(function (Crawler $input) use (&$hiddenInputValues) {
+                //     $name = $input->attr('name');
+                //     $value = $input->attr('value');
+                //     $hiddenInputValues[$name] = $value;
+                // });
 
-                // dd($htmlString,$formName, $hiddenInputValues);
-                $response = Http::post($action, $hiddenInputValues)->body();
-                dd($response);
+                // // dd($htmlString,$formName, $hiddenInputValues);
+                // $response = Http::post($action, $hiddenInputValues)->body();
+                // dd($response);
 
-                $crawler->filterXPath('//script')->each(function ($node) {
-                  $node->getNode(0)->parentNode->removeChild($node->getNode(0));
-                });
-                $html = $crawler->html();
-                dd($html);
+                // $crawler->filterXPath('//script')->each(function ($node) {
+                //   $node->getNode(0)->parentNode->removeChild($node->getNode(0));
+                // });
+                // $html = $crawler->html();
+                // dd($html);
 
                 $doc = new \DOMDocument;
                 $doc->loadHTML($htmlString);
                 $xpath = new \DOMXpath($doc);
                 // $val= $xpath->query('//input[@type="hidden" and @name = "qr_data"]/@value');
                 $val= $xpath->query('//input[@type="hidden" and @id = "qr_string"]/@value');
-                dd($xpath);
+                // dd($xpath);
                 $qrCodeText = isset($val[0]) ? $val[0]->nodeValue : null;
                 break;
         }
