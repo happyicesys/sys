@@ -33,7 +33,7 @@ class InitTodayVendRecords implements ShouldQueue
             ->has('latestVendBinding')
             ->leftJoin('vend_bindings', function($query) {
                 $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                        // ->where('is_active', true)
+                        ->where('is_active', true)
                         ->latest('begin_date')
                         ->limit(1);
             })
@@ -81,6 +81,7 @@ class InitTodayVendRecords implements ShouldQueue
         )
         ->whereNull('vends.termination_date')
         ->where('vends.last_updated_at', '>=', Carbon::now()->subDays(3)->startOfDay())
+        ->where('vends.is_active', true)
         ->get();
 
         foreach($unbindVends as $unbindVend) {

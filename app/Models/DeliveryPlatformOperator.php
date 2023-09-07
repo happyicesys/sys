@@ -15,9 +15,10 @@ class DeliveryPlatformOperator extends Model
     protected $fillable = [
         'delivery_platform_id',
         'operator_id',
-        'input1',
-        'input3',
-        'input3',
+        'field1',
+        'field2',
+        'field3',
+        'field4',
         'type',
     ];
 

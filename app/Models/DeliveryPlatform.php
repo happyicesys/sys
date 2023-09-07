@@ -13,9 +13,10 @@ class DeliveryPlatform extends Model
         'name',
         'country_id',
         'remarks',
-        'field1',
-        'field2',
-        'field3',
+        'field1_name',
+        'field2_name',
+        'field3_name',
+        'field4_name',
     ];
 
     // relationships

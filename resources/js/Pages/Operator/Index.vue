@@ -172,7 +172,9 @@
       :timezones="timezones"
       :type="type"
       :showModal="showModal"
+      :countryDeliveryPlatforms="countryDeliveryPlatforms"
       :countryPaymentGateways="countryPaymentGateways"
+      :deliveryPlatformOperatorTypes="deliveryPlatformOperatorTypes"
       :operatorPaymentGatewayTypes="operatorPaymentGatewayTypes"
       :permissions="permissions"
       :unbindedVends="unbindedVends"
@@ -201,7 +203,9 @@ const props = defineProps({
   countries: Object,
   operators: Object,
   timezones: [Array, Object],
+  countryDeliveryPlatforms: Object,
   countryPaymentGateways: Object,
+  deliveryPlatformOperatorTypes: [Array, Object],
   operatorPaymentGatewayTypes: [Array, Object],
   unbindedVends: Object,
 })

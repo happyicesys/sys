@@ -279,7 +279,7 @@
             </div>
 
             <div class="sm:col-span-1" v-if="form.id && !form.delivery_platform">
-              <Button
+              <!-- <Button
               type="button"
               @click="bindPaymentGateway()"
               class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
@@ -287,6 +287,17 @@
                 !form.payment_gateway || !form.payment_gateway_type ? 'opacity-50 cursor-not-allowed' : ''
                 ]"
               :disabled="!form.payment_gateway || !form.payment_gateway_type "
+              > -->
+              <Button
+                type="button"
+                @click="bindDeliveryPlatform()"
+                class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
+                :class="[
+                  !form.delivery_platform ||
+                  !form.delivery_platform_type ?
+                  'opacity-50 cursor-not-allowed' : ''
+                  ]"
+                :disabled="!form.delivery_platform || !form.delivery_platform_type || !permissions.includes('update operators')"
               >
                 <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                 <span>
@@ -295,32 +306,38 @@
               </Button>
             </div>
 
-            <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.field1">
+            <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.field1_name">
               <FormInput v-model="form.delivery_platform_field1" :error="form.errors.delivery_platform_field1" required="true">
-                {{ form.delivery_platform.field1 }}
+                {{ form.delivery_platform.field1_name }}
               </FormInput>
             </div>
 
-            <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.field2">
+            <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.field2_name">
               <FormInput v-model="form.delivery_platform_field2" :error="form.errors.delivery_platform_field2">
-                {{ form.delivery_platform.field2 }}
+                {{ form.delivery_platform.field2_name }}
               </FormInput>
             </div>
 
-            <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.field3">
+            <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.field3_name">
               <FormInput v-model="form.delivery_platform_field3" :error="form.errors.delivery_platform_field3">
-                {{ form.delivery_platform.field3 }}
+                {{ form.delivery_platform.field3_name }}
               </FormInput>
             </div>
 
-            <div class="sm:col-span-3" v-if="form.id && form.payment_gateway">
+            <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.field4_name">
+              <FormInput v-model="form.delivery_platform_field4" :error="form.errors.delivery_platform_field4">
+                {{ form.delivery_platform.field4_name }}
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-3" v-if="form.id && form.delivery_platform">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Type
                 <span class="text-red-500">*</span>
               </label>
               <MultiSelect
                 v-model="form.delivery_platform_type"
-                :options="operatorDeliveryPlatformTypes"
+                :options="deliveryPlatformOperatorTypes"
                 trackBy="id"
                 valueProp="id"
                 label="id"
@@ -379,29 +396,29 @@
                       </tr>
                     </thead>
                     <tbody class="bg-white">
-                      <tr v-for="(operatorPaymentGateway, operatorPaymentGatewayIndex) in operator.operatorPaymentGateways" :key="operatorPaymentGateway.id" :class="operatorPaymentGatewayIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                      <tr v-for="(deliveryPlatformOperator, deliveryPlatformOperatorIndex) in operator.deliveryPlatformOperators" :key="deliveryPlatformOperator.id" :class="deliveryPlatformOperatorIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                          {{ operatorPaymentGatewayIndex + 1 }}
+                          {{ deliveryPlatformOperatorIndex + 1 }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                          {{ operatorPaymentGateway.paymentGateway.name }}
+                          {{ deliveryPlatformOperator.deliveryPlatform.name }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                          {{ operatorPaymentGateway.type }}
+                          {{ deliveryPlatformOperator.type }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                          {{ operatorPaymentGateway.key1 }}
+                          {{ deliveryPlatformOperator.field1 }}
                         </td>
                         <td class="whitespace-nowrap py-4 text-sm text-center">
                           <Button
                             class="bg-red-400 hover:bg-red-500 text-white"
-                            @click="unbindPaymentGateway(operatorPaymentGateway)"
+                            @click="unbindDeliveryPlatform(deliveryPlatformOperator)"
                           >
                             <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                           </Button>
                         </td>
                       </tr>
-                      <tr v-if="!operator.operatorPaymentGateways.length">
+                      <tr v-if="!operator.deliveryPlatformOperators.length">
                         <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-center">
                           No Result Found
                         </td>
@@ -565,7 +582,9 @@ const props = defineProps({
   timezones: [Array, Object],
   type: String,
   showModal: Boolean,
+  countryDeliveryPlatforms: [Array, Object],
   countryPaymentGateways: [Array, Object],
+  deliveryPlatformOperatorTypes: [Array, Object],
   operatorPaymentGatewayTypes: [Array, Object],
   unbindedVends: [Array, Object],
   permissions: [Array, Object],
@@ -578,17 +597,22 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const timezoneOptions = ref([])
+const countryDeliveryPlatformOptions = ref([])
 const countryPaymentGatewayOptions = ref([])
+const deliveryPlatformOperators = ref([])
+const deliveryPlatformOperatorTypes = ref([])
 const operatorPaymentGateways = ref([])
 const operatorPaymentGatewayTypes = ref([])
+
 const unbindedVendOptions = ref([])
 
 onMounted(() => {
+  countryDeliveryPlatformOptions.value = props.countryDeliveryPlatforms.data
   countryPaymentGatewayOptions.value = props.countryPaymentGateways.data
   countryOptions.value = props.countries.data
+  deliveryPlatformOperators.value = props.operator ? props.operator.deliveryPlatformOperators : null
+  deliveryPlatformOperatorTypes.value = props.deliveryPlatformOperatorTypes
   timezoneOptions.value = props.timezones.map((timezone, index) => {return {id: index, name: timezone}})
-  // unbindedVendOptions.value = props.unbindedVends.data.map((vend) => {return {id: vend.id, code: vend.code, fullname: vend.full_name}})
-  countryPaymentGatewayOptions.value = props.countryPaymentGateways.data
   operatorPaymentGatewayTypes.value = props.operatorPaymentGatewayTypes
   unbindedVendOptions.value = props.unbindedVends.data
   operatorPaymentGateways.value = props.operator ? props.operator.operatorPaymentGateways : null
@@ -602,6 +626,12 @@ function getDefaultForm() {
     name: '',
     gst_vat_rate: '',
     country_id: '',
+    delivery_platform_id: '',
+    delivery_platform_type: '',
+    delivery_platform_field1: '',
+    delivery_platform_field2: '',
+    delivery_platform_field3: '',
+    delivery_platform_field4: '',
     payment_gateway_id: '',
     payment_gateway_type: '',
     payment_gateway_key1: '',
@@ -628,6 +658,20 @@ function unbindOperatorVend(vend) {
   unbindedVendOptions.value.sort((a, b) => a.code - b.code)
 }
 
+function bindDeliveryPlatform() {
+  if(deliveryPlatformOperators.value.indexOf(form.value.delivery_platform) < 0) {
+    deliveryPlatformOperators.value.push({
+      id: form.value.delivery_platform_id,
+      field1: form.value.delivery_platform_field1,
+      field2: form.value.delivery_platform_field2,
+      field3: form.value.delivery_platform_field3,
+      field4: form.value.delivery_platform_field4,
+      type: form.value.delivery_platform_type.id,
+      deliveryPlatform: JSON.parse(JSON.stringify(form.value.delivery_platform))
+    })
+  }
+}
+
 function bindPaymentGateway() {
   if(operatorPaymentGateways.value.indexOf(form.value.payment_gateway) < 0) {
     operatorPaymentGateways.value.push({
@@ -638,8 +682,11 @@ function bindPaymentGateway() {
       type: form.value.payment_gateway_type.id,
       paymentGateway: JSON.parse(JSON.stringify(form.value.payment_gateway))
     })
-    // props.operator.operatorPaymentGateways.sort((a, b) => a.code - b.code)
   }
+}
+
+function unbindDeliveryPlatform(deliveryPlatformOperator) {
+  deliveryPlatformOperators.value.splice(deliveryPlatformOperators.value.indexOf(deliveryPlatformOperator), 1)
 }
 
 function unbindPaymentGateway(operatorPaymentGateway) {
@@ -672,6 +719,7 @@ function submit() {
         ...data,
         timezone: data.timezone.name,
         country_id: data.country_id.id,
+        deliveryPlatforms:  deliveryPlatformOperators.value,
         operator: props.operator,
         paymentGateways:  operatorPaymentGateways.value,
       }))

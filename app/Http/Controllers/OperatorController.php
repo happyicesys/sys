@@ -100,6 +100,7 @@ class OperatorController extends Controller
                     'address',
                     'address.country',
                     'country',
+                    'deliveryPlatformOperators.deliveryPlatform',
                     'operatorPaymentGateways.paymentGateway',
                     'vends',
                     'vends.latestVendBinding.customer',
@@ -158,6 +159,16 @@ class OperatorController extends Controller
                     ->orderBy('name')
                     ->get()
             ),
+            'countryDeliveryPlatforms' =>
+                DeliveryPlatformResource::collection(
+                    DeliveryPlatform::with(['country'])
+                    ->when($request->country_id, function($query, $search) {
+                        $query->where('country_id', $search);
+                    })
+                    ->orderBy('name')
+                    ->get()
+                )
+            ,
             'countryPaymentGateways' =>
                 PaymentGatewayResource::collection(
                     PaymentGateway::with(['country'])
@@ -212,6 +223,16 @@ class OperatorController extends Controller
                     foreach($request->operator['operatorPaymentGateways'] as $operatorPaymentGateway) {
                         $operatorPaymentGateway['payment_gateway_id'] = $operatorPaymentGateway['paymentGateway']['id'];
                         $operator->operatorPaymentGateways()->create($operatorPaymentGateway);
+                    }
+                }
+            }
+
+            if($request->has('deliveryPlatforms')) {
+                $operator->deliveryPlatformOperators()->delete();
+                if($request->operator['deliveryPlatformOperators']) {
+                    foreach($request->operator['deliveryPlatformOperators'] as $deliveryPlatformOperator) {
+                        $deliveryPlatformOperator['delivery_platform_id'] = $deliveryPlatformOperator['deliveryPlatform']['id'];
+                        $operator->deliveryPlatformOperators()->create($deliveryPlatformOperator);
                     }
                 }
             }

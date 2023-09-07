@@ -24,9 +24,10 @@ class DeliveryPlatformResource extends JsonResource
                 return $this->name;
             }),
             'remarks' => $this->remarks,
-            'field1' => $this->field1,
-            'field2' => $this->field2,
-            'field3' => $this->field3,
+            'field1_name' => $this->field1_name,
+            'field2_name' => $this->field2_name,
+            'field3_name' => $this->field3_name,
+            'field4_name' => $this->field4_name,
         ];
     }
 }

@@ -42,7 +42,7 @@
     },
     label: String,
     mode: String,
-    modelValue: [Array, Object, String, Number],
+    modelValue: [Array, Boolean, Object, String, Number],
     options: [Array, Object, String],
     placeholder: String,
     trackBy: String,

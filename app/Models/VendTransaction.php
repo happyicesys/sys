@@ -264,10 +264,10 @@ class VendTransaction extends Model
             });
         })
         ->when($request->date_from, function($query, $search) {
-            $query->where('transaction_datetime', '>=', $search);
+            $query->where('created_at', '>=', $search);
         })
         ->when($request->date_to, function($query, $search) {
-            $query->where('transaction_datetime', '<=', $search);
+            $query->where('created_at', '<=', $search);
         });
 
         return $query;
