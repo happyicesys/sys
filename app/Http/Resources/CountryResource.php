@@ -21,6 +21,7 @@ class CountryResource extends JsonResource
             'currency_name' => $this->currency_name,
             'currency_exponent' => $this->currency_exponent,
             'currency_symbol' => $this->currency_symbol,
+            'is_currency_exponent_hidden' => $this->is_currency_exponent_hidden,
             'phone_code' => $this->phone_code,
             'latestQuoteExchangeRate' => ExchangeRateResource::make($this->whenLoaded('latestQuoteExchangeRate')),
             'quoteExchangeRates' => ExchangeRateResource::collection($this->whenLoaded('quoteExchangeRates')),

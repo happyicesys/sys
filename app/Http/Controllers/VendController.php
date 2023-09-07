@@ -425,6 +425,7 @@ class VendController extends Controller
             ->filterTransactionIndex($request)
             ->whereIn('error_code_normalized', [0, 6])
             ->select(
+
                 DB::raw('ROUND(COALESCE(SUM(vend_transactions.amount)/ 100, 0), 2) AS amount'),
                 DB::raw('COUNT(*) AS count')
             )

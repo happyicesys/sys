@@ -16,6 +16,7 @@ class Country extends Model
         'currency_exponent',
         'currency_symbol',
         'phone_code',
+        'is_currency_exponent_hidden',
         'is_state',
         'sequence',
     ];

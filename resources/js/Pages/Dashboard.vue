@@ -169,7 +169,7 @@
                                                         Vending Machine
                                                     </th>
                                                     <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
-                                                        Amount($)
+                                                        Amount({{ operatorCountry.currency_symbol }})
                                                     </th>
                                                     <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">
                                                         Sales(#)
@@ -192,7 +192,7 @@
                                                         </span>
                                                     </td>
                                                     <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-500 text-right mx-3">
-                                                        {{ vend.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                                                        {{ vend.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                                     </td>
                                                     <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-500 text-right mx-3">
                                                         {{ vend.count }}
@@ -300,7 +300,7 @@
                                                                 item[dataIndex - 1] && item[dataIndex - 1].average < data.average ? 'text-green-600' : (!item[dataIndex - 1] ? '' : 'text-red-600' )
                                                             ]"
                                                         >
-                                                            {{ data.average.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                                                            {{ data.average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                                         </span>
                                                     </span>
                                                 </td>
@@ -316,7 +316,7 @@
                                                                     data.current ? 'font-bold' : 'font-medium'
                                                             ]"
                                                         >
-                                                            {{ data.vend_count.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                                                            {{ data.vend_count.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                                         </span>
                                                     </span>
                                                 </td>
@@ -332,7 +332,7 @@
                                                                     data.current ? 'font-bold' : 'font-medium'
                                                             ]"
                                                         >
-                                                            {{ data.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                                                            {{ data.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                                         </span>
                                                     </span>
                                                 </td>
@@ -413,6 +413,7 @@
     };
     const locationTypeOptions = ref([])
     const operator = usePage().props.auth.operator
+    const operatorCountry = usePage().props.auth.operatorCountry
     const operatorOptions = ref([])
     const permissions = usePage().props.auth.permissions
     const showFilters = ref(false)
@@ -438,7 +439,7 @@
                 position: 'left',
                 title: {
                     display: true,
-                    text: 'Sales($)'
+                    text: 'Sales(' + operatorCountry.currency_symbol +')'
                 },
                 beginAtZero: true
 
@@ -479,7 +480,7 @@
                 position: 'left',
                 title: {
                     display: true,
-                    text: 'Sales($)'
+                    text: 'Sales(' + operatorCountry.currency_symbol +')'
                 },
                 beginAtZero: true
 
@@ -655,7 +656,7 @@
                 order: 1,
             })
             dayGraphDatasets.value.push({
-                label: month + ' ($)',
+                label: month + ' ('+ operatorCountry.currency_symbol + ')',
                 data: months[month].map((data) => {return data.amount}),
                 backgroundColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex], 0.2) : hexToRGBA(colors[monthIndex], 1),
                 borderColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex], 0.2) : hexToRGBA(colors[monthIndex], 1),
@@ -683,7 +684,7 @@
                 order: 1,
             })
             monthGraphDatasets.value.push({
-                label: month + ' ($)',
+                label: month + ' ('+ operatorCountry.currency_symbol + ')',
                 data: Object.values(years[month]).map((data) => {return data.amount}),
                 backgroundColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex], 0.2) : hexToRGBA(colors[monthIndex], 1),
                 borderColor: monthIndex % 2 == 0 ? hexToRGBA(colors[monthIndex], 0.2) : hexToRGBA(colors[monthIndex], 1),

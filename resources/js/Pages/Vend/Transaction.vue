@@ -262,7 +262,7 @@
             <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                 <dt class="truncate text-sm font-medium text-gray-500">Total Amount (Success)</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                    {{totals.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                    {{totals.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                 </dd>
             </div>
             <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
@@ -366,7 +366,7 @@
                             <span v-else></span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-right">
-                            {{ vendTransaction.amount }}
+                            {{ vendTransaction.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.paymentMethod.name }}
@@ -431,6 +431,7 @@ const successfulOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
 const locationTypeOptions = ref([])
+const operatorCountry = usePage().props.auth.operatorCountry
 const permissions = usePage().props.auth.permissions
 
 onMounted(() => {

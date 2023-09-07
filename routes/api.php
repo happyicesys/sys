@@ -30,8 +30,10 @@ Route::prefix('v1')->group(function() {
 });
 
 Route::prefix('delivery')->group(function() {
-    Route::get('/merchant/menu', [DeliveryController::class, 'getMenu']);
-    Route::get('/grab/mart-categories', [DeliveryController::class, 'getMartCategories']);
+    Route::prefix('grab')->group(function() {
+        Route::get('/merchant/menu', [DeliveryController::class, 'getMenu']);
+        Route::get('/grab/mart-categories', [DeliveryController::class, 'getMartCategories']);
+    });
 });
 
 // Internal api

@@ -13,9 +13,9 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 {
     use HasFactory;
 
-    public static $staging = 'https://partner-api.grab.com';
-    public static $production = 'https://partner-api.grab.com';
-    public static $scope = 'mart:partner_api';
+    public static $production_endpoint = 'https://partner-api.grab.com';
+    public static $sandbox_scope = 'sandbox.mart.partner_api';
+    public static $production_scope = 'mart.partner_api';
     public static $countryCode = 'SG';
     private $clientId;
     private $clientSecret;
@@ -38,7 +38,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         ]))
         ->post($this->getEndpoint() . '/grabid/v1/oauth2/token', [
             'grant_type' => 'client_credentials',
-            'scope' => self::$scope,
+            'scope' => $this->getScope(),
         ]);
 
         if ($response->successful()) {
@@ -95,9 +95,18 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 
     private function getEndpoint()
     {
-        $endpoint = $this->environment == 'staging' ? self::$staging : self::$production;
+        return self::$production_endpoint;
+    }
 
-        return $endpoint;
+    private function getScope()
+    {
+        $scope = self::$sandbox_scope;
+
+        if(config('app.env') === 'local') {
+            $scope = self::$production_scope;
+        }
+
+        return $scope;
     }
 
 
