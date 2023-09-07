@@ -196,6 +196,19 @@ class PaymentController extends Controller
       $key = $paymentGatewayLog->vend && $paymentGatewayLog->vend->private_key ? $paymentGatewayLog->vend->private_key : '123456789110138A';
       $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
+      VendData::create([
+        'connection' => 'mqtt',
+        'is_keep' => true,
+        'processed' => [
+          'fid' => $fid,
+          'contentLength' => $contentLength,
+          'content' => $content,
+          'md5' => $md5,
+        ],
+        'value' => $result,
+        'vend_code' => $paymentGatewayLog->vend_code,
+      ]);
+
       $this->mqttService->publish('CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5);
 
     }else {

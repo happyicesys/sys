@@ -12,6 +12,7 @@ class VendData extends Model
     protected $fillable = [
         'connection',
         'ip_address',
+        'is_keep',
         'processed',
         'type',
         'value',

@@ -125,11 +125,6 @@ class CustomerController extends Controller
     public function migrate(Request $request)
     {
         $value = $request->all();
-        VendData::create([
-            'ip_address' => $request->ip(),
-            'value' => $value,
-        ]);
-
         SyncSingleCustomer::dispatch($value['id']);
         // ProcessCustomerData::dispatch($request->all(), null);
     }
