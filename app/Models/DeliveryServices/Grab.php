@@ -109,5 +109,8 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         return $scope;
     }
 
-
+    private function getOperatorCountryCode()
+    {
+        return self::$countryCode;
+    }
 }
