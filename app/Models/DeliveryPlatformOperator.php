@@ -28,6 +28,11 @@ class DeliveryPlatformOperator extends Model
         return $this->belongsTo(DeliveryPlatform::class);
     }
 
+    public function externalOauthTokens()
+    {
+        return $this->morphMany(ExternalOauthToken::class, 'modelable');
+    }
+
     public function operator()
     {
         return $this->belongsTo(Operator::class);
