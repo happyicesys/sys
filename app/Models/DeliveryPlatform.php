@@ -13,6 +13,7 @@ class DeliveryPlatform extends Model
         'name',
         'country_id',
         'default_access_method',
+        'default_granted_type',
         'default_scopes',
         'remarks',
         'field1_name',

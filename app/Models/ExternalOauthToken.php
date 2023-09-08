@@ -13,6 +13,7 @@ class ExternalOauthToken extends Model
         'access_token',
         'client_id',
         'client_secret',
+        'granted_type',
         'expired_at',
         'scopes',
         'token_type',

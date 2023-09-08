@@ -233,10 +233,13 @@ class OperatorController extends Controller
                     foreach($request->operator['deliveryPlatformOperators'] as $deliveryPlatformOperator) {
                         $deliveryPlatformOperator['delivery_platform_id'] = $deliveryPlatformOperator['deliveryPlatform']['id'];
                         $createdDeliveryPlatformOperator = $operator->deliveryPlatformOperators()->create($deliveryPlatformOperator);
-                        if(isset($deliveryPlatformOperator['oauth_client_id']) and isset($deliveryPlatformOperator['oauth_client_secret'])) {
+                        if(isset($deliveryPlatformOperator['oauth_client_id']) and isset($deliveryPlatformOperator['oauth_client_secret']) and $deliveryPlatformOperator['oauth_client_id'] and $deliveryPlatformOperator['oauth_client_secret']) {
                             $createdDeliveryPlatformOperator->externalOauthTokens()->updateOrCreate([
                                 'oauth_client_id' => $deliveryPlatformOperator['oauth_client_id'],
                                 'oauth_client_secret' => $deliveryPlatformOperator['oauth_client_secret'],
+                            ], [
+                                'granted_type' => $createdDeliveryPlatformOperator->deliveryPlatform->default_granted_type,
+                                'scopes' => $createdDeliveryPlatformOperator->deliveryPlatform->default_scopes,
                             ]);
                         }
                     }

@@ -330,6 +330,19 @@
               </FormInput>
             </div>
 
+            <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.default_access_method == 'oauth'">
+              <FormInput v-model="form.delivery_platform_oauth_client_id" :error="form.errors.delivery_platform_oauth_client_id">
+                Oauth Client ID
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.default_access_method == 'oauth'">
+              <FormInput v-model="form.delivery_platform_oauth_client_secret" :error="form.errors.delivery_platform_oauth_client_secret">
+                Oauth Client Secret
+              </FormInput>
+            </div>
+
+
             <div class="sm:col-span-3" v-if="form.id && form.delivery_platform">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Type
@@ -632,6 +645,8 @@ function getDefaultForm() {
     delivery_platform_field2: '',
     delivery_platform_field3: '',
     delivery_platform_field4: '',
+    delivery_platform_oauth_client_id: '',
+    delivery_platform_oauth_client_secret: '',
     payment_gateway_id: '',
     payment_gateway_type: '',
     payment_gateway_key1: '',
@@ -666,6 +681,8 @@ function bindDeliveryPlatform() {
       field2: form.value.delivery_platform_field2,
       field3: form.value.delivery_platform_field3,
       field4: form.value.delivery_platform_field4,
+      oauth_client_id: form.value.delivery_platform_oauth_client_id,
+      oauth_client_secret: form.value.delivery_platform_oauth_client_secret,
       type: form.value.delivery_platform_type.id,
       deliveryPlatform: JSON.parse(JSON.stringify(form.value.delivery_platform))
     })
