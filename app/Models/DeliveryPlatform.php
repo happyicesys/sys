@@ -12,6 +12,8 @@ class DeliveryPlatform extends Model
     protected $fillable = [
         'name',
         'country_id',
+        'default_access_method',
+        'default_scopes',
         'remarks',
         'field1_name',
         'field2_name',

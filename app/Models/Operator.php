@@ -56,6 +56,11 @@ class Operator extends Model
         return $this->hasMany(DeliveryPlatformOperator::class);
     }
 
+    public function externalOauthTokens()
+    {
+        return $this->morphMany(ExternalOauthToken::class, 'modelable');
+    }
+
     public function operatorPaymentGateways()
     {
         return $this->hasMany(OperatorPaymentGateway::class);

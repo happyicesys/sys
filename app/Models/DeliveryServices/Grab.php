@@ -3,6 +3,7 @@
 namespace App\Models\DeliveryServices;
 
 use App\Models\DeliveryPlatform;
+use App\Models\DeliveryPlatformOperator;
 use App\Interfaces\DeliveryPlatformInterface;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,18 +17,14 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     public static $production_endpoint = 'https://partner-api.grab.com';
     public static $sandbox_scope = 'sandbox.mart.partner_api';
     public static $production_scope = 'mart.partner_api';
-    public static $countryCode = 'SG';
+    private $countryCode;
     private $clientId;
     private $clientSecret;
     private $accessToken;
 
-    public function __construct($clientId, $clientSecret, $accessToken)
+    public function __construct(DeliveryPlatformOperator $deliveryPlatformOperator)
     {
-        $this->clientId = $clientId;
-        $this->clientSecret = $clientSecret;
-        $this->accessToken = $accessToken;
-
-        // $this->merchantId = $merchantId;
+        $this->deliveryPlatformOperator = $deliveryPlatformOperator;
     }
 
     public function getGrabOAuthToken()
