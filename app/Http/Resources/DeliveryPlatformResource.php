@@ -18,6 +18,9 @@ class DeliveryPlatformResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'country' => CountryResource::make($this->whenLoaded('country')),
+            'default_access_method' => $this->default_access_method,
+            'default_granted_type' => $this->default_granted_type,
+            'default_scopes' => $this->default_scopes,
             'full_name' => $this->when($this->relationLoaded('country'), function() {
                 return $this->country && $this->country->name ? $this->name.' ('.$this->country->name.')' : '';
             }, function(){
