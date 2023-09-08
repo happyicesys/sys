@@ -19,8 +19,7 @@ class ExternalOauthToken extends Model
     ];
 
     protected $casts = [
-        'expired_at' => 'datetime',
-        'scopes' => 'json',
+        'expired_at' => 'datetime'
     ];
 
     public function modelable()
