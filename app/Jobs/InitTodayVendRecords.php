@@ -33,7 +33,7 @@ class InitTodayVendRecords implements ShouldQueue
             ->has('latestVendBinding')
             ->leftJoin('vend_bindings', function($query) {
                 $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                        ->where('is_active', true)
+                        ->where('vend_bindings.is_active', true)
                         ->latest('begin_date')
                         ->limit(1);
             })

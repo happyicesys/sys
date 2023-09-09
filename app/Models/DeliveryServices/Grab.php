@@ -17,10 +17,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     public static $production_endpoint = 'https://partner-api.grab.com';
     public static $sandbox_scope = 'sandbox.mart.partner_api';
     public static $production_scope = 'mart.partner_api';
-    private $countryCode;
-    private $clientId;
-    private $clientSecret;
-    private $accessToken;
+    private $deliveryPlatformOperator;
 
     public function __construct(DeliveryPlatformOperator $deliveryPlatformOperator)
     {
@@ -29,12 +26,16 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 
     public function getGrabOAuthToken()
     {
+        if(!$this->deliveryPlatformOperator->externalOauthTokens()->exists()) {
+            throw new \Exception('Oauth Client ID and Secret Not Found: ' . $response->body());
+        }
+
         $repsonse = Http::withHeaders($this->getHeaders([
-            'client_id' => $this->clientId,
-            'client_secret' => $this->clientSecret,
+            'client_id' => $this->deliveryPlatformOperator->externalOauthTokens->client_id,
+            'client_secret' => $this->deliveryPlatformOperator->externalOauthTokens->client_secret,
         ]))
         ->post($this->getEndpoint() . '/grabid/v1/oauth2/token', [
-            'grant_type' => 'client_credentials',
+            'grant_type' => $this->deliveryPlatformOperator->externalOauthTokens->granted_type,
             'scope' => $this->getScope(),
         ]);
 
@@ -47,9 +48,11 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 
     public function getMartCategories()
     {
+        $this->verifyOauthAccessToken();
+
         $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->accessToken,
-            'countryCode' => self::$countryCode,
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+            'countryCode' => $this->deliveryPlatformOperator->operator->country->code,
         ]))
         ->get($this->getEndpoint() . '/partner/v1/menu/categories');
 
@@ -62,9 +65,10 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 
     public function notifyUpdateMenu()
     {
+        $this->verifyOauthAccessToken();
+
         $repsonse = Http::withHeaders($this->getHeaders([
-            'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->accessToken,
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
         ]))
         ->post($this->getEndpoint() . '/partner/v1/merchant/menu/notification', [
             'merchantID' => $this->merchantId,
@@ -109,5 +113,14 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     private function getOperatorCountryCode()
     {
         return self::$countryCode;
+    }
+
+    private function verifyOauthAccessToken()
+    {
+        if(!$this->deliveryPlatformOperator->externalOauthTokens()->exists() or !$this->deliveryPlatformOperator->externalOauthTokens->access_token) {
+            throw new \Exception('Oauth Client ID, Secret, Access Key Not Available: ' . $response->body());
+        }
+
+        return true;
     }
 }
