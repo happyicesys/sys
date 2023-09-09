@@ -119,7 +119,7 @@ class PaymentGatewayService
               // $val= $xpath->query('//input[@type="hidden" and @name = "qr_data"]/@value');
               $val= $xpath->query('//input[@type="hidden" and @id = "qr_string"]/@value');
               $qrCodeText = isset($val[0]) ? $val[0]->nodeValue : null;
-              dd($qrCodeText);
+              // dd($qrCodeText);
               break;
         }
     }
