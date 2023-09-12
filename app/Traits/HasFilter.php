@@ -39,7 +39,7 @@ trait HasFilter {
 
             $vendIds = auth()->user()->vends()->exists() ? auth()->user()->vends->pluck('id')->toArray() : null;
             if($vendIds) {
-                $builder->whereIn('vends.id', $vendIds);
+                $query->whereIn('vends.id', $vendIds);
             }
         }
         return $query;
