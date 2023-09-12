@@ -81,6 +81,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
                 'metadata' => $params['metadata'],
                 'return_uri' => $params['return_uri'],
             ]);
+            // dd($response->json());
     // $client = new Client();
     // $crawler = $client->request('GET', $response->json()['authorize_uri'], [
     //     'allow_redirects' => true

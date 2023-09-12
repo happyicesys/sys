@@ -16,6 +16,7 @@ class DeliveryPlatform extends Model
         'default_granted_type',
         'default_scopes',
         'remarks',
+        'slug',
         'field1_name',
         'field2_name',
         'field3_name',
@@ -31,5 +32,10 @@ class DeliveryPlatform extends Model
     public function deliveryPlatformOperators()
     {
         return $this->hasMany(DeliveryPlatformOperator::class);
+    }
+
+    public function deliveryPlatformOrders()
+    {
+        return $this->hasMany(DeliveryPlatformOrder::class);
     }
 }

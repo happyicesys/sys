@@ -36,6 +36,11 @@ trait HasFilter {
             if($operatorId) {
                 $query = $query->where('operators.id', $operatorId);
             }
+
+            $vendIds = auth()->user()->vends()->exists() ? auth()->user()->vends->pluck('id')->toArray() : null;
+            if($vendIds) {
+                $builder->whereIn('vends.id', $vendIds);
+            }
         }
         return $query;
     }
