@@ -116,7 +116,7 @@ class Customer extends Model
 
     public function vendBinding()
     {
-        return $this->hasOne(VendBinding::class);
+        return $this->hasOne(VendBinding::class)->where('is_active', true)->latest('begin_date');
     }
 
     public function zone()

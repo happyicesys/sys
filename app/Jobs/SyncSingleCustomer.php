@@ -201,7 +201,11 @@ class SyncSingleCustomer implements ShouldQueue
 
                 if($customer->vendBinding()->exists() and $customer->vendBinding->vend->exists()) {
                     $vend = $customer->vendBinding->vend;
-
+                    // dd(
+                    //     isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' && !$vend->termination_date ? true : false,
+                    //     $customerCollection['id'],
+                    //     $customer->toArray(),
+                    //     $vend->toArray());
                     $vend->update([
                         'begin_date' => $beginDate,
                         'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' && !$vend->termination_date ? true : false,

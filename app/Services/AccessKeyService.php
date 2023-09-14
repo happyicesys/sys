@@ -10,18 +10,23 @@ use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 
-class DeliveryPlatformService
+class AccessKeyService
 {
   private $deliveryPlatform;
   private $deliveryPlatformOperator;
   private $operator;
 
-  public function __construct()
+  public function sendOauth($params = [])
   {
+    $this->operator = $operator;
+    $this->setDeliveryPlatformOperator($type);
 
+    switch($type) {
+      case 'grab':
+        return $this->incomingOauthParams($this->model->getOauthToken());
+        break;
+    }
   }
-
-  // public function
 
   private function outgoingOauthParams($params = [])
   {

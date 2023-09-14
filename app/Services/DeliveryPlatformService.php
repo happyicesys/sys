@@ -68,8 +68,6 @@ class DeliveryPlatformService
     $this->operator = $operator;
     $this->setDeliveryPlatformOperator($type);
 
-    // dd($this->operator->toArray(), $this->deliveryPlatformOperator->toArray(), $this->deliveryPlatform->toArray(), $type);
-    // dd($this->deliveryPlatform->getOauthToken(), $this->deliveryPlatform->toArray());
     switch($type) {
       case 'grab':
         return $this->incomingOauthParams($this->model->getOauthToken());
@@ -92,12 +90,7 @@ class DeliveryPlatformService
 
   }
 
-  public function syncIncomingAuth()
-  {
-
-  }
-
-  public function syncOutgoingAuth()
+  public function sendOauth()
   {
 
   }
