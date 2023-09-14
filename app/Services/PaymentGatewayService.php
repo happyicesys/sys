@@ -67,16 +67,22 @@ class PaymentGatewayService
             $isRequiredDecode = true;
             break;
         case 'omise':
-            if((isset($response['source']['flow']) and $response['source']['flow'] == 'offline' and isset($response['source']['scannable_code']['image']['download_uri'])) or (isset($response['source']['flow']) and $response['source']['flow'] == 'redirect' and isset($response['authorize_uri']))) {
+          // dd($response);
+          // dd((isset($response['source']['flow']) and $response['source']['flow'] == 'offline'), $response);
+            if((isset($response['source']['flow']) and $response['source']['flow'] == 'offline' and (isset($response['source']['scannable_code']['image']['download_uri']) or isset($response['authorize_uri']))) or (isset($response['source']['flow']) and $response['source']['flow'] == 'redirect' and isset($response['authorize_uri']))) {
                 $isCreateInput = true;
                 if($response['source']['flow'] == 'offline') {
-                    $qrCodeUrl = $response['source']['scannable_code']['image']['download_uri'];
-                    $isRequiredDecode = true;
+                    if(isset($response['authorize_uri'])) {
+                      $qrCodeUrl = $response['authorize_uri'];
+                      $isRequiredDecode = false;
+                    }else {
+                      $qrCodeUrl = $response['source']['scannable_code']['image']['download_uri'];
+                      $isRequiredDecode = true;
+                    }
                 }else if($response['source']['flow'] == 'redirect') {
                     $qrCodeUrl = $response['authorize_uri'];
                     $isRequiredDecode = false;
                 }
-
             }else if(isset($response['code']) and isset($response['message'])) {
                 $errorMsg .= 'Error: ';
                 $errorMsg .= $response['code'].' '.$response['message'];
@@ -102,15 +108,17 @@ class PaymentGatewayService
     }else {
         switch($operatorPaymentGateway->paymentGateway->name) {
             case 'omise':
-              if(isset($params['type']) and $params['type'] == 'shopeepay') {
+              if(isset($params['type']) and $params['type'] == 'shopeepay' or $params['type'] == 'alipayplus_mpm') {
                 // use crawler programmatically crawl for qr code text
                 $browser = new HttpBrowser(HttpClient::create());
                 $crawler = $browser->request('GET', $qrCodeUrl);
+                // dd($crawler->html());
                 $form = $crawler->filter('form')->form();
                 $firstResponse = $browser->submit($form);
                 $htmlString = $firstResponse->html();
               }else {
                 $htmlString = Http::get($qrCodeUrl)->body();
+                // dd($htmlString);
               }
 
               $doc = new \DOMDocument;
@@ -123,7 +131,7 @@ class PaymentGatewayService
               break;
         }
     }
-
+// dd($qrCodeText);
     if($isCreateInput) {
       $vendChannel = $vend->vendChannels()->where('code', $params['request']['SId'])->first();
       $paymentGatewayLog = PaymentGatewayLog::create([

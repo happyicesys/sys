@@ -205,7 +205,7 @@ trait HasFilter {
             $query->whereIn('vends.id',
                 DB::table('vend_channels')
                 ->select('vend_id')
-                ->where('vends.is_active', true)
+                ->where('vend_channels.is_active', true)
                 ->whereIn('vend_channels.id', DB::table('vend_channel_error_logs')
                     ->select('vend_channel_id')
                     ->where('is_error_cleared', false)
@@ -216,7 +216,7 @@ trait HasFilter {
             $query->whereIn('vends.id',
                 DB::table('vend_channels')
                 ->select('vend_id')
-                ->where('vends.is_active', true)
+                ->where('vend_channels.is_active', true)
                 ->whereIn('vend_channels.id', DB::table('vend_channel_error_logs')
                     ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_channel_error_logs.vend_channel_error_id')
                     ->select('vend_channel_id')

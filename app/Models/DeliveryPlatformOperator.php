@@ -28,9 +28,9 @@ class DeliveryPlatformOperator extends Model
         return $this->belongsTo(DeliveryPlatform::class);
     }
 
-    public function externalOauthTokens()
+    public function externalOauthToken()
     {
-        return $this->morphMany(ExternalOauthToken::class, 'modelable');
+        return $this->morphOne(ExternalOauthToken::class, 'modelable');
     }
 
     public function operator()

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\DeliveryServices;
+namespace App\Models\DeliveryPlatforms;
 
 use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatformOperator;
@@ -14,7 +14,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 {
     use HasFactory;
 
-    public static $production_endpoint = 'https://partner-api.grab.com';
+    public static $production_endpoint = 'https://api.grab.com';
     public static $sandbox_scope = 'sandbox.mart.partner_api';
     public static $production_scope = 'mart.partner_api';
 
@@ -32,16 +32,15 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     // Get Grab OAuth token
     public function getGrabOAuthToken()
     {
-        if(!$this->deliveryPlatformOperator->externalOauthTokens()->exists()) {
+        if(!$this->deliveryPlatformOperator->externalOauthToken()->exists()) {
             throw new \Exception('Oauth Client ID and Secret Not Found: ' . $response->body());
         }
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'client_id' => $this->deliveryPlatformOperator->externalOauthTokens->client_id,
-            'client_secret' => $this->deliveryPlatformOperator->externalOauthTokens->client_secret,
-        ]))
+        $response = Http::withHeaders($this->getHeaders())
         ->post($this->getEndpoint() . '/grabid/v1/oauth2/token', [
-            'grant_type' => $this->deliveryPlatformOperator->externalOauthTokens->granted_type,
+            'client_id' => $this->deliveryPlatformOperator->externalOauthToken->client_id,
+            'client_secret' => $this->deliveryPlatformOperator->externalOauthToken->client_secret,
+            'grant_type' => $this->deliveryPlatformOperator->externalOauthToken->granted_type,
             'scope' => $this->getScope(),
         ]);
 
@@ -50,6 +49,12 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         }
 
         throw new \Exception('Get OAuthToken Failed: ' . $response->body());
+    }
+
+    // interface compulsory for delivery platform
+    public function getOauthToken()
+    {
+        return $this->getGrabOAuthToken();
     }
 
     // List Mart Categories
