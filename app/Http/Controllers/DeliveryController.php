@@ -18,6 +18,18 @@ class DeliveryController extends Controller
     {
         $this->deliveryPlatformService = $deliveryPlatformService;
     }
+
+    public function getCategories($operatorId, $type)
+    {
+        try {
+            $operator = Operator::findOrFail($operatorId);
+            $response = $this->deliveryPlatformService->getCategories($operator, $type);
+            return $response;
+        } catch(\Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
     // Get mart menu
     // {
     //     "merchantID": "1-CYNGRUNGSBCCC",
@@ -65,7 +77,7 @@ class DeliveryController extends Controller
                     ->where('secret', $request->client_secret)
                     ->get();
 
-            dd($clients->toArray());
+            // dd($clients->toArray());
 
             $operator = Operator::findOrFail($operatorId);
             $response = $this->deliveryPlatformService->getOauth($operator, $type);

@@ -80,9 +80,16 @@ class DeliveryPlatformService
     return $this->operator;
   }
 
-  public function getCategories()
+  public function getCategories(Operator $operator, $type)
   {
+    $this->operator = $operator;
+    $this->setDeliveryPlatformOperator($type);
 
+    switch($type) {
+      case 'grab':
+        return $this->model->listMartCategories();
+        break;
+    }
   }
 
   public function pauseStore()

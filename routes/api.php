@@ -33,8 +33,8 @@ Route::prefix('v1')->group(function() {
 Route::prefix('delivery')->group(function() {
     Route::prefix('grab')->group(function() {
         Route::get('/merchant/menu', [DeliveryController::class, 'getMenu']);
-        Route::get('/mart-categories', [DeliveryController::class, 'getMartCategories']);
-        Route::get('/getOauth/{operatorId}/{type}', [DeliveryController::class, 'getOauth']);
+        Route::get('/categories/{operatorId}/{type}', [DeliveryController::class, 'getCategories']);
+        Route::get('/oauth/{operatorId}/{type}', [DeliveryController::class, 'getOauth']);
 
     });
 });

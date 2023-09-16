@@ -381,7 +381,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 
     private function getScope()
     {
-        $scope = self::$sandbox_scope;
+        $scope = self::$production_scope;
 
         if(config('app.env') === 'local') {
             $scope = self::$production_scope;
