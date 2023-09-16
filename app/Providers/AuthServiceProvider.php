@@ -30,6 +30,10 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasRole('superadmin') ? true : null;
         });
 
+        Passport::tokensCan([
+            'mart.partner_api' => 'Grab Mart Delivery API',
+        ]);
+
         // Passport::loadKeysFrom(__DIR__.'/../secrets/oauth');
     }
 }

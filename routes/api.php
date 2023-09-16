@@ -35,6 +35,7 @@ Route::prefix('delivery')->group(function() {
         Route::get('/merchant/menu', [DeliveryController::class, 'getMenu']);
         Route::get('/mart-categories', [DeliveryController::class, 'getMartCategories']);
         Route::get('/getOauth/{operatorId}/{type}', [DeliveryController::class, 'getOauth']);
+
     });
 });
 

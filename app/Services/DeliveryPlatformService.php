@@ -172,7 +172,6 @@ class DeliveryPlatformService
 
   private function incomingOauthParams($params = [])
   {
-    // dd($params, 'heressss');
     switch($this->deliveryPlatform->slug) {
       case 'grab':
         return [
@@ -202,11 +201,15 @@ class DeliveryPlatformService
 
   private function outgoingOauthParams($params = [])
   {
-    return [
-      'access_token' => $params['access_token'],
-      'token_type' => $params['type'],
-      'expires_in' => $params['expired_at'],
-    ];
+    switch($this->deliveryPlatform->slug) {
+      case 'grab':
+        return [
+          'access_token' => $params['access_token'],
+          'token_type' => $params['type'],
+          'expires_in' => $params['expired_at'],
+        ];
+        break;
+    }
   }
 
 }

@@ -7,6 +7,8 @@ use App\Models\Vend;
 use App\Jobs\SyncDeliveryPlatformOauthByOperator;
 use App\Services\DeliveryPlatformService;
 use Illuminate\Http\Request;
+use Laravel\Passport\Client;
+use Laravel\Passport\Token;
 
 class DeliveryController extends Controller
 {
@@ -58,6 +60,13 @@ class DeliveryController extends Controller
     public function sendOauth(Request $request)
     {
         try {
+            $clients = Client::with('tokens')
+                    ->where('id', $request->client_id)
+                    ->where('secret', $request->client_secret)
+                    ->get();
+
+            dd($clients->toArray());
+
             $operator = Operator::findOrFail($operatorId);
             $response = $this->deliveryPlatformService->getOauth($operator, $type);
             if(!$this->deliveryPlatformService->getDeliveryPlatformOperator()->externalOauthToken()->exists()) {
