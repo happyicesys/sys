@@ -38,7 +38,6 @@ class DeliveryPlatformService
         'order_completed_at' => $params['completeTime'],
         'scheduled_time' => $params['scheduledTime'],
         'status' => $params['orderState'],
-
       ];
     }
   }
@@ -137,7 +136,7 @@ class DeliveryPlatformService
           ->first();
 
     if(!$this->deliveryPlatformOperator) {
-      throw new \Exception('Api key environment not match with current environment');
+      throw new \Exception('Please check API key, Environtment, or Delivery Platform Slug');
     }
 
     $this->deliveryPlatform = $this->deliveryPlatformOperator->deliveryPlatform;
@@ -175,6 +174,77 @@ class DeliveryPlatformService
     }
 
     return $envName;
+  }
+
+  private function incomingMenuHeaderParams($params = [])
+  {
+    switch($this->deliveryPlatform->slug) {
+      case 'grab':
+        return [
+          'merchantID' => $params['store_id'],
+          'partnerMerchantID' => $params['partner_store_id'],
+          'currency' => [
+            'code' => $params['currency']['code'],
+            'symbol' => $params['currency']['symbol'],
+            'exponent' => $params['currency']['exponent'],
+          ],
+        ];
+        break;
+    }
+  }
+
+  private function grabMenuCategories($params = [])
+  {
+    return [
+      'id' => $params['category_id'],
+      'name' => $params['category_name'],
+      'availableStatus' => 'AVAILABLE',
+      'sellingTimeID' => 'ST-1001',
+      'subCategories' => [],
+    ];
+  }
+
+  private function grabMenuItems($params = [])
+  {
+    return [
+      'id' => $params['item_id'],
+      'name' => $params['item_name'],
+      'description' => $params['desc'],
+      'price' =>  $params['amount'],
+      'availableStatus' => 'AVAILABLE',
+      'sellingTimeID' => 'ST-1001',
+      'photos' => [
+        $params['image_url'],
+      ],
+      'specialType' => '',
+      'maxStock' => $params['available_qty'],
+      'maxCount' => $params['available_qty'],
+      'soldByWeight' => false,
+      'advancedPricing' => [],
+      'purchasability' => [],
+      'modifierGroups' => [],
+    ];
+  }
+
+  private function grabMenuSubCategories($params = [])
+  {
+    return [
+      'id' => $params['sub_category_id'],
+      'name' => $params['sub_category_name'],
+      'availableStatus' => 'AVAILABLE',
+      'sellingTimeID' => 'ST-1001',
+      'items' => [],
+    ];
+  }
+
+  private function grabMenuSellingTimes($params = [])
+  {
+    return [
+      'startTime' => Carbon::now()->startOfDay()->setTimezone('UTC')->toDatetimeString(),
+      'endTime' => Carbon::now()->endOfDay()->setTimezone('UTC')->toDatetimeString(),
+      'id' => 'ST-1001',
+      'name' => 'All Day',
+    ];
   }
 
   private function incomingOauthParams($params = [])

@@ -14,7 +14,11 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 {
     use HasFactory;
 
-    public static $production_endpoint = 'https://api.grab.com';
+    public static $main_endpoint = 'https://api.grab.com';
+    public static $partner_endpoint = 'https://partner-api.grab.com/grabmart';
+    public static $partner_sandbox_endpoint = 'https://partner-api.grab.com/grabmart-sandbox';
+    // public static $partner_sandbox_endpoint = 'https://partner-api.stg-myteksi.com/grabmart-sandbox';
+
     public static $sandbox_scope = 'sandbox.mart.partner_api';
     public static $production_scope = 'mart.partner_api';
 
@@ -37,7 +41,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         }
 
         $response = Http::withHeaders($this->getHeaders())
-        ->post($this->getEndpoint() . '/grabid/v1/oauth2/token', [
+        ->post($this->getMainEndpoint() . '/grabid/v1/oauth2/token', [
             'client_id' => $this->deliveryPlatformOperator->externalOauthToken->client_id,
             'client_secret' => $this->deliveryPlatformOperator->externalOauthToken->client_secret,
             'grant_type' => $this->deliveryPlatformOperator->externalOauthToken->granted_type,
@@ -62,11 +66,13 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+        $response = Http::withHeaders($this->getHeaders([
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
             'countryCode' => $this->deliveryPlatformOperator->operator->country->code,
         ]))
-        ->get($this->getEndpoint() . '/partner/v1/menu/categories');
+        ->get($this->getPartnerEndpoint() . '/partner/v1/menu/categories');
+
+        // dd($this->getPartnerEndpoint() . '/partner/v1/menu/categories', 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token, $this->deliveryPlatformOperator->operator->country->code, $response->body());
 
         if ($response->successful()) {
             return $response->json();
@@ -80,10 +86,10 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+        $response = Http::withHeaders($this->getHeaders([
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
         ]))
-        ->post($this->getEndpoint() . '/partner/v1/merchant/menu/notification', [
+        ->post($this->getPartnerEndpoint() . '/partner/v1/merchant/menu/notification', [
             'merchantID' => $this->merchantId,
         ]);
 
@@ -103,10 +109,10 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             throw new \Exception('No Single Product Param for Update Menu Record: ' . $response->body());
         }
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+        $response = Http::withHeaders($this->getHeaders([
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
         ]))
-        ->put($this->getEndpoint() . '/partner/v1/menu', [
+        ->put($this->getPartnerEndpoint() . '/partner/v1/menu', [
             'merchantID' => $this->merchantId,
             'field' => 'ITEM',
             'id' => $singleProductParam['code'],
@@ -130,10 +136,10 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+        $response = Http::withHeaders($this->getHeaders([
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
         ]))
-        ->put($this->getEndpoint() . '/partner/v1/batch/menu', [
+        ->put($this->getPartnerEndpoint() . '/partner/v1/batch/menu', [
             'merchantID' => $this->merchantId,
             'field' => 'ITEM',
             'menuEntities' => [
@@ -175,10 +181,10 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+        $response = Http::withHeaders($this->getHeaders([
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
         ]))
-        ->post($this->getEndpoint() . '/partner/v1/order/prepare', [
+        ->post($this->getPartnerEndpoint() . '/partner/v1/order/prepare', [
             'orderID' => $orderId,
             'toState' => $isAccept ? 'ACCEPTED' : 'REJECTED',
         ]);
@@ -195,13 +201,13 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+        $response = Http::withHeaders($this->getHeaders([
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
             'merchantID' => $this->merchantId,
             'date' => $date ? $date : Carbon::today()->toDateString(),
             'page' => $pageNumber,
         ]))
-        ->post($this->getEndpoint() . '/partner/v1/order/prepare', $filters);
+        ->post($this->getPartnerEndpoint() . '/partner/v1/order/prepare', $filters);
 
         if ($response->successful()) {
             return $response->json();
@@ -219,10 +225,10 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             throw new \Exception('Items Arr Not Found for Edit Order: ' . $response->body());
         }
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+        $response = Http::withHeaders($this->getHeaders([
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
         ]))
-        ->put($this->getEndpoint() . '/partner/v1/order/prepare/'. $orderId, [
+        ->put($this->getPartnerEndpoint() . '/partner/v1/order/prepare/'. $orderId, [
             'orderID' => $orderId,
             'items' => $items,
             'onlyRecalculate' => config('app.env') === 'local' ? true : false,
@@ -240,10 +246,10 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+        $response = Http::withHeaders($this->getHeaders([
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
         ]))
-        ->post($this->getEndpoint() . '/partner/v1/orders/mark', [
+        ->post($this->getPartnerEndpoint() . '/partner/v1/orders/mark', [
             'orderID' => $orderId,
             'markStatus' => 1
         ]);
@@ -264,10 +270,10 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             throw new \Exception('State Not Found for Update Delivery State: ' . $response->body());
         }
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+        $response = Http::withHeaders($this->getHeaders([
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
         ]))
-        ->post($this->getEndpoint() . '/partner/v1/order/delivery', [
+        ->post($this->getPartnerEndpoint() . '/partner/v1/order/delivery', [
             'orderID' => $orderId,
             'fromState' => $fromState,
             'toState' => $toState,
@@ -285,10 +291,10 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+        $response = Http::withHeaders($this->getHeaders([
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
         ]))
-        ->put($this->getEndpoint() . '/partner/v1/order/readytime', [
+        ->put($this->getPartnerEndpoint() . '/partner/v1/order/readytime', [
             'orderID' => $orderId,
             'newOrderReadyTime' => $newOrderReadyTime ? $newOrderReadyTime : Carbon::now()->toDateTimeString(),
         ]);
@@ -305,12 +311,12 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+        $response = Http::withHeaders($this->getHeaders([
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
             'orderID' => $orderId,
             'merchantID' => $this->merchantId
         ]))
-        ->get($this->getEndpoint() . '/partner/v1/order/cancelable');
+        ->get($this->getPartnerEndpoint() . '/partner/v1/order/cancelable');
 
         if ($response->successful()) {
             return $response->json();
@@ -324,10 +330,10 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+        $response = Http::withHeaders($this->getHeaders([
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
         ]))
-        ->put($this->getEndpoint() . '/partner/v1/order/cancel', [
+        ->put($this->getPartnerEndpoint() . '/partner/v1/order/cancel', [
             'orderID' => $orderId,
             'merchantID' => $this->merchantId,
             'cancelCode' => $cancelCode,
@@ -345,10 +351,10 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
 
-        $repsonse = Http::withHeaders($this->getHeaders([
-            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthTokens->access_token,
+        $response = Http::withHeaders($this->getHeaders([
+            'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
         ]))
-        ->put($this->getEndpoint() . '/partner/v1/merchant/pause', [
+        ->put($this->getPartnerEndpoint() . '/partner/v1/merchant/pause', [
             'merchantID' => $this->merchantId,
             'isPause' => $isPause,
             'duration' => $duration,
@@ -374,9 +380,20 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         return $headers;
     }
 
-    private function getEndpoint()
+    private function getMainEndpoint()
     {
-        return self::$production_endpoint;
+        return self::$main_endpoint;
+    }
+
+    private function getPartnerEndpoint()
+    {
+        $endpoint = self::$partner_endpoint;
+
+        if(config('app.env') === 'local') {
+            $endpoint = self::$partner_sandbox_endpoint;
+        }
+
+        return $endpoint;
     }
 
     private function getScope()
@@ -392,7 +409,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 
     private function verifyOauthAccessToken()
     {
-        if(!$this->deliveryPlatformOperator->externalOauthTokens()->exists() or !$this->deliveryPlatformOperator->externalOauthTokens->access_token) {
+        if(!$this->deliveryPlatformOperator->externalOauthToken()->exists() or !$this->deliveryPlatformOperator->externalOauthToken->access_token) {
             throw new \Exception('Oauth Client ID, Secret, Access Key Not Available: ' . $response->body());
         }
 
