@@ -144,7 +144,7 @@ class PaymentGatewayService
               break;
         }
     }
-// dd($qrCodeText);
+dd($qrCodeText);
     if($isCreateInput) {
       $vendChannel = $vend->vendChannels()->where('code', $params['request']['SId'])->first();
       $paymentGatewayLog = PaymentGatewayLog::create([
