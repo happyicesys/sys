@@ -137,8 +137,10 @@ class PaymentGatewayService
                 $form = $crawler->filter('form')->form();
                 $firstResponse = $browser->submit($form);
                 $htmlString = $firstResponse->html();
+                dd($htmlString);
               }else {
                 $htmlString = Http::get($qrCodeUrl)->body();
+                dd($htmlString);
               }
 
               $doc = new \DOMDocument;
