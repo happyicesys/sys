@@ -16,6 +16,8 @@ use Zxing\QrReader;
 use Symfony\Component\BrowserKit\HttpBrowser;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpClient\HttpClient;
+use Imagick;
+use ImagickPixel;
 
 class PaymentGatewayService
 {
@@ -86,7 +88,6 @@ class PaymentGatewayService
             //     $errorMsg .= $response['code'].' '.$response['message'];
             // }
             // break;
-            dd($response['source']['flow']);
             if((isset($response['source']['flow']) and $response['source']['flow'] == 'offline' and isset($response['source']['scannable_code']['image']['download_uri'])) or (isset($response['source']['flow']) and $response['source']['flow'] == 'redirect' and isset($response['authorize_uri']))) {
                 $isCreateInput = true;
                 if($response['source']['flow'] == 'offline') {
@@ -103,22 +104,29 @@ class PaymentGatewayService
             }
             break;
     }
-    dd($qrCodeUrl);
     $img = false;
     if($isRequiredDecode) {
-        if($isResizeImage) {
-            $image = Image::make($qrCodeUrl)->resize(150, 150);
-            $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $image->stream()->__toString(), 'public');
+      if($isResizeImage) {
+          $image = Image::make($qrCodeUrl)->resize(150, 150);
+          $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $image->stream()->__toString(), 'public');
+      }else {
+        if(isset($params['type']) and $params['type'] == 'alipayplus_mpm') {
+          $imagick = new Imagick();
+          $imagick->setBackgroundColor(new ImagickPixel('transparent'));
+          $imagick->readImageBlob(file_get_contents($qrCodeUrl));
+          $imagick->setImageFormat('png24');
+          $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $imagick->getImageBlob(), 'public');
         }else {
-            $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', file_get_contents($qrCodeUrl), 'public');
+          $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', file_get_contents($qrCodeUrl), 'public');
         }
-        $url = Storage::url('/qr-code/'.$params['metadata']['order_id'].'.png');
+      }
+      $url = Storage::url('/qr-code/'.$params['metadata']['order_id'].'.png');
 
-        $qrCodeReader = new QrReader($url);
-        $qrCodeText = $qrCodeReader->text([
-            'POSSIBLE_FORMATS' => 'QR_CODE',
-        ]);
-        Storage::disk('public')->delete('/qr-code/'.$params['metadata']['order_id'].'.png');
+      $qrCodeReader = new QrReader($url);
+      $qrCodeText = $qrCodeReader->text([
+          'POSSIBLE_FORMATS' => 'QR_CODE',
+      ]);
+      Storage::disk('public')->delete('/qr-code/'.$params['metadata']['order_id'].'.png');
     }else {
         switch($operatorPaymentGateway->paymentGateway->name) {
             case 'omise':
@@ -126,13 +134,11 @@ class PaymentGatewayService
                 // use crawler programmatically crawl for qr code text
                 $browser = new HttpBrowser(HttpClient::create());
                 $crawler = $browser->request('GET', $qrCodeUrl);
-                dd($crawler->html());
                 $form = $crawler->filter('form')->form();
                 $firstResponse = $browser->submit($form);
                 $htmlString = $firstResponse->html();
               }else {
                 $htmlString = Http::get($qrCodeUrl)->body();
-                dd($htmlString);
               }
 
               $doc = new \DOMDocument;
@@ -145,7 +151,7 @@ class PaymentGatewayService
               break;
         }
     }
-// dd($qrCodeText);
+dd($qrCodeText);
     if($isCreateInput) {
       $vendChannel = $vend->vendChannels()->where('code', $params['request']['SId'])->first();
       $paymentGatewayLog = PaymentGatewayLog::create([
