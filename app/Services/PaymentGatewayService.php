@@ -121,7 +121,7 @@ class PaymentGatewayService
         }
       }
       $url = Storage::url('/qr-code/'.$params['metadata']['order_id'].'.png');
-
+dd($url);
       $qrCodeReader = new QrReader($url);
       $qrCodeText = $qrCodeReader->text([
           'POSSIBLE_FORMATS' => 'QR_CODE',
@@ -137,10 +137,8 @@ class PaymentGatewayService
                 $form = $crawler->filter('form')->form();
                 $firstResponse = $browser->submit($form);
                 $htmlString = $firstResponse->html();
-                dd($htmlString);
               }else {
                 $htmlString = Http::get($qrCodeUrl)->body();
-                dd($htmlString);
               }
 
               $doc = new \DOMDocument;
