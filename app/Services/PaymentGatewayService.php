@@ -86,6 +86,7 @@ class PaymentGatewayService
             //     $errorMsg .= $response['code'].' '.$response['message'];
             // }
             // break;
+            dd($response['source']['flow']);
             if((isset($response['source']['flow']) and $response['source']['flow'] == 'offline' and isset($response['source']['scannable_code']['image']['download_uri'])) or (isset($response['source']['flow']) and $response['source']['flow'] == 'redirect' and isset($response['authorize_uri']))) {
                 $isCreateInput = true;
                 if($response['source']['flow'] == 'offline') {
