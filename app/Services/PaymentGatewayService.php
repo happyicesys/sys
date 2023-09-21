@@ -121,11 +121,12 @@ class PaymentGatewayService
         }
       }
       $url = Storage::url('/qr-code/'.$params['metadata']['order_id'].'.png');
-dd($url);
+
       $qrCodeReader = new QrReader($url);
       $qrCodeText = $qrCodeReader->text([
           'POSSIBLE_FORMATS' => 'QR_CODE',
       ]);
+      dd($url, $qrCodeText);
       Storage::disk('public')->delete('/qr-code/'.$params['metadata']['order_id'].'.png');
     }else {
         switch($operatorPaymentGateway->paymentGateway->name) {
