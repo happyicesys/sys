@@ -125,13 +125,13 @@ class PaymentGatewayService
                 // use crawler programmatically crawl for qr code text
                 $browser = new HttpBrowser(HttpClient::create());
                 $crawler = $browser->request('GET', $qrCodeUrl);
-                // dd($crawler->html());
+                dd($crawler->html());
                 $form = $crawler->filter('form')->form();
                 $firstResponse = $browser->submit($form);
                 $htmlString = $firstResponse->html();
               }else {
                 $htmlString = Http::get($qrCodeUrl)->body();
-                // dd($htmlString);
+                dd($htmlString);
               }
 
               $doc = new \DOMDocument;
@@ -144,7 +144,7 @@ class PaymentGatewayService
               break;
         }
     }
-dd($qrCodeText);
+// dd($qrCodeText);
     if($isCreateInput) {
       $vendChannel = $vend->vendChannels()->where('code', $params['request']['SId'])->first();
       $paymentGatewayLog = PaymentGatewayLog::create([
