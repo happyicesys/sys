@@ -102,7 +102,7 @@ class PaymentGatewayService
             }
             break;
     }
-
+    dd($qrCodeUrl);
     $img = false;
     if($isRequiredDecode) {
         if($isResizeImage) {
