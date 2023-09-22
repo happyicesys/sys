@@ -22,6 +22,9 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
     const PAYMENT_METHOD_SHOPEEPAY = 203;
     const PAYMENT_METHOD_ALIPAYPLUS_TNG = 204;
     const PAYMENT_METHOD_ALIPAYPLUS_ALIPAY = 205;
+    const PAYMENT_METHOD_ALIPAYPLUS_GCASH = 206;
+    const PAYMENT_METHOD_ALIPAYPLUS_KAKAOPAY = 207;
+    const PAYMENT_METHOD_ALIPAYPLUS_TRUEMONEY = 208;
     const PAYMENT_METHOD_DUITNOW = 301;
     const PAYMENT_METHOD_PROMPTPAY = 401;
 
@@ -31,6 +34,9 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         self::PAYMENT_METHOD_SHOPEEPAY => 'shopeepay',
         self::PAYMENT_METHOD_ALIPAYPLUS_TNG => 'alipayplus_mpm',
         self::PAYMENT_METHOD_ALIPAYPLUS_ALIPAY => 'alipayplus_mpm',
+        self::PAYMENT_METHOD_ALIPAYPLUS_GCASH => 'alipayplus_mpm',
+        self::PAYMENT_METHOD_ALIPAYPLUS_KAKAOPAY => 'alipayplus_mpm',
+        self::PAYMENT_METHOD_ALIPAYPLUS_TRUEMONEY => 'alipayplus_mpm',
         self::PAYMENT_METHOD_DUITNOW => 'duitnow_qr',
         self::PAYMENT_METHOD_PROMPTPAY => 'promptpay',
     ];
