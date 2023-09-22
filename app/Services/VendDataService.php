@@ -226,6 +226,14 @@ class VendDataService
             SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
             break;
           default:
+            VendData::create([
+              'connection' => $connectionType,
+              'ip_address' => $ipAddress,
+              'processed' => $processedInput,
+              'type' => isset($processedInput['Type']) ? $processedInput['Type'] : 'error',
+              'value' => $originalInput,
+              'vend_code' => isset($originalInput['m']) ? $originalInput['m'] : null,
+            ]);
             throw new \Exception('Type is not set or please check the parameters');
         }
       }else {
@@ -273,6 +281,11 @@ class VendDataService
         ]
       ],
     ];
+    VendData::create([
+      'connection' => 'mqtt',
+      'vend_code' => isset($params['vendCode']) ? (int)$params['vendCode'] : null,
+      'value' => $transactionParams,
+    ]);
 
     return $transactionParams;
   }
