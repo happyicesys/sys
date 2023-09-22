@@ -281,11 +281,11 @@ class VendDataService
         ]
       ],
     ];
-    VendData::create([
-      'connection' => 'mqtt',
-      'vend_code' => isset($params['vendCode']) ? (int)$params['vendCode'] : null,
-      'value' => $transactionParams,
-    ]);
+    // VendData::create([
+    //   'connection' => 'mqtt',
+    //   'vend_code' => isset($params['vendCode']) ? (int)$params['vendCode'] : null,
+    //   'value' => $transactionParams,
+    // ]);
 
     return $transactionParams;
   }
