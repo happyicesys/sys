@@ -36,8 +36,9 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     // Get Grab OAuth token
     public function getGrabOAuthToken()
     {
+        // dd($this->deliveryPlatformOperator->externalOauthToken);
         if(!$this->deliveryPlatformOperator->externalOauthToken()->exists()) {
-            throw new \Exception('Oauth Client ID and Secret Not Found: ' . $response->body());
+            throw new \Exception('Oauth Client ID and Secret Not Found: ');
         }
 
         $response = Http::withHeaders($this->getHeaders())
@@ -106,7 +107,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         $this->verifyOauthAccessToken();
 
         if(!$singleProductParam) {
-            throw new \Exception('No Single Product Param for Update Menu Record: ' . $response->body());
+            throw new \Exception('No Single Product Param for Update Menu Record ' . $response->body());
         }
 
         $response = Http::withHeaders($this->getHeaders([

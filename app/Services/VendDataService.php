@@ -281,6 +281,7 @@ class VendDataService
         ]
       ],
     ];
+    // log for error checking
     // VendData::create([
     //   'connection' => 'mqtt',
     //   'vend_code' => isset($params['vendCode']) ? (int)$params['vendCode'] : null,
