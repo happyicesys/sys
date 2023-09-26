@@ -68,7 +68,7 @@ class GetPaymentGatewayQR
                 'type' => isset($input['payment_gateway_slug']) ? $input['payment_gateway_slug'] : null,
                 'metadata' => [
                     'order_id' => $orderId,
-                    'vend_code' => $vend_code,
+                    'vend_code' => $vend->code,
                 ],
             ]);
 
