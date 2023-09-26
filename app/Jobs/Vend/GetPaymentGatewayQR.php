@@ -67,7 +67,8 @@ class GetPaymentGatewayQR
                 'expiry_seconds' => isset($input['expiry_seconds']) ? $input['expiry_seconds'] : null,
                 'type' => isset($input['payment_gateway_slug']) ? $input['payment_gateway_slug'] : null,
                 'metadata' => [
-                    'order_id' => $orderId
+                    'order_id' => $orderId,
+                    'vend_code' => $vend_code,
                 ],
             ]);
 

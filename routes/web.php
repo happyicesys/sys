@@ -9,6 +9,7 @@ use App\Http\Controllers\CategoryGroupController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DeliveryPlatformController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\LocationTypeController;
 use App\Http\Controllers\MapController;
@@ -117,6 +118,10 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('dashboard')->group(function() {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    });
+
+    Route::prefix('delivery-platforms')->group(function() {
+        Route::get('/', [DeliveryPlatformController::class, 'index'])->name('delivery-platforms');
     });
 
     Route::prefix('vend-criterias')->group(function() {

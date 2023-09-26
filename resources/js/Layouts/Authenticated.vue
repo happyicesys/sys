@@ -5,7 +5,7 @@ import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { ArrowsPointingInIcon, ClipboardDocumentListIcon, CodeBracketSquareIcon, Cog8ToothIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, LinkIcon, RectangleStackIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
+import { ArrowsPointingInIcon, ClipboardDocumentListIcon, CodeBracketSquareIcon, Cog8ToothIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, LinkIcon, RectangleStackIcon, TruckIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
 
 const navigation = [
     {
@@ -128,6 +128,13 @@ const navigation = [
         icon: CodeBracketSquareIcon,
         current: false,
         href: 'oauth-clients',
+        permission: 'admin-access vends',
+    },
+    {
+        name: 'Delivery Platform',
+        icon: TruckIcon,
+        current: false,
+        href: 'delivery-platforms',
         permission: 'admin-access vends',
     },
     // {

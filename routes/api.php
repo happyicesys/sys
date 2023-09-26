@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\DeliveryController;
+use App\Http\Controllers\DeliveryPlatformController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\VendController;
@@ -32,9 +32,9 @@ Route::prefix('v1')->group(function() {
 
 Route::prefix('delivery')->group(function() {
     Route::prefix('grab')->group(function() {
-        Route::get('/merchant/menu', [DeliveryController::class, 'getMenu']);
-        Route::get('/categories/{operatorId}/{type}', [DeliveryController::class, 'getCategories']);
-        Route::get('/oauth/{operatorId}/{type}', [DeliveryController::class, 'getOauth']);
+        Route::get('/merchant/menu', [DeliveryPlatformController::class, 'getMenu']);
+        Route::get('/categories/{operatorId}/{type}', [DeliveryPlatformController::class, 'getCategories']);
+        Route::get('/oauth/{operatorId}/{type}', [DeliveryPlatformController::class, 'getOauth']);
 
     });
 });
