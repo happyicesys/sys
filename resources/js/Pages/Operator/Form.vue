@@ -585,7 +585,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
-import { useForm } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 // import { router } from '@inertiajs/vue3';
 
@@ -674,19 +674,38 @@ function unbindOperatorVend(vend) {
 }
 
 function bindDeliveryPlatform() {
-  if(deliveryPlatformOperators.value.indexOf(form.value.delivery_platform) < 0) {
-    deliveryPlatformOperators.value.push({
-      id: form.value.delivery_platform_id,
-      field1: form.value.delivery_platform_field1,
-      field2: form.value.delivery_platform_field2,
-      field3: form.value.delivery_platform_field3,
-      field4: form.value.delivery_platform_field4,
-      oauth_client_id: form.value.delivery_platform_oauth_client_id,
-      oauth_client_secret: form.value.delivery_platform_oauth_client_secret,
-      type: form.value.delivery_platform_type.id,
-      deliveryPlatform: JSON.parse(JSON.stringify(form.value.delivery_platform))
+  // if(deliveryPlatformOperators.value.indexOf(form.value.delivery_platform) < 0) {
+  //   deliveryPlatformOperators.value.push({
+  //     id: form.value.delivery_platform_id,
+  //     field1: form.value.delivery_platform_field1,
+  //     field2: form.value.delivery_platform_field2,
+  //     field3: form.value.delivery_platform_field3,
+  //     field4: form.value.delivery_platform_field4,
+  //     oauth_client_id: form.value.delivery_platform_oauth_client_id,
+  //     oauth_client_secret: form.value.delivery_platform_oauth_client_secret,
+  //     type: form.value.delivery_platform_type.id,
+  //     deliveryPlatform: JSON.parse(JSON.stringify(form.value.delivery_platform))
+  //   })
+  // }
+    form.value
+      .transform((data) => ({
+        delivery_platform_id: form.value.delivery_platform.id,
+        field1: form.value.delivery_platform_field1,
+        field2: form.value.delivery_platform_field2,
+        field3: form.value.delivery_platform_field3,
+        field4: form.value.delivery_platform_field4,
+        oauth_client_id: form.value.delivery_platform_oauth_client_id,
+        oauth_client_secret: form.value.delivery_platform_oauth_client_secret,
+        type: form.value.delivery_platform_type.id,
+        deliveryPlatform: JSON.parse(JSON.stringify(form.value.delivery_platform))
+      }))
+      .post('/operators/' + form.value.id + '/delivery-platform/create', {
+      onSuccess: () => {
+        emit('modalClose')
+      },
+      preserveState: true,
+      replace: true,
     })
-  }
 }
 
 function bindPaymentGateway() {
@@ -703,7 +722,12 @@ function bindPaymentGateway() {
 }
 
 function unbindDeliveryPlatform(deliveryPlatformOperator) {
-  deliveryPlatformOperators.value.splice(deliveryPlatformOperators.value.indexOf(deliveryPlatformOperator), 1)
+  // deliveryPlatformOperators.value.splice(deliveryPlatformOperators.value.indexOf(deliveryPlatformOperator), 1)
+  const approval = confirm('Are you sure to delete this entry?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/operators/delivery-platform/' + deliveryPlatformOperator.id)
 }
 
 function unbindPaymentGateway(operatorPaymentGateway) {

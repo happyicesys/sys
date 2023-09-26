@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('external_oauth_tokens', function (Blueprint $table) {
-            $table->dropColumn('access_token');
+            // $table->dropColumn('access_token');
         });
     }
 };

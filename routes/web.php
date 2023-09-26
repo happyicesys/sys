@@ -162,6 +162,8 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [OperatorController::class, 'delete']);
         Route::post('/bind-vend', [OperatorController::class, 'bindVend']);
         Route::post('/unbind-vend', [OperatorController::class, 'unbindVend']);
+        Route::post('/{id}/delivery-platform/create', [OperatorController::class, 'bindDeliveryPlatform']);
+        Route::delete('/delivery-platform/{delivery_platform_operator_id}', [OperatorController::class, 'unbindDeliveryPlatform']);
     });
 
     Route::prefix('reports')->group(function() {

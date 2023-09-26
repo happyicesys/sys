@@ -67,11 +67,13 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
 
+        // dd($this->deliveryPlatformOperator->operator->country->code);
         $response = Http::withHeaders($this->getHeaders([
             'Authorization' => 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token,
-            'countryCode' => $this->deliveryPlatformOperator->operator->country->code,
         ]))
-        ->get($this->getPartnerEndpoint() . '/partner/v1/menu/categories');
+        ->get($this->getPartnerEndpoint() . '/partner/v1/menu/categories', [
+            'countryCode' => $this->deliveryPlatformOperator->operator->country->code,
+        ]);
 
         // dd($this->getPartnerEndpoint() . '/partner/v1/menu/categories', 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token, $this->deliveryPlatformOperator->operator->country->code, $response->body());
 
@@ -107,7 +109,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         $this->verifyOauthAccessToken();
 
         if(!$singleProductParam) {
-            throw new \Exception('No Single Product Param for Update Menu Record ' . $response->body());
+            throw new \Exception('No Single Product Param for Update Menu Record ');
         }
 
         $response = Http::withHeaders($this->getHeaders([
@@ -223,7 +225,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         $this->verifyOauthAccessToken();
 
         if(!$items) {
-            throw new \Exception('Items Arr Not Found for Edit Order: ' . $response->body());
+            throw new \Exception('Items Arr Not Found for Edit Order ');
         }
 
         $response = Http::withHeaders($this->getHeaders([
@@ -268,7 +270,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         $this->verifyOauthAccessToken();
 
         if(!$state) {
-            throw new \Exception('State Not Found for Update Delivery State: ' . $response->body());
+            throw new \Exception('State Not Found for Update Delivery State ');
         }
 
         $response = Http::withHeaders($this->getHeaders([
@@ -411,7 +413,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     private function verifyOauthAccessToken()
     {
         if(!$this->deliveryPlatformOperator->externalOauthToken()->exists() or !$this->deliveryPlatformOperator->externalOauthToken->access_token) {
-            throw new \Exception('Oauth Client ID, Secret, Access Key Not Available: ' . $response->body());
+            throw new \Exception('Oauth Client ID, Secret, Access Key Not Available');
         }
 
         return true;

@@ -201,10 +201,8 @@ class OperatorController extends Controller
         $editedVends = collect($request->operator['vends'])->transform(function($vend) {
             return $vend['id'];
         });
-
         $removeVends = $originalVends->diff($editedVends);
         $addVends = $editedVends->diff($originalVends);
-
         if($removeVends) {
             foreach($removeVends as $removeVend) {
                 $operator->vends()->detach($removeVend);
@@ -227,24 +225,25 @@ class OperatorController extends Controller
                 }
             }
 
-            if($request->has('deliveryPlatforms')) {
-                $operator->deliveryPlatformOperators()->delete();
-                if($request->operator['deliveryPlatformOperators']) {
-                    foreach($request->operator['deliveryPlatformOperators'] as $deliveryPlatformOperator) {
-                        $deliveryPlatformOperator['delivery_platform_id'] = $deliveryPlatformOperator['deliveryPlatform']['id'];
-                        $createdDeliveryPlatformOperator = $operator->deliveryPlatformOperators()->create($deliveryPlatformOperator);
-                        if(isset($deliveryPlatformOperator['oauth_client_id']) and isset($deliveryPlatformOperator['oauth_client_secret']) and $deliveryPlatformOperator['oauth_client_id'] and $deliveryPlatformOperator['oauth_client_secret']) {
-                            $createdDeliveryPlatformOperator->externalOauthToken()->updateOrCreate([
-                                'client_id' => $deliveryPlatformOperator['oauth_client_id'],
-                                'client_secret' => $deliveryPlatformOperator['oauth_client_secret'],
-                            ], [
-                                'granted_type' => $createdDeliveryPlatformOperator->deliveryPlatform->default_granted_type,
-                                'scopes' => $createdDeliveryPlatformOperator->deliveryPlatform->default_scopes,
-                            ]);
-                        }
-                    }
-                }
-            }
+            // if($request->has('deliveryPlatforms')) {
+            //     $operator->deliveryPlatformOperators()->delete();
+            //     if($request->operator['deliveryPlatformOperators']) {
+            //         foreach($request->operator['deliveryPlatformOperators'] as $deliveryPlatformOperator) {
+            //             $deliveryPlatformOperator['delivery_platform_id'] = $deliveryPlatformOperator['deliveryPlatform']['id'];
+            //             $createdDeliveryPlatformOperator = $operator->deliveryPlatformOperators()->create($deliveryPlatformOperator);
+            //             if(isset($deliveryPlatformOperator['oauth_client_id']) and isset($deliveryPlatformOperator['oauth_client_secret']) and $deliveryPlatformOperator['oauth_client_id'] and $deliveryPlatformOperator['oauth_client_secret']) {
+            //                 $createdDeliveryPlatformOperator->externalOauthToken()->updateOrCreate([
+            //                     'client_id' => $deliveryPlatformOperator['oauth_client_id'],
+            //                     'client_secret' => $deliveryPlatformOperator['oauth_client_secret'],
+            //                 ], [
+            //                     'granted_type' => $createdDeliveryPlatformOperator->deliveryPlatform->default_granted_type,
+            //                     'scopes' => $createdDeliveryPlatformOperator->deliveryPlatform->default_scopes,
+            //                 ]);
+            //             }
+            //         }
+            //     }
+            // }
+
         }
 
         return redirect()->route('operators');
@@ -272,5 +271,30 @@ class OperatorController extends Controller
         $operator->vends()->detach($request->vend_id);
 
         return redirect()->route('operators');
+    }
+
+    public function bindDeliveryPlatform(Request $request, $id)
+    {
+        $operator = Operator::findOrFail($id);
+        // dd($request->all());
+        $createdDeliveryPlatformOperator = $operator->deliveryPlatformOperators()->create($request->all());
+        if($request->has('oauth_client_id') and $request->has('oauth_client_secret')) {
+            $createdDeliveryPlatformOperator->externalOauthToken()->updateOrCreate([
+                'client_id' => $request->oauth_client_id,
+                'client_secret' => $request->oauth_client_secret,
+            ], [
+                'granted_type' => $createdDeliveryPlatformOperator->deliveryPlatform->default_granted_type,
+                'scopes' => $createdDeliveryPlatformOperator->deliveryPlatform->default_scopes,
+            ]);
+        }
+    }
+
+    public function unbindDeliveryPlatform($paymentGatewayOperatorId)
+    {
+        $paymentGatewayOperator = DeliveryPlatformOperator::findOrFail($paymentGatewayOperatorId);
+        if($paymentGatewayOperator->externalOauthToken()->exists()) {
+            $paymentGatewayOperator->externalOauthToken()->delete();
+        }
+        $paymentGatewayOperator->delete();
     }
 }

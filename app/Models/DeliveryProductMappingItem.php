@@ -14,6 +14,26 @@ class DeliveryProductMappingItem extends Model
         'delivery_product_mapping_id',
         'product_mapping_id',
         'product_mapping_item_id',
-
+        'sub_category_json',
     ];
+
+    protected $casts = [
+        'category_json' => 'json',
+    ];
+
+    // relationships
+    public function deliveryProductMapping()
+    {
+        return $this->belongsTo(DeliveryProductMapping::class);
+    }
+
+    public function productMapping()
+    {
+        return $this->belongsTo(ProductMapping::class);
+    }
+
+    public function productMappingItem()
+    {
+        return $this->belongsTo(ProductMappingItem::class);
+    }
 }

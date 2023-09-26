@@ -10,10 +10,15 @@ class DeliveryProductMapping extends Model
     use HasFactory;
 
     protected $fillable = [
+        'category_json',
         'delivery_platform_operator_id',
         'name',
         'product_mapping_id',
         'remarks',
+    ];
+
+    protected $casts = [
+        'category_json' => 'json',
     ];
 
     // relationships
