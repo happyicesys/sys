@@ -69,6 +69,8 @@ class GetPaymentGatewayQR
                 'metadata' => [
                     'order_id' => $orderId,
                     'vend_code' => $vend->code,
+                    'customer_code' => $vend->latestVendBinding()->exists() && $vend->latestVendBinding->customer()->exists() ?
+                        $vend->latestVendBinding->customer->code : null,
                 ],
             ]);
 
