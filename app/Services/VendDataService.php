@@ -6,6 +6,7 @@ use App\Models\VendData;
 use App\Jobs\SyncAcbVmcPa;
 use App\Jobs\SyncAcbStatus;
 use App\Jobs\SyncIsMqttVend;
+use App\Jobs\Vend\CreateVendStatistics;
 use App\Jobs\Vend\CreateVendTransaction;
 use App\Jobs\Vend\GetPaymentGatewayQR;
 use App\Jobs\Vend\GetPurchaseConfirm;
@@ -14,6 +15,7 @@ use App\Jobs\Vend\SyncVendParameter;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Jobs\Vend\UpdateApkVersion;
 use App\Jobs\Vend\UpdateVendLastUpdated;
+use App\Jobs\Vend\UpdateVendStatistics;
 use Carbon\Carbon;
 use PhpMqtt\Client\Facades\MQTT;
 
@@ -222,8 +224,13 @@ class VendDataService
             UpdateApkVersion::dispatch($processedInput, $vend)->onQueue('default');
             SyncIsMqttVend::dispatch($vend)->onQueue('default');
             break;
+          case 'REFILL':
+            break;
           case 'REQQR':
             GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
+            break;
+          case 'STATIS1':
+            UpdateVendStatistics::dispatch($processedInput, $vend)->onQueue('default');
             break;
           case 'TIME':
             $operatorTimezone = 'Asia/Singapore';
