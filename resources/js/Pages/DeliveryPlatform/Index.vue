@@ -12,14 +12,15 @@
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="flex justify-end">
-          <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          @click="onCreateClicked()"
-          >
-            <PlusIcon class="h-4 w-4" aria-hidden="true"/>
-            <span>
-              Create
-            </span>
-          </Button>
+          <Link href="/delivery-product-mappings/create">
+            <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            >
+              <PlusIcon class="h-4 w-4" aria-hidden="true"/>
+              <span>
+                Create
+              </span>
+            </Button>
+          </Link>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
@@ -135,21 +136,12 @@
       </div>
     </div>
   </div>
-  <Form
-      v-if="showModal"
-      :deliveryProductMapping="deliveryProductMapping"
-      :type="type"
-      :showModal="showModal"
-      @modalClose="onModalClose"
-  >
-  </Form>
   </BreezeAuthenticatedLayout>
 </template>
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-import Form from '@/Pages/DeliveryPlatform/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -158,7 +150,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   deliveryProductMappings: Object,
@@ -196,7 +188,7 @@ function onDeleteClicked(deliveryProductMapping) {
   if (!approval) {
       return;
   }
-  router.delete('/deliveryProductMappings/' + deliveryProductMapping.id)
+  router.delete('/delivery-product-mappings/' + deliveryProductMapping.id)
 }
 
 function onEditClicked(telcoValue) {
@@ -206,7 +198,7 @@ function onEditClicked(telcoValue) {
 }
 
 function onSearchFilterUpdated() {
-  router.get('/deliveryProductMappings', {
+  router.get('/delivery-product-mappings', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -216,7 +208,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  router.get('/deliveryProductMappings')
+  router.get('/delivery-product-mappings')
 }
 
 function sortTable(sortKey) {

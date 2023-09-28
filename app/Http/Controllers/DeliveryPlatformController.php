@@ -26,30 +26,6 @@ class DeliveryPlatformController extends Controller
         $this->deliveryPlatformService = $deliveryPlatformService;
     }
 
-    public function index(Request $request)
-    {
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
-        $sortKey = $request->sortKey ? $request->sortKey : 'name';
-        $sortBy = $request->sortBy ? $request->sortBy : true;
-
-        return Inertia::render('DeliveryPlatform/Index', [
-            'deliveryProductMappings' => DeliveryProductMappingResource::collection(
-                DeliveryProductMapping::query()
-                    ->when($request->name, function($query, $search) {
-                        $query->where('name', 'LIKE', "%{$search}%");
-                    })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-                    })
-                    ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-                    ->withQueryString()
-            ),
-            'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
-            ),
-        ]);
-    }
-
     public function getCategories($operatorId, $type)
     {
         try {

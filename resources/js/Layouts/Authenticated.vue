@@ -123,18 +123,18 @@ const navigation = [
         href: 'settings',
         permission: 'admin-access vends',
     },
-    {
-        name: 'OAuth & API',
-        icon: CodeBracketSquareIcon,
-        current: false,
-        href: 'oauth-clients',
-        permission: 'admin-access vends',
-    },
+    // {
+    //     name: 'OAuth & API',
+    //     icon: CodeBracketSquareIcon,
+    //     current: false,
+    //     href: 'oauth-clients',
+    //     permission: 'admin-access vends',
+    // },
     {
         name: 'Delivery Platform',
         icon: TruckIcon,
         current: false,
-        href: 'delivery-platforms',
+        href: 'delivery-product-mappings',
         permission: 'admin-access vends',
     },
     // {
