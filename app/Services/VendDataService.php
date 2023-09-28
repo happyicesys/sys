@@ -77,8 +77,23 @@ class VendDataService
           $processedDataArr['data']['channels'] = [];
           $byteData = unpack('C*', $processedDataArr['content']);
 
+          if(!empty($byteData)) {
+            switch($byteDate[1]) {
+              case 65:
+                $processedDataArr['data']['label'] = 'A';
+                break;
+              case 66:
+                $processedDataArr['data']['label'] = 'B';
+                break;
+              case 83:
+                $processedDataArr['data']['label'] = 'S';
+                break;
+              default:
+                $processedDataArr['data']['label'] = 'error';
+            }
+          }
+
           if(!empty($byteData) && $byteData[1] == 83) {
-            $processedDataArr['data']['label'] = 'S';
             $byteSize = (sizeof($byteData) - 5)/ 11;
             if($byteSize == 60) {
               // INT16U id;
@@ -119,12 +134,6 @@ class VendDataService
               // INT16U discount_grp;
               // INT32U Col_Price2;
               // INT16U lock_cnt;
-              if(!empty($byteData) && $byteData[1] == 65) {
-                $processedDataArr['data']['label'] = 'A';
-              }
-              if(!empty($byteData) && $byteData[1] == 66) {
-                $processedDataArr['data']['label'] = 'B';
-              }
               $byteSize = (sizeof($byteData) - 5)/ 19;
               $i = 2;
               $i += 4;
