@@ -78,7 +78,7 @@ class VendDataService
           $byteData = unpack('C*', $processedDataArr['content']);
 
           if(!empty($byteData)) {
-            switch($byteDate[1]) {
+            switch($byteData[1]) {
               case 65:
                 $processedDataArr['data']['label'] = 'A';
                 break;
