@@ -44,11 +44,35 @@
                           ({{ profile.base_currency.currency_symbol }})
                         </span>
                       </th>
+                      <th
+                        scope="col"
+                        class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"
+                        v-if="channels.some(channel => 'amount2' in channel)"
+                      >
+                        Price 2
+                        <span v-if="profile && profile.base_currency">
+                          ({{ profile.base_currency.currency_symbol }})
+                        </span>
+                      </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Error
                       </th>
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
                         Product
+                      </th>
+                      <th
+                        scope="col"
+                        class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"
+                        v-if="channels.some(channel => 'sku_code' in channel)"
+                      >
+                        Product
+                      </th>
+                      <th
+                        scope="col"
+                        class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"
+                        v-if="channels.some(channel => 'locked_qty' in channel)"
+                      >
+                        Locked Qty
                       </th>
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"  v-if="permissions.includes('admin-access vends')">
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-200 px-4 py-2 md:px-3 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -88,6 +112,12 @@
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                         {{ (channel.amount/100).toLocaleString(undefined, {minimumFractionDigits: 2}) }}
+                      </td>
+                      <td
+                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
+                        v-if="channels.some(channel => 'amount2' in channel)"
+                      >
+                        {{ (channel.amount2/100).toLocaleString(undefined, {minimumFractionDigits: 2}) }}
                       </td>
                       <td class="py-1 pl-1 pr-1 text-xs font-medium text-gray-900 sm:pl-1 text-center">
                         <span
@@ -135,6 +165,18 @@
                           >
                           </MultiSelect>
                         </span>
+                      </td>
+                      <td
+                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
+                        v-if="channels.some(channel => 'sku_code' in channel)"
+                      >
+                        {{ channel.sku_code }}
+                      </td>
+                      <td
+                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
+                        v-if="channels.some(channel => 'locked_qty' in channel)"
+                      >
+                        {{ channel.locked_qty }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
                       v-if="permissions.includes('admin-access vends')">

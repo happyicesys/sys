@@ -12,7 +12,7 @@
         <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
         <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
             <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-                <SearchInput placeholderStr="Vend ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+                <SearchInput placeholderStr="4 to 5 Digits Number" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
                     Vend ID
                     <span class="text-[9px]">
                         ("," for multiple)
@@ -215,6 +215,9 @@
                 </SearchInput>
                 <SearchInput placeholderStr="Firmware Ver" v-model="filters.virtual_firmware_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
                     Firmware Ver
+                </SearchInput>
+                <SearchInput placeholderStr="APK Ver" v-model="filters.virtual_apk_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+                    APK Ver
                 </SearchInput>
             </div>
 
@@ -896,6 +899,8 @@
     fanSpeedLowerThan: '',
     balanceStockLessThan: '',
     remainingSkuLessThan: '',
+    virtual_apk_ver: '',
+    virtual_firmware_ver: '',
     sortKey: '',
     sortBy: true,
     numberPerPage: '',

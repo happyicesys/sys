@@ -49,10 +49,14 @@ class SyncVendChannels implements ShouldQueue
                         'vend_id' => $vend->id,
                         'code' => $channel['channel_code'],
                     ], [
-                        'qty' => $channel['qty'],
-                        'capacity' => $channel['capacity'],
                         'amount' => $channel['amount'],
-                        'is_active' => true
+                        'amount2' => isset($channel['amount2']) ? $channel['amount2'] : 0,
+                        'capacity' => $channel['capacity'],
+                        'discount_group' => isset($channel['discount_group']) ? $channel['discount_group'] : null,
+                        'qty' => $channel['qty'],
+                        'is_active' => true,
+                        'locked_qty' => isset($channel['locked_qty']) ? $channel['locked_qty'] : 0,
+                        'sku_code' => isset($channel['sku_code']) ? $channel['sku_code'] : null,
                     ]);
                     if(!$vendChannel->product_id) {
                         $vendChannel->update(['product_id' =>
@@ -69,10 +73,14 @@ class SyncVendChannels implements ShouldQueue
                         'vend_id' => $vend->id,
                         'code' => $channel['channel_code'],
                     ], [
-                        'qty' => $channel['qty'],
-                        'capacity' => $channel['capacity'],
                         'amount' => $channel['amount'],
+                        'amount2' => isset($channel['amount2']) ? $channel['amount2'] : 0,
+                        'capacity' => $channel['capacity'],
+                        'discount_group' => isset($channel['discount_group']) ? $channel['discount_group'] : null,
+                        'qty' => $channel['qty'],
                         'is_active' => false,
+                        'locked_qty' => isset($channel['locked_qty']) ? $channel['locked_qty'] : 0,
+                        'sku_code' => isset($channel['sku_code']) ? $channel['sku_code'] : null,
                     ]);
                 }
             }

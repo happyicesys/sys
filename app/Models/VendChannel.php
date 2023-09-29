@@ -11,13 +11,17 @@ class VendChannel extends Model
     use HasFactory;
 
     protected $fillable = [
-        'code',
-        'qty',
-        'capacity',
         'amount',
+        'amount2',
+        'capacity',
+        'code',
+        'discount_group',
         'is_active',
-        'vend_id',
+        'locked_qty',
         'product_id',
+        'sku_code',
+        'qty',
+        'vend_id',
     ];
 
     // relationships
