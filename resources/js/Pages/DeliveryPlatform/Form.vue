@@ -38,16 +38,16 @@
                 >
                 </MultiSelect>
               </div>
-              <div class="sm:col-span-6">
+              <div class="sm:col-span-6" v-if="form.operator_id && deliveryPlatformOperatorOptions.length">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Operator
+                  Delivery Platform
                 </label>
                 <MultiSelect
-                  v-model="form.operator_id"
-                  :options="operatorOptions"
+                  v-model="form.delivery_platform_operator_id"
+                  :options="deliveryPlatformOperatorOptions"
                   trackBy="id"
                   valueProp="id"
-                  label="full_name"
+                  label="name"
                   placeholder="Select"
                   open-direction="bottom"
                   class="mt-1"
@@ -108,6 +108,7 @@ const props = defineProps({
     type: String,
   })
 
+  const deliveryPlatformOperatorOptions = ref([])
   const form = ref(
     useForm(getDefaultForm())
   )
@@ -138,13 +139,29 @@ function getDefaultForm() {
 }
 
 function onOperatorIdSelected() {
-  form.value.operator_id = form.value.operator_id.id
+  deliveryPlatformOperatorOptions.value = []
+
   router.reload({
       only: ['deliveryPlatformOperators'],
+      data: {
+        operator_id: form.value.operator_id.id,
+      },
+      replace: true,
       preserveState: true,
-      preserveScroll: true,
   })
-  console.log(JSON.parse(JSON.stringify(props.deliveryPlatformOperators)))
+
+  deliveryPlatformOperatorOptions.value = [
+    ...props.deliveryPlatformOperators.data.map((data) => {return {id: data.id, name: data.deliveryPlatform.name}})
+  ]
+  // router.visit(
+  //   route('delivery-product-mappings.create', {
+
+  //   }),{
+  //     only: ['deliveryPlatformOperators'],
+  //     preserveState: true,
+  //     preserveScroll: true,
+  //   }
+  // )
 }
 
 
@@ -160,6 +177,7 @@ function submit() {
     .post('/vends/create', {
       preserveState: true,
       replace: true,
+      resetOnSuccess: true,
     })
   }
 

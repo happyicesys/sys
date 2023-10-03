@@ -123,7 +123,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('delivery-product-mappings')->group(function() {
         Route::get('/', [DeliveryProductMappingController::class, 'index'])->name('delivery-product-mappings');
-        Route::get('/create', [DeliveryProductMappingController::class, 'createOrUpdate']);
+        Route::get('/create', [DeliveryProductMappingController::class, 'createOrUpdate'])->name('delivery-product-mappings.create');
 
     });
 

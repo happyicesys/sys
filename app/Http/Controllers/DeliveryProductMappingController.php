@@ -48,16 +48,17 @@ class DeliveryProductMappingController extends Controller
     {
         // dd($request->all());
         return Inertia::render('DeliveryPlatform/Form', [
-            'categoryApiOptions' => Inertia::lazy(fn() => [
+            'categoryApiOptions' => Inertia::lazy(fn() =>[
                 // 'grab' => route('delivery-platform.get-categories', ['operatorId' => 1, 'type' => 'grab']),
-                $this->deliveryPlatformService->getCategories($request->operator_id, $request->type),
+                $this->deliveryPlatformService->getCategories(Operator::find($request->operator_id), $request->type),
             ]),
-            'deliveryPlatformOperators' => Inertia::lazy(fn() =>
-                DeliveryPlatformOperatorResource::collection(
-                    DeliveryPlatformOperator::query()
-                    ->where('operator_id', $request->operator_id)
-                    ->get(),
-                )
+            'deliveryPlatformOperators' =>
+                fn() =>
+                    DeliveryPlatformOperatorResource::collection(
+                        DeliveryPlatformOperator::query()
+                        ->with('deliveryPlatform')
+                        ->where('operator_id', $request->operator_id)
+                        ->get(),
             ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
