@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('vends', function (Blueprint $table) {
-            $table->dropColumn('virtual_apk_ver');
-            $table->integer('virtual_apk_ver')->virtualAs('json_unquote(apk_ver_json->"$.apkver")')->index();
+            // $table->dropColumn('virtual_apk_ver');
+            // $table->integer('virtual_apk_ver')->virtualAs('json_unquote(apk_ver_json->"$.apkver")')->index();
         });
     }
 
