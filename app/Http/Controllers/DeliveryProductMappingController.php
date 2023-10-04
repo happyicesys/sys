@@ -6,10 +6,15 @@ use App\Http\Resources\DeliveryProductMappingResource;
 use App\Http\Resources\DeliveryProductMappingItemResource;
 use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\ProductMappingResource;
+use App\Http\Resources\ProductMappingItemResource;
+use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingItem;
 use App\Models\Operator;
+use App\Models\ProductMapping;
+use App\Models\ProductMappingItem;
 use App\Services\DeliveryPlatformService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -46,23 +51,31 @@ class DeliveryProductMappingController extends Controller
 
     public function createOrUpdate(Request $request)
     {
-        // dd($request->all());
         return Inertia::render('DeliveryPlatform/Form', [
             'categoryApiOptions' => Inertia::lazy(fn() =>[
-                // 'grab' => route('delivery-platform.get-categories', ['operatorId' => 1, 'type' => 'grab']),
-                $this->deliveryPlatformService->getCategories(Operator::find($request->operator_id), $request->type),
+                $this->deliveryPlatformService->getCategories(Operator::find($request->operator_id), DeliveryPlatformOperator::find($request->delivery_platform_operator_id)->deliveryPlatform->slug),
             ]),
-            'deliveryPlatformOperators' =>
-                fn() =>
-                    DeliveryPlatformOperatorResource::collection(
-                        DeliveryPlatformOperator::query()
-                        ->with('deliveryPlatform')
-                        ->where('operator_id', $request->operator_id)
-                        ->get(),
-            ),
             'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
+                Operator::query()
+                    ->with('deliveryPlatformOperators.deliveryPlatform')
+                    ->orderBy('name')
+                    ->get()
             ),
+            'productMappingItems' => Inertia::lazy(fn() => [
+                ProductMappingItemResource::collection(
+                    ProductMappingItem::query()
+                        ->with('product.thumbnail')
+                        ->where('product_mapping_id', $request->product_mapping_id)
+                        ->get()
+                )
+            ]),
+            'productMappingOptions' => Inertia::lazy(fn() =>[
+                ProductMappingResource::collection(
+                    ProductMapping::query()
+                        ->where('operator_id', $request->operator_id)
+                        ->get()
+                ),
+            ]),
             'type' => $request->id ? 'edit' : 'create',
         ]);
     }

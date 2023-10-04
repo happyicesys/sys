@@ -203,7 +203,7 @@ class SyncSingleCustomer implements ShouldQueue
                     $vend = $customer->vendBinding->vend;
                     $vend->update([
                         'begin_date' => $beginDate,
-                        'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? false : $vend->is_active,
+                        'is_active' => isset($customerCollection['active']) && $customerCollection['active'] != 'Yes' ? false : $vend->is_active,
                         'termination_date' => $vend->termination_date ? $vend->termination_date : (isset($customerCollection['active']) && $customerCollection['active'] != 'Yes' ? Carbon::now() : null),
                     ]);
 
@@ -217,7 +217,7 @@ class SyncSingleCustomer implements ShouldQueue
                         $vendBinding->update([
                             'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
                             'begin_date' => $beginDate,
-                            'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? false : $vendBinding->is_active,
+                            'is_active' => isset($customerCollection['active']) && $customerCollection['active'] != 'Yes' ? false : $vendBinding->is_active,
                             'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
                             'termination_date' => $vend->termination_date ? $vend->termination_date : (isset($customerCollection['active']) && $customerCollection['active'] != 'Yes' ? Carbon::now() : null),
                             'person_id' => $customerCollection['id'],
