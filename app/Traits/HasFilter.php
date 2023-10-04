@@ -136,7 +136,7 @@ trait HasFilter {
               $search = [$search];
           }
 
-          $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->where('vends.is_active', true)->pluck('vend_id'));
+          $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->where('vend_channels.is_active', true)->pluck('vend_id'));
       })
       ->when($request->serialNum, function($query, $search) {
           $query->where('serial_num', 'LIKE', "%{$search}%");
