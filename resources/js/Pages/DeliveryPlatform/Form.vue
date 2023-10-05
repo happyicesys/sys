@@ -68,6 +68,7 @@
                   placeholder="Select"
                   open-direction="bottom"
                   class="mt-1"
+                  @selected="onCategoryJsonSelected"
                 >
                 </MultiSelect>
               </div>
@@ -87,6 +88,79 @@
                   @selected="onProductMappingIdSelected"
                 >
                 </MultiSelect>
+              </div>
+
+            <!-- <div class="sm:col-span-6" v-if="form.product_mapping_id"> -->
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.product_mapping_id">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900">Delivery Platform Product(s) </span>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="form.product_mapping_id">
+                <FormInput v-model="form.channel_code" :error="form.errors.channel_code" placeholderStr="Channel ID">
+                  Channel ID
+                </FormInput>
+              </div>
+              <div v-if="form.product_mapping_id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Product
+                </label>
+                <MultiSelect
+                  v-model="form.product_id"
+                  :options="productOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="full_name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.product_id">
+                  {{ form.errors.product_id }}
+                </div>
+              </div>
+              <div v-if="form.product_mapping_id">
+                <FormInput v-model="form.amount" :error="form.errors.amount" placeholderStr="Platform Price">
+                  Price
+                </FormInput>
+              </div>
+              <div v-if="form.product_mapping_id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Platform SubCategory
+                </label>
+                <MultiSelect
+                  v-model="form.sub_category_json"
+                  :options="subCategoryOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+              </div>
+
+              <div class="sm:col-span-1" v-if="form.product_mapping_id">
+                <Button
+                type="button"
+                @click="addDeliveryProductMappingItem()"
+                class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
+                :class="[!form.channel_code || !form.product_id ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="!form.channel_code || !form.product_id"
+                >
+                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                  <span>
+                    Add
+                  </span>
+                </Button>
               </div>
 
               <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.product_mapping_id">
@@ -112,12 +186,18 @@
                             Price
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Platform SubCategory
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Action
                           </th>
                         </tr>
                       </thead>
                       <tbody class="bg-white">
                         <tr v-for="(productMappingItem, productMappingItemIndex) in productMappingItems" :key="productMappingItem.id" :class="productMappingItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                          <!-- <td>
+                            {{ productMappingItem }}
+                          </td> -->
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             {{ productMappingItemIndex + 1 }}
                           </td>
@@ -141,10 +221,23 @@
                             <FormInput v-model="productMappingItem.delivery_platform_amount" :error="form.errors.delivery_platform_amount" placeholderStr="Platform Price">
                             </FormInput>
                           </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            <MultiSelect
+                              v-model="productMappingItem.delivery_platform_sub_category_json"
+                              :options="subCategoryOptions"
+                              trackBy="id"
+                              valueProp="id"
+                              label="name"
+                              placeholder="Select"
+                              open-direction="bottom"
+                              class="mt-1"
+                            >
+                            </MultiSelect>
+                          </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button
                               class="bg-red-400 hover:bg-red-500 text-white"
-                              @click="unbindProductMappingItem(productMappingItem)"
+                              @click="removeDeliveryProductMappingItem(productMappingItem)"
                             >
                               <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                             </Button>
@@ -160,7 +253,7 @@
                   </div>
                 </div>
               </div>
-              </div>
+            </div>
 
             </div>
             <div class="sm:col-span-6">
@@ -202,7 +295,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchVendCodeInput from '@/Components/SearchVendCodeInput.vue';
-import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
@@ -213,6 +306,7 @@ const props = defineProps({
     operatorOptions: Object,
     productMappingItems: Object,
     productMappingOptions: [Array, Object],
+    productOptions: Object,
     type: String,
   })
 
@@ -225,6 +319,8 @@ const props = defineProps({
   const operatorOptions = ref([])
   const productMappingOptions = ref([])
   const productMappingItems = ref([])
+  const productOptions = ref([])
+  const subCategoryOptions = ref([])
   const typeName = ref('')
   const permissions = usePage().props.auth.permissions
 
@@ -237,6 +333,7 @@ onMounted(() => {
     operatorOptions.value = [
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
+    productOptions.value = props.productOptions.data
 })
 
 function getDefaultForm() {
@@ -247,7 +344,27 @@ function getDefaultForm() {
     name: '',
     operator_id: '',
     product_mapping_id: '',
+    sub_category_json: '',
   }
+}
+
+function addDeliveryProductMappingItem() {
+  if(productMappingItems.value.map(function(productMapping) { return productMapping.channel_code; }).indexOf(form.value.channel_code) < 0) {
+    productMappingItems.value.push({
+      product: form.value.product_id,
+      channel_code: form.value.channel_code,
+      delivery_platform_sub_category_json: form.value.sub_category_json,
+      delivery_platform_amount: form.value.amount,
+    })
+    productMappingItems.value.sort((a, b) => a.channel_code - b.channel_code)
+  }
+
+  productMappingItems.value.splice(productMappingItems.value.indexOf(productMappingItem), 1)
+}
+
+function onCategoryJsonSelected() {
+  subCategoryOptions.value = []
+  subCategoryOptions.value = form.value.category_json.subCategories
 }
 
 function onDeliveryPlatformOperatorIdSelected() {
@@ -264,6 +381,7 @@ function onDeliveryPlatformOperatorIdSelected() {
       productMappingOptions.value = [
         ...props.productMappingOptions[0].data.map((data) => {return {id: data.id, name: data.name}})
       ]
+      subCategoryOptions.value = []
     }
   })
 }
@@ -288,6 +406,10 @@ function onProductMappingIdSelected() {
       ]
     }
   })
+}
+
+function removeDeliveryProductMappingItem(productMappingItem) {
+  productMappingItems.value.splice(productMappingItems.value.indexOf(productMappingItem), 1)
 }
 
 function submit() {

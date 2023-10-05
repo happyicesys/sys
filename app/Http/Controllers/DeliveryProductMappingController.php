@@ -6,6 +6,7 @@ use App\Http\Resources\DeliveryProductMappingResource;
 use App\Http\Resources\DeliveryProductMappingItemResource;
 use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\ProductResource;
 use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\ProductMappingItemResource;
 use App\Models\DeliveryPlatform;
@@ -13,6 +14,7 @@ use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingItem;
 use App\Models\Operator;
+use App\Models\Product;
 use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Services\DeliveryPlatformService;
@@ -76,6 +78,15 @@ class DeliveryProductMappingController extends Controller
                         ->get()
                 ),
             ]),
+            'productOptions' => ProductResource::collection(
+                Product::with([
+                    'thumbnail'
+                ])
+                ->where('is_inventory', true)
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get()
+            ),
             'type' => $request->id ? 'edit' : 'create',
         ]);
     }

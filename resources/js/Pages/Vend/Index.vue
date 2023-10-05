@@ -18,22 +18,22 @@
                         ("," for multiple)
                     </span>
                 </SearchInput>
-                <SearchInput placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
+                <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
                     Channel ID
                     <span class="text-[9px]">
                         ("," for multiple)
                     </span>
                 </SearchInput>
-                <SearchInput placeholderStr="Serial Num" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
+                <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Serial Num" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
                     Serial Num
                 </SearchInput>
                 <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @keyup.enter="onSearchFilterUpdated()">
                     Temp &gt;&gt;
                 </SearchInput>
-                <SearchInput placeholderStr="Number" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()">
+                <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Number" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()">
                     T1-T2 Delta &gt;&gt;
                 </SearchInput>
-                <div>
+                <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Channel Errors
                     </label>
@@ -52,10 +52,10 @@
                 <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
                     Cust ID
                 </SearchInput>
-                <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+                <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
                     Cust Name
                 </SearchInput>
-                <div v-if="permissions.includes('admin-access vends')">
+                <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  v-if="permissions.includes('admin-access vends')">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Category
                     </label>
@@ -72,7 +72,7 @@
                     >
                     </MultiSelect>
                 </div>
-                <div v-if="permissions.includes('admin-access vends')">
+                <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  v-if="permissions.includes('admin-access vends')">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Group
                     </label>
@@ -137,7 +137,7 @@
                     >
                     </MultiSelect>
                 </div>
-                <div>
+                <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" >
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Sensor Status
                     </label>
@@ -153,7 +153,7 @@
                     >
                     </MultiSelect>
                 </div>
-                <div>
+                <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" >
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Is Door Open
                     </label>
@@ -169,7 +169,7 @@
                     >
                     </MultiSelect>
                 </div>
-                <SearchInput placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan" @keyup.enter="onSearchFilterUpdated()">
+                <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan" @keyup.enter="onSearchFilterUpdated()">
                     Fan Speed &lt;&lt;
                 </SearchInput>
                 <div v-if="permissions.includes('admin-access vends')">
@@ -188,7 +188,7 @@
                     >
                     </MultiSelect>
                 </div>
-                <div>
+                <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']">
                     <label for="text" class="block text-sm font-medium text-gray-700">
                         Location Type
                     </label>
@@ -204,32 +204,47 @@
                     >
                     </MultiSelect>
                 </div>
-                <SearchInput placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()">
+                <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()">
                     Last Visited Day &gt;&gt;
                 </SearchInput>
-                <SearchInput placeholderStr="Balance Stock Less Than" v-model="filters.balanceStockLessThan" @keyup.enter="onSearchFilterUpdated()">
+                <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Balance Stock Less Than" v-model="filters.balanceStockLessThan" @keyup.enter="onSearchFilterUpdated()">
                     Balance Stock(%) &lt;&lt;
                 </SearchInput>
-                <SearchInput placeholderStr="Remaining SKU Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()">
+                <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Remaining SKU Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()">
                     Remaining SKU(%) &lt;&lt;
                 </SearchInput>
-                <SearchInput placeholderStr="Firmware Ver" v-model="filters.virtual_firmware_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+                <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Firmware Ver" v-model="filters.virtual_firmware_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
                     Firmware Ver
                 </SearchInput>
-                <SearchInput placeholderStr="APK Ver" v-model="filters.virtual_apk_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+                <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="APK Ver" v-model="filters.virtual_apk_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
                     APK Ver
                 </SearchInput>
             </div>
 
             <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
                 <div class="mt-3">
-                    <div class="flex flex-col md:flex-row">
+                    <div class="flex flex-col space-y-1 md:flex-row md:space-y-0 md:space-x-1">
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                         @click="onSearchFilterUpdated()"
                         >
                             <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                             <span>
                                 Search
+                            </span>
+                        </Button>
+                        <Button class="md:hidden inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        @click="onShowAllFiltersClicked()"
+                        >
+                            <span v-if="!showAllFilters" class="flex">
+                                <ChevronDoubleDownIcon class="h-4 w-4" aria-hidden="true"/>
+                                Show
+                            </span>
+                            <span v-if="showAllFilters" class="flex">
+                                <ChevronDoubleUpIcon class="h-4 w-4" aria-hidden="true"/>
+                                Hide
+                            </span>
+                            <span>
+                                All Filters
                             </span>
                         </Button>
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -311,7 +326,7 @@
                     </MultiSelect>
                 </div>
             </div>
-            <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
+            <dl class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                     <dt class="truncate text-sm font-medium text-gray-500">Total Sales (Last 30 days)</dt>
                     <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
@@ -853,7 +868,7 @@
   import Paginator from '@/Components/Paginator.vue';
   import SearchInput from '@/Components/SearchInput.vue';
   import MultiSelect from '@/Components/MultiSelect.vue';
-  import { ArrowDownTrayIcon, ArrowPathIcon, MagnifyingGlassIcon, BackspaceIcon, PlusCircleIcon, PencilSquareIcon} from '@heroicons/vue/20/solid';
+  import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, MagnifyingGlassIcon, BackspaceIcon, PlusCircleIcon, PencilSquareIcon} from '@heroicons/vue/20/solid';
   import TableHead from '@/Components/TableHead.vue';
   import TableData from '@/Components/TableData.vue';
   import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -918,6 +933,7 @@
   const locationTypeOptions = ref([])
   const numberPerPageOptions = ref([])
   const operatorOptions = ref([])
+  const showAllFilters = ref(false)
   const showChannelOverviewModal = ref(false)
   const showCreateModal = ref(false)
   const showEditModal = ref(false)
@@ -1031,6 +1047,11 @@
 
     function onModalClose() {
         showEditModal.value = false
+    }
+
+    function onShowAllFiltersClicked() {
+        showAllFilters.value = !showAllFilters.value
+        console.log(showAllFilters.value)
     }
 
     function onSearchFilterUpdated() {

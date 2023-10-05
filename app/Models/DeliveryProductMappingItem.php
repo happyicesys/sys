@@ -18,7 +18,7 @@ class DeliveryProductMappingItem extends Model
     ];
 
     protected $casts = [
-        'category_json' => 'json',
+        'sub_category_json' => 'json',
     ];
 
     // relationships

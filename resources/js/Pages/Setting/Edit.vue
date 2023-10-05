@@ -122,10 +122,10 @@
               </div>
             </div>
             <div class="sm:col-span-6">
-              <div class="flex space-x-1 mt-5 justify-end">
-                <Link href="/settings">
+              <div class="flex flex-col space-y-1 sm:flex-row sm:space-x-1 sm:space-y-0 mt-5 justify-end">
+                <Link href="/settings" class="bg-gray-300 hover:bg-gray-400 text-gray-700 rounded">
                   <Button
-                    class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                   class="space-x-1"
                   >
                     <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                     <span>
