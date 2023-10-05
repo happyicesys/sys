@@ -12,6 +12,7 @@ use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\Operator;
 use App\Models\OperatorPaymentGateway;
+use App\Models\OperatorVend;
 use App\Models\PaymentGateway;
 use App\Models\Vend;
 use Carbon\Carbon;
@@ -34,19 +35,19 @@ class OperatorController extends Controller
         $sortBy = $request->sortBy ? $request->sortBy : true;
 
         return Inertia::render('Operator/Index', [
-            'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
-            'deliveryPlatformOperatorTypes' => [
-                DeliveryPlatformOperator::TYPE_SANDBOX,
-                DeliveryPlatformOperator::TYPE_PRODUCTION
-            ],
+            // 'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
+            // 'deliveryPlatformOperatorTypes' => [
+            //     DeliveryPlatformOperator::TYPE_SANDBOX,
+            //     DeliveryPlatformOperator::TYPE_PRODUCTION
+            // ],
             'operators' => OperatorResource::collection(
                 Operator::with([
                     'address:id,postcode',
-                    'deliveryPlatformOperators.deliveryPlatform',
+                    // 'deliveryPlatformOperators.deliveryPlatform',
                     'country:id,name,code,currency_name,currency_symbol',
-                    'operatorPaymentGateways.paymentGateway',
+                    // 'operatorPaymentGateways.paymentGateway',
                     'vends:id,code,name',
-                    'vends.latestVendBinding.customer:id,code,name',
+                    // 'vends.latestVendBinding.customer:id,code,name',
                     ])
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
@@ -57,100 +58,94 @@ class OperatorController extends Controller
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),
-            'operatorPaymentGatewayTypes' => [
-                OperatorPaymentGateway::TYPE_SANDBOX,
-                OperatorPaymentGateway::TYPE_PRODUCTION
-            ],
-            'timezones' => $timezones,
-            'countryDeliveryPlatforms' =>
-                DeliveryPlatformResource::collection(
-                    DeliveryPlatform::with(['country'])
-                    ->when($request->country_id, function($query, $search) {
-                        $query->where('country_id', $search);
-                    })
-                    ->orderBy('name')
-                    ->get()
-                )
-            ,
-            'countryPaymentGateways' =>
-                PaymentGatewayResource::collection(
-                    PaymentGateway::with(['country'])
-                    ->when($request->country_id, function($query, $search) {
-                        $query->where('country_id', $search);
-                    })
-                    ->orderBy('name')
-                    ->get()
-                )
-            ,
-            'unbindedVends' => fn () =>
-                VendResource::collection(
-                    Vend::with([
-                        'latestVendBinding.customer:id,code,name'
-                    ])->whereNotIn('id', function($query) use ($request) {
-                        $query->select('vend_id')
-                            ->from('operator_vend')
-                            ->where('operator_id', $request->operator_id);
-                    })
-                    ->orderBy('code')
-                    ->get()
-                )
-            ,
-            'operator' => fn() => OperatorResource::make(
-                Operator::with([
-                    'address',
-                    'address.country',
-                    'country',
-                    'deliveryPlatformOperators.deliveryPlatform',
-                    'operatorPaymentGateways.paymentGateway',
-                    'vends',
-                    'vends.latestVendBinding.customer',
-                ])
-                ->when($request->name, function($query, $search) {
-                    $query->where('name', 'LIKE', "%{$search}%");
-                })
-                ->when($request->id, function($query, $search) {
-                    $query->where('id', $search);
-                })
-                ->first()
-            )
+            // 'operatorPaymentGatewayTypes' => [
+            //     OperatorPaymentGateway::TYPE_SANDBOX,
+            //     OperatorPaymentGateway::TYPE_PRODUCTION
+            // ],
+            // 'timezones' => $timezones,
+            // 'countryDeliveryPlatforms' =>
+            //     DeliveryPlatformResource::collection(
+            //         DeliveryPlatform::with(['country'])
+            //         ->when($request->country_id, function($query, $search) {
+            //             $query->where('country_id', $search);
+            //         })
+            //         ->orderBy('name')
+            //         ->get()
+            //     )
+            // ,
+            // 'countryPaymentGateways' =>
+            //     PaymentGatewayResource::collection(
+            //         PaymentGateway::with(['country'])
+            //         ->when($request->country_id, function($query, $search) {
+            //             $query->where('country_id', $search);
+            //         })
+            //         ->orderBy('name')
+            //         ->get()
+            //     )
+            // ,
+            // 'unbindedVends' => fn () =>
+            //     VendResource::collection(
+            //         Vend::with([
+            //             'latestVendBinding.customer:id,code,name'
+            //         ])->whereNotIn('id', function($query) use ($request) {
+            //             $query->select('vend_id')
+            //                 ->from('operator_vend')
+            //                 ->where('operator_id', $request->operator_id);
+            //         })
+            //         ->orderBy('code')
+            //         ->get()
+            //     )
+            // ,
+            // 'operator' => fn() => OperatorResource::make(
+            //     Operator::with([
+            //         'address',
+            //         'address.country',
+            //         'country',
+            //         'deliveryPlatformOperators.deliveryPlatform',
+            //         'operatorPaymentGateways.paymentGateway',
+            //         'vends',
+            //         'vends.latestVendBinding.customer',
+            //     ])
+            //     ->when($request->name, function($query, $search) {
+            //         $query->where('name', 'LIKE', "%{$search}%");
+            //     })
+            //     ->when($request->id, function($query, $search) {
+            //         $query->where('id', $search);
+            //     })
+            //     ->first()
+            // )
         ]);
     }
 
     public function create(Request $request)
     {
-        $request->validate([
-            'name' => 'required',
+        $timezones = DateTimeZone::listIdentifiers();
+
+        return Inertia::render('Operator/Create', [
+            'countries' => CountryResource::collection(
+                Country::query()
+                    ->orderBy('sequence')
+                    ->orderBy('name')
+                    ->get()
+            ),
+            'timezones' => $timezones,
         ]);
-
-        if(!$request->has('gst_vat_rate') or $request->gst_vat_rate == null) {
-            $request->merge(['gst_vat_rate' => 0]);
-        }
-        Operator::create($request->all());
-
-        return redirect()->route('operators');
     }
 
-    public function edit($id)
+    public function edit(Request $request, $id)
     {
         $operator = Operator::query()
             ->with([
+                'address',
+                'address.country',
                 'country',
+                'deliveryPlatformOperators.deliveryPlatform',
                 'operatorPaymentGateways.paymentGateway',
-                'vends',
-                'vends.latestVendBindingAll.customer',
+                'vends:id,code,name',
+                'vends.latestVendBinding.customer:id,code,name',
             ])
             ->find($id);
-        $unbindedVends = Vend::query()
-            ->with([
-                'latestVendBindingAll.customer',
-            ])
-            ->whereNotIn('id', function($query) use ($id) {
-                $query->select('vend_id')
-                    ->from('operator_vend')
-                    ->where('operator_id', $id);
-            })
-            ->orderBy('code')
-            ->get();
+        $timezones = DateTimeZone::listIdentifiers();
 
         return Inertia::render('Operator/Edit', [
             'countries' => CountryResource::collection(
@@ -176,14 +171,84 @@ class OperatorController extends Controller
                     ->get()
                 )
             ,
+            'deliveryPlatformOperatorTypes' => [
+                DeliveryPlatformOperator::TYPE_SANDBOX,
+                DeliveryPlatformOperator::TYPE_PRODUCTION
+            ],
             'operatorPaymentGatewayTypes' => [
                 OperatorPaymentGateway::TYPE_SANDBOX,
                 OperatorPaymentGateway::TYPE_PRODUCTION
             ],
-            'operator' => $operator,
+            'operator' => OperatorResource::make(
+                $operator
+            ),
             'timezones' => $timezones,
-            'unbindedVends' => $unbindedVends,
+            'type' => 'update',
         ]);
+    }
+
+    public function deleteDeliveryPlatformOperator($id)
+    {
+        $deliveryPlatformOperator = DeliveryPlatformOperator::findOrFail($id);
+        $operatorId = $deliveryPlatformOperator->operator_id;
+
+        $deliveryPlatformOperator->delete();
+
+        return redirect()->route('operators.edit', [$operatorId]);
+    }
+
+    public function deleteOperatorPaymentGateway($id)
+    {
+        $operatorPaymentGateway = OperatorPaymentGateway::findOrFail($id);
+        $operatorId = $operatorPaymentGateway->operator_id;
+
+        $operatorPaymentGateway->delete();
+
+        return redirect()->route('operators.edit', [$operatorId]);
+    }
+
+    public function deleteOperatorVend($id)
+    {
+        $operatorVend = OperatorVend::findOrFail($id);
+        $operatorId = $operatorVend->operator_id;
+
+        $operatorVend->delete();
+
+        return redirect()->route('operators.edit', [$operatorId]);
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'country_id' => 'required',
+            'name' => 'required',
+            'timezone' => 'required',
+        ]);
+
+        if(!$request->has('gst_vat_rate') or $request->gst_vat_rate == null) {
+            $request->merge(['gst_vat_rate' => 0]);
+        }
+        $operator = Operator::create($request->all());
+
+        // return redirect()->route('operators');
+        return redirect()->route('operators.edit', [$operator->id]);
+    }
+
+    public function storeDeliveryPlatformOperator(Request $request, $operatorId)
+    {
+        $operator = Operator::findOrFail($operatorId);
+        $operator->deliveryPlatformOperators()->create($request->all());
+
+        return redirect()->route('operators.edit', [$operatorId]);
+    }
+
+    public function storeOperatorPaymentGateway(Request $request, $operatorId)
+    {
+        // dd($request->all());
+        $operator = Operator::findOrFail($operatorId);
+        $operator->operatorPaymentGateways()->create($request->all());
+
+        return redirect()->route('operators.edit', [$operatorId]);
     }
 
     public function update(Request $request, $operatorId)
@@ -195,58 +260,7 @@ class OperatorController extends Controller
         $operator = Operator::findOrFail($operatorId);
         $operator->update($request->all());
 
-        $originalVends = collect($request->vends)->transform(function($vend) {
-            return $vend['id'];
-        });
-        $editedVends = collect($request->operator['vends'])->transform(function($vend) {
-            return $vend['id'];
-        });
-        $removeVends = $originalVends->diff($editedVends);
-        $addVends = $editedVends->diff($originalVends);
-        if($removeVends) {
-            foreach($removeVends as $removeVend) {
-                $operator->vends()->detach($removeVend);
-            }
-        }
-        if($addVends) {
-            foreach($addVends as $addVend) {
-                $operator->vends()->attach($addVend);
-            }
-        }
-
-        if($request->has('operator')) {
-            if($request->has('paymentGateways')) {
-                $operator->operatorPaymentGateways()->delete();
-                if($request->operator['operatorPaymentGateways']) {
-                    foreach($request->operator['operatorPaymentGateways'] as $operatorPaymentGateway) {
-                        $operatorPaymentGateway['payment_gateway_id'] = $operatorPaymentGateway['paymentGateway']['id'];
-                        $operator->operatorPaymentGateways()->create($operatorPaymentGateway);
-                    }
-                }
-            }
-
-            // if($request->has('deliveryPlatforms')) {
-            //     $operator->deliveryPlatformOperators()->delete();
-            //     if($request->operator['deliveryPlatformOperators']) {
-            //         foreach($request->operator['deliveryPlatformOperators'] as $deliveryPlatformOperator) {
-            //             $deliveryPlatformOperator['delivery_platform_id'] = $deliveryPlatformOperator['deliveryPlatform']['id'];
-            //             $createdDeliveryPlatformOperator = $operator->deliveryPlatformOperators()->create($deliveryPlatformOperator);
-            //             if(isset($deliveryPlatformOperator['oauth_client_id']) and isset($deliveryPlatformOperator['oauth_client_secret']) and $deliveryPlatformOperator['oauth_client_id'] and $deliveryPlatformOperator['oauth_client_secret']) {
-            //                 $createdDeliveryPlatformOperator->externalOauthToken()->updateOrCreate([
-            //                     'client_id' => $deliveryPlatformOperator['oauth_client_id'],
-            //                     'client_secret' => $deliveryPlatformOperator['oauth_client_secret'],
-            //                 ], [
-            //                     'granted_type' => $createdDeliveryPlatformOperator->deliveryPlatform->default_granted_type,
-            //                     'scopes' => $createdDeliveryPlatformOperator->deliveryPlatform->default_scopes,
-            //                 ]);
-            //             }
-            //         }
-            //     }
-            // }
-
-        }
-
-        return redirect()->route('operators');
+        return redirect()->route('operators.edit', [$operatorId]);
     }
 
     public function delete($operatorId)
@@ -260,9 +274,10 @@ class OperatorController extends Controller
     public function bindVend(Request $request)
     {
         $operator = Operator::findOrFail($request->operator_id);
-        $operator->vends()->attach($request->vend_id);
+        $vend = Vend::where('code', $request->code)->firstOrFail();
+        $operator->vends()->attach($vend->id);
 
-        return redirect()->route('operators');
+        return redirect()->route('operators.edit', [$operator->id]);
     }
 
     public function unbindVend(Request $request)
@@ -270,7 +285,7 @@ class OperatorController extends Controller
         $operator = Operator::findOrFail($request->operator_id);
         $operator->vends()->detach($request->vend_id);
 
-        return redirect()->route('operators');
+        return redirect()->route('operators.edit', [$operator->id]);
     }
 
     public function bindDeliveryPlatform(Request $request, $id)

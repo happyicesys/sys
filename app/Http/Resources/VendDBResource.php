@@ -58,6 +58,7 @@ class VendDBResource extends JsonResource
             'vendChannelErrorLogsJson' => isset($this->vend_channel_error_logs_json) ? json_decode($this->vend_channel_error_logs_json) : null,
             'vendChannelTotalsJson' => isset($this->vend_channel_totals_json) ? json_decode($this->vend_channel_totals_json) : null,
             'vendTransactionTotalsJson' => isset($this->vend_transaction_totals_json) ? json_decode($this->vend_transaction_totals_json) : null,
+            'virtual_vend_records_thirty_days_amount_average' => isset($this->virtual_vend_records_thirty_days_amount_average) ? $this->virtual_vend_records_thirty_days_amount_average/100 : 0,
             'this_month_count' => isset($this->this_month_count) ? $this->this_month_count : 0,
             'this_month_revenue' => isset($this->this_month_revenue) ? $this->this_month_revenue/100 : 0,
             'this_month_gross_profit' => isset($this->this_month_gross_profit) ? $this->this_month_gross_profit/100 : 0,

@@ -166,6 +166,7 @@ class VendController extends Controller
                 'vends.vend_channel_error_logs_json',
                 'vends.vend_transaction_totals_json',
                 'vends.vend_type_id',
+                'vends.virtual_vend_records_thirty_days_amount_average',
                 'vends.is_active',
                 'customers.cms_invoice_history',
                 'customers.code AS customer_code',
@@ -229,9 +230,19 @@ class VendController extends Controller
     public function searchVendCode($vendCode)
     {
         $vends = Vend::query()
-            ->where('code', 'LIKE', "%{$vendCode}%")
+            ->leftJoin('operator_vend', function($query) {
+                $query->on('operator_vend.vend_id', '=', 'vends.id')
+                        ->where('operator_vend.is_main', true)
+                        ->latest('operator_vend.begin_date')
+                        ->limit(1);
+            })
+            ->leftJoin('operators', 'operators.id', '=', 'operator_vend.operator_id')
+            ->where('vends.code', 'LIKE', "%{$vendCode}%")
             ->select(
-                'id', 'code'
+                'vends.id',
+                'vends.code AS vend_code',
+                'operators.code AS operator_code',
+                'operators.name AS operator_name'
             )
             ->get();
 

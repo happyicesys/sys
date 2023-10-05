@@ -604,7 +604,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['modalClose'])
-
 const countryOptions = ref([])
 const form = ref(
   useForm(getDefaultForm())
@@ -616,7 +615,6 @@ const deliveryPlatformOperators = ref([])
 const deliveryPlatformOperatorTypes = ref([])
 const operatorPaymentGateways = ref([])
 const operatorPaymentGatewayTypes = ref([])
-
 const unbindedVendOptions = ref([])
 
 onMounted(() => {

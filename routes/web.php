@@ -124,7 +124,11 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('delivery-product-mappings')->group(function() {
         Route::get('/', [DeliveryProductMappingController::class, 'index'])->name('delivery-product-mappings');
         Route::get('/create', [DeliveryProductMappingController::class, 'createOrUpdate'])->name('delivery-product-mappings.create');
+    });
 
+    Route::prefix('delivery-platform-operators')->group(function() {
+        Route::delete('/{id}', [OperatorController::class, 'deleteDeliveryPlatformOperator']);
+        Route::post('/operator/{id}/store', [OperatorController::class, 'storeDeliveryPlatformOperator']);
     });
 
     Route::prefix('vend-criterias')->group(function() {
@@ -164,14 +168,25 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('operators')->group(function() {
         Route::get('/', [OperatorController::class, 'index'])->name('operators');
-        Route::post('/create', [OperatorController::class, 'create']);
-        Route::get('/{id}/edit', [OperatorController::class, 'edit']);
+        Route::get('/create', [OperatorController::class, 'create']);
+        Route::post('/store', [OperatorController::class, 'store']);
+        Route::get('/{id}/edit', [OperatorController::class, 'edit'])->name('operators.edit');
         Route::post('/{id}/update', [OperatorController::class, 'update']);
         Route::delete('/{id}', [OperatorController::class, 'delete']);
         Route::post('/bind-vend', [OperatorController::class, 'bindVend']);
         Route::post('/unbind-vend', [OperatorController::class, 'unbindVend']);
         Route::post('/{id}/delivery-platform/create', [OperatorController::class, 'bindDeliveryPlatform']);
         Route::delete('/delivery-platform/{delivery_platform_operator_id}', [OperatorController::class, 'unbindDeliveryPlatform']);
+    });
+
+    Route::prefix('operator-payment-gateways')->group(function() {
+        Route::delete('/{id}', [OperatorController::class, 'deleteOperatorPaymentGateway']);
+        Route::post('/operator/{id}/store', [OperatorController::class, 'storeOperatorPaymentGateway']);
+    });
+
+    Route::prefix('operator-vends')->group(function() {
+        Route::delete('/{id}', [OperatorController::class, 'deleteOperatorVend']);
+        Route::post('/store', [OperatorController::class, 'bindVend']);
     });
 
     Route::prefix('reports')->group(function() {

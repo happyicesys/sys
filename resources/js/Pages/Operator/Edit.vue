@@ -5,31 +5,11 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        {{ typeName }} Vending Machine
+        {{ typeName }}
         <span v-if="type == 'update'">
-          {{ vend.code }}
-        </span>
-        <span v-if="vend.customer_name">
-          <br>
-          {{ vend.customer_code }} - {{ vend.customer_name }}
-        </span>
-        <span v-else-if="!vend.customer_name && vend.name">
-          <br>
-          {{ vend.name }}
+          {{ form.code }} - {{ form.name }}
         </span>
       </h2>
-      <span>
-        <div
-          class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-fit"
-          :class="[vend.is_active ? 'bg-green-200' : 'bg-red-200']"
-        >
-          <div class="flex flex-col">
-            <span class="font-bold">
-              {{vend.is_active ? 'Active' : 'Inactive'}}
-            </span>
-          </div>
-        </div>
-      </span>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
@@ -37,136 +17,555 @@
        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll p-5">
           <form @submit.prevent="submit" id="submit">
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2">
-              <div class="sm:col-span-6">
-                <FormInput v-model="form.code" :error="form.errors.code" required="true" :disabled="vend.code" v-if="type == 'update'">
+            <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
+              <div class="sm:col-span-2">
+                <FormInput v-model="form.code" :error="form.errors.code">
                   Code
                 </FormInput>
-                <SearchVendCodeInput v-model="form.code" @selected="onVendCodeSelected" required="true" :error="form.errors.code" v-if="type == 'create'">
-                  Code
-                </SearchVendCodeInput>
               </div>
-              <div class="sm:col-span-6">
-                <div class="relative flex items-start">
-                  <div class="flex h-6 items-center">
-                    <input
-                      aria-describedby="is_customer"
-                      v-model="form.is_customer"
-                      :disabled="vend.customer_id && type == 'update'"
-                      name="is_customer" type="checkbox"
-                      class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-                      :class="[vend.customer_id && type == 'update' ? 'bg-gray-200 hover:cursor-not-allowed' : '']"
-                    />
-                  </div>
-                  <div class="ml-3 text-sm leading-6">
-                    <label for="is_customer" class="font-medium text-gray-900">Customer Binding?</label>
-                    {{ ' ' }}
-                    <span id="is_customer" class="text-gray-500"><span class="sr-only">Customer Binding?</span>retrieve customer data from cms</span>
-                  </div>
-                </div>
-              </div>
-              <div class="sm:col-span-6" v-if="form.is_customer">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Customer
-                </label>
-                <MultiSelect
-                  v-model="form.customer_id"
-                  :options="adminCustomerOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="full_name"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                >
-                </MultiSelect>
-              </div>
-              <div class="sm:col-span-6" v-if="!form.is_customer">
-                <FormInput v-model="form.name" :error="form.errors.name">
+              <div class="sm:col-span-4">
+                <FormInput v-model="form.name" :error="form.errors.name" required="true">
                   Name
                 </FormInput>
               </div>
-              <div class="sm:col-span-6">
+              <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Operator
+                  Country
                 </label>
                 <MultiSelect
-                  v-model="form.operator_id"
-                  :options="operatorOptions"
+                  v-model="form.country_id"
+                  :options="countryOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.country_id">
+                  {{ form.errors.country_id }}
+                </div>
+              </div>
+              <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Timezone
+                </label>
+                <MultiSelect
+                  v-model="form.timezone"
+                  :options="timezoneOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.timezone">
+                  {{ form.errors.timezone }}
+                </div>
+              </div>
+              <div class="sm:col-span-4">
+                <FormInput v-model="form.gst_vat_rate" :error="form.errors.gst_vat_rate">
+                  GST or VAT Rate (%)
+                  <span class="text-[9px]">
+                      (For Gross Margin Calculation)
+                  </span>
+                </FormInput>
+              </div>
+              <div class="sm:col-span-6">
+                <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
+                  Remarks
+                </FormTextarea>
+              </div>
+
+              <div class="sm:col-span-6">
+                <div class="flex space-x-1 mt-5 justify-end">
+                  <Link :href="'/operators'">
+                    <Button
+                      type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                    >
+                      <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                      <span>
+                        Back
+                      </span>
+                    </Button>
+                  </Link>
+                  <Button type="submit" v-if="permissions.includes('update operators')" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
+                    <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                    <span>
+                      Save
+                    </span>
+                  </Button>
+                </div>
+              </div>
+
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> QR Payment Gateway(s) </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sm:col-span-2" :class="[form.payment_gateway ? 'sm:col-span-6' : 'sm:col-span-5']" v-if="form.id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Payment Gateway
+                </label>
+                <MultiSelect
+                  v-model="form.payment_gateway"
+                  :options="countryPaymentGatewayOptions"
                   trackBy="id"
                   valueProp="id"
                   label="full_name"
                   placeholder="Select"
                   open-direction="bottom"
                   class="mt-1"
+                  ref="multiselect"
                 >
                 </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.payment_gateway">
+                  {{ form.errors.payment_gateway }}
+                </div>
               </div>
-              <div class="sm:col-span-3">
-                <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
-                v-if="permissions.includes('update vends')">
-                  Begin Date
-                </DatePicker>
+
+              <div class="sm:col-span-1" v-if="form.id && !form.payment_gateway">
+                <Button
+                type="button"
+                @click="storeOperatorPaymentGateway()"
+                class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
+                :class="[
+                  !form.payment_gateway || !form.payment_gateway_type ? 'opacity-50 cursor-not-allowed' : ''
+                  ]"
+                :disabled="!form.payment_gateway || !form.payment_gateway_type "
+                >
+                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                  <span>
+                    Add
+                  </span>
+                </Button>
               </div>
-              <!-- <div class="sm:col-span-3">
-                <DatePicker v-model="form.termination_date" :error="form.errors.termination_date" :minDate="form.begin_date"
-                v-if="permissions.includes('update vends')">
-                  Termination Date
-                </DatePicker>
-              </div> -->
-              <div class="sm:col-span-6">
-                <FormInput v-model="form.private_key" :error="form.errors.private_key" :disabled="!permissions.includes('update vends')">
-                  Private Key
+
+              <div class="sm:col-span-3" v-if="form.id && form.payment_gateway && form.payment_gateway.key1_name">
+                <FormInput v-model="form.payment_gateway_key1" :error="form.errors.payment_gateway_key1" required="true">
+                  {{ form.payment_gateway.key1_name }}
                 </FormInput>
               </div>
+
+              <div class="sm:col-span-3" v-if="form.id && form.payment_gateway && form.payment_gateway.key2_name">
+                <FormInput v-model="form.payment_gateway_key2" :error="form.errors.payment_gateway_key2">
+                  {{ form.payment_gateway.key2_name }}
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-3" v-if="form.id && form.payment_gateway && form.payment_gateway.key3_name">
+                <FormInput v-model="form.payment_gateway_key3" :error="form.errors.payment_gateway_key3">
+                  {{ form.payment_gateway.key3_name }}
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-3" v-if="form.id && form.payment_gateway">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Type
+                  <span class="text-red-500">*</span>
+                </label>
+                <MultiSelect
+                  v-model="form.payment_gateway_type"
+                  :options="operatorPaymentGatewayTypes"
+                  trackBy="id"
+                  valueProp="id"
+                  label="id"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  ref="multiselect"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.payment_gateway_type">
+                  {{ form.errors.payment_gateway_type }}
+                </div>
+              </div>
+              <div class="sm:col-span-6 flex justify-end" v-if="form.id && form.payment_gateway">
+                <Button
+                type="button"
+                @click="storeOperatorPaymentGateway()"
+                class="bg-green-500 hover:bg-green-600 text-white"
+                :class="[
+                  !form.payment_gateway ||
+                  !form.payment_gateway_type ||
+                  !form.payment_gateway_key1 ?
+                  'opacity-50 cursor-not-allowed' : ''
+                  ]"
+                :disabled="!form.payment_gateway || !form.payment_gateway_type || !form.payment_gateway_key1 || !permissions.includes('update operators')"
+                >
+                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                  <span>
+                    Add
+                  </span>
+                </Button>
+              </div>
+
+              <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+              <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+                <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                  <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            #
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Name
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Type
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Private Key
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white">
+                        <tr v-for="(operatorPaymentGateway, operatorPaymentGatewayIndex) in operatorPaymentGateways" :key="operatorPaymentGateway.id" :class="operatorPaymentGatewayIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            {{ operatorPaymentGatewayIndex + 1 }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ operatorPaymentGateway.paymentGateway.name }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            {{ operatorPaymentGateway.type }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            {{ operatorPaymentGateway.key1 }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 text-sm text-center">
+                            <Button
+                              class="bg-red-400 hover:bg-red-500 text-white"
+                              @click.prevent="deleteOperatorPaymentGateway(operatorPaymentGateway)"
+                            >
+                              <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                            </Button>
+                          </td>
+                        </tr>
+                        <tr v-if="!operatorPaymentGateways.length">
+                          <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-center">
+                            No Result Found
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="sm:col-span-6">
-              <div class="flex space-x-1 mt-5 justify-end">
-                <Link href="/settings">
-                  <Button
-                    class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
-                  >
-                    <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                    <span>
-                      Back
-                    </span>
-                  </Button>
-                </Link>
-                <!-- <Button
-                  type="button"
-                  class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1"
-                  v-if="vend.latestVendBinding && vend.latestVendBinding.customer && permissions.includes('update vends')"
-                  @click="unbindCustomer(form.id)"
+            </div>
+
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Delivery Platform(s) </span>
+                  </div>
+                </div>
+              </div>
+
+              <div :class="[form.payment_gateway ? 'sm:col-span-6' : 'sm:col-span-5']" v-if="form.id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Delivery Platform
+                </label>
+                <MultiSelect
+                  v-model="form.delivery_platform"
+                  :options="countryDeliveryPlatformOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="full_name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  ref="multiselect"
                 >
-                  <ArrowUturnDownIcon class="w-4 h-4"></ArrowUturnDownIcon>
-                  <span>
-                    Unbind
-                  </span>
-                </Button> -->
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.delivery_platform">
+                  {{ form.errors.delivery_platform }}
+                </div>
+              </div>
+
+              <div class="sm:col-span-1" v-if="form.id && !form.delivery_platform">
+
                 <Button
                   type="button"
-                  class="text-white flex space-x-1"
-                  :class="[!vend.is_active ? 'bg-green-500 hover:bg-green-600' : 'bg-yellow-500 hover:bg-yellow-600']"
-                  v-if="permissions.includes('update vends')"
-                  @click="toggleActivation()"
+                  @click="storeDeliveryPlatformOperator()"
+                  class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
+                  :class="[
+                    !form.delivery_platform ||
+                    !form.delivery_platform_type ?
+                    'opacity-50 cursor-not-allowed' : ''
+                    ]"
+                  :disabled="!form.delivery_platform || !form.delivery_platform_type || !permissions.includes('update operators')"
                 >
-                  <span class="flex" v-if="!vend.is_active">
-                    <PlayIcon class="w-4 h-4 pt-1"></PlayIcon>Activate
-                  </span>
-                  <span class="flex" v-if="vend.is_active">
-                    <PauseCircleIcon class="w-4 h-4 pt-1"></PauseCircleIcon>Deactivate
-                  </span>
-                </Button>
-                <Button
-                  type="submit"
-                  class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
-                  v-if="permissions.includes('update vends')"
-                >
-                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                   <span>
-                    Save
+                    Add
                   </span>
                 </Button>
+              </div>
+
+              <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.field1_name">
+                <FormInput v-model="form.delivery_platform_field1" :error="form.errors.delivery_platform_field1" required="true">
+                  {{ form.delivery_platform.field1_name }}
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.field2_name">
+                <FormInput v-model="form.delivery_platform_field2" :error="form.errors.delivery_platform_field2">
+                  {{ form.delivery_platform.field2_name }}
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.field3_name">
+                <FormInput v-model="form.delivery_platform_field3" :error="form.errors.delivery_platform_field3">
+                  {{ form.delivery_platform.field3_name }}
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.field4_name">
+                <FormInput v-model="form.delivery_platform_field4" :error="form.errors.delivery_platform_field4">
+                  {{ form.delivery_platform.field4_name }}
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.default_access_method == 'oauth'">
+                <FormInput v-model="form.delivery_platform_oauth_client_id" :error="form.errors.delivery_platform_oauth_client_id">
+                  Oauth Client ID
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-3" v-if="form.id && form.delivery_platform && form.delivery_platform.default_access_method == 'oauth'">
+                <FormInput v-model="form.delivery_platform_oauth_client_secret" :error="form.errors.delivery_platform_oauth_client_secret">
+                  Oauth Client Secret
+                </FormInput>
+              </div>
+
+
+              <div class="sm:col-span-3" v-if="form.id && form.delivery_platform">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Type
+                  <span class="text-red-500">*</span>
+                </label>
+                <MultiSelect
+                  v-model="form.delivery_platform_type"
+                  :options="deliveryPlatformOperatorTypes"
+                  trackBy="id"
+                  valueProp="id"
+                  label="id"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  ref="multiselect"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.delivery_platform_type">
+                  {{ form.errors.delivery_platform_type }}
+                </div>
+              </div>
+              <div class="sm:col-span-6 flex justify-end" v-if="form.id && form.delivery_platform">
+                <Button
+                type="button"
+                @click="storeDeliveryPlatformOperator()"
+                class="bg-green-500 hover:bg-green-600 text-white"
+                :class="[
+                  !form.delivery_platform ||
+                  !form.delivery_platform_type ||
+                  !form.delivery_platform_field1 ?
+                  'opacity-50 cursor-not-allowed' : ''
+                  ]"
+                :disabled="!form.delivery_platform || !form.delivery_platform_type || !form.delivery_platform_field1 || !permissions.includes('update operators')"
+                >
+                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                  <span>
+                    Add
+                  </span>
+                </Button>
+              </div>
+
+              <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+              <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+                <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                  <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            #
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Name
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Type
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Merchant ID
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white">
+                        <tr v-for="(deliveryPlatformOperator, deliveryPlatformOperatorIndex) in deliveryPlatformOperators" :key="deliveryPlatformOperator.id" :class="deliveryPlatformOperatorIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            {{ deliveryPlatformOperatorIndex + 1 }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ deliveryPlatformOperator.deliveryPlatform.name }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            {{ deliveryPlatformOperator.type }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            {{ deliveryPlatformOperator.field1 }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 text-sm text-center">
+                            <Button
+                              class="bg-red-400 hover:bg-red-500 text-white"
+                              @click.prevent="deleteDeliveryPlatformOperator(deliveryPlatformOperator)"
+                            >
+                              <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                            </Button>
+                          </td>
+                        </tr>
+                        <tr v-if="!deliveryPlatformOperators.length">
+                          <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-center">
+                            No Result Found
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Access Vending Machine(s) </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sm:col-span-5" v-if="form.id">
+                <!-- <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Vending Machine to Bind
+                </label>
+                <MultiSelect
+                  v-model="form.vend_id"
+                  :options="unbindedVendOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="full_name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  ref="multiselect"
+                >
+                </MultiSelect> -->
+                <SearchVendCodeWithOperatorInput v-model="form.vend_id" @selected="onVendCodeSelected" required="true" :error="form.errors.code">
+                  Vending Machine to Bind
+                </SearchVendCodeWithOperatorInput>
+                <div class="text-sm text-red-600" v-if="form.errors.vend_id">
+                  {{ form.errors.vend_id }}
+                </div>
+              </div>
+
+              <div class="sm:col-span-1" v-if="form.id">
+                <Button
+                type="button"
+                @click="storeOperatorVend()"
+                class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
+                :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="!form.vend_id && !permissions.includes('update operators')"
+                >
+                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                  <span>
+                    Add
+                  </span>
+                </Button>
+              </div>
+
+              <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+              <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+                <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                  <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            #
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Vend ID
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Name
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white">
+                        <tr v-for="(vend, vendIndex) in vends" :key="vend.id" :class="vendIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            {{ vendIndex + 1 }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ vend.code }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
+                              {{ vend.latestVendBinding.customer.code }} <br>
+                              {{ vend.latestVendBinding.customer.name }}
+                            </span>
+                            <span v-else>
+                              {{ vend.name }}
+                            </span>
+                          </td>
+                          <td class="whitespace-nowrap py-4 text-sm text-center">
+                            <Button
+                              class="bg-red-400 hover:bg-red-500 text-white"
+                              @click.prevent="deleteOperatorVend(vend)"
+                              v-if="permissions.includes('update operators')"
+                            >
+                              <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                            </Button>
+                          </td>
+                        </tr>
+                        <tr v-if="!vends.length">
+                          <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-red-600 text-center">
+                            No Binding = Access to All
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           </form>
@@ -180,34 +579,42 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
+import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import SearchVendCodeInput from '@/Components/SearchVendCodeInput.vue';
-import { ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PauseCircleIcon, PlayIcon } from '@heroicons/vue/20/solid';
+import SearchVendCodeWithOperatorInput from '@/Components/SearchVendCodeWithOperatorInput.vue';
+import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PauseCircleIcon, PlusCircleIcon, PlayIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import moment from 'moment';
 
 const props = defineProps({
-    adminCustomerOptions: Object,
-    operatorOptions: Object,
-    vend: Object,
+    countries: [Array, Object],
+    operator: Object,
+    timezones: [Array, Object],
     type: String,
+    countryDeliveryPlatforms: [Array, Object],
+    countryPaymentGateways: [Array, Object],
+    deliveryPlatformOperatorTypes: [Array, Object],
+    operatorPaymentGatewayTypes: [Array, Object],
+    permissions: [Array, Object],
   })
 
-  const adminCustomerOptions = ref([])
-  const booleanOptions = ref([])
+  const countryOptions = ref([])
+  const countryDeliveryPlatformOptions = ref([])
+  const countryPaymentGatewayOptions = ref([])
+  const deliveryPlatformOperators = ref([])
+  const deliveryPlatformOperatorTypes = ref([])
   const form = ref(
     useForm(getDefaultForm())
   )
   const loading = ref(false)
-  const operatorOptions = ref([])
-  const typeName = ref('')
-  const operatorCountry = usePage().props.auth.operatorCountry
-  const operatorRole = usePage().props.auth.operatorRole
+
+  const operatorPaymentGateways = ref([])
+  const operatorPaymentGatewayTypes = ref([])
   const permissions = usePage().props.auth.permissions
-  const now = ref(moment().format('HH:mm:ss'))
+  const timezoneOptions = ref([])
+  const typeName = ref('')
+  const vends = ref([])
 
 onMounted(() => {
     if(props.type == 'create') {
@@ -215,79 +622,149 @@ onMounted(() => {
     } else {
         typeName.value = 'Edit'
     }
-    adminCustomerOptions.value = props.adminCustomerOptions.map((data) => {return {id: data.id, full_name: data.cust_id + ' - ' + data.company}})
-    operatorOptions.value = [
-        ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
-    ]
-
-    form.value = props.vend && props.vend.id ? useForm(props.vend) : useForm(getDefaultForm())
-    // console.log(JSON.parse(JSON.stringify(form.value)))
-    form.value.name = props.vend.name
-    if(props.vend.customer_id) {
-        form.value.is_customer = true
-        form.value.customer_id = {
-          id: props.vend.person_id,
-          full_name: props.vend.customer_code + ' - ' + props.vend.customer_name
-        }
-    }
-    if(props.vend.operator_id) {
-        form.value.operator_id = {
-          id: props.vend.operator_id,
-          full_name: props.vend.operator_name
-        }
-    }
+    countryDeliveryPlatformOptions.value = props.countryDeliveryPlatforms.data
+    countryPaymentGatewayOptions.value = props.countryPaymentGateways.data
+    countryOptions.value = props.countries.data
+    deliveryPlatformOperators.value = props.operator ? props.operator.data.deliveryPlatformOperators : null
+    deliveryPlatformOperatorTypes.value = props.deliveryPlatformOperatorTypes
+    form.value = props.operator ? useForm(props.operator.data) : useForm(getDefaultForm())
+    timezoneOptions.value = props.timezones.map((timezone, index) => {return {id: index, name: timezone}})
+    operatorPaymentGatewayTypes.value = props.operatorPaymentGatewayTypes
+    operatorPaymentGateways.value = props.operator ? props.operator.data.operatorPaymentGateways : null
+    vends.value = props.operator ? props.operator.data.vends : null
 })
 
 function getDefaultForm() {
   return {
+    id: '',
     code: '',
     name: '',
-    begin_date: moment().format('YYYY-MM-DD'),
-    customer_id: '',
-    operator_id: '',
-    serial_num: '',
-    termination_date: '',
-    private_key: '',
+    gst_vat_rate: '',
+    country_id: '',
+    delivery_platform_id: '',
+    delivery_platform_type: '',
+    delivery_platform_field1: '',
+    delivery_platform_field2: '',
+    delivery_platform_field3: '',
+    delivery_platform_field4: '',
+    delivery_platform_oauth_client_id: '',
+    delivery_platform_oauth_client_secret: '',
+    payment_gateway_id: '',
+    payment_gateway_type: '',
+    payment_gateway_key1: '',
+    payment_gateway_key2: '',
+    payment_gateway_key3: '',
+    timezone: '',
+    remarks: '',
+    vend_id: '',
   }
 }
 
+function deleteDeliveryPlatformOperator(model) {
+  const approval = confirm('Are you sure to delete this entry?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/delivery-platform-operators/' + model.id, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+  })
+}
+
+function deleteOperatorPaymentGateway(model) {
+  const approval = confirm('Are you sure to delete this entry?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/operator-payment-gateways/' + model.id, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+  })
+}
+
+function deleteOperatorVend(model) {
+  const approval = confirm('Are you sure to delete this entry?');
+  if (!approval) {
+      return;
+  }
+  router.post('/operators/unbind-vend', {
+    vend_id: model.id,
+    operator_id: form.value.id,
+  },{
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+  })
+}
+
+function storeDeliveryPlatformOperator() {
+  router.post(
+    '/delivery-platform-operators/operator/'+ form.value.id +'/store', {
+        delivery_platform_id: form.value.delivery_platform.id,
+        field1: form.value.delivery_platform_field1,
+        field2: form.value.delivery_platform_field2,
+        field3: form.value.delivery_platform_field3,
+        field4: form.value.delivery_platform_field4,
+        oauth_client_id: form.value.delivery_platform_oauth_client_id,
+        oauth_client_secret: form.value.delivery_platform_oauth_client_secret,
+        type: form.value.delivery_platform_type.id,
+    }, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+    },
+  )
+}
+
+function storeOperatorPaymentGateway() {
+  router.post(
+    '/operator-payment-gateways/operator/'+ form.value.id +'/store', {
+      payment_gateway_id: form.value.payment_gateway.id,
+      key1: form.value.payment_gateway_key1,
+      key2: form.value.payment_gateway_key2,
+      key3: form.value.payment_gateway_key3,
+      type: form.value.payment_gateway_type.id,
+    }, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+    },
+  )
+}
+
+function storeOperatorVend() {
+  router.post(
+    '/operators/bind-vend', {
+      code: form.value.vend_id,
+      operator_id: form.value.id,
+    }, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+    },
+  )
+}
+
 function onVendCodeSelected(vend) {
-  form.value.code = vend.code
+  form.value.vend_id = vend.vend_code
 }
 
 function submit() {
   form.value.clearErrors()
-  if(props.type === 'create') {
-    form.value
-    .transform((data) => ({
-      ...data,
-      customer_id: data.customer_id ? data.customer_id.id : null,
-      operator_id: data.operator_id ? data.operator_id.id : null,
-    }))
-    .post('/vends/create', {
-      preserveState: true,
-      replace: true,
-    })
-  }
-
   if(props.type === 'update') {
     form.value
       .transform((data) => ({
         ...data,
-        customer_id: data.customer_id ? data.customer_id.id : null,
-        operator_id: data.operator_id ? data.operator_id.id : null,
+        timezone: data.timezone ? data.timezone.name : null,
+        country_id: data.country_id ? data.country_id.id : null,
       }))
-      .post('/vends/' + form.value.id + '/update', {
+      .post('/operators/' + form.value.id + '/update', {
       preserveState: true,
       replace: true,
     })
   }
 }
 
-function toggleActivation()
-{
-  form.value
-    .post('/settings/' + form.value.id + '/toggle-activation', {
-    })
-}
 </script>

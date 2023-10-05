@@ -42,6 +42,7 @@ Route::prefix('delivery')->group(function() {
 // Internal api
 Route::prefix('vends')->group(function() {
     Route::get('/search/{code?}', [VendController::class, 'searchVendCode']);
+    Route::get('/search/operator/{code?}', [VendController::class, 'searchVendCodeWithOperator']);
 });
 
 

@@ -268,8 +268,11 @@ trait HasFilter {
         ->when($request->virtual_apk_ver, function($query, $search) {
             $query->where('virtual_apk_ver', 'LIKE', "%{$search}%");
         })
-      ->when($request->virtual_firmware_ver, function($query, $search) {
-        $query->where('virtual_firmware_ver', 'LIKE', "%{$search}%");
+        ->when($request->virtual_firmware_ver, function($query, $search) {
+            $query->where('virtual_firmware_ver', 'LIKE', "%{$search}%");
+        })
+        ->when($request->vendRecordsThirtyDaysAmountAverageLessThan, function($query, $search) {
+            $query->where('virtual_vend_records_thirty_days_amount_average', '<=', $search*100);
         })
       ->when($request->sortKey, function($query, $search) use ($request) {
             // if($search === 'balance_percent') {

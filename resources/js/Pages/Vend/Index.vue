@@ -219,6 +219,9 @@
                 <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="APK Ver" v-model="filters.virtual_apk_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
                     APK Ver
                 </SearchInput>
+                <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+                    Avg/Day Sales (30 Days) &lt;&lt;
+                </SearchInput>
             </div>
 
             <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -413,6 +416,10 @@
                             </TableHeadSort>
                             <TableHeadSort modelName="next_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_invoice_date')">
                                 Next Planned Visit
+                            </TableHeadSort>
+                            <TableHeadSort modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
+                                Avg Per Day <br>
+                                (Last 30 days)
                             </TableHeadSort>
                             <TableHeadSort modelName="amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount_average_day', true)">
                                 Lifetime Sales,<br>
@@ -735,6 +742,9 @@
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                {{ operatorCountry.currency_symbol }}{{ vend.virtual_vend_records_thirty_days_amount_average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <span
                                 v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_latest' in vend.vendTransactionTotalsJson"
                                 >
@@ -916,6 +926,7 @@
     remainingSkuLessThan: '',
     virtual_apk_ver: '',
     virtual_firmware_ver: '',
+    vendRecordsThirtyDaysAmountAverageLessThan: '',
     sortKey: '',
     sortBy: true,
     numberPerPage: '',

@@ -12,15 +12,16 @@
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="flex justify-end">
-          <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          @click="onCreateClicked()"
-          v-if="permissions.includes('create operators') && permissions.includes('admin-access operators')"
-          >
-            <PlusIcon class="h-4 w-4" aria-hidden="true"/>
-            <span>
-              Create
-            </span>
-          </Button>
+          <Link :href="'/operators/create'" v-if="permissions.includes('create operators') && permissions.includes('admin-access operators')">
+            <Button
+              type="button" class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            >
+              <PlusIcon class="h-4 w-4" aria-hidden="true"/>
+              <span>
+                Create
+              </span>
+            </Button>
+          </Link>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
@@ -121,7 +122,7 @@
                       </TableData>
                       <TableData :currentIndex="operatorIndex" :totalLength="operators.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
-                          <!-- <Link :href="'/operators/' + operator.id + '/edit'">
+                          <Link :href="'/operators/' + operator.id + '/edit'">
                             <Button
                               type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                             >
@@ -130,8 +131,8 @@
                                   Edit
                               </span>
                             </Button>
-                          </Link> -->
-                          <Button
+                          </Link>
+                          <!-- <Button
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                             @click="onEditClicked(operator)"
                           >
@@ -139,7 +140,7 @@
                             <span>
                                 Edit
                             </span>
-                          </Button>
+                          </Button> -->
                           <Button
                             type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
                             @click="onDeleteClicked(operator)"
