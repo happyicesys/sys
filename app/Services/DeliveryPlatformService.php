@@ -7,6 +7,7 @@ use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\Operator;
 use App\Models\Vend;
+use App\Jobs\SyncDeliveryPlatformOauthByOperator;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 
@@ -69,9 +70,14 @@ class DeliveryPlatformService
 
     switch($type) {
       case 'grab':
-        return $this->incomingOauthParams($this->model->getOauthToken());
+        $response = $this->model->getOauthToken();
+        if($response['success']) {
+          return $this->incomingOauthParams($response['data']);
+        }
         break;
     }
+
+
   }
 
   public function getOperator()
@@ -84,11 +90,22 @@ class DeliveryPlatformService
     $this->operator = $operator;
     $this->setDeliveryPlatformOperator($type);
 
-    switch($type) {
-      case 'grab':
-        return $this->model->listMartCategories();
-        break;
+    $response = $this->model->listMartCategories();
+
+    if($response['success']) {
+      switch($type) {
+        case 'grab':
+          return $response['data'];
+          break;
+      }
+    }else {
+      if($response['code'] === 401) {
+        SyncDeliveryPlatformOauthByOperator::dispatch($operator->id, $type);
+        $this->getCategories($operator, $type);
+      }
+      throw new \Exception('Get Categories Failed, Other than 401');
     }
+
   }
 
   public function pauseStore()

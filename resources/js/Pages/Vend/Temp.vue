@@ -257,7 +257,7 @@
     plugins: {
         title: {
             display: true,
-            text: vend.value.full_name
+            text: '#'+vend.value.code + ' (' + vend.value.full_name + ')'
         },
         tooltip: {
             callbacks: {

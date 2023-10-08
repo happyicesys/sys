@@ -51,9 +51,9 @@ class DeliveryProductMappingController extends Controller
         ]);
     }
 
-    public function createOrUpdate(Request $request)
+    public function create(Request $request)
     {
-        return Inertia::render('DeliveryPlatform/Form', [
+        return Inertia::render('DeliveryPlatform/Create', [
             'categoryApiOptions' => Inertia::lazy(fn() =>[
                 $this->deliveryPlatformService->getCategories(Operator::find($request->operator_id), DeliveryPlatformOperator::find($request->delivery_platform_operator_id)->deliveryPlatform->slug),
             ]),
@@ -89,5 +89,99 @@ class DeliveryProductMappingController extends Controller
             ),
             'type' => $request->id ? 'edit' : 'create',
         ]);
+    }
+
+    public function edit(Request $request, $id)
+    {
+        $deliveryProductMapping = DeliveryProductMapping::query()
+            ->with([
+                'deliveryProductMappingItems.productMappingItem.product.thumbnail',
+            ])
+            ->findOrFail($id);
+
+        return Inertia::render('DeliveryPlatform/Edit', [
+            'categoryApiOptions' => fn() =>[
+                $this->deliveryPlatformService->getCategories(Operator::find($request->has('operator_id') ? $request->operator_id : $deliveryProductMapping->operator_id), DeliveryPlatformOperator::find($request->has('delivery_platform_operator_id') ? $request->delivery_platform_operator_id : $deliveryProductMapping->delivery_platform_operator_id)->deliveryPlatform->slug),
+            ],
+            'deliveryProductMapping' => DeliveryProductMappingResource::make(
+                $deliveryProductMapping
+            ),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::query()
+                    ->with('deliveryPlatformOperators.deliveryPlatform')
+                    ->orderBy('name')
+                    ->get()
+            ),
+            'productMappingItems' => Inertia::lazy(fn() => [
+                ProductMappingItemResource::collection(
+                    ProductMappingItem::query()
+                        ->with('product.thumbnail')
+                        ->where('product_mapping_id', $request->product_mapping_id)
+                        ->get()
+                )
+            ]),
+            'productMappingOptions' => fn() =>[
+                ProductMappingResource::collection(
+                    ProductMapping::query()
+                        ->where('operator_id', $request->has('operator_id') ? $request->operator_id : $deliveryProductMapping->operator_id)
+                        ->get()
+                ),
+            ],
+            'productOptions' => ProductResource::collection(
+                Product::with([
+                    'thumbnail'
+                ])
+                ->where('is_inventory', true)
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get()
+            ),
+            'type' => 'edit',
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        // dd($request->all());
+        $request->validate([
+            'category_json' => 'required',
+            'name' => 'required',
+            'operator_id' => 'required',
+            'delivery_platform_operator_id' => 'required',
+            'product_mapping_id' => 'required',
+            'productMappingItems' => 'required',
+            'productMappingItems.*.delivery_platform_amount' => 'required|numeric|gt:0',
+            'productMappingItems.*.delivery_platform_sub_category_json' => 'required',
+        ], [
+            'category_json.required' => 'Platform Category is required',
+            'delivery_platform_operator_id.required' => 'Delivery Platform is required',
+            'name.required' => 'Name is required',
+            'operator_id.required' => 'Operator is required',
+            'product_mapping_id.required' => 'Product Mapping is required',
+            'productMappingItems.required' => 'At Least One Product is required',
+            'productMappingItems.*.delivery_platform_amount' => 'required, more than 0',
+            'productMappingItems.*.delivery_platform_sub_category_json' => 'required',
+        ]);
+
+        $deliveryProductMapping = DeliveryProductMapping::create([
+            'category_json' => $request->category_json,
+            'name' => $request->name,
+            'operator_id' => $request->operator_id,
+            'delivery_platform_operator_id' => $request->delivery_platform_operator_id,
+            'product_mapping_id' => $request->product_mapping_id,
+        ]);
+
+        foreach($request->productMappingItems as $productMappingItem) {
+            $deliveryProductMapping->deliveryProductMappingItems()->create([
+                'amount' => $productMappingItem['delivery_platform_amount'],
+                'delivery_product_mapping_id' => $deliveryProductMapping->id,
+                'product_id' => $productMappingItem['product']['id'],
+                'product_mapping_id' => $deliveryProductMapping->product_mapping_id,
+                'product_mapping_item_id' => $productMappingItem['id'],
+                'sub_category_json' => $productMappingItem['delivery_platform_sub_category_json'],
+            ]);
+        }
+
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }
 }

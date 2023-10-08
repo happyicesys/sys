@@ -13,6 +13,7 @@ class DeliveryProductMapping extends Model
         'category_json',
         'delivery_platform_operator_id',
         'name',
+        'operator_id',
         'product_mapping_id',
         'remarks',
     ];
@@ -25,6 +26,16 @@ class DeliveryProductMapping extends Model
     public function deliveryPlatformOperator()
     {
         return $this->belongsTo(DeliveryPlatformOperator::class);
+    }
+
+    public function deliveryProductMappingItems()
+    {
+        return $this->hasMany(DeliveryProductMappingItem::class);
+    }
+
+    public function operator()
+    {
+        return $this->belongsTo(Operator::class);
     }
 
     public function productMapping()

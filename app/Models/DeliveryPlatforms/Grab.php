@@ -49,9 +49,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'scope' => $this->getScope(),
         ]);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'getGrabOAuthToken');
 
         throw new \Exception('Get OAuthToken Failed: ' . $response->body());
     }
@@ -75,11 +73,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'countryCode' => $this->deliveryPlatformOperator->operator->country->code,
         ]);
 
-        // dd($this->getPartnerEndpoint() . '/partner/v1/menu/categories', 'Bearer ' . $this->deliveryPlatformOperator->externalOauthToken->access_token, $this->deliveryPlatformOperator->operator->country->code, $response->body());
-
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'listMartCategories');
 
         throw new \Exception('Get Mart Categories Failed: ' . $response->body());
     }
@@ -96,9 +90,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'merchantID' => $this->merchantId,
         ]);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'notifyUpdatedMenu');
 
         throw new \Exception('Notify Updated Menu Failed: ' . $response->body());
     }
@@ -126,9 +118,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'maxStock' => $singleProductParam['available_qty'],
         ]);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'updateMenuRecord');
 
         throw new \Exception('Update Single Menu Failed: ' . $response->body());
     }
@@ -172,9 +162,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             ],
         ]);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'batchUpdateMenu');
 
         throw new \Exception('Batch Update Menu Failed: ' . $response->body());
     }
@@ -192,9 +180,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'toState' => $isAccept ? 'ACCEPTED' : 'REJECTED',
         ]);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'manuallyAcceptRejectOrder');
 
         throw new \Exception('Manualy Accept Reject Order Failed: ' . $response->body());
     }
@@ -212,9 +198,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         ]))
         ->post($this->getPartnerEndpoint() . '/partner/v1/order/prepare', $filters);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'listOrders');
 
         throw new \Exception('List Orders Failed: ' . $response->body());
     }
@@ -237,9 +221,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'onlyRecalculate' => config('app.env') === 'local' ? true : false,
         ]);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'editOrder');
 
         throw new \Exception('Edit Order Failed: ' . $response->body());
     }
@@ -257,9 +239,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'markStatus' => 1
         ]);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'markOrderReady');
 
         throw new \Exception('Mark Order Ready Failed: ' . $response->body());
     }
@@ -282,9 +262,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'toState' => $toState,
         ]);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'updateDeliveryState');
 
         throw new \Exception('Update Delivery State Failed: ' . $response->body());
     }
@@ -302,9 +280,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'newOrderReadyTime' => $newOrderReadyTime ? $newOrderReadyTime : Carbon::now()->toDateTimeString(),
         ]);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'updateOrderReadyTime');
 
         throw new \Exception('Update Order Ready Time Failed: ' . $response->body());
     }
@@ -321,9 +297,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         ]))
         ->get($this->getPartnerEndpoint() . '/partner/v1/order/cancelable');
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'checkOrderCancelable');
 
         throw new \Exception('Check Order Cancelable Failed: ' . $response->body());
     }
@@ -342,9 +316,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'cancelCode' => $cancelCode,
         ]);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'cancelOrder');
 
         throw new \Exception('Cancel Order Failed: ' . $response->body());
     }
@@ -363,9 +335,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'duration' => $duration,
         ]);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        return $this->getResponse($response, 'pauseOrder');
 
         throw new \Exception('Pause Order Failed: ' . $response->body());
     }
@@ -397,6 +367,50 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         }
 
         return $endpoint;
+    }
+
+    private function getResponse($response, $method)
+    {
+        $message = '';
+
+        switch($response->status()) {
+            case 200:
+                $message = 'OK';
+                break;
+            case 204:
+                $message = 'No Content';
+                break;
+            case 400:
+                $message = 'Bad Request';
+                break;
+            case 401:
+                $message = 'Unauthorized';
+                break;
+            case 403:
+                $message = 'Forbidden';
+                break;
+            case 404:
+                $message = 'Not Found';
+                break;
+            case 409:
+                $message = 'Conflict';
+                break;
+            case 500:
+                $message = 'Internal Server Error';
+                break;
+            case 503:
+                $message = 'Service Unavailable';
+                break;
+        }
+
+        $finalResponse =  [
+            'success' => $response->successful(),
+            'code' => $response->status(),
+            'message' => $method.' '.$message,
+            'data' => $response->json(),
+        ];
+
+        return $finalResponse;
     }
 
     private function getScope()

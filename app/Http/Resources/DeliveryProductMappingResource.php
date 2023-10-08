@@ -19,6 +19,7 @@ class DeliveryProductMappingResource extends JsonResource
             'category_json' => $this->category_json,
             'delivery_platform_operator_id' => $this->delivery_platform_operator_id,
             'name' => $this->name,
+            'operator_id' => $this->operator_id,
             'product_mapping_id' => $this->product_mapping_id,
             'remarks' => $this->remarks,
             'created_at' => $this->created_at,

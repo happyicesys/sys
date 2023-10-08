@@ -123,7 +123,9 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('delivery-product-mappings')->group(function() {
         Route::get('/', [DeliveryProductMappingController::class, 'index'])->name('delivery-product-mappings');
-        Route::get('/create', [DeliveryProductMappingController::class, 'createOrUpdate'])->name('delivery-product-mappings.create');
+        Route::get('/create', [DeliveryProductMappingController::class, 'create'])->name('delivery-product-mappings.create');
+        Route::get('/{id}/edit', [DeliveryProductMappingController::class, 'edit'])->name('delivery-product-mappings.edit');
+        Route::post('/store', [DeliveryProductMappingController::class, 'store']);
     });
 
     Route::prefix('delivery-platform-operators')->group(function() {
