@@ -130,7 +130,7 @@
               <div class="sm:col-span-1" v-if="form.product_mapping_id">
                 <Button
                 type="button"
-                @click="addDeliveryProductMappingItem()"
+                @click.prevent="addDeliveryProductMappingItem()"
                 class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
                 :class="[!form.channel_code || !form.product_id ? 'opacity-50 cursor-not-allowed' : '']"
                 :disabled="!form.channel_code || !form.product_id"
@@ -153,7 +153,7 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Channel Code
+                            Channel ID
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Thumbnail
@@ -173,59 +173,45 @@
                         </tr>
                       </thead>
                       <tbody class="bg-white">
-                        <tr v-for="(productMappingItem, productMappingItemIndex) in productMappingItems" :key="productMappingItem.id" :class="productMappingItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <tr v-for="(deliveryProductMappingItem, deliveryProductMappingItemIndex) in deliveryProductMappingItems" :key="deliveryProductMappingItem.id" :class="deliveryProductMappingItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <!-- <td>
                             {{ productMappingItem }}
                           </td> -->
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            {{ productMappingItemIndex + 1 }}
+                            {{ deliveryProductMappingItemIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ productMappingItem.channel_code }}
+                            {{ deliveryProductMappingItem.channel_code }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             <div class="flex justify-center">
-                              <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="productMappingItem.product.thumbnail.full_url" alt="" v-if="productMappingItem.product && productMappingItem.product.thumbnail"/>
+                              <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="deliveryProductMappingItem.product.thumbnail.full_url" alt="" v-if="deliveryProductMappingItem.product && deliveryProductMappingItem.product.thumbnail"/>
                             </div>
                           </td>
                           <td class="whitespace-normal py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left flex flex-col">
-                            <span v-if="productMappingItem.product.code">
-                              {{ productMappingItem.product.code }}
+                            <span v-if="deliveryProductMappingItem.product.code">
+                              {{ deliveryProductMappingItem.product.code }}
                             </span>
-                            <span class="break-words" v-if="productMappingItem.product.name">
-                              {{ productMappingItem.product.name }}
+                            <span class="break-words" v-if="deliveryProductMappingItem.product.name">
+                              {{ deliveryProductMappingItem.product.name }}
                             </span>
                           </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            <FormInput v-model="productMappingItem.delivery_platform_amount" :error="form.errors['productMappingItems.' + productMappingItemIndex + '.delivery_platform_amount']" placeholderStr="Platform Price">
-                            </FormInput>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ deliveryProductMappingItem.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                           </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            <MultiSelect
-                              v-model="productMappingItem.delivery_platform_sub_category_json"
-                              :options="subCategoryOptions"
-                              trackBy="id"
-                              valueProp="id"
-                              label="name"
-                              placeholder="Select"
-                              open-direction="bottom"
-                              class="mt-1"
-                            >
-                            </MultiSelect>
-                            <div class="text-sm text-red-600" v-if="form.errors['productMappingItems.' + productMappingItemIndex + '.delivery_platform_sub_category_json']">
-                              {{ form.errors['productMappingItems.' + productMappingItemIndex + '.delivery_platform_sub_category_json'] }}
-                            </div>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ deliveryProductMappingItem.sub_category_json.name }}
                           </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button
                               class="bg-red-400 hover:bg-red-500 text-white"
-                              @click="removeDeliveryProductMappingItem(productMappingItem)"
+                              @click.prevent="removeDeliveryProductMappingItem(deliveryProductMappingItem)"
                             >
                               <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                             </Button>
                           </td>
                         </tr>
-                        <tr v-if="!productMappingItems.length">
+                        <tr v-if="!deliveryProductMappingItems || !deliveryProductMappingItems.length">
                           <td colspan="7" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
                             No Records Found
                           </td>
@@ -240,7 +226,7 @@
             </div>
             <div class="sm:col-span-6">
               <div class="flex space-x-1 mt-5 justify-end">
-                <Link href="/settings">
+                <Link href="/delivery-product-mappings">
                   <Button
                     class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
                   >
@@ -295,10 +281,12 @@ const props = defineProps({
   const categoryApiOptions = ref([])
   const deliveryPlatformOperatorOptions = ref([])
   const deliveryProductMapping = ref([])
+  const deliveryProductMappingItems = ref([])
   const form = ref(
     useForm(getDefaultForm())
   )
   const loading = ref(false)
+  const operatorCountry = usePage().props.auth.operatorCountry
   const operatorOptions = ref([])
   const productMappingOptions = ref([])
   const productMappingItems = ref([])
@@ -335,6 +323,8 @@ onMounted(() => {
         delivery_platform_operator_field: deliveryPlatformOperatorOptions.value.find(x => x.id === props.deliveryProductMapping.data.delivery_platform_operator_id).name,
       }) :
       useForm(getDefaultForm())
+      deliveryProductMappingItems.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.deliveryProductMappingItems : []
+      subCategoryOptions.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.category_json.subCategories : []
 })
 
 function getDefaultForm() {
@@ -351,98 +341,34 @@ function getDefaultForm() {
 
 function addDeliveryProductMappingItem() {
   if(productMappingItems.value.map(function(productMapping) { return productMapping.channel_code; }).indexOf(form.value.channel_code) < 0) {
-    productMappingItems.value.push({
-      product: form.value.product_id,
-      channel_code: form.value.channel_code,
-      delivery_platform_sub_category_json: form.value.sub_category_json,
-      delivery_platform_amount: form.value.amount,
+    router.post('/delivery-product-mapping-items/delivery-product-mapping/' + form.value.id + '/store', {
+      ...form.value,
+        product_id: form.value.product_id ? form.value.product_id.id : null,
+    },{
+        preserveState: false,
+        preserveScroll: true,
+        replace: true,
     })
-    productMappingItems.value.sort((a, b) => a.channel_code - b.channel_code)
   }
-
-  productMappingItems.value.splice(productMappingItems.value.indexOf(productMappingItem), 1)
-}
-
-function onCategoryJsonSelected() {
-  subCategoryOptions.value = []
-  subCategoryOptions.value = form.value.category_json.subCategories
-}
-
-function onDeliveryPlatformOperatorIdSelected() {
-  router.reload({
-    only: ['categoryApiOptions', 'productMappingOptions'],
-    data: {
-      delivery_platform_operator_id: form.value.delivery_platform_operator_id.id,
-      operator_id: form.value.operator_id.id
-    },
-    replace: true,
-    preserveState: true,
-    onSuccess: page => {
-      categoryApiOptions.value = props.categoryApiOptions[0].categories.map((data) => {return {id: data.id, name: data.name, subCategories: data.subCategories}})
-      productMappingOptions.value = [
-        ...props.productMappingOptions[0].data.map((data) => {return {id: data.id, name: data.name}})
-      ]
-      subCategoryOptions.value = []
-    }
-  })
-}
-
-function onOperatorIdSelected() {
-  form.value.delivery_platform_operator_id = ''
-  deliveryPlatformOperatorOptions.value =  [
-    ...props.operatorOptions.data.find(x => x.id === form.value.operator_id.id).deliveryPlatformOperators.map((data) => {return {id: data.id, name: data.deliveryPlatform.name}})
-  ]
-
-}
-
-function onProductMappingIdSelected() {
-  router.reload({
-    only: ['productMappingItems'],
-    data: {
-      product_mapping_id: form.value.product_mapping_id
-    },
-    replace: true,
-    preserveState: true,
-    onSuccess: page => {
-      productMappingItems.value = [
-        ...props.productMappingItems[0].data,
-      ]
-    }
-  })
 }
 
 function removeDeliveryProductMappingItem(productMappingItem) {
-  productMappingItems.value.splice(productMappingItems.value.indexOf(productMappingItem), 1)
+  form.value
+    .delete('/delivery-product-mapping-items/' + productMappingItem.id, {
+      preserveState: false,
+      replace: true,
+    })
 }
 
 function submit() {
   form.value.clearErrors()
-  if(props.type === 'create') {
-    form.value
-    .transform((data) => ({
-      ...data,
-      delivery_platform_operator_id: data.delivery_platform_operator_id ? data.delivery_platform_operator_id.id : null,
-      operator_id: data.operator_id ? data.operator_id.id : null,
-      product_mapping_id: data.product_mapping_id ? data.product_mapping_id.id : null,
-      productMappingItems: productMappingItems.value,
-    }))
-    .post('/delivery-product-mappings/store', {
-      preserveState: true,
-      replace: true,
-    })
-  }
-
-  // if(props.type === 'update') {
-  //   form.value
-  //     .transform((data) => ({
-  //       ...data,
-  //       customer_id: data.customer_id ? data.customer_id.id : null,
-  //       operator_id: data.operator_id ? data.operator_id.id : null,
-  //     }))
-  //     .post('/vends/' + form.value.id + '/update', {
-  //     preserveState: true,
-  //     replace: true,
-  //   })
-  // }
+  form.value
+  .transform((data) => ({
+    name: data.name,
+  }))
+  .post('/delivery-product-mappings/' + form.value.id + '/update', {
+    preserveState: true,
+    replace: true,
+  })
 }
 </script>

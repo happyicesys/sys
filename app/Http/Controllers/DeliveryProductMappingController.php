@@ -91,11 +91,57 @@ class DeliveryProductMappingController extends Controller
         ]);
     }
 
+    public function deleteDeliveryProductMappingItem($id)
+    {
+        $deliveryProductMappingItem = DeliveryProductMappingItem::findOrFail($id);
+        $deliveryProductMappingId = $deliveryProductMappingItem->deliveryProductMapping->id;
+
+        $deliveryProductMappingItem->delete();
+
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingId]);
+    }
+
+    public function storeDeliveryProductMappingItem(Request $request, $deliveryProductMappingId)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|gt:0',
+            'channel_code' => 'required',
+            'sub_category_json' => 'required',
+            'product_id' => 'required',
+        ], [
+            'amount.required' => 'Amount is required',
+            'amount.gt' => 'Amount must be greater than 0',
+            'channel_code.required' => 'Channel Code is required',
+            'sub_category_json.required' => 'Delivery Platform Sub Category is required',
+            'product_id.required' => 'Product is required',
+        ]);
+
+        $hasChannelCode = DeliveryProductMappingItem::query()
+            ->where('delivery_product_mapping_id', $deliveryProductMappingId)
+            ->where('channel_code', $request->channel_code)
+            ->exists();
+        if($hasChannelCode) {
+            return;
+        }
+
+        $deliveryProductMappingItem = DeliveryProductMappingItem::create([
+            'amount' => $request->amount,
+            'channel_code' => $request->channel_code,
+            'sub_category_json' => $request->sub_category_json,
+            'delivery_product_mapping_id' => $deliveryProductMappingId,
+            'product_id' => $request->product_id,
+            // 'product_mapping_id' => $request->product_mapping_id,
+            // 'product_mapping_item_id' => $request->product_mapping_item_id,
+        ]);
+
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingItem->delivery_product_mapping_id]);
+    }
+
     public function edit(Request $request, $id)
     {
         $deliveryProductMapping = DeliveryProductMapping::query()
             ->with([
-                'deliveryProductMappingItems.productMappingItem.product.thumbnail',
+                'deliveryProductMappingItems.product.thumbnail',
             ])
             ->findOrFail($id);
 
@@ -112,14 +158,6 @@ class DeliveryProductMappingController extends Controller
                     ->orderBy('name')
                     ->get()
             ),
-            'productMappingItems' => Inertia::lazy(fn() => [
-                ProductMappingItemResource::collection(
-                    ProductMappingItem::query()
-                        ->with('product.thumbnail')
-                        ->where('product_mapping_id', $request->product_mapping_id)
-                        ->get()
-                )
-            ]),
             'productMappingOptions' => fn() =>[
                 ProductMappingResource::collection(
                     ProductMapping::query()
@@ -174,6 +212,7 @@ class DeliveryProductMappingController extends Controller
         foreach($request->productMappingItems as $productMappingItem) {
             $deliveryProductMapping->deliveryProductMappingItems()->create([
                 'amount' => $productMappingItem['delivery_platform_amount'],
+                'channel_code' => $productMappingItem['channel_code'],
                 'delivery_product_mapping_id' => $deliveryProductMapping->id,
                 'product_id' => $productMappingItem['product']['id'],
                 'product_mapping_id' => $deliveryProductMapping->product_mapping_id,
@@ -181,6 +220,18 @@ class DeliveryProductMappingController extends Controller
                 'sub_category_json' => $productMappingItem['delivery_platform_sub_category_json'],
             ]);
         }
+
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required',
+        ]);
+
+        $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
+        $deliveryProductMapping->update($request->all());
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }

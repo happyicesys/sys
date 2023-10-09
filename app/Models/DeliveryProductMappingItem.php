@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -11,6 +12,7 @@ class DeliveryProductMappingItem extends Model
 
     protected $fillable = [
         'amount',
+        'channel_code',
         'delivery_product_mapping_id',
         'product_id',
         'product_mapping_id',
@@ -26,8 +28,8 @@ class DeliveryProductMappingItem extends Model
     protected function amount(): Attribute
     {
         return Attribute::make(
-            get: fn (string $value) => $value/ (10^$this->deliveryProductMapping->operator->country->currency_exponent),
-            set: fn (string $value) => $value * (10^$this->deliveryProductMapping->operator->country->currency_exponent),
+            get: fn (string $value) => $value/ ($this->deliveryProductMapping ? pow(10, $this->deliveryProductMapping->operator->country->currency_exponent) : 100) ,
+            set: fn (string $value) => $value * ($this->deliveryProductMapping ? pow(10, $this->deliveryProductMapping->operator->country->currency_exponent) : 100),
         );
     }
 

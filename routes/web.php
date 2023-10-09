@@ -126,6 +126,12 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/create', [DeliveryProductMappingController::class, 'create'])->name('delivery-product-mappings.create');
         Route::get('/{id}/edit', [DeliveryProductMappingController::class, 'edit'])->name('delivery-product-mappings.edit');
         Route::post('/store', [DeliveryProductMappingController::class, 'store']);
+        Route::post('/{id}/update', [DeliveryProductMappingController::class, 'update']);
+    });
+
+    Route::prefix('delivery-product-mapping-items')->group(function() {
+        Route::delete('/{id}', [DeliveryProductMappingController::class, 'deleteDeliveryProductMappingItem']);
+        Route::post('/delivery-product-mapping/{id}/store', [DeliveryProductMappingController::class, 'storeDeliveryProductMappingItem']);
     });
 
     Route::prefix('delivery-platform-operators')->group(function() {
