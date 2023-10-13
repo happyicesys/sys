@@ -767,7 +767,7 @@ class VendController extends Controller
                 'Qty' => isset($vendChannel->qty) ? $vendChannel->qty : '',
                 'Capacity' => isset($vendChannel->capacity) ? $vendChannel->capacity : '',
                 'Price' => isset($vendChannel->amount) ? $vendChannel->amount/ 100 : 0,
-                'Balance Percent(%)' => isset($vendChannel->capacity) ? round($vendChannel->qty/ $vendChannel->capacity * 100) : 0,
+                'Balance Percent(%)' => isset($vendChannel->capacity) && $vendChannel->capacity > 0 ? round($vendChannel->qty/ $vendChannel->capacity * 100) : 0,
             ];
         });
     }
