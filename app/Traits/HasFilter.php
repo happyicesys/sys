@@ -348,8 +348,10 @@ trait HasFilter {
                 $query->where('parameter_json->fan', '<=', $search)->where('parameter_json->fan', '>', 0);
             }
         })
-        ->when($request->is_active, function($query, $search) {
-            $query->where('vends.is_active', $search);
+        ->when($request->is_active, function($query, $search) use ($request) {
+            if($search != 'all') {
+                $query->where('vends.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            }
         })
         ->when($isDoorOpen, function($query, $search) {
             if($search != 'all') {
