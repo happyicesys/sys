@@ -89,6 +89,11 @@ class Vend extends Model
         return $this->operators()->latest('operator_vend.created_at')->where('is_main', true)->limit(1);
     }
 
+    public function deliveryProductMappings()
+    {
+        return $this->belongsToMany(DeliveryProductMapping::class)->orderBy('name');
+    }
+
     public function firstVendBinding()
     {
         return $this->hasOne(VendBinding::class)->latest('begin_date');

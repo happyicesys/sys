@@ -22,7 +22,7 @@ class ProductMappingController extends Controller
 
     public function index(Request $request)
     {
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
+        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         // $sortKey = $request->sortKey ? $request->sortKey : 'created_at';
         $sortBy = $request->sortBy ? $request->sortBy : false;
 
@@ -33,8 +33,8 @@ class ProductMappingController extends Controller
                     'productMappingItems',
                     'productMappingItems.product:id,code,name,is_active',
                     'productMappingItems.product.thumbnail',
-                    'vends',
-                    'vends.latestVendBinding.customer',
+                    'vends:id,code,name,product_mapping_id',
+                    'vends.latestVendBinding.customer:id,code,name',
                 ])
                 ->when($request->name, function($query, $search) {
                     $query->where('name', 'LIKE', "%{$search}%");
@@ -66,6 +66,11 @@ class ProductMappingController extends Controller
                         'latestVendBinding.customer'
                     ])
                     ->whereNull('product_mapping_id')
+                    ->select(
+                        'id',
+                        'code',
+                        'name'
+                    )
 
                     // ->whereDoesntHave('productMapping', function($query) use ($request) {
                     //     $query->where('product_mappings.id', '!=', $request->id);

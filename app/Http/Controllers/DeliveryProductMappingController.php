@@ -39,8 +39,20 @@ class DeliveryProductMappingController extends Controller
         return Inertia::render('DeliveryPlatform/Index', [
             'deliveryProductMappings' => DeliveryProductMappingResource::collection(
                 DeliveryProductMapping::query()
+                    ->with([
+                        'deliveryProductMappingItems',
+                        'deliveryProductMappingItems.product:id,code,name,is_active',
+                        'deliveryProductMappingItems.product.thumbnail',
+                        'vends',
+                        'vends.latestVendBinding.customer:id,code,name',
+                    ])
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
+                    })
+                    ->when($request->vend_code, function($query, $search) use ($request) {
+                        $query->whereHas('vends', function($query) use ($request) {
+                            $query->where('code', 'LIKE', "{$request->vend_code}%");
+                        });
                     })
                     ->when($sortKey, function($query, $search) use ($sortBy) {
                         $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
@@ -134,6 +146,10 @@ class DeliveryProductMappingController extends Controller
             // 'product_mapping_item_id' => $request->product_mapping_item_id,
         ]);
 
+        $deliveryProductMappingItem->deliveryProductMapping->update([
+            'delivery_product_mapping_items_json' => $deliveryProductMappingItem->deliveryProductMapping->deliveryProductMappingItems,
+        ]);
+
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingItem->delivery_product_mapping_id]);
     }
 
@@ -220,6 +236,10 @@ class DeliveryProductMappingController extends Controller
                 'sub_category_json' => $productMappingItem['delivery_platform_sub_category_json'],
             ]);
         }
+
+        $deliveryProductMapping->update([
+            'delivery_product_mapping_items_json' => $deliveryProductMapping->deliveryProductMappingItems()->with('product.thumbnail')->get(),
+        ]);
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }

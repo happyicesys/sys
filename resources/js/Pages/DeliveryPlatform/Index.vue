@@ -27,8 +27,10 @@
           <SearchInput placeholderStr="Name" v-model="filters.name">
             Name
           </SearchInput>
+          <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code">
+            Vend ID
+          </SearchInput>
         </div>
-
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
           <div class="mt-3">
@@ -90,6 +92,12 @@
                       Name
                     </TableHeadSort>
                     <TableHead>
+                      Channel - Product
+                    </TableHead>
+                    <TableHead>
+                      Binded Vending Machines
+                    </TableHead>
+                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -97,6 +105,25 @@
                     <tr v-for="(deliveryProductMapping, deliveryProductMappingIndex) in deliveryProductMappings.data" :key="deliveryProductMapping.id" class="divide-x divide-gray-200">
                       <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-center">
                         {{ deliveryProductMappings.meta.from + deliveryProductMappingIndex }}
+                      </TableData>
+                      <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
+                        {{ deliveryProductMapping.name }}
+                      </TableData>
+                      <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
+                        <ul class="divide-y divide-gray-200">
+                          <li class="flex py-1 px-3 space-x-2" v-for="deliveryProductMappingItem in deliveryProductMapping.deliveryProductMappingItemsJson">
+                            <span class="text-blue-700 text-md pr-2">
+                              {{ deliveryProductMappingItem['channel_code'] }}
+                            </span>
+                            <span v-if="deliveryProductMappingItem['product']['code']">
+                              {{ deliveryProductMappingItem['product']['code'] }}
+                            </span>
+                            <span>
+                              - {{ deliveryProductMappingItem['product']['name'] }}
+                            </span>
+
+                          </li>
+                        </ul>
                       </TableData>
                       <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
                         {{ deliveryProductMapping.name }}
@@ -160,6 +187,7 @@ const props = defineProps({
 
 const filters = ref({
   name: '',
+  vend_code: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,

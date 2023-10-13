@@ -240,7 +240,7 @@ const filters = ref({
   vend_code: '',
   sortKey: '',
   sortBy: true,
-  numberPerPage: 100,
+  numberPerPage: 50,
 })
 const showModal = ref(false)
 const showVendFormModal = ref(false)
@@ -252,6 +252,7 @@ const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
   numberPerPageOptions.value = [
+    { id: 50, value: 50 },
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },

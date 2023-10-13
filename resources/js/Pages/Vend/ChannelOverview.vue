@@ -55,6 +55,9 @@
                         </span>
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        Group
+                      </th>
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Error
                       </th>
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
@@ -118,6 +121,9 @@
                         v-if="channels.some(channel => 'amount2' in channel)"
                       >
                         {{ (channel.amount2/100).toLocaleString(undefined, {minimumFractionDigits: 2}) }}
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                        {{ channel.discount_group }}
                       </td>
                       <td class="py-1 pl-1 pr-1 text-xs font-medium text-gray-900 sm:pl-1 text-center">
                         <span

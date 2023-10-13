@@ -76,7 +76,7 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900">Delivery Platform Product(s) </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">Delivery Platform Product(s) </span>
                   </div>
                 </div>
               </div>
@@ -223,6 +223,113 @@
               </div>
             </div>
 
+            <!-- <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6"> -->
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.product_mapping_id">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Vending Machine Binding </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sm:col-span-5" v-if="form.product_mapping_id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Vending Machine
+                </label>
+                <MultiSelect
+                  v-model="form.vend_id"
+                  :options="unbindedVendOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="full_name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.vend_id">
+                  {{ form.errors.vend_id }}
+                </div>
+              </div>
+
+              <div class="sm:col-span-1" v-if="form.product_mapping_id">
+                <Button
+                type="button"
+                @click="bindProductMappingItem()"
+                class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
+                :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="!form.vend_id"
+                >
+                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                  <span>
+                    Add
+                  </span>
+                </Button>
+              </div>
+
+              <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.product_mapping_id">
+              <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+                <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                  <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            #
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Vend ID
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Vend Name
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white">
+                        <tr v-for="(deliveryProductMappingVend, deliveryProductMappingVendIndex) in deliveryProductMappingVends" :key="deliveryProductMappingVend.id" :class="deliveryProductMappingVendIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            {{ deliveryProductMappingVendIndex + 1 }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ deliveryProductMappingVend.code }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                            <span v-if="deliveryProductMappingVend.latestVendBinding && deliveryProductMappingVend.latestVendBinding.customer">
+                              {{ deliveryProductMappingVend.latestVendBinding.customer.code }} <br>
+                              {{ deliveryProductMappingVend.latestVendBinding.customer.name }}
+                            </span>
+                            <span v-else>
+                              {{ deliveryProductMappingVend.name }}
+                            </span>
+                          </td>
+                          <td class="whitespace-nowrap py-4 text-sm text-center">
+                            <Button
+                              class="bg-red-400 hover:bg-red-500 text-white"
+                              @click="unbindProductMappingItem(deliveryProductMappingVend)"
+                            >
+                              <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                            </Button>
+                          </td>
+                        </tr>
+                        <!-- <tr v-if="!deliveryProductMappingVends.length">
+                          <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
+                            No Records Found
+                          </td>
+                        </tr> -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- </div> -->
+
             </div>
             <div class="sm:col-span-6">
               <div class="flex space-x-1 mt-5 justify-end">
@@ -282,6 +389,7 @@ const props = defineProps({
   const deliveryPlatformOperatorOptions = ref([])
   const deliveryProductMapping = ref([])
   const deliveryProductMappingItems = ref([])
+  const deliveryProductMappingVends = ref([])
   const form = ref(
     useForm(getDefaultForm())
   )
@@ -324,7 +432,9 @@ onMounted(() => {
       }) :
       useForm(getDefaultForm())
       deliveryProductMappingItems.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.deliveryProductMappingItems : []
+      deliveryProductMappingVends.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.deliveryProductMappingVends : []
       subCategoryOptions.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.category_json.subCategories : []
+      console.log(JSON.parse(JSON.stringify(props.deliveryProductMapping.data)))
 })
 
 function getDefaultForm() {

@@ -102,8 +102,9 @@ class DeliveryPlatformService
       if($response['code'] === 401) {
         SyncDeliveryPlatformOauthByOperator::dispatch($operator->id, $type);
         $this->getCategories($operator, $type);
+      }else {
+        throw new \Exception('Get Categories Failed, Other than 401');
       }
-      throw new \Exception('Get Categories Failed, Other than 401');
     }
 
   }

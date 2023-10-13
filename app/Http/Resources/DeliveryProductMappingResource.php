@@ -27,6 +27,8 @@ class DeliveryProductMappingResource extends JsonResource
             'deliveryPlatformOperator' => DeliveryPlatformOperatorResource::make($this->whenLoaded('deliveryPlatformOperator')),
             'productMapping' => ProductMappingResource::make($this->whenLoaded('productMapping')),
             'deliveryProductMappingItems' => DeliveryProductMappingItemResource::collection($this->whenLoaded('deliveryProductMappingItems')),
+            'deliveryProductMappingItemsJson' => $this->delivery_product_mapping_items_json,
+            'vends' => VendResource::collection($this->whenLoaded('vends')),
         ];
     }
 }
