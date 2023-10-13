@@ -309,7 +309,7 @@ trait HasFilter {
         $sortKey = $request->sortKey ? $request->sortKey : 'vends.is_online';
         $sortBy = $request->sortBy ? $request->sortBy : false;
 
-        return $query->when($request->codes, function($query, $search) {
+        $query = $query->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);
                 $query->whereIn('vends.code', $search);
@@ -445,6 +445,8 @@ trait HasFilter {
                 $query->orderBy('vends.code', 'asc');
             }
         });
+
+        return $query;
     }
 
     public function filterVendTransactionsDB($query, $request)

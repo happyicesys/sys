@@ -750,23 +750,24 @@ class VendController extends Controller
         $vendChannels = $this->filterOperatorDB($vendChannels);
         $vendChannels = $vendChannels->get();
 
+        // dd($vendChannels);
         return (new FastExcel($this->yieldOneByOne($vendChannels)))->download('Vend_channels_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendChannel) {
             return [
-                'Vend ID' => $vendChannel->vend_code,
-                'Customer Name' => $vendChannel->customer_code ?
+                'Vend ID' => isset($vendChannel->vend_code) ? $vendChannel->vend_code : '',
+                'Customer Name' => isset($vendChannel->customer_code) ?
                                     $vendChannel->customer_code.' '.$vendChannel->customer_name :
-                                    $vendChannel->vend_name,
-                'Channel' => $vendChannel->channel_code,
-                'Product Code' => $vendChannel->product_code ?
+                                    (isset($vendChannel->vend_name) ? $vendChannel->vend_name : ''),
+                'Channel' => isset($vendChannel->channel_code) ? $vendChannel->channel_code : '',
+                'Product Code' => isset($vendChannel->product_code) ?
                                 $vendChannel->product_code :
                                 '',
-                'Product Name' => $vendChannel->product_name ?
+                'Product Name' => isset($vendChannel->product_name) ?
                                 $vendChannel->product_name :
                                 '',
-                'Qty' => $vendChannel->qty,
-                'Capacity' => $vendChannel->capacity,
-                'Price' => $vendChannel->amount/ 100,
-                'Balance Percent(%)' => $vendChannel->capacity ? round($vendChannel->qty/ $vendChannel->capacity * 100) : '',
+                'Qty' => isset($vendChannel->qty) ? $vendChannel->qty : '',
+                'Capacity' => isset($vendChannel->capacity) ? $vendChannel->capacity : '',
+                'Price' => isset($vendChannel->amount) ? $vendChannel->amount/ 100 : 0,
+                'Balance Percent(%)' => isset($vendChannel->capacity) ? round($vendChannel->qty/ $vendChannel->capacity * 100) : 0,
             ];
         });
     }
