@@ -82,7 +82,7 @@ class VendController extends Controller
     public function index(Request $request)
     {
 
-        $url = Storage::url('/qr-code/'.'23101403323702003.png');
+        $url = Storage::url('/qr-code/'.'23101403315602003.png');
         // dd($url);
         // dd(new QrReader('www.google.com'));
         $qrCodeReader = new QrReader($url);
