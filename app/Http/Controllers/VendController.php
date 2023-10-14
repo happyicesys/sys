@@ -86,11 +86,10 @@ class VendController extends Controller
         // dd($url);
         // dd(new QrReader('www.google.com'));
         $qrCodeReader = new QrReader($url);
-        dd($qrCodeReader);
         $qrCodeText = $qrCodeReader->text([
             'POSSIBLE_FORMATS' => 'QR_CODE',
         ]);
-
+        dd($qrCodeText);
 
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         if(!isset($request->is_active)) {
