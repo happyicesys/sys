@@ -258,7 +258,7 @@
               <div class="sm:col-span-1" v-if="form.product_mapping_id">
                 <Button
                 type="button"
-                @click="bindProductMappingItem()"
+                @click.prevent="bindVend(form.vend_id.id)"
                 class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
                 :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
                 :disabled="!form.vend_id"
@@ -292,36 +292,36 @@
                         </tr>
                       </thead>
                       <tbody class="bg-white">
-                        <tr v-for="(deliveryProductMappingVend, deliveryProductMappingVendIndex) in deliveryProductMappingVends" :key="deliveryProductMappingVend.id" :class="deliveryProductMappingVendIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <tr v-for="(vend, vendIndex) in vends" :key="vend.id" :class="vendIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            {{ deliveryProductMappingVendIndex + 1 }}
+                            {{ vendIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ deliveryProductMappingVend.code }}
+                            {{ vend.code }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                            <span v-if="deliveryProductMappingVend.latestVendBinding && deliveryProductMappingVend.latestVendBinding.customer">
-                              {{ deliveryProductMappingVend.latestVendBinding.customer.code }} <br>
-                              {{ deliveryProductMappingVend.latestVendBinding.customer.name }}
+                            <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
+                              {{ vend.latestVendBinding.customer.code }} <br>
+                              {{ vend.latestVendBinding.customer.name }}
                             </span>
                             <span v-else>
-                              {{ deliveryProductMappingVend.name }}
+                              {{ vend.name }}
                             </span>
                           </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button
                               class="bg-red-400 hover:bg-red-500 text-white"
-                              @click="unbindProductMappingItem(deliveryProductMappingVend)"
+                              @click.prevent="unbindVend(vend.id)"
                             >
                               <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                             </Button>
                           </td>
                         </tr>
-                        <!-- <tr v-if="!deliveryProductMappingVends.length">
+                        <tr v-if="!vends.length">
                           <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
                             No Records Found
                           </td>
-                        </tr> -->
+                        </tr>
                       </tbody>
                     </table>
                   </div>
@@ -383,13 +383,13 @@ const props = defineProps({
     productMappingOptions: [Array, Object],
     productOptions: Object,
     type: String,
+    unbindedVendOptions: [Array, Object],
   })
 
   const categoryApiOptions = ref([])
   const deliveryPlatformOperatorOptions = ref([])
   const deliveryProductMapping = ref([])
   const deliveryProductMappingItems = ref([])
-  const deliveryProductMappingVends = ref([])
   const form = ref(
     useForm(getDefaultForm())
   )
@@ -402,6 +402,8 @@ const props = defineProps({
   const subCategoryOptions = ref([])
   const typeName = ref('')
   const permissions = usePage().props.auth.permissions
+  const vends = ref([])
+  const unbindedVendOptions = ref([])
 
 onMounted(() => {
     if(props.type == 'create') {
@@ -413,6 +415,7 @@ onMounted(() => {
     deliveryPlatformOperatorOptions.value = [
       ...props.operatorOptions.data.find(x => x.id === props.deliveryProductMapping.data.operator_id).deliveryPlatformOperators.map((data) => {return {id: data.id, name: data.deliveryPlatform.name}})
     ]
+    deliveryProductMappingItems.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.deliveryProductMappingItems : []
     operatorOptions.value = [
       ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
@@ -431,10 +434,9 @@ onMounted(() => {
         delivery_platform_operator_field: deliveryPlatformOperatorOptions.value.find(x => x.id === props.deliveryProductMapping.data.delivery_platform_operator_id).name,
       }) :
       useForm(getDefaultForm())
-      deliveryProductMappingItems.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.deliveryProductMappingItems : []
-      deliveryProductMappingVends.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.deliveryProductMappingVends : []
       subCategoryOptions.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.category_json.subCategories : []
-      console.log(JSON.parse(JSON.stringify(props.deliveryProductMapping.data)))
+      unbindedVendOptions.value = props.unbindedVendOptions ? props.unbindedVendOptions.data : []
+      vends.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.vends : []
 })
 
 function getDefaultForm() {
@@ -462,6 +464,16 @@ function addDeliveryProductMappingItem() {
   }
 }
 
+function bindVend(vendId) {
+  router.post(
+    '/delivery-product-mappings/' + form.value.id + '/bind-vend/' + vendId, {
+    }, {
+    preserveState: false,
+    preserveScroll: true,
+    replace: true,
+  })
+}
+
 function removeDeliveryProductMappingItem(productMappingItem) {
   form.value
     .delete('/delivery-product-mapping-items/' + productMappingItem.id, {
@@ -479,6 +491,22 @@ function submit() {
   .post('/delivery-product-mappings/' + form.value.id + '/update', {
     preserveState: true,
     replace: true,
+  })
+}
+
+function unbindVend(vendId) {
+  const approval = confirm('Are you sure to delete this entry?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/delivery-product-mappings/' + form.value.id + '/unbind-vend/' + vendId, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+      onSuccess: () => {
+        router.reload({only: ['unbindedVendOptions']})
+        unbindedVendOptions.value = props.unbindedVendOptions ? props.unbindedVendOptions.data : []
+      },
   })
 }
 </script>

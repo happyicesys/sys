@@ -23,7 +23,6 @@ class ProductMappingController extends Controller
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
-        // $sortKey = $request->sortKey ? $request->sortKey : 'created_at';
         $sortBy = $request->sortBy ? $request->sortBy : false;
 
         return Inertia::render('ProductMapping/Index', [
@@ -71,10 +70,6 @@ class ProductMappingController extends Controller
                         'code',
                         'name'
                     )
-
-                    // ->whereDoesntHave('productMapping', function($query) use ($request) {
-                    //     $query->where('product_mappings.id', '!=', $request->id);
-                    // })
                     ->orderBy('code')
                     ->get()
                 ),

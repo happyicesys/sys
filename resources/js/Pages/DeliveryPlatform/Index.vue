@@ -91,6 +91,12 @@
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
                       Name
                     </TableHeadSort>
+                    <TableHeadSort modelName="operator_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_id')">
+                      Operator
+                    </TableHeadSort>
+                    <TableHeadSort modelName="delivery_platform_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_platform_id')">
+                      Platform
+                    </TableHeadSort>
                     <TableHead>
                       Channel - Product
                     </TableHead>
@@ -108,6 +114,12 @@
                       </TableData>
                       <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
                         {{ deliveryProductMapping.name }}
+                      </TableData>
+                      <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
+                        {{ deliveryProductMapping.operator ? deliveryProductMapping.operator.name : null }}
+                      </TableData>
+                      <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
+                        {{ deliveryProductMapping.deliveryPlatformOperator && deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform ? deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name : null }}
                       </TableData>
                       <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
                         <ul class="divide-y divide-gray-200">

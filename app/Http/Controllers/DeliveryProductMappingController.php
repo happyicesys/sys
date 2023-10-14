@@ -9,6 +9,7 @@ use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\ProductMappingItemResource;
+use App\Http\Resources\VendResource;
 use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryProductMapping;
@@ -17,6 +18,7 @@ use App\Models\Operator;
 use App\Models\Product;
 use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
+use App\Models\Vend;
 use App\Services\DeliveryPlatformService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -40,10 +42,12 @@ class DeliveryProductMappingController extends Controller
             'deliveryProductMappings' => DeliveryProductMappingResource::collection(
                 DeliveryProductMapping::query()
                     ->with([
+                        'deliveryPlatformOperator.deliveryPlatform',
                         'deliveryProductMappingItems',
                         'deliveryProductMappingItems.product:id,code,name,is_active',
                         'deliveryProductMappingItems.product.thumbnail',
-                        'vends',
+                        'operator:id,name',
+                        'vends:id,code,name',
                         'vends.latestVendBinding.customer:id,code,name',
                     ])
                     ->when($request->name, function($query, $search) {
@@ -61,6 +65,16 @@ class DeliveryProductMappingController extends Controller
                     ->withQueryString()
             ),
         ]);
+    }
+
+    public function bindVend($id, $vendId)
+    {
+        $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
+        $vend = Vend::findOrFail($vendId);
+
+        $vend->deliveryProductMappings()->attach($deliveryProductMapping->id);
+
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }
 
     public function create(Request $request)
@@ -158,6 +172,8 @@ class DeliveryProductMappingController extends Controller
         $deliveryProductMapping = DeliveryProductMapping::query()
             ->with([
                 'deliveryProductMappingItems.product.thumbnail',
+                'vends:id,code,name',
+                'vends.latestVendBinding.customer:id,code,name',
             ])
             ->findOrFail($id);
 
@@ -191,6 +207,28 @@ class DeliveryProductMappingController extends Controller
                 ->get()
             ),
             'type' => 'edit',
+            'unbindedVendOptions' => VendResource::collection(
+                Vend::with([
+                    'latestVendBinding.customer:id,code,name'
+                ])
+                ->when($request->operator_id, function($query, $search) {
+                    $query->whereIn('vends.id', DB::table('operator_vend')
+                        ->select('vend_id')
+                        ->where('operator_id', $search)
+                        ->pluck('vend_id')
+                    );
+                })
+                ->whereDoesntHave('latestOperator.deliveryPlatformOperators', function($query) use ($deliveryProductMapping) {
+                    $query->where('id', $deliveryProductMapping->delivery_platform_operator_id);
+                })
+                ->select(
+                    'id',
+                    'code',
+                    'name'
+                )
+                ->orderBy('code')
+                ->get()
+            ),
         ]);
     }
 
@@ -240,6 +278,15 @@ class DeliveryProductMappingController extends Controller
         $deliveryProductMapping->update([
             'delivery_product_mapping_items_json' => $deliveryProductMapping->deliveryProductMappingItems()->with('product.thumbnail')->get(),
         ]);
+
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
+    }
+
+    public function unbindVend($id, $vendId)
+    {
+        $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
+        $vend = Vend::findOrFail($vendId);
+        $vend->deliveryProductMappings()->detach($deliveryProductMapping->id);
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }
