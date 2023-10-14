@@ -53,10 +53,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
-
-use Zxing\QrReader;
-use Illuminate\Support\Facades\Storage;
-
 use App\Models\PaymentGateways\Omise;
 
 
@@ -81,17 +77,6 @@ class VendController extends Controller
 
     public function index(Request $request)
     {
-
-        $url = Storage::url('/qr-code/'.'23101403323702003.png');
-        // dd($url);
-        // dd(new QrReader('www.google.com'));
-        $qrCodeReader = new QrReader($url);
-        $qrCodeText = $qrCodeReader->text([
-            'POSSIBLE_FORMATS' => 'QR_CODE',
-            'TRY_HARDER' => true,
-        ]);
-        dd($qrCodeText);
-
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         if(!isset($request->is_active)) {
             if(
