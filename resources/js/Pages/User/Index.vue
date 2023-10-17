@@ -31,6 +31,22 @@
               <SearchInput placeholderStr="Email" v-model="filters.email">
                   Email
               </SearchInput>
+              <div v-if="permissions.includes('admin-access vends')">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Operator
+                </label>
+                <MultiSelect
+                    v-model="filters.operator_id"
+                    :options="operatorOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="full_name"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
           </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -206,11 +222,13 @@ const props = defineProps({
 
 const filters = ref({
   name: '',
+  operator_id: '',
   uen: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
 })
+const operatorOptions = ref([])
 const showFormModal = ref(false)
 const user = ref()
 const type = ref('')
@@ -225,6 +243,10 @@ onMounted(() => {
       { id: 'All', value: 'All' },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
+  operatorOptions.value = [
+    {id: 'all', full_name: 'All'},
+    ...props.operators.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+]
 })
 
 function onCreateClicked() {
@@ -270,6 +292,7 @@ function onEditClicked(userValue) {
 function onSearchFilterUpdated() {
   router.get('/users', {
       ...filters.value,
+      operator_id: filters.value.operator_id.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

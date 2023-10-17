@@ -34,7 +34,7 @@ class PaymentGatewayService
       'type' => (isset($params['type']) && $params['type']) ? $params['type'] : ($operatorPaymentGateway->paymentGateway->defaultPaymentMethod->exists() ? $operatorPaymentGateway->paymentGateway->defaultPaymentMethod->type_name : throw new \Exception('Payment Method is not set')),
       'return_uri' => isset($params['return_uri']) ? $params['return_uri'] : env('APP_URL'),
     ];
-    // dd($params, isset($params['type']), $params['type'], $processedParams);
+
     $response = $paymentGateway->createPayment($processedParams);
 
     return [
@@ -69,25 +69,6 @@ class PaymentGatewayService
             $isRequiredDecode = true;
             break;
         case 'omise':
-            // if((isset($response['source']['flow']) and $response['source']['flow'] == 'offline' and (isset($response['source']['scannable_code']['image']['download_uri']) or isset($response['authorize_uri']))) or (isset($response['source']['flow']) and $response['source']['flow'] == 'redirect' and isset($response['authorize_uri']))) {
-            //     $isCreateInput = true;
-            //     if($response['source']['flow'] == 'offline') {
-            //         if(isset($response['authorize_uri'])) {
-            //           $qrCodeUrl = $response['authorize_uri'];
-            //           $isRequiredDecode = false;
-            //         }else {
-            //           $qrCodeUrl = $response['source']['scannable_code']['image']['download_uri'];
-            //           $isRequiredDecode = true;
-            //         }
-            //     }else if($response['source']['flow'] == 'redirect') {
-            //         $qrCodeUrl = $response['authorize_uri'];
-            //         $isRequiredDecode = false;
-            //     }
-            // }else if(isset($response['code']) and isset($response['message'])) {
-            //     $errorMsg .= 'Error: ';
-            //     $errorMsg .= $response['code'].' '.$response['message'];
-            // }
-            // break;
             if((isset($response['source']['flow']) and $response['source']['flow'] == 'offline' and isset($response['source']['scannable_code']['image']['download_uri'])) or (isset($response['source']['flow']) and $response['source']['flow'] == 'redirect' and isset($response['authorize_uri']))) {
                 $isCreateInput = true;
                 if($response['source']['flow'] == 'offline') {
@@ -145,10 +126,8 @@ class PaymentGatewayService
               $doc = new \DOMDocument;
               $doc->loadHTML($htmlString);
               $xpath = new \DOMXpath($doc);
-              // $val= $xpath->query('//input[@type="hidden" and @name = "qr_data"]/@value');
               $val= $xpath->query('//input[@type="hidden" and @id = "qr_string"]/@value');
               $qrCodeText = isset($val[0]) ? $val[0]->nodeValue : null;
-              // dd($qrCodeText);
               break;
         }
     }
@@ -188,10 +167,9 @@ class PaymentGatewayService
   {
     if($this->getOperator($vend)) {
       $operator = $this->getOperator($vend);
-      // dd($operator->toArray());
       if($operator->operatorPaymentGateways()->exists()) {
         $operatorPaymentGateway = $operator->operatorPaymentGateways()->where('type', $this->getAppEnvironment())->first();
-        // dd($operatorPaymentGateway->toArray());
+
         if($operatorPaymentGateway) {
           switch($operatorPaymentGateway->paymentGateway->name) {
             case 'midtrans':

@@ -26,22 +26,27 @@ class DeliveryPlatformController extends Controller
         $this->deliveryPlatformService = $deliveryPlatformService;
     }
 
-    public function getCategories($operatorId, $type)
+    public function getCategories(DeliveryPlatformOperator $deliveryPlatformOperator)
     {
         try {
-            $operator = Operator::findOrFail($operatorId);
-            $response = $this->deliveryPlatformService->getCategories($operator, $type);
+            $response = $this->deliveryPlatformService->getCategories($deliveryPlatformOperator);
             return $response;
         } catch(\Exception $e) {
             return $e->getMessage();
         }
     }
 
-    public function getMenu(Request $request)
+    public function getGrabMenu(Request $request)
     {
         $merchantId = $request->merchantID;
         $partnerMerchantID = $request->partnerMerchantID;
 
+        try {
+            $response = $this->deliveryPlatformService->getMenu($merchantId, $partnerMerchantID);
+            return $response;
+        } catch(\Exception $e) {
+            return $e->getMessage();
+        }
 
     }
 

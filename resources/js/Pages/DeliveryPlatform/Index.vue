@@ -118,7 +118,7 @@
                       <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
                         {{ deliveryProductMapping.operator ? deliveryProductMapping.operator.name : null }}
                       </TableData>
-                      <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
+                      <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-center">
                         {{ deliveryProductMapping.deliveryPlatformOperator && deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform ? deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name : null }}
                       </TableData>
                       <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
@@ -138,10 +138,20 @@
                         </ul>
                       </TableData>
                       <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
-                        {{ deliveryProductMapping.name }}
+                        <ul class="divide-y divide-gray-200">
+                          <li class="flex py-1 px-3 space-x-2" v-for="vend in deliveryProductMapping.vendsJson">
+                            {{ vend.code }} -
+                            <span v-if="vend.latest_vend_binding && vend.latest_vend_binding.customer">
+                              {{ vend.latest_vend_binding.customer.name }}
+                            </span>
+                            <span v-else>
+                              {{ vend.name }}
+                            </span>
+                          </li>
+                        </ul>
                       </TableData>
                       <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-center">
-                        <div class="flex justify-center space-x-1">
+                        <div class="flex flex-col justify-center space-y-1">
                           <Link :href="'/delivery-product-mappings/' + deliveryProductMapping.id + '/edit'">
                             <Button
                               type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
@@ -154,12 +164,20 @@
                           </Link>
 
                           <Button
-                            type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
+                            type="button"
+                            class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1"
+                            :class="[deliveryProductMapping.vendsJson && deliveryProductMapping.vendsJson.length > 0 ? 'opacity-50 cursor-not-allowed' : '']"
                             @click="onDeleteClicked(deliveryProductMapping)"
+                            :disabled="deliveryProductMapping.vendsJson && deliveryProductMapping.vendsJson.length > 0"
                           >
-                            <TrashIcon class="w-4 h-4"></TrashIcon>
-                            <span>
-                                Delete
+                            <span class="flex space-x-1 items-center">
+                              <TrashIcon class="w-4 h-4"></TrashIcon>
+                              <span>
+                                  Delete
+                              </span>
+                            </span>
+                            <span v-if="deliveryProductMapping.vendsJson && deliveryProductMapping.vendsJson.length > 0">
+                              (Binded)
                             </span>
                           </Button>
                         </div>

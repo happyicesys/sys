@@ -28,8 +28,9 @@ class UserController extends Controller
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $sortKey = $request->sortKey ? $request->sortKey : 'name';
         $sortBy = $request->sortBy ? $request->sortBy : true;
-        $operatorId = auth()->user()->operator_id == 1 ? null : auth()->user()->operator_id;
+        $operatorId = auth()->user()->operator_id == 1 ? $request->operator_id : auth()->user()->operator_id;
 
+        // dd($operatorId);
         return Inertia::render('User/Index', [
             'users' => UserResource::collection(
                 User::with([

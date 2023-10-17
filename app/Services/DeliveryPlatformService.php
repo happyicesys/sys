@@ -13,15 +13,12 @@ use Illuminate\Support\Facades\Http;
 
 class DeliveryPlatformService
 {
-  private $deliveryPlatform;
   private $deliveryPlatformOperator;
-  private $operator;
+  private $model;
 
   public function __construct()
   {
-    $this->deliveryPlatform = new DeliveryPlatform();
     $this->deliveryPlatformOperator = new DeliveryPlatformOperator();
-    $this->operator = new Operator();
     $this->model = new DeliveryPlatform();
   }
 
@@ -53,55 +50,69 @@ class DeliveryPlatformService
 
   }
 
-  public function getDeliveryPlatform()
-  {
-    return $this->deliveryPlatform;
-  }
-
   public function getDeliveryPlatformOperator()
   {
     return $this->deliveryPlatformOperator;
   }
 
-  public function getOauth(Operator $operator, $type)
+  public function getMenu(DeliveryPlatformOperator $deliveryPlatformOperator, $params = [])
   {
-    $this->operator = $operator;
-    $this->setDeliveryPlatformOperator($type);
+    $this->deliveryPlatformOperator = $deliveryPlatformOperator;
+    $this->setDeliveryPlatformOperator($deliveryPlatformOperator);
 
-    switch($type) {
+    switch($deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
-        $response = $this->model->getOauthToken();
+        $deliveryProductMapping = DeliveryProductMapping::query()
+          ->with([
+            'deliveryProductMappingItems',
+            'deliveryProductMappingItems.product.thumbnail'
+            ])
+          ->where('delivery_platform_operator_id', $deliveryPlatformOperator->id)
+          ->first();
+
+
+
+
         if($response['success']) {
-          return $this->incomingOauthParams($response['data']);
+          return $this->model->getIncomingOauthParams($response['data']);
         }
         break;
     }
-
-
   }
 
-  public function getOperator()
+  public function getOauth(DeliveryPlatformOperator $deliveryPlatformOperator)
   {
-    return $this->operator;
+    $this->deliveryPlatformOperator = $deliveryPlatformOperator;
+    $this->setDeliveryPlatformOperator($deliveryPlatformOperator);
+
+    switch($deliveryPlatformOperator->deliveryPlatform->slug) {
+      case 'grab':
+        $response = $this->model->getOauthToken();
+        if($response['success']) {
+          return $this->model->getIncomingOauthParams($response['data']);
+        }
+        break;
+    }
   }
 
-  public function getCategories(Operator $operator, $type)
+  // get category options from delivery platform
+  public function getCategories(DeliveryPlatformOperator $deliveryPlatformOperator)
   {
-    $this->operator = $operator;
-    $this->setDeliveryPlatformOperator($type);
+    $this->deliveryPlatformOperator = $deliveryPlatformOperator;
+    $this->setDeliveryPlatformOperator($deliveryPlatformOperator);
 
     $response = $this->model->listMartCategories();
 
     if($response['success']) {
-      switch($type) {
+      switch($deliveryPlatformOperator->deliveryPlatform->slug) {
         case 'grab':
           return $response['data'];
           break;
       }
     }else {
       if($response['code'] === 401) {
-        SyncDeliveryPlatformOauthByOperator::dispatch($operator->id, $type);
-        $this->getCategories($operator, $type);
+        SyncDeliveryPlatformOauthByOperator::dispatch($deliveryPlatformOperator);
+        $this->getCategories($deliveryPlatformOperator);
       }else {
         throw new \Exception('Get Categories Failed, Other than 401');
       }
@@ -119,6 +130,20 @@ class DeliveryPlatformService
 
   }
 
+  public function setDeliveryProductMappingParams(DeliveryProductMapping $deliveryProductMapping)
+  {
+    $params = [
+      'category_json' => $deliveryProductMapping->category_json,
+      'status' => $deliveryProductMapping->status,
+      'currency' => [
+        'code' => $deliveryProductMapping->deliveryPlatformOperator->operator->country->currency_code,
+        'symbol' => $deliveryProductMapping->deliveryPlatformOperator->operator->country->currency_symbol,
+        'exponent' => $deliveryProductMapping->deliveryPlatformOperator->operator->country->currency_exponent,
+      ],
+      'subCategories' => [],
+    ];
+  }
+
   public function syncMenu()
   {
 
@@ -134,51 +159,17 @@ class DeliveryPlatformService
 
   }
 
-  private function setDeliveryPlatform(Vend $vend, $type)
+  // set delivery platform operator
+  private function setDeliveryPlatformOperator($deliveryPlatformOperator)
   {
-    $this->operator = $this->setOperator($vend);
-    $this->setDeliveryPlatformOperator($type);
-  }
-
-  private function setDeliveryPlatformOperator($type)
-  {
-    if(!($this->operator and $this->operator->deliveryPlatformOperators()->exists())) {
-      throw new \Exception('Delivery Platform Operator not found.');
-    }
-
-    $this->deliveryPlatformOperator = $this
-          ->operator->deliveryPlatformOperators()
-          ->whereHas('deliveryPlatform', function($query) use ($type) {
-            $query->where('slug', $type);
-          })
-          ->first();
-
-    if(!$this->deliveryPlatformOperator) {
-      throw new \Exception('Please check API key, Environtment, or Delivery Platform Slug');
-    }
-
-    $this->deliveryPlatform = $this->deliveryPlatformOperator->deliveryPlatform;
-
-    // dd($this->deliveryPlatformOperator->deliveryPlatform->slug);
-    switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+    switch($deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
-        $this->model = new Grab($this->deliveryPlatformOperator);
-        // dd($this->deliveryPlatformOperator->toArray(), $this->deliveryPlatform->toArray());
+        $this->model = new Grab($deliveryPlatformOperator);
         return $this->model;
         break;
     }
 
     throw new \Exception('Invalid delivery platform specified.');
-  }
-
-  private function setOperator(Vend $vend)
-  {
-    if(!$vend->currentOperator()->exists()) {
-      throw new \Exception('Vend is not set to any operator');
-    }
-    $this->operator = $vend->currentOperator()->first();
-
-    return $this->operator;
   }
 
   private function getAppEnvironment()
@@ -255,29 +246,6 @@ class DeliveryPlatformService
     ];
   }
 
-  private function grabMenuSellingTimes($params = [])
-  {
-    return [
-      'startTime' => Carbon::now()->startOfDay()->setTimezone('UTC')->toDatetimeString(),
-      'endTime' => Carbon::now()->endOfDay()->setTimezone('UTC')->toDatetimeString(),
-      'id' => 'ST-1001',
-      'name' => 'All Day',
-    ];
-  }
-
-  private function incomingOauthParams($params = [])
-  {
-    switch($this->deliveryPlatform->slug) {
-      case 'grab':
-        return [
-          'access_token' => $params['access_token'],
-          'expired_at' => $params['expires_in'],
-          'token_type' => $params['token_type'],
-        ];
-        break;
-    }
-  }
-
   private function incomingOrderParams($params = [])
   {
     return [
@@ -293,18 +261,4 @@ class DeliveryPlatformService
       'status' => $params['orderState'],
     ];
   }
-
-  private function outgoingOauthParams($params = [])
-  {
-    switch($this->deliveryPlatform->slug) {
-      case 'grab':
-        return [
-          'access_token' => $params['access_token'],
-          'token_type' => $params['type'],
-          'expires_in' => $params['expired_at'],
-        ];
-        break;
-    }
-  }
-
 }

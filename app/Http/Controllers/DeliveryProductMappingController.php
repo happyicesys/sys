@@ -73,6 +73,9 @@ class DeliveryProductMappingController extends Controller
         $vend = Vend::findOrFail($vendId);
 
         $vend->deliveryProductMappings()->attach($deliveryProductMapping->id);
+        $deliveryProductMapping->update([
+            'vends_json' => $deliveryProductMapping->vends()->with('latestVendBinding.customer:id,code,name')->get(),
+        ]);
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }
@@ -81,7 +84,7 @@ class DeliveryProductMappingController extends Controller
     {
         return Inertia::render('DeliveryPlatform/Create', [
             'categoryApiOptions' => Inertia::lazy(fn() =>[
-                $this->deliveryPlatformService->getCategories(Operator::find($request->operator_id), DeliveryPlatformOperator::find($request->delivery_platform_operator_id)->deliveryPlatform->slug),
+                $this->deliveryPlatformService->getCategories(DeliveryPlatformOperator::find($request->delivery_platform_operator_id)),
             ]),
             'operatorOptions' => OperatorResource::collection(
                 Operator::query()
@@ -124,6 +127,23 @@ class DeliveryProductMappingController extends Controller
 
         $deliveryProductMappingItem->delete();
 
+        DeliveryProductMapping::findOrFail($deliveryProductMappingItem->deliveryProductMapping->id)->update([
+            'delivery_product_mapping_items_json' =>
+                DeliveryProductMapping::findOrFail($deliveryProductMappingId)
+                ->deliveryProductMappingItems()
+                ->with([
+                    'product:id,code,name',
+                    'product.thumbnail'
+                ])
+                ->select(
+                    'id',
+                    'amount',
+                    'channel_code',
+                    'product_id',
+                )
+                ->get()
+        ]);
+
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingId]);
     }
 
@@ -159,9 +179,23 @@ class DeliveryProductMappingController extends Controller
             // 'product_mapping_id' => $request->product_mapping_id,
             // 'product_mapping_item_id' => $request->product_mapping_item_id,
         ]);
+        // dd($deliveryProductMappingItem()->with('deliveryProductMapping')->first()->toArray(), $deliveryProductMappingItem->deliveryProductMapping);
 
-        $deliveryProductMappingItem->deliveryProductMapping->update([
-            'delivery_product_mapping_items_json' => $deliveryProductMappingItem->deliveryProductMapping->deliveryProductMappingItems,
+        DeliveryProductMapping::findOrFail($deliveryProductMappingId)->update([
+            'delivery_product_mapping_items_json' =>
+                DeliveryProductMapping::findOrFail($deliveryProductMappingId)
+                ->deliveryProductMappingItems()
+                ->with([
+                    'product:id,code,name',
+                    'product.thumbnail'
+                ])
+                ->select(
+                    'id',
+                    'amount',
+                    'channel_code',
+                    'product_id',
+                )
+                ->get()
         ]);
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingItem->delivery_product_mapping_id]);
@@ -179,7 +213,7 @@ class DeliveryProductMappingController extends Controller
 
         return Inertia::render('DeliveryPlatform/Edit', [
             'categoryApiOptions' => fn() =>[
-                $this->deliveryPlatformService->getCategories(Operator::find($request->has('operator_id') ? $request->operator_id : $deliveryProductMapping->operator_id), DeliveryPlatformOperator::find($request->has('delivery_platform_operator_id') ? $request->delivery_platform_operator_id : $deliveryProductMapping->delivery_platform_operator_id)->deliveryPlatform->slug),
+                $this->deliveryPlatformService->getCategories(DeliveryPlatformOperator::find($deliveryProductMapping->delivery_platform_operator_id))
             ],
             'deliveryProductMapping' => DeliveryProductMappingResource::make(
                 $deliveryProductMapping
@@ -287,6 +321,9 @@ class DeliveryProductMappingController extends Controller
         $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
         $vend = Vend::findOrFail($vendId);
         $vend->deliveryProductMappings()->detach($deliveryProductMapping->id);
+        $deliveryProductMapping->update([
+            'vends_json' => $deliveryProductMapping->vends()->with('latestVendBinding.customer:id,code,name')->get(),
+        ]);
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }

@@ -25,15 +25,31 @@
                 <a :href="item.url" target="_blank" class="font-medium text-indigo-600 hover:text-indigo-500">Download</a>
               </div>
             </div>
-            <div class="" v-if="item.children" >
+            <div class="pt-2" v-if="item.children" >
+              <div class="border-t border-gray-100" v-if="item.is_child_index_needed">
+                <dl class="divide-y divide-gray-100">
+                  <div v-for="(child, childIndex) in item.children">
+                    <a :href="'#'+ child.div" class="px-4 py-2 sm:grid sm:grid-cols-4 sm:gap-4 sm:px-6">
+                      <dt class="text-sm font-medium text-blue-700">
+                        {{ child.sequence }}
+                      </dt>
+                      <dd class="mt-1 text-sm leading-6 text-blue-700 sm:col-span-2 sm:mt-0">
+                        {{ child.name }}
+                      </dd>
+                    </a>
+                  </div>
+                </dl>
+              </div>
               <div class="mt-2 border-2 items-center justify-center py-3 pl-3 pr-4 text-sm">
                 <ul class="space-y-3">
-                  <li v-for="(child, childIndex) in item.children" :key="childIndex" class="overflow-hidden rounded-md bg-white px-6 py-4 shadow">
-                    <span class="font-medium">
-                      {{ childIndex + 1 }}. {{ child.name }}
-                    </span>
-                    <div class="aspect-w-9 aspect-h-16 md:aspect-w-16 md:aspect-h-9">
-                      <iframe :src="child.url" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen></iframe>
+                  <li v-for="(child, childIndex) in item.children" :key="childIndex" class="overflow-hidden rounded-md bg-white px-6 py-3 shadow">
+                    <div :id="child.div">
+                      <span class="font-medium">
+                        {{ child.sequence }}. {{ child.name }}
+                      </span>
+                      <div class="aspect-w-9 aspect-h-16 md:aspect-w-16 md:aspect-h-9 mt-3">
+                        <iframe :src="child.url" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen></iframe>
+                      </div>
                     </div>
                   </li>
                 </ul>
@@ -57,12 +73,6 @@ import { PaperClipIcon } from '@heroicons/vue/20/solid';
 const showModal = ref(false)
 const contentIndex = ref()
 const items = ref([
-  // {
-  //   index: 1,
-  //   name: 'VM Training Agenda',
-  //   filename: 'VM training agenda.pdf',
-  //   url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/VM%20training%20agenda.pdf',
-  // },
   {
     index: 1,
     name: 'Quick User Guide Model-F',
@@ -71,28 +81,33 @@ const items = ref([
   },
   {
     index: 2,
-    name: 'Explainer Videos',
+    name: 'Machine Problem Solving',
+    is_child_index_needed: true,
     url: '',
     children: [
       {
-        sequence: 1,
+        sequence: 2.1,
         name: 'Buying via Cash or Cashless',
         url: 'https://www.youtube.com/embed/Z5Oy7frSLyo',
+        div: 'buying-via-cash-or-cashless'
       },
       {
-        sequence: 2,
+        sequence: 2.2,
         name: 'Componenets Walkthrough',
         url: 'https://www.youtube.com/embed/GJULWifpwDg',
+        div: 'componenets-walkthrough'
       },
       {
-        sequence: 3,
+        sequence: 2.3,
         name: 'Replenishing Stock',
         url: 'https://www.youtube.com/embed/VNdcIWCwVsc',
+        div: 'replenishing-stock'
       },
       {
-        sequence: 4,
+        sequence: 2.4,
         name: 'Machine Installation',
         url: 'https://www.youtube.com/embed/tHkiLbKMqlA',
+        div: 'machine-installation'
       },
     ]
   },
@@ -100,51 +115,61 @@ const items = ref([
     index: 3,
     name: 'TroubleShooting Videos',
     url: '',
+    is_child_index_needed: true,
     children: [
       {
-        sequence: 1,
+        sequence: 3.1,
         name: 'Adjust Spring Position',
         url: 'https://www.youtube.com/embed/TfCeurwG-Fc',
+        div: 'adjust-spring-position'
       },
       {
-        sequence: 2,
+        sequence: 3.2,
         name: 'Checking Evaporator',
         url: 'https://www.youtube.com/embed/sk2tGbfKRQs',
+        div: 'checking-evaporator'
       },
       {
-        sequence: 3,
+        sequence: 3.3,
         name: 'Checking Foam Door Tightness',
         url: 'https://www.youtube.com/embed/Wql18r7yffE',
+        div: 'checking-foam-door-tightness'
       },
       {
-        sequence: 4,
+        sequence: 3.4,
         name: 'Checking Freezer Fan',
         url: 'https://www.youtube.com/embed/2m8g6d_mCkI',
+        div: 'checking-freezer-fan'
       },
       {
-        sequence: 5,
+        sequence: 3.5,
         name: 'Checking Seal',
         url: 'https://www.youtube.com/embed/tYtMIugoMrk',
+        div: 'checking-seal'
       },
       {
-        sequence: 6,
+        sequence: 3.6,
         name: 'Clear Error Code 3',
         url: 'https://www.youtube.com/embed/KFcQ3Nah2dE',
+        div: 'clear-error-code-3'
       },
       {
-        sequence: 7,
+        sequence: 3.7,
         name: 'Clear Error Code 9',
         url: 'https://www.youtube.com/embed/T55WaxbapRY',
+        div: 'clear-error-code-9'
       },
       {
-        sequence: 8,
+        sequence: 3.8,
         name: 'Offline Issues',
         url: 'https://www.youtube.com/embed/zIoV7Hrp7Zk',
+        div: 'offline-issues'
       },
       {
-        sequence: 9,
+        sequence: 3.9,
         name: 'Sensor Disabled Checking',
         url: 'https://www.youtube.com/embed/FnhSZ2A96sU',
+        div: 'sensor-disabled-checking'
       },
     ]
   }

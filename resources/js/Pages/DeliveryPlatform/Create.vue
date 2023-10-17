@@ -261,7 +261,7 @@
             </div>
             <div class="sm:col-span-6">
               <div class="flex space-x-1 mt-5 justify-end">
-                <Link href="/settings">
+                <Link href="/delivery-product-mappings">
                   <Button
                     class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
                   >

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Operator;
+use App\Models\DeliveryPlatformOperator;
 use App\Services\DeliveryPlatformService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -17,16 +18,18 @@ class SyncDeliveryPlatformOauthByOperator
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     private $deliveryPlatformService;
-    protected $operatorId;
-    protected $type;
+    protected $deliveryPlatformOperator;
+    // protected $operatorId;
+    // protected $type;
     /**
      * Create a new job instance.
      */
-    public function __construct($operatorId, $type = 'grab')
+    public function __construct(DeliveryPlatformOperator $deliveryPlatformOperator)
     {
         $this->deliveryPlatformService = new DeliveryPlatformService();
-        $this->operatorId = $operatorId;
-        $this->type = $type;
+        $this->deliveryPlatformOperator = $deliveryPlatformOperator;
+        // $this->operatorId = $operatorId;
+        // $this->type = $type;
     }
 
     /**
@@ -34,8 +37,8 @@ class SyncDeliveryPlatformOauthByOperator
      */
     public function handle(): void
     {
-        $operator = Operator::findOrFail($this->operatorId);
-        $response = $this->deliveryPlatformService->getOauth($operator, $this->type);
+        $response = $this->deliveryPlatformService->getOauth($this->deliveryPlatformOperator);
+
         if(!$this->deliveryPlatformService->getDeliveryPlatformOperator()->externalOauthToken()->exists()) {
             throw new \Exception('Please set init Oauth Client ID and Client Secret');
         }

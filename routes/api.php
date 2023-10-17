@@ -32,10 +32,9 @@ Route::prefix('v1')->group(function() {
 
 Route::prefix('delivery')->group(function() {
     Route::prefix('grab')->group(function() {
-        Route::get('/merchant/menu', [DeliveryPlatformController::class, 'getMenu']);
+        Route::get('/merchant/menu', [DeliveryPlatformController::class, 'getGrabMenu']);
         Route::get('/categories/{operatorId}/{type}', [DeliveryPlatformController::class, 'getCategories']);
         Route::get('/oauth/{operatorId}/{type}', [DeliveryPlatformController::class, 'getOauth']);
-
     });
 });
 
