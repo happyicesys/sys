@@ -103,6 +103,32 @@ class PaymentGatewayService
       }
       $url = Storage::url('/qr-code/'.$params['metadata']['order_id'].'.png');
 
+      // newly added for precision
+      // $width = imagesx($url);
+      // $height = imagesy($url);
+
+      // for($zoom = 100; $zoom >= 10; $zoom -= 10) {
+      //   $new_width = $width * $zoom / 100;
+      //   $new_height = $height * $zoom / 100;
+      //   $zoomResource = imagecreate(800, 350);
+
+      //   imagecopyresampled(
+      //       $zoomResource,
+      //       $imageResource,
+      //       0,
+      //       0,
+      //       0,
+      //       0,
+      //       $new_width,
+      //       $new_height,
+      //       $width,
+      //       $height
+      //   );
+
+      //   imagepng($zoomResource, $pathTempPng, 0, PNG_NO_FILTER);
+      //   imagedestroy($zoomResource);
+      // }
+
       $qrCodeReader = new QrReader($url);
       $qrCodeText = $qrCodeReader->text([
           'POSSIBLE_FORMATS' => 'QR_CODE',

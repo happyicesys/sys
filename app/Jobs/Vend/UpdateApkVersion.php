@@ -35,7 +35,7 @@ class UpdateApkVersion implements ShouldQueue
     public function handle()
     {
         $this->vend->update([
-            'apk_ver_json' => $this->input
+            'apk_ver_json' => $this->input ? $this->input : null
         ]);
     }
 }

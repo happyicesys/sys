@@ -10,7 +10,49 @@
     </template>
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <!-- <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 "> -->
-      <div class="overflow-hidden bg-white shadow sm:rounded-md">
+        <div class="bg-white shadow sm:rounded-md border-t border-gray-100 pb-10 divide-y divide-gray-900" v-if="indexes.length > 0">
+          <dl class="divide-y divide-gray-100 py-3 px-4">
+            <div v-for="(parent, parentIndex) in indexes" class="py-2">
+              <a :href="'#'+ parent.div" class="flex space-x-2 px-3 sm:grid sm:grid-cols-8 sm:gap-4 sm:px-6" v-if="parent.div">
+                <dt class="text-lg font-medium text-blue-700 font-medium sm:col-span-1">
+                  {{ parent.index }}
+                </dt>
+                <dd class="mt-1 text-lg leading-6 text-blue-700 sm:col-span-7 sm:mt-0 font-medium">
+                  {{ parent.name }}
+                </dd>
+              </a>
+              <span class="flex space-x-2 px-3 sm:grid sm:grid-cols-8 sm:gap-4 sm:px-6" v-else>
+                <dt class="text-lg font-medium text-gray-700 font-medium sm:col-span-1">
+                  {{ parent.index }}
+                </dt>
+                <dd class="mt-1 text-lg leading-6 text-gray-700 sm:col-span-7 sm:mt-0 font-medium">
+                  {{ parent.name }}
+                </dd>
+              </span>
+              <div v-for="(child, childIndex) in parent.children" v-if="parent.children">
+                <div>
+                  <a :href="'#'+ child.div" class="flex space-x-2 px-3 sm:grid sm:grid-cols-8 sm:gap-4 sm:px-6" v-if="child.div">
+                    <dt class="mt-1 text-sm font-medium text-blue-800 sm:col-span-1 sm:mt-0">
+                      {{ child.index }}
+                    </dt>
+                    <dd class="mt-1 text-sm leading-6 text-blue-800 sm:col-span-7 sm:mt-0">
+                      {{ child.name }}
+                    </dd>
+                  </a>
+                  <span class="flex space-x-2 px-3 sm:grid sm:grid-cols-8 sm:gap-4 sm:px-6" v-else>
+                    <dt class="mt-1 text-sm font-medium text-gray-800 sm:col-span-1 sm:mt-0">
+                      {{ child.index }}
+                    </dt>
+                    <dd class="mt-1 text-sm leading-6 text-gray-800 sm:col-span-7 sm:mt-0">
+                      {{ child.name }}
+                    </dd>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </dl>
+        </div>
+      <div class="overflow-hidden bg-white shadow sm:rounded-md mt-3">
         <ul role="list" class="space-y-3">
           <li v-for="(item, index) in items" :key="index" class="overflow-hidden rounded-md bg-white px-6 py-4 shadow">
             <span class="font-lg font-medium">
@@ -74,37 +116,103 @@ const showModal = ref(false)
 const contentIndex = ref()
 const items = ref([
   {
-    index: 1,
+    sequence: 1,
     name: 'Quick User Guide Model-F',
     filename: 'Quick User Guide-Model F_Rev1_0.pdf',
     url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/Quick%20User%20Guide-Model%20F_Rev1_0.pdf',
+    div: 'quick-user-guide-model-f',
+    file: 'pdf',
   },
   {
-    index: 2,
-    name: 'Machine Problem Solving',
-    is_child_index_needed: true,
+    sequence: 2,
+    name: 'Vending Machine QAQC',
+    is_child_index_needed: false,
     url: '',
+    file: 'video',
     children: [
       {
         sequence: 2.1,
+        name: 'QAQC System Walkthrough',
+        url: '',
+        div: 'qaqc-system-walkthrough',
+      },
+    ]
+  },
+  {
+    sequence: 3,
+    name: 'Content Management System (CMS)',
+    is_child_index_needed: false,
+    url: '',
+    file: 'video',
+    children: [
+      {
+        sequence: 3.1,
+        name: 'CMS System Walkthrough',
+        url: '',
+        div: 'cms-system-walkthrough',
+      },
+    ]
+  },
+  {
+    sequence: 4,
+    name: 'Vending Machine System',
+    is_child_index_needed: false,
+    url: '',
+    file: 'video',
+    children: [
+    {
+        sequence: 4.1,
+        name: 'Vending Machine System Walkthrough',
+        url: '',
+        div: 'sys-system-walkthrough',
+      },
+      {
+        sequence: 4.2,
+        name: 'How to Create [User]',
+        url: 'https://www.youtube.com/embed/BHTFBzhHZEQ',
+        div: 'sys-how-to-create-user'
+      },
+      {
+        sequence: 4.3,
+        name: 'How to Create [New Machine]',
+        url: 'https://www.youtube.com/embed/H7GyfGOlr0Q',
+        div: 'sys-how-to-create-new-machine'
+      },
+      {
+        sequence: 4.4,
+        name: 'How to Check [Transactions] with Time Range',
+        url: 'https://www.youtube.com/embed/8QFzQGQduOU',
+        div: 'sys-how-to-check-transactions-with-time-range'
+      },
+    ]
+  },
+  {
+    sequence: 5,
+    name: 'Machine Explainer',
+    is_child_index_needed: false,
+    url: '',
+    file: 'video',
+    children: [
+      {
+        sequence: 5.1,
         name: 'Buying via Cash or Cashless',
         url: 'https://www.youtube.com/embed/Z5Oy7frSLyo',
         div: 'buying-via-cash-or-cashless'
       },
       {
-        sequence: 2.2,
+        sequence: 5.2,
         name: 'Componenets Walkthrough',
         url: 'https://www.youtube.com/embed/GJULWifpwDg',
         div: 'componenets-walkthrough'
       },
       {
-        sequence: 2.3,
+        sequence: 5.3,
         name: 'Replenishing Stock',
         url: 'https://www.youtube.com/embed/VNdcIWCwVsc',
         div: 'replenishing-stock'
       },
       {
-        sequence: 2.4,
+        sequence: 5.4,
         name: 'Machine Installation',
         url: 'https://www.youtube.com/embed/tHkiLbKMqlA',
         div: 'machine-installation'
@@ -112,61 +220,62 @@ const items = ref([
     ]
   },
   {
-    index: 3,
+    sequence: 6,
     name: 'TroubleShooting Videos',
     url: '',
-    is_child_index_needed: true,
+    is_child_index_needed: false,
+    file: 'video',
     children: [
       {
-        sequence: 3.1,
+        sequence: 6.1,
         name: 'Adjust Spring Position',
         url: 'https://www.youtube.com/embed/TfCeurwG-Fc',
         div: 'adjust-spring-position'
       },
       {
-        sequence: 3.2,
+        sequence: 6.2,
         name: 'Checking Evaporator',
         url: 'https://www.youtube.com/embed/sk2tGbfKRQs',
         div: 'checking-evaporator'
       },
       {
-        sequence: 3.3,
+        sequence: 6.3,
         name: 'Checking Foam Door Tightness',
         url: 'https://www.youtube.com/embed/Wql18r7yffE',
         div: 'checking-foam-door-tightness'
       },
       {
-        sequence: 3.4,
+        sequence: 6.4,
         name: 'Checking Freezer Fan',
         url: 'https://www.youtube.com/embed/2m8g6d_mCkI',
         div: 'checking-freezer-fan'
       },
       {
-        sequence: 3.5,
+        sequence: 6.5,
         name: 'Checking Seal',
         url: 'https://www.youtube.com/embed/tYtMIugoMrk',
         div: 'checking-seal'
       },
       {
-        sequence: 3.6,
+        sequence: 6.6,
         name: 'Clear Error Code 3',
         url: 'https://www.youtube.com/embed/KFcQ3Nah2dE',
         div: 'clear-error-code-3'
       },
       {
-        sequence: 3.7,
+        sequence: 6.7,
         name: 'Clear Error Code 9',
         url: 'https://www.youtube.com/embed/T55WaxbapRY',
         div: 'clear-error-code-9'
       },
       {
-        sequence: 3.8,
+        sequence: 6.8,
         name: 'Offline Issues',
         url: 'https://www.youtube.com/embed/zIoV7Hrp7Zk',
         div: 'offline-issues'
       },
       {
-        sequence: 3.9,
+        sequence: 6.9,
         name: 'Sensor Disabled Checking',
         url: 'https://www.youtube.com/embed/FnhSZ2A96sU',
         div: 'sensor-disabled-checking'
@@ -174,6 +283,23 @@ const items = ref([
     ]
   }
 ])
+const indexes = items.value
+    // .filter((item) => ( item.children && item.children.length > 0 ))
+    .map((item, index) => {
+      return {
+        index: item.sequence,
+        name: item.name,
+        div: item.div,
+        children: item.children ? item.children.map((child, childIndex) => {
+          return {
+            index: child.sequence,
+            name: child.name,
+            div: child.div
+          }
+        }) :
+        []
+      }
+    })
 
 function onModalClose() {
   showModal.value = false
