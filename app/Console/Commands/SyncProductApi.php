@@ -43,75 +43,78 @@ class SyncProductApi extends Command
 
         if($items) {
             foreach($items as $item) {
-                $itemCategoryId = null;
-                $itemCategoryGroupId = null;
-                if($itemCategoryData = $item['itemcategory']) {
-                    $itemCategory = Category::updateOrCreate([
-                        'name' => $itemCategoryData['name'],
-                        'classname' => $className,
-                    ], [
-                        'desc' => $itemCategoryData['desc'],
-                    ]);
-                    $itemCategoryId = $itemCategory->id;
-                }
-
-                if($itemCategoryGroupData = $item['item_group']) {
-                    $itemCategoryGroup = CategoryGroup::updateOrCreate([
-                        'name' => $itemCategoryGroupData['name'],
-                        'classname' => $className,
-                    ], [
-                        'desc' => $itemCategoryGroupData['desc'],
-                    ]);
-                    $itemCategoryGroupId = $itemCategoryGroup->id;
-                }
-
-                $product = Product::updateOrCreate(
-                    [
-                        'code' => $item['product_id'],
-                    ],
-                    [
-                        'name' => $item['name'],
-                        'remarks' => null,
-                        'desc' => $item['remark'],
-                        'is_active' => $item['is_active'],
-                        'is_commission' => $item['is_commission'],
-                        'is_inventory' => $item['is_inventory'],
-                        'is_supermarket_fee' => $item['is_supermarket_fee'],
-                        'category_id' => $itemCategoryId,
-                        'category_group_id' => $itemCategoryGroupId,
-                    ]
-                );
-
-                if($thumbnailData = $item['main_imgpath']) {
-                    if(isset(parse_url($thumbnailData)['host']) and parse_url($thumbnailData)['host'] === 'happyice-space.sgp1.digitaloceanspaces.com') {
-                        $product->thumbnail()->updateOrCreate([
-                            'type' => 1,
+                if($item['is_active'] == 1 and $item['is_inventory'] == 1) {
+                    $itemCategoryId = null;
+                    $itemCategoryGroupId = null;
+                    if($itemCategoryData = $item['itemcategory']) {
+                        $itemCategory = Category::updateOrCreate([
+                            'name' => $itemCategoryData['name'],
+                            'classname' => $className,
                         ], [
-                            'full_url' => $thumbnailData,
-                            'local_url' => $thumbnailData,
+                            'desc' => $itemCategoryData['desc'],
                         ]);
+                        $itemCategoryId = $itemCategory->id;
                     }
-                }
 
-                if($isInventory = $item['is_inventory']) {
-                    $pcs = Uom::where('name', 'pcs')->first();
-                    $ctn = Uom::where('name', 'ctn')->first();
+                    if($itemCategoryGroupData = $item['item_group']) {
+                        $itemCategoryGroup = CategoryGroup::updateOrCreate([
+                            'name' => $itemCategoryGroupData['name'],
+                            'classname' => $className,
+                        ], [
+                            'desc' => $itemCategoryGroupData['desc'],
+                        ]);
+                        $itemCategoryGroupId = $itemCategoryGroup->id;
+                    }
 
-                    $product->productUoms()->updateOrCreate([
-                        'is_base_uom' => true,
-                        'value' => 1,
-                    ], [
-                        'uom_id' => $pcs->id,
-                    ]);
+                    $product = Product::updateOrCreate(
+                        [
+                            'code' => $item['product_id'],
+                        ],
+                        [
+                            'name' => $item['name'],
+                            'remarks' => null,
+                            'desc' => $item['remark'],
+                            'is_active' => $item['is_active'],
+                            'is_commission' => $item['is_commission'],
+                            'is_inventory' => $item['is_inventory'],
+                            'is_supermarket_fee' => $item['is_supermarket_fee'],
+                            'category_id' => $itemCategoryId,
+                            'category_group_id' => $itemCategoryGroupId,
+                            'cms_refer_id' => $item['id'],
+                        ]
+                    );
 
-                    if($baseUnit = $item['base_unit']) {
-                        if($baseUnit > 1) {
-                            $product->productUoms()->updateOrCreate([
-                                'uom_id' => $ctn->id,
+                    if($thumbnailData = $item['main_imgpath']) {
+                        if(isset(parse_url($thumbnailData)['host']) and parse_url($thumbnailData)['host'] === 'happyice-space.sgp1.digitaloceanspaces.com') {
+                            $product->thumbnail()->updateOrCreate([
+                                'type' => 1,
                             ], [
-                                'is_transaction_uom' => true,
-                                'value' => $baseUnit,
+                                'full_url' => $thumbnailData,
+                                'local_url' => $thumbnailData,
                             ]);
+                        }
+                    }
+
+                    if($isInventory = $item['is_inventory']) {
+                        $pcs = Uom::where('name', 'pcs')->first();
+                        $ctn = Uom::where('name', 'ctn')->first();
+
+                        $product->productUoms()->updateOrCreate([
+                            'is_base_uom' => true,
+                            'value' => 1,
+                        ], [
+                            'uom_id' => $pcs->id,
+                        ]);
+
+                        if($baseUnit = $item['base_unit']) {
+                            if($baseUnit > 1) {
+                                $product->productUoms()->updateOrCreate([
+                                    'uom_id' => $ctn->id,
+                                ], [
+                                    'is_transaction_uom' => true,
+                                    'value' => $baseUnit,
+                                ]);
+                            }
                         }
                     }
                 }

@@ -16,6 +16,7 @@ class Product extends Model
     }
 
     protected $fillable = [
+        'cms_refer_id',
         'code',
         'name',
         'remarks',
