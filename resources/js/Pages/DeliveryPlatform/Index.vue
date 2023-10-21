@@ -139,14 +139,8 @@
                       </TableData>
                       <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
                         <ul class="divide-y divide-gray-200">
-                          <li class="flex py-1 px-3 space-x-2" v-for="vend in deliveryProductMapping.vendsJson">
-                            {{ vend.code }} -
-                            <span v-if="vend.latest_vend_binding && vend.latest_vend_binding.customer">
-                              {{ vend.latest_vend_binding.customer.name }}
-                            </span>
-                            <span v-else>
-                              {{ vend.name }}
-                            </span>
+                          <li class="flex py-1 px-3 space-x-2" v-for="deliveryProductMappingVend in deliveryProductMapping.deliveryProductMappingVends">
+                            {{ deliveryProductMappingVend.vend.full_name }}
                           </li>
                         </ul>
                       </TableData>

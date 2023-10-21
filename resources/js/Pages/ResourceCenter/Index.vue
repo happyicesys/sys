@@ -120,7 +120,7 @@ const items = ref([
     name: 'Quick User Guide Model-F',
     filename: 'Quick User Guide-Model F_Rev1_0.pdf',
     url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/Quick%20User%20Guide-Model%20F_Rev1_0.pdf',
-    div: 'quick-user-guide-model-f',
+    div: '',
     file: 'pdf',
   },
   {
@@ -180,6 +180,18 @@ const items = ref([
       },
       {
         sequence: 4.4,
+        name: 'How to Create [Product]',
+        url: 'https://www.youtube.com/embed/vMp9C7FVbsk',
+        div: 'sys-how-to-create-product'
+      },
+      {
+        sequence: 4.5,
+        name: 'How to Create [Menu]',
+        url: 'https://www.youtube.com/embed/z1FHeJnGyZo',
+        div: 'sys-how-to-create-menu'
+      },
+      {
+        sequence: 4.6,
         name: 'How to Check [Transactions] with Time Range',
         url: 'https://www.youtube.com/embed/8QFzQGQduOU',
         div: 'sys-how-to-check-transactions-with-time-range'

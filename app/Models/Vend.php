@@ -89,9 +89,9 @@ class Vend extends Model
         return $this->operators()->latest('operator_vend.created_at')->where('is_main', true)->limit(1);
     }
 
-    public function deliveryProductMappings()
+    public function deliveryProductMappingVends()
     {
-        return $this->belongsToMany(DeliveryProductMapping::class)->orderBy('name');
+        return $this->hasMany(DeliveryProductMappingVend::class);
     }
 
     public function firstVendBinding()

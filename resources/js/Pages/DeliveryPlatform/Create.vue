@@ -89,6 +89,21 @@
                 >
                 </MultiSelect>
               </div>
+              <div class="sm:col-span-3">
+                <FormInput v-model="form.reserved_percent" :error="form.errors.reserved_percent">
+                  Reserved Percentage (%)
+                </FormInput>
+              </div>
+              <div class="sm:col-span-3">
+                <FormInput v-model="form.reserved_qty" :error="form.errors.reserved_qty">
+                  Reserved Quantity
+                </FormInput>
+              </div>
+              <div class="sm:col-span-6">
+                <label for="reserved" class="italic text-blue-800">
+                  By setting "Reserved Percentage", the sellable qty equivalent to un-reserved percent, then that value if lower than "Reserved Quantity", channel becomes inactive, both default value are 0.
+                </label>
+              </div>
 
             <!-- <div class="sm:col-span-6" v-if="form.product_mapping_id"> -->
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.product_mapping_id">
@@ -347,6 +362,8 @@ function getDefaultForm() {
     name: '',
     operator_id: '',
     product_mapping_id: '',
+    reserved_percent: 0,
+    reserved_qty: 0,
     sub_category_json: '',
   }
 }

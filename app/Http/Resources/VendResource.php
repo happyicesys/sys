@@ -64,6 +64,7 @@ class VendResource extends JsonResource
             'location_type_id' => $this->location_type_id,
             'location_type_name' => $this->location_type_name,
             'parameterJson' => $this->parameter_json,
+            'pivot' => isset($this->pivot) ? $this->pivot : null,
             'private_key' => $this->private_key,
             'productMapping' => ProductMappingResource::make($this->whenLoaded('productMapping')),
             'vendChannelsJson' => $this->vend_channels_json,

@@ -69,6 +69,21 @@
                   />
                 </div>
               </div>
+              <div class="sm:col-span-3">
+                <FormInput v-model="form.reserved_percent" :error="form.errors.reserved_percent">
+                  Reserved Percentage (%)
+                </FormInput>
+              </div>
+              <div class="sm:col-span-3">
+                <FormInput v-model="form.reserved_qty" :error="form.errors.reserved_qty">
+                  Reserved Quantity
+                </FormInput>
+              </div>
+              <div class="sm:col-span-6">
+                <label for="reserved" class="italic text-blue-800">
+                  By setting "Reserved Percentage", the sellable qty equivalent to un-reserved percent, then that value if lower than "Reserved Quantity", channel becomes inactive, both default value are 0.
+                </label>
+              </div>
             <!-- <div class="sm:col-span-6" v-if="form.product_mapping_id"> -->
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
                 <div class="relative">
@@ -162,6 +177,9 @@
                             Product
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Status
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Price
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
@@ -173,7 +191,7 @@
                         </tr>
                       </thead>
                       <tbody class="bg-white">
-                        <tr v-for="(deliveryProductMappingItem, deliveryProductMappingItemIndex) in deliveryProductMappingItems" :key="deliveryProductMappingItem.id" :class="deliveryProductMappingItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <tr v-for="(deliveryProductMappingItem, deliveryProductMappingItemIndex) in props.deliveryProductMapping.data.deliveryProductMappingItems" :key="deliveryProductMappingItem.id" :class="deliveryProductMappingItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <!-- <td>
                             {{ productMappingItem }}
                           </td> -->
@@ -197,21 +215,46 @@
                             </span>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            <span class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingItem.is_active == 1">
+                              Active
+                            </span>
+                            <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingItem.is_active == 0">
+                              Paused
+                            </span>
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ deliveryProductMappingItem.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ deliveryProductMappingItem.sub_category_json.name }}
                           </td>
-                          <td class="whitespace-nowrap py-4 text-sm text-center">
+                          <td class="whitespace-nowrap py-4 text-sm text-center flex flex-col space-y-1 px-2">
                             <Button
-                              class="bg-red-400 hover:bg-red-500 text-white"
-                              @click.prevent="removeDeliveryProductMappingItem(deliveryProductMappingItem)"
-                            >
-                              <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
-                            </Button>
+                                class="flex space-x-1"
+                                :class="[deliveryProductMappingItem.is_active ? 'bg-yellow-300 hover:bg-yellow-400 text-black' : 'bg-green-500 hover:bg-green-600 text-white']"
+                                @click.prevent="togglePauseDeliveryProductMappingItem(deliveryProductMappingItem)"
+                              >
+                                <PauseCircleIcon class="w-3 h-3" v-if="deliveryProductMappingItem.is_active"></PauseCircleIcon>
+                                <PlayCircleIcon class="w-3 h-3" v-else></PlayCircleIcon>
+                                <span class="text-xs" v-if="deliveryProductMappingItem.is_active">
+                                  Pause SKU
+                                </span>
+                                <span class="text-xs" v-else>
+                                  Resume SKU
+                                </span>
+                              </Button>
+                              <Button
+                                class="bg-red-400 hover:bg-red-500 text-white flex space-x-1"
+                                @click.prevent="unbindDeliveryProductMappingItem(deliveryProductMappingItem.id)"
+                              >
+                                <BackspaceIcon class="w-3 h-3"></BackspaceIcon>
+                                <span class="text-xs">
+                                  Unbind SKU
+                                </span>
+                              </Button>
                           </td>
                         </tr>
-                        <tr v-if="!deliveryProductMappingItems || !deliveryProductMappingItems.length">
+                        <tr v-if="!props.deliveryProductMapping.data.deliveryProductMappingItems || !props.deliveryProductMapping.data.deliveryProductMappingItems.length">
                           <td colspan="7" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
                             No Records Found
                           </td>
@@ -287,37 +330,94 @@
                             Vend Name
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Channel Status
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            VM Status
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Action
                           </th>
                         </tr>
                       </thead>
                       <tbody class="bg-white">
-                        <tr v-for="(vend, vendIndex) in vends" :key="vend.id" :class="vendIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <tr v-for="(deliveryProductMappingVend, vendIndex) in props.deliveryProductMapping.data.deliveryProductMappingVends" :key="deliveryProductMappingVend.id" :class="vendIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             {{ vendIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ vend.code }}
+                            {{ deliveryProductMappingVend.vend.code }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                            <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
-                              {{ vend.latestVendBinding.customer.code }} <br>
-                              {{ vend.latestVendBinding.customer.name }}
+                            <span v-if="deliveryProductMappingVend.vend.latestVendBinding && deliveryProductMappingVend.vend.latestVendBinding.customer">
+                              {{ deliveryProductMappingVend.vend.latestVendBinding.customer.code }} <br>
+                              {{ deliveryProductMappingVend.vend.latestVendBinding.customer.name }}
                             </span>
                             <span v-else>
-                              {{ vend.name }}
+                              {{ deliveryProductMappingVend.vend.name }}
                             </span>
                           </td>
-                          <td class="whitespace-nowrap py-4 text-sm text-center">
-                            <Button
-                              class="bg-red-400 hover:bg-red-500 text-white"
-                              @click.prevent="unbindVend(vend.id)"
-                            >
-                              <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
-                            </Button>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            <ul
+                              class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
+                              v-if="deliveryProductMappingVend.vend.vendChannelsJson"
+                              @click="onChannelOverviewClicked(deliveryProductMappingVend.vend)"
+                              >
+                                  <li v-for="(channel, channelIndex) in deliveryProductMappingVend.vend.vendChannelsJson"
+                                      class="quick-look"
+                                      :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(deliveryProductMappingVend.vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
+                                  >
+                                  <span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(deliveryProductMappingVend.vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
+                                      <span>
+                                          #{{channel['code']}},
+                                      </span>
+                                      <span class="text-blue-600">
+                                          {{channel['capacity'] - channel['qty']}},
+                                      </span>
+                                      <span :class="[channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700']">
+                                          {{channel['qty']}}/{{channel['capacity']}}
+                                      </span>
+                                  </span>
+                                  </li>
+                              </ul>
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            <span class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 1">
+                              Operating
+                            </span>
+                            <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 0">
+                              Paused
+                            </span>
+                          </td>
+                          <td class="whitespace-nowrap py-2 text-xs text-center p-3">
+                            <div class="flex flex-col space-y-1">
+                              <Button
+                                class="flex space-x-1"
+                                :class="[deliveryProductMappingVend.is_active ? 'bg-yellow-300 hover:bg-yellow-400 text-black' : 'bg-green-500 hover:bg-green-600 text-white']"
+                                @click.prevent="togglePauseVend(deliveryProductMappingVend)"
+                              >
+                                <PauseCircleIcon class="w-3 h-3" v-if="deliveryProductMappingVend.is_active"></PauseCircleIcon>
+                                <PlayCircleIcon class="w-3 h-3" v-else></PlayCircleIcon>
+                                <span class="text-xs" v-if="deliveryProductMappingVend.is_active">
+                                  Pause VM
+                                </span>
+                                <span class="text-xs" v-else>
+                                  Resume VM
+                                </span>
+                              </Button>
+                              <Button
+                                class="bg-red-400 hover:bg-red-500 text-white flex space-x-1"
+                                @click.prevent="unbindVend(deliveryProductMappingVend.id)"
+                              >
+                                <BackspaceIcon class="w-3 h-3"></BackspaceIcon>
+                                <span class="text-xs">
+                                  Unbind VM
+                                </span>
+                              </Button>
+                            </div>
                           </td>
                         </tr>
-                        <tr v-if="!vends.length">
+                        <tr v-if="!props.deliveryProductMapping.data.deliveryProductMappingVends.length">
                           <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
                             No Records Found
                           </td>
@@ -327,11 +427,28 @@
                   </div>
                 </div>
               </div>
-            </div>
-            <!-- </div> -->
+              </div>
 
+
+            <div class="sm:col-span-3">
+              <div class="flex space-x-1 mt-5 justify-start">
+                <Button
+                  class="flex space-x-1"
+                  :class="[form.is_active ? 'bg-yellow-300 hover:bg-yellow-400 text-black-700' : 'bg-green-500 hover:bg-green-600 text-white']"
+                  @click.prevent="togglePauseAllVends(form.id)"
+                >
+                  <PauseCircleIcon class="w-4 h-4" v-if="form.is_active"></PauseCircleIcon>
+                  <PlayCircleIcon class="w-4 h-4" v-else></PlayCircleIcon>
+                  <span v-if="form.is_active">
+                    Pause All Vending Machines
+                  </span>
+                  <span v-else>
+                    Resume All Vending Machines
+                  </span>
+                </Button>
+              </div>
             </div>
-            <div class="sm:col-span-6">
+            <div class="sm:col-span-3">
               <div class="flex space-x-1 mt-5 justify-end">
                 <Link href="/delivery-product-mappings">
                   <Button
@@ -355,6 +472,7 @@
                 </Button>
               </div>
             </div>
+          </div>
           </form>
         </div>
       </div>
@@ -363,6 +481,40 @@
   </BreezeAuthenticatedLayout>
 </template>
 
+<style setup>
+	.quick-look
+	{
+		-webkit-border-horizontal-spacing: 0px;
+		-webkit-border-image: none;
+		-webkit-border-vertical-spacing: 0px;
+		border-bottom-color: white;
+		border-bottom-left-radius: 3px;
+		border-bottom-right-radius: 3px;
+		border-bottom-style: none;
+		border-width: 0px;
+		border-collapse: separate;
+		border-left-color: white;
+		border-left-style: none;
+		border-right-color: white;
+		border-right-style: none;
+		border-top-color: white;
+		border-top-left-radius: 3px;
+		border-top-right-radius: 3px;
+		border-top-style: none;
+		line-height: 14px;
+		max-width: none;
+		text-align: left;
+		vertical-align: baseline;
+		white-space: nowrap;
+		padding:5px;
+		margin:3px;
+		display:block;
+		float:left;
+		/* width:170px; */
+		font-size:13px;
+	}
+</style>
+
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
@@ -370,7 +522,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchVendCodeInput from '@/Components/SearchVendCodeInput.vue';
-import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PauseCircleIcon, PlayCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
@@ -435,7 +587,9 @@ onMounted(() => {
       }) :
       useForm(getDefaultForm())
       subCategoryOptions.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.category_json.subCategories : []
-      unbindedVendOptions.value = props.unbindedVendOptions ? props.unbindedVendOptions.data : []
+      unbindedVendOptions.value = [
+        ...props.unbindedVendOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+      ]
       vends.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.vends : []
 })
 
@@ -447,6 +601,8 @@ function getDefaultForm() {
     name: '',
     operator_id: '',
     product_mapping_id: '',
+    reserved_percent: 0,
+    reserved_qty: 0,
     sub_category_json: '',
   }
 }
@@ -491,6 +647,57 @@ function submit() {
   .post('/delivery-product-mappings/' + form.value.id + '/update', {
     preserveState: true,
     replace: true,
+  })
+}
+
+function togglePauseAllVends(deliveryProductMappingId) {
+  let approvalText = form.value.is_active ? 'Are you sure to pause all vending machines?' : 'Are you sure to resume all vending machines?'
+  const approval = confirm(approvalText);
+  if (!approval) {
+      return;
+  }
+  router.post('/delivery-product-mappings/' + deliveryProductMappingId + '/toggle-pause-all-vends', {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+  })
+}
+
+function togglePauseDeliveryProductMappingItem(deliveryProductMappingItem) {
+  let approvalText = deliveryProductMappingItem.is_active ? 'Are you sure to pause this SKU?' : 'Are you sure to resume this SKU?'
+  const approval = confirm(approvalText);
+  if (!approval) {
+      return;
+  }
+  router.post('/delivery-product-mapping-items/' + deliveryProductMappingItem.id + '/toggle-pause', {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+  })
+}
+
+function togglePauseVend(deliveryProductMappingVend) {
+  let approvalText = deliveryProductMappingVend.is_active ? 'Are you sure to pause this vending machine?' : 'Are you sure to resume this vending machine?'
+  const approval = confirm(approvalText);
+  if (!approval) {
+      return;
+  }
+  router.post('/delivery-product-mappings/vends/' + deliveryProductMappingVend.id + '/toggle-pause-vend', {
+      preserveState: true,
+      preserveScroll: true,
+      replace: true,
+  })
+}
+
+function unbindDeliveryProductMappingItem(deliveryProductMappingItemId) {
+  const approval = confirm('Are you sure to delete this entry?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/delivery-product-mapping-items/' + deliveryProductMappingItemId, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
   })
 }
 

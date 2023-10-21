@@ -256,6 +256,7 @@
       :uoms = "uoms"
       :type="type"
       :showModal="showModal"
+      :measurementUnitOptions="measurementUnitOptions"
       :operatorOptions="operatorOptions"
       :permissions="permissions"
       @modalClose="onModalClose"
@@ -282,6 +283,7 @@ import { router } from '@inertiajs/vue3';
 const props = defineProps({
   categories: Object,
   categoryGroups: Object,
+  measurementUnitOptions: Object,
   operatorOptions: Object,
   products: Object,
   uoms: Object,

@@ -10,6 +10,20 @@ class Product extends Model
 {
     use HasFactory;
 
+    const MEASUREMENT_UNIT_L = 'L';
+    const MEASUREMENT_UNIT_ML = 'ml';
+    const MEASUREMENT_UNIT_G = 'g';
+    const MEASUREMENT_UNIT_KG = 'kg';
+    const MEASUREMENT_UNIT_PCS = 'pcs';
+
+    const MEASUREMENT_UNIT_MAPPINGS = [
+        self::MEASUREMENT_UNIT_L => 'L',
+        self::MEASUREMENT_UNIT_ML => 'ml',
+        self::MEASUREMENT_UNIT_G => 'g',
+        self::MEASUREMENT_UNIT_KG => 'kg',
+        self::MEASUREMENT_UNIT_PCS => 'pcs',
+    ];
+
     protected static function booted()
     {
         static::addGlobalScope(new OperatorProductFilterScope);
@@ -28,6 +42,9 @@ class Product extends Model
         'category_id',
         'category_group_id',
         'operator_id',
+        'measurement_count',
+        'measurement_unit',
+        'measurement_value',
     ];
 
     // relationships

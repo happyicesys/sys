@@ -47,6 +47,35 @@
                 Desc
               </FormTextarea>
             </div>
+            <div class="sm:col-span-2">
+              <FormInput v-model="form.measurement_count" :error="form.errors.measurement_count" :disabled="!permissions.includes('update products')" required="true">
+                Lowest Unit
+              </FormInput>
+            </div>
+            <div class="sm:col-span-2">
+              <FormInput v-model="form.measurement_value" :error="form.errors.measurement_value" :disabled="!permissions.includes('update products')">
+                Measurement Value
+              </FormInput>
+            </div>
+            <div class="sm:col-span-2">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Measurement Unit
+              </label>
+              <MultiSelect
+                v-model="form.measurement_unit"
+                :options="measurementUnitOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="top"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.measurement_unit">
+                {{ form.errors.measurement_unit }}
+              </div>
+            </div>
             <div class="col-span-12 sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Operator
@@ -372,6 +401,7 @@ import moment from 'moment';
 const props = defineProps({
   categories: Object,
   categoryGroups: Object,
+  measurementUnitOptions: Object,
   product: Object,
   uoms: Object,
   type: String,
@@ -384,6 +414,7 @@ const emit = defineEmits(['modalClose'])
 
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
+const measurementUnitOptions = ref([])
 const showUomModal = ref(false)
 const uomOptions = ref([])
 const unitCosts = ref([])
@@ -398,6 +429,7 @@ onMounted(() => {
   form.value = props.product ? useForm(props.product) : useForm(getDefaultForm())
   categoryOptions.value = props.categories.data.map((category) => {return {id: category.id, name: category.name}})
   categoryGroupOptions.value = props.categoryGroups.data.map((categoryGroup) => {return {id: categoryGroup.id, name: categoryGroup.name}})
+  measurementUnitOptions.value = Object.keys(props.measurementUnitOptions).map((measurementUnit, index) => {return {id: measurementUnit, name: measurementUnit}})
   uomOptions.value = props.uoms.data.map((uom) => {return {id: uom.id, name: uom.name}})
   operatorOptions.value = props.operatorOptions.slice(1)
   unitCosts.value = props.product ? props.product.unitCosts : null
@@ -415,6 +447,9 @@ function getDefaultForm() {
     is_supermarket_fee: '',
     category_id: '',
     category_group_id: '',
+    measurement_count: '',
+    measurement_value: '',
+    measurement_unit: '',
     operator_id: '',
     unit_cost: '',
     date_from: '',
@@ -428,6 +463,7 @@ function submit() {
     form.value
     .transform((data) => ({
       ...data,
+      measurement_unit: data.measurement_unit.id,
       operator_id: data.operator_id.id,
       // category_id: data.category_id.id,
       // category_group_id: data.category_group_id.id,
@@ -445,6 +481,7 @@ function submit() {
     form.value
       .transform((data) => ({
         ...data,
+        measurement_unit: data.measurement_unit.id,
         operator_id: data.operator_id.id,
         unitCosts: unitCosts.value,
         // category_id: data.category_id.id,
@@ -454,6 +491,7 @@ function submit() {
       onSuccess: () => {
         emit('modalClose')
       },
+      preserveScroll: true,
       preserveState: true,
       replace: true,
     })

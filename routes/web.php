@@ -129,11 +129,14 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/store', [DeliveryProductMappingController::class, 'store']);
         Route::post('/{id}/update', [DeliveryProductMappingController::class, 'update']);
         Route::delete('/{id}/unbind-vend/{vendId}', [DeliveryProductMappingController::class, 'unbindVend']);
+        Route::post('/{id}/toggle-pause-all-vends', [DeliveryProductMappingController::class, 'togglePauseAllVends']);
+        Route::post('/vends/{deliveryProductMappingVendId}/toggle-pause-vend', [DeliveryProductMappingController::class, 'togglePauseVend']);
     });
 
     Route::prefix('delivery-product-mapping-items')->group(function() {
         Route::delete('/{id}', [DeliveryProductMappingController::class, 'deleteDeliveryProductMappingItem']);
         Route::post('/delivery-product-mapping/{id}/store', [DeliveryProductMappingController::class, 'storeDeliveryProductMappingItem']);
+        Route::post('/{id}/toggle-pause', [DeliveryProductMappingController::class, 'togglePauseDeliveryProductMappingItem']);
     });
 
     Route::prefix('delivery-platform-operators')->group(function() {

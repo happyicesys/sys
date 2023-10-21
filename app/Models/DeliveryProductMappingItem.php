@@ -17,6 +17,7 @@ class DeliveryProductMappingItem extends Model
         'amount',
         'channel_code',
         'delivery_product_mapping_id',
+        'is_active',
         'product_id',
         'product_mapping_id',
         'product_mapping_item_id',
