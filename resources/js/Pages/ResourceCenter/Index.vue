@@ -163,7 +163,7 @@ const items = ref([
     {
         sequence: 4.1,
         name: 'Vending Machine System Walkthrough',
-        url: '',
+        url: 'https://www.youtube.com/embed/ekknbSI4df4',
         div: 'sys-system-walkthrough',
       },
       {
