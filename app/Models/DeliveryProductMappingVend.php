@@ -31,7 +31,7 @@ class DeliveryProductMappingVend extends Model
 
     public function deliveryProductMappingVendChannels()
     {
-        return $this->hasMany(DeliveryProductMappingVendChannel::class);
+        return $this->hasMany(DeliveryProductMappingVendChannel::class)->orderBy('vend_channel_code');
     }
 
     public function vend()

@@ -22,16 +22,22 @@ use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Models\Vend;
 use App\Services\DeliveryPlatformService;
+use App\Services\DeliveryProductMappingService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class DeliveryProductMappingController extends Controller
 {
     protected $deliveryPlatformService;
+    protected $deliveryProductMappingService;
 
-    public function __construct(DeliveryPlatformService $deliveryPlatformService)
+    public function __construct(
+        DeliveryPlatformService $deliveryPlatformService,
+        DeliveryProductMappingService $deliveryProductMappingService
+    )
     {
         $this->deliveryPlatformService = $deliveryPlatformService;
+        $this->deliveryProductMappingService = $deliveryProductMappingService;
     }
 
     public function index(Request $request)
@@ -74,9 +80,13 @@ class DeliveryProductMappingController extends Controller
         $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
         $vend = Vend::findOrFail($vendId);
 
-        $vend->deliveryProductMappings()->attach($deliveryProductMapping->id);
+        $deliveryProductMappingVend = DeliveryProductMappingVend::create([
+            'delivery_product_mapping_id' => $deliveryProductMapping->id,
+            'vend_id' => $vend->id,
+        ]);
 
-        $this->createUpdateDeliveryProductMappingVendChannel($deliveryProductMapping->id, $vend->id);
+        // save delivery product mapping vend channels to delivery product mapping vend as json
+        $this->deliveryProductMappingService->syncVendChannels($deliveryProductMapping->id, $vend->id);
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }
@@ -125,6 +135,10 @@ class DeliveryProductMappingController extends Controller
     {
         $deliveryProductMappingItem = DeliveryProductMappingItem::findOrFail($id);
         $deliveryProductMappingId = $deliveryProductMappingItem->deliveryProductMapping->id;
+
+        if($deliveryProductMappingItem->deliveryProductMappingVendChannels()->exists()) {
+            $deliveryProductMappingItem->deliveryProductMappingVendChannels()->delete();
+        }
 
         $deliveryProductMappingItem->delete();
 
@@ -199,7 +213,7 @@ class DeliveryProductMappingController extends Controller
                 ->get()
         ]);
 
-        $this->createUpdateDeliveryProductMappingVendChannel($deliveryProductMappingId);
+        $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingId);
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingItem->delivery_product_mapping_id]);
     }
@@ -212,6 +226,8 @@ class DeliveryProductMappingController extends Controller
                 'deliveryProductMappingItems.deliveryProductMapping.operator.country',
                 'deliveryProductMappingVends.vend:id,code,name,vend_channels_json',
                 'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name',
+                'deliveryProductMappingVends.deliveryProductMappingVendChannels.vendChannel',
+                'deliveryProductMappingVends.deliveryProductMappingVendChannels.deliveryProductMappingItem.product.thumbnail',
             ])
             ->findOrFail($id);
             // dd($id, $deliveryProductMapping->toArray());
@@ -291,12 +307,28 @@ class DeliveryProductMappingController extends Controller
         return redirect()->route('delivery-product-mappings.edit', [$id]);
     }
 
+    // pause single vend channel
+    public function togglePauseChannel($deliveryProductMappingVendChannelId)
+    {
+        $deliveryProductMappingVendChannel = DeliveryProductMappingVendChannel::findOrFail($deliveryProductMappingVendChannelId);
+        $deliveryProductMappingVendChannel->update([
+            'is_active' => ! $deliveryProductMappingVendChannel->is_active,
+        ]);
+
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVendChannel->deliveryProductMappingVend->deliveryProductMapping->id]);
+    }
+
     public function togglePauseDeliveryProductMappingItem($deliveryProductMappingItemId)
     {
         $deliveryProductMappingItem = DeliveryProductMappingItem::findOrFail($deliveryProductMappingItemId);
         $deliveryProductMappingItem->update([
             'is_active' => ! $deliveryProductMappingItem->is_active,
         ]);
+        if($deliveryProductMappingItem->deliveryProductMappingVendChannels()->exists()) {
+            $deliveryProductMappingItem->deliveryProductMappingVendChannels()->update([
+                'is_active' => $deliveryProductMappingItem->is_active,
+            ]);
+        }
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingItem->delivery_product_mapping_id]);
     }
@@ -308,13 +340,18 @@ class DeliveryProductMappingController extends Controller
         $deliveryProductMappingVend->update([
             'is_active' => ! $deliveryProductMappingVend->is_active,
         ]);
+        if($deliveryProductMappingVend->deliveryProductMappingVendChannels()->exists()) {
+            $deliveryProductMappingVend->deliveryProductMappingVendChannels()->update([
+                'is_active' => $deliveryProductMappingVend->is_active,
+            ]);
+        }
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVend->delivery_product_mapping_id]);
     }
 
     public function store(Request $request)
     {
-        // dd($request->all());
+        // handle creation form validation, array
         $request->validate([
             'category_json' => 'required',
             'name' => 'required',
@@ -324,6 +361,8 @@ class DeliveryProductMappingController extends Controller
             'productMappingItems' => 'required',
             'productMappingItems.*.delivery_platform_amount' => 'required|numeric|gt:0',
             'productMappingItems.*.delivery_platform_sub_category_json' => 'required',
+            'reserved_percent' => 'numeric|integer',
+            'reserved_qty' => 'numeric|integer',
         ], [
             'category_json.required' => 'Platform Category is required',
             'delivery_platform_operator_id.required' => 'Delivery Platform is required',
@@ -362,70 +401,27 @@ class DeliveryProductMappingController extends Controller
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }
 
-    public function unbindVend($id, $vendId)
+    public function unbindVend($deliveryProductMappingVendId)
     {
-        $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
-        $vend = Vend::findOrFail($vendId);
-
-        $deliveryProductMappingVend = DeliveryProductMappingVend::query()
-            ->where('delivery_product_mapping_id', $deliveryProductMapping->id)
-            ->where('vend_id', $vend->id)
-            ->first();
+        $deliveryProductMappingVend = DeliveryProductMappingVend::findOrFail($deliveryProductMappingVendId);
         $deliveryProductMappingVend->deliveryProductMappingVendChannels()->delete();
-        $vend->deliveryProductMappings()->detach($deliveryProductMapping->id);
+        $deliveryProductMappingVend->delete();
 
-        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVend->deliveryProductMapping->id]);
     }
 
     public function update(Request $request, $id)
     {
         $request->validate([
             'name' => 'required',
+            'reserved_percent' => 'numeric|integer',
+            'reserved_qty' => 'numeric|integer',
         ]);
+        // dd($request->all());
 
         $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
         $deliveryProductMapping->update($request->all());
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }
-
-    // sync delivery platform channel item upon binded vend to delivery product mapping
-    private function createUpdateDeliveryProductMappingVendChannel($deliveryProductMappingId, $vendId = null)
-    {
-        $deliveryProductMappingVends = DeliveryProductMappingVend::query()
-            ->where('delivery_product_mapping_id', $deliveryProductMappingId)
-            ->when($vendId, function($query, $search) {
-                $query->where('vend_id', $search);
-            })
-            ->get();
-
-        if(count($deliveryProductMappingVends) > 0) {
-            foreach($deliveryProductMappingVends as $deliveryProductMappingVend) {
-                if($deliveryProductMappingVend and $deliveryProductMappingVend->vend->vendChannels()->exists()) {
-                    foreach($deliveryProductMappingVend->vend->vendChannels as $vendChannel) {
-                        if($deliveryProductMappingVend->deliveryProductMapping->deliveryProductMappingItems()->exists()) {
-                            foreach($deliveryProductMappingVend->deliveryProductMapping->deliveryProductMappingItems as $item) {
-                                if($item->channel_code === $vendChannel->code) {
-                                    $deliveryProductMappingVend->deliveryProductMappingVendChannels()->updateOrCreate([
-                                        'delivery_product_mapping_item_id' => $item->id,
-                                        'delivery_product_mapping_vend_id' => $deliveryProductMappingVend->id,
-                                        'vend_channel_id' => $vendChannel->id,
-                                    ], [
-                                        'amount' => $item->amount,
-                                        'delivery_product_mapping_id' => $deliveryProductMappingId,
-                                        'qty' => $item->qty,
-                                        'vend_channel_code' => $vendChannel->code,
-                                        'vend_code' => $vendChannel->vend->code,
-                                        'vend_id' => $vendChannel->vend->id,
-                                    ]);
-
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
 }

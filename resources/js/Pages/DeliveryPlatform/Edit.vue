@@ -84,6 +84,30 @@
                   By setting "Reserved Percentage", the sellable qty equivalent to un-reserved percent, then that value if lower than "Reserved Quantity", channel becomes inactive, both default value are 0.
                 </label>
               </div>
+              <div class="sm:col-span-6">
+              <div class="flex space-x-1 mt-5 justify-end">
+                <Link href="/delivery-product-mappings">
+                  <Button
+                    class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                  >
+                    <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                    <span>
+                      Back
+                    </span>
+                  </Button>
+                </Link>
+                <Button
+                  type="submit"
+                  class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
+                  v-if="permissions.includes('update vends')"
+                >
+                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                  <span>
+                    Save
+                  </span>
+                </Button>
+              </div>
+            </div>
             <!-- <div class="sm:col-span-6" v-if="form.product_mapping_id"> -->
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
                 <div class="relative">
@@ -278,6 +302,25 @@
                 </div>
               </div>
 
+              <div class="sm:col-span-6">
+                <div class="flex space-x-1 mt-5 justify-start">
+                  <Button
+                    class="flex space-x-1"
+                    :class="[form.is_active ? 'bg-yellow-300 hover:bg-yellow-400 text-black-700' : 'bg-green-500 hover:bg-green-600 text-white']"
+                    @click.prevent="togglePauseAllVends(form.id)"
+                  >
+                    <PauseCircleIcon class="w-4 h-4" v-if="form.is_active"></PauseCircleIcon>
+                    <PlayCircleIcon class="w-4 h-4" v-else></PlayCircleIcon>
+                    <span v-if="form.is_active">
+                      Pause All Vending Machines
+                    </span>
+                    <span v-else>
+                      Resume All Vending Machines
+                    </span>
+                  </Button>
+                </div>
+              </div>
+
               <div class="sm:col-span-5" v-if="form.product_mapping_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Vending Machine
@@ -360,22 +403,24 @@
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             <ul
                               class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
-                              v-if="deliveryProductMappingVend.vend.vendChannelsJson"
-                              @click="onChannelOverviewClicked(deliveryProductMappingVend.vend)"
+                              v-if="deliveryProductMappingVend.deliveryProductMappingVendChannels"
+                              @click="onChannelOverviewClicked(deliveryProductMappingVend)"
                               >
-                                  <li v-for="(channel, channelIndex) in deliveryProductMappingVend.vend.vendChannelsJson"
+                                  <li v-for="(channel, channelIndex) in deliveryProductMappingVend.deliveryProductMappingVendChannels"
                                       class="quick-look"
-                                      :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(deliveryProductMappingVend.vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
+                                      :class="[channelIndex > 0 && (String(channel['vend_channel_code'])[0] !== String(deliveryProductMappingVend.deliveryProductMappingVendChannels[channelIndex - 1]['vend_channel_code'])[0]) ? 'col-start-1' : '']"
                                   >
-                                  <span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(deliveryProductMappingVend.vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
+                                  <span :class="[channelIndex > 0 && (String(channel['vend_channel_code'])[0] !== String(deliveryProductMappingVend.deliveryProductMappingVendChannels[channelIndex - 1]['vend_channel_code'])[0]) ? 'border-t-4 pt-1' : '']" class="flex space-x-1">
                                       <span>
-                                          #{{channel['code']}},
+                                        #{{channel.vend_channel_code}},
                                       </span>
-                                      <span class="text-blue-600">
-                                          {{channel['capacity'] - channel['qty']}},
+                                      <span>
+                                        {{ channel.delivery_product_mapping_item.product ? channel.delivery_product_mapping_item.product.code : '' }}
                                       </span>
-                                      <span :class="[channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700']">
-                                          {{channel['qty']}}/{{channel['capacity']}}
+                                      <span
+                                        class="inline-flex items-center rounded-md px-1.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10"
+                                        :class="[channel.is_active == 1 ? 'bg-green-500' : 'bg-red-500']"
+                                      >
                                       </span>
                                   </span>
                                   </li>
@@ -418,7 +463,7 @@
                           </td>
                         </tr>
                         <tr v-if="!props.deliveryProductMapping.data.deliveryProductMappingVends.length">
-                          <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
+                          <td colspan="6" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
                             No Records Found
                           </td>
                         </tr>
@@ -428,56 +473,19 @@
                 </div>
               </div>
               </div>
-
-
-            <div class="sm:col-span-3">
-              <div class="flex space-x-1 mt-5 justify-start">
-                <Button
-                  class="flex space-x-1"
-                  :class="[form.is_active ? 'bg-yellow-300 hover:bg-yellow-400 text-black-700' : 'bg-green-500 hover:bg-green-600 text-white']"
-                  @click.prevent="togglePauseAllVends(form.id)"
-                >
-                  <PauseCircleIcon class="w-4 h-4" v-if="form.is_active"></PauseCircleIcon>
-                  <PlayCircleIcon class="w-4 h-4" v-else></PlayCircleIcon>
-                  <span v-if="form.is_active">
-                    Pause All Vending Machines
-                  </span>
-                  <span v-else>
-                    Resume All Vending Machines
-                  </span>
-                </Button>
-              </div>
-            </div>
-            <div class="sm:col-span-3">
-              <div class="flex space-x-1 mt-5 justify-end">
-                <Link href="/delivery-product-mappings">
-                  <Button
-                    class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
-                  >
-                    <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                    <span>
-                      Back
-                    </span>
-                  </Button>
-                </Link>
-                <Button
-                  type="submit"
-                  class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
-                  v-if="permissions.includes('update vends')"
-                >
-                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                  <span>
-                    Save
-                  </span>
-                </Button>
-              </div>
-            </div>
           </div>
           </form>
         </div>
       </div>
     </div>
   </div>
+  <ChannelOverview
+    v-if="showChannelOverviewModal"
+    :vend="vend"
+    :showModal="showChannelOverviewModal"
+    @modalClose="onChannelOverviewClosed"
+  >
+  </ChannelOverview>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -518,6 +526,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import ChannelOverview from '@/Pages/DeliveryPlatform/ChannelOverview.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -551,9 +560,11 @@ const props = defineProps({
   const productMappingOptions = ref([])
   const productMappingItems = ref([])
   const productOptions = ref([])
+  const showChannelOverviewModal = ref(false)
   const subCategoryOptions = ref([])
   const typeName = ref('')
   const permissions = usePage().props.auth.permissions
+  const vend = ref()
   const vends = ref([])
   const unbindedVendOptions = ref([])
 
@@ -630,6 +641,15 @@ function bindVend(vendId) {
   })
 }
 
+  function onChannelOverviewClicked(deliveryProductMappingVend) {
+    vend.value = deliveryProductMappingVend
+    showChannelOverviewModal.value = true
+  }
+
+  function onChannelOverviewClosed() {
+    showChannelOverviewModal.value = false
+  }
+
 function removeDeliveryProductMappingItem(productMappingItem) {
   form.value
     .delete('/delivery-product-mapping-items/' + productMappingItem.id, {
@@ -643,6 +663,8 @@ function submit() {
   form.value
   .transform((data) => ({
     name: data.name,
+    reserved_percent: data.reserved_percent,
+    reserved_qty: data.reserved_qty,
   }))
   .post('/delivery-product-mappings/' + form.value.id + '/update', {
     preserveState: true,
@@ -683,7 +705,7 @@ function togglePauseVend(deliveryProductMappingVend) {
       return;
   }
   router.post('/delivery-product-mappings/vends/' + deliveryProductMappingVend.id + '/toggle-pause-vend', {
-      preserveState: true,
+      preserveState: false,
       preserveScroll: true,
       replace: true,
   })
@@ -701,12 +723,12 @@ function unbindDeliveryProductMappingItem(deliveryProductMappingItemId) {
   })
 }
 
-function unbindVend(vendId) {
+function unbindVend(deliveryProductMappingVendId) {
   const approval = confirm('Are you sure to delete this entry?');
   if (!approval) {
       return;
   }
-  router.delete('/delivery-product-mappings/' + form.value.id + '/unbind-vend/' + vendId, {
+  router.delete('/delivery-product-mappings/unbind/' + deliveryProductMappingVendId, {
       preserveState: false,
       preserveScroll: true,
       replace: true,

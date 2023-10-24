@@ -43,6 +43,11 @@ class DeliveryProductMappingItem extends Model
         return $this->belongsTo(DeliveryProductMapping::class);
     }
 
+    public function deliveryProductMappingVendChannels()
+    {
+        return $this->hasMany(DeliveryProductMappingVendChannel::class);
+    }
+
     public function product()
     {
         return $this->belongsTo(Product::class);

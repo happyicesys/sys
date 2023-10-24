@@ -128,9 +128,10 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/{id}/edit', [DeliveryProductMappingController::class, 'edit'])->name('delivery-product-mappings.edit');
         Route::post('/store', [DeliveryProductMappingController::class, 'store']);
         Route::post('/{id}/update', [DeliveryProductMappingController::class, 'update']);
-        Route::delete('/{id}/unbind-vend/{vendId}', [DeliveryProductMappingController::class, 'unbindVend']);
+        Route::delete('/unbind/{deliveryProductMappingVendId}', [DeliveryProductMappingController::class, 'unbindVend']);
         Route::post('/{id}/toggle-pause-all-vends', [DeliveryProductMappingController::class, 'togglePauseAllVends']);
         Route::post('/vends/{deliveryProductMappingVendId}/toggle-pause-vend', [DeliveryProductMappingController::class, 'togglePauseVend']);
+        Route::post('/channels/{channelId}/toggle-pause', [DeliveryProductMappingController::class, 'togglePauseChannel']);
     });
 
     Route::prefix('delivery-product-mapping-items')->group(function() {

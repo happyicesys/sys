@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class DeliveryProductMappingVendChannel extends Model
 {
@@ -25,9 +26,28 @@ class DeliveryProductMappingVendChannel extends Model
         'vend_id',
     ];
 
+    // getter and setter
+    protected function amount(): Attribute
+    {
+        return Attribute::make(
+            get: fn (string $value) => $value/ ($this->deliveryProductMappingVend->deliveryProductMapping ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100) ,
+            set: fn (string $value) => $value * ($this->deliveryProductMappingVend->deliveryProductMapping ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100),
+        );
+    }
+
     // relationships
+    public function deliveryProductMappingItem()
+    {
+        return $this->belongsTo(DeliveryProductMappingItem::class);
+    }
+
     public function deliveryProductMappingVend()
     {
         return $this->belongsTo(DeliveryProductMappingVend::class);
+    }
+
+    public function vendChannel()
+    {
+        return $this->belongsTo(VendChannel::class);
     }
 }
