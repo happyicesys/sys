@@ -126,6 +126,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/create', [DeliveryProductMappingController::class, 'create'])->name('delivery-product-mappings.create');
         Route::post('/{id}/bind-vend/{vendId}', [DeliveryProductMappingController::class, 'bindVend']);
         Route::get('/{id}/edit', [DeliveryProductMappingController::class, 'edit'])->name('delivery-product-mappings.edit');
+        Route::delete('/{id}', [DeliveryProductMappingController::class, 'delete']);
         Route::post('/store', [DeliveryProductMappingController::class, 'store']);
         Route::post('/{id}/update', [DeliveryProductMappingController::class, 'update']);
         Route::delete('/unbind/{deliveryProductMappingVendId}', [DeliveryProductMappingController::class, 'unbindVend']);

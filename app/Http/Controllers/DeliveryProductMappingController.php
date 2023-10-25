@@ -131,6 +131,21 @@ class DeliveryProductMappingController extends Controller
         ]);
     }
 
+    public function delete($id)
+    {
+        $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
+        $deliveryProductMapping->deliveryProductMappingItems()->delete();
+        if($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
+            foreach($deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
+                $deliveryProductMappingVend->deliveryProductMappingVendChannels()->delete();
+            }
+            $deliveryProductMapping->deliveryProductMappingVends()->delete();
+        }
+        $deliveryProductMapping->delete();
+
+        return redirect()->route('delivery-product-mappings');
+    }
+
     public function deleteDeliveryProductMappingItem($id)
     {
         $deliveryProductMappingItem = DeliveryProductMappingItem::findOrFail($id);
