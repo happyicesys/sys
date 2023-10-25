@@ -345,6 +345,10 @@ class DeliveryProductMappingController extends Controller
             ]);
         }
 
+        if($deliveryProductMappingItem->is_active) {
+            $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingItem->deliveryProductMapping->id);
+        }
+
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingItem->delivery_product_mapping_id]);
     }
 
@@ -359,6 +363,9 @@ class DeliveryProductMappingController extends Controller
             $deliveryProductMappingVend->deliveryProductMappingVendChannels()->update([
                 'is_active' => $deliveryProductMappingVend->is_active,
             ]);
+        }
+        if($deliveryProductMappingVend->is_active) {
+            $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingVend->deliveryProductMapping->id, $deliveryProductMappingVend->vend->id);
         }
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVend->delivery_product_mapping_id]);
@@ -432,10 +439,19 @@ class DeliveryProductMappingController extends Controller
             'reserved_percent' => 'numeric|integer',
             'reserved_qty' => 'numeric|integer',
         ]);
-        // dd($request->all());
-
         $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
         $deliveryProductMapping->update($request->all());
+
+        // update reserved percent and qty for all delivery product mapping vend channels
+        if($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
+            $deliveryProductMapping->deliveryProductMappingVends->each(function($deliveryProductMappingVend) use ($deliveryProductMapping) {
+                $deliveryProductMappingVend->deliveryProductMappingVendChannels()->update([
+                    'reserved_percent' => $deliveryProductMapping->reserved_percent,
+                    'reserved_qty' => $deliveryProductMapping->reserved_qty,
+                ]);
+            });
+        }
+        $this->deliveryProductMappingService->syncVendChannels($deliveryProductMapping->id);
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }
