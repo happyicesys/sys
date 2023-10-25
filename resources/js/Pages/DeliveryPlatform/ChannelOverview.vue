@@ -83,10 +83,22 @@
                         {{ (channel.amount).toLocaleString(undefined, {minimumFractionDigits: 2}) }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-red-700 sm:pl-6 text-center">
-                        {{ channel.reserved_percent }}
+                        <span v-if="!channel.is_editable">
+                          {{ channel.reserved_percent }}
+                        </span>
+                        <span v-else>
+                          <FormInput v-model="channel.reserved_percent">
+                          </FormInput>
+                        </span>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-red-700 sm:pl-6 text-center">
-                        {{ channel.reserved_qty }}
+                        <span v-if="!channel.is_editable">
+                          {{ channel.reserved_qty }}
+                        </span>
+                        <span v-else>
+                          <FormInput v-model="channel.reserved_qty">
+                          </FormInput>
+                        </span>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-blue-700 sm:pl-6 text-center">
                         {{ channel.vend_channel.qty }}
@@ -105,11 +117,26 @@
                         </td>
                       </td>
 
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                      <td class="whitespace-nowrap py-2 pl-4 pr-2 text-sm font-normal text-gray-900 sm:pl-3 text-center flex flex-col space-y-1 py-3">
+                        <Button
+                          class="flex space-x-1"
+                          :class="[channel.is_editable ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-400 hover:bg-gray-800 text-black']"
+                          @click.prevent="toggleChannelEditable(channel)"
+                        >
+                          <CheckCircleIcon class="w-3 h-3" v-if="channel.is_editable"></CheckCircleIcon>
+                          <PencilSquareIcon class="w-3 h-3" v-else></PencilSquareIcon>
+                          <span class="text-xs" v-if="channel.is_editable">
+                            Save
+                          </span>
+                          <span class="text-xs" v-else>
+                            Edit
+                          </span>
+                        </Button>
                         <Button
                           class="flex space-x-1"
                           :class="[channel.is_active ? 'bg-yellow-300 hover:bg-yellow-400 text-black' : 'bg-green-500 hover:bg-green-600 text-white']"
                           @click.prevent="togglePauseDeliveryProductMappingVendChannel(channel)"
+                          v-if="!channel.is_editable"
                         >
                           <PauseCircleIcon class="w-3 h-3" v-if="channel.is_active"></PauseCircleIcon>
                           <PlayCircleIcon class="w-3 h-3" v-else></PlayCircleIcon>
@@ -134,8 +161,9 @@
 </template>
 
 <script setup>
-import {PauseCircleIcon, PlayCircleIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, PauseCircleIcon, PlayCircleIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
 import Button from '@/Components/Button.vue';
+import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import { onMounted, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
@@ -167,6 +195,21 @@ function togglePauseDeliveryProductMappingVendChannel(channel) {
       }
   })
   emit('modalClose')
+}
+
+function toggleChannelEditable(channel) {
+  props.vend.deliveryProductMappingVendChannels[props.vend.deliveryProductMappingVendChannels.findIndex(item => item.id === channel.id)].is_editable = !channel.is_editable
+
+  if(!channel.is_editable) {
+    router.post('/delivery-product-mappings/channels/' + channel.id + '/update', channel, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+      onSuccess: () => {
+        emit('modalClose')
+      }
+    })
+  }
 }
 
 </script>

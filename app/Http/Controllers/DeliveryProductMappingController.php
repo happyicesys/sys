@@ -455,4 +455,16 @@ class DeliveryProductMappingController extends Controller
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }
+
+    public function updateChannel(Request $request, $id)
+    {
+        $deliveryProductMappingVendChannel = DeliveryProductMappingVendChannel::findOrFail($id);
+        $deliveryProductMappingVendChannel->update([
+            'reserved_percent' => $request->reserved_percent,
+            'reserved_qty' => $request->reserved_qty,
+        ]);
+        $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingVendChannel->deliveryProductMappingVend->deliveryProductMapping->id, $deliveryProductMappingVendChannel->deliveryProductMappingVend->id);
+
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVendChannel->deliveryProductMappingVend->deliveryProductMapping->id]);
+    }
 }
