@@ -163,7 +163,7 @@ class ProcessCustomerData implements ShouldQueue
                                 ], [
                                     'name' => 'Singapore',
                                     'code' => 'SG',
-                                    'currency_symbol' => '$',
+                                    'currency_symbol' => 'S$',
                                     'phone_code' => '65',
                                     'is_state' => false,
                                     'sequence' => 1,
