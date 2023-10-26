@@ -25,6 +25,11 @@ class VendChannel extends Model
     ];
 
     // relationships
+    public function deliveryProductMappingVendChannels()
+    {
+        return $this->hasMany(DeliveryProductMappingVendChannel::class);
+    }
+
     public function product()
     {
         return $this->belongsTo(Product::class);

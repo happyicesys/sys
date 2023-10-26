@@ -105,14 +105,12 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     }
 
     // Notify Grab of updated menu
-    public function notifyUpdatedMenu(DeliveryProductMappingVend $deliveryProductMappingVend)
+    public function notifyUpdatedMenu($merchantIdParam = [])
     {
         $this->verifyOauthAccessToken();
 
         $response = Http::withHeaders($this->getHeaders())
-        ->post($this->getPartnerEndpoint() . '/partner/v1/merchant/menu/notification', [
-            'merchantID' => $deliveryProductMappingVend->platform_ref_id,
-        ]);
+        ->post($this->getPartnerEndpoint() . '/partner/v1/merchant/menu/notification', $merchantIdParam);
 
         return $this->getResponse($response, 'notifyUpdatedMenu');
 
@@ -129,16 +127,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         }
 
         $response = Http::withHeaders($this->getHeaders())
-        ->put($this->getPartnerEndpoint() . '/partner/v1/menu', [
-            'merchantID' => $this->merchantId,
-            'field' => 'ITEM',
-            'id' => $singleProductParam['code'],
-            'name' => $singleProductParam['name'],
-            'description' => $singleProductParam['desc'],
-            'price' => $singleProductParam['price'],
-            'availableStatus' => $singleProductParam['is_active'] ? self::$product_active : self::$product_inactive,
-            'maxStock' => $singleProductParam['available_qty'],
-        ]);
+        ->put($this->getPartnerEndpoint() . '/partner/v1/menu', $singleProductParam);
 
         return $this->getResponse($response, 'updateMenuRecord');
 
@@ -365,11 +354,11 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 
     private function getPartnerEndpoint()
     {
-        $endpoint = self::$partner_endpoint;
+        // $endpoint = self::$partner_endpoint;
 
-        if(config('app.env') === 'local') {
+        // if(config('app.env') === 'local') {
             $endpoint = self::$partner_sandbox_endpoint;
-        }
+        // }
 
         return $endpoint;
     }
