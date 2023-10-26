@@ -114,13 +114,13 @@
                         {{ channel.capacity }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                        {{ (channel.amount/100).toLocaleString(undefined, {minimumFractionDigits: 2}) }}
+                        {{ (channel.amount/100).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                       </td>
                       <td
                         class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
                         v-if="channels.some(channel => 'amount2' in channel)"
                       >
-                        {{ (channel.amount2/100).toLocaleString(undefined, {minimumFractionDigits: 2}) }}
+                        {{ (channel.amount2/100).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                         {{ channel.discount_group }}
@@ -257,6 +257,7 @@ const props = defineProps({
 })
 
 const channels = ref([])
+const operatorCountry = usePage().props.auth.operatorCountry
 const permissions = usePage().props.auth.permissions
 const productOptions = ref([])
 const showFilters = ref(false)
