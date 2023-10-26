@@ -209,7 +209,7 @@ class VendDataService
             SyncAcbStatus::dispatch($processedInput, $vend)->onQueue('default');
             break;
           case 'CHANNEL':
-            SyncVendChannels::dispatch($processedInput, $vend)->onQueue('default');
+            SyncVendChannels::dispatch($processedInput, $vend)->onQueue('high');
             break;
           case 'CONFIRM':
             if(isset($processedInput['orderid'])) {

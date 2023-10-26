@@ -82,6 +82,7 @@ class DeliveryProductMappingController extends Controller
 
         $deliveryProductMappingVend = DeliveryProductMappingVend::create([
             'delivery_product_mapping_id' => $deliveryProductMapping->id,
+            'vend_code' => $vend->code,
             'vend_id' => $vend->id,
         ]);
 

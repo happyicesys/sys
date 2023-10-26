@@ -43,11 +43,9 @@ class DeliveryProductMappingService
                           // if template and reserved logic checking is true, consider active for delivery platform channel item
                           'is_active' =>
                             $deliveryProductMappingVend->is_active and
-                            $this->getVendChannelStatus(
-                              $vendChannel->capacity,
-                              $vendChannel->qty,
-                              $item->deliveryProductMapping->reserved_percent,
-                              $item->deliveryProductMapping->reserved_qty) ?
+                            $this->getDeliveryVendChannelStatus(
+                              $vendChannel,
+                              $deliveryProductMappingVendChannel)['status'] ?
                             true : false,
                           'qty' => $item->qty,
                           'reserved_percent' => $deliveryProductMappingVendChannel->reserved_percent ? $deliveryProductMappingVendChannel->reserved_percent : $item->deliveryProductMapping->reserved_percent,
@@ -57,7 +55,6 @@ class DeliveryProductMappingService
                           'vend_id' => $vendChannel->vend->id,
                         ]);
                       } else {
-                        // dd($deliveryProductMappingVend->toArray());
                         // create new if not found
                         $deliveryProductMappingVend->deliveryProductMappingVendChannels()->create([
                           'delivery_product_mapping_item_id' => $item->id,
@@ -67,11 +64,9 @@ class DeliveryProductMappingService
                           // if template and reserved logic checking is true, consider active for delivery platform channel item
                           'is_active' =>
                             $deliveryProductMappingVend->is_active and
-                            $this->getVendChannelStatus(
-                              $vendChannel->capacity,
-                              $vendChannel->qty,
-                              $item->deliveryProductMapping->reserved_percent,
-                              $item->deliveryProductMapping->reserved_qty) ?
+                            $this->getDeliveryVendChannelStatus(
+                              $vendChannel,
+                              $deliveryProductMappingVend)['status'] ?
                             true : false,
                           'qty' => $item->qty,
                           'reserved_percent' => $item->deliveryProductMapping->reserved_percent,
@@ -83,14 +78,6 @@ class DeliveryProductMappingService
                       }
                     }
                   }
-                  // update delivery product mapping vend channels json (parent)
-                  // $deliveryProductMappingVend->update([
-                  //   'delivery_product_mapping_vend_channels_json' =>
-                  //     $deliveryProductMappingVend
-                  //     ->deliveryProductMappingVendChannels()
-                  //     ->with('vendChannel')
-                  //     ->get(),
-                  // ]);
                 }
               }
             }
@@ -101,17 +88,28 @@ class DeliveryProductMappingService
     }
 
     // retrieve vend channel status after apply logic (reserved percent then reserved qty)
-    private function getVendChannelStatus($vendChannelCapacity = 0, $vendChannelQty = 0, $reservedPercent = 0, $reservedQty = 0)
+    public function getDeliveryVendChannelStatus($vendChannel, $deliveryProductMappingVendChannel)
     {
+        $vendChannelCapacity = $vendChannel->capacity;
+        $vendChannelQty = $vendChannel->qty;
+        $reservedPercent = $deliveryProductMappingVendChannel->reserved_percent;
+        $reservedQty = $deliveryProductMappingVendChannel->reserved_qty;
+        $orderQty = $deliveryProductMappingVendChannel->order_qty;
+
         $status = false;
+        $availableQty = 0;
         if($vendChannelCapacity > 0) {
             $availableQtyPercent = $vendChannelQty/ $vendChannelCapacity * 100;
             if($availableQtyPercent >= $reservedPercent) {
-              if(($vendChannelQty - $reservedQty) > 0) {
+              $availableQty = $vendChannelQty - $reservedQty - $orderQty;
+              if($availableQty > 0) {
                 $status = true;
               }
             }
         }
-        return $status;
+        return [
+          'status' => $status,
+          'available_qty' => $availableQty,
+        ];
     }
 }

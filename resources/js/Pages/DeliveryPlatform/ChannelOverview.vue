@@ -47,6 +47,10 @@
                         Qty
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        Booked <br>
+                        Qty
+                      </th>
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Current <br>
                         Qty
                       </th>
@@ -99,6 +103,9 @@
                           <FormInput v-model="channel.reserved_qty">
                           </FormInput>
                         </span>
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-blue-700 sm:pl-6 text-center">
+                        {{ channel.order_qty }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-blue-700 sm:pl-6 text-center">
                         {{ channel.vend_channel.qty }}

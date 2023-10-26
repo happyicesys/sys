@@ -4,6 +4,7 @@ namespace App\Models\DeliveryPlatforms;
 
 use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatformOperator;
+use App\Models\DeliveryProductMappingVend;
 use App\Interfaces\DeliveryPlatformInterface;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,6 +19,11 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     const STATUS_UNAVAILABLE = 'UNAVAILABLE';
     const STATUS_UNAVAILABLE_TODAY = 'UNAVAILABLETODAY';
     const STATUS_HIDE = 'HIDE';
+
+    const STATUS_MAPPING = [
+        1 => 'AVAILABLE',
+        0 => 'UNAVAILABLE',
+    ];
 
     public static $main_endpoint = 'https://api.grab.com';
     public static $partner_endpoint = 'https://partner-api.grab.com/grabmart';
@@ -36,79 +42,6 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     public function __construct(DeliveryPlatformOperator $deliveryPlatformOperator)
     {
         $this->deliveryPlatformOperator = $deliveryPlatformOperator;
-    }
-
-    // getter and setter
-    public function getGrabMenuCategories($params = [])
-    {
-        return [
-            'id' => $params['category_json']['id'],
-            'name' => $params['category_json']['name'],
-            'availableStatus' => isset($params['status']) ? $params['status'] : self::STATUS_AVAILABLE,
-            'sellingTimeID' => $this->getGrabMenuSellingTimes['id'],
-            'subCategories' => $params['subCategories'],
-        ];
-    }
-
-    public function getGrabMenuItems($params = [])
-    {
-
-        // pending to build
-        // weight
-        // barcode
-        // uom
-        // more than one picture?
-
-        return [
-            'id' => $params['product']['code'],
-            'name' => $params['product']['name'],
-            'nameTranslation' => [],
-            'sellingTimeID' => $this->getGrabMenuSellingTimes['id'], // 'ST-1001
-            'availableStatus' => isset($params['status']) ? $params['status'] : self::STATUS_AVAILABLE,
-            'description' => $params['product']['desc'],
-            'descriptionTranslation' => [],
-            'price' => $params['product']['price'],
-            'photos' => [$params['product']['thumbnail']['full_url']],
-            // 'specialType' => '',
-            'barcode' => isset($params['product']['barcode']) ? $params['product']['barcode'] : '',
-            'maxStock' => $params['product']['available_qty'],
-            // 'maxCount' => 5,
-            // 'weight' => [
-
-            // ],
-            'soldByWeight' => false,
-            // 'sellingUom' => [
-            //     'len' => 3.14,
-            //     'width' => 3.14,
-            //     'height' => 3.14,
-            //     'weight' => 500,
-            // ],
-            'advancedPricing' => [],
-            'purchasability' => [],
-            'modifierGroups' => [],
-        ];
-    }
-
-    public function getGrabMenuSubCategories($params = [])
-    {
-        return [
-            'id' => $params['sub_category_json']['id'],
-            'name' => $params['sub_category_json']['name'],
-            'availableStatus' => isset($params['status']) ? $params['status'] : self::STATUS_AVAILABLE,
-            'sellingTimeID' => $this->getGrabMenuSellingTimes['id'],
-            'items' => $params['items'],
-        ];
-    }
-
-
-    public function getGrabMenuSellingTimes()
-    {
-      return [
-        'startTime' => Carbon::now()->startOfDay()->setTimezone('UTC')->toDatetimeString(),
-        'endTime' => Carbon::now()->endOfDay()->setTimezone('UTC')->toDatetimeString(),
-        'id' => 'ST-1001',
-        'name' => 'All Day',
-      ];
     }
 
     // retrieve and fill in oauth params from delivery platform
@@ -172,13 +105,13 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     }
 
     // Notify Grab of updated menu
-    public function notifyUpdatedMenu()
+    public function notifyUpdatedMenu(DeliveryProductMappingVend $deliveryProductMappingVend)
     {
         $this->verifyOauthAccessToken();
 
         $response = Http::withHeaders($this->getHeaders())
         ->post($this->getPartnerEndpoint() . '/partner/v1/merchant/menu/notification', [
-            'merchantID' => $this->merchantId,
+            'merchantID' => $deliveryProductMappingVend->platform_ref_id,
         ]);
 
         return $this->getResponse($response, 'notifyUpdatedMenu');

@@ -40,7 +40,6 @@ class DeliveryPlatformController extends Controller
     {
         $merchantId = $request->merchantID;
         $partnerMerchantID = $request->partnerMerchantID;
-
         try {
             $response = $this->deliveryPlatformService->getMenu($merchantId, $partnerMerchantID);
             return $response;

@@ -14,9 +14,11 @@ class DeliveryProductMappingVend extends Model
 
     protected $fillable = [
         'delivery_product_mapping_id',
-        'vend_id',
-        'is_active',
         'delivery_product_mapping_vend_channels_json',
+        'is_active',
+        'platform_ref_id',
+        'vend_code',
+        'vend_id',
     ];
 
     protected $casts = [
