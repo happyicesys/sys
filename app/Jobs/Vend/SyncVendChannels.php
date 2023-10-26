@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Vend;
 
+use App\Jobs\NotifyDeliveryPlatformUpdateMenu;
 use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Models\Vend;
@@ -69,6 +70,11 @@ class SyncVendChannels implements ShouldQueue
                 }
             }
             SaveVendChannelsJson::dispatch($vend->id)->onQueue('default');
+            if($vend->deliveryProductMappingVends()->exists()) {
+                foreach($vend->deliveryProductMappingVends as $deliveryProductMappingVend) {
+                    NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend)->onQueue('high');
+                }
+            }
         }
     }
 

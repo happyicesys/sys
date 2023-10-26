@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\NotifyDeliveryPlatformUpdateMenu;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryProductMappingVendChannel;
 use Carbon\Carbon;
@@ -81,6 +82,7 @@ class DeliveryProductMappingService
                 }
               }
             }
+            NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend)->onQueue('high');
           }
           return true;
         }

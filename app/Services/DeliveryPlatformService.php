@@ -364,7 +364,7 @@ class DeliveryPlatformService
       'serviceHours' => [
         'mon' => [
           'openPeriodType' => "OpenPeriod",
-          'openPeriods' => [
+          'periods' => [
             [
               'startTime' => Carbon::now()->startOfDay()->format('H:i'),
               'endTime' => Carbon::now()->endOfDay()->format('H:i'),
@@ -373,7 +373,7 @@ class DeliveryPlatformService
         ],
         'tue' => [
           'openPeriodType' => "OpenPeriod",
-          'openPeriods' => [
+          'periods' => [
             [
               'startTime' => Carbon::now()->startOfDay()->format('H:i'),
               'endTime' => Carbon::now()->endOfDay()->format('H:i'),
@@ -382,7 +382,7 @@ class DeliveryPlatformService
         ],
         'wed' => [
           'openPeriodType' => "OpenPeriod",
-          'openPeriods' => [
+          'periods' => [
             [
               'startTime' => Carbon::now()->startOfDay()->format('H:i'),
               'endTime' => Carbon::now()->endOfDay()->format('H:i'),
@@ -391,7 +391,7 @@ class DeliveryPlatformService
         ],
         'thu' => [
           'openPeriodType' => "OpenPeriod",
-          'openPeriods' => [
+          'periods' => [
             [
               'startTime' => Carbon::now()->startOfDay()->format('H:i'),
               'endTime' => Carbon::now()->endOfDay()->format('H:i'),
@@ -400,7 +400,7 @@ class DeliveryPlatformService
         ],
         'fri' => [
           'openPeriodType' => "OpenPeriod",
-          'openPeriods' => [
+          'periods' => [
             [
               'startTime' => Carbon::now()->startOfDay()->format('H:i'),
               'endTime' => Carbon::now()->endOfDay()->format('H:i'),
@@ -409,7 +409,7 @@ class DeliveryPlatformService
         ],
         'sat' => [
           'openPeriodType' => "OpenPeriod",
-          'openPeriods' => [
+          'periods' => [
             [
               'startTime' => Carbon::now()->startOfDay()->format('H:i'),
               'endTime' => Carbon::now()->endOfDay()->format('H:i'),
@@ -418,7 +418,7 @@ class DeliveryPlatformService
         ],
         'sun' => [
           'openPeriodType' => "OpenPeriod",
-          'openPeriods' => [
+          'periods' => [
             [
               'startTime' => Carbon::now()->startOfDay()->format('H:i'),
               'endTime' => Carbon::now()->endOfDay()->format('H:i'),
