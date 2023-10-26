@@ -187,20 +187,10 @@ class DeliveryPlatformService
             'merchantID' => $deliveryProductMappingVend->platform_ref_id,
           ]);
           if($response['success']) {
-            DeliveryPlatformMenuRecord::create([
-              'delivery_platform_operator_id' => $deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator->id,
-              'delivery_product_mapping_vend_id' => $deliveryProductMappingVend->id,
-              'menu_json' => $this->getMenu($deliveryProductMappingVend->platform_ref_id, $deliveryProductMappingVend->vend_code),
-              'platform_ref_id' => $response['data'],
-              'platform_ref_json' => $response,
-              'request_datetime' => Carbon::now()->toDateTimeString(),
-              'type' => DeliveryPlatformMenuRecord::TYPE_PASSIVE,
-            ]);
             return $response['data'];
           }
           break;
       }
-
   }
 
   public function pauseStore()
@@ -229,15 +219,6 @@ class DeliveryPlatformService
           'maxStock' => Grab::STATUS_MAPPING[$deliveryProductMappingVendChannel->is_active] === Grab::STATUS_AVAILABLE ? $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel)['available_qty'] : 0,
         ]);
         if($response['success']) {
-          DeliveryPlatformMenuRecord::create([
-            'delivery_platform_operator_id' => $deliveryProductMappingVendChannel->deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator->id,
-            'delivery_product_mapping_vend_id' => $deliveryProductMappingVendChannel->deliveryProductMappingVend->id,
-            'menu_json' => $this->getMenu($deliveryProductMappingVendChannel->deliveryProductMappingVend->platform_ref_id, $deliveryProductMappingVendChannel->deliveryProductMappingVend->vend_code),
-            'platform_ref_id' => $response['data'],
-            'platform_ref_json' => $response,
-            'request_datetime' => Carbon::now()->toDateTimeString(),
-            'type' => DeliveryPlatformMenuRecord::TYPE_ACTIVE,
-          ]);
           return $response['data'];
         }
         break;

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\DeliveryProductMappingResource;
 use App\Http\Resources\DeliveryProductMappingItemResource;
 use App\Http\Resources\OperatorResource;
+use App\Models\DeliveryPlatformMenuRecord;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingItem;
@@ -74,6 +75,20 @@ class DeliveryPlatformController extends Controller
                 throw new \Exception('Please set init Oauth Client ID and Client Secret');
             }
             $this->deliveryPlatformService->getDeliveryPlatformOperator()->externalOauthToken()->update($response);
+        } catch(\Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    public function syncMenuWebhook(Request $request)
+    {
+        try {
+            DeliveryPlatformMenuRecord::create([
+                'delivery_platform_slug' => 'grab',
+                'platform_ref_id' => $request->merchantID,
+                'request_json' => $request->all(),
+                'vend_code' => $request->partnerMerchantID,
+            ]);
         } catch(\Exception $e) {
             return $e->getMessage();
         }

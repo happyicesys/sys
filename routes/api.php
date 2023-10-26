@@ -32,9 +32,10 @@ Route::prefix('v1')->group(function() {
 
 Route::prefix('delivery')->group(function() {
     Route::prefix('grab')->group(function() {
-        Route::get('/merchant/menu', [DeliveryPlatformController::class, 'getGrabMenu']);
         Route::get('/categories/{operatorId}/{type}', [DeliveryPlatformController::class, 'getCategories']);
+        Route::get('/merchant/menu', [DeliveryPlatformController::class, 'getGrabMenu']);
         Route::get('/oauth/{operatorId}/{type}', [DeliveryPlatformController::class, 'getOauth']);
+        Route::post('/sync-menu-webhook', [DeliveryPlatformController::class, 'syncMenuWebhook']);
     });
 });
 
