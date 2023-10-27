@@ -13,6 +13,7 @@ class DeliveryPlatformMenuRecord extends Model
         'delivery_platform_slug',
         'menu_json',
         'platform_ref_id',
+        'ref_id',
         'request_json',
         'vend_code'
     ];

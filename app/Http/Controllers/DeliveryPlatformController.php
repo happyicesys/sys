@@ -83,12 +83,17 @@ class DeliveryPlatformController extends Controller
     public function syncMenuWebhook(Request $request)
     {
         try {
-            DeliveryPlatformMenuRecord::create([
+            $prevDeliveryPlatformMenuRecord = DeliveryPlatformMenuRecord::where('ref_id', $request->jobID)->first();
+
+            $deliveryPlatformMenuRecord = DeliveryPlatformMenuRecord::updateOrCreate([
+                'ref_id' => $request->jobID,
+              ], [
                 'delivery_platform_slug' => 'grab',
                 'platform_ref_id' => $request->merchantID,
-                'request_json' => $request->all(),
+                'request_json' => $prevDeliveryPlatformMenuRecord && $prevDeliveryPlatformMenuRecord->request_json ? array_merge($prevDeliveryPlatformMenuRecord->request_json, $request->all()) : $request->all(),
                 'vend_code' => $request->partnerMerchantID,
-            ]);
+              ]);
+
         } catch(\Exception $e) {
             return $e->getMessage();
         }
