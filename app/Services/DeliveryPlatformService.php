@@ -50,9 +50,10 @@ class DeliveryPlatformService
 
     switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
-        $deliveryPlatformOrder = DeliveryPlatformOrder::fill($this->setGrabOrderIncomingParam($input));
+        $deliveryPlatformOrder = new DeliveryPlatformOrder();
+        $deliveryPlatformOrder->fill($this->setGrabOrderIncomingParam($input));
         $deliveryPlatformOrder->delivery_platform_operator_id = $this->deliveryPlatformOperator->id;
-        $deliveryPlatformOrder->delivery_product_mapping_vend_id = $this->deliveryProductMappingVend->id;
+        $deliveryPlatformOrder->delivery_product_mapping_vend_id = $deliveryProductMappingVend->id;
         $deliveryPlatformOrder->save();
         return $deliveryPlatformOrder;
       break;
@@ -347,22 +348,6 @@ class DeliveryPlatformService
   }
 
   // grab parameter getter
-  // auth
-  private function incomingOrderParams($params = [])
-  {
-    return [
-      'order_id' => $params['orderID'],
-      'short_order_id' => $params['shortOrderNumber'],
-      'merchant_id' => $params['merchantID'],//
-      'partner_merchant_id' => $params['partnerMerchantID'], //
-      'payment_type' => $params['paymentType'],//
-      'order_created_at' => $params['orderTime'],
-      'submit_time' => $params['submitTime'],
-      'order_completed_at' => $params['completeTime'],
-      'scheduled_time' => $params['scheduledTime'],
-      'status' => $params['orderState'],
-    ];
-  }
 
   // menu
   private function getGrabMenuCategories($model)
@@ -510,14 +495,14 @@ class DeliveryPlatformService
       'short_order_id' => $params['shortOrderNumber'],
       'platform_ref_id' => $params['merchantID'],
       'vend_code' => $params['partnerMerchantID'],
-      'order_created_at' => Carbon::parse($params['orderTime']),
-      'order_completed_at' => Carbon::parse($params['completeTime']),
+      'order_created_at' => isset($params['orderTime']) ? Carbon::parse($params['orderTime']) : null,
+      'order_completed_at' => isset($params['completeTime']) ? Carbon::parse($params['completeTime']) : null,
       'request_history_json' => $params,
-      'status' => DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$params['orderState']],
-      'currency' => $params['currency'],
-      'featureFlags' => $params['featureFlags'],
-      'items' => $params['items'],
-      'price' => $params['price'],
+      'status' => isset($params['orderState']) ? DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$params['orderState']] : DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_PENDING],
+      'currency' => isset($params['currency']) ? $params['currency'] : null,
+      'featureFlags' => isset($params['featureFlags']) ? $params['featureFlags'] : null,
+      'items' => isset($params['items']) ? $params['items'] : null,
+      'price' => isset($params['price']) ? $params['price'] : null,
     ];
   }
 }

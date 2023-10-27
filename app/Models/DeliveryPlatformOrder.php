@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\DeliveryPlatforms\Grab;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -9,22 +10,24 @@ class DeliveryPlatformOrder extends Model
 {
     use HasFactory;
 
-    const STATUS_ACCEPTED = 1;
-    const STATUS_ASSIGNED = 2;
-    const STATUS_ARRIVED = 3;
-    const STATUS_COLLECTED = 4;
-    const STATUS_DELIVERED = 5;
+    const STATUS_PENDING = 1;
+    const STATUS_ACCEPTED = 2;
+    const STATUS_ASSIGNED = 3;
+    const STATUS_ARRIVED = 4;
+    const STATUS_COLLECTED = 5;
+    const STATUS_DELIVERED = 6;
     const STATUS_CANCELLED = 98;
     const STATUS_FAILED = 99;
 
     const GRAB_STATUS_MAPPING = [
-        Grab::STATUS_ACCEPTED => self::STATUS_ACCEPTED,
+        Grab::STATE_PENDING => self::STATUS_PENDING,
+        Grab::STATE_ACCEPTED => self::STATUS_ACCEPTED,
         Grab::STATE_DRIVER_ALLOCATED => self::STATUS_ASSIGNED,
         Grab::STATE_DRIVER_ARRIVED => self::STATUS_ARRIVED,
-        Grab::STATUS_COLLECTED => self::STATUS_COLLECTED,
-        Grab::STATUS_DELIVERED => self::STATUS_DELIVERED,
-        Grab::STATUS_CANCELLED => self::STATUS_CANCELLED,
-        Grab::STATUS_FAILED => self::STATUS_FAILED,
+        Grab::STATE_COLLECTED => self::STATUS_COLLECTED,
+        Grab::STATE_DELIVERED => self::STATUS_DELIVERED,
+        Grab::STATE_CANCELLED => self::STATUS_CANCELLED,
+        Grab::STATE_FAILED => self::STATUS_FAILED,
     ];
 
     protected $fillable = [

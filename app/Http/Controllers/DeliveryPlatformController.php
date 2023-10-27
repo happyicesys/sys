@@ -106,12 +106,8 @@ class DeliveryPlatformController extends Controller
         $merchantID = $request->merchantID;
         $partnerMerchantID = $request->partnerMerchantID;
 
-        try {
-            $response = $this->deliveryPlatformService->createOrder($merchantID, $partnerMerchantID, $request->all());
-            return $response;
-        } catch(\Exception $e) {
-            return $e->getMessage();
-        }
+        $response = $this->deliveryPlatformService->createOrder($merchantID, $partnerMerchantID, $request->all());
+        return $response;
     }
 
     public function updateGrabOrder(Request $request)
@@ -119,11 +115,7 @@ class DeliveryPlatformController extends Controller
         $merchantID = $request->merchantID;
         $orderID = $request->orderID;
 
-        try {
-            $response = $this->deliveryPlatformService->updateOrder($merchantID, $orderID, $request->all());
-            return $response;
-        } catch(\Exception $e) {
-            return $e->getMessage();
-        }
+        $response = $this->deliveryPlatformService->updateOrder($merchantID, $orderID, $request->all());
+        return $response;
     }
 }

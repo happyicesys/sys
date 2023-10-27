@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::table('delivery_platform_orders', function (Blueprint $table) {
             $table->string('platform_ref_id');
-            $table->unsignedBigInteger('delivery_product_mapping_vend_id')->nullable()->index();
-            $table->unsignedBigInteger('delivery_product_mapping_vend_channel_id')->nullable()->index();
+            $table->unsignedBigInteger('delivery_product_mapping_vend_id')->nullable();
+            $table->unsignedBigInteger('delivery_product_mapping_vend_channel_id')->nullable();
         });
     }
 
