@@ -50,11 +50,20 @@ class DeliveryPlatformService
 
     switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
+        DB::beginTransaction();
+
         $deliveryPlatformOrder = new DeliveryPlatformOrder();
         $deliveryPlatformOrder->fill($this->setGrabOrderIncomingParam($input));
+        $deliveryPlatformOrder->delivery_platform_id = $this->deliveryPlatformOperator->deliveryPlatform->id;
         $deliveryPlatformOrder->delivery_platform_operator_id = $this->deliveryPlatformOperator->id;
         $deliveryPlatformOrder->delivery_product_mapping_vend_id = $deliveryProductMappingVend->id;
+        $deliveryPlatformOrder->vend_id = $deliveryProductMappingVend->vend->id;
         $deliveryPlatformOrder->save();
+
+        $this->createGrabDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
+
+        DB::commit();
+
         return $deliveryPlatformOrder;
       break;
     }
@@ -230,11 +239,6 @@ class DeliveryPlatformService
 
   }
 
-  public function sendOauth()
-  {
-
-  }
-
   public function updateMenu(DeliveryProductMappingVendChannel $deliveryProductMappingVendChannel)
   {
     $this->deliveryPlatformOperator = $deliveryProductMappingVendChannel->deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
@@ -287,6 +291,36 @@ class DeliveryPlatformService
     }
 
     return $envName;
+  }
+
+  private function createGrabDeliveryPlatformOrderItems(DeliveryPlatformOrder $deliveryPlatformOrder, $input)
+  {
+    if(!isset($input['items'])) {
+      throw new \Exception('No items found in the request.');
+    }
+    $items = collect($input['items']);
+
+    // get all the vend channels on this vend for this product id
+    // use group by product id on ver2
+    $deliveryProductMappingVendChannels =
+      $deliveryPlatformOrder
+      ->deliveryProductMappingVend
+      ->deliveryProductMappingVendChannels()
+      ->whereHas('deliveryProductMappingItem.product', function($query) use ($items) {
+        $query->whereIn('id', $items->pluck('id'));
+      })->get();
+
+    if($deliveryProductMappingVendChannels->count() === 0) {
+      throw new \Exception('No items found in the mapping.');
+    }
+
+    foreach($deliveryProductMappingVendChannels as $deliveryProductMappingVendChannel) {
+      $deliveryPlatformOrder->deliveryPlatformOrderItems()->create([
+
+      ]);
+    }
+
+    dd($items, $deliveryProductMappingVendChannels->toArray());
   }
 
   // retrieve grab subcategory with items
@@ -348,7 +382,6 @@ class DeliveryPlatformService
   }
 
   // grab parameter getter
-
   // menu
   private function getGrabMenuCategories($model)
   {

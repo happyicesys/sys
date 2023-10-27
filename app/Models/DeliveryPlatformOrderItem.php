@@ -16,6 +16,7 @@ class DeliveryPlatformOrderItem extends Model
         'is_edited',
         'product_id',
         'product_mapping_item_id',
+        'qty'
     ];
 
     // relationships

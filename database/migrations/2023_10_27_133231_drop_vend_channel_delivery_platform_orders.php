@@ -12,9 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('delivery_platform_orders', function (Blueprint $table) {
-            $table->string('platform_ref_id');
-            $table->unsignedBigInteger('delivery_product_mapping_vend_id')->nullable();
-            $table->unsignedBigInteger('delivery_product_mapping_vend_channel_id')->nullable();
+            $table->dropColumn('vend_channel_code');
+            $table->dropColumn('vend_channel_id');
+            $table->dropColumn('delivery_product_mapping_vend_channel_id');
+            $table->integer('subtotal_amount')->nullable();
         });
     }
 
@@ -24,9 +25,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('delivery_platform_orders', function (Blueprint $table) {
-            $table->dropColumn('platform_ref_id');
-            $table->dropColumn('delivery_product_mapping_vend_id');
-            $table->dropColumn('delivery_product_mapping_vend_channel_id');
+            //
         });
     }
 };

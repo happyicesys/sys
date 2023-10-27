@@ -441,56 +441,16 @@ class VendController extends Controller
             )
             ->first();
 
-            // dd($vendTransactions);
-
-        // $vendTransactions = DB::table('vend_transactions')
-        //     ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-        //     ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
-        //     ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
-        //     ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-        //     ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-        //     ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
-        //     ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
-        //     ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
-        //     ->select(
-        //         'customers.code AS customer_code',
-        //         'customers.name AS customer_name',
-        //         'vend_transactions.id',
-        //         'vend_transactions.amount',
-        //         'vend_transactions.customer_json',
-        //         'vend_transactions.gross_profit',
-        //         'vend_transactions.is_payment_received',
-        //         'vend_transactions.location_type_json',
-        //         'vend_transactions.order_id',
-        //         'vend_transactions.operator_json',
-        //         'payment_methods.name AS payment_method_name',
-        //         'products.code AS product_code',
-        //         'products.name AS product_name',
-        //         'vend_transactions.product_json',
-        //         'vend_transactions.revenue',
-        //         'vend_transactions.transaction_datetime',
-        //         'vend_transactions.unit_cost',
-        //         'vend_transactions.vend_channel_code',
-        //         'vends.code AS vend_code',
-        //         'vends.name AS vend_name',
-        //         'vend_channel_errors.code AS vend_channel_error_code',
-        //         'vend_channel_errors.desc AS vend_channel_error_desc',
-        //         'vend_transactions.vend_json',
-        //         'vend_transactions.vend_transaction_json',
-        //         'vend_transactions.error_code_normalized',
-        //     );
-
-        // $vendTransactions = $this->filterVendTransactionsDB($vendTransactions, $request);
-        // $vendTransactions = $this->filterOperatorVendTransactionDB($vendTransactions);
-        // $totals = (clone $vendTransactions)
-        //     ->whereIn('error_code_normalized', [0, 6])
-        //     ->select(
-        //         DB::raw('ROUND(COALESCE(SUM(vend_transactions.amount)/ 100, 0), 2) AS amount'),
-        //         DB::raw('COUNT(*) AS count'))
-        //     ->first();
-        // $vendTransactions = $vendTransactions
-        //     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
-        //     ->withQueryString();
+        $totals = [
+            'amount' => VendTransaction::query()
+                ->filterTransactionIndex($request)
+                ->whereIn('error_code_normalized', [0, 6])
+                ->sum('vend_transactions.amount'),
+            'count' => VendTransaction::query()
+                ->filterTransactionIndex($request)
+                ->whereIn('error_code_normalized', [0, 6])
+                ->count()
+        ];
 
         return Inertia::render('Vend/Transaction', [
             'categories' => CategoryResource::collection(

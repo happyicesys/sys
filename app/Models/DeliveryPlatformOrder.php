@@ -31,11 +31,9 @@ class DeliveryPlatformOrder extends Model
     ];
 
     protected $fillable = [
-        'total_amount',
         'delivery_platform_id',
         'delivery_platform_operator_id',
         'delivery_product_mapping_vend_id',
-        'delivery_product_mapping_vend_channel_id',
         'driver_arrived_at',
         'driver_assigned_at',
         'driver_eta_seconds',
@@ -53,8 +51,8 @@ class DeliveryPlatformOrder extends Model
         'response_history_json',
         'short_order_id',
         'status',
-        'vend_channel_code',
-        'vend_channel_id',
+        'subtotal_amount',
+        'total_amount',
         'vend_code',
         'vend_id',
     ];
