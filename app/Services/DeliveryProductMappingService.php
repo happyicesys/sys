@@ -24,7 +24,7 @@ class DeliveryProductMappingService
 
         if(count($deliveryProductMappingVends) > 0) {
           foreach($deliveryProductMappingVends as $deliveryProductMappingVend) {
-            if($deliveryProductMappingVend and $deliveryProductMappingVend->vend->vendChannels()->exists()) {
+            if($deliveryProductMappingVend->vend->vendChannels()->exists()) {
               foreach($deliveryProductMappingVend->vend->vendChannels as $vendChannel) {
                 if($deliveryProductMappingVend->deliveryProductMapping->deliveryProductMappingItems()->exists()) {
                   // create the existing vend channel data from android with local created template channel info
@@ -81,7 +81,12 @@ class DeliveryProductMappingService
                   }
                 }
               }
+            }else {
+              $deliveryProductMappingVend->update([
+                'is_active' => false,
+              ]);
             }
+
             NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend)->onQueue('high');
           }
           return true;

@@ -6,6 +6,7 @@ use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformMenuRecord;
 use App\Models\DeliveryPlatformOperator;
+use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryProductMappingVendChannel;
@@ -31,32 +32,62 @@ class DeliveryPlatformService
     $this->model = new DeliveryPlatform();
   }
 
-  public function createOrder(Model $model, $params = [])
+  public function createOrder($platformRefId = null, $vendCode = null, $input)
   {
-    if($model instanceof Grab) {
-      return [
-        'order_id' => $params['orderID'],
-        'short_order_id' => $params['shortOrderNumber'],
-        'merchant_id' => $params['merchantID'],//
-        'partner_merchant_id' => $params['partnerMerchantID'], //
-        'payment_type' => $params['paymentType'],//
-        'order_created_at' => $params['orderTime'],
-        'submit_time' => $params['submitTime'],
-        'order_completed_at' => $params['completeTime'],
-        'scheduled_time' => $params['scheduledTime'],
-        'status' => $params['orderState'],
-      ];
+    $deliveryProductMappingVend = DeliveryProductMappingVend::query()
+      ->when($platformRefId, function($query) use ($platformRefId) {
+        return $query->where('platform_ref_id', $platformRefId);
+      })
+      ->where('vend_code', $vendCode)
+      ->first();
+
+    if(!$deliveryProductMappingVend) {
+      throw new \Exception('No Vending Machine found for this Platform Ref ID.');
+    }
+
+    $this->deliveryPlatformOperator = $deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
+    $this->setDeliveryPlatformOperator($deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator);
+
+    switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+      case 'grab':
+        $deliveryPlatformOrder = DeliveryPlatformOrder::fill($this->setGrabOrderIncomingParam($input));
+        $deliveryPlatformOrder->delivery_platform_operator_id = $this->deliveryPlatformOperator->id;
+        $deliveryPlatformOrder->delivery_product_mapping_vend_id = $this->deliveryProductMappingVend->id;
+        $deliveryPlatformOrder->save();
+        return $deliveryPlatformOrder;
+      break;
     }
   }
 
-  public function deleteOrder()
+  public function updateOrder($platformRefId = null, $orderId = null , $input)
   {
+    $deliveryPlatformOrder = DeliveryPlatformOrder::query()
+      ->when($platformRefId, function($query, $search) {
+        return $query->where('platform_ref_id', $search);
+      })
+      ->when($orderId, function($query, $search) {
+        return $query->where('order_id', $search);
+      })
+      ->first();
 
-  }
+    if(!$deliveryPlatformOrder) {
+      throw new \Exception('No Order Found for this merchant ID and order ID.');
+    }
 
-  public function editOrder()
-  {
+    $this->deliveryPlatformOperator = $deliveryPlatformOrder->deliveryPlatformOperator;
+    $this->setDeliveryPlatformOperator($deliveryPlatformOrder->deliveryPlatformOperator);
 
+    switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+      case 'grab':
+        $deliveryPlatformOrder->update([
+          'status' => DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']],
+          'request_history_json' => $deliveryPlatformOrder->request_history_json ? array_merge($deliveryPlatformOrder->request_history_json, $input) : $input,
+          'driver_eta_seconds' => isset($input['driverETA']) ? $input['driverETA'] : null,
+          'driver_eta_updated_at' => isset($input['driverETA']) ? Carbon::now() : null,
+        ]);
+        return $deliveryPlatformOrder;
+      break;
+    }
   }
 
   public function getDeliveryPlatformOperator()
@@ -316,6 +347,24 @@ class DeliveryPlatformService
   }
 
   // grab parameter getter
+  // auth
+  private function incomingOrderParams($params = [])
+  {
+    return [
+      'order_id' => $params['orderID'],
+      'short_order_id' => $params['shortOrderNumber'],
+      'merchant_id' => $params['merchantID'],//
+      'partner_merchant_id' => $params['partnerMerchantID'], //
+      'payment_type' => $params['paymentType'],//
+      'order_created_at' => $params['orderTime'],
+      'submit_time' => $params['submitTime'],
+      'order_completed_at' => $params['completeTime'],
+      'scheduled_time' => $params['scheduledTime'],
+      'status' => $params['orderState'],
+    ];
+  }
+
+  // menu
   private function getGrabMenuCategories($model)
   {
     return [
@@ -453,19 +502,22 @@ class DeliveryPlatformService
     ];
   }
 
-  private function incomingOrderParams($params = [])
+  // order
+  private function setGrabOrderIncomingParam($params = [])
   {
     return [
       'order_id' => $params['orderID'],
       'short_order_id' => $params['shortOrderNumber'],
-      'merchant_id' => $params['merchantID'],//
-      'partner_merchant_id' => $params['partnerMerchantID'], //
-      'payment_type' => $params['paymentType'],//
-      'order_created_at' => $params['orderTime'],
-      'submit_time' => $params['submitTime'],
-      'order_completed_at' => $params['completeTime'],
-      'scheduled_time' => $params['scheduledTime'],
-      'status' => $params['orderState'],
+      'platform_ref_id' => $params['merchantID'],
+      'vend_code' => $params['partnerMerchantID'],
+      'order_created_at' => Carbon::parse($params['orderTime']),
+      'order_completed_at' => Carbon::parse($params['completeTime']),
+      'request_history_json' => $params,
+      'status' => DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$params['orderState']],
+      'currency' => $params['currency'],
+      'featureFlags' => $params['featureFlags'],
+      'items' => $params['items'],
+      'price' => $params['price'],
     ];
   }
 }

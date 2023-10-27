@@ -15,6 +15,17 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 {
     use HasFactory;
 
+    const PAYMENT_TYPE_CASH = 'CASH';
+    const PAYMENT_TYPE_CASHLESS = 'CASHLESS';
+
+    const STATE_ACCEPTED = 'ACCEPTED';
+    const STATE_DRIVER_ALLOCATED = 'DRIVER_ALLOCATED';
+    const STATE_DRIVER_ARRIVED = 'DRIVER_ARRIVED';
+    const STATE_COLLECTED = 'COLLECTED';
+    const STATE_DELIVERED = 'DELIVERED';
+    const STATE_CANCELLED = 'CANCELLED';
+    const STATE_FAILED = 'FAILED';
+
     const STATUS_AVAILABLE = 'AVAILABLE';
     const STATUS_UNAVAILABLE = 'UNAVAILABLE';
     const STATUS_UNAVAILABLE_TODAY = 'UNAVAILABLETODAY';

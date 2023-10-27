@@ -37,19 +37,6 @@ class DeliveryPlatformController extends Controller
         }
     }
 
-    public function getGrabMenu(Request $request)
-    {
-        $merchantId = $request->merchantID;
-        $partnerMerchantID = $request->partnerMerchantID;
-        try {
-            $response = $this->deliveryPlatformService->getMenu($merchantId, $partnerMerchantID);
-            return $response;
-        } catch(\Exception $e) {
-            return $e->getMessage();
-        }
-
-    }
-
     public function getOauth($operatorId, $type)
     {
         try {
@@ -80,7 +67,21 @@ class DeliveryPlatformController extends Controller
         }
     }
 
-    public function syncMenuWebhook(Request $request)
+    // grab
+    // menu
+    public function getGrabMenu(Request $request)
+    {
+        $merchantID = $request->merchantID;
+        $partnerMerchantID = $request->partnerMerchantID;
+        try {
+            $response = $this->deliveryPlatformService->getMenu($merchantID, $partnerMerchantID);
+            return $response;
+        } catch(\Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    public function syncGrabMenuWebhook(Request $request)
     {
         try {
             $prevDeliveryPlatformMenuRecord = DeliveryPlatformMenuRecord::where('ref_id', $request->jobID)->first();
@@ -94,6 +95,33 @@ class DeliveryPlatformController extends Controller
                 'vend_code' => $request->partnerMerchantID,
               ]);
 
+        } catch(\Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    // order
+    public function createGrabOrder(Request $request)
+    {
+        $merchantID = $request->merchantID;
+        $partnerMerchantID = $request->partnerMerchantID;
+
+        try {
+            $response = $this->deliveryPlatformService->createOrder($merchantID, $partnerMerchantID, $request->all());
+            return $response;
+        } catch(\Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    public function updateGrabOrder(Request $request)
+    {
+        $merchantID = $request->merchantID;
+        $orderID = $request->orderID;
+
+        try {
+            $response = $this->deliveryPlatformService->updateOrder($merchantID, $orderID, $request->all());
+            return $response;
         } catch(\Exception $e) {
             return $e->getMessage();
         }

@@ -35,7 +35,9 @@ Route::prefix('delivery')->group(function() {
         Route::get('/categories/{operatorId}/{type}', [DeliveryPlatformController::class, 'getCategories']);
         Route::get('/merchant/menu', [DeliveryPlatformController::class, 'getGrabMenu']);
         Route::get('/oauth/{operatorId}/{type}', [DeliveryPlatformController::class, 'getOauth']);
-        Route::post('/sync-menu-webhook', [DeliveryPlatformController::class, 'syncMenuWebhook']);
+        Route::post('/order/create', [DeliveryPlatformController::class, 'createGrabOrder']);
+        Route::put('/order/update', [DeliveryPlatformController::class, 'updateGrabOrder']);
+        Route::post('/sync-menu-webhook', [DeliveryPlatformController::class, 'syncGrabMenuWebhook']);
     });
 });
 
