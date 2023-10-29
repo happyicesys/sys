@@ -30,6 +30,9 @@
                 <progress v-if="form.progress" :value="form.progress.percentage" max="100">
                   {{ form.progress.percentage }}%
                 </progress>
+                <span class="text-sm p-2 text-red-600">
+                  * Image file, max 500kb
+                </span>
               </div>
               <div class="text-sm text-red-600" v-if="form.errors.thumbnail">
                 {{ form.errors.thumbnail }}

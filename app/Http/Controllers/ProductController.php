@@ -115,7 +115,7 @@ class ProductController extends Controller
 
         if($request->hasFile('thumbnail')){
             $request->validate([
-                'thumbnail' => 'sometimes|image|max:10000',
+                'thumbnail' => 'sometimes|image|max:500',
             ]);
             $url = Storage::url($request->thumbnail->storePublicly('sys/products'));
             $product->thumbnail()->updateOrCreate([
