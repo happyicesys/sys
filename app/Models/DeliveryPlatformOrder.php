@@ -10,6 +10,9 @@ class DeliveryPlatformOrder extends Model
 {
     use HasFactory;
 
+    const DEFAULT_VALID_HOUR_BEFORE = 3;
+    const DEFAULT_VALID_HOUR_AFTER = 3;
+
     const STATUS_PENDING = 1;
     const STATUS_ACCEPTED = 2;
     const STATUS_ASSIGNED = 3;
@@ -28,6 +31,17 @@ class DeliveryPlatformOrder extends Model
         Grab::STATE_DELIVERED => self::STATUS_DELIVERED,
         Grab::STATE_CANCELLED => self::STATUS_CANCELLED,
         Grab::STATE_FAILED => self::STATUS_FAILED,
+    ];
+
+    const STATUS_MAPPING = [
+        self::STATUS_PENDING => 'Pending',
+        self::STATUS_ACCEPTED => 'Accepted',
+        self::STATUS_ASSIGNED => 'Assigned',
+        self::STATUS_ARRIVED => 'Arrived',
+        self::STATUS_COLLECTED => 'Collected',
+        self::STATUS_DELIVERED => 'Delivered',
+        self::STATUS_CANCELLED => 'Cancelled',
+        self::STATUS_FAILED => 'Failed',
     ];
 
     protected $fillable = [
@@ -54,7 +68,6 @@ class DeliveryPlatformOrder extends Model
         'subtotal_amount',
         'total_amount',
         'vend_code',
-        'vend_id',
     ];
 
     protected $casts = [
@@ -80,6 +93,11 @@ class DeliveryPlatformOrder extends Model
         return $this->belongsTo(DeliveryPlatformOperator::class);
     }
 
+    public function deliveryPlatformOrderComplaint()
+    {
+        return $this->hasOne(DeliveryPlatformOrderComplaint::class);
+    }
+
     public function deliveryPlatformOrderItems()
     {
         return $this->hasMany(DeliveryPlatformOrderItem::class);
@@ -90,23 +108,13 @@ class DeliveryPlatformOrder extends Model
         return $this->belongsTo(DeliveryProductMappingVend::class);
     }
 
-    public function deliveryProductMappingVendChannel()
+    public function orderItemVendChannels()
     {
-        return $this->belongsTo(DeliveryProductMappingVendChannel::class);
+        return $this->hasMany(OrderItemVendChannel::class);
     }
 
     public function productMapping()
     {
         return $this->belongsTo(ProductMapping::class);
-    }
-
-    public function vendChannel()
-    {
-        return $this->belongsTo(VendChannel::class);
-    }
-
-    public function vend()
-    {
-        return $this->belongsTo(Vend::class);
     }
 }

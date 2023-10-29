@@ -37,6 +37,8 @@ Route::prefix('delivery')->group(function() {
         Route::get('/oauth/{operatorId}/{type}', [DeliveryPlatformController::class, 'getOauth']);
         Route::post('/order/create', [DeliveryPlatformController::class, 'createGrabOrder']);
         Route::put('/order/update', [DeliveryPlatformController::class, 'updateGrabOrder']);
+        Route::post('/order/search', [DeliveryPlatformController::class, 'searchGrabOrder']);
+        Route::post('/order/complaint', [DeliveryPlatformController::class, 'submitGrabOrderComplaint']);
         Route::post('/sync-menu-webhook', [DeliveryPlatformController::class, 'syncGrabMenuWebhook']);
     });
 });

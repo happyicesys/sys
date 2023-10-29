@@ -79,6 +79,11 @@ class DeliveryProductMappingService
                       }
                     }
                   }
+                }else {
+                  // set the product mapping vend as inactive when no delivery product mapping item found
+                  $deliveryProductMappingVend->update([
+                    'is_active' => false,
+                  ]);
                 }
               }
             }else {

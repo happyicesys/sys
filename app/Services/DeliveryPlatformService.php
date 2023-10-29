@@ -57,10 +57,9 @@ class DeliveryPlatformService
         $deliveryPlatformOrder->delivery_platform_id = $this->deliveryPlatformOperator->deliveryPlatform->id;
         $deliveryPlatformOrder->delivery_platform_operator_id = $this->deliveryPlatformOperator->id;
         $deliveryPlatformOrder->delivery_product_mapping_vend_id = $deliveryProductMappingVend->id;
-        $deliveryPlatformOrder->vend_id = $deliveryProductMappingVend->vend->id;
         $deliveryPlatformOrder->save();
 
-        $this->createGrabDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
+        $this->createDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
 
         DB::commit();
 
@@ -293,7 +292,7 @@ class DeliveryPlatformService
     return $envName;
   }
 
-  private function createGrabDeliveryPlatformOrderItems(DeliveryPlatformOrder $deliveryPlatformOrder, $input)
+  private function createDeliveryPlatformOrderItems(DeliveryPlatformOrder $deliveryPlatformOrder, $input)
   {
     if(!isset($input['items'])) {
       throw new \Exception('No items found in the request.');
@@ -306,21 +305,74 @@ class DeliveryPlatformService
       $deliveryPlatformOrder
       ->deliveryProductMappingVend
       ->deliveryProductMappingVendChannels()
-      ->whereHas('deliveryProductMappingItem.product', function($query) use ($items) {
-        $query->whereIn('id', $items->pluck('id'));
+      ->whereHas('deliveryProductMappingItem', function($query) use ($items) {
+        $query->whereIn('product_id', $items->pluck('id'));
       })->get();
 
     if($deliveryProductMappingVendChannels->count() === 0) {
       throw new \Exception('No items found in the mapping.');
     }
-
-    foreach($deliveryProductMappingVendChannels as $deliveryProductMappingVendChannel) {
-      $deliveryPlatformOrder->deliveryPlatformOrderItems()->create([
-
-      ]);
+    foreach($items as $item) {
+      foreach($deliveryProductMappingVendChannels as $index => $deliveryProductMappingVendChannel) {
+        if($item['id'] == $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->id and $item['id'] == '447') {
+          $deliveryPlatformOrder->deliveryPlatformOrderItems()->create([
+            'delivery_product_mapping_item_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->id,
+            'amount' => $item['price'],
+            'product_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->id,
+            'qty' => $item['quantity'],
+          ]);
+        }
+      }
     }
 
-    dd($items, $deliveryProductMappingVendChannels->toArray());
+    $this->createOrderItemVendChannels($deliveryPlatformOrder);
+  }
+
+  // assign which vend channel to dispense, make sure call this after delivery platform order item created
+  private function createOrderItemVendChannels(DeliveryPlatformOrder $deliveryPlatformOrder)
+  {
+    $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems()->get();
+
+    foreach($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
+      $deliveryProductMappingVendChannels = DeliveryProductMappingVendChannel::query()
+        ->whereHas('deliveryProductMappingItem.product', function($query) use ($deliveryPlatformOrderItem) {
+          $query->where('id', $deliveryPlatformOrderItem->product_id);
+        })
+        ->get();
+
+      if(count($deliveryProductMappingVendChannels) === 1) {
+        // logic to check the qty available can cope order qty
+        $deliveryProductMappingVendChannel = $deliveryProductMappingVendChannels->first();
+
+        if($this->verifyOrderQtyAvailable($deliveryPlatformOrderItem, $deliveryProductMappingVendChannel)) {
+          $deliveryPlatformOrder->orderItemVendChannels()->create([
+            'delivery_product_mapping_vend_channel_id' => $deliveryProductMappingVendChannel->id,
+            'delivery_product_mapping_item_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->id,
+            'delivery_platform_order_item_id' => $deliveryPlatformOrderItem->id,
+            'vend_channel_id' => $deliveryProductMappingVendChannel->vend_channel_id,
+            'vend_channel_code' => $deliveryProductMappingVendChannel->vend_channel_code,
+            'qty' => $deliveryPlatformOrderItem->qty,
+          ]);
+          return true;
+        }
+        return false;
+      }else {
+        // handle multiple vend channel same product id case
+      }
+    }
+  }
+
+  // verify whether available qty can cope order qty
+  private function verifyOrderQtyAvailable(DeliveryPlatformOrderItem $deliveryPlatformOrderItem, DeliveryProductMappingVendChannel $deliveryProductMappingVendChannel)
+  {
+    $response = $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel);
+
+    if($response['status']) {
+      if($response['available_qty'] >= $deliveryPlatformOrderItem->qty) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // retrieve grab subcategory with items

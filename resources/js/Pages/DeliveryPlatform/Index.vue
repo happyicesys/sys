@@ -5,7 +5,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Delivery Platform
+        Delivery Platform Product Mapping
       </h2>
     </template>
 
@@ -160,9 +160,9 @@
                           <Button
                             type="button"
                             class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1"
-                            :class="[deliveryProductMapping.vendsJson && deliveryProductMapping.vendsJson.length > 0 ? 'opacity-50 cursor-not-allowed' : '']"
+                            :class="[deliveryProductMapping.deliveryProductMappingVends && deliveryProductMapping.deliveryProductMappingVends.length > 0 ? 'opacity-50 cursor-not-allowed' : '']"
                             @click="onDeleteClicked(deliveryProductMapping)"
-                            :disabled="deliveryProductMapping.vendsJson && deliveryProductMapping.vendsJson.length > 0"
+                            :disabled="deliveryProductMapping.deliveryProductMappingVends && deliveryProductMapping.deliveryProductMappingVends.length > 0"
                           >
                             <span class="flex space-x-1 items-center">
                               <TrashIcon class="w-4 h-4"></TrashIcon>
@@ -170,7 +170,7 @@
                                   Delete
                               </span>
                             </span>
-                            <span v-if="deliveryProductMapping.vendsJson && deliveryProductMapping.vendsJson.length > 0">
+                            <span v-if="deliveryProductMapping.deliveryProductMappingVends && deliveryProductMapping.deliveryProductMappingVends.length > 0">
                               (Binded)
                             </span>
                           </Button>

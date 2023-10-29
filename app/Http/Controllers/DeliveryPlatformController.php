@@ -7,12 +7,14 @@ use App\Http\Resources\DeliveryProductMappingItemResource;
 use App\Http\Resources\OperatorResource;
 use App\Models\DeliveryPlatformMenuRecord;
 use App\Models\DeliveryPlatformOperator;
+use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingItem;
 use App\Models\Operator;
 use App\Models\Vend;
 use App\Jobs\SyncDeliveryPlatformOauthByOperator;
 use App\Services\DeliveryPlatformService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Laravel\Passport\Client;
 use Laravel\Passport\Token;
@@ -108,6 +110,62 @@ class DeliveryPlatformController extends Controller
 
         $response = $this->deliveryPlatformService->createOrder($merchantID, $partnerMerchantID, $request->all());
         return $response;
+    }
+
+    // vend apk submit complaint for grab order, by driver
+    public function submitGrabOrderComplaint(Request $request)
+    {
+        $code = $request->Vid;
+        $driverPhoneNumber = $request->driver_phone_number;
+        $remarks = $request->remarks;
+        $shortOrderID = $request->short_order_id;
+
+        if(!$shortOrderID || !$code) {
+            throw new \Exception('Please provide Short Order ID and Vend ID');
+        }
+
+        $deliveryPlatformOrder = DeliveryPlatformOrder::query()
+        ->where('short_order_id', $shortOrderID)
+        ->where('vend_code', $code)
+        ->first();
+
+        if($deliveryPlatformOrder) {
+            $deliveryPlatformOrder->deliveryPlatformOrderComplaint()->create([
+                'driver_phone_number' => $driverPhoneNumber,
+                'remarks' => $remarks,
+            ]);
+        }
+        return true;
+    }
+
+    // search grab order in vm apk
+    public function searchGrabOrder(Request $request)
+    {
+        $code = $request->Vid;
+        $driverPhoneNumber = $request->driver_phone_number;
+        $shortOrderID = $request->short_order_id;
+
+        if(!$shortOrderID || !$code) {
+            throw new \Exception('Please provide Short Order ID and Vend ID');
+        }
+
+        $datetimeFrom = Carbon::now()->subHours(DeliveryPlatformOrder::DEFAULT_VALID_HOUR_BEFORE);
+        $datetimeTo = Carbon::now()->addHours(DeliveryPlatformOrder::DEFAULT_VALID_HOUR_AFTER);
+
+        $deliveryPlatformOrder = DeliveryPlatformOrder::query()
+            ->where('short_order_id', $shortOrderID)
+            ->where('vend_code', $code)
+            ->whereBetween('created_at', [$datetimeFrom, $datetimeTo])
+            ->first();
+
+        if($deliveryPlatformOrder) {
+            $deliveryPlatformOrder->update([
+                'driver_phone_number' => $driverPhoneNumber,
+            ]);
+            return true;
+        } else {
+            abort(404, 'Order not found');
+        }
     }
 
     public function updateGrabOrder(Request $request)

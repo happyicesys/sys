@@ -136,6 +136,10 @@ const navigation = [
         current: false,
         href: 'delivery-product-mappings',
         permission: 'admin-access vends',
+        children: [
+            {name: 'Product Mapping', href: '/delivery-product-mappings'},
+            {name: 'Orders', href: '/delivery-platform-orders'},
+        ]
     },
     // {
     //     name: 'Map',

@@ -450,7 +450,7 @@
                                   Resume VM
                                 </span>
                               </Button>
-                              <Button
+                              <!-- <Button
                                 class="bg-red-400 hover:bg-red-500 text-white flex space-x-1"
                                 @click.prevent="unbindVend(deliveryProductMappingVend.id)"
                               >
@@ -458,7 +458,7 @@
                                 <span class="text-xs">
                                   Unbind VM
                                 </span>
-                              </Button>
+                              </Button> -->
                             </div>
                           </td>
                         </tr>

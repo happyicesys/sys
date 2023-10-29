@@ -10,6 +10,7 @@ use App\Http\Controllers\CountryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryPlatformController;
+use App\Http\Controllers\DeliveryPlatformOrderController;
 use App\Http\Controllers\DeliveryProductMappingController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\LocationTypeController;
@@ -119,6 +120,10 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('dashboard')->group(function() {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    });
+
+    Route::prefix('delivery-platform-orders')->group(function() {
+        Route::get('/', [DeliveryPlatformOrderController::class, 'index'])->name('delivery-platform-orders');
     });
 
     Route::prefix('delivery-product-mappings')->group(function() {

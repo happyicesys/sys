@@ -25,6 +25,11 @@ class DeliveryPlatformOrderItem extends Model
         return $this->belongsTo(DeliveryPlatformOrder::class);
     }
 
+    public function orderItemVendChannels()
+    {
+        return $this->hasMany(OrderItemVendChannel::class);
+    }
+
     public function product()
     {
         return $this->belongsTo(Product::class);

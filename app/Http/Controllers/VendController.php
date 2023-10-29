@@ -44,6 +44,7 @@ use App\Models\PaymentGateways\Midtrans;
 use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use App\Services\VendDataService;
+use App\Services\VendDispenseService;
 use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
@@ -62,17 +63,25 @@ class VendController extends Controller
 {
     use GetUserTimezone, HasFilter;
 
+    protected $mqttService;
     protected $paymentGatewayService;
     protected $vendDataService;
+    protected $vendDispenseService;
 
 
-    public function __construct( MqttService $mqttService, PaymentGatewayService $paymentGatewayService, VendDataService $vendDataService)
+    public function __construct(
+        MqttService $mqttService,
+        PaymentGatewayService $paymentGatewayService,
+        VendDataService $vendDataService,
+        VendDispenseService $vendDispenseService
+    )
     {
         $this->middleware(['permission:read vends'])->only('index');
         $this->middleware(['permission:read transactions'])->only('transactionIndex');
         $this->mqttService = $mqttService;
         $this->paymentGatewayService = $paymentGatewayService;
         $this->vendDataService = $vendDataService;
+        $this->vendDispenseService = $vendDispenseService;
     }
 
     public function index(Request $request)
@@ -760,7 +769,7 @@ class VendController extends Controller
         }
         $orderId = Carbon::now()->setTimeZone($operatorTimezone)->format('ymdhis').$vendChannel->vend->code;
 
-        $result = $this->vendDataService->getPurchaseRequest([
+        $result = $this->vendDispenseService->getSingleParam([
             'orderId' => $orderId,
             'amount' => 0,
             'vendCode' => $vendChannel->vend->code,

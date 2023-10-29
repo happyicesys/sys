@@ -13,6 +13,7 @@ use App\Models\VendData;
 use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use App\Services\VendDataService;
+use App\Services\VendDispenseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -22,14 +23,20 @@ class PaymentController extends Controller
   protected $mqttService;
   protected $paymentGatewayService;
   protected $vendDataService;
+  protected $vendDispenseService;
 
   public function __construct(
+
     MqttService $mqttService,
-    PaymentGatewayService $paymentGatewayService, VendDataService $vendDataService)
+    PaymentGatewayService $paymentGatewayService,
+    VendDataService $vendDataService,
+    VendDispenseService $vendDispenseService
+  )
   {
     $this->mqttService = $mqttService;
     $this->paymentGatewayService = $paymentGatewayService;
     $this->vendDataService = $vendDataService;
+    $this->vendDispenseService = $vendDispenseService;
   }
 
   public function createPaymentGatewayLog(Request $request, $company)
@@ -180,7 +187,7 @@ class PaymentController extends Controller
           break;
       }
 
-      $result = $this->vendDataService->getPurchaseRequest([
+      $result = $this->vendDispenseService->getSingleParam([
         'orderId' => $paymentGatewayLog->order_id,
         'amount' => $paymentGatewayLog->request['PRICE'],
         'vendCode' => $paymentGatewayLog->vend_code,

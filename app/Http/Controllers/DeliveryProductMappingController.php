@@ -150,7 +150,7 @@ class DeliveryProductMappingController extends Controller
     public function deleteDeliveryProductMappingItem($id)
     {
         $deliveryProductMappingItem = DeliveryProductMappingItem::findOrFail($id);
-        $deliveryProductMappingId = $deliveryProductMappingItem->deliveryProductMapping->id;
+        $deliveryProductMapping = $deliveryProductMappingItem->deliveryProductMapping;
 
         if($deliveryProductMappingItem->deliveryProductMappingVendChannels()->exists()) {
             $deliveryProductMappingItem->deliveryProductMappingVendChannels()->delete();
@@ -158,22 +158,14 @@ class DeliveryProductMappingController extends Controller
 
         $deliveryProductMappingItem->delete();
 
-        DeliveryProductMapping::findOrFail($deliveryProductMappingItem->deliveryProductMapping->id)->update([
-            'delivery_product_mapping_items_json' =>
-                DeliveryProductMapping::findOrFail($deliveryProductMappingId)
-                ->deliveryProductMappingItems()
-                ->with([
-                    'product:id,code,name',
-                    'product.thumbnail'
-                ])
-                ->select(
-                    'id',
-                    'amount',
-                    'channel_code',
-                    'product_id',
-                )
-                ->get()
-        ]);
+        if(! $deliveryProductMapping->deliveryProductMappingItems()->exists()) {
+            $deliveryProductMapping->update([
+                'is_active' => false,
+            ]);
+        }
+
+        // re sync vend channels check whether delivery product mapping items is empty make inactive
+        $this->deliveryProductMappingService->syncVendChannels($deliveryProductMapping->id, null);
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingId]);
     }
