@@ -198,7 +198,9 @@
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         <div class="flex justify-center">
-                          <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="product.thumbnail.full_url" alt="" v-if="product.thumbnail"/>
+                          <a :href="product.thumbnail.full_url" target="_blank" v-if="product.thumbnail">
+                            <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="product.thumbnail.full_url" alt="" />
+                          </a>
                         </div>
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-left" v-if="permissions.includes('admin-access products')">

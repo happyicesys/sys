@@ -19,9 +19,12 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6 pb-3">
               <div class="mt-1 flex flex-col md:flex-row space-y-2 md:space-y-0 items-center">
+
                 <span class="h-28 w-28 overflow-hidden rounded-full bg-gray-100">
-                  <img class="h-28 w-28 rounded-full border" :src="product.thumbnail.full_url" alt="" v-if="product && product.thumbnail"/>
-                  <RectangleStackIcon class="h-28 w-28 text-gray-300"></RectangleStackIcon>
+                  <a :href="product.thumbnail.full_url" target="_blank">
+                    <img class="h-28 w-28 rounded-full border" :src="product.thumbnail.full_url" alt="" v-if="product && product.thumbnail"/>
+                    <RectangleStackIcon class="h-28 w-28 text-gray-300"></RectangleStackIcon>
+                  </a>
                 </span>
                 <input v-if="permissions.includes('update products')" type="file" @input="form.thumbnail = $event.target.files[0]" class="ml-5 rounded-md border border-gray-300 bg-white py-2 px-3 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"/>
                 <progress v-if="form.progress" :value="form.progress.percentage" max="100">
