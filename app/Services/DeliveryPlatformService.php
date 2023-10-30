@@ -7,6 +7,7 @@ use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformMenuRecord;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryPlatformOrder;
+use App\Models\DeliveryPlatformOrderItem;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryProductMappingVendChannel;
@@ -336,14 +337,17 @@ class DeliveryPlatformService
   private function createOrderItemVendChannels(DeliveryPlatformOrder $deliveryPlatformOrder)
   {
     $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems()->get();
-
     foreach($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
-      $deliveryProductMappingVendChannels = $deliveryPlatformOrder->deliveryProductMappingVend->deliveryProductMappingVendChannels()
+      $deliveryProductMappingVendChannels =
+        $deliveryPlatformOrderItem
+        ->deliveryPlatformOrder
+        ->deliveryProductMappingVend
+        ->deliveryProductMappingVendChannels()
         ->whereHas('deliveryProductMappingItem.product', function($query) use ($deliveryPlatformOrderItem) {
           $query->where('id', $deliveryPlatformOrderItem->product_id);
         })
         ->get();
-        dd($deliveryProductMappingVendChannels->toArray());
+
       if(count($deliveryProductMappingVendChannels) === 1) {
         // logic to check the qty available can cope order qty
         $deliveryProductMappingVendChannel = $deliveryProductMappingVendChannels->first();
@@ -357,9 +361,7 @@ class DeliveryPlatformService
             'vend_channel_code' => $deliveryProductMappingVendChannel->vend_channel_code,
             'qty' => $deliveryPlatformOrderItem->qty,
           ]);
-          return true;
         }
-        return false;
       }else {
         // handle multiple vend channel same product id case
       }
