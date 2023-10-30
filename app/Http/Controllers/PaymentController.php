@@ -77,13 +77,11 @@ class PaymentController extends Controller
       break;
 
       case 'omise':
-        // dd($input['data']);
-        // switch($input['data']['object']) {
-        switch($input['object']) {
+        switch($input['data']['object']) {
           case 'charge':
           case 'source':
-            if(isset($input['status'])) {
-              switch($input['status']) {
+            if(isset($input['data']['status'])) {
+              switch($input['data']['status']) {
                 case 'pending':
                   $status = PaymentGatewayLog::STATUS_PENDING;
                   break;
@@ -103,8 +101,8 @@ class PaymentController extends Controller
           default:
             throw new \Exception('Payment gateway is not found');
         }
-        $orderId = $input['metadata']['order_id'];
-        $refId = $input['id'];
+        $orderId = $input['data']['metadata']['order_id'];
+        $refId = $input['data']['id'];
       break;
     }
 
@@ -185,7 +183,7 @@ class PaymentController extends Controller
             $paymentMethod = array_search($paymentGatewayLog->response['acquirer'], Midtrans::PAYMENT_METHOD_MAPPING);
           break;
         case 'omise':
-          $paymentMethod = array_search($paymentGatewayLog->response['source']['type'], Omise::PAYMENT_METHOD_MAPPING);
+          $paymentMethod = array_search($paymentGatewayLog->response['data']['source']['type'], Omise::PAYMENT_METHOD_MAPPING);
           break;
       }
 
