@@ -13,6 +13,7 @@ use App\Models\DeliveryProductMappingVendChannel;
 use App\Models\Operator;
 use App\Models\Vend;
 use App\Models\VendChannel;
+use App\Traits\GetUserTimezone;
 use App\Jobs\SyncDeliveryPlatformOauthByOperator;
 use App\Services\DeliveryPlatformOperatorService;
 use Carbon\Carbon;
@@ -21,6 +22,8 @@ use Illuminate\Support\Facades\Http;
 
 class DeliveryPlatformService
 {
+  use GetUserTimezone;
+
   private $deliveryPlatformOperator;
   private $deliveryProductMappingService;
   private $model;
@@ -307,14 +310,15 @@ class DeliveryPlatformService
       ->deliveryProductMappingVendChannels()
       ->whereHas('deliveryProductMappingItem', function($query) use ($items) {
         $query->whereIn('product_id', $items->pluck('id'));
-      })->get();
+      })
+      ->get();
 
     if($deliveryProductMappingVendChannels->count() === 0) {
       throw new \Exception('No items found in the mapping.');
     }
     foreach($items as $item) {
       foreach($deliveryProductMappingVendChannels as $index => $deliveryProductMappingVendChannel) {
-        if($item['id'] == $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->id and $item['id'] == '447') {
+        if($item['id'] == $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->id) {
           $deliveryPlatformOrder->deliveryPlatformOrderItems()->create([
             'delivery_product_mapping_item_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->id,
             'amount' => $item['price'],
@@ -334,12 +338,12 @@ class DeliveryPlatformService
     $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems()->get();
 
     foreach($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
-      $deliveryProductMappingVendChannels = DeliveryProductMappingVendChannel::query()
+      $deliveryProductMappingVendChannels = $deliveryPlatformOrder->deliveryProductMappingVend->deliveryProductMappingVendChannels()
         ->whereHas('deliveryProductMappingItem.product', function($query) use ($deliveryPlatformOrderItem) {
           $query->where('id', $deliveryPlatformOrderItem->product_id);
         })
         ->get();
-
+        dd($deliveryProductMappingVendChannels->toArray());
       if(count($deliveryProductMappingVendChannels) === 1) {
         // logic to check the qty available can cope order qty
         $deliveryProductMappingVendChannel = $deliveryProductMappingVendChannels->first();
@@ -580,7 +584,7 @@ class DeliveryPlatformService
       'short_order_id' => $params['shortOrderNumber'],
       'platform_ref_id' => $params['merchantID'],
       'vend_code' => $params['partnerMerchantID'],
-      'order_created_at' => isset($params['orderTime']) ? Carbon::parse($params['orderTime']) : null,
+      'order_created_at' => isset($params['orderTime']) ? Carbon::parse($params['orderTime'], 'UTC')->setTimezone($this->getUserTimezone()) : null,
       'order_completed_at' => isset($params['completeTime']) ? Carbon::parse($params['completeTime']) : null,
       'request_history_json' => $params,
       'status' => isset($params['orderState']) ? DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$params['orderState']] : DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_PENDING],
