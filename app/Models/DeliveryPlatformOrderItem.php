@@ -15,7 +15,7 @@ class DeliveryPlatformOrderItem extends Model
         'is_cancelled',
         'is_edited',
         'product_id',
-        'product_mapping_item_id',
+        'delivery_product_mapping_item_id',
         'qty'
     ];
 

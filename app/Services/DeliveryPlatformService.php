@@ -321,7 +321,7 @@ class DeliveryPlatformService
       foreach($deliveryProductMappingVendChannels as $index => $deliveryProductMappingVendChannel) {
         if($item['id'] == $deliveryProductMappingVendChannel->deliveryProductMappingItem->id) {
           $deliveryPlatformOrder->deliveryPlatformOrderItems()->create([
-            'delivery_product_mapping_item_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->id,
+            'delivery_product_mapping_item_id' => $item['id'],
             'amount' => $item['price'],
             'product_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->id,
             'qty' => $item['quantity'],
@@ -344,7 +344,7 @@ class DeliveryPlatformService
         ->deliveryProductMappingVend
         ->deliveryProductMappingVendChannels()
         ->whereHas('deliveryProductMappingItem', function($query) use ($deliveryPlatformOrderItem) {
-          $query->where('id', $deliveryPlatformOrderItem->product_id);
+          $query->where('id', $deliveryPlatformOrderItem->delivery_product_mapping_item_id);
         })
         ->get();
 
