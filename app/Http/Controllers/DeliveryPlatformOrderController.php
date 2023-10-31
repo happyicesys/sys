@@ -52,6 +52,7 @@ class DeliveryPlatformOrderController extends Controller
             ->with([
                 'deliveryPlatform:id,name,country_id,slug',
                 'deliveryPlatformOrderItems',
+                'deliveryProductMappingVend.deliveryProductMapping:id,name',
                 'deliveryProductMappingVend.vend:id,code,name',
                 'deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
                 'orderItemVendChannels.deliveryProductMappingItem.product:id,code,name,is_active',

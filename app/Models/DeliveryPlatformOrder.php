@@ -61,6 +61,7 @@ class DeliveryPlatformOrder extends Model
         'order_id',
         'order_json',
         'platform_ref_id',
+        'remarks',
         'request_history_json',
         'response_history_json',
         'short_order_id',
@@ -111,10 +112,5 @@ class DeliveryPlatformOrder extends Model
     public function orderItemVendChannels()
     {
         return $this->hasMany(OrderItemVendChannel::class);
-    }
-
-    public function productMapping()
-    {
-        return $this->belongsTo(ProductMapping::class);
     }
 }

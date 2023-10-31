@@ -155,7 +155,7 @@ class DeliveryPlatformController extends Controller
         $deliveryPlatformOrder = DeliveryPlatformOrder::query()
             ->where('short_order_id', $shortOrderID)
             ->where('vend_code', $code)
-            ->whereBetween('created_at', [$datetimeFrom, $datetimeTo])
+            // ->whereBetween('created_at', [$datetimeFrom, $datetimeTo])
             ->first();
 
         if($deliveryPlatformOrder) {

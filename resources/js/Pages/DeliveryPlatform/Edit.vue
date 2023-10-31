@@ -30,6 +30,7 @@
                     type="text"
                     class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
                     :value="form.operator_field"
+                    disabled
                   />
                 </div>
               </div>
@@ -42,6 +43,7 @@
                     type="text"
                     class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
                     :value="form.delivery_platform_operator_field"
+                    disabled
                   />
                 </div>
               </div>
@@ -54,6 +56,7 @@
                     type="text"
                     class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
                     :value="form.category_json.name"
+                    disabled
                   />
                 </div>
               </div>
@@ -66,6 +69,7 @@
                     type="text"
                     class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
                     :value="form.product_mapping_field"
+                    disabled
                   />
                 </div>
               </div>
