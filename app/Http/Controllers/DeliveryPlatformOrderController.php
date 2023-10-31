@@ -19,12 +19,12 @@ class DeliveryPlatformOrderController extends Controller
             'deliveryPlatformOrders' => DeliveryPlatformOrderResource::collection(
                 DeliveryPlatformOrder::query()
                     ->with([
-                        'deliveryPlatform',
+                        'deliveryPlatform:id,name,country_id,slug',
                         'deliveryPlatformOrderItems',
-                        'deliveryPlatformOrderItems.product:id,code,name,is_active',
-                        'deliveryPlatformOrderItems.product.thumbnail',
                         'deliveryProductMappingVend.vend:id,code,name',
                         'deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
+                        'orderItemVendChannels.deliveryProductMappingItem.product:id,code,name,is_active',
+                        'orderItemVendChannels.deliveryProductMappingItem.product.thumbnail',
                     ])
                     ->when($request->order_id, function($query, $search) {
                         $query->where('order_id', 'LIKE', "%{$search}%");
@@ -42,6 +42,26 @@ class DeliveryPlatformOrderController extends Controller
                     })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
+            ),
+        ]);
+    }
+
+    public function edit($id)
+    {
+        $deliveryPlatformOrder = DeliveryPlatformOrder::query()
+            ->with([
+                'deliveryPlatform:id,name,country_id,slug',
+                'deliveryPlatformOrderItems',
+                'deliveryProductMappingVend.vend:id,code,name',
+                'deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
+                'orderItemVendChannels.deliveryProductMappingItem.product:id,code,name,is_active',
+                'orderItemVendChannels.deliveryProductMappingItem.product.thumbnail',
+            ])
+            ->findOrFail($id);
+
+        return Inertia::render('DeliveryPlatformOrder/Edit', [
+            'deliveryPlatformOrder' => DeliveryPlatformOrderResource::make(
+                $deliveryPlatformOrder
             ),
         ]);
     }

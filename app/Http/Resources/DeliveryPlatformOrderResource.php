@@ -3,11 +3,14 @@
 namespace App\Http\Resources;
 
 use App\Models\DeliveryPlatformOrder;
+use App\Traits\GetUserTimezone;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class DeliveryPlatformOrderResource extends JsonResource
 {
+    use GetUserTimezone;
     /**
      * Transform the resource into an array.
      *
@@ -31,10 +34,11 @@ class DeliveryPlatformOrderResource extends JsonResource
             'is_cancelled' => $this->is_cancelled,
             'is_edited' => $this->is_edited,
             'order_completed_at' => $this->order_completed_at,
-            'order_created_at' => $this->order_created_at,
+            'order_created_at' => $this->order_created_at ?  Carbon::parse($this->order_created_at)->setTimezone($this->getUserTimezone())->toDatetimeString() : null,
             'ref_id' => $this->ref_id,
             'order_id' => $this->order_id,
             'order_json' => $this->order_json,
+            'orderItemVendChannels' => OrderItemVendChannelResource::collection($this->whenLoaded('orderItemVendChannels')),
             'platform_ref_id' => $this->platform_ref_id,
             'request_history_json' => $this->request_history_json,
             'response_history_json' => $this->response_history_json,

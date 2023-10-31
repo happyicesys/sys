@@ -124,6 +124,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('delivery-platform-orders')->group(function() {
         Route::get('/', [DeliveryPlatformOrderController::class, 'index'])->name('delivery-platform-orders');
+        Route::get('/{id}/edit', [DeliveryPlatformOrderController::class, 'edit'])->name('delivery-platform-orders.edit');
     });
 
     Route::prefix('delivery-product-mappings')->group(function() {

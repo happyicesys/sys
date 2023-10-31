@@ -310,7 +310,7 @@ class DeliveryPlatformService
       ->deliveryProductMappingVend
       ->deliveryProductMappingVendChannels()
       ->whereHas('deliveryProductMappingItem', function($query) use ($items) {
-        $query->whereIn('product_id', $items->pluck('id'));
+        $query->whereIn('id', $items->pluck('id'));
       })
       ->get();
 
@@ -319,7 +319,7 @@ class DeliveryPlatformService
     }
     foreach($items as $item) {
       foreach($deliveryProductMappingVendChannels as $index => $deliveryProductMappingVendChannel) {
-        if($item['id'] == $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->id) {
+        if($item['id'] == $deliveryProductMappingVendChannel->deliveryProductMappingItem->id) {
           $deliveryPlatformOrder->deliveryPlatformOrderItems()->create([
             'delivery_product_mapping_item_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->id,
             'amount' => $item['price'],
@@ -343,7 +343,7 @@ class DeliveryPlatformService
         ->deliveryPlatformOrder
         ->deliveryProductMappingVend
         ->deliveryProductMappingVendChannels()
-        ->whereHas('deliveryProductMappingItem.product', function($query) use ($deliveryPlatformOrderItem) {
+        ->whereHas('deliveryProductMappingItem', function($query) use ($deliveryPlatformOrderItem) {
           $query->where('id', $deliveryPlatformOrderItem->product_id);
         })
         ->get();
@@ -424,7 +424,7 @@ class DeliveryPlatformService
         $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['sellingTimeID'] = $this->getGrabMenuSellingTimes()['id'];
         $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['items'][] =
         $this->getGrabMenuItems([
-          'item_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->id,
+          'item_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->id,
           'item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->name,
           'desc' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->desc,
           'amount' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->amount,

@@ -91,6 +91,9 @@
                     <TableHead>
                       #
                     </TableHead>
+                    <TableHeadSort modelName="order_created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('order_created_at')">
+                      Order Time
+                    </TableHeadSort>
                     <TableHead>
                       Platform
                     </TableHead>
@@ -107,9 +110,7 @@
                       Status
                     </TableHead>
                     <TableHead>
-                      Item x Qty (Channel)
-                    </TableHead>
-                    <TableHead>
+                      (Channel) Item x Qty
                     </TableHead>
                   </tr>
                 </thead>
@@ -119,10 +120,15 @@
                       {{ deliveryPlatformOrders.meta.from + deliveryPlatformOrderIndex }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
+                      {{ deliveryPlatformOrder.order_created_at }}
+                    </TableData>
+                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                       {{ deliveryPlatformOrder && deliveryPlatformOrder.deliveryPlatform ? deliveryPlatformOrder.deliveryPlatform.name : null }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
-                      {{ deliveryPlatformOrder.order_id }}
+                      <Link :href="'/delivery-platform-orders/' + deliveryPlatformOrder.id + '/edit'" class="text-blue-600">
+                        {{ deliveryPlatformOrder.order_id }}
+                      </Link>
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                       {{ deliveryPlatformOrder.short_order_id }}
@@ -131,12 +137,39 @@
                       {{ deliveryPlatformOrder.deliveryProductMappingVend.vend.full_name }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
-                      {{ deliveryPlatformOrder.status_name }}
+                      <div
+                          class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                          :class="statusClass(deliveryPlatformOrder.status)"
+                      >
+                          <div class="flex flex-col">
+                              <span class="font-semibold">
+                                {{ deliveryPlatformOrder.status_name }}
+                              </span>
+                          </div>
+
+                      </div>
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
                       <ul class="divide-y divide-gray-200">
-                        <li class="flex py-1 px-3 space-x-2" v-for="deliveryPlatformOrderItem in deliveryPlatformOrder.deliveryPlatformOrderItems">
-                          {{ deliveryPlatformOrderItem.product.code }} x {{ deliveryPlatformOrderItem.qty }}
+                        <li class="flex py-1 px-3 space-x-2" v-for="orderItemVendChannel in deliveryPlatformOrder.orderItemVendChannels">
+                          <span class="self-center font-semibold">
+                            (#{{ orderItemVendChannel.vend_channel_code }})
+                          </span>
+                          <span>
+                            {{ orderItemVendChannel.deliveryProductMappingItem.product.code }} <br>
+                            {{ orderItemVendChannel.deliveryProductMappingItem.product.name }}
+                          </span>
+                          <div class="flex self-center">
+                            <a :href="orderItemVendChannel.deliveryProductMappingItem.product.thumbnail.full_url" target="_blank" v-if="orderItemVendChannel.deliveryProductMappingItem.product.thumbnail">
+                              <img class="h-24 w-24 md:h-16 md:w-20 rounded-full" :src="orderItemVendChannel.deliveryProductMappingItem.product.thumbnail.full_url" alt="" />
+                            </a>
+                          </div>
+                          <span class="self-center">
+                            x
+                          </span>
+                          <span class="self-center">
+                            {{ orderItemVendChannel.qty }}
+                          </span>
                         </li>
                       </ul>
                     </TableData>
@@ -238,6 +271,29 @@ function sortTable(sortKey) {
   filters.value.sortKey = sortKey
   filters.value.sortBy = !filters.value.sortBy
   onSearchFilterUpdated()
+}
+
+function statusClass(status) {
+  let statusClass = ''
+  switch(status) {
+    case 1:
+    case 2:
+      statusClass = 'bg-blue-400 text-gray-800'
+      break;
+    case 3:
+    case 4:
+    case 5:
+      statusClass = 'bg-yellow-400 text-gray-800'
+      break;
+    case 6:
+      statusClass = 'bg-green-400 text-white-800'
+      break;
+    case 98:
+    case 99:
+      statusClass = 'bg-red-400 text-white-800'
+      break;
+  }
+  return statusClass
 }
 
 function onModalClose() {

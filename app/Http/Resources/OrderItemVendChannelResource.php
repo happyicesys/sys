@@ -18,8 +18,12 @@ class OrderItemVendChannelResource extends JsonResource
             'id' => $this->id,
             'delivery_platform_order_item_id' => $this->delivery_platform_order_item_id,
             'deliveryPlatformOrderItem' => DeliveryPlatformOrderItemResource::make($this->whenLoaded('deliveryPlatformOrderItem')),
+            'delivery_product_mapping_item_id' => $this->delivery_product_mapping_item_id,
+            'deliveryProductMappingItem' => DeliveryProductMappingItemResource::make($this->whenLoaded('deliveryProductMappingItem')),
             'delivery_product_mapping_vend_channel_id' => $this->delivery_product_mapping_vend_channel_id,
             'deliveryProductMappingVendChannel' => DeliveryProductMappingVendChannelResource::make($this->whenLoaded('deliveryProductMappingVendChannel')),
+            'qty' => $this->qty,
+            'vend_channel_code' => $this->vend_channel_code,
             'vend_channel_id' => $this->vend_channel_id,
             'vendChannel' => VendChannelResource::make($this->whenLoaded('vendChannel')),
         ];
