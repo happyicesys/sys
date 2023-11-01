@@ -65,7 +65,6 @@ class DeliveryPlatformService
     switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         DB::beginTransaction();
-
         $deliveryPlatformOrder = new DeliveryPlatformOrder();
         $deliveryPlatformOrder->fill($this->setGrabOrderIncomingParam($input));
         $deliveryPlatformOrder->delivery_platform_id = $this->deliveryPlatformOperator->deliveryPlatform->id;
@@ -74,7 +73,6 @@ class DeliveryPlatformService
         $deliveryPlatformOrder->save();
 
         $this->createDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
-
         DB::commit();
 
         return $deliveryPlatformOrder;
@@ -90,11 +88,13 @@ class DeliveryPlatformService
     switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $response = $this->model->checkOrderCancelable($deliveryPlatformOrder->order_id, $deliveryPlatformOrder->deliveryProductMappingVend->platform_ref_id);
+
         if($response['success']) {
           $deliveryPlatformOrder->cancelled_json = $response['data'];
-          if($response['data']['cancelAble']) {
+          if($response['data']['cancelable']) {
             $response = $this->model->cancelOrder($deliveryPlatformOrder->order_id, $deliveryPlatformOrder->deliveryProductMappingVend->platform_ref_id, 1001);
             $deliveryPlatformOrder->is_cancelled = true;
+            $deliveryPlatformOrder->status = DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_CANCELLED];
           }else {
             $deliveryPlatformOrder->is_cancelled = false;
           }
@@ -135,6 +135,25 @@ class DeliveryPlatformService
       $orderID,
       $this->vendDispenseService->getMultipleParam($dispenseData)
     );
+  }
+
+  public function markOrderReady(DeliveryPlatformOrder $deliveryPlatformOrder)
+  {
+    $this->deliveryPlatformOperator = $deliveryPlatformOrder->deliveryPlatformOperator;
+    $this->setDeliveryPlatformOperator($deliveryPlatformOrder->deliveryPlatformOperator);
+
+    switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+      case 'grab':
+        $response = $this->model->markOrderReady($deliveryPlatformOrder->order_id);
+        if($response['success']) {
+          $deliveryPlatformOrder->update([
+            'status' => DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_ACCEPTED],
+          ]);
+          return true;
+        }
+        break;
+    }
+    return false;
   }
 
   public function updateOrder($platformRefId = null, $orderId = null , $input)

@@ -162,6 +162,7 @@ class DeliveryPlatformController extends Controller
             $deliveryPlatformOrder->update([
                 'driver_phone_number' => $driverPhoneNumber,
                 'is_verified' => true,
+                'status' => DeliveryPlatformOrder::STATUS_COLLECTED,
             ]);
             $this->deliveryPlatformService->dispenseOrder($deliveryPlatformOrder);
             return true;

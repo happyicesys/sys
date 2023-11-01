@@ -175,6 +175,7 @@
                   <Button
                     class="flex space-x-1 bg-red-500 hover:bg-red-600 text-white"
                     @click.prevent="onRequestCancelOrderClicked(form.id)"
+                    v-if="!form.is_cancelled"
                   >
                     <XCircleIcon class="w-4 h-4"></XCircleIcon>
                     <span>

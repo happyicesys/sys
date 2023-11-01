@@ -300,11 +300,11 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
 
-        $response = Http::withHeaders($this->getHeaders([
+        $response = Http::withHeaders($this->getHeaders())
+        ->get($this->getPartnerEndpoint() . '/partner/v1/order/cancelable', [
             'orderID' => $orderId,
             'merchantID' => $merchantID,
-        ]))
-        ->get($this->getPartnerEndpoint() . '/partner/v1/order/cancelable');
+        ]);
 
         return $this->getResponse($response, 'checkOrderCancelable');
 
