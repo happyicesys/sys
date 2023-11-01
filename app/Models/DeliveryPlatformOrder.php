@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\DeliveryPlatforms\Grab;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class DeliveryPlatformOrder extends Model
 {
@@ -45,6 +46,7 @@ class DeliveryPlatformOrder extends Model
     ];
 
     protected $fillable = [
+        'cancelled_json',
         'delivery_platform_id',
         'delivery_platform_operator_id',
         'delivery_product_mapping_vend_id',
@@ -58,8 +60,8 @@ class DeliveryPlatformOrder extends Model
         'is_verified',
         'order_completed_at',
         'order_created_at',
-        'ref_id',
         'order_id',
+        'ref_id',
         'order_json',
         'platform_ref_id',
         'remarks',
@@ -70,9 +72,12 @@ class DeliveryPlatformOrder extends Model
         'subtotal_amount',
         'total_amount',
         'vend_code',
+        'vend_transaction_id',
+        'vend_transaction_order_id',
     ];
 
     protected $casts = [
+        'cancelled_json' => 'json',
         'driver_arrived_at' => 'datetime',
         'driver_assigned_at' => 'datetime',
         'driver_eta_updated_at' => 'datetime',
@@ -83,6 +88,14 @@ class DeliveryPlatformOrder extends Model
         'request_history_json' => 'json',
         'response_history_json' => 'json',
     ];
+
+    // getter and setter
+    protected function subtotalAmount(): Attribute
+    {
+        return Attribute::make(
+            get: fn (string $value) => $value/ ($this->deliveryProductMappingVend->deliveryProductMappin && $this->deliveryProductMappingVend->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100),
+        );
+    }
 
     // relationships
     public function deliveryPlatform()
@@ -113,5 +126,10 @@ class DeliveryPlatformOrder extends Model
     public function orderItemVendChannels()
     {
         return $this->hasMany(OrderItemVendChannel::class);
+    }
+
+    public function vendTransaction()
+    {
+        return $this->belongsTo(VendTransaction::class);
     }
 }

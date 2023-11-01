@@ -77,6 +77,11 @@ class VendTransaction extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    public function deliveryPlatformOrder()
+    {
+        return $this->hasOne(DeliveryPlatformOrder::class);
+    }
+
     public function operator()
     {
         return $this->belongsTo(Operator::class);

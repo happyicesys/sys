@@ -15,7 +15,9 @@ use App\Models\Operator;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Services\DeliveryProductMappingService;
+use App\Services\MqttService;
 use App\Services\RunningNumberService;
+use App\Services\VendDispenseService;
 use App\Traits\GetUserTimezone;
 use App\Jobs\SyncDeliveryPlatformOauthByOperator;
 use App\Services\DeliveryPlatformOperatorService;
@@ -30,14 +32,18 @@ class DeliveryPlatformService
   private $deliveryPlatformOperator;
   private $deliveryProductMappingService;
   private $model;
+  private $mqttService;
   private $runningNumberService;
+  private $vendDispenseService;
 
   public function __construct()
   {
     $this->deliveryPlatformOperator = new DeliveryPlatformOperator();
     $this->deliveryProductMappingService = new DeliveryProductMappingService();
     $this->model = new DeliveryPlatform();
+    $this->mqttService = new MqttService();
     $this->runningNumberService = new RunningNumberService();
+    $this->vendDispenseService = new VendDispenseService();
   }
 
   public function createOrder($platformRefId = null, $vendCode = null, $input)
@@ -76,20 +82,59 @@ class DeliveryPlatformService
     }
   }
 
+  public function cancelOrder(DeliveryPlatformOrder $deliveryPlatformOrder)
+  {
+    $this->deliveryPlatformOperator = $deliveryPlatformOrder->deliveryPlatformOperator;
+    $this->setDeliveryPlatformOperator($deliveryPlatformOrder->deliveryPlatformOperator);
+
+    switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+      case 'grab':
+        $response = $this->model->checkOrderCancelable($deliveryPlatformOrder->order_id, $deliveryPlatformOrder->deliveryProductMappingVend->platform_ref_id);
+        if($response['success']) {
+          $deliveryPlatformOrder->cancelled_json = $response['data'];
+          if($response['data']['cancelAble']) {
+            $response = $this->model->cancelOrder($deliveryPlatformOrder->order_id, $deliveryPlatformOrder->deliveryProductMappingVend->platform_ref_id, 1001);
+            $deliveryPlatformOrder->is_cancelled = true;
+          }else {
+            $deliveryPlatformOrder->is_cancelled = false;
+          }
+          $deliveryPlatformOrder->save();
+
+          return true;
+        }
+        break;
+    }
+    return false;
+  }
+
   public function dispenseOrder(DeliveryPlatformOrder $deliveryPlatformOrder)
   {
     $this->deliveryPlatformOperator = $deliveryPlatformOrder->deliveryPlatformOperator;
     $this->setDeliveryPlatformOperator($deliveryPlatformOrder->deliveryPlatformOperator);
 
     $dispenseItems = $deliveryPlatformOrder->orderItemVendChannels()->get();
+    $orderID = $this->runningNumberService->getVendOrderID($deliveryPlatformOrder->deliveryProductMappingVend->vend);
+    $deliveryPlatformOrder->update([
+      'vend_transaction_order_id' => $orderID,
+    ]);
     $dispenseData = [
-      'order_id' => $this->runningNumberService->getVendOrderID($deliveryPlatformOrder->deliveryProductMappingVend->vend),
-
+      'orderId' => $orderID,
+      'paymentMethod' => $deliveryPlatformOrder->deliveryPlatform->payment_method_id,
+      'amount' => $deliveryPlatformOrder->subtotal_amount,
+      'vendCode' => $deliveryPlatformOrder->deliveryProductMappingVend->vend->code,
+      'channels' => [],
     ];
     foreach($dispenseItems as $item) {
-      // dd($item->toArray());
+      $dispenseData['channels'][] = [
+        'code' => $item->vend_channel_code,
+        'qty' => $item->qty,
+      ];
     }
-    return $deliveryPlatformOrder;
+    $this->mqttService->publishVend(
+      $deliveryPlatformOrder->deliveryProductMappingVend->vend,
+      $orderID,
+      $this->vendDispenseService->getMultipleParam($dispenseData)
+    );
   }
 
   public function updateOrder($platformRefId = null, $orderId = null , $input)
@@ -611,6 +656,8 @@ class DeliveryPlatformService
       'featureFlags' => isset($params['featureFlags']) ? $params['featureFlags'] : null,
       'items' => isset($params['items']) ? $params['items'] : null,
       'price' => isset($params['price']) ? $params['price'] : null,
+      'subtotal_amount' => isset($params['price']['subtotal']) ? $params['price']['subtotal'] : null,
+      'total_amount' => isset($params['price']['eaterPayment']) ? $params['price']['eaterPayment'] : null,
     ];
   }
 }

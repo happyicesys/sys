@@ -157,8 +157,8 @@
               </div>
 
               <div class="sm:col-span-6" v-if="form.id">
-                <div class="flex space-x-1 mt-5 justify-start">
-                  <Button
+                <div class="flex space-x-1 mt-3 justify-start">
+                  <!-- <Button
                     class="flex space-x-1 bg-gray-300 hover:bg-gray-400 text-black-700"
                     @click.prevent="onEditDeliveryOrderItemsClicked()"
                   >
@@ -169,6 +169,16 @@
                     </span>
                     <span class="text-xs" v-else>
                       Hide Edit
+                    </span>
+                  </Button> -->
+
+                  <Button
+                    class="flex space-x-1 bg-red-500 hover:bg-red-600 text-white"
+                    @click.prevent="onRequestCancelOrderClicked(form.id)"
+                  >
+                    <XCircleIcon class="w-4 h-4"></XCircleIcon>
+                    <span>
+                      Request to Cancel Order
                     </span>
                   </Button>
 
@@ -278,7 +288,7 @@
                               {{ deliveryPlatformOrderItem.qty }}
                             </span>
                           </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-right">
                             <span v-if="editOrderItems">
                               <input type="text" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md" v-model="deliveryPlatformOrderItem.amount">
                             </span>
@@ -312,6 +322,14 @@
                               </Button> -->
                           <!-- </td> -->
                         </tr>
+                        <tr v-if="props.deliveryPlatformOrder.data.deliveryPlatformOrderItems">
+                          <td colspan="4" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold text-gray-900 sm:pl-6 text-center col-span-4">
+                            Subtotal
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold text-gray-900 sm:pl-6 text-right col-span-1">
+                            {{ props.deliveryPlatformOrder.data.subtotal_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </td>
+                        </tr>
                         <tr v-if="!props.deliveryPlatformOrder.data.deliveryPlatformOrderItems || !props.deliveryPlatformOrder.data.deliveryPlatformOrderItems.length">
                           <td colspan="7" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
                             No Records Found
@@ -338,7 +356,7 @@ import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowLeftOnRectangleIcon, ArrowUturnLeftIcon, CheckCircleIcon, PencilSquareIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowLeftOnRectangleIcon, ArrowUturnLeftIcon, CheckCircleIcon, PencilSquareIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 
@@ -373,6 +391,24 @@ function getDefaultForm() {
 
 function onEditDeliveryOrderItemsClicked() {
   editOrderItems.value = !editOrderItems.value
+}
+
+function onRequestCancelOrderClicked() {
+  let approvalText = 'Are you sure to request to cancel this order?'
+  const approval = confirm(approvalText);
+  if (!approval) {
+      return;
+  }
+
+  form.value
+    .transform((data) => ({
+      ...data,
+      delivery_platform_order_items: deliveryPlatformOrder.value.deliveryPlatformOrderItems,
+    }))
+    .post('/delivery-platform-orders/' + form.value.id + '/request-cancel-order', {
+    preserveState: true,
+    replace: true,
+  })
 }
 
 function onSaveDeliveryOrderItemsClicked() {

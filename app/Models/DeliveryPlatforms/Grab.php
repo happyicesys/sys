@@ -296,13 +296,13 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     }
 
     // Check order cancelable
-    public function checkOrderCancelable($orderId)
+    public function checkOrderCancelable($orderId, $merchantID)
     {
         $this->verifyOauthAccessToken();
 
         $response = Http::withHeaders($this->getHeaders([
             'orderID' => $orderId,
-            'merchantID' => $this->merchantId
+            'merchantID' => $merchantID,
         ]))
         ->get($this->getPartnerEndpoint() . '/partner/v1/order/cancelable');
 
@@ -312,14 +312,14 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     }
 
     // Cancel an order
-    public function cancelOrder($orderId, $cancelCode)
+    public function cancelOrder($orderID, $merchantID, $cancelCode)
     {
         $this->verifyOauthAccessToken();
 
         $response = Http::withHeaders($this->getHeaders())
         ->put($this->getPartnerEndpoint() . '/partner/v1/order/cancel', [
-            'orderID' => $orderId,
-            'merchantID' => $this->merchantId,
+            'orderID' => $orderID,
+            'merchantID' => $merchantID,
             'cancelCode' => $cancelCode,
         ]);
 

@@ -4,12 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\DeliveryPlatformOrderResource;
 use App\Models\DeliveryPlatformOrder;
+use App\Services\DeliveryPlatformService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class DeliveryPlatformOrderController extends Controller
 {
+    protected $deliveryPlatformService;
+
+    public function __construct(DeliveryPlatformService $deliveryPlatformService)
+    {
+        $this->deliveryPlatformService = new DeliveryPlatformService();
+    }
+
+
     public function index(Request $request)
     {
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
@@ -75,5 +84,18 @@ class DeliveryPlatformOrderController extends Controller
                 $deliveryPlatformOrder
             ),
         ]);
+    }
+
+    public function requestCancelOrder($id)
+    {
+        $deliveryPlatformOrder = DeliveryPlatformOrder::findOrFail($id);
+
+        $response = $this->deliveryPlatformService->cancelOrder($deliveryPlatformOrder);
+
+        if($response) {
+            return redirect()->back()->with('success', 'Order cancelled');
+        }else {
+            return redirect()->back()->with('error', 'Order cancel not successful');
+        }
     }
 }

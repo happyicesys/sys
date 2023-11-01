@@ -112,6 +112,9 @@
                     <TableHead>
                       (Channel) Item x Qty
                     </TableHead>
+                    <TableHead>
+                      Subtotal
+                    </TableHead>
                   </tr>
                 </thead>
                 <tbody class="bg-white">
@@ -173,6 +176,9 @@
                         </li>
                       </ul>
                     </TableData>
+                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-right">
+                      {{ deliveryPlatformOrder.subtotal_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                    </TableData>
                   </tr>
                   <tr v-if="!deliveryPlatformOrders.data.length">
                     <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
@@ -202,7 +208,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   deliveryPlatformOrders: Object,
@@ -221,6 +227,7 @@ const filters = ref({
 const showModal = ref(false)
 const deliveryPlatformOrder = ref()
 const type = ref('')
+const operatorCountry = usePage().props.auth.operatorCountry
 const numberPerPageOptions = ref([])
 
 onMounted(() => {

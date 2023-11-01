@@ -36,6 +36,17 @@ class MqttService
     $mqtt->loop(true);
   }
 
+  public function publishVend(Vend $vend, $fid, $input)
+  {
+    $fid = $fid;
+    $content = base64_encode(json_encode($input));
+    $contentLength = strlen($content);
+    $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+    $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+    $this->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+  }
+
   private function processData($message, $ipAddress, $connectionType)
   {
       $standardizedVendData = $this->vendDataService->standardizedVendData($message, $connectionType);
