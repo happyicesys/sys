@@ -129,6 +129,8 @@ class DeliveryPlatformService
         'code' => $item->vend_channel_code,
         'qty' => $item->qty,
       ];
+
+      $this->deliveryProductMappingService->syncDeliveryProductMappingVendChannelOrderQty($item->deliveryProductMappingVendChannel, $item->qty, false);
     }
     $this->mqttService->publishVend(
       $deliveryPlatformOrder->deliveryProductMappingVend->vend,
