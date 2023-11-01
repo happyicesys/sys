@@ -107,9 +107,9 @@ class DeliveryProductMappingService
     )
     {
       if($isAddition) {
-        $deliveryProductMappingVendChannel = $deliveryProductMappingVendChannel->order_qty + $orderQty;
+        $deliveryProductMappingVendChannel->order_qty = $deliveryProductMappingVendChannel->order_qty + $orderQty;
       }else {
-        $deliveryProductMappingVendChannel = $deliveryProductMappingVendChannel->order_qty - $orderQty;
+        $deliveryProductMappingVendChannel->order_qty = $deliveryProductMappingVendChannel->order_qty - $orderQty;
       }
       $deliveryProductMappingVendChannel->save();
     }
