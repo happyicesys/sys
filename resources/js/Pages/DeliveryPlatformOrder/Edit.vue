@@ -125,7 +125,7 @@
 
               <div class="sm:col-span-6">
                 <div class="flex space-x-1 mt-5 justify-end">
-                  <Link :href="'/operators'">
+                  <Link :href="'/delivery-platform-orders'">
                     <Button
                       type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
                     >
@@ -151,12 +151,41 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">Delivery Platform Product(s) </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">Order Item(s) </span>
                   </div>
                 </div>
               </div>
 
-              <div class="sm:col-span-3" v-if="form.id">
+              <div class="sm:col-span-6" v-if="form.id">
+                <div class="flex space-x-1 mt-5 justify-start">
+                  <Button
+                    class="flex space-x-1 bg-gray-300 hover:bg-gray-400 text-black-700"
+                    @click.prevent="onEditDeliveryOrderItemsClicked()"
+                  >
+                    <PencilSquareIcon class="w-4 h-4" v-if="!editOrderItems"></PencilSquareIcon>
+                    <ArrowLeftOnRectangleIcon class="w-3 h-3" v-else></ArrowLeftOnRectangleIcon>
+                    <span class="text-xs" v-if="!editOrderItems">
+                      Edit Order
+                    </span>
+                    <span class="text-xs" v-else>
+                      Hide Edit
+                    </span>
+                  </Button>
+
+                  <Button
+                    class="flex space-x-1 bg-green-500 hover:bg-green-600 text-white"
+                    @click.prevent="onSaveDeliveryOrderItemsClicked(form.id)"
+                    v-if="editOrderItems"
+                  >
+                    <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                    <span>
+                      Save Order
+                    </span>
+                  </Button>
+                </div>
+              </div>
+
+              <div class="sm:col-span-3" v-if="form.id && editOrderItems">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Product
                 </label>
@@ -175,13 +204,13 @@
                   {{ form.errors.product_id }}
                 </div>
               </div>
-              <div class="sm:col-span-2" v-if="form.id">
+              <div class="sm:col-span-2" v-if="form.id && editOrderItems">
                 <FormInput v-model="form.qty" :error="form.errors.qty" placeholderStr="Qty">
                   Qty
                 </FormInput>
               </div>
 
-              <div class="sm:col-span-1" v-if="form.id">
+              <div class="sm:col-span-1" v-if="form.id && editOrderItems">
                 <Button
                 type="button"
                 @click.prevent="addDeliveryProductMappingItem()"
@@ -207,9 +236,6 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Channel ID
-                          </th>
-                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Thumbnail
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
@@ -221,48 +247,47 @@
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Price
                           </th>
-                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          <!-- <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Action
-                          </th>
+                          </th> -->
                         </tr>
                       </thead>
                       <tbody class="bg-white">
-                        <tr v-for="(orderItemVendChannel, orderItemVendChannelIndex) in props.deliveryPlatformOrder.data.orderItemVendChannels" :key="orderItemVendChannel.id" :class="orderItemVendChannelIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <tr v-for="(deliveryPlatformOrderItem, deliveryPlatformOrderItemIndex) in props.deliveryPlatformOrder.data.deliveryPlatformOrderItems" :key="deliveryPlatformOrderItem.id" :class="deliveryPlatformOrderItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            {{ orderItemVendChannelIndex + 1 }}
-                          </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ deliveryProductMappingItem.channel_code }}
+                            {{ deliveryPlatformOrderItemIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             <div class="flex justify-center">
-                              <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="deliveryProductMappingItem.product.thumbnail.full_url" alt="" v-if="deliveryProductMappingItem.product && deliveryProductMappingItem.product.thumbnail"/>
+                              <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" alt="" v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product && deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail"/>
                             </div>
                           </td>
                           <td class="whitespace-normal py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left flex flex-col">
-                            <span v-if="deliveryProductMappingItem.product.code">
-                              {{ deliveryProductMappingItem.product.code }}
+                            <span v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product.code">
+                              {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.code }}
                             </span>
-                            <span class="break-words" v-if="deliveryProductMappingItem.product.name">
-                              {{ deliveryProductMappingItem.product.name }}
-                            </span>
-                          </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            <span class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingItem.is_active == 1">
-                              Active
-                            </span>
-                            <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingItem.is_active == 0">
-                              Paused
+                            <span class="break-words" v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product.name">
+                              {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.name }}
                             </span>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ deliveryProductMappingItem.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            <span v-if="editOrderItems">
+                              <input type="text" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md" v-model="deliveryPlatformOrderItem.qty">
+                            </span>
+                            <span v-else>
+                              {{ deliveryPlatformOrderItem.qty }}
+                            </span>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ deliveryProductMappingItem.sub_category_json.name }}
+                            <span v-if="editOrderItems">
+                              <input type="text" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md" v-model="deliveryPlatformOrderItem.amount">
+                            </span>
+                            <span v-else>
+                              {{ deliveryPlatformOrderItem.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            </span>
                           </td>
-                          <td class="whitespace-nowrap py-4 text-sm text-center flex flex-col space-y-1 px-2">
-                            <Button
+                          <!-- <td class="whitespace-nowrap py-4 text-sm text-center flex flex-col space-y-1 px-2"> -->
+                            <!-- <Button
                                 class="flex space-x-1"
                                 :class="[deliveryProductMappingItem.is_active ? 'bg-yellow-300 hover:bg-yellow-400 text-black' : 'bg-green-500 hover:bg-green-600 text-white']"
                                 @click.prevent="togglePauseDeliveryProductMappingItem(deliveryProductMappingItem)"
@@ -284,10 +309,10 @@
                                 <span class="text-xs">
                                   Unbind SKU
                                 </span>
-                              </Button>
-                          </td>
+                              </Button> -->
+                          <!-- </td> -->
                         </tr>
-                        <tr v-if="!props.deliveryProductMapping.data.deliveryProductMappingItems || !props.deliveryProductMapping.data.deliveryProductMappingItems.length">
+                        <tr v-if="!props.deliveryPlatformOrder.data.deliveryPlatformOrderItems || !props.deliveryPlatformOrder.data.deliveryPlatformOrderItems.length">
                           <td colspan="7" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
                             No Records Found
                           </td>
@@ -313,19 +338,20 @@ import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import SearchVendCodeWithOperatorInput from '@/Components/SearchVendCodeWithOperatorInput.vue';
-import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PauseCircleIcon, PlusCircleIcon, PlayIcon } from '@heroicons/vue/20/solid';
+import { ArrowLeftOnRectangleIcon, ArrowUturnLeftIcon, CheckCircleIcon, PencilSquareIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
-    deliveryPlatformOrder: Object,
-  })
+  deliveryPlatformOrder: Object,
+})
 
-  const form = ref(
-    useForm(getDefaultForm())
-  )
-  const deliveryPlatformOrder = ref([])
+const form = ref(
+  useForm(getDefaultForm())
+)
+const deliveryPlatformOrder = ref([])
+const editOrderItems = ref(false)
+const operatorCountry = usePage().props.auth.operatorCountry
 
 onMounted(() => {
     form.value = props.deliveryPlatformOrder ? useForm(props.deliveryPlatformOrder.data) : useForm(getDefaultForm())
@@ -345,19 +371,28 @@ function getDefaultForm() {
   }
 }
 
-function deleteOperatorVend(model) {
-  const approval = confirm('Are you sure to delete this entry?');
+function onEditDeliveryOrderItemsClicked() {
+  editOrderItems.value = !editOrderItems.value
+}
+
+function onSaveDeliveryOrderItemsClicked() {
+  let approvalText = 'Are you sure to edit this order?'
+  const approval = confirm(approvalText);
   if (!approval) {
       return;
   }
-  router.post('/operators/unbind-vend', {
-    vend_id: model.id,
-    operator_id: form.value.id,
-  },{
-      preserveState: false,
-      preserveScroll: true,
-      replace: true,
+
+  form.value
+    .transform((data) => ({
+      ...data,
+      delivery_platform_order_items: deliveryPlatformOrder.value.deliveryPlatformOrderItems,
+    }))
+    .post('/delivery-platform-orders/' + form.value.id + '/update-order-items', {
+    preserveState: true,
+    replace: true,
   })
+
+  editOrderItems.value = false
 }
 
 function statusClass(status) {
@@ -381,23 +416,6 @@ function statusClass(status) {
       break;
   }
   return statusClass
-}
-
-function storeOperatorVend() {
-  router.post(
-    '/operators/bind-vend', {
-      code: form.value.vend_id,
-      operator_id: form.value.id,
-    }, {
-      preserveState: false,
-      preserveScroll: true,
-      replace: true,
-    },
-  )
-}
-
-function onVendCodeSelected(vend) {
-  form.value.vend_id = vend.vend_code
 }
 
 function submit() {

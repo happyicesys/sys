@@ -14,6 +14,8 @@ use App\Models\DeliveryProductMappingVendChannel;
 use App\Models\Operator;
 use App\Models\Vend;
 use App\Models\VendChannel;
+use App\Services\DeliveryProductMappingService;
+use App\Services\RunningNumberService;
 use App\Traits\GetUserTimezone;
 use App\Jobs\SyncDeliveryPlatformOauthByOperator;
 use App\Services\DeliveryPlatformOperatorService;
@@ -28,12 +30,14 @@ class DeliveryPlatformService
   private $deliveryPlatformOperator;
   private $deliveryProductMappingService;
   private $model;
+  private $runningNumberService;
 
   public function __construct()
   {
     $this->deliveryPlatformOperator = new DeliveryPlatformOperator();
     $this->deliveryProductMappingService = new DeliveryProductMappingService();
     $this->model = new DeliveryPlatform();
+    $this->runningNumberService = new RunningNumberService();
   }
 
   public function createOrder($platformRefId = null, $vendCode = null, $input)
@@ -70,6 +74,22 @@ class DeliveryPlatformService
         return $deliveryPlatformOrder;
       break;
     }
+  }
+
+  public function dispenseOrder(DeliveryPlatformOrder $deliveryPlatformOrder)
+  {
+    $this->deliveryPlatformOperator = $deliveryPlatformOrder->deliveryPlatformOperator;
+    $this->setDeliveryPlatformOperator($deliveryPlatformOrder->deliveryPlatformOperator);
+
+    $dispenseItems = $deliveryPlatformOrder->orderItemVendChannels()->get();
+    $dispenseData = [
+      'order_id' => $this->runningNumberService->getVendOrderID($deliveryPlatformOrder->deliveryProductMappingVend->vend),
+
+    ];
+    foreach($dispenseItems as $item) {
+      // dd($item->toArray());
+    }
+    return $deliveryPlatformOrder;
   }
 
   public function updateOrder($platformRefId = null, $orderId = null , $input)
@@ -237,11 +257,6 @@ class DeliveryPlatformService
       }
   }
 
-  public function pauseStore()
-  {
-
-  }
-
   public function updateMenu(DeliveryProductMappingVendChannel $deliveryProductMappingVendChannel)
   {
     $this->deliveryPlatformOperator = $deliveryProductMappingVendChannel->deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
@@ -361,6 +376,8 @@ class DeliveryPlatformService
             'vend_channel_code' => $deliveryProductMappingVendChannel->vend_channel_code,
             'qty' => $deliveryPlatformOrderItem->qty,
           ]);
+
+          $this->deliveryProductMappingService->syncDeliveryProductMappingVendChannelOrderQty($deliveryProductMappingVendChannel, $deliveryPlatformOrderItem->qty, true);
         }
       }else {
         // handle multiple vend channel same product id case

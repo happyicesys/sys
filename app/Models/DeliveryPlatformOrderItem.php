@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -19,10 +20,26 @@ class DeliveryPlatformOrderItem extends Model
         'qty'
     ];
 
+    protected $with = ['deliveryProductMappingItem.deliveryProductMapping.operator.country'];
+
+    // getter and setter
+    protected function amount(): Attribute
+    {
+        return Attribute::make(
+            get: fn (string $value) => $value/ ($this->deliveryProductMappingItem->deliveryProductMapping ? pow(10, $this->deliveryProductMappingItem->deliveryProductMapping->operator->country->currency_exponent) : 100) ,
+            set: fn (string $value) => $value * ($this->deliveryProductMappingItem->deliveryProductMapping ? pow(10, $this->deliveryProductMappingItem->deliveryProductMapping->operator->country->currency_exponent) : 100),
+        );
+    }
+
     // relationships
     public function deliveryPlatformOrder()
     {
         return $this->belongsTo(DeliveryPlatformOrder::class);
+    }
+
+    public function deliveryProductMappingItem()
+    {
+        return $this->belongsTo(DeliveryProductMappingItem::class);
     }
 
     public function orderItemVendChannels()
@@ -34,10 +51,4 @@ class DeliveryPlatformOrderItem extends Model
     {
         return $this->belongsTo(Product::class);
     }
-
-    public function productMappingItem()
-    {
-        return $this->belongsTo(ProductMappingItem::class);
-    }
-
 }

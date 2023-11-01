@@ -161,7 +161,9 @@ class DeliveryPlatformController extends Controller
         if($deliveryPlatformOrder) {
             $deliveryPlatformOrder->update([
                 'driver_phone_number' => $driverPhoneNumber,
+                'is_verified' => true,
             ]);
+            $this->deliveryPlatformService->dispenseOrder($deliveryPlatformOrder);
             return true;
         } else {
             abort(404, 'Order not found');

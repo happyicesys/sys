@@ -254,7 +254,7 @@ function onEditClicked(telcoValue) {
 }
 
 function onSearchFilterUpdated() {
-  router.get('/delivery-product-mappings', {
+  router.get('/delivery-platform-orders', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -264,7 +264,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  router.get('/delivery-product-mappings')
+  router.get('/delivery-platform-orders')
 }
 
 function sortTable(sortKey) {

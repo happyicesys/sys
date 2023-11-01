@@ -43,6 +43,7 @@ use App\Models\VendTransaction;
 use App\Models\PaymentGateways\Midtrans;
 use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
+use App\Services\RunningNumberService;
 use App\Services\VendDataService;
 use App\Services\VendDispenseService;
 use App\Traits\GetUserTimezone;
@@ -65,6 +66,7 @@ class VendController extends Controller
 
     protected $mqttService;
     protected $paymentGatewayService;
+    protected $runningNumberService;
     protected $vendDataService;
     protected $vendDispenseService;
 
@@ -72,6 +74,7 @@ class VendController extends Controller
     public function __construct(
         MqttService $mqttService,
         PaymentGatewayService $paymentGatewayService,
+        RunningNumberService $runningNumberService,
         VendDataService $vendDataService,
         VendDispenseService $vendDispenseService
     )
@@ -80,6 +83,7 @@ class VendController extends Controller
         $this->middleware(['permission:read transactions'])->only('transactionIndex');
         $this->mqttService = $mqttService;
         $this->paymentGatewayService = $paymentGatewayService;
+        $this->runningNumberService = $runningNumberService;
         $this->vendDataService = $vendDataService;
         $this->vendDispenseService = $vendDispenseService;
     }
@@ -763,11 +767,7 @@ class VendController extends Controller
         $channelId = $request->channel_id;
         $vendChannel = VendChannel::findOrFail($channelId);
 
-        $operatorTimezone = 'Asia/Singapore';
-        if($vendChannel->vend->operators()->exists()) {
-            $operatorTimezone = $vendChannel->vend->operators()->first()->timezone;
-        }
-        $orderId = Carbon::now()->setTimeZone($operatorTimezone)->format('ymdhis').$vendChannel->vend->code;
+        $orderId = $this->runningNumberService->getVendOrderID($vendChannel->vend);
 
         $result = $this->vendDispenseService->getSingleParam([
             'orderId' => $orderId,

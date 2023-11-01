@@ -55,6 +55,7 @@ class DeliveryPlatformOrder extends Model
         'error_json',
         'is_cancelled',
         'is_edited',
+        'is_verified',
         'order_completed_at',
         'order_created_at',
         'ref_id',

@@ -7,6 +7,7 @@ use App\Models\PaymentGatewayLog;
 use App\Models\VendData;
 use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
+use App\Services\RunningNumberService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -27,6 +28,7 @@ class GetPaymentGatewayQR
     protected $input;
     protected $vend;
     protected $paymentGatewayService;
+    protected $runningNumberService;
     protected $mqttService;
     /**
      * Create a new job instance.
@@ -39,6 +41,7 @@ class GetPaymentGatewayQR
         $this->input = $input;
         $this->vend = $vend;
         $this->paymentGatewayService = new PaymentGatewayService();
+        $this->runningNumberService = new RunningNumberService();
         $this->mqttService = new MqttService();
     }
 
@@ -54,13 +57,8 @@ class GetPaymentGatewayQR
         $input = $this->input;
         // $vendChannel = $vend->vendChannels()->where('code', $input['SId'])->first();
         // if($vendChannel) {
-            $operatorTimezone = 'Asia/Singapore';
-            if($vend->operators()->exists()) {
-              $operatorTimezone = $vend->operators()->first()->timezone;
-            }
+            $orderId = $this->runningNumberService->getVendOrderID($vend);
 
-            $vendCode = sprintf('%05d', $vend->code);
-            $orderId = Carbon::now()->setTimeZone($operatorTimezone)->format('ymdhis').$vendCode;
             $response = $this->paymentGatewayService->createPaymentQrText($vend, [
                 'request' => $this->input,
                 'amount' => $input['PRICE'],

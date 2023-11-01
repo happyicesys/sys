@@ -99,6 +99,21 @@ class DeliveryProductMappingService
         return false;
     }
 
+    // sync delivery product mapping vend channel order qty by adding when order created and subtract when order retrieved or expired
+    public function syncDeliveryProductMappingVendChannelOrderQty(
+      DeliveryProductMappingVendChannel $deliveryProductMappingVendChannel,
+      $orderQty,
+      $isAddition = true
+    )
+    {
+      if($isAddition) {
+        $deliveryProductMappingVendChannel = $deliveryProductMappingVendChannel->order_qty + $orderQty;
+      }else {
+        $deliveryProductMappingVendChannel = $deliveryProductMappingVendChannel->order_qty - $orderQty;
+      }
+      $deliveryProductMappingVendChannel->save();
+    }
+
     // retrieve vend channel status after apply logic (reserved percent then reserved qty)
     public function getDeliveryVendChannelStatus($vendChannel, $deliveryProductMappingVendChannel)
     {

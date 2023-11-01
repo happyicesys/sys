@@ -60,7 +60,7 @@ class VendDispenseService
       foreach($channels as $channel) {
         $data[] = [
           'port_type' => 0,
-          'goods_id' => isset($channel['product']['id']) ? (int)$channel['product']['id'] : 0,
+          'goods_id' => 0,
           'goods_name' => null,
           'goodroadid' => isset($channel['code']) ? (int)$channel['code'] : null,
           'num' => $channel['qty'],

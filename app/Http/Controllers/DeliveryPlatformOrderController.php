@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\DeliveryPlatformOrderResource;
 use App\Models\DeliveryPlatformOrder;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -37,6 +38,12 @@ class DeliveryPlatformOrderController extends Controller
                             $query->where('code', 'LIKE', "{$request->vend_code}%");
                         });
                     })
+                    ->when($request->date_from, function ($query, $search) {
+                        $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
+                    })
+                    ->when($request->date_to, function ($query, $search) {
+                        $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
+                    })
                     ->when($sortKey, function($query, $search) use ($sortBy) {
                         $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                     })
@@ -55,8 +62,11 @@ class DeliveryPlatformOrderController extends Controller
                 'deliveryProductMappingVend.deliveryProductMapping:id,name',
                 'deliveryProductMappingVend.vend:id,code,name',
                 'deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
-                'orderItemVendChannels.deliveryProductMappingItem.product:id,code,name,is_active',
-                'orderItemVendChannels.deliveryProductMappingItem.product.thumbnail',
+                'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',
+                'deliveryPlatformOrderItems.deliveryProductMappingItem.product.thumbnail',
+                'deliveryPlatformOrderItems.orderItemVendChannels',
+                // 'orderItemVendChannels.deliveryProductMappingItem.product:id,code,name,is_active',
+                // 'orderItemVendChannels.deliveryProductMappingItem.product.thumbnail',
             ])
             ->findOrFail($id);
 

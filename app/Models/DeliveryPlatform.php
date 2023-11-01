@@ -15,6 +15,7 @@ class DeliveryPlatform extends Model
         'default_access_method',
         'default_granted_type',
         'default_scopes',
+        'payment_method_id',
         'remarks',
         'slug',
         'field1_name',
@@ -37,5 +38,10 @@ class DeliveryPlatform extends Model
     public function deliveryPlatformOrders()
     {
         return $this->hasMany(DeliveryPlatformOrder::class);
+    }
+
+    public function paymentMethod()
+    {
+        return $this->belongsTo(PaymentMethod::class);
     }
 }

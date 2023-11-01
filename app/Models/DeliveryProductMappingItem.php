@@ -28,6 +28,8 @@ class DeliveryProductMappingItem extends Model
         'sub_category_json' => 'json',
     ];
 
+    protected $with = ['deliveryProductMapping.operator.country'];
+
     // getter and setter
     protected function amount(): Attribute
     {

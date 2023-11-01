@@ -24,6 +24,7 @@ class DeliveryPlatformOrderResource extends JsonResource
             'deliveryPlatform' => DeliveryPlatformResource::make($this->whenLoaded('deliveryPlatform')),
             'delivery_platform_operator_id' => $this->delivery_platform_operator_id,
             'deliveryPlatformOperator' => DeliveryPlatformOperatorResource::make($this->whenLoaded('deliveryPlatformOperator')),
+            'deliveryPlatformOrderItems' => DeliveryPlatformOrderItemResource::collection($this->whenLoaded('deliveryPlatformOrderItems')),
             'delivery_product_mapping_vend_id' => $this->delivery_product_mapping_vend_id,
             'deliveryProductMappingVend' => DeliveryProductMappingVendResource::make($this->whenLoaded('deliveryProductMappingVend')),
             'driver_arrived_at' => $this->driver_arrived_at,
