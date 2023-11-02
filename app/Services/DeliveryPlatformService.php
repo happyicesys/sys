@@ -95,6 +95,7 @@ class DeliveryPlatformService
             $response = $this->model->cancelOrder($deliveryPlatformOrder->order_id, $deliveryPlatformOrder->deliveryProductMappingVend->platform_ref_id, 1001);
             $deliveryPlatformOrder->is_cancelled = true;
             $deliveryPlatformOrder->status = DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_CANCELLED];
+            $this->syncProductMappingVendChannelOrderQtyByOrder($deliveryPlatformOrder, false);
           }else {
             $deliveryPlatformOrder->is_cancelled = false;
           }
@@ -345,12 +346,6 @@ class DeliveryPlatformService
     }
   }
 
-
-  public function updateOrderStatus()
-  {
-
-  }
-
   // set delivery platform operator
   private function setDeliveryPlatformOperator($deliveryPlatformOperator)
   {
@@ -447,6 +442,17 @@ class DeliveryPlatformService
         }
       }else {
         // handle multiple vend channel same product id case
+      }
+    }
+  }
+
+  private function syncProductMappingVendChannelOrderQtyByOrder(DeliveryPlatformOrder $deliveryPlatformOrder, $isAddition = true)
+  {
+    $deliveryProductMappingVendChannels = $deliveryPlatformOrder->$deliveryProductMappingVend->$deliveryProductMappingVendChannels;
+    $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems;
+    foreach($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
+      foreach($deliveryProductMappingVendChannels as $deliveryProductMappingVendChannel) {
+        $this->deliveryProductMappingService->syncDeliveryProductMappingVendChannelOrderQty($deliveryProductMappingVendChannel, $deliveryPlatformOrderItem->qty, $isAddition);
       }
     }
   }
