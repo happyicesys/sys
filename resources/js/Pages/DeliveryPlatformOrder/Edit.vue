@@ -253,6 +253,9 @@
                             Product
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Channel(s)
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Qty
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
@@ -281,6 +284,11 @@
                               {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.name }}
                             </span>
                           </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            <span v-if="deliveryPlatformOrderItem.orderItemVendChannels[0]">
+                              #{{ deliveryPlatformOrderItem.orderItemVendChannels[0].vend_channel_code }}
+                            </span>
+                          </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             <span v-if="editOrderItems">
                               <input type="text" class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md" v-model="deliveryPlatformOrderItem.qty">
@@ -297,6 +305,7 @@
                               {{ deliveryPlatformOrderItem.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                             </span>
                           </td>
+
                           <!-- <td class="whitespace-nowrap py-4 text-sm text-center flex flex-col space-y-1 px-2"> -->
                             <!-- <Button
                                 class="flex space-x-1"
@@ -324,7 +333,7 @@
                           <!-- </td> -->
                         </tr>
                         <tr v-if="props.deliveryPlatformOrder.data.deliveryPlatformOrderItems">
-                          <td colspan="4" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold text-gray-900 sm:pl-6 text-center col-span-4">
+                          <td colspan="5" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold text-gray-900 sm:pl-6 text-center col-span-4">
                             Subtotal
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold text-gray-900 sm:pl-6 text-right col-span-1">

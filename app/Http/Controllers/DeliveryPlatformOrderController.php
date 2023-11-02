@@ -31,10 +31,12 @@ class DeliveryPlatformOrderController extends Controller
                     ->with([
                         'deliveryPlatform:id,name,country_id,slug',
                         'deliveryPlatformOrderItems',
+                        'deliveryProductMappingVend.deliveryProductMapping:id,name',
                         'deliveryProductMappingVend.vend:id,code,name',
                         'deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
-                        'orderItemVendChannels.deliveryProductMappingItem.product:id,code,name,is_active',
-                        'orderItemVendChannels.deliveryProductMappingItem.product.thumbnail',
+                        'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',
+                        'deliveryPlatformOrderItems.deliveryProductMappingItem.product.thumbnail',
+                        'deliveryPlatformOrderItems.orderItemVendChannels',
                     ])
                     ->when($request->order_id, function($query, $search) {
                         $query->where('order_id', 'LIKE', "%{$search}%");

@@ -403,7 +403,7 @@ class DeliveryPlatformService
         if($item['id'] == $deliveryProductMappingVendChannel->deliveryProductMappingItem->id) {
           $deliveryPlatformOrder->deliveryPlatformOrderItems()->create([
             'delivery_product_mapping_item_id' => $item['id'],
-            'amount' => $item['price'],
+            'amount' => $item['price'] * $item['quantity'],
             'product_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->id,
             'qty' => $item['quantity'],
           ]);
@@ -418,7 +418,7 @@ class DeliveryPlatformService
   private function createOrderItemVendChannels(DeliveryPlatformOrder $deliveryPlatformOrder)
   {
     $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems()->get();
-    foreach($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
+    foreach($deliveryPlatformOrderItems as $indexA => $deliveryPlatformOrderItem) {
       $deliveryProductMappingVendChannels =
         $deliveryPlatformOrderItem
         ->deliveryPlatformOrder
@@ -432,7 +432,6 @@ class DeliveryPlatformService
       if(count($deliveryProductMappingVendChannels) === 1) {
         // logic to check the qty available can cope order qty
         $deliveryProductMappingVendChannel = $deliveryProductMappingVendChannels->first();
-
         if($this->verifyOrderQtyAvailable($deliveryPlatformOrderItem, $deliveryProductMappingVendChannel)) {
           $deliveryPlatformOrder->orderItemVendChannels()->create([
             'amount' => $deliveryPlatformOrderItem->qty * $deliveryProductMappingVendChannel->amount,

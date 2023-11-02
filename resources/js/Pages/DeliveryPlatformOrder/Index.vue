@@ -154,24 +154,26 @@
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
                       <ul class="divide-y divide-gray-200">
-                        <li class="flex py-1 px-3 space-x-2" v-for="orderItemVendChannel in deliveryPlatformOrder.orderItemVendChannels">
-                          <span class="self-center font-semibold">
-                            (#{{ orderItemVendChannel.vend_channel_code }})
+                        <li class="flex py-1 px-3 space-x-2" v-for="deliveryPlatformOrderItem in deliveryPlatformOrder.deliveryPlatformOrderItems">
+                          <span class="self-center font-semibold text-blue-700">
+                            <span v-if="deliveryPlatformOrderItem.orderItemVendChannels[0]">
+                              (#{{ deliveryPlatformOrderItem.orderItemVendChannels[0].vend_channel_code }})
+                            </span>
                           </span>
                           <span>
-                            {{ orderItemVendChannel.deliveryProductMappingItem.product.code }} <br>
-                            {{ orderItemVendChannel.deliveryProductMappingItem.product.name }}
+                            {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.code }} <br>
+                            {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.name }}
                           </span>
                           <div class="flex self-center">
-                            <a :href="orderItemVendChannel.deliveryProductMappingItem.product.thumbnail.full_url" target="_blank" v-if="orderItemVendChannel.deliveryProductMappingItem.product.thumbnail">
-                              <img class="h-24 w-24 md:h-16 md:w-20 rounded-full" :src="orderItemVendChannel.deliveryProductMappingItem.product.thumbnail.full_url" alt="" />
+                            <a :href="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" target="_blank" v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail">
+                              <img class="h-24 w-24 md:h-16 md:w-20 rounded-full" :src="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" alt="" />
                             </a>
                           </div>
                           <span class="self-center">
                             x
                           </span>
                           <span class="self-center">
-                            {{ orderItemVendChannel.qty }}
+                            {{ deliveryPlatformOrderItem.qty }}
                           </span>
                         </li>
                       </ul>
