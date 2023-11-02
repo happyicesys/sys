@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Vend;
 use App\Services\VendDataService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;

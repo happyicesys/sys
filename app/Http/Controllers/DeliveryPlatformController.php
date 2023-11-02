@@ -149,13 +149,13 @@ class DeliveryPlatformController extends Controller
             throw new \Exception('Please provide Short Order ID and Vend ID');
         }
 
-        $datetimeFrom = Carbon::now()->subHours(DeliveryPlatformOrder::DEFAULT_VALID_HOUR_BEFORE);
-        $datetimeTo = Carbon::now()->addHours(DeliveryPlatformOrder::DEFAULT_VALID_HOUR_AFTER);
+        $expiryHours = Carbon::now()->addHours(DeliveryPlatformOrder::DEFAULT_VALID_COLLECTION_HOURS);
 
         $deliveryPlatformOrder = DeliveryPlatformOrder::query()
             ->where('short_order_id', $shortOrderID)
             ->where('vend_code', $code)
-            // ->whereBetween('created_at', [$datetimeFrom, $datetimeTo])
+            // ->where('is_verified', false)
+            // ->where('order_created_at', '<=', $expiryHours)
             ->first();
 
         if($deliveryPlatformOrder) {

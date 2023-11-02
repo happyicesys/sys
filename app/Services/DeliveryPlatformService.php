@@ -435,6 +435,7 @@ class DeliveryPlatformService
 
         if($this->verifyOrderQtyAvailable($deliveryPlatformOrderItem, $deliveryProductMappingVendChannel)) {
           $deliveryPlatformOrder->orderItemVendChannels()->create([
+            'amount' => $deliveryPlatformOrderItem->qty * $deliveryProductMappingVendChannel->amount,
             'delivery_product_mapping_vend_channel_id' => $deliveryProductMappingVendChannel->id,
             'delivery_product_mapping_item_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->id,
             'delivery_platform_order_item_id' => $deliveryPlatformOrderItem->id,
