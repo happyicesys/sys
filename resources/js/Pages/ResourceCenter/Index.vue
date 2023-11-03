@@ -54,7 +54,7 @@
         </div>
       <div class="overflow-hidden bg-white shadow sm:rounded-md mt-3">
         <ul role="list" class="space-y-3">
-          <li v-for="(item, index) in items" :key="index" class="overflow-hidden rounded-md bg-white px-6 py-4 shadow">
+          <li  v-for="(item, index) in items" :key="index" class="overflow-hidden rounded-md bg-white px-6 py-4 shadow" :id="item.div">
             <span class="font-lg font-medium">
               {{index + 1}}. {{ item.name }}
             </span>
@@ -133,8 +133,14 @@ const items = ref([
       {
         sequence: 2.1,
         name: 'QAQC System Walkthrough',
-        url: '',
+        url: 'https://www.youtube.com/embed/qJAKBbNY4PE',
         div: 'qaqc-system-walkthrough',
+      },
+      {
+        sequence: 2.2,
+        name: 'How to Create [User]',
+        url: 'https://www.youtube.com/embed/AB4qkKaGpVg',
+        div: 'qaqc-how-to-create-user',
       },
     ]
   },
@@ -148,8 +154,56 @@ const items = ref([
       {
         sequence: 3.1,
         name: 'CMS System Walkthrough',
-        url: '',
+        url: 'https://www.youtube.com/embed/z7pg5pmcnVw',
         div: 'cms-system-walkthrough',
+      },
+      {
+        sequence: 3.2,
+        name: 'How to Create [User]',
+        url: 'https://www.youtube.com/embed/bfjItb9NPz4',
+        div: 'cms-how-to-create-user',
+      },
+      {
+        sequence: 3.3,
+        name: 'How to Create [Product]',
+        url: 'https://www.youtube.com/embed/MXzCCgCR7Es',
+        div: 'cms-how-to-create-product',
+      },
+      {
+        sequence: 3.4,
+        name: 'How to Create [Product Menu]',
+        url: 'https://www.youtube.com/embed/f7DE8gyM3x0',
+        div: 'cms-how-to-create-product-menu',
+      },
+      {
+        sequence: 3.5,
+        name: 'Service Notice and Refill Invoice',
+        url: 'https://www.youtube.com/embed/C_flqgS75is',
+        div: 'cms-service-notice-and-refill-invoice',
+      },
+      {
+        sequence: 3.6,
+        name: 'How to Add [Machine Serial Number]',
+        url: 'https://www.youtube.com/embed/flOmXr3BKkg',
+        div: 'cms-how-to-add-machine-serial-number',
+      },
+      {
+        sequence: 3.7,
+        name: 'How to Add [Inventory Stock In From Supplier]',
+        url: 'https://www.youtube.com/embed/awkE0A_Uq4g',
+        div: 'cms-how-to-add-inventory-stock-in-from-supplier',
+      },
+      {
+        sequence: 3.8,
+        name: 'How to Create [Potential Customer/ Location]',
+        url: 'https://www.youtube.com/embed/U9lzktMPWCE',
+        div: 'cms-how-to-create-potential-customer-location',
+      },
+      {
+        sequence: 3.9,
+        name: 'How to Change [Potential Customer to Active Customer]',
+        url: 'https://www.youtube.com/embed/gcDdk4ZsUVM',
+        div: 'cms-how-to-change-potential-customer-to-active-customer',
       },
     ]
   },
@@ -293,7 +347,23 @@ const items = ref([
         div: 'sensor-disabled-checking'
       },
     ]
-  }
+  },
+  {
+    sequence: 7,
+    name: 'Stock Replenish Guide (Model F)',
+    filename: 'Stock replenish guideline on HappyIce Model-F.docx',
+    url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/Stock%20replenish%20guideline%20on%20HappyIce%20Model-F.docx',
+    div: 'stock-replenish-guide',
+    file: 'docx',
+  },
+  {
+    sequence: 8,
+    name: 'Location Hunter Guide',
+    filename: 'LocationHunterGuideline_V1.pdf',
+    url: 'https://happyice-space.sgp1.digitaloceanspaces.com/resource_centers/LocationHunterGuideline_V1.pdf',
+    div: 'location-hunter-guide',
+    file: 'pdf',
+  },
 ])
 const indexes = items.value
     // .filter((item) => ( item.children && item.children.length > 0 ))
