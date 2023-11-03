@@ -85,7 +85,7 @@
               </div>
               <div class="sm:col-span-6">
                 <label for="reserved" class="italic text-blue-800">
-                  By setting "Reserved Percentage", the sellable qty equivalent to un-reserved percent, then that value if lower than "Reserved Quantity", channel becomes inactive, both default value are 0.
+                  By setting "Reserved Percentage" and "Reserved Quantity", the sellable qty equivalent to whichever higher. If lower than reserved, channel becomes inactive, both default value are 0.
                 </label>
               </div>
               <div class="sm:col-span-6">

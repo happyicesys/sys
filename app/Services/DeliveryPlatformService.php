@@ -75,6 +75,9 @@ class DeliveryPlatformService
         $this->createDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
         DB::commit();
 
+        // check if any channel is not assigned to deliveryPlatformOrderItem
+        $this->verifyIsVendChannelAssigned($deliveryPlatformOrder);
+
         return $deliveryPlatformOrder;
       break;
     }
@@ -412,8 +415,9 @@ class DeliveryPlatformService
   // assign which vend channel to dispense, make sure call this after delivery platform order item created
   private function createOrderItemVendChannels(DeliveryPlatformOrder $deliveryPlatformOrder)
   {
+    $isSuccessful = true;
     $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems()->get();
-    foreach($deliveryPlatformOrderItems as $indexA => $deliveryPlatformOrderItem) {
+    foreach($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
       $deliveryProductMappingVendChannels =
         $deliveryPlatformOrderItem
         ->deliveryPlatformOrder
@@ -526,6 +530,22 @@ class DeliveryPlatformService
         $dataArr[] = $item;
       }
       return $dataArr;
+  }
+
+  private function verifyIsVendChannelAssigned(DeliveryPlatformOrder $deliveryPlatformOrder)
+  {
+    $isSuccessful = true;
+    $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems()->get();
+    foreach($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
+      if(!$deliveryPlatformOrderItem->orderItemVendChannels()->exists()) {
+        $isSuccessful = false;
+      }
+    }
+
+    // for now, default logic is when no channel assigned to order item, cancel the order
+    if(!$isSuccessful) {
+      $this->cancelOrder($deliveryPlatformOrder);
+    }
   }
 
   // grab parameter getter

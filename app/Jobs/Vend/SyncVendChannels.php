@@ -9,6 +9,7 @@ use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\ProductMappingItem;
 use App\Services\DeliveryProductMappingService;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -49,6 +50,8 @@ class SyncVendChannels implements ShouldQueue
         if(isset($input) and isset($input['channels'])) {
             $channels = $input['channels'];
             foreach($channels as $channel) {
+                $prevVendChannel = VendChannel::where('vend_id', $vend->id)->where('code', $channel['channel_code'])->first();
+
                 $vendChannel = VendChannel::updateOrCreate([
                     'vend_id' => $vend->id,
                     'code' => $channel['channel_code'],
@@ -61,7 +64,15 @@ class SyncVendChannels implements ShouldQueue
                     'is_active' => $this->getVendChannelStatus($channel),
                     'locked_qty' => isset($channel['locked_qty']) ? $channel['locked_qty'] : 0,
                     'sku_code' => isset($channel['sku_code']) ? $channel['sku_code'] : null,
+                    'qty_sold_at' => $prevVendChannel && $prevVendChannel->qty != 0 && $channel['qty'] == 0 ? Carbon::now() : null,
+                    'qty_restocked_at' => $prevVendChannel && $prevVendChannel->qty == 0 && $channel['qty'] > 0 ? Carbon::now() : null,
                 ]);
+
+                if($vendChannel->qty_sold_at and $vendChannel->qty_restocked_at) {
+                    $vendChannel->update([
+                        'qty_not_available_duration' => $vendChannel->qty_sold_at->diffForHumans($vendChannel->qty_restocked_at, true),
+                    ]);
+                }
 
                 if($vendChannel->is_active) {
                     $this->syncProductMappingItem($vendChannel, $channel);

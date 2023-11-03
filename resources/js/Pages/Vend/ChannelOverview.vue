@@ -68,14 +68,14 @@
                         class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"
                         v-if="channels.some(channel => 'sku_code' in channel)"
                       >
-                        Product
+                        Product Code
                       </th>
                       <th
                         scope="col"
                         class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"
-                        v-if="channels.some(channel => 'locked_qty' in channel)"
+                        v-if="channels.some(channel => 'qty_not_available_duration' in channel)"
                       >
-                        Locked Qty
+                        Last Out Of Stock Duration
                       </th>
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"  v-if="permissions.includes('admin-access vends')">
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-200 px-4 py-2 md:px-3 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -180,9 +180,9 @@
                       </td>
                       <td
                         class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
-                        v-if="channels.some(channel => 'locked_qty' in channel)"
+                        v-if="channels.some(channel => 'qty_not_available_duration' in channel)"
                       >
-                        {{ channel.locked_qty }}
+                        {{ channel.qty_not_available_duration }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
                       v-if="permissions.includes('admin-access vends')">

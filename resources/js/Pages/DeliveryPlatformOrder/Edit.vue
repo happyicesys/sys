@@ -411,10 +411,6 @@ function onRequestCancelOrderClicked() {
   }
 
   form.value
-    .transform((data) => ({
-      ...data,
-      delivery_platform_order_items: deliveryPlatformOrder.value.deliveryPlatformOrderItems,
-    }))
     .post('/delivery-platform-orders/' + form.value.id + '/request-cancel-order', {
     preserveState: true,
     replace: true,

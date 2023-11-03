@@ -114,7 +114,7 @@ class DeliveryProductMappingService
       $deliveryProductMappingVendChannel->save();
     }
 
-    // retrieve vend channel status after apply logic (reserved percent then reserved qty)
+    // retrieve vend channel status after apply logic (reserved percent and reserved qty, whichever higher)
     public function getDeliveryVendChannelStatus($vendChannel, $deliveryProductMappingVendChannel)
     {
         $vendChannelCapacity = $vendChannel->capacity;
@@ -124,15 +124,23 @@ class DeliveryProductMappingService
         $orderQty = $deliveryProductMappingVendChannel->order_qty;
 
         $status = false;
+        $calReservedQty = 0;
         $availableQty = 0;
         if($vendChannelCapacity > 0) {
-            $availableQtyPercent = $vendChannelQty/ $vendChannelCapacity * 100;
-            if($availableQtyPercent >= $reservedPercent) {
-              $availableQty = $vendChannelQty - $reservedQty - $orderQty;
-              if($availableQty > 0) {
-                $status = true;
-              }
-            }
+          $reservedPercentQty = $vendChannelCapacity * $reservedPercent / 100;
+          if($reservedPercentQty > $reservedQty) {
+            $calReservedQty = $reservedPercentQty;
+          }else {
+            $calReservedQty = $reservedQty;
+          }
+
+          $availableQty = $vendChannelQty - $calReservedQty;
+
+          if($availableQty > 0) {
+            $status = true;
+          }else {
+            $availableQty = 0;
+          }
         }
         return [
           'status' => $status,
