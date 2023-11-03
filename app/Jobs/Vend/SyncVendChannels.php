@@ -64,8 +64,8 @@ class SyncVendChannels implements ShouldQueue
                     'is_active' => $this->getVendChannelStatus($channel),
                     'locked_qty' => isset($channel['locked_qty']) ? $channel['locked_qty'] : 0,
                     'sku_code' => isset($channel['sku_code']) ? $channel['sku_code'] : null,
-                    'qty_sold_at' => $prevVendChannel && $prevVendChannel->qty != 0 && $channel['qty'] == 0 ? Carbon::now() : null,
-                    'qty_restocked_at' => $prevVendChannel && $prevVendChannel->qty == 0 && $channel['qty'] > 0 ? Carbon::now() : null,
+                    'qty_sold_at' => $prevVendChannel && $prevVendChannel->qty != 0 && $channel['qty'] == 0 ? Carbon::now() : ($prevVendChannel && $prevVendChannel->qty_sold_at ? $prevVendChannel->qty_sold_at : null),
+                    'qty_restocked_at' => $prevVendChannel && $prevVendChannel->qty == 0 && $channel['qty'] > 0 ? Carbon::now() : ($prevVendChannel && $prevVendChannel->qty_restocked_at ? $prevVendChannel->qty_restocked_at : null),
                 ]);
 
                 if($vendChannel->qty_sold_at and $vendChannel->qty_restocked_at) {

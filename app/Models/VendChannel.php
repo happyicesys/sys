@@ -21,15 +21,15 @@ class VendChannel extends Model
         'product_id',
         'sku_code',
         'qty',
-        'qty_sold_at',
-        'qty_restocked_at',
-        'qty_not_available_duration',
+        'last_inactive_at',
+        'last_active_at',
+        'inactive_active_duration',
         'vend_id',
     ];
 
     protected $casts = [
-        'qty_sold_at' => 'datetime',
-        'qty_restocked_at' => 'datetime',
+        'last_inactive_at' => 'datetime',
+        'last_active_at' => 'datetime',
     ];
 
     // relationships

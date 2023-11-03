@@ -18,6 +18,9 @@ class DeliveryProductMappingVendChannel extends Model
         'delivery_product_mapping_vend_id',
         'is_active',
         'qty',
+        // 'qty_sold_at',
+        // 'qty_restocked_at',
+        // 'qty_not_available_duration',
         'reserved_percent',
         'reserved_qty',
         'vend_channel_code',
@@ -25,6 +28,11 @@ class DeliveryProductMappingVendChannel extends Model
         'vend_code',
         'vend_id',
     ];
+
+    // protected $casts = [
+    //     'qty_sold_at' => 'datetime',
+    //     'qty_restocked_at' => 'datetime',
+    // ];
 
     // getter and setter
     protected function amount(): Attribute
