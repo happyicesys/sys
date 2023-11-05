@@ -167,7 +167,7 @@ class DeliveryProductMappingController extends Controller
         // re sync vend channels check whether delivery product mapping items is empty make inactive
         $this->deliveryProductMappingService->syncVendChannels($deliveryProductMapping->id, null);
 
-        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingId]);
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }
 
     public function storeDeliveryProductMappingItem(Request $request, $deliveryProductMappingId)
