@@ -166,7 +166,7 @@
                           </span>
                           <div class="flex self-center">
                             <a :href="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" target="_blank" v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail">
-                              <img class="h-24 w-24 md:h-16 md:w-20 rounded-full" :src="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" alt="" />
+                              <img class="object-scale-down h-24 w-24 md:h-16 md:w-20 rounded-full" :src="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" alt="" />
                             </a>
                           </div>
                           <span class="self-center">
