@@ -83,6 +83,7 @@ class DeliveryPlatformController extends Controller
         }
     }
 
+    // grab will push the menu update status to this endpoint
     public function syncGrabMenuWebhook(Request $request)
     {
         try {
@@ -116,8 +117,8 @@ class DeliveryPlatformController extends Controller
     public function submitGrabOrderComplaint(Request $request)
     {
         $code = $request->Vid;
-        $driverPhoneNumber = $request->driver_phone_number;
-        $remarks = $request->remarks;
+        // $driverPhoneNumber = $request->driver_phone_number;
+        // $remarks = $request->remarks;
         $shortOrderID = $request->short_order_id;
 
         if(!$shortOrderID || !$code) {
@@ -131,8 +132,9 @@ class DeliveryPlatformController extends Controller
 
         if($deliveryPlatformOrder) {
             $deliveryPlatformOrder->deliveryPlatformOrderComplaint()->create([
-                'driver_phone_number' => $driverPhoneNumber,
-                'remarks' => $remarks,
+                // 'driver_phone_number' => $driverPhoneNumber,
+                'original_json' => $request->all(),
+                // 'remarks' => $remarks,
             ]);
         }
         return true;

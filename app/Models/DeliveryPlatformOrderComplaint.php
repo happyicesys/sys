@@ -12,7 +12,12 @@ class DeliveryPlatformOrderComplaint extends Model
     protected $fillable = [
         'delivery_platform_order_id',
         'driver_phone_number',
+        'original_json',
         'remarks'
+    ];
+
+    protected $casts = [
+        'original_json' => 'json'
     ];
 
     // relationships
