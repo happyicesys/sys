@@ -130,6 +130,13 @@ class DeliveryPlatformController extends Controller
         ->where('vend_code', $code)
         ->first();
 
+        if(!$deliveryPlatformOrder) {
+            abort(response([
+                'error_code' => 404,
+                'error_message' => 'Order not found',
+            ], 404));
+        }
+
         if($deliveryPlatformOrder) {
             $deliveryPlatformOrder->deliveryPlatformOrderComplaint()->create([
                 // 'driver_phone_number' => $driverPhoneNumber,
@@ -148,7 +155,10 @@ class DeliveryPlatformController extends Controller
         $shortOrderID = $request->short_order_id;
 
         if(!$shortOrderID || !$code) {
-            throw new \Exception('Please provide Short Order ID and Vend ID');
+            abort(response([
+                'error_code' => 400,
+                'error_message' => 'Parameters missing',
+            ], 400));
         }
 
         $expiryHours = Carbon::now()->addHours(DeliveryPlatformOrder::DEFAULT_VALID_COLLECTION_HOURS);
@@ -169,7 +179,11 @@ class DeliveryPlatformController extends Controller
             $this->deliveryPlatformService->dispenseOrder($deliveryPlatformOrder);
             return true;
         } else {
-            abort(404, 'Order not found');
+            dd('here');
+            abort(response([
+                'error_code' => 404,
+                'error_message' => 'Order not found',
+            ], 404));
         }
     }
 
