@@ -12,6 +12,7 @@ use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingItem;
 use App\Models\Operator;
 use App\Models\Vend;
+use App\Jobs\DispenseDeliveryPlatformOrder;
 use App\Jobs\SyncDeliveryPlatformOauthByOperator;
 use App\Services\DeliveryPlatformService;
 use Carbon\Carbon;
@@ -176,10 +177,10 @@ class DeliveryPlatformController extends Controller
                 'is_verified' => true,
                 'status' => DeliveryPlatformOrder::STATUS_COLLECTED,
             ]);
-            $this->deliveryPlatformService->dispenseOrder($deliveryPlatformOrder);
+            DispenseDeliveryPlatformOrder::dispatch($deliveryPlatformOrder);
+            // $this->deliveryPlatformService->dispenseOrder($deliveryPlatformOrder);
             return true;
         } else {
-            dd('here');
             abort(response([
                 'error_code' => 404,
                 'error_message' => 'Order not found',
