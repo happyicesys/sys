@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Vend;
 
+use App\Models\DeliveryPlatformOrder;
 use App\Models\PaymentGatewayLog;
 use App\Services\MqttService;
 use Carbon\Carbon;
@@ -40,8 +41,9 @@ class GetPurchaseConfirm
     public function handle()
     {
         $paymentGatewayLog = PaymentGatewayLog::where('order_id', $this->orderId)->where('status', 2)->first();
+        $deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $this->orderId)->first();
 
-        if($paymentGatewayLog) {
+        if($paymentGatewayLog or $deliveryPlatformOrder) {
           $result = [
             'Type' => 'CONFIRM',
             'orderid' => $this->orderId,
