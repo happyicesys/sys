@@ -123,16 +123,29 @@ class DeliveryPlatformService
     ]);
     $dispenseData = [
       'orderId' => $orderID,
-      'paymentMethod' => $deliveryPlatformOrder->deliveryPlatform->payment_method_id,
+      'paymentMethod' => $deliveryPlatformOrder->paymentMethod->code,
       'amount' => $deliveryPlatformOrder->subtotal_amount,
       'vendCode' => $deliveryPlatformOrder->deliveryProductMappingVend->vend->code,
       'channels' => [],
     ];
     foreach($dispenseItems as $item) {
-      $dispenseData['channels'][] = [
-        'code' => $item->vend_channel_code,
-        'qty' => $item->qty,
-      ];
+      if($item->qty > 1) {
+        for($i = 0; $i < $item->qty; $i++) {
+          $dispenseData['channels'][] = [
+            'code' => $item->vend_channel_code,
+            'qty' => 1,
+          ];
+        }
+      }else {
+        $dispenseData['channels'][] = [
+          'code' => $item->vend_channel_code,
+          'qty' => 1,
+        ];
+      }
+      // $dispenseData['channels'][] = [
+      //   'code' => $item->vend_channel_code,
+      //   'qty' => $item->qty,
+      // ];
 
       $this->deliveryProductMappingService->syncDeliveryProductMappingVendChannelOrderQty($item->deliveryProductMappingVendChannel, $item->qty, false);
     }
@@ -446,6 +459,7 @@ class DeliveryPlatformService
         }
       }else {
         // handle multiple vend channel same product id case
+
       }
     }
   }

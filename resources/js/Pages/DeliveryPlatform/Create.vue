@@ -408,7 +408,7 @@ function onDeliveryPlatformOperatorIdSelected() {
 
 function onOperatorIdSelected() {
   deliveryPlatformOperatorOptions.value =  [
-    ...props.operatorOptions.data.find(x => x.id === form.value.operator_id.id).deliveryPlatformOperators.map((data) => {return {id: data.id, name: data.deliveryPlatform.name}})
+    ...props.operatorOptions.data.find(x => x.id === form.value.operator_id.id).deliveryPlatformOperators.map((data) => {return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
   ]
 }
 

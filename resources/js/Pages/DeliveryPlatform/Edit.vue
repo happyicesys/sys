@@ -571,7 +571,7 @@ onMounted(() => {
     }
     categoryApiOptions.value = props.categoryApiOptions[0].categories.map((data) => {return {id: data.id, name: data.name, subCategories: data.subCategories}})
     deliveryPlatformOperatorOptions.value = [
-      ...props.operatorOptions.data.find(x => x.id === props.deliveryProductMapping.data.operator_id).deliveryPlatformOperators.map((data) => {return {id: data.id, name: data.deliveryPlatform.name}})
+      ...props.operatorOptions.data.find(x => x.id === props.deliveryProductMapping.data.operator_id).deliveryPlatformOperators.map((data) => {return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
     ]
     deliveryProductMappingItems.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.deliveryProductMappingItems : []
     operatorOptions.value = [
