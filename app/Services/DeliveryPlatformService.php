@@ -123,7 +123,7 @@ class DeliveryPlatformService
     ]);
     $dispenseData = [
       'orderId' => $orderID,
-      'paymentMethod' => $deliveryPlatformOrder->paymentMethod->code,
+      'paymentMethod' => $deliveryPlatformOrder->deliveryPlatform->paymentMethod->code,
       'amount' => $deliveryPlatformOrder->subtotal_amount,
       'vendCode' => $deliveryPlatformOrder->deliveryProductMappingVend->vend->code,
       'channels' => [],
