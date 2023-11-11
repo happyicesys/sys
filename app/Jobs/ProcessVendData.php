@@ -99,7 +99,7 @@ class ProcessVendData implements ShouldQueue
                     if(isset($processedDataArr['code']) and $processedDataArr['code']) {
                         $vend = Vend::where('code', $processedDataArr['code'])->first();
                         if($vend) {
-                            $this->vendSaveLastUpdatedTime($vend);
+                            $this->vendSaveLastUpdatedTimeAndIpAddress($vend, $ipAddress);
                         }
                     }
                     $processedDataArr['data'] = null;
@@ -407,8 +407,9 @@ class ProcessVendData implements ShouldQueue
         $vend->save();
     }
 
-    private function vendSaveLastUpdatedTime(Vend $vend)
+    private function vendSaveLastUpdatedTimeAndIpAddress(Vend $vend, $ipAddress)
     {
+        $vend->last_ip_address = $ipAddress;
         $vend->last_updated_at = Carbon::now();
         $vend->save();
     }

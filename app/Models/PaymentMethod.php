@@ -12,6 +12,7 @@ class PaymentMethod extends Model
     protected $fillable = [
         'code',
         'is_active',
+        'is_apk_constant',
         'name',
         'payment_gateway_id',
         'payment_merchant_id',

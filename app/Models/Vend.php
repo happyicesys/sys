@@ -59,6 +59,7 @@ class Vend extends Model
         'is_sensor_normal',
         'is_temp_error',
         'is_testing',
+        'last_ip_address',
         'last_updated_at',
         'mqtt_updated_at',
         'parameter_json',
