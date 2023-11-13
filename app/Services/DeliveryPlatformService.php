@@ -129,6 +129,7 @@ class DeliveryPlatformService
       'channels' => [],
     ];
     foreach($dispenseItems as $item) {
+      // detect if same SKU qty > 1, then replicate the dispense param to same array
       if($item->qty > 1) {
         for($i = 0; $i < $item->qty; $i++) {
           $dispenseData['channels'][] = [
@@ -146,17 +147,24 @@ class DeliveryPlatformService
           'name' => $item->deliveryProductMappingItem->product->name,
         ];
       }
-      // $dispenseData['channels'][] = [
-      //   'code' => $item->vend_channel_code,
-      //   'qty' => $item->qty,
-      // ];
 
+      // sync order qty to delivery product mapping vend channel
       $this->deliveryProductMappingService->syncDeliveryProductMappingVendChannelOrderQty($item->deliveryProductMappingVendChannel, $item->qty, false);
     }
+
+    // get dispense parameters
+    $dispenseDataset = $this->vendDispenseService->getMultipleParam($dispenseData);
+
+    // save as log in delivery_platform_orders table
+    $deliveryPlatformOrder->update([
+      'response_history_json' => $dispenseDataset,
+    ]);
+
+    // send dispense request to vend
     $this->mqttService->publishVend(
       $deliveryPlatformOrder->deliveryProductMappingVend->vend,
       $orderID,
-      $this->vendDispenseService->getMultipleParam($dispenseData)
+      $dispenseDataset
     );
   }
 
