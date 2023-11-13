@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('delivery_order_platforms', function (Blueprint $table) {
+        Schema::table('delivery_platform_orders', function (Blueprint $table) {
             $table->json('driver_request_json')->nullable();
         });
     }
@@ -21,7 +21,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('delivery_order_platforms', function (Blueprint $table) {
+        Schema::table('delivery_platform_orders', function (Blueprint $table) {
             $table->dropColumn('driver_request_json');
         });
     }
