@@ -134,12 +134,16 @@ class DeliveryPlatformService
           $dispenseData['channels'][] = [
             'code' => $item->vend_channel_code,
             'qty' => 1,
+            'id' => $item->deliveryProductMappingItem->product->id,
+            'name' => $item->deliveryProductMappingItem->product->name,
           ];
         }
       }else {
         $dispenseData['channels'][] = [
           'code' => $item->vend_channel_code,
           'qty' => 1,
+          'id' => $item->deliveryProductMappingItem->product->id,
+          'name' => $item->deliveryProductMappingItem->product->name,
         ];
       }
       // $dispenseData['channels'][] = [
