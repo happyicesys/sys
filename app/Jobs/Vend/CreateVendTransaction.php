@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Vend;
 
+use App\Models\DeliveryPlatformOrder;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentGatewayLog;
@@ -102,12 +103,16 @@ class CreateVendTransaction implements ShouldQueue
         // check duplicated orderid
         $duplicatedOrderId = VendTransaction::where('order_id', $processedInput['orderId'])->where('vend_id', $vend->id)->first();
 
+        // exit once found duplicated order id
         if($duplicatedOrderId) {
             return;
         }
 
         // check is from payment gateway log
         $paymentGatewayLog = PaymentGatewayLog::where('order_id', $processedInput['orderId'])->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
+
+        // check is from delivery platform order
+        $deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderId'])->first();
 
         $vendTransaction = VendTransaction::create([
             'transaction_datetime' => $this->isCurrentTime ? Carbon::now() : Carbon::parse($input['TIME']),
@@ -136,6 +141,13 @@ class CreateVendTransaction implements ShouldQueue
             'unit_cost_id' => $unitCostId,
             'gst_vat_rate' => $gstVatRate,
         ]);
+
+        // store vend transaction id if found delivery platform order
+        if($deliveryPlatformOrder) {
+            $deliveryPlatformOrder->update([
+                'vend_transaction_id' => $vendTransaction->id,
+            ]);
+        }
 
         if(!$isSuccessful) {
             HandleFailedVendTransaction::dispatch($vendTransaction)->onQueue('default');
