@@ -34,6 +34,7 @@ class DeliveryPlatformOrderController extends Controller
                         'deliveryProductMappingVend.deliveryProductMapping:id,name',
                         'deliveryProductMappingVend.vend:id,code,name',
                         'deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
+                        'deliveryPlatformOperator',
                         'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',
                         'deliveryPlatformOrderItems.deliveryProductMappingItem.product.thumbnail',
                         'deliveryPlatformOrderItems.orderItemVendChannels',

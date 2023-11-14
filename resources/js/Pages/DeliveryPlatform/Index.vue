@@ -120,6 +120,9 @@
                       </TableData>
                       <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-center">
                         {{ deliveryProductMapping.deliveryPlatformOperator && deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform ? deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name : null }}
+                        <span v-if="deliveryProductMapping.deliveryPlatformOperator">
+                          <br>({{ deliveryProductMapping.deliveryPlatformOperator ? deliveryProductMapping.deliveryPlatformOperator.type : null }})
+                        </span>
                       </TableData>
                       <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
                         <ul class="divide-y divide-gray-200">

@@ -75,13 +75,18 @@ class DeliveryProductMappingController extends Controller
         ]);
     }
 
-    public function bindVend($id, $vendId)
+    public function bindVend(Request $request, $id)
     {
+        $request->validate([
+            'platform_ref_id' => 'required',
+        ]);
+
         $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
-        $vend = Vend::findOrFail($vendId);
+        $vend = Vend::findOrFail($request->vend_id);
 
         $deliveryProductMappingVend = DeliveryProductMappingVend::create([
             'delivery_product_mapping_id' => $deliveryProductMapping->id,
+            'platform_ref_id' => $request->platform_ref_id,
             'vend_code' => $vend->code,
             'vend_id' => $vend->id,
         ]);

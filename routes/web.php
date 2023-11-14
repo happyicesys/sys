@@ -131,7 +131,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('delivery-product-mappings')->group(function() {
         Route::get('/', [DeliveryProductMappingController::class, 'index'])->name('delivery-product-mappings');
         Route::get('/create', [DeliveryProductMappingController::class, 'create'])->name('delivery-product-mappings.create');
-        Route::post('/{id}/bind-vend/{vendId}', [DeliveryProductMappingController::class, 'bindVend']);
+        Route::post('/{id}/bind-vend', [DeliveryProductMappingController::class, 'bindVend']);
         Route::get('/{id}/edit', [DeliveryProductMappingController::class, 'edit'])->name('delivery-product-mappings.edit');
         Route::delete('/{id}', [DeliveryProductMappingController::class, 'delete']);
         Route::post('/store', [DeliveryProductMappingController::class, 'store']);

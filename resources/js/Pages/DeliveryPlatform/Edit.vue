@@ -325,7 +325,7 @@
                 </div>
               </div>
 
-              <div class="sm:col-span-5" v-if="form.product_mapping_id">
+              <div class="sm:col-span-3" v-if="form.product_mapping_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Vending Machine
                 </label>
@@ -343,6 +343,12 @@
                 <div class="text-sm text-red-600" v-if="form.errors.vend_id">
                   {{ form.errors.vend_id }}
                 </div>
+              </div>
+
+              <div class="sm:col-span-2" v-if="form.product_mapping_id">
+                <FormInput v-model="form.platform_ref_id" :error="form.errors.platform_ref_id" placeholderStr="Platform ID">
+                  Platform ID (Store ID)
+                </FormInput>
               </div>
 
               <div class="sm:col-span-1" v-if="form.product_mapping_id">
@@ -606,6 +612,7 @@ function getDefaultForm() {
     delivery_platform_operator_id: '',
     name: '',
     operator_id: '',
+    platform_ref_id: '',
     product_mapping_id: '',
     reserved_percent: 0,
     reserved_qty: 0,
@@ -628,7 +635,9 @@ function addDeliveryProductMappingItem() {
 
 function bindVend(vendId) {
   router.post(
-    '/delivery-product-mappings/' + form.value.id + '/bind-vend/' + vendId, {
+    '/delivery-product-mappings/' + form.value.id + '/bind-vend', {
+      vend_id: vendId,
+      platform_ref_id: form.value.platform_ref_id,
     }, {
     preserveState: false,
     preserveScroll: true,
