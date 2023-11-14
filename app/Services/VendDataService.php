@@ -194,9 +194,6 @@ class VendDataService
         return $response;
       }
 
-      // $vend = Vend::with('latestVendBinding.customer')->firstOrCreate([
-      //     'code' => isset($originalInput['m']) ? $originalInput['m'] : $originalInput['Vid'],
-      // ]);
       if(!$vend->vend_transaction_totals_json) {
         SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
       }
@@ -277,33 +274,4 @@ class VendDataService
 
     return $response;
   }
-
-  // public function getPurchaseRequest($params)
-  // {
-  //   $transactionParams = [];
-  //   $transactionParams = [
-  //     'Type' => 'TRADE',
-  //     'orderid' => isset($params['orderId']) ? $params['orderId'] : null,
-  //     'get_type' => 1,
-  //     'pay_type' => $params['paymentMethod'],
-  //     'price' => isset($params['amount']) ? $params['amount'] : 0,
-  //     'score' => 1,
-  //     'receivetime' => Carbon::now()->timestamp,
-  //     'action' => 'TRADE',
-  //     'mid' => isset($params['vendCode']) ? (int)$params['vendCode'] : null,
-  //     'shipment_info' => [
-  //       [
-  //       'port_type' => 0,
-  //       'goods_id' => 0,
-  //       'goods_name' => null,
-  //       'goodroadid' => isset($params['channelCode']) ? (int)$params['channelCode'] : null,
-  //       'num' => 1,
-  //       'uselift' => 0,
-  //       'usedropchk' => 1,
-  //       ]
-  //     ],
-  //   ];
-
-  //   return $transactionParams;
-  // }
 }

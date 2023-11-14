@@ -19,6 +19,7 @@ class VendTransaction extends Model
 
     protected $casts = [
         'customer_json' => 'json',
+        'items_json' => 'json',
         'location_type_json' => 'json',
         'operator_json' => 'json',
         'product_json' => 'json',
@@ -36,8 +37,10 @@ class VendTransaction extends Model
         'gross_profit',
         'gross_profit_margin',
         'gst_vat_rate',
+        'is_multiple',
         'is_payment_received',
         'is_refunded',
+        'items_json',
         'location_type_json',
         'operator_id',
         'operator_json',

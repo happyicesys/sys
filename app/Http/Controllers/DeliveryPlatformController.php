@@ -40,10 +40,11 @@ class DeliveryPlatformController extends Controller
         }
     }
 
-    public function getOauth($operatorId, $type)
+    public function getOauth($deliveryPlatformOperatorId)
     {
         try {
-            SyncDeliveryPlatformOauthByOperator::dispatch($operatorId, $type);
+            $deliveryPlatformOperator = DeliveryPlatformOperator::findOrFail($deliveryPlatformOperatorId);
+            SyncDeliveryPlatformOauthByOperator::dispatch($deliveryPlatformOperator);
         } catch(\Exception $e) {
             return $e->getMessage();
         }

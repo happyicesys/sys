@@ -40,7 +40,6 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     public static $main_endpoint = 'https://api.grab.com';
     public static $partner_endpoint = 'https://partner-api.grab.com/grabmart';
     public static $partner_sandbox_endpoint = 'https://partner-api.grab.com/grabmart-sandbox';
-    // public static $partner_sandbox_endpoint = 'https://partner-api.stg-myteksi.com/grabmart-sandbox';
 
     public static $sandbox_scope = 'sandbox.mart.partner_api';
     public static $production_scope = 'mart.partner_api';
@@ -107,7 +106,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
         $response = Http::withHeaders($this->getHeaders())
-        ->get($this->getPartnerEndpoint() . '/partner/v1/menu/categories', [
+        ->get($this->getPartnerEndpoint($this->deliveryPlatformOperator->type) . '/partner/v1/menu/categories', [
             'countryCode' => $this->deliveryPlatformOperator->operator->country->code,
         ]);
 
@@ -364,13 +363,13 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         return self::$main_endpoint;
     }
 
-    private function getPartnerEndpoint()
+    private function getPartnerEndpoint($type = 'sandbox')
     {
-        // $endpoint = self::$partner_endpoint;
-
-        // if(config('app.env') === 'local') {
+        if($type === 'sandbox') {
             $endpoint = self::$partner_sandbox_endpoint;
-        // }
+        }else {
+            $endpoint = self::$partner_endpoint;
+        }
 
         return $endpoint;
     }

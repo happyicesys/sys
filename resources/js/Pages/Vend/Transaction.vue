@@ -319,8 +319,8 @@
                       </tr>
                   </thead>
                   <tbody class="bg-white">
-                      <tr v-for="(vendTransaction, vendTransactionIndex) in vendTransactions.data" :key="vendTransaction.id"
-                          class="divide-x divide-gray-200">
+                    <template v-for="(vendTransaction, vendTransactionIndex) in vendTransactions.data" :key="vendTransaction.id">
+                      <tr class="divide-x divide-gray-200">
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransactions.meta.from + vendTransactionIndex }}
                         </TableData>
@@ -383,11 +383,53 @@
                             </span>
                         </TableData>
                       </tr>
+                      <tr v-if="vendTransaction.itemsJson" v-for="(item, itemIndex) in vendTransaction.itemsJson">
+                        <td colspan="4"></td>
+                        <TableData :currentIndex="itemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center">
+                            {{ item.vend_channel_code }}
+                        </TableData>
+                        <TableData :currentIndex="itemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center">
+                            <span v-if="item.productJson && 'code' in item.productJson">
+                                {{ item.productJson['code'] }}
+                            </span>
+                            <span v-else-if="!item.productJson && item.product_code">
+                                {{ item.product_code }}
+                            </span>
+                            <span v-else></span>
+                        </TableData>
+                        <TableData :currentIndex="itemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-left">
+                            <span v-if="item.productJson && 'name' in item.productJson">
+                                {{ item.productJson['name'] }}
+                            </span>
+                            <span v-else-if="!item.productJson && item.product_name">
+                                {{ item.product_name }}
+                            </span>
+                            <span v-else></span>
+                        </TableData>
+                        <TableData :currentIndex="itemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-right">
+                            {{ item.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                        </TableData>
+                        <TableData :currentIndex="itemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center">
+                            {{ item.paymentMethod.name }}
+                        </TableData>
+                        <TableData :currentIndex="itemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center">
+                            {{ item.vendChannelError ? item.vendChannelError.desc : null }}
+                        </TableData>
+                        <TableData :currentIndex="itemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center">
+                            <span v-if="item.is_payment_received">
+                                {{ item.is_payment_received ? 'Successful' : 'Unsuccessful' }}
+                            </span>
+                            <span v-else>
+                                {{ item.vendTransactionJson ? (item.vendTransactionJson['SErr'] == 0 || item.vendTransactionJson['SErr'] == 6 ? 'Successful' : "Unsuccessful") : '' }}
+                            </span>
+                        </TableData>
+                      </tr>
                       <tr v-if="!vendTransactions.data.length">
                             <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                                 No Results Found
                             </td>
                         </tr>
+                    </template>
                   </tbody>
               </table>
               <Paginator v-if="vendTransactions.data.length" :links="vendTransactions.links" :meta="vendTransactions.meta"></Paginator>
