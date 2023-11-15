@@ -5,6 +5,7 @@ use App\Models\Vend;
 use App\Models\VendData;
 use App\Jobs\SyncAcbVmcPa;
 use App\Jobs\SyncAcbStatus;
+use App\Jobs\SyncDeliveryPlatformMenu;
 use App\Jobs\SyncIsMqttVend;
 use App\Jobs\Vend\CreateVendStatistics;
 use App\Jobs\Vend\CreateVendTransaction;
@@ -207,6 +208,7 @@ class VendDataService
             break;
           case 'CHANNEL':
             SyncVendChannels::dispatch($processedInput, $vend)->onQueue('high');
+            SyncDeliveryPlatformMenu::dispatch($vend)->onQueue('high');
             break;
           case 'CONFIRM':
             if(isset($processedInput['orderid'])) {

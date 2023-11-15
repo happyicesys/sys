@@ -82,12 +82,6 @@ class SyncVendChannels implements ShouldQueue
                 }
             }
             SaveVendChannelsJson::dispatch($vend->id)->onQueue('default');
-            if($vend->deliveryProductMappingVends()->exists()) {
-                foreach($vend->deliveryProductMappingVends as $deliveryProductMappingVend) {
-                    NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend)->onQueue('high');
-                    Log::info('syncvendchannels:'.$vend->id.' deliveryproductmappingvendid '.$deliveryProductMappingVend->id);
-                }
-            }
         }
     }
 

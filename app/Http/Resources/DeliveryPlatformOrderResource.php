@@ -50,6 +50,7 @@ class DeliveryPlatformOrderResource extends JsonResource
             'total_amount' => $this->total_amount,
             'vend_code' => $this->vend_code,
             'vend_id' => $this->vend_id,
+            'vend_transaction_order_id' => $this->vend_transaction_order_id,
             'vend' => VendResource::make($this->whenLoaded('vend')),
         ];
     }

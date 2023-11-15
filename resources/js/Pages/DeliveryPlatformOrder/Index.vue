@@ -103,11 +103,15 @@
                     <TableHead>
                       Short Order ID
                     </TableHead>
+                    <TableHead>
+                      Status
+                    </TableHead>
                     <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
                       Vend
                     </TableHeadSort>
                     <TableHead>
-                      Status
+                      Transactions <br>
+                      Order ID
                     </TableHead>
                     <TableHead>
                       (Channel) Item x Qty
@@ -139,9 +143,6 @@
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                       {{ deliveryPlatformOrder.short_order_id }}
                     </TableData>
-                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
-                      {{ deliveryPlatformOrder.deliveryProductMappingVend.vend.full_name }}
-                    </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                       <div
                           class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
@@ -154,6 +155,12 @@
                           </div>
 
                       </div>
+                    </TableData>
+                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
+                      {{ deliveryPlatformOrder.deliveryProductMappingVend.vend.full_name }}
+                    </TableData>
+                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
+                      {{ deliveryPlatformOrder.vend_transaction_order_id  }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
                       <ul class="divide-y divide-gray-200">
