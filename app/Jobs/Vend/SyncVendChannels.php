@@ -16,6 +16,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class SyncVendChannels implements ShouldQueue
 {
@@ -84,6 +85,7 @@ class SyncVendChannels implements ShouldQueue
             if($vend->deliveryProductMappingVends()->exists()) {
                 foreach($vend->deliveryProductMappingVends as $deliveryProductMappingVend) {
                     NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend)->onQueue('high');
+                    Log::info('syncvendchannels:'.$vend->id.' deliveryproductmappingvendid '.$deliveryProductMappingVend->id);
                 }
             }
         }

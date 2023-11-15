@@ -126,7 +126,6 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
 
     public function refundCharge($params = [], $chargeId)
     {
-        Log::info('Refund params: ' . 'amount = '.$params['amount'] * self::AMOUNT_MULTIPLIER. ', orderId = '.$params['metadata']['order_id']);
         $response = Http::withHeaders($this->getHeaders($this->secretKey))
             ->post('https://api.omise.co/charges/' . $chargeId . '/refunds', [
                 'amount' => $params['amount'] * self::AMOUNT_MULTIPLIER,
