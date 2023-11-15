@@ -21,7 +21,7 @@
               <div class="mt-1 flex flex-col md:flex-row space-y-2 md:space-y-0 items-center">
 
                 <span class="h-28 w-28 overflow-hidden rounded-full bg-gray-100">
-                  <a :href="product.thumbnail.full_url" target="_blank">
+                  <a :href="product.thumbnail.full_url" target="_blank" v-if="product && product.thumbnail">
                     <img class="h-28 w-28 rounded-full border" :src="product.thumbnail.full_url" alt="" v-if="product && product.thumbnail"/>
                     <RectangleStackIcon class="h-28 w-28 text-gray-300"></RectangleStackIcon>
                   </a>
