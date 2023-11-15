@@ -363,7 +363,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         return self::$main_endpoint;
     }
 
-    private function getPartnerEndpoint($type = 'sandbox')
+    private function getPartnerEndpoint($type = 'production')
     {
         if($type === 'sandbox') {
             $endpoint = self::$partner_sandbox_endpoint;
@@ -424,9 +424,9 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $scope = self::$production_scope;
 
-        if(config('app.env') === 'local') {
-            $scope = self::$production_scope;
-        }
+        // if(config('app.env') === 'local') {
+        //     $scope = self::$production_scope;
+        // }
 
         return $scope;
     }
