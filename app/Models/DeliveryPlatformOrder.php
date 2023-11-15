@@ -17,8 +17,9 @@ class DeliveryPlatformOrder extends Model
     const STATUS_ACCEPTED = 2;
     const STATUS_ASSIGNED = 3;
     const STATUS_ARRIVED = 4;
-    const STATUS_COLLECTED = 5;
-    const STATUS_DELIVERED = 6;
+    const STATUS_DISPENSED = 5;
+    const STATUS_COLLECTED = 6;
+    const STATUS_DELIVERED = 7;
     const STATUS_CANCELLED = 98;
     const STATUS_FAILED = 99;
 
@@ -39,6 +40,7 @@ class DeliveryPlatformOrder extends Model
         self::STATUS_ASSIGNED => 'Assigned',
         self::STATUS_ARRIVED => 'Arrived',
         self::STATUS_COLLECTED => 'Collected',
+        self::STATUS_DISPENSED => 'Dispensed',
         self::STATUS_DELIVERED => 'Delivered',
         self::STATUS_CANCELLED => 'Cancelled',
         self::STATUS_FAILED => 'Failed',

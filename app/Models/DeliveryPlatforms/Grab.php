@@ -106,7 +106,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
         $response = Http::withHeaders($this->getHeaders())
-        ->get($this->getPartnerEndpoint($this->deliveryPlatformOperator->type) . '/partner/v1/menu/categories', [
+        ->get($this->getPartnerEndpoint() . '/partner/v1/menu/categories', [
             'countryCode' => $this->deliveryPlatformOperator->operator->country->code,
         ]);
 
@@ -363,9 +363,9 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         return self::$main_endpoint;
     }
 
-    private function getPartnerEndpoint($type = 'production')
+    private function getPartnerEndpoint()
     {
-        if($type === 'sandbox') {
+        if($this->deliveryPlatformOperator->type === 'sandbox') {
             $endpoint = self::$partner_sandbox_endpoint;
         }else {
             $endpoint = self::$partner_endpoint;

@@ -177,7 +177,7 @@ class DeliveryPlatformController extends Controller
                 'driver_phone_number' => $driverPhoneNumber,
                 'driver_request_json' => $request->all(),
                 'is_verified' => true,
-                'status' => DeliveryPlatformOrder::STATUS_COLLECTED,
+                'status' => DeliveryPlatformOrder::STATUS_DISPENSED,
             ]);
             DispenseDeliveryPlatformOrder::dispatch($deliveryPlatformOrder);
             // $this->deliveryPlatformService->dispenseOrder($deliveryPlatformOrder);

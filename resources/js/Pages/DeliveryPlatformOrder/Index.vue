@@ -295,9 +295,10 @@ function statusClass(status) {
     case 3:
     case 4:
     case 5:
+    case 6:
       statusClass = 'bg-yellow-400 text-gray-800'
       break;
-    case 6:
+    case 7:
       statusClass = 'bg-green-400 text-white-800'
       break;
     case 98:
