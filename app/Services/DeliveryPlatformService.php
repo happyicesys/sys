@@ -64,16 +64,19 @@ class DeliveryPlatformService
 
     switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
-        DB::beginTransaction();
-        $deliveryPlatformOrder = new DeliveryPlatformOrder();
-        $deliveryPlatformOrder->fill($this->setGrabOrderIncomingParam($input));
-        $deliveryPlatformOrder->delivery_platform_id = $this->deliveryPlatformOperator->deliveryPlatform->id;
-        $deliveryPlatformOrder->delivery_platform_operator_id = $this->deliveryPlatformOperator->id;
-        $deliveryPlatformOrder->delivery_product_mapping_vend_id = $deliveryProductMappingVend->id;
-        $deliveryPlatformOrder->save();
+        $deliveryPlatformOrder = DeliveryPlatformOrder::where('order_id', $input['orderID'])->first();
 
-        $this->createDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
-        DB::commit();
+        if(!$deliveryPlatformOrder) {
+          DB::beginTransaction();
+          $deliveryPlatformOrder = new DeliveryPlatformOrder();
+          $deliveryPlatformOrder->fill($this->setGrabOrderIncomingParam($input));
+          $deliveryPlatformOrder->delivery_platform_id = $this->deliveryPlatformOperator->deliveryPlatform->id;
+          $deliveryPlatformOrder->delivery_platform_operator_id = $this->deliveryPlatformOperator->id;
+          $deliveryPlatformOrder->delivery_product_mapping_vend_id = $deliveryProductMappingVend->id;
+          $deliveryPlatformOrder->save();
+          $this->createDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
+          DB::commit();
+        }
 
         // check if any channel is not assigned to deliveryPlatformOrderItem
         $this->verifyIsVendChannelAssigned($deliveryPlatformOrder);

@@ -162,11 +162,22 @@ class DeliveryPlatformController extends Controller
         $driverPhoneNumber = $request->driver_phone_number;
         $shortOrderID = $request->short_order_id;
 
+
         if(!$shortOrderID || !$code) {
             abort(response([
                 'error_code' => 400,
                 'error_message' => 'Parameters missing',
             ], 400));
+        }
+
+        $prev = DeliveryPlatformOrder::query()
+            ->where('short_order_id', $shortOrderID)
+            ->where('vend_code', $code)
+            ->first();
+
+        if($prev) {
+            $prev->error_json = $request->all();
+            $prev->save();
         }
 
         $deliveryPlatformOrder = DeliveryPlatformOrder::query()
