@@ -195,6 +195,7 @@ class ProductMappingController extends Controller
                             $vendChannel->save();
                         }
                     }
+                    SaveVendChannelsJson::dispatch($vend->id)->onQueue('default');
                 }
             }
         }
