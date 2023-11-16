@@ -716,13 +716,13 @@ class DeliveryPlatformService
   // order
   private function setGrabOrderIncomingParam($params = [])
   {
-    return [
+    $originalArr = [
+      'driver_eta_seconds' => isset($params['driverETA']) ? $params['driverETA'] : null,
       'order_id' => $params['orderID'],
       'short_order_id' => $params['shortOrderNumber'],
       'platform_ref_id' => $params['merchantID'],
       'vend_code' => $params['partnerMerchantID'],
       'order_created_at' => isset($params['orderTime']) ? Carbon::parse($params['orderTime'], 'UTC')->setTimezone($this->getUserTimezone()) : null,
-      'order_completed_at' => isset($params['completeTime']) ? Carbon::parse($params['completeTime']) : null,
       'request_history_json' => $params,
       'status' => isset($params['orderState']) ? DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$params['orderState']] : DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_PENDING],
       'currency' => isset($params['currency']) ? $params['currency'] : null,
@@ -732,5 +732,21 @@ class DeliveryPlatformService
       'subtotal_amount' => isset($params['price']['subtotal']) ? $params['price']['subtotal'] : null,
       'total_amount' => isset($params['price']['eaterPayment']) ? $params['price']['eaterPayment'] : null,
     ];
+
+    if(isset($params['orderState'])) {
+      switch($params['orderState']) {
+        case Grab::STATE_DRIVER_ALLOCATED:
+          $originalArr['driver_assigned_at'] = Carbon::now();
+          break;
+        case Grab::STATE_DRIVER_ARRIVED:
+          $originalArr['driver_arrived_at'] = Carbon::now();
+          break;
+        case Grab::STATE_DELIVERED:
+          $originalArr['order_completed_at'] = Carbon::now();
+          break;
+      }
+    }
+
+    return $originalArr;
   }
 }

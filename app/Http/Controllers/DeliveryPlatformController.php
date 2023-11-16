@@ -169,13 +169,11 @@ class DeliveryPlatformController extends Controller
             ], 400));
         }
 
-        $expiryHours = Carbon::now()->addHours(DeliveryPlatformOrder::DEFAULT_VALID_COLLECTION_HOURS);
-
         $deliveryPlatformOrder = DeliveryPlatformOrder::query()
             ->where('short_order_id', $shortOrderID)
             ->where('vend_code', $code)
-            // ->where('is_verified', false)
-            // ->where('order_created_at', '<=', $expiryHours)
+            ->where('is_verified', false)
+            ->whereRaw("TIMESTAMPDIFF(HOUR, order_created_at, NOW()) <= ?", [DeliveryPlatformOrder::DEFAULT_VALID_COLLECTION_HOURS])
             ->first();
 
         if($deliveryPlatformOrder) {

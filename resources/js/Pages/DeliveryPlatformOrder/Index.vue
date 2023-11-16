@@ -119,6 +119,9 @@
                     <TableHead>
                       Subtotal
                     </TableHead>
+                    <TableHead>
+                      Driver Phone Number
+                    </TableHead>
                   </tr>
                 </thead>
                 <tbody class="bg-white">
@@ -190,6 +193,9 @@
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-right">
                       {{ deliveryPlatformOrder.subtotal_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                    </TableData>
+                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
+                      {{ deliveryPlatformOrder.driver_phone_number }}
                     </TableData>
                   </tr>
                   <tr v-if="!deliveryPlatformOrders.data.length">

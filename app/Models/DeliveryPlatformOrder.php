@@ -55,6 +55,7 @@ class DeliveryPlatformOrder extends Model
         'driver_assigned_at',
         'driver_eta_seconds',
         'driver_eta_updated_at',
+        'driver_phone_number',
         'driver_request_json',
         'error_json',
         'is_cancelled',

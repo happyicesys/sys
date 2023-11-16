@@ -31,6 +31,7 @@ class DeliveryPlatformOrderResource extends JsonResource
             'driver_assigned_at' => $this->driver_assigned_at,
             'driver_eta_seconds' => $this->driver_eta_seconds,
             'driver_eta_updated_at' => $this->driver_eta_updated_at,
+            'driver_phone_number' => $this->driver_phone_number,
             'error_json' => $this->error_json,
             'is_cancelled' => $this->is_cancelled,
             'is_edited' => $this->is_edited,
