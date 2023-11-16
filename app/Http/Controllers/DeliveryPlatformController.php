@@ -114,7 +114,7 @@ class DeliveryPlatformController extends Controller
         $deliveryPlatformOrder = $this->deliveryPlatformService->createOrder($merchantID, $partnerMerchantID, $request->all());
 
         // auto mark order as ready after success creation
-        if($response) {
+        if($deliveryPlatformOrder) {
             $this->deliveryPlatformService->markOrderReady($deliveryPlatformOrder);
         }
 
