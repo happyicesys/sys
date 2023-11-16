@@ -344,6 +344,23 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         throw new \Exception('Pause Order Failed: ' . $response->body());
     }
 
+    // create campaign
+    public function createCampaign($campaignParams = [])
+    {
+        $this->verifyOauthAccessToken();
+
+        if(!$campaignParam) {
+            throw new \Exception('Campaign Param Not Found for Create Campaign ');
+        }
+
+        $response = Http::withHeaders($this->getHeaders())
+        ->post($this->getPartnerEndpoint() . '/partner/v1/campaign', $campaignParam);
+
+        return $this->getResponse($response, 'createCampaign');
+
+        throw new \Exception('Create Campaign Failed: ' . $response->body());
+    }
+
     // init default headers for grab
     private function getHeaders($params = [])
     {

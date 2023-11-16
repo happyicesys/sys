@@ -173,7 +173,7 @@ class DeliveryPlatformController extends Controller
             ->where('short_order_id', $shortOrderID)
             ->where('vend_code', $code)
             ->where('is_verified', false)
-            ->whereRaw("TIMESTAMPDIFF(HOUR, order_created_at, NOW()) <= ?", [DeliveryPlatformOrder::DEFAULT_VALID_COLLECTION_HOURS])
+            // ->whereRaw("TIMESTAMPDIFF(HOUR, order_created_at, NOW()) <= ?", [DeliveryPlatformOrder::DEFAULT_VALID_COLLECTION_HOURS])
             ->first();
 
         if($deliveryPlatformOrder) {
