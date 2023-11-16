@@ -208,7 +208,7 @@ class VendDataService
             break;
           case 'CHANNEL':
             SyncVendChannels::dispatch($processedInput, $vend)->onQueue('high');
-            SyncDeliveryPlatformMenu::dispatch($vend)->onQueue('high');
+            // SyncDeliveryPlatformMenu::dispatch($vend)->onQueue('high');
             break;
           case 'CONFIRM':
             if(isset($processedInput['orderid'])) {

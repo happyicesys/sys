@@ -2,7 +2,6 @@
 
 namespace App\Jobs\Vend;
 
-use App\Jobs\NotifyDeliveryPlatformUpdateMenu;
 use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Models\Vend;
