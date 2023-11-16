@@ -30,7 +30,7 @@ class SyncDeliveryPlatformMenu
     public function handle(): void
     {
         if($this->vend->deliveryProductMappingVends()->exists()) {
-            foreach($vend->deliveryProductMappingVends as $deliveryProductMappingVend) {
+            foreach($this->vend->deliveryProductMappingVends as $deliveryProductMappingVend) {
                 NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend)->onQueue('high');
             }
         }
