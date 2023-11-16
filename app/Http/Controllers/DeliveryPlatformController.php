@@ -118,7 +118,7 @@ class DeliveryPlatformController extends Controller
             $this->deliveryPlatformService->markOrderReady($deliveryPlatformOrder);
         }
 
-        return $response;
+        return true;
     }
 
     // vend apk submit complaint for grab order, by driver
