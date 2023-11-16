@@ -76,11 +76,11 @@ class SyncVendChannels implements ShouldQueue
 
                 if($vendChannel->is_active) {
                     $this->syncProductMappingItem($vendChannel, $channel);
-                    $this->deliveryProductMappingService->syncVendChannels(null, $vend->id);
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }
             }
             SaveVendChannelsJson::dispatch($vend->id)->onQueue('default');
+            $this->deliveryProductMappingService->syncVendChannels(null, $vend->id);
         }
     }
 

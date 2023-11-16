@@ -8,6 +8,7 @@ use App\Models\DeliveryProductMappingVend;
 use App\Interfaces\DeliveryPlatformInterface;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 
@@ -118,12 +119,13 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     // Notify Grab of updated menu
     public function notifyUpdatedMenu($merchantIdParam = [])
     {
-        $this->verifyOauthAccessToken();
+        Log::info('sync menu api request');
+        // $this->verifyOauthAccessToken();
 
-        $response = Http::withHeaders($this->getHeaders())
-        ->post($this->getPartnerEndpoint() . '/partner/v1/merchant/menu/notification', $merchantIdParam);
+        // $response = Http::withHeaders($this->getHeaders())
+        // ->post($this->getPartnerEndpoint() . '/partner/v1/merchant/menu/notification', $merchantIdParam);
 
-        return $this->getResponse($response, 'notifyUpdatedMenu');
+        // return $this->getResponse($response, 'notifyUpdatedMenu');
 
         throw new \Exception('Notify Updated Menu Failed: ' . $response->body());
     }
