@@ -78,12 +78,18 @@ class ProductController extends Controller
         $request->validate([
             'code' => 'required',
             'name' => 'required',
+            'operator_id' => 'required',
+        ], [
+            'operator_id.required' => 'Please choose the operator.',
         ]);
 
         $product = new Product();
         $product = $product->fill($request->all());
         if(!$request->operator_id) {
             $product->operator_id = auth()->user()->operator_id;
+        }
+        if(!$request->measurement_count) {
+            $product->measurement_count = 1;
         }
         $product->save();
 
@@ -108,6 +114,9 @@ class ProductController extends Controller
         $request->validate([
             'code' => 'required',
             'name' => 'required',
+            'operator_id' => 'required',
+        ], [
+            'operator_id.required' => 'Please choose the operator.',
         ]);
 
         $product = Product::findOrFail($productId);

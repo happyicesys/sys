@@ -54,18 +54,18 @@
               </FormTextarea>
             </div>
             <div class="sm:col-span-2">
-              <FormInput v-model="form.measurement_count" :error="form.errors.measurement_count" :disabled="!permissions.includes('update products')" required="true">
+              <FormInput v-model="form.measurement_count" :error="form.errors.measurement_count" :disabled="!permissions.includes('update products')">
                 Lowest Unit
               </FormInput>
             </div>
             <div class="sm:col-span-2">
               <FormInput v-model="form.measurement_value" :error="form.errors.measurement_value" :disabled="!permissions.includes('update products')">
-                Measurement Value
+                Volume/ Weight
               </FormInput>
             </div>
             <div class="sm:col-span-2">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Measurement Unit
+                UOM
               </label>
               <MultiSelect
                 v-model="form.measurement_unit"
@@ -85,6 +85,9 @@
             <div class="col-span-12 sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Operator
+                <span class="text-red-500">
+                   *
+                </span>
               </label>
               <MultiSelect
                 v-model="form.operator_id"
