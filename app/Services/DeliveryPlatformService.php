@@ -733,19 +733,19 @@ class DeliveryPlatformService
       'total_amount' => isset($params['price']['eaterPayment']) ? $params['price']['eaterPayment'] : null,
     ];
 
-    if(isset($params['orderState'])) {
-      switch($params['orderState']) {
-        case Grab::STATE_DRIVER_ALLOCATED:
-          $originalArr['driver_assigned_at'] = Carbon::now();
-          break;
-        case Grab::STATE_DRIVER_ARRIVED:
-          $originalArr['driver_arrived_at'] = Carbon::now();
-          break;
-        case Grab::STATE_DELIVERED:
-          $originalArr['order_completed_at'] = Carbon::now();
-          break;
-      }
-    }
+    // if(isset($params['orderState'])) {
+    //   switch($params['orderState']) {
+    //     case Grab::STATE_DRIVER_ALLOCATED:
+    //       $originalArr['driver_assigned_at'] = Carbon::now();
+    //       break;
+    //     case Grab::STATE_DRIVER_ARRIVED:
+    //       $originalArr['driver_arrived_at'] = Carbon::now();
+    //       break;
+    //     case Grab::STATE_DELIVERED:
+    //       $originalArr['order_completed_at'] = Carbon::now();
+    //       break;
+    //   }
+    // }
 
     return $originalArr;
   }
