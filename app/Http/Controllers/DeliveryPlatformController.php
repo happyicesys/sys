@@ -170,24 +170,23 @@ class DeliveryPlatformController extends Controller
             ], 400));
         }
 
-        $prev = DeliveryPlatformOrder::query()
-            ->where('short_order_id', $shortOrderID)
-            ->where('vend_code', $code)
-            ->first();
-
-        if($prev) {
-            $prev->error_json = $request->all();
-            $prev->save();
-        }
-
         $deliveryPlatformOrder = DeliveryPlatformOrder::query()
             ->where('short_order_id', $shortOrderID)
             ->where('vend_code', $code)
-            ->where('is_verified', false)
-            // ->whereRaw("TIMESTAMPDIFF(HOUR, order_created_at, NOW()) <= ?", [DeliveryPlatformOrder::DEFAULT_VALID_COLLECTION_HOURS])
             ->first();
 
-        if($deliveryPlatformOrder) {
+        if(!$deliveryPlatformOrder) {
+            abort(response([
+                'error_code' => 404,
+                'error_message' => 'Order not found',
+            ], 404));
+        }
+
+        $deliveryPlatformOrder->update([
+            'error_json' => $request->all(),
+        ]);
+
+        if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
             $deliveryPlatformOrder->update([
                 'driver_phone_number' => $driverPhoneNumber,
                 'driver_request_json' => $request->all(),
