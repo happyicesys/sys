@@ -12,6 +12,7 @@ use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingItem;
 use App\Models\Operator;
 use App\Models\Vend;
+use App\Models\VendData;
 use App\Jobs\DispenseDeliveryPlatformOrder;
 use App\Jobs\SyncDeliveryPlatformOauthByOperator;
 use App\Services\DeliveryPlatformService;
@@ -79,6 +80,12 @@ class DeliveryPlatformController extends Controller
         $partnerMerchantID = $request->partnerMerchantID;
         try {
             $response = $this->deliveryPlatformService->getMenu($merchantID, $partnerMerchantID);
+            VendData::create([
+                'connection' => 'http-api',
+                'type' => 'GRAB_MENU',
+                'value' => $response,
+                'vend_code' => $partnerMerchantID,
+              ]);
             return $response;
         } catch(\Exception $e) {
             return $e->getMessage();
