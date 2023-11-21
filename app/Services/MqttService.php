@@ -7,6 +7,7 @@ use App\Services\VendDataService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use PhpMqtt\Client\Facades\MQTT;
+use PhpMqtt\Client\MqttClient;
 
 class MqttService
 {
