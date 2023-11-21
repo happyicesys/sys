@@ -101,7 +101,7 @@ class SettingController extends Controller
                 ->leftJoin('vend_bindings', function($query) {
                     $query->on('vend_bindings.vend_id', '=', 'vends.id')
                             ->where('vend_bindings.is_active', true)
-                            ->latest('begin_date')
+                            ->latest('vend_bindings.begin_date')
                             ->limit(1);
                 })
                 ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
@@ -113,8 +113,10 @@ class SettingController extends Controller
                 ->select(
                     '*',
                     'vends.id',
+                    'vends.begin_date',
                     'vends.code',
                     'vends.name',
+                    'vends.termination_date',
                     'customers.id AS customer_id',
                     'customers.code AS customer_code',
                     'customers.name AS customer_name',
