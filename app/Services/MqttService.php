@@ -23,7 +23,7 @@ class MqttService
   public function publish($topic, $message)
   {
     $mqtt = MQTT::connection();
-    $mqtt->publish($topic, $message, MQTT::QOS_AT_LEAST_ONCE);
+    $mqtt->publish($topic, $message, MqttClient::QOS_AT_LEAST_ONCE);
     // $mqtt = MQTT::publish($topic, $message);
     $mqtt->loop(true);
     $mqtt->disconnect();
