@@ -90,6 +90,7 @@ class VendController extends Controller
 
     public function index(Request $request)
     {
+        dd(Carbon::now()->startOfDay()->setTimezone('UTC')->toDatetimeString());
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         if(!isset($request->is_active)) {
             if(

@@ -602,7 +602,7 @@ class DeliveryPlatformService
   {
     return [
       'startTime' => Carbon::now()->startOfDay()->setTimezone('UTC')->toDatetimeString(),
-      'endTime' => Carbon::now()->endOfDay()->setTimezone('UTC')->toDatetimeString(),
+      'endTime' => Grab::MAX_END_TIME,
       'id' => 'ST-1001',
       'name' => '24/7',
       'serviceHours' => [
@@ -610,8 +610,8 @@ class DeliveryPlatformService
           'openPeriodType' => "OpenPeriod",
           'periods' => [
             [
-              'startTime' => Carbon::now()->startOfDay()->format('H:i'),
-              'endTime' => Carbon::now()->endOfDay()->format('H:i'),
+              'startTime' => Grab::START_TIME,
+              'endTime' => Grab::END_TIME,
             ],
           ],
         ],
@@ -619,8 +619,8 @@ class DeliveryPlatformService
           'openPeriodType' => "OpenPeriod",
           'periods' => [
             [
-              'startTime' => Carbon::now()->startOfDay()->format('H:i'),
-              'endTime' => Carbon::now()->endOfDay()->format('H:i'),
+              'startTime' => Grab::START_TIME,
+              'endTime' => Grab::END_TIME,
             ],
           ],
         ],
@@ -628,8 +628,8 @@ class DeliveryPlatformService
           'openPeriodType' => "OpenPeriod",
           'periods' => [
             [
-              'startTime' => Carbon::now()->startOfDay()->format('H:i'),
-              'endTime' => Carbon::now()->endOfDay()->format('H:i'),
+              'startTime' => Grab::START_TIME,
+              'endTime' => Grab::END_TIME,
             ],
           ],
         ],
@@ -637,8 +637,8 @@ class DeliveryPlatformService
           'openPeriodType' => "OpenPeriod",
           'periods' => [
             [
-              'startTime' => Carbon::now()->startOfDay()->format('H:i'),
-              'endTime' => Carbon::now()->endOfDay()->format('H:i'),
+              'startTime' => Grab::START_TIME,
+              'endTime' => Grab::END_TIME,
             ],
           ],
         ],
@@ -646,8 +646,8 @@ class DeliveryPlatformService
           'openPeriodType' => "OpenPeriod",
           'periods' => [
             [
-              'startTime' => Carbon::now()->startOfDay()->format('H:i'),
-              'endTime' => Carbon::now()->endOfDay()->format('H:i'),
+              'startTime' => Grab::START_TIME,
+              'endTime' => Grab::END_TIME,
             ],
           ],
         ],
@@ -655,8 +655,8 @@ class DeliveryPlatformService
           'openPeriodType' => "OpenPeriod",
           'periods' => [
             [
-              'startTime' => Carbon::now()->startOfDay()->format('H:i'),
-              'endTime' => Carbon::now()->endOfDay()->format('H:i'),
+              'startTime' => Grab::START_TIME,
+              'endTime' => Grab::END_TIME,
             ],
           ],
         ],
@@ -664,8 +664,8 @@ class DeliveryPlatformService
           'openPeriodType' => "OpenPeriod",
           'periods' => [
             [
-              'startTime' => Carbon::now()->startOfDay()->format('H:i'),
-              'endTime' => Carbon::now()->endOfDay()->format('H:i'),
+              'startTime' => Grab::START_TIME,
+              'endTime' => Grab::END_TIME,
             ],
           ],
         ],
