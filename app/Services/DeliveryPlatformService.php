@@ -602,7 +602,7 @@ class DeliveryPlatformService
   {
     return [
       'startTime' => Carbon::now()->startOfDay()->setTimezone('UTC')->toDatetimeString(),
-      'endTime' => Grab::MAX_END_TIME,
+      'endTime' => Grab::MAX_END_DATETIME,
       'id' => 'ST-1001',
       'name' => '24/7',
       'serviceHours' => [
