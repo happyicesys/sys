@@ -603,7 +603,7 @@ class DeliveryPlatformService
     return [
       'startTime' => Carbon::now()->startOfDay()->setTimezone('UTC')->toDatetimeString(),
       'endTime' => Grab::MAX_END_DATETIME,
-      'id' => 'ST-1002',
+      'id' => 'ST-1003',
       'name' => '24/7',
       'serviceHours' => [
         'mon' => [
@@ -711,7 +711,7 @@ class DeliveryPlatformService
       'id' => $params['sub_category_id'],
       'name' => $params['sub_category_name'],
       'availableStatus' => 'AVAILABLE',
-      'sellingTimeID' => 'ST-1002',
+      'sellingTimeID' => 'ST-1003',
       'items' => [],
     ];
   }
