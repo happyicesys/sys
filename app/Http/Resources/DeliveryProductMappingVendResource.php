@@ -23,6 +23,7 @@ class DeliveryProductMappingVendResource extends JsonResource
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'deliveryProductMapping' => DeliveryProductMappingResource::make($this->whenLoaded('deliveryProductMapping')),
             'deliveryProductMappingVendChannels' => DeliveryProductMappingVendChannelResource::collection($this->whenLoaded('deliveryProductMappingVendChannels')),
+            'platform_ref_id' => $this->platform_ref_id,
         ];
     }
 }

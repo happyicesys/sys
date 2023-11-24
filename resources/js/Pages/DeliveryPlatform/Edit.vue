@@ -378,7 +378,7 @@
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Vend ID <br>
-                            Platform Ref ID
+                            (Platform Ref ID)
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Vend Name
