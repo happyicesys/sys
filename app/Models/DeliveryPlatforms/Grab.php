@@ -15,7 +15,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 {
     use HasFactory;
 
-    const MAX_END_DATETIME = '9999-12-30 23:59:59';
+    const MAX_END_DATETIME = '9999-12-31 23:59:59';
     const START_TIME = '00:00:00';
     const END_TIME = '23:59:59';
 
