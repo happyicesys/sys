@@ -177,6 +177,10 @@ class DeliveryPlatformController extends Controller
             ], 400));
         }
 
+        if(substr($shortOrderID, -1) == 'T') {
+            $shortOrderID = rtrim($shortOrderID, 'T');
+        }
+
         $deliveryPlatformOrder = DeliveryPlatformOrder::query()
             ->where('short_order_id', $shortOrderID)
             ->where('vend_code', $code)
