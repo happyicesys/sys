@@ -695,7 +695,7 @@ function togglePauseDeliveryProductMappingItem(deliveryProductMappingItem) {
   if (!approval) {
       return;
   }
-  router.post('/delivery-product-mapping-items/' + deliveryProductMappingItem.id + '/toggle-pause', {
+  router.post('/delivery-product-mapping-items/' + deliveryProductMappingItem.id + '/toggle-pause', {}, {
       preserveState: false,
       preserveScroll: true,
       replace: true,
@@ -708,7 +708,7 @@ function togglePauseVend(deliveryProductMappingVend) {
   if (!approval) {
       return;
   }
-  router.post('/delivery-product-mappings/vends/' + deliveryProductMappingVend.id + '/toggle-pause-vend', {
+  router.post('/delivery-product-mappings/vends/' + deliveryProductMappingVend.id + '/toggle-pause-vend', {}, {
       preserveState: false,
       preserveScroll: true,
       replace: true,
