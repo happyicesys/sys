@@ -401,7 +401,7 @@
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ deliveryProductMappingVend.vend.code }} <br>
-                            {{ deliveryProductMappingVend.platform_ref_id }}
+                            ({{ deliveryProductMappingVend.platform_ref_id }})
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <span v-if="deliveryProductMappingVend.vend.latestVendBinding && deliveryProductMappingVend.vend.latestVendBinding.customer">
