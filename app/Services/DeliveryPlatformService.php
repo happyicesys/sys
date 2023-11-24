@@ -603,8 +603,8 @@ class DeliveryPlatformService
     return [
       'startTime' => Carbon::now()->startOfDay()->setTimezone('UTC')->toDatetimeString(),
       'endTime' => Grab::MAX_END_DATETIME,
-      'id' => 'ST-1002',
-      'name' => '24/7',
+      'id' => 'ST1004',
+      'name' => '24/7 ver 4',
       'serviceHours' => [
         'mon' => [
           'openPeriodType' => "OpenPeriod",
