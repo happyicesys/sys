@@ -377,7 +377,8 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Vend ID
+                            Vend ID <br>
+                            Platform Ref ID
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Vend Name
@@ -399,7 +400,8 @@
                             {{ vendIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ deliveryProductMappingVend.vend.code }}
+                            {{ deliveryProductMappingVend.vend.code }} <br>
+                            {{ deliveryProductMappingVend.platform_ref_id }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <span v-if="deliveryProductMappingVend.vend.latestVendBinding && deliveryProductMappingVend.vend.latestVendBinding.customer">
@@ -682,7 +684,7 @@ function togglePauseAllVends(deliveryProductMappingId) {
   if (!approval) {
       return;
   }
-  router.post('/delivery-product-mappings/' + deliveryProductMappingId + '/toggle-pause-all-vends', {
+  router.post('/delivery-product-mappings/' + deliveryProductMappingId + '/toggle-pause-all-vends', {}, {
       preserveState: false,
       preserveScroll: true,
       replace: true,
