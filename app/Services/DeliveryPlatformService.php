@@ -603,7 +603,7 @@ class DeliveryPlatformService
     return [
       'startTime' => Carbon::now()->startOfDay()->setTimezone('UTC')->toDatetimeString(),
       'endTime' => Grab::MAX_END_DATETIME,
-      'id' => 'ST-1001',
+      'id' => 'ST-1002',
       'name' => '24/7',
       'serviceHours' => [
         'mon' => [
@@ -711,7 +711,7 @@ class DeliveryPlatformService
       'id' => $params['sub_category_id'],
       'name' => $params['sub_category_name'],
       'availableStatus' => 'AVAILABLE',
-      'sellingTimeID' => 'ST-1001',
+      'sellingTimeID' => 'ST-1002',
       'items' => [],
     ];
   }
@@ -736,20 +736,30 @@ class DeliveryPlatformService
       'total_amount' => isset($params['price']['eaterPayment']) ? $params['price']['eaterPayment'] : null,
     ];
 
-    // if(isset($params['orderState'])) {
-    //   switch($params['orderState']) {
-    //     case Grab::STATE_DRIVER_ALLOCATED:
-    //       $originalArr['driver_assigned_at'] = Carbon::now();
-    //       break;
-    //     case Grab::STATE_DRIVER_ARRIVED:
-    //       $originalArr['driver_arrived_at'] = Carbon::now();
-    //       break;
-    //     case Grab::STATE_DELIVERED:
-    //       $originalArr['order_completed_at'] = Carbon::now();
-    //       break;
-    //   }
-    // }
-
     return $originalArr;
+  }
+
+  // campaign
+  private function getGrabCampaigns($params = [])
+  {
+    return [
+      'merchantID' => $params['platform_ref_id'],
+      'name' => $params['campaign_name'],
+      'quotas' => [
+        'totalCount' => isset($params['totalCount']) ? $params['totalCount'] : null,
+        'totalCountPerUser' => isset($params['totalCountPerUser']) ? $params['totalCountPerUser'] : null,
+      ],
+      'conditions' => [
+
+      ],
+      'description' => $params['description'],
+      'startDate' => $params['startDate'],
+      'endDate' => $params['endDate'],
+      'startTime' => $params['startTime'],
+      'endTime' => $params['endTime'],
+      'availableStatus' => $params['availableStatus'],
+      'sellingTimeID' => $params['sellingTimeID'],
+      'items' => $params['items'],
+    ];
   }
 }
