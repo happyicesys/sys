@@ -95,20 +95,20 @@ class DeliveryPlatformController extends Controller
     // grab will push the menu update status to this endpoint
     public function syncGrabMenuWebhook(Request $request)
     {
-        try {
-            $prevDeliveryPlatformMenuRecord = DeliveryPlatformMenuRecord::where('ref_id', $request->jobID)->first();
+        $prevDeliveryPlatformMenuRecord = DeliveryPlatformMenuRecord::where('ref_id', $request->jobID)->first();
 
-            $deliveryPlatformMenuRecord = DeliveryPlatformMenuRecord::updateOrCreate([
-                'ref_id' => $request->jobID,
-              ], [
+        if($prevDeliveryPlatformMenuRecord) {
+            $prevDeliveryPlatformMenuRecord->update([
+                'request_json' => array_merge($prevDeliveryPlatformMenuRecord->request_json, $request->all()),
+            ]);
+        }else {
+            $deliveryPlatformMenuRecord = DeliveryPlatformMenuRecord::create([
                 'delivery_platform_slug' => 'grab',
                 'platform_ref_id' => $request->merchantID,
-                'request_json' => $prevDeliveryPlatformMenuRecord && $prevDeliveryPlatformMenuRecord->request_json ? array_merge($prevDeliveryPlatformMenuRecord->request_json, $request->all()) : $request->all(),
+                'request_json' => $request->all(),
                 'vend_code' => $request->partnerMerchantID,
-              ]);
-
-        } catch(\Exception $e) {
-            return $e->getMessage();
+                'ref_id' => $request->jobID,
+            ]);
         }
     }
 
