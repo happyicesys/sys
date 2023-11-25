@@ -95,21 +95,15 @@ class DeliveryPlatformController extends Controller
     // grab will push the menu update status to this endpoint
     public function syncGrabMenuWebhook(Request $request)
     {
-        $prevDeliveryPlatformMenuRecord = DeliveryPlatformMenuRecord::where('ref_id', $request->jobID)->first();
-
-        if($prevDeliveryPlatformMenuRecord) {
-            $prevDeliveryPlatformMenuRecord->update([
-                'request_json' => array_merge($prevDeliveryPlatformMenuRecord->request_json, $request->all()),
-            ]);
-        }else {
-            $deliveryPlatformMenuRecord = DeliveryPlatformMenuRecord::create([
-                'delivery_platform_slug' => 'grab',
-                'platform_ref_id' => $request->merchantID,
-                'request_json' => $request->all(),
-                'vend_code' => $request->partnerMerchantID,
-                'ref_id' => $request->jobID,
-            ]);
-        }
+        DeliveryPlatformMenuRecord::updateOrCreate([
+            'ref_id' => $request->jobID,
+        ], [
+            'request_json' => $request->all(),
+            'delivery_platform_slug' => 'grab-menu',
+            'platform_ref_id' => $request->merchantID,
+            'request_json' => $request->all(),
+            'vend_code' => $request->partnerMerchantID,
+        ]);
     }
 
     // order
@@ -183,10 +177,6 @@ class DeliveryPlatformController extends Controller
             'vend_code' => $code,
         ]);
 
-        // if(substr($shortOrderID, -1) == 'T') {
-        //     $shortOrderID = rtrim($shortOrderID, 'T');
-        // }
-
         $deliveryPlatformOrder = DeliveryPlatformOrder::query()
             ->where(function($query) use ($shortOrderID) {
                 $query->where('short_order_id', $shortOrderID)
@@ -194,8 +184,6 @@ class DeliveryPlatformController extends Controller
             })
             ->where('vend_code', $code)
             ->first();
-
-        // dd($request->all(), $deliveryPlatformOrder);
 
         if(!$deliveryPlatformOrder) {
             abort(response([
