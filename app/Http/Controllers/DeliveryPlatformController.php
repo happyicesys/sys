@@ -176,6 +176,13 @@ class DeliveryPlatformController extends Controller
             ], 400));
         }
 
+        VendData::create([
+            'connection' => 'http-api',
+            'type' => 'GRAB_SEARCH_ORDER',
+            'value' => $request->all(),
+            'vend_code' => $code,
+        ]);
+
         // if(substr($shortOrderID, -1) == 'T') {
         //     $shortOrderID = rtrim($shortOrderID, 'T');
         // }
