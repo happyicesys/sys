@@ -355,6 +355,25 @@ class DeliveryPlatformService
       }
   }
 
+  public function pauseStore(DeliveryProductMappingVend $deliveryProductMappingVend)
+  {
+    $this->deliveryPlatformOperator = $deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
+    $this->setDeliveryPlatformOperator($deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator);
+
+    switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+      case 'grab':
+        $response = $this->model->pauseStore([
+          'merchantID' => $deliveryProductMappingVend->platform_ref_id,
+          true,
+          '24h'
+        ]);
+        if($response['success']) {
+          return $response['data'];
+        }
+        break;
+    }
+  }
+
   public function updateMenu(DeliveryProductMappingVendChannel $deliveryProductMappingVendChannel)
   {
     $this->deliveryPlatformOperator = $deliveryProductMappingVendChannel->deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;

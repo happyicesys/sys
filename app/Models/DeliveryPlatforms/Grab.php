@@ -332,13 +332,13 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     }
 
     // Pause store
-    public function pauseOrder($isPause = true, $duration = '24h')
+    public function pauseStore($merchantID, $isPause = true, $duration = '24h')
     {
         $this->verifyOauthAccessToken();
 
         $response = Http::withHeaders($this->getHeaders())
         ->put($this->getPartnerEndpoint() . '/partner/v1/merchant/pause', [
-            'merchantID' => $this->merchantId,
+            'merchantID' => $merchantID,
             'isPause' => $isPause,
             'duration' => $duration,
         ]);

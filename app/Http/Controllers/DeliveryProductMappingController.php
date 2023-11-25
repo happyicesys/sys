@@ -369,6 +369,8 @@ class DeliveryProductMappingController extends Controller
         }
         if($deliveryProductMappingVend->is_active) {
             $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingVend->deliveryProductMapping->id, $deliveryProductMappingVend->vend->id);
+        }else {
+            $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend);
         }
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVend->delivery_product_mapping_id]);
