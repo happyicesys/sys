@@ -222,7 +222,7 @@ class DeliveryPlatformController extends Controller
         } else {
             abort(response([
                 'error_code' => 404,
-                'error_message' => 'Order not found',
+                'error_message' => 'Order has been redeemed',
             ], 404));
         }
     }
