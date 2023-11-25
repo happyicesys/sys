@@ -188,7 +188,7 @@ class DeliveryPlatformController extends Controller
             ->where('vend_code', $code)
             ->first();
 
-        dd($request->all(), $deliveryPlatformOrder);
+        // dd($request->all(), $deliveryPlatformOrder);
 
         if(!$deliveryPlatformOrder) {
             abort(response([
