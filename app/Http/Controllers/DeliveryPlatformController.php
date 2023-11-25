@@ -169,7 +169,6 @@ class DeliveryPlatformController extends Controller
         $driverPhoneNumber = $request->driver_phone_number;
         $shortOrderID = $request->short_order_id;
 
-
         if(!$shortOrderID || !$code) {
             abort(response([
                 'error_code' => 400,
@@ -185,6 +184,8 @@ class DeliveryPlatformController extends Controller
             ->where('short_order_id', $shortOrderID)
             ->where('vend_code', $code)
             ->first();
+
+        dd($request->all(), $deliveryPlatformOrder);
 
         if(!$deliveryPlatformOrder) {
             abort(response([
