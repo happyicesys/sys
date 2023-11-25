@@ -208,8 +208,8 @@ class DeliveryPlatformController extends Controller
             'error_json' => $request->all(),
         ]);
 
-        // if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox')
-        if($deliveryPlatformOrder or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
+        if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
+        // if($deliveryPlatformOrder or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
             $deliveryPlatformOrder->update([
                 'driver_phone_number' => $driverPhoneNumber,
                 'driver_request_json' => $request->all(),
