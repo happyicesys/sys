@@ -5,16 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class DeliveryPlatformCampaign extends Model
+class DeliveryPlatformCampaignItem extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'delivery_product_mapping_id',
+        'delivery_platform_campaign_id',
         'datetime_from',
         'datetime_to',
-        'desc',
-        'name',
         'platform_campaign_type',
         'platform_campaign_scope',
         'platform_campaign_value',

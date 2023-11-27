@@ -15,9 +15,80 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 {
     use HasFactory;
 
+    const CAMPAIGN_TYPE_DOLLAR = 'net';
+    const CAMPAIGN_TYPE_PERCENT = 'percentage';
+    const CAMPAIGN_TYPE_BUNDLE_SAME_FIXED = 'bundleSameFixPrice';
+    const CAMPAIGN_TYPE_BUNDLE_DIFF_FIXED = 'bundleDiffFixPrice';
+    const CAMPAIGN_TYPE_BUNDLE_SAME_DOLLAR = 'bundleSameNet';
+    const CAMPAIGN_TYPE_BUNDLE_DIFF_DOLLAR = 'bundleDiffNet';
+    const CAMPAIGN_TYPE_BUNDLE_SAME_PERCENT = 'bundleSamePercentage';
+    const CAMPAIGN_TYPE_BUNDLE_DIFF_PERCENT = 'bundleDiffPercentage';
+    const CAMPAIGN_TYPE_DELIVERY = 'delivery';
+    const CAMPAIGN_TYPE_FREEITEM = 'freeItem';
+
+    const CAMPAIGN_SCOPE_ITEM = 'items';
+    const CAMPAIGN_SCOPE_CATEGORY = 'category';
+    const CAMPAIGN_SCOPE_ORDER = 'order';
+
+    const CAMPAIGN_TYPE_MAPPING = [
+        self::CAMPAIGN_TYPE_DOLLAR => 'Dollar Off',
+        self::CAMPAIGN_TYPE_PERCENT => 'Percent Off',
+        self::CAMPAIGN_TYPE_BUNDLE_SAME_FIXED => 'Bundle Same Items Fixed Price',
+        self::CAMPAIGN_TYPE_BUNDLE_DIFF_FIXED => 'Bundle Different Items Fixed Price',
+        self::CAMPAIGN_TYPE_BUNDLE_SAME_DOLLAR => 'Bundle Same Items Dollar Off',
+        self::CAMPAIGN_TYPE_BUNDLE_DIFF_DOLLAR => 'Bundle Different Items Dollar Off',
+        self::CAMPAIGN_TYPE_BUNDLE_SAME_PERCENT => 'Bundle Same Items Percent Off',
+        self::CAMPAIGN_TYPE_BUNDLE_DIFF_PERCENT => 'Bundle Different Items Percent Off',
+        self::CAMPAIGN_TYPE_DELIVERY => 'Delivery Fee Off',
+        self::CAMPAIGN_TYPE_FREEITEM => 'Free Item',
+    ];
+
+    const CAMPAIGN_SCOPE_MAPPING = [
+        self::CAMPAIGN_SCOPE_ITEM => 'Item',
+        self::CAMPAIGN_SCOPE_CATEGORY => 'Category',
+        self::CAMPAIGN_SCOPE_ORDER => 'Order',
+    ];
+
+    const CAMPAIGN_TYPE_SCOPE_MAPPING = [
+        self::CAMPAIGN_TYPE_DOLLAR => [
+            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+            self::CAMPAIGN_SCOPE_CATEGORY => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_CATEGORY],
+            self::CAMPAIGN_SCOPE_ORDER => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ORDER],
+        ],
+        self::CAMPAIGN_TYPE_PERCENT => [
+            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+            self::CAMPAIGN_SCOPE_CATEGORY => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_CATEGORY],
+            self::CAMPAIGN_SCOPE_ORDER => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ORDER],
+        ],
+        self::CAMPAIGN_TYPE_BUNDLE_SAME_FIXED => [
+            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        ],
+        self::CAMPAIGN_TYPE_BUNDLE_DIFF_FIXED => [
+            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        ],
+        self::CAMPAIGN_TYPE_BUNDLE_SAME_DOLLAR => [
+            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        ],
+        self::CAMPAIGN_TYPE_BUNDLE_DIFF_DOLLAR => [
+            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        ],
+        self::CAMPAIGN_TYPE_BUNDLE_SAME_PERCENT => [
+            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        ],
+        self::CAMPAIGN_TYPE_BUNDLE_DIFF_PERCENT => [
+            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        ],
+        self::CAMPAIGN_TYPE_DELIVERY => [
+            self::CAMPAIGN_SCOPE_ORDER => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ORDER],
+        ],
+        self::CAMPAIGN_TYPE_FREEITEM => [
+            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        ],
+    ];
+
+    const START_TIME = '00:00';
+    const END_TIME = '23:59';
     const MAX_END_DATETIME = '9999-12-31 23:59:59';
-    const START_TIME = '00:00:00';
-    const END_TIME = '23:59:59';
 
     const PAYMENT_TYPE_CASH = 'CASH';
     const PAYMENT_TYPE_CASHLESS = 'CASHLESS';
