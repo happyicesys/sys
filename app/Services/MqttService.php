@@ -28,14 +28,14 @@ class MqttService
 
     // set as QOS 1
     $mqtt->publish($topic, $message, MqttClient::QOS_AT_LEAST_ONCE);
-    $mqtt->loop(true);
 
     // compare start time with now in every mqtt loop, if it is more than 30 seconds, interrupt the loop
     $mqtt->registerLoopEventHandler(function ($mqtt, float $elapsedTime) {
         if (Carbon::now()->diffInSeconds($startTime) >= 10) {
-            $mqtt->disconnect();
+            $mqtt->interrupt();
         }
     });
+    $mqtt->loop(true);
     $mqtt->disconnect();
   }
 
