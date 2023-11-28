@@ -15,6 +15,11 @@
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-5 md:col-span-1">
+                <SearchInput placeholderStr="Order ID" v-model="filters.order_id" @keyup.enter="onSearchFilterUpdated()">
+                    Order ID
+                </SearchInput>
+            </div>
+            <div class="col-span-5 md:col-span-1">
                 <SearchInput placeholderStr="Vend ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
                     Vend ID
                     <span class="text-[9px]">
@@ -534,6 +539,7 @@ const filters = ref({
     errors: [],
     location_type_id: '',
     operator_id: '',
+    order_id: '',
     is_binded_customer: '',
     is_payment_received: '',
     paymentMethod: '',
