@@ -23,10 +23,17 @@ class MqttService
 
   public function publish($topic, $message)
   {
+    $startTime = Carbon::now();
     $mqtt = MQTT::connection();
     $mqtt->publish($topic, $message, MqttClient::QOS_AT_LEAST_ONCE);
     // $mqtt = MQTT::publish($topic, $message);
     $mqtt->loop(true);
+
+    $mqtt->registerLoopEventHandler(function ($mqtt, float $elapsedTime) {
+        if (Carbon::now()->diffInSeconds($startTime) >= 5) {
+            $mqtt->interrupt();
+        }
+    });
     $mqtt->disconnect();
   }
 
