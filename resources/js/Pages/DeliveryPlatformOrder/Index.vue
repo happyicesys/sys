@@ -110,7 +110,7 @@
                       Vend
                     </TableHeadSort>
                     <TableHead>
-                      Transactions <br>
+                      Transaction <br>
                       Order ID
                     </TableHead>
                     <TableHead>
