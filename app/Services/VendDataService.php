@@ -216,7 +216,7 @@ class VendDataService
             }
             break;
           case 'P':
-            UpdateVendLastUpdated::dispatch($vend)->onQueue('default');
+            UpdateVendLastUpdated::dispatch($vend, $connectionType)->onQueue('default');
             $saveVendData = false;
             break;
           case 'PWRON':
@@ -258,7 +258,7 @@ class VendDataService
             throw new \Exception('Type is not set or please check the parameters');
         }
       }else {
-        UpdateVendLastUpdated::dispatch($vend)->onQueue('default');
+        UpdateVendLastUpdated::dispatch($vend, $connectionType)->onQueue('default');
         $saveVendData = false;
       }
     }

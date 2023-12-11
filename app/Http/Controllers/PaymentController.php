@@ -192,6 +192,7 @@ class PaymentController extends Controller
         'amount' => $paymentGatewayLog->request['PRICE'],
         'vendCode' => $paymentGatewayLog->vend_code,
         'productCode' =>  $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->code : null,
+        'productID' => $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->id : null,
         'productName' => $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->name : null,
         'channelCode' =>  $paymentGatewayLog->vendChannel ? $paymentGatewayLog->vend_channel_code : null,
         'paymentMethod' => $paymentMethod,

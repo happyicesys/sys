@@ -169,6 +169,7 @@ class VendController extends Controller
                 DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
                 DB::raw('DATE(customers.next_invoice_date) AS next_invoice_date'),
                 'vends.last_updated_at',
+                'vends.mqtt_last_updated_at',
                 'vends.out_of_stock_sku_percent',
                 'vends.parameter_json',
                 'vends.product_mapping_id',
@@ -534,6 +535,7 @@ class VendController extends Controller
         ->filterTransactionIndex($request)
         ->get();
 
+        // dd($vendTransactions->toArray());
         return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
             return [
                 'Order ID' => $vendTransaction->order_id,
@@ -545,12 +547,18 @@ class VendController extends Controller
                                         $vendTransaction->vend_json['latest_vend_binding']['customer']['code'].' '.$vendTransaction->vend_json['latest_vend_binding']['customer']['name'] : $vendTransaction->vend_name
                                     ),
                 'Channel' => $vendTransaction->vend_channel_code,
-                'Product Code' => $vendTransaction->product ?
-                                $vendTransaction->product->code :
-                                '',
-                'Product Name' => $vendTransaction->product ?
-                                $vendTransaction->product->name :
-                                '',
+                // 'Product Code' => $vendTransaction->product ?
+                //                 $vendTransaction->product->code :
+                //                 '',
+                'Product Code' => $vendTransaction->product_json ?
+                                $vendTransaction->product_json['code'] :
+                                ($vendTransaction->product ? $vendTransaction->product->code : ''),
+                // 'Product Name' => $vendTransaction->product ?
+                //                 $vendTransaction->product->name :
+                //                 '',
+                'Product Name' => $vendTransaction->product_json ?
+                                $vendTransaction->product_json['name'] :
+                                ($vendTransaction->product ? $vendTransaction->product->name : ''),
                 'Amount' => $vendTransaction->amount/ 100,
                 'Sales (before GST)' => $vendTransaction->revenue/ 100,
                 'Unit Cost' => $vendTransaction->unit_cost ?

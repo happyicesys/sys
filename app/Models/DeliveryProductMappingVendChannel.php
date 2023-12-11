@@ -29,6 +29,10 @@ class DeliveryProductMappingVendChannel extends Model
         'vend_id',
     ];
 
+    protected $with = [
+        'deliveryProductMappingVend.deliveryProductMapping.operator.country',
+    ];
+
     // protected $casts = [
     //     'qty_sold_at' => 'datetime',
     //     'qty_restocked_at' => 'datetime',

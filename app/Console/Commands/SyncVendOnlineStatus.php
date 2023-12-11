@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\VendMqttOfflineNotificationMail;
 use App\Mail\VendOfflineNotificationMail;
 use App\Models\Vend;
 use Carbon\Carbon;
@@ -54,6 +55,27 @@ class SyncVendOnlineStatus extends Command
                     $vend->is_offline_notification_sent = true;
                 }
             }
+
+            // sync mqtt if offline
+            if($vend->is_mqtt) {
+                $vend->is_mqtt_offline_notified = false;
+                if($vend->mqtt_last_updated_at and $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) <= 30) {
+                    $vend->is_mqtt_offline_notified = false;
+                }
+
+                if($vend->mqtt_last_updated_at and $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) > 30) {
+                    if(!$vend->is_mqtt_offline_notified) {
+                        Mail::to([
+                            'daniel.ma@happyice.com.sg',
+                            'kent@happyice.com.sg',
+                            'stephen@happyice.com.sg',
+                            'brianlee@happyice.com.my',
+                            'technician1@happyice.com.sg',
+                        ])->send(new VendMqttOfflineNotificationMail($vend));
+                    }
+                }
+            }
+
             $vend->save();
         }
     }

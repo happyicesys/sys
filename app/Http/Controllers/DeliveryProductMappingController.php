@@ -246,9 +246,10 @@ class DeliveryProductMappingController extends Controller
             // dd($id, $deliveryProductMapping->toArray());
 
         return Inertia::render('DeliveryPlatform/Edit', [
-            'categoryApiOptions' => fn() =>[
-                $this->deliveryPlatformService->getCategories(DeliveryPlatformOperator::find($deliveryProductMapping->delivery_platform_operator_id))
-            ],
+            'categoryApiOptions' => [],
+            // 'categoryApiOptions' => fn() =>[
+            //     $this->deliveryPlatformService->getCategories(DeliveryPlatformOperator::find($deliveryProductMapping->delivery_platform_operator_id))
+            // ],
             'deliveryProductMapping' => DeliveryProductMappingResource::make(
                 $deliveryProductMapping
             ),

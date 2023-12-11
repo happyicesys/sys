@@ -90,6 +90,8 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     const END_TIME = '23:59';
     const MAX_END_DATETIME = '9999-12-31 23:59:59';
 
+    const PAYMENT_METHOD_GRABMART = 209;
+
     const PAYMENT_TYPE_CASH = 'CASH';
     const PAYMENT_TYPE_CASHLESS = 'CASHLESS';
 

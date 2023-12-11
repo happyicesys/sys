@@ -33,6 +33,22 @@
           >
               To
           </DatePicker>
+          <div>
+            <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              Delivery Platform
+            </label>
+            <MultiSelect
+              v-model="filters.delivery_platform_operator_id"
+              :options="deliveryPlatformOperatorOptions"
+              trackBy="id"
+              valueProp="id"
+              label="name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -163,7 +179,7 @@
                       {{ deliveryPlatformOrder.deliveryProductMappingVend.vend.full_name }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
-                      {{ deliveryPlatformOrder.vend_transaction_order_id  }}
+                        {{ deliveryPlatformOrder.vend_transaction_order_id  }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
                       <ul class="divide-y divide-gray-200">
@@ -195,7 +211,24 @@
                       {{ deliveryPlatformOrder.subtotal_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
-                      {{ deliveryPlatformOrder.driver_phone_number }}
+                      <div class="flex flex-col space-y-1">
+                        <span>
+                          {{ deliveryPlatformOrder.driver_phone_number }}
+                        </span>
+                        <div
+                            class="inline-flex justify-center items-center rounded px-1.5 py-1 text-xs font-medium border min-w-full bg-yellow-400 text-gray-800 hover:cursor-pointer"
+                            v-if="deliveryPlatformOrder.deliveryPlatformOrderComplaint"
+                            @click="onDeliveryPlatformOrderComplaintClicked(deliveryPlatformOrder)"
+                        >
+                            <div class="flex space-x-1">
+                                <ChatBubbleLeftEllipsisIcon class="h-4 w-4" aria-hidden="true"/>
+                                <span class="font-semibold">
+                                  Complaint
+                                </span>
+                            </div>
+
+                        </div>
+                      </div>
                     </TableData>
                   </tr>
                   <tr v-if="!deliveryPlatformOrders.data.length">
@@ -210,6 +243,13 @@
       </div>
     </div>
   </div>
+  <Complaint
+    v-if="showDeliveryPlatformOrderComplaintModal"
+    :model="model"
+    :showModal="showDeliveryPlatformOrderComplaintModal"
+    @modalClose="onDeliveryPlatformOrderComplaintClosed"
+  >
+  </Complaint>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -221,7 +261,8 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import moment from 'moment';
-import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import Complaint from '@/Pages/DeliveryPlatformOrder/Complaint.vue';
+import { BackspaceIcon, ChatBubbleLeftEllipsisIcon, MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -230,6 +271,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   deliveryPlatformOrders: Object,
+  deliveryPlatformOperatorOptions: Object,
 })
 
 const filters = ref({
@@ -238,15 +280,17 @@ const filters = ref({
   vend_code: '',
   date_from: moment().format('YYYY-MM-DD'),
   date_to: moment().format('YYYY-MM-DD'),
+  delivery_platform_operator_id: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
 })
-const showModal = ref(false)
-const deliveryPlatformOrder = ref()
+const deliveryPlatformOperatorOptions = ref([])
+const model = ref()
 const type = ref('')
 const operatorCountry = usePage().props.auth.operatorCountry
 const numberPerPageOptions = ref([])
+const showDeliveryPlatformOrderComplaintModal = ref(false)
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -256,31 +300,28 @@ onMounted(() => {
     { id: 'All', value: 'All' },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
+  deliveryPlatformOperatorOptions.value = [
+    { id: 'all', name: 'All' },
+    ...props.deliveryPlatformOperatorOptions.data.map((data) => {
+    return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
+  ]
+
+  filters.value.delivery_platform_operator_id = deliveryPlatformOperatorOptions.value[0]
 })
 
-function onCreateClicked() {
-  type.value = 'create'
-  deliveryPlatformOrder.value = null
-  showModal.value = true
+function onDeliveryPlatformOrderComplaintClicked(deliveryPlatformOrder) {
+  model.value = deliveryPlatformOrder
+  showDeliveryPlatformOrderComplaintModal.value = true
 }
 
-function onDeleteClicked(deliveryPlatformOrder) {
-  const approval = confirm('Are you sure to delete ' + deliveryPlatformOrder.name + '?');
-  if (!approval) {
-      return;
-  }
-  router.delete('/delivery-product-mappings/' + deliveryPlatformOrder.id)
-}
-
-function onEditClicked(telcoValue) {
-  type.value = 'update'
-  deliveryPlatformOrder.value = telcoValue
-  showModal.value = true
+function onDeliveryPlatformOrderComplaintClosed() {
+  showDeliveryPlatformOrderComplaintModal.value = false
 }
 
 function onSearchFilterUpdated() {
   router.get('/delivery-platform-orders', {
       ...filters.value,
+      delivery_platform_operator_id: filters.value.delivery_platform_operator_id.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,
@@ -322,7 +363,4 @@ function statusClass(status) {
   return statusClass
 }
 
-function onModalClose() {
-  showModal.value = false
-}
 </script>

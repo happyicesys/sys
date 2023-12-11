@@ -577,7 +577,11 @@ onMounted(() => {
     } else {
         typeName.value = 'Edit'
     }
-    categoryApiOptions.value = props.categoryApiOptions[0].categories.map((data) => {return {id: data.id, name: data.name, subCategories: data.subCategories}})
+    // categoryApiOptions.value = props.categoryApiOptions[0].categories.map((data) => {return {id: data.id, name: data.name, subCategories: data.subCategories}})
+    categoryApiOptions.value = {
+      id: props.deliveryProductMapping.data.category_json.id,
+      name: props.deliveryProductMapping.data.category_json.name,
+    }
     deliveryPlatformOperatorOptions.value = [
       ...props.operatorOptions.data.find(x => x.id === props.deliveryProductMapping.data.operator_id).deliveryPlatformOperators.map((data) => {return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
     ]
@@ -604,7 +608,7 @@ onMounted(() => {
       unbindedVendOptions.value = [
         ...props.unbindedVendOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
       ]
-      vends.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.vends : []
+      // vends.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.vends : []
 })
 
 function getDefaultForm() {

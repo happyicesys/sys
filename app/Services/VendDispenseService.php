@@ -21,8 +21,8 @@ class VendDispenseService
       'shipment_info' => [
         [
         'port_type' => 0,
-        'goods_id' => 0,
-        'goods_name' => null,
+        'goods_id' => isset($params['productID']) ? (int)$params['productID'] : 0,
+        'goods_name' => isset($params['productName']) ? $params['productName'] : null,
         'goodroadid' => isset($params['channelCode']) ? (int)$params['channelCode'] : null,
         'num' => 1,
         'uselift' => 0,

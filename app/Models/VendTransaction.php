@@ -26,6 +26,7 @@ class VendTransaction extends Model
         'transaction_datetime' => 'datetime',
         'vend_json' => 'json',
         'vend_transaction_json' => 'json',
+        'vend_transaction_items_json' => 'json',
     ];
 
     protected $fillable = [
@@ -55,6 +56,7 @@ class VendTransaction extends Model
         'vend_id',
         'vend_json',
         'vend_transaction_json',
+        'vend_transaction_items_json',
         'unit_cost',
         'unit_cost_id',
     ];
@@ -123,6 +125,11 @@ class VendTransaction extends Model
     public function vendChannelError()
     {
         return $this->belongsTo(VendChannelError::class);
+    }
+
+    public function vendTransactionItems()
+    {
+        return $this->hasMany(VendTransactionItem::class);
     }
 
     // scopes

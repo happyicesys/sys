@@ -15,14 +15,16 @@ class UpdateVendLastUpdated implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    protected $connectionType;
     protected $vend;
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct(Vend $vend)
+    public function __construct(Vend $vend, $connectionType)
     {
+        $this->connectionType = $connectionType;
         $this->vend = $vend;
     }
 
@@ -33,8 +35,15 @@ class UpdateVendLastUpdated implements ShouldQueue
      */
     public function handle()
     {
-        $this->vend->update([
-            'last_updated_at' => Carbon::now()
-        ]);
+        if($this->connectionType == 'mqtt') {
+            $this->vend->update([
+                'mqtt_last_updated_at' => Carbon::now(),
+                'last_updated_at' => Carbon::now()
+            ]);
+        } else {
+            $this->vend->update([
+                'last_updated_at' => Carbon::now()
+            ]);
+        }
     }
 }

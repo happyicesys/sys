@@ -31,7 +31,7 @@ class MqttService
 
     // compare start time with now in every mqtt loop, if it is more than 30 seconds, interrupt the loop
     $mqtt->registerLoopEventHandler(function ($mqtt, float $elapsedTime) {
-        if (Carbon::now()->diffInSeconds($startTime) >= 10) {
+        if (Carbon::now()->diffInSeconds($startTime) >= 20) {
             $mqtt->interrupt();
         }
     });
