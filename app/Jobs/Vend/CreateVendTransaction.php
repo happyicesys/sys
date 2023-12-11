@@ -91,7 +91,7 @@ class CreateVendTransaction implements ShouldQueue
         SyncUnitCostJson::dispatch($vendTransaction)->onQueue('default');
 
         if($processedInput['vendChannelErrorID']) {
-            SyncVendChannelErrorLog::dispatch($vend, $processedInput['channelCode'], $processedInput['errorCode'], $vendTransaction->id)->onQueue('default');
+            SyncVendChannelErrorLog::dispatch($vend, $processedInput['vendChannelCode'], $processedInput['errorCode'], $vendTransaction->id)->onQueue('default');
         }
     }
 
