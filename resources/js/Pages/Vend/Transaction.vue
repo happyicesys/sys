@@ -325,7 +325,7 @@
                   </thead>
                   <tbody class="bg-white">
                     <template v-for="(vendTransaction, vendTransactionIndex) in vendTransactions.data" :key="vendTransaction.id">
-                      <tr class="divide-x divide-gray-200">
+                      <tr class="divide-x divide-gray-200" :class="vendTransaction.is_multiple ? 'bg-gray-100' : ''">
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransactions.meta.from + vendTransactionIndex }}
                         </TableData>
@@ -350,7 +350,9 @@
                             <span v-else></span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vend_channel_code }}
+                            <span v-if="!vendTransaction.is_multiple">
+                                {{ vendTransaction.vend_channel_code }}
+                            </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.productJson && 'code' in vendTransaction.productJson">
@@ -388,9 +390,9 @@
                             </span>
                         </TableData>
                       </tr>
-                      <tr v-if="vendTransaction.vendTransactionItemsJson" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItemsJson">
-                        <!-- <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center" colspan="5">
-                        </TableData> -->
+                      <tr v-if="vendTransaction.vendTransactionItemsJson" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItemsJson"  class="divide-x divide-gray-200 bg-gray-100">
+                        <!-- <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center" colspan="5"> -->
+                        <!-- </TableData> -->
                         <td colspan="5"></td>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center">
                             {{ vendTransactionItem.vend_channel_code ? vendTransactionItem.vend_channel_code : null }}
