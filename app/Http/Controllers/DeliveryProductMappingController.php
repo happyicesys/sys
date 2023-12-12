@@ -349,9 +349,9 @@ class DeliveryProductMappingController extends Controller
             ]);
         }
 
-        if($deliveryProductMappingItem->is_active) {
+        // if($deliveryProductMappingItem->is_active) {
             $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingItem->deliveryProductMapping->id);
-        }
+        // }
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingItem->delivery_product_mapping_id]);
     }
