@@ -218,6 +218,7 @@ class CreateVendTransaction implements ShouldQueue
             'time' => isset($input['time']) ? $input['time'] : null,
             'unitCostID' => $unitCost ? $unitCost->id : null,
             'vendChannelCode' => $input['vendChannelCode'],
+            'vendChannelError' => $vendChannelError,
             'vendChannelErrorID' => $vendChannelError ? $vendChannelError->id : null,
             'vendChannelID' => $vendChannel ? $vendChannel->id : 0,
         ];

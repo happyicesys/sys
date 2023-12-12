@@ -282,9 +282,9 @@
        <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
-              <table class="min-w-full border-separate" style="border-spacing: 0">
+              <table class="table-auto min-w-full border-separate" style="border-spacing: 0">
                   <thead class="bg-gray-100">
-                      <tr class="divide-x divide-gray-200">
+                      <tr class="divide-y divide-x divide-gray-200 border border-gray-200">
                         <TableHead>
                             #
                         </TableHead>
@@ -390,31 +390,31 @@
                             </span>
                         </TableData>
                       </tr>
-                      <tr v-if="vendTransaction.vendTransactionItemsJson" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItemsJson"  class="divide-x divide-gray-200 bg-gray-100">
+                      <tr v-if="vendTransaction.vendTransactionItemsJson" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItemsJson">
                         <!-- <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center" colspan="5"> -->
                         <!-- </TableData> -->
                         <td colspan="5"></td>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center">
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
                             {{ vendTransactionItem.vend_channel_code ? vendTransactionItem.vend_channel_code : null }}
                         </TableData>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center">
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
                             <span v-if="vendTransactionItem.product_json && 'code' in vendTransactionItem.product_json">
                                 {{ vendTransactionItem.product_json['code'] }}
                             </span>
                             <span v-else></span>
                         </TableData>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-left">
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-left bg-gray-100">
                             <span v-if="vendTransactionItem.product_json && 'name' in vendTransactionItem.product_json">
                                 {{ vendTransactionItem.product_json['name'] }}
                             </span>
                             <span v-else></span>
                         </TableData>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center" colspan="2">
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100" colspan="2">
                         </TableData>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center">
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
                             {{ vendTransactionItem.vendChannelError ? vendTransactionItem.vendChannelError.desc : null }}
                         </TableData>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center">
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
                             <span v-if="vendTransactionItem.is_payment_received">
                                 {{ vendTransactionItem.is_payment_received ? 'Successful' : 'Unsuccessful' }}
                             </span>
