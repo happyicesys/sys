@@ -49,6 +49,22 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              Status
+            </label>
+            <MultiSelect
+              v-model="filters.status"
+              :options="deliveryPlatformOrderStatusOptions"
+              trackBy="id"
+              valueProp="id"
+              label="name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -272,6 +288,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 const props = defineProps({
   deliveryPlatformOrders: Object,
   deliveryPlatformOperatorOptions: Object,
+  deliveryPlatformOrderStatusOptions: Object,
 })
 
 const filters = ref({
@@ -283,6 +300,7 @@ const filters = ref({
   delivery_platform_operator_id: '',
   sortKey: '',
   sortBy: true,
+  status: '',
   numberPerPage: 100,
 })
 const deliveryPlatformOperatorOptions = ref([])
@@ -305,8 +323,8 @@ onMounted(() => {
     ...props.deliveryPlatformOperatorOptions.data.map((data) => {
     return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
   ]
-
   filters.value.delivery_platform_operator_id = deliveryPlatformOperatorOptions.value[0]
+  filters.value.status = props.deliveryPlatformOrderStatusOptions[0]
 })
 
 function onDeliveryPlatformOrderComplaintClicked(deliveryPlatformOrder) {
@@ -322,6 +340,7 @@ function onSearchFilterUpdated() {
   router.get('/delivery-platform-orders', {
       ...filters.value,
       delivery_platform_operator_id: filters.value.delivery_platform_operator_id.id,
+      status: filters.value.status.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

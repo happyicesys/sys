@@ -30,6 +30,7 @@ class DeliveryPlatformOrderController extends Controller
             'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay(),
             'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay(),
             'delivery_platform_operator_id' => $request->delivery_platform_operator_id ? $request->delivery_platform_operator_id : 'all',
+            'status' => $request->status ? $request->status : 'all',
         ]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $sortKey = $request->sortKey ? $request->sortKey : 'order_created_at';
@@ -76,12 +77,29 @@ class DeliveryPlatformOrderController extends Controller
                     ->when($request->date_to, function ($query, $search) {
                         $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
                     })
+                    ->when($request->status, function ($query, $search) {
+                        if($search != 'all') {
+                            $query->where('status', $search);
+                        }
+                    })
                     ->when($sortKey, function($query, $search) use ($sortBy) {
                         $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                     })
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),
+            'deliveryPlatformOrderStatusOptions' => [
+                [
+                    'id' => 'all',
+                    'name' => 'All',
+                ],
+                ...collect(DeliveryPlatformOrder::STATUS_MAPPING)->map(function($status, $index) {
+                    return [
+                        'id' => $index,
+                        'name' => $status,
+                    ];
+                })
+            ],
         ]);
     }
 
