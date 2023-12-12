@@ -719,7 +719,6 @@
                                                 MQTT
                                             </span>
                                             <span v-if="vend.mqtt_last_updated_at">
-                                                <br>
                                                 {{ vend.mqtt_last_updated_at }}
                                             </span>
                                         </div>
