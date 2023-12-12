@@ -37,7 +37,7 @@ class DeliveryProductMapping extends Model
 
     public function deliveryProductMappingItems()
     {
-        return $this->hasMany(DeliveryProductMappingItem::class);
+        return $this->hasMany(DeliveryProductMappingItem::class)->orderBy('channel_code');
     }
 
     public function operator()
