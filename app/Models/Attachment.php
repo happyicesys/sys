@@ -11,6 +11,8 @@ class Attachment extends Model
 
     protected $fillable = [
         'local_url',
+        'modelable_id',
+        'modelable_type',
         'full_url',
         'is_active',
         'type',

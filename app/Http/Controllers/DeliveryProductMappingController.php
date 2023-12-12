@@ -235,11 +235,13 @@ class DeliveryProductMappingController extends Controller
     {
         $deliveryProductMapping = DeliveryProductMapping::query()
             ->with([
+                'deliveryProductMappingItems.product:id,code,name',
                 'deliveryProductMappingItems.product.thumbnail',
                 'deliveryProductMappingItems.deliveryProductMapping.operator.country',
-                'deliveryProductMappingVends.vend:id,code,name,vend_channels_json',
+                'deliveryProductMappingVends.vend:id,code,name',
                 'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name',
                 'deliveryProductMappingVends.deliveryProductMappingVendChannels.vendChannel',
+                'deliveryProductMappingVends.deliveryProductMappingVendChannels.deliveryProductMappingItem.product:id,code,name',
                 'deliveryProductMappingVends.deliveryProductMappingVendChannels.deliveryProductMappingItem.product.thumbnail',
             ])
             ->findOrFail($id);

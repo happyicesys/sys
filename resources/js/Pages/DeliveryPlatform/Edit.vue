@@ -305,7 +305,7 @@
                   </div>
                 </div>
               </div>
-
+<!--
               <div class="sm:col-span-6">
                 <div class="flex space-x-1 mt-5 justify-start">
                   <Button
@@ -323,7 +323,7 @@
                     </span>
                   </Button>
                 </div>
-              </div>
+              </div> -->
 
               <div class="sm:col-span-3" v-if="form.product_mapping_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
