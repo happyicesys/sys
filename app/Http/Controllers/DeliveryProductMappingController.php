@@ -62,7 +62,7 @@ class DeliveryProductMappingController extends Controller
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
                     ->when($request->vend_code, function($query, $search) use ($request) {
-                        $query->whereHas('vends', function($query) use ($request) {
+                        $query->whereHas('deliveryProductMappingVends.vend', function($query) use ($request) {
                             $query->where('code', 'LIKE', "{$request->vend_code}%");
                         });
                     })
