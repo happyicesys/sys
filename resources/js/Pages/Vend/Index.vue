@@ -718,9 +718,9 @@
                                             <span class="font-bold">
                                                 MQTT
                                             </span>
-                                            <span v-if="vend.mqtt_updated_at">
+                                            <span v-if="vend.mqtt_last_updated_at">
                                                 <br>
-                                                {{ vend.mqtt_updated_at }}
+                                                {{ vend.mqtt_last_updated_at }}
                                             </span>
                                         </div>
                                     </div>
