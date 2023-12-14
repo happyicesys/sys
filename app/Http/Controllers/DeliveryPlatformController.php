@@ -216,10 +216,7 @@ class DeliveryPlatformController extends Controller
                 ]);
             }
 
-            return response([
-                'error_code' => 200,
-                'error_message' => 'Order Available',
-            ], 200);
+            return true;
 
         } else {
             abort(response([
