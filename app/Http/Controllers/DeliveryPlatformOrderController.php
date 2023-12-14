@@ -157,24 +157,26 @@ class DeliveryPlatformOrderController extends Controller
 
         return (new FastExcel($this->yieldOneByOne($query->get())))->download('Delivery_Platform_Order_'.Carbon::now()->toDateTimeString().'.xlsx', function ($orderItem) {
             return [
-                'Order Time' => $orderItem->deliveryPlatformOrder->order_created_at->toDateTimeString(),
-                'Platform' => $orderItem->deliveryPlatformOrder->deliveryPlatform->name . ' ('. $orderItem->deliveryPlatformOrder->deliveryPlatformOperator->type .')',
                 'Platform Order ID' => $orderItem->deliveryPlatformOrder->order_id,
                 'Short Order ID' => $orderItem->deliveryPlatformOrder->short_order_id,
+                'Platform' => $orderItem->deliveryPlatformOrder->deliveryPlatform->name . ' ('. $orderItem->deliveryPlatformOrder->deliveryPlatformOperator->type .')',
+                'Order Time' => $orderItem->deliveryPlatformOrder->order_created_at->toDateTimeString(),
                 'Status' => DeliveryPlatformOrder::STATUS_MAPPING[$orderItem->deliveryPlatformOrder->status],
                 'Vend ID' => $orderItem->deliveryPlatformOrder->vend_code,
                 'Customer' => isset($orderItem->deliveryPlatformOrder->vend_json) ?
                                     $orderItem->deliveryPlatformOrder->vend_json['full_name'] :
-                                    $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->customer_code. ' ' . $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->customer_name,
+                                    ($orderItem->deliveryPlatformOrder && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer ? $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->code. ' ' . $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->name : ''),
                 'Sys Order ID' => $orderItem->deliveryPlatformOrder->vend_transaction_order_id,
                 'Channel' => $orderItem->orderItemVendChannels[0]->vend_channel_code,
-                // 'Product Code' => isset($order->product_json) ?
-                //                 $order->product_json['code'] :
-                //                 $order->deliveryProductMappingItem->product->code,
-                // 'Product Name' => isset($order->product_json) ?
-                //                 $order->product_json['name'] :
-                //                 $order->deliveryProductMappingItem->product->name,
-                // 'Qty' => $vendTransaction->amount/ 100,
+                'Product Code' => isset($orderItem->product_json) ?
+                                $orderItem->product_json['code'] :
+                                ($orderItem->product ? $orderItem->product->code : '' ),
+                'Product Name' => isset($orderItem->product_json) ?
+                                $orderItem->product_json['name'] :
+                                ($orderItem->product ? $orderItem->product->name : '' ),
+                'Qty' => $orderItem->qty,
+                'Subtotal' => $orderItem->amount / 100,
+                'Order Grand Total' => $orderItem->deliveryPlatformOrder->subtotal_amount,
                 // 'Sales (before GST)' => $vendTransaction->revenue/ 100,
                 // 'Unit Cost' => $vendTransaction->unit_cost ?
                 //                 $vendTransaction->unit_cost/ 100 :
