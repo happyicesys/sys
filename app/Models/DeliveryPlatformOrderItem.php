@@ -16,8 +16,13 @@ class DeliveryPlatformOrderItem extends Model
         'is_cancelled',
         'is_edited',
         'product_id',
+        'product_json',
         'delivery_product_mapping_item_id',
         'qty'
+    ];
+
+    protected $casts = [
+        'product_json' => 'json'
     ];
 
     protected $with = ['deliveryProductMappingItem.deliveryProductMapping.operator.country'];

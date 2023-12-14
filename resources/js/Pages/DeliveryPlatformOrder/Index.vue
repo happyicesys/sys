@@ -65,6 +65,22 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Has Complaint?
+            </label>
+            <MultiSelect
+              v-model="filters.has_complaint"
+              :options="booleanOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -308,6 +324,7 @@ const props = defineProps({
   deliveryPlatformOrderStatusOptions: Object,
 })
 
+const booleanOptions = ref([])
 const filters = ref({
   order_id: '',
   short_order_id: '',
@@ -315,8 +332,9 @@ const filters = ref({
   date_from: moment().format('YYYY-MM-DD'),
   date_to: moment().format('YYYY-MM-DD'),
   delivery_platform_operator_id: '',
+  has_complaint: 'all',
   sortKey: '',
-  sortBy: true,
+  sortBy: false,
   status: '',
   numberPerPage: 100,
 })
@@ -330,6 +348,11 @@ const permissions = usePage().props.auth.permissions
 const showDeliveryPlatformOrderComplaintModal = ref(false)
 
 onMounted(() => {
+  booleanOptions.value = [
+      {id: 'all', value: 'All'},
+      {id: 'true', value: 'Yes'},
+      {id: 'false', value: 'No'},
+  ]
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },
@@ -343,6 +366,7 @@ onMounted(() => {
     return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
   ]
   filters.value.delivery_platform_operator_id = deliveryPlatformOperatorOptions.value[0]
+  filters.value.has_complaint = booleanOptions.value[0]
   filters.value.status = props.deliveryPlatformOrderStatusOptions[0]
 })
 
@@ -363,6 +387,7 @@ function onExportExcelClicked() {
         params: {
           ...filters.value,
           delivery_platform_operator_id: filters.value.delivery_platform_operator_id.id,
+          has_complaint: filters.value.has_complaint.id,
           status: filters.value.status.id,
         },
         responseType: 'blob',
@@ -380,6 +405,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       delivery_platform_operator_id: filters.value.delivery_platform_operator_id.id,
       status: filters.value.status.id,
+      has_complaint: filters.value.has_complaint.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

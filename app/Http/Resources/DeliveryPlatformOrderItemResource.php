@@ -27,6 +27,7 @@ class DeliveryPlatformOrderItemResource extends JsonResource
             'product_id' => $this->product_id,
             'product' => ProductResource::make($this->whenLoaded('product')),
             'product_mapping_item_id' => $this->product_mapping_item_id,
+            'product_json' => $this->product_json,
             'qty' => $this->qty,
         ];
     }

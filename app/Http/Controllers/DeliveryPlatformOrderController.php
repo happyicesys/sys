@@ -151,6 +151,15 @@ class DeliveryPlatformOrderController extends Controller
                 });
             }
         })
+        ->when($request->has_complaint, function ($query, $search) {
+            if($search != 'all') {
+                if($search == true) {
+                    $query->has('deliveryPlatformOrder.deliveryPlatformOrderComplaint');
+                }else {
+                    $query->doesntHave('deliveryPlatformOrder.deliveryPlatformOrderComplaint');
+                }
+            }
+        })
         ->when($request->sortKey, function($query, $search) use ($request) {
             $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
         });
@@ -177,18 +186,6 @@ class DeliveryPlatformOrderController extends Controller
                 'Qty' => $orderItem->qty,
                 'Subtotal' => $orderItem->amount / 100,
                 'Order Grand Total' => $orderItem->deliveryPlatformOrder->subtotal_amount,
-                // 'Sales (before GST)' => $vendTransaction->revenue/ 100,
-                // 'Unit Cost' => $vendTransaction->unit_cost ?
-                //                 $vendTransaction->unit_cost/ 100 :
-                //                 '',
-                // 'Payment Method' => $vendTransaction->paymentMethod ? $vendTransaction->paymentMethod->name : '',
-                // 'Error Code' => $vendTransaction->vend_transaction_json &&
-                //             isset($vendTransaction->vend_transaction_json['SErr']) ?
-                //             $vendTransaction->vend_transaction_json['SErr'] :
-                //             $vendTransaction->vend_channel_error_code,
-                // 'Location Type' => $vendTransaction->location_type_json ?
-                //                 $vendTransaction->location_type_json['name'] :
-                //                 '',
             ];
         });
     }
@@ -247,6 +244,15 @@ class DeliveryPlatformOrderController extends Controller
         ->when($request->status, function ($query, $search) {
             if($search != 'all') {
                 $query->where('status', $search);
+            }
+        })
+        ->when($request->has_complaint, function ($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->has('deliveryPlatformOrderComplaint');
+                }else {
+                    $query->doesntHave('deliveryPlatformOrderComplaint');
+                }
             }
         })
         ->when($request->sortKey, function($query, $search) use ($request) {

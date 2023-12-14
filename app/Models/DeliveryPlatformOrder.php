@@ -75,6 +75,7 @@ class DeliveryPlatformOrder extends Model
         'subtotal_amount',
         'total_amount',
         'vend_code',
+        'vend_json',
         'vend_transaction_id',
         'vend_transaction_order_id',
     ];
@@ -91,6 +92,7 @@ class DeliveryPlatformOrder extends Model
         'order_json' => 'json',
         'request_history_json' => 'json',
         'response_history_json' => 'json',
+        'vend_json' => 'json',
     ];
 
     // getter and setter
