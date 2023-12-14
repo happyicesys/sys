@@ -172,7 +172,7 @@ class DeliveryPlatformOrderController extends Controller
                 'Order Time' => $orderItem->deliveryPlatformOrder->order_created_at->toDateTimeString(),
                 'Status' => DeliveryPlatformOrder::STATUS_MAPPING[$orderItem->deliveryPlatformOrder->status],
                 'Vend ID' => $orderItem->deliveryPlatformOrder->vend_code,
-                'Customer' => isset($orderItem->deliveryPlatformOrder->vend_json) ?
+                'Customer' => isset($orderItem->deliveryPlatformOrder->vend_json) && isset($orderItem->deliveryPlatformOrder->vend_json['full_name']) ?
                                     $orderItem->deliveryPlatformOrder->vend_json['full_name'] :
                                     ($orderItem->deliveryPlatformOrder && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer ? $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->code. ' ' . $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->name : ''),
                 'Sys Order ID' => $orderItem->deliveryPlatformOrder->vend_transaction_order_id,
