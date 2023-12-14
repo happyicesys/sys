@@ -39,6 +39,7 @@ class VendDBResource extends JsonResource
             'is_active' => isset($this->is_active) && $this->is_active ? true : false,
             'is_door_open' => isset($this->is_door_open) && $this->is_door_open ? 'Yes' : 'No',
             'is_mqtt' => isset($this->is_mqtt) ? $this->is_mqtt : null,
+            'is_mqtt_active' => isset($this->is_mqtt_active) && $this->is_mqtt_active ? true : false,
             'is_mqtt_offline_notified' => isset($this->is_mqtt_offline_notified) && $this->is_mqtt_offline_notified ? true : false,
             'is_online' => isset($this->is_online) ? $this->is_online : null,
             'is_sensor_normal' => isset($this->is_sensor_normal) && $this->is_sensor_normal ? 'Yes' : 'No',
