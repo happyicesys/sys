@@ -157,8 +157,10 @@ class DeliveryPlatformController extends Controller
     }
 
     // search grab order in vm apk
-    public function searchGrabOrder(Request $request)
+    public function searchGrabOrder(Request $request, $dispenseSearch = true)
     {
+        // delivery/order/search/1
+
         $code = $request->Vid;
         $driverPhoneNumber = $request->driver_phone_number;
         $shortOrderID = $request->short_order_id;
@@ -182,6 +184,7 @@ class DeliveryPlatformController extends Controller
                 $query->where('short_order_id', $shortOrderID)
                     ->orWhere('short_order_id', $shortOrderID.'T');
             })
+            ->where('status', '<', 98)
             ->where('vend_code', $code)
             ->first();
 
@@ -197,21 +200,32 @@ class DeliveryPlatformController extends Controller
         ]);
 
         if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
-        // if($deliveryPlatformOrder or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
-            $deliveryPlatformOrder->update([
-                'driver_phone_number' => $driverPhoneNumber,
-                'driver_request_json' => $request->all(),
-                'is_verified' => true,
-                'status' => DeliveryPlatformOrder::STATUS_DISPENSED,
-            ]);
-            DispenseDeliveryPlatformOrder::dispatch($deliveryPlatformOrder);
-            // $this->deliveryPlatformService->dispenseOrder($deliveryPlatformOrder);
-            return true;
+
+            if($dispenseSearch) {
+                $deliveryPlatformOrder->update([
+                    'driver_phone_number' => $driverPhoneNumber,
+                    'driver_request_json' => $request->all(),
+                    'is_verified' => true,
+                    'status' => DeliveryPlatformOrder::STATUS_DISPENSED,
+                ]);
+                DispenseDeliveryPlatformOrder::dispatch($deliveryPlatformOrder);
+            }else {
+                $deliveryPlatformOrder->update([
+                    'driver_phone_number' => $driverPhoneNumber,
+                    'driver_request_json' => $request->all(),
+                ]);
+            }
+
+            return response([
+                'error_code' => 200,
+                'error_message' => 'Order Available',
+            ], 200);
+
         } else {
             abort(response([
-                'error_code' => 404,
+                'error_code' => 405,
                 'error_message' => 'Order has been redeemed',
-            ], 404));
+            ], 405));
         }
     }
 
