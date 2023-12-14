@@ -31,7 +31,7 @@ class VendTransactionResource extends JsonResource
             'paymentMethod' => PaymentMethodResource::make($this->paymentMethod),
             'product' => ProductResource::make($this->product),
             'productJson' => $this->product_json,
-            'transaction_datetime' => $this->transaction_datetime ? Carbon::parse($this->transaction_datetime)->setTimezone($this->getUserTimezone())->format('ymd h:i a') : null,
+            'transaction_datetime' => $this->transaction_datetime ? Carbon::parse($this->transaction_datetime)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null,
             // 'grossProfit' => $this->when($this->relationLoaded('product'), function(){
             //     number_format($this->getGrossProfit()/ 100, 2, '.', ',');
             // }),

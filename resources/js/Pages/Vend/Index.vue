@@ -222,6 +222,38 @@
                 <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
                     Avg/Day Sales (30 Days) &lt;&lt;
                 </SearchInput>
+                <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                        Is MQTT?
+                    </label>
+                    <MultiSelect
+                        v-model="filters.is_mqtt"
+                        :options="booleanOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="value"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                </div>
+                <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                        Is MQTT Active?
+                    </label>
+                    <MultiSelect
+                        v-model="filters.is_mqtt_active"
+                        :options="booleanOptions"
+                        trackBy="id"
+                        valueProp="id"
+                        label="value"
+                        placeholder="Select"
+                        open-direction="bottom"
+                        class="mt-1"
+                    >
+                    </MultiSelect>
+                </div>
             </div>
 
             <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -711,7 +743,8 @@
                                         </div>
                                     </div>
                                     <div
-                                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-green-200"
+                                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                        :class="[vend.is_mqtt_active ? 'bg-green-200' : 'bg-gray-200']"
                                         v-if="vend.is_mqtt"
                                     >
                                         <div class="flex flex-col">
@@ -919,6 +952,8 @@
     tempDeltaHigherThan: '',
     vend_channel_error_id: '',
     lastVisitedGreaterThan: '',
+    is_mqtt: '',
+    is_mqtt_active: '',
     is_online: '',
     is_sensor: '',
     is_door_open: '',
@@ -1009,6 +1044,8 @@
 
     filters.value.is_active = booleanOptions.value[1]
     filters.value.is_door_open = doorOptions.value[0]
+    filters.value.is_mqtt = booleanOptions.value[0]
+    filters.value.is_mqtt_active = booleanOptions.value[0]
     filters.value.is_online = booleanOptions.value[0]
     filters.value.is_sensor = enableOptions.value[0]
     // console.log(initBinded, roles[0])
@@ -1077,6 +1114,8 @@
             is_active: filters.value.is_active.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_door_open: filters.value.is_door_open.id,
+            is_mqtt: filters.value.is_mqtt.id,
+            is_mqtt_active: filters.value.is_mqtt_active.id,
             is_online: filters.value.is_online.id,
             is_sensor: filters.value.is_sensor.id,
             numberPerPage: filters.value.numberPerPage.id,
@@ -1133,6 +1172,8 @@ function onExportChannelExcelClicked() {
             is_active: filters.value.is_active.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_door_open: filters.value.is_door_open.id,
+            is_mqtt: filters.value.is_mqtt.id,
+            is_mqtt_active: filters.value.is_mqtt_active.id,
             is_online: filters.value.is_online.id,
             is_sensor: filters.value.is_sensor.id,
         },

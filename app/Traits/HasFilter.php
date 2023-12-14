@@ -173,6 +173,16 @@ trait HasFilter {
             $query->where('vends.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
         }
     })
+    ->when($request->is_mqtt, function($query, $search) {
+        if($search != 'all') {
+            $query->where('vends.is_mqtt', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+        }
+    })
+    ->when($request->is_mqtt_active, function($query, $search) {
+        if($search != 'all') {
+            $query->where('vends.is_mqtt', true)->where('vends.is_mqtt_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+        }
+    })
       ->when($isDoorOpen, function($query, $search) {
           if($search != 'all') {
               $query->where('parameter_json->door', '=', $search);

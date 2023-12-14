@@ -6,11 +6,13 @@ use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\DeliveryPlatformOrderResource;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryPlatformOrder;
+use App\Models\DeliveryPlatformOrderItem;
 use App\Services\DeliveryPlatformService;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Rap2hpoutre\FastExcel\FastExcel;
 
 class DeliveryPlatformOrderController extends Controller
 {
@@ -30,62 +32,21 @@ class DeliveryPlatformOrderController extends Controller
             'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay(),
             'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay(),
             'delivery_platform_operator_id' => $request->delivery_platform_operator_id ? $request->delivery_platform_operator_id : 'all',
+            'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : '100',
             'status' => $request->status ? $request->status : 'all',
+            'sortBy' => $request->sortBy ? $request->sortBy : false,
+            'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
         ]);
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
-        $sortKey = $request->sortKey ? $request->sortKey : 'order_created_at';
-        $sortBy = $request->sortBy ? $request->sortBy : false;
+
+        $query = $this->getDeliveryPlatformOrderQuery($request);
 
         return Inertia::render('DeliveryPlatformOrder/Index', [
             'deliveryPlatformOperatorOptions' => DeliveryPlatformOperatorResource::collection(
                 DeliveryPlatformOperator::with('deliveryPlatform')->get()
             ),
             'deliveryPlatformOrders' => DeliveryPlatformOrderResource::collection(
-                DeliveryPlatformOrder::query()
-                    ->with([
-                        'deliveryPlatform:id,name,country_id,slug',
-                        'deliveryPlatformOrderItems',
-                        'deliveryProductMappingVend.deliveryProductMapping:id,name',
-                        'deliveryProductMappingVend.vend:id,code,name',
-                        'deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
-                        'deliveryPlatformOperator',
-                        'deliveryPlatformOrderComplaint',
-                        'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',
-                        'deliveryPlatformOrderItems.deliveryProductMappingItem.product.thumbnail',
-                        'deliveryPlatformOrderItems.orderItemVendChannels',
-
-                    ])
-                    ->when($request->delivery_platform_operator_id, function($query, $search) {
-                        if($search != 'all') {
-                            $query->where('delivery_platform_operator_id', $search);
-                        }
-                    })
-                    ->when($request->order_id, function($query, $search) {
-                        $query->where('order_id', 'LIKE', "%{$search}%");
-                    })
-                    ->when($request->short_order_id, function($query, $search) {
-                        $query->where('short_order_id', 'LIKE', "%{$search}%");
-                    })
-                    ->when($request->vend_code, function($query, $search) use ($request) {
-                        $query->whereHas('deliveryProductMappingVend.vend', function($query) use ($request) {
-                            $query->where('code', 'LIKE', "{$request->vend_code}%");
-                        });
-                    })
-                    ->when($request->date_from, function ($query, $search) {
-                        $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
-                    })
-                    ->when($request->date_to, function ($query, $search) {
-                        $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
-                    })
-                    ->when($request->status, function ($query, $search) {
-                        if($search != 'all') {
-                            $query->where('status', $search);
-                        }
-                    })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-                    })
-                    ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                    $query
+                    ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
             ),
             'deliveryPlatformOrderStatusOptions' => [
@@ -127,6 +88,109 @@ class DeliveryPlatformOrderController extends Controller
         ]);
     }
 
+    public function exportExcel(Request $request)
+    {
+        $request->merge([
+            'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay(),
+            'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay(),
+            'delivery_platform_operator_id' => $request->delivery_platform_operator_id ? $request->delivery_platform_operator_id : 'all',
+            'status' => $request->status ? $request->status : 'all',
+            'sortBy' => $request->sortBy ? $request->sortBy : false,
+            'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
+        ]);
+
+        $query = DeliveryPlatformOrderItem::query()
+        ->with([
+            'deliveryPlatformOrder.deliveryPlatform:id,name,country_id,slug',
+            'deliveryProductMappingItem.deliveryProductMapping:id,name',
+            'deliveryPlatformOrder.deliveryProductMappingVend.vend:id,code,name',
+            'deliveryPlatformOrder.deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
+            'deliveryPlatformOrder.deliveryPlatformOperator',
+            'deliveryPlatformOrder.deliveryPlatformOrderComplaint',
+            'deliveryProductMappingItem.product:id,code,name,is_active',
+            'deliveryProductMappingItem.product.thumbnail',
+            'orderItemVendChannels',
+
+        ])
+        ->when($request->delivery_platform_operator_id, function($query, $search) {
+            if($search != 'all') {
+                $query->whereHas('deliveryPlatformOrder', function($query) use ($search) {
+                    $query->where('delivery_platform_operator_id', $search);
+                });
+            }
+        })
+        ->when($request->order_id, function($query, $search) {
+            $query->whereHas('deliveryPlatformOrder', function($query) use ($search) {
+                $query->where('order_id', 'LIKE', "%{$search}%");
+            });
+        })
+        ->when($request->short_order_id, function($query, $search) {
+            $query->whereHas('deliveryPlatformOrder', function($query) use ($search) {
+                $query->where('short_order_id', 'LIKE', "%{$search}%");
+            });
+        })
+        ->when($request->vend_code, function($query, $search) use ($request) {
+            $query->whereHas('deliveryPlatformOrder.deliveryProductMappingVend.vend', function($query) use ($request) {
+                $query->where('code', 'LIKE', "{$request->vend_code}%");
+            });
+        })
+        ->when($request->date_from, function ($query, $search) {
+            $query->whereHas('deliveryPlatformOrder', function($query) use ($search) {
+                $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
+            });
+        })
+        ->when($request->date_to, function ($query, $search) {
+            $query->whereHas('deliveryPlatformOrder', function($query) use ($search) {
+                $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
+            });
+        })
+        ->when($request->status, function ($query, $search) {
+            if($search != 'all') {
+                $query->whereHas('deliveryPlatformOrder', function($query) use ($search) {
+                    $query->where('status', $search);
+                });
+            }
+        })
+        ->when($request->sortKey, function($query, $search) use ($request) {
+            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+        });
+
+        return (new FastExcel($this->yieldOneByOne($query->get())))->download('Delivery_Platform_Order_'.Carbon::now()->toDateTimeString().'.xlsx', function ($orderItem) {
+            return [
+                'Order Time' => $orderItem->deliveryPlatformOrder->order_created_at->toDateTimeString(),
+                'Platform' => $orderItem->deliveryPlatformOrder->deliveryPlatform->name . ' ('. $orderItem->deliveryPlatformOrder->deliveryPlatformOperator->type .')',
+                'Platform Order ID' => $orderItem->deliveryPlatformOrder->order_id,
+                'Short Order ID' => $orderItem->deliveryPlatformOrder->short_order_id,
+                'Status' => DeliveryPlatformOrder::STATUS_MAPPING[$orderItem->deliveryPlatformOrder->status],
+                'Vend ID' => $orderItem->deliveryPlatformOrder->vend_code,
+                'Customer' => isset($orderItem->deliveryPlatformOrder->vend_json) ?
+                                    $orderItem->deliveryPlatformOrder->vend_json['full_name'] :
+                                    $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->customer_code. ' ' . $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->customer_name,
+                'Sys Order ID' => $orderItem->deliveryPlatformOrder->vend_transaction_order_id,
+                'Channel' => $orderItem->orderItemVendChannels[0]->vend_channel_code,
+                // 'Product Code' => isset($order->product_json) ?
+                //                 $order->product_json['code'] :
+                //                 $order->deliveryProductMappingItem->product->code,
+                // 'Product Name' => isset($order->product_json) ?
+                //                 $order->product_json['name'] :
+                //                 $order->deliveryProductMappingItem->product->name,
+                // 'Qty' => $vendTransaction->amount/ 100,
+                // 'Sales (before GST)' => $vendTransaction->revenue/ 100,
+                // 'Unit Cost' => $vendTransaction->unit_cost ?
+                //                 $vendTransaction->unit_cost/ 100 :
+                //                 '',
+                // 'Payment Method' => $vendTransaction->paymentMethod ? $vendTransaction->paymentMethod->name : '',
+                // 'Error Code' => $vendTransaction->vend_transaction_json &&
+                //             isset($vendTransaction->vend_transaction_json['SErr']) ?
+                //             $vendTransaction->vend_transaction_json['SErr'] :
+                //             $vendTransaction->vend_channel_error_code,
+                // 'Location Type' => $vendTransaction->location_type_json ?
+                //                 $vendTransaction->location_type_json['name'] :
+                //                 '',
+            ];
+        });
+    }
+
     public function requestCancelOrder($id)
     {
         $deliveryPlatformOrder = DeliveryPlatformOrder::findOrFail($id);
@@ -137,6 +201,60 @@ class DeliveryPlatformOrderController extends Controller
             return redirect()->back()->with('success', 'Order cancelled');
         }else {
             return redirect()->back()->with('error', 'Order cancel not successful');
+        }
+    }
+
+    private function getDeliveryPlatformOrderQuery($request)
+    {
+        return DeliveryPlatformOrder::query()
+        ->with([
+            'deliveryPlatform:id,name,country_id,slug',
+            'deliveryPlatformOrderItems',
+            'deliveryProductMappingVend.deliveryProductMapping:id,name',
+            'deliveryProductMappingVend.vend:id,code,name',
+            'deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
+            'deliveryPlatformOperator',
+            'deliveryPlatformOrderComplaint',
+            'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',
+            'deliveryPlatformOrderItems.deliveryProductMappingItem.product.thumbnail',
+            'deliveryPlatformOrderItems.orderItemVendChannels',
+
+        ])
+        ->when($request->delivery_platform_operator_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('delivery_platform_operator_id', $search);
+            }
+        })
+        ->when($request->order_id, function($query, $search) {
+            $query->where('order_id', 'LIKE', "%{$search}%");
+        })
+        ->when($request->short_order_id, function($query, $search) {
+            $query->where('short_order_id', 'LIKE', "%{$search}%");
+        })
+        ->when($request->vend_code, function($query, $search) use ($request) {
+            $query->whereHas('deliveryProductMappingVend.vend', function($query) use ($request) {
+                $query->where('code', 'LIKE', "{$request->vend_code}%");
+            });
+        })
+        ->when($request->date_from, function ($query, $search) {
+            $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
+        })
+        ->when($request->date_to, function ($query, $search) {
+            $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
+        })
+        ->when($request->status, function ($query, $search) {
+            if($search != 'all') {
+                $query->where('status', $search);
+            }
+        })
+        ->when($request->sortKey, function($query, $search) use ($request) {
+            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+        });
+    }
+
+    private function yieldOneByOne($items) {
+        foreach($items as $item) {
+            yield $item;
         }
     }
 }

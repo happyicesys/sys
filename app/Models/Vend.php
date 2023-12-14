@@ -55,6 +55,7 @@ class Vend extends Model
         'is_customer',
         'is_door_open',
         'is_mqtt',
+        'is_mqtt_active',
         'is_mqtt_offline_notified',
         'is_offline_notification_sent',
         'is_online',

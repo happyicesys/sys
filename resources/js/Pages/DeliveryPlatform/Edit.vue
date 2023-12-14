@@ -427,7 +427,7 @@
                                         #{{channel.vend_channel_code}},
                                       </span>
                                       <span>
-                                        {{ channel.delivery_product_mapping_item.product ? channel.delivery_product_mapping_item.product.code : '' }}
+                                        {{ channel.delivery_product_mapping_item && channel.delivery_product_mapping_item.product ? channel.delivery_product_mapping_item.product.code : '' }}
                                       </span>
                                       <span
                                         class="inline-flex items-center rounded-md px-1.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10"

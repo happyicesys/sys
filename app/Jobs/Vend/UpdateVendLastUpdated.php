@@ -37,6 +37,8 @@ class UpdateVendLastUpdated implements ShouldQueue
     {
         if($this->connectionType == 'mqtt') {
             $this->vend->update([
+                'is_mqtt' => true,
+                'is_mqtt_active' => true,
                 'mqtt_last_updated_at' => Carbon::now(),
                 'last_updated_at' => Carbon::now()
             ]);

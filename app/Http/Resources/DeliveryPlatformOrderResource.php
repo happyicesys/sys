@@ -37,7 +37,7 @@ class DeliveryPlatformOrderResource extends JsonResource
             'is_cancelled' => $this->is_cancelled,
             'is_edited' => $this->is_edited,
             'order_completed_at' => $this->order_completed_at,
-            'order_created_at' => $this->order_created_at ?  Carbon::parse($this->order_created_at)->setTimezone($this->getUserTimezone())->toDatetimeString() : null,
+            'order_created_at' => $this->order_created_at ?  Carbon::parse($this->order_created_at)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null,
             'ref_id' => $this->ref_id,
             'order_id' => $this->order_id,
             'order_json' => $this->order_json,

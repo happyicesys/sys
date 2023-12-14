@@ -393,7 +393,7 @@
                       <tr v-if="vendTransaction.vendTransactionItemsJson" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItemsJson">
                         <!-- <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center" colspan="5"> -->
                         <!-- </TableData> -->
-                        <td colspan="5"></td>
+                        <td v-if="vendTransactionItemIndex == 0" class="border-b border-gray-200" colspan="5" :rowspan="vendTransaction.vendTransactionItemsJson.length"></td>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
                             {{ vendTransactionItem.vend_channel_code ? vendTransactionItem.vend_channel_code : null }}
                         </TableData>

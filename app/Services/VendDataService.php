@@ -221,7 +221,7 @@ class VendDataService
             break;
           case 'PWRON':
             UpdateApkVersion::dispatch($processedInput, $vend)->onQueue('default');
-            SyncIsMqttVend::dispatch($vend)->onQueue('default');
+            // SyncIsMqttVend::dispatch($vend)->onQueue('default');
             break;
           case 'REFILL':
             break;
