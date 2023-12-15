@@ -210,14 +210,14 @@ class DeliveryPlatformController extends Controller
                     'status' => DeliveryPlatformOrder::STATUS_DISPENSED,
                 ]);
                 DispenseDeliveryPlatformOrder::dispatch($deliveryPlatformOrder);
+                return true;
             }else {
                 $deliveryPlatformOrder->update([
                     'driver_phone_number' => $driverPhoneNumber,
                     'driver_request_json' => $request->all(),
                 ]);
+                return $deliveryPlatformOrder->response_history_json;
             }
-
-            return $deliveryPlatformOrder->response_history_json;
 
         } else {
             abort(response([
