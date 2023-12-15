@@ -186,6 +186,7 @@ class DeliveryPlatformController extends Controller
             })
             ->where('status', '<', 98)
             ->where('vend_code', $code)
+            ->orderby('created_at', 'desc')
             ->first();
 
         if(!$deliveryPlatformOrder) {
@@ -216,7 +217,7 @@ class DeliveryPlatformController extends Controller
                 ]);
             }
 
-            return true;
+            return $deliveryPlatformOrder->response_history_json;
 
         } else {
             abort(response([
