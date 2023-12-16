@@ -96,12 +96,12 @@ class DeliveryPlatformOrder extends Model
     ];
 
     // getter and setter
-    protected function subtotalAmount(): Attribute
-    {
-        return Attribute::make(
-            get: fn (string $value) => $value/ ($this->deliveryProductMappingVend->deliveryProductMappin && $this->deliveryProductMappingVend->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100),
-        );
-    }
+    // protected function subtotalAmount(): Attribute
+    // {
+    //     return Attribute::make(
+    //         get: fn (string $value) => $value/ ($this->deliveryProductMappingVend->deliveryProductMappin && $this->deliveryProductMappingVend->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100),
+    //     );
+    // }
 
     // relationships
     public function deliveryPlatform()
