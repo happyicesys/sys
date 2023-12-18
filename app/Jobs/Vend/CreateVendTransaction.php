@@ -58,12 +58,12 @@ class CreateVendTransaction implements ShouldQueue
         $processedInput = $this->processMapping($this->processInput($input));
 
         // check duplicated orderid
-        // $duplicatedVendTransaction = VendTransaction::where('order_id', $processedInput['orderId'])->where('vend_id', $vend->id)->first();
+        $duplicatedVendTransaction = VendTransaction::where('order_id', $processedInput['orderID'])->where('vend_id', $vend->id)->first();
 
         // exit once found duplicated order id
-        // if($duplicatedVendTransaction) {
-        //     return;
-        // }
+        if($duplicatedVendTransaction) {
+            return;
+        }
 
         $vendTransaction = $this->createVendTransaction($processedInput);
 
@@ -229,7 +229,7 @@ class CreateVendTransaction implements ShouldQueue
         $data = [];
 
         $data['originalJson'] = $input;
-        $data['amount'] = isset($input['Price']) ? $input['Price'] : 0;
+        $data['amount'] = isset($input['Price']) ? (isset($input['transf_info']) ? ($input['Price'] * 100) : $input['Price']) : 0;
         $data['orderID'] = isset($input['ORDRID']) ? $input['ORDRID'] : null;
         $data['paymentMethodCode'] = isset($input['PAY_TYPE']) ? $input['PAY_TYPE'] : null;
         $data['time'] = isset($input['TIME']) ? $input['TIME'] : Carbon::now()->toDateTimeString();
