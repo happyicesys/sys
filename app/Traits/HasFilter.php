@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Traits;
+use App\Models\VendTemp;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Facades\Http;
