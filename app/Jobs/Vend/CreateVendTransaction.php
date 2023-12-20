@@ -64,6 +64,7 @@ class CreateVendTransaction implements ShouldQueue
         if($duplicatedVendTransaction) {
             return;
         }
+        // dd($processedInput);
 
         $vendTransaction = $this->createVendTransaction($processedInput);
 

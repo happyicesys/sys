@@ -35,8 +35,8 @@ class MqttService
             $mqtt->interrupt();
         }
     });
-    $mqtt->loop(true);
-    $mqtt->disconnect();
+    $mqtt->loop();
+    // $mqtt->disconnect();
   }
 
   public function subscribe()

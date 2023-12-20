@@ -398,14 +398,14 @@
                             {{ vendTransactionItem.vend_channel_code ? vendTransactionItem.vend_channel_code : null }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
-                            <span v-if="vendTransactionItem.product_json && 'code' in vendTransactionItem.product_json">
-                                {{ vendTransactionItem.product_json['code'] }}
+                            <span v-if="vendTransactionItem.product">
+                                {{ vendTransactionItem.product['code'] }}
                             </span>
                             <span v-else></span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-left bg-gray-100">
-                            <span v-if="vendTransactionItem.product_json && 'name' in vendTransactionItem.product_json">
-                                {{ vendTransactionItem.product_json['name'] }}
+                            <span v-if="vendTransactionItem.product">
+                                {{ vendTransactionItem.product['name'] }}
                             </span>
                             <span v-else></span>
                         </TableData>
