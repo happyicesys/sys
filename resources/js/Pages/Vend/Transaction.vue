@@ -412,15 +412,15 @@
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100" colspan="2">
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
-                            {{ vendTransactionItem.vendChannelError ? vendTransactionItem.vendChannelError.desc : null }}
+                            {{ vendTransactionItem.vend_channel_error ? vendTransactionItem.vend_channel_error.desc : null }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
-                            <span v-if="vendTransactionItem.is_payment_received">
-                                {{ vendTransactionItem.is_payment_received ? 'Successful' : 'Unsuccessful' }}
+                            <!-- <span v-if="!vendTransactionItem.vend_channel_error || (vendTransactionItem.vend_channel_error && vendTransactionItem.vend_channel_error.code == 0) || (vendTransactionItem.vend_channel_error && vendTransactionItem.vend_channel_error.code == 6)">
+                                Successful
                             </span>
                             <span v-else>
-                                {{ vendTransactionItem.vendTransactionJson ? (vendTransactionItem.vendTransactionJson['SErr'] == 0 || vendTransactionItem.vendTransactionJson['SErr'] == 6 ? 'Successful' : "Unsuccessful") : '' }}
-                            </span>
+                                Unsuccessful
+                            </span> -->
                         </TableData>
                       </tr>
                       <tr v-if="!vendTransactions.data.length">

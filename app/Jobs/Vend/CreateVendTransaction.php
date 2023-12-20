@@ -19,6 +19,7 @@ use App\Jobs\Vend\SyncUnitCostJson;
 use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use Carbon\Carbon;
+use DB;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -64,8 +65,8 @@ class CreateVendTransaction implements ShouldQueue
         if($duplicatedVendTransaction) {
             return;
         }
-        // dd($processedInput);
 
+        DB::beginTransaction();
         $vendTransaction = $this->createVendTransaction($processedInput);
 
         if($processedInput['isMultiple']) {
@@ -83,6 +84,7 @@ class CreateVendTransaction implements ShouldQueue
                 'vend_transaction_id' => $vendTransaction->id,
             ]);
         }
+        DB::commit();
 
         if(!$processedInput['isSuccessful']) {
             HandleFailedVendTransaction::dispatch($vendTransaction)->onQueue('default');
