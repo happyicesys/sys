@@ -15,6 +15,8 @@ class DispenseDeliveryPlatformOrder implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $tries = 1;
+
     protected $deliveryPlatformOrder;
     protected $deliveryPlatformService;
     /**
