@@ -214,10 +214,10 @@ class DeliveryPlatformService
       case 'grab':
         $deliveryPlatformOrder->update([
           'status' => DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']],
-          'status_json' => array_merge_recursive($deliveryPlatformOrder->status_json, [
+          'status_json' => $deliveryPlatformOrder->status_json + [
             'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']]],
             'datetime' => Carbon::now()->toDateTimeString(),
-          ]),
+          ],
           'request_history_json' => $deliveryPlatformOrder->request_history_json ? array_merge($deliveryPlatformOrder->request_history_json, $input) : $input,
           'driver_eta_seconds' => isset($input['driverETA']) ? $input['driverETA'] : null,
           'driver_eta_updated_at' => isset($input['driverETA']) ? Carbon::now() : null,
