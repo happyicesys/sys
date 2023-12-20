@@ -72,6 +72,7 @@ class DeliveryPlatformOrder extends Model
         'response_history_json',
         'short_order_id',
         'status',
+        'status_json',
         'subtotal_amount',
         'total_amount',
         'vend_code',
@@ -92,6 +93,7 @@ class DeliveryPlatformOrder extends Model
         'order_json' => 'json',
         'request_history_json' => 'json',
         'response_history_json' => 'json',
+        'status_json' => 'json',
         'vend_json' => 'json',
     ];
 

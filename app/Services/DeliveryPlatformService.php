@@ -214,6 +214,10 @@ class DeliveryPlatformService
       case 'grab':
         $deliveryPlatformOrder->update([
           'status' => DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']],
+          'status_json' => array_merge($deliveryPlatformOrder->status_json, [
+            'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']]],
+            'datetime' => Carbon::now()->toDateTimeString(),
+          ]),
           'request_history_json' => $deliveryPlatformOrder->request_history_json ? array_merge($deliveryPlatformOrder->request_history_json, $input) : $input,
           'driver_eta_seconds' => isset($input['driverETA']) ? $input['driverETA'] : null,
           'driver_eta_updated_at' => isset($input['driverETA']) ? Carbon::now() : null,
@@ -750,6 +754,10 @@ class DeliveryPlatformService
       'order_created_at' => isset($params['orderTime']) ? Carbon::parse($params['orderTime'], 'UTC')->setTimezone($this->getUserTimezone()) : null,
       'request_history_json' => $params,
       'status' => isset($params['orderState']) ? DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$params['orderState']] : DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_PENDING],
+      'status_json' => [
+        'status' => isset($params['orderState']) ? DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$params['orderState']]] : DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_PENDING]],
+        'datetime' => Carbon::now()->toDateTimeString(),
+      ],
       'currency' => isset($params['currency']) ? $params['currency'] : null,
       'featureFlags' => isset($params['featureFlags']) ? $params['featureFlags'] : null,
       'items' => isset($params['items']) ? $params['items'] : null,
