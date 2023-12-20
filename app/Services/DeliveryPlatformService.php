@@ -214,7 +214,7 @@ class DeliveryPlatformService
       case 'grab':
         $deliveryPlatformOrder->update([
           'status' => DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']],
-          'status_json' => array_merge(json_decode($deliveryPlatformOrder->status_json, true), [
+          'status_json' => array_merge($deliveryPlatformOrder->status_json, [
             'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']]],
             'datetime' => Carbon::now()->toDateTimeString(),
           ]),
