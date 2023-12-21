@@ -29,7 +29,7 @@
                   <input
                     type="text"
                     class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                    :value="form.operator_field"
+                    :value="props.deliveryProductMapping.data.operator.full_name"
                     disabled
                   />
                 </div>
@@ -42,7 +42,7 @@
                   <input
                     type="text"
                     class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                    :value="form.delivery_platform_operator_field"
+                    :value="props.deliveryProductMapping.data.deliveryPlatformOperator.deliveryPlatform.name  + ' (' + props.deliveryProductMapping.data.deliveryPlatformOperator.type + ')'"
                     disabled
                   />
                 </div>
@@ -55,7 +55,7 @@
                   <input
                     type="text"
                     class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                    :value="form.category_json.name"
+                    :value="props.deliveryProductMapping.data.category_json.id + ' - ' + props.deliveryProductMapping.data.category_json.name"
                     disabled
                   />
                 </div>
@@ -68,7 +68,7 @@
                   <input
                     type="text"
                     class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                    :value="form.product_mapping_field"
+                    :value="props.deliveryProductMapping.data.productMapping.name"
                     disabled
                   />
                 </div>
@@ -103,7 +103,6 @@
                 <Button
                   type="submit"
                   class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
-                  v-if="permissions.includes('update vends')"
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
@@ -251,7 +250,7 @@
                             </span>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ deliveryProductMappingItem.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            {{ deliveryProductMappingItem.amount.toLocaleString(undefined, {minimumFractionDigits: (props.deliveryProductMapping.data.operator.country.is_currency_exponent_hidden ? 0 : props.deliveryProductMapping.data.operator.country.currency_exponent), maximumFractionDigits: (props.deliveryProductMapping.data.operator.country.is_currency_exponent_hidden ? 0 : props.deliveryProductMapping.data.operator.country.currency_exponent)}) }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ deliveryProductMappingItem.sub_category_json.name }}
@@ -422,18 +421,12 @@
                                       class="quick-look"
                                       :class="[channelIndex > 0 && (String(channel['vend_channel_code'])[0] !== String(deliveryProductMappingVend.deliveryProductMappingVendChannels[channelIndex - 1]['vend_channel_code'])[0]) ? 'col-start-1' : '']"
                                   >
-                                  <span :class="[channelIndex > 0 && (String(channel['vend_channel_code'])[0] !== String(deliveryProductMappingVend.deliveryProductMappingVendChannels[channelIndex - 1]['vend_channel_code'])[0]) ? 'border-t-4 pt-1' : '']" class="flex space-x-1">
+                                  <span :class="[channelIndex > 0 && (String(channel['vend_channel_code'])[0] !== String(deliveryProductMappingVend.deliveryProductMappingVendChannels[channelIndex - 1]['vend_channel_code'])[0]) ? 'border-t-4 pt-1' : '']" class="flex space-x-2">
                                       <span>
-                                        #{{channel.vend_channel_code}},
+                                        #{{channel.vend_channel_code}}
                                       </span>
-                                      <span>
-                                        {{ channel.delivery_product_mapping_item && channel.delivery_product_mapping_item.product ? channel.delivery_product_mapping_item.product.code : '' }}
-                                      </span>
-                                      <span
-                                        class="inline-flex items-center rounded-md px-1.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10"
-                                        :class="[channel.is_active == 1 ? 'bg-green-500' : 'bg-red-500']"
-                                      >
-                                      </span>
+                                      <CheckCircleIcon v-if="channel.is_active == 1" class="w-4 h-4 fill-green-500"></CheckCircleIcon>
+                                      <PauseCircleIcon v-else class="w-4 h-4 fill-red-500"></PauseCircleIcon>
                                   </span>
                                   </li>
                               </ul>
@@ -485,6 +478,7 @@
   <ChannelOverview
     v-if="showChannelOverviewModal"
     :vend="vend"
+    :deliveryProductMapping="props.deliveryProductMapping.data"
     :showModal="showChannelOverviewModal"
     @modalClose="onChannelOverviewClosed"
   >
@@ -540,35 +534,25 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
 
 const props = defineProps({
-    categoryApiOptions: [Array, Object],
     deliveryProductMapping: Object,
-    operatorOptions: Object,
     productMappingItems: Object,
-    productMappingOptions: [Array, Object],
     productOptions: Object,
     type: String,
     unbindedVendOptions: [Array, Object],
   })
 
-  const categoryApiOptions = ref([])
-  const deliveryPlatformOperatorOptions = ref([])
   const deliveryProductMapping = ref([])
-  const deliveryProductMappingItems = ref([])
   const form = ref(
     useForm(getDefaultForm())
   )
   const loading = ref(false)
-  const operatorCountry = usePage().props.auth.operatorCountry
-  const operatorOptions = ref([])
-  const productMappingOptions = ref([])
   const productMappingItems = ref([])
   const productOptions = ref([])
   const showChannelOverviewModal = ref(false)
   const subCategoryOptions = ref([])
   const typeName = ref('')
-  const permissions = usePage().props.auth.permissions
+  // const permissions = usePage().props.auth.permissions
   const vend = ref()
-  const vends = ref([])
   const unbindedVendOptions = ref([])
 
 onMounted(() => {
@@ -577,38 +561,16 @@ onMounted(() => {
     } else {
         typeName.value = 'Edit'
     }
-    // categoryApiOptions.value = props.categoryApiOptions[0].categories.map((data) => {return {id: data.id, name: data.name, subCategories: data.subCategories}})
-    categoryApiOptions.value = {
-      id: props.deliveryProductMapping.data.category_json.id,
-      name: props.deliveryProductMapping.data.category_json.name,
-    }
-    deliveryPlatformOperatorOptions.value = [
-      ...props.operatorOptions.data.find(x => x.id === props.deliveryProductMapping.data.operator_id).deliveryPlatformOperators.map((data) => {return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
-    ]
-    deliveryProductMappingItems.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.deliveryProductMappingItems : []
-    operatorOptions.value = [
-      ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
-    ]
-    productMappingOptions.value = [
-      ...props.productMappingOptions[0].data.map((data) => {return {id: data.id, name: data.name}})
-    ]
-    productOptions.value = props.productOptions.data
-    form.value = props.deliveryProductMapping ?
+    deliveryProductMapping.value = props.deliveryProductMapping.data
+    form.value = deliveryProductMapping.value ?
       useForm({
-        ...props.deliveryProductMapping.data,
-        operator_id: operatorOptions.value.find(x => x.id === props.deliveryProductMapping.data.operator_id),
-        operator_field: operatorOptions.value.find(x => x.id === props.deliveryProductMapping.data.operator_id).full_name,
-        product_mapping_id: productMappingOptions.value.find(x => x.id === props.deliveryProductMapping.data.product_mapping_id),
-        product_mapping_field: productMappingOptions.value.find(x => x.id === props.deliveryProductMapping.data.product_mapping_id).name,
-        delivery_platform_operator_id: deliveryPlatformOperatorOptions.value.find(x => x.id === props.deliveryProductMapping.data.delivery_platform_operator_id),
-        delivery_platform_operator_field: deliveryPlatformOperatorOptions.value.find(x => x.id === props.deliveryProductMapping.data.delivery_platform_operator_id).name,
+        ...deliveryProductMapping.value,
       }) :
       useForm(getDefaultForm())
-      subCategoryOptions.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.category_json.subCategories : []
+
       unbindedVendOptions.value = [
         ...props.unbindedVendOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
       ]
-      // vends.value = props.deliveryProductMapping ? props.deliveryProductMapping.data.vends : []
 })
 
 function getDefaultForm() {

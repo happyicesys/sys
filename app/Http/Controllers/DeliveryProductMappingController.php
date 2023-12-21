@@ -23,6 +23,7 @@ use App\Models\ProductMappingItem;
 use App\Models\Vend;
 use App\Services\DeliveryPlatformService;
 use App\Services\DeliveryProductMappingService;
+use DB;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -235,39 +236,37 @@ class DeliveryProductMappingController extends Controller
     {
         $deliveryProductMapping = DeliveryProductMapping::query()
             ->with([
+                'deliveryPlatformOperator:id,delivery_platform_id,operator_id,type',
+                'deliveryPlatformOperator.deliveryPlatform:id,name',
                 'deliveryProductMappingItems.product:id,code,name',
-                'deliveryProductMappingItems.product.thumbnail',
-                'deliveryProductMappingItems.deliveryProductMapping.operator.country',
+                'deliveryProductMappingItems.product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
+                'deliveryProductMappingVends:id,delivery_product_mapping_id,platform_ref_id,vend_code,vend_id,is_active',
                 'deliveryProductMappingVends.vend:id,code,name',
                 'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name',
-                'deliveryProductMappingVends.deliveryProductMappingVendChannels.vendChannel',
-                'deliveryProductMappingVends.deliveryProductMappingVendChannels.deliveryProductMappingItem.product:id,code,name',
-                'deliveryProductMappingVends.deliveryProductMappingVendChannels.deliveryProductMappingItem.product.thumbnail',
+                'deliveryProductMappingVends.deliveryProductMappingVendChannels.vendChannel:id,code,capacity,qty',
+                'deliveryProductMappingVends.deliveryProductMappingVendChannels.deliveryProductMappingItem:id,amount,channel_code,delivery_product_mapping_id,product_mapping_item_id,sub_category_json',
+                'operator:id,code,name,country_id',
+                'operator.country',
+                'productMapping:id,name',
             ])
+            ->select(
+                'id',
+                'category_json',
+                'delivery_platform_operator_id',
+                'is_active',
+                'name',
+                'operator_id',
+                'product_mapping_id',
+                'remarks',
+                'reserved_percent',
+                'reserved_qty'
+            )
             ->findOrFail($id);
-            // dd($id, $deliveryProductMapping->toArray());
 
         return Inertia::render('DeliveryPlatform/Edit', [
-            'categoryApiOptions' => [],
-            // 'categoryApiOptions' => fn() =>[
-            //     $this->deliveryPlatformService->getCategories(DeliveryPlatformOperator::find($deliveryProductMapping->delivery_platform_operator_id))
-            // ],
             'deliveryProductMapping' => DeliveryProductMappingResource::make(
                 $deliveryProductMapping
             ),
-            'operatorOptions' => OperatorResource::collection(
-                Operator::query()
-                    ->with('deliveryPlatformOperators.deliveryPlatform')
-                    ->orderBy('name')
-                    ->get()
-            ),
-            'productMappingOptions' => fn() =>[
-                ProductMappingResource::collection(
-                    ProductMapping::query()
-                        ->where('operator_id', $request->has('operator_id') ? $request->operator_id : $deliveryProductMapping->operator_id)
-                        ->get()
-                ),
-            ],
             'productOptions' => ProductResource::collection(
                 Product::with([
                     'thumbnail'
@@ -288,18 +287,22 @@ class DeliveryProductMappingController extends Controller
                     'latestVendBinding:id,vend_id,customer_id',
                     'latestVendBinding.customer:id,code,name',
                 ])
-                ->when($request->operator_id, function($query, $search) {
-                    $query->whereIn('vends.id', DB::table('operator_vend')
-                        ->select('vend_id')
-                        ->where('operator_id', $search)
-                        ->pluck('vend_id')
-                    );
-                })
                 ->where(function ($query) use ($deliveryProductMapping) {
-                    $query->whereDoesntHave('deliveryProductMappingVends.deliveryProductMapping', function($query) use ($deliveryProductMapping) {
+                    $query
+                    ->whereIn('vends.id', DB::table('operator_vend')
+                    ->where('operator_id', $deliveryProductMapping->operator_id)
+                    ->pluck('vend_id'))
+                    ->whereDoesntHave('deliveryProductMappingVends.deliveryProductMapping', function($query) use ($deliveryProductMapping) {
                         $query->where('delivery_platform_operator_id', $deliveryProductMapping->delivery_platform_operator_id);
                     })
                     ->orDoesntHave('deliveryProductMappingVends.deliveryProductMapping');
+
+                    if($deliveryProductMapping->deliveryPlatformOperator->type == 'production') {
+                        $query->has('latestVendBinding');
+                    }
+                })
+                ->when($deliveryProductMapping->deliveryPlatformOperator->type == '', function($query, $search) use ($request) {
+                    $query->where('code', 'LIKE', "{$request->vend_code}%");
                 })
                 ->orderBy('code')
                 ->select('vends.id', 'vends.code', 'vends.name')

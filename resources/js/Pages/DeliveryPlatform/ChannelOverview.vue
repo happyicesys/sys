@@ -20,7 +20,7 @@
           <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
             <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
               <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table class="table-fixed min-w-full divide-y divide-gray-300">
+                <table class="table-auto min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
                     <tr>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
@@ -34,8 +34,9 @@
                       </th>
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Price
-                        <span v-if="profile && profile.base_currency">
-                          ({{ profile.base_currency.currency_symbol }})
+
+                        <span v-if="deliveryProductMapping.operator && deliveryProductMapping.operator.country">
+                          ({{ deliveryProductMapping.operator.country.currency_symbol }})
                         </span>
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
@@ -72,15 +73,15 @@
                       </td>
                       <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center">
                         <div class="flex justify-center items-center" >
-                          <img class="h-16 w-16 rounded-full" :src="channel.delivery_product_mapping_item.product.thumbnail.full_url" alt="" v-if="channel.delivery_product_mapping_item.product && channel.delivery_product_mapping_item.product.thumbnail"/>
+                          <img class="h-16 w-16 rounded-full" :src="deliveryProductMapping.deliveryProductMappingItems[channelIndex].product.thumbnail.full_url" alt="" v-if="deliveryProductMapping.deliveryProductMappingItems[channelIndex] && deliveryProductMapping.deliveryProductMappingItems[channelIndex].product && deliveryProductMapping.deliveryProductMappingItems[channelIndex].product.thumbnail && deliveryProductMapping.deliveryProductMappingItems[channelIndex].channel_code == channel.vend_channel_code"/>
                         </div>
                       </td>
                       <td class="py-4 text-sm font-semibold text-gray-900 text-center">
-                          <span v-if="channel.delivery_product_mapping_item.product && channel.delivery_product_mapping_item.product.code">
-                            {{ channel.delivery_product_mapping_item.product.code }}
+                          <span v-if="deliveryProductMapping.deliveryProductMappingItems[channelIndex] && deliveryProductMapping.deliveryProductMappingItems[channelIndex].product && deliveryProductMapping.deliveryProductMappingItems[channelIndex].channel_code == channel.vend_channel_code">
+                            {{ deliveryProductMapping.deliveryProductMappingItems[channelIndex].product.code }}
                           </span>
-                          <span class="break-normal text-xs" v-if="channel.delivery_product_mapping_item.product && channel.delivery_product_mapping_item.product.name">
-                            <br> {{ channel.delivery_product_mapping_item.product.name }}
+                          <span class="break-normal text-xs" v-if="deliveryProductMapping.deliveryProductMappingItems[channelIndex] && deliveryProductMapping.deliveryProductMappingItems[channelIndex].product && deliveryProductMapping.deliveryProductMappingItems[channelIndex].channel_code == channel.vend_channel_code">
+                            <br>  {{ deliveryProductMapping.deliveryProductMappingItems[channelIndex].product.name }}
                           </span>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
@@ -176,6 +177,7 @@ import { onMounted, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
+  deliveryProductMapping: Object,
   vend: Object,
   showModal: Boolean,
 })
@@ -183,9 +185,13 @@ const props = defineProps({
 const channels = ref([])
 const permissions = usePage().props.auth.permissions
 
-const profile = usePage().props.auth.profile
+// const profile = usePage().props.auth.profile
 const editable = ref(false)
 const emit = defineEmits(['modalClose'])
+
+// onMounted(() => {
+//   console.log(JSON.parse(JSON.stringify(props.deliveryProductMappingItems)))
+// })
 
 function togglePauseDeliveryProductMappingVendChannel(channel) {
   let approvalText = channel.is_active ? 'Are you sure to pause this channel?' : 'Are you sure to resume this channel?'
