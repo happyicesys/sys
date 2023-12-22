@@ -455,6 +455,14 @@
                                   Resume VM
                                 </span>
                               </Button>
+                              <Button
+                                class="flex space-x-1 bg-red-500 hover:bg-red-600 text-white"
+                                v-if="roles.includes('superadmin')"
+                                @click.prevent="unbindVend(deliveryProductMappingVend.id)"
+                              >
+                                <XCircleIcon class="w-3 h-3" v-if="deliveryProductMappingVend.is_active"></XCircleIcon>
+                                <span>Unbind</span>
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -528,7 +536,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchVendCodeInput from '@/Components/SearchVendCodeInput.vue';
-import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PauseCircleIcon, PlayCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PauseCircleIcon, PlayCircleIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
@@ -551,6 +559,7 @@ const props = defineProps({
   const showChannelOverviewModal = ref(false)
   const subCategoryOptions = ref([])
   const typeName = ref('')
+  const roles = usePage().props.auth.roles
   // const permissions = usePage().props.auth.permissions
   const vend = ref()
   const unbindedVendOptions = ref([])

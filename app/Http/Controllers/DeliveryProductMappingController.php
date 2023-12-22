@@ -52,9 +52,6 @@ class DeliveryProductMappingController extends Controller
                 DeliveryProductMapping::query()
                     ->with([
                         'deliveryPlatformOperator.deliveryPlatform',
-                        'deliveryProductMappingItems',
-                        'deliveryProductMappingItems.product:id,code,name,is_active',
-                        'deliveryProductMappingItems.product.thumbnail',
                         'operator:id,name',
                         'deliveryProductMappingVends.vend:id,code,name',
                         'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name',
@@ -224,7 +221,7 @@ class DeliveryProductMappingController extends Controller
                     'channel_code',
                     'product_id',
                 )
-                ->get()
+                ->get(),
         ]);
 
         $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingId);
@@ -452,6 +449,10 @@ class DeliveryProductMappingController extends Controller
         ]);
         $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
         $deliveryProductMapping->update($request->all());
+
+        $deliveryProductMapping->update([
+            'delivery_product_mapping_items_json' => $deliveryProductMapping->deliveryProductMappingItems()->with('product.thumbnail')->get(),
+        ]);
 
         // update reserved percent and qty for all delivery product mapping vend channels
         if($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
