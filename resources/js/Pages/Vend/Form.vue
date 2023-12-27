@@ -46,8 +46,7 @@
             <div class="flex space-x-1 mt-5 justify-start">
               <Button
                 class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                @click="$emit('modalClose')"
-                form="submit"
+                @click.prevent="restartVend(vend.id)"
               >
                 <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                 <span>
@@ -58,7 +57,7 @@
             <div class="flex space-x-1 mt-5 justify-end">
               <Button
                 class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
-                @click.prevent="restartVend(vend.id)"
+                form="submit"
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
@@ -159,7 +158,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
-import { useForm } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 
 const props = defineProps({
