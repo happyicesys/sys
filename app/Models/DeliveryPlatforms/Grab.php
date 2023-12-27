@@ -30,6 +30,63 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     const CAMPAIGN_SCOPE_CATEGORY = 'category';
     const CAMPAIGN_SCOPE_ORDER = 'order';
 
+    const CAMPAIGN_BUNDLE_MAPPING = [
+        [
+            'id' => self::CAMPAIGN_TYPE_BUNDLE_SAME_FIXED,
+            'name' => 'Bundle Same Items Fixed Price',
+            'is_same' => true,
+            'type' => 'absolute',
+            'phrase_1' => 'Buy ',
+            'phrase_2' => ' Same Items for $',
+            'phrase_3' => ''
+        ],
+        [
+            'id' => self::CAMPAIGN_TYPE_BUNDLE_DIFF_FIXED,
+            'name' => 'Bundle Different Items Fixed Price',
+            'is_same' => false,
+            'type' => 'absolute',
+            'phrase_1' => 'Any ',
+            'phrase_2' => ' Mixed Items for $',
+            'phrase_3' => ''
+        ],
+        [
+            'id' => self::CAMPAIGN_TYPE_BUNDLE_SAME_DOLLAR,
+            'name' => 'Bundle Same Items Dollar Off',
+            'is_same' => true,
+            'type' => 'value_off',
+            'phrase_1' => 'Buy ',
+            'phrase_2' => ' Same Items Get $',
+            'phrase_3' => 'off'
+        ],
+        [
+            'id' => self::CAMPAIGN_TYPE_BUNDLE_DIFF_DOLLAR,
+            'name' => 'Bundle Different Items Dollar Off',
+            'is_same' => false,
+            'type' => 'value_off',
+            'phrase_1' => 'Any ',
+            'phrase_2' => ' Mixed Items Get $',
+            'phrase_3' => 'off'
+        ],
+        [
+            'id' => self::CAMPAIGN_TYPE_BUNDLE_SAME_PERCENT,
+            'name' => 'Bundle Same Items Percent Off',
+            'is_same' => true,
+            'type' => 'percentage',
+            'phrase_1' => 'Buy ',
+            'phrase_2' => ' Same Items Get ',
+            'phrase_3' => '% off'
+        ],
+        [
+            'id' => self::CAMPAIGN_TYPE_BUNDLE_DIFF_PERCENT,
+            'name' => 'Bundle Different Items Percent Off',
+            'is_same' => false,
+            'type' => 'percentage',
+            'phrase_1' => 'Any ',
+            'phrase_2' => ' Mixed Items Get ',
+            'phrase_3' => '% off'
+        ],
+    ];
+
     const CAMPAIGN_TYPE_MAPPING = [
         self::CAMPAIGN_TYPE_DOLLAR => 'Dollar Off',
         self::CAMPAIGN_TYPE_PERCENT => 'Percent Off',

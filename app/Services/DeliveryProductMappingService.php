@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Jobs\NotifyDeliveryPlatformUpdateMenu;
 use App\Jobs\SyncDeliveryProductMappingVendChannels;
+use App\Models\DeliveryPlatforms\Grab;
+use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryProductMappingVendChannel;
 use Carbon\Carbon;
@@ -46,6 +48,17 @@ class DeliveryProductMappingService
         $deliveryProductMappingVendChannel->order_qty = $deliveryProductMappingVendChannel->order_qty - $orderQty;
       }
       $deliveryProductMappingVendChannel->save();
+    }
+
+    public function getBundleSalesOptions(DeliveryProductMapping $deliveryProductMapping)
+    {
+      switch($deliveryProductMapping->deliveryPlatformOperator->deliveryPlatform->slug) {
+        case 'grab':
+          return Grab::CAMPAIGN_BUNDLE_MAPPING;
+          break;
+        default:
+           return [];
+      }
     }
 
     // retrieve vend channel status after apply logic (reserved percent and reserved qty, whichever higher)

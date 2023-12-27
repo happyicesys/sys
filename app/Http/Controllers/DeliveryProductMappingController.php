@@ -11,6 +11,7 @@ use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\ProductMappingItemResource;
 use App\Http\Resources\VendResource;
 use App\Models\DeliveryPlatform;
+use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingItem;
@@ -173,6 +174,36 @@ class DeliveryProductMappingController extends Controller
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
     }
 
+    public function saveBundleSales(Request $request, $id)
+    {
+        $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
+
+        DB::beginTransaction();
+
+        $deliveryProductMappingBulk = $deliveryProductMapping->deliveryProductMappingBulks()->create([
+            'amount' => $request->bundle_amount,
+            'name' => $request->bundle_name,
+            'promo_desc' => $request->bundle_desc,
+            'promo_label' => $request->bundle_label,
+            'promo_type' => $request->bundle_type,
+            'promo_value' => $request->bundle_value,
+            'total_qty' => $request->total_qty,
+        ]);
+
+        if(isset($request->bundleSalesItems)) {
+            foreach($request->bundleSalesItems as $bundleSalesItem) {
+                $deliveryProductMappingBulk->deliveryProductMappingBulkItems()->create([
+                    'delivery_product_mapping_item_id' => $bundleSalesItem['id'],
+                    'qty' => $bundleSalesItem['qty'],
+                ]);
+            }
+        }
+
+        DB::commit();
+
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
+    }
+
     public function storeDeliveryProductMappingItem(Request $request, $deliveryProductMappingId)
     {
         $request->validate([
@@ -234,7 +265,8 @@ class DeliveryProductMappingController extends Controller
         $deliveryProductMapping = DeliveryProductMapping::query()
             ->with([
                 'deliveryPlatformOperator:id,delivery_platform_id,operator_id,type',
-                'deliveryPlatformOperator.deliveryPlatform:id,name',
+                'deliveryPlatformOperator.deliveryPlatform:id,name,slug',
+                'deliveryProductMappingBulks.deliveryProductMappingBulkItems',
                 'deliveryProductMappingItems.product:id,code,name',
                 'deliveryProductMappingItems.product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
                 'deliveryProductMappingVends:id,delivery_product_mapping_id,platform_ref_id,vend_code,vend_id,is_active',
@@ -260,7 +292,10 @@ class DeliveryProductMappingController extends Controller
             )
             ->findOrFail($id);
 
+            // dd($this->deliveryProductMappingService->getBundleSalesOptions($deliveryProductMapping));
+
         return Inertia::render('DeliveryPlatform/Edit', [
+            'bundleSalesOptions' => $this->deliveryProductMappingService->getBundleSalesOptions($deliveryProductMapping),
             'deliveryProductMapping' => DeliveryProductMappingResource::make(
                 $deliveryProductMapping
             ),
@@ -466,6 +501,20 @@ class DeliveryProductMappingController extends Controller
         $this->deliveryProductMappingService->syncVendChannels($deliveryProductMapping->id);
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMapping->id]);
+    }
+
+    public function updateDeliveryProductMappingItem(Request $request, $id)
+    {
+        $deliveryProductMappingItem = DeliveryProductMappingItem::findOrFail($id);
+        if($deliveryProductMappingItem->amount != $request->amount or $deliveryProductMappingItem->sub_category_json != $request->sub_category_json) {
+            $deliveryProductMappingItem->update([
+                'amount' => $request->amount,
+                'sub_category_json' => $request->sub_category_json,
+            ]);
+            $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingItem->delivery_product_mapping_id);
+        }
+
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingItem->delivery_product_mapping_id]);
     }
 
     public function updateChannel(Request $request, $id)

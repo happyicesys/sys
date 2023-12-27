@@ -106,9 +106,6 @@ class VendController extends Controller
         $request->merge(['numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50]);
         $request->merge(['sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent']);
         $request->merge(['sortBy' => isset($request->sortBy) ? $request->sortBy : true]);
-        // $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
-        // $request->sortKey = $request->sortKey ? $request->sortKey : 'balance_percent';
-        // $request->sortBy = $request->sortBy ? $request->sortBy : true;
         $className = get_class(new Customer());
 
         $vends = DB::table('vends')
@@ -211,7 +208,6 @@ class VendController extends Controller
                                 return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->vend_records_thirty_days_amount_average : 0;
                             })/100,
         ];
-        // dd($request->all());
 
         return Inertia::render('Vend/Index', [
             'categories' => CategoryResource::collection(
@@ -261,6 +257,25 @@ class VendController extends Controller
             ->get();
 
         return $vends;
+    }
+
+    public function restart($id)
+    {
+        $vend = Vend::findOrFail($id);
+        $fid = 1;
+        $content = base64_encode(json_encode([
+            'Type' => 'RESET',
+            'time' => Carbon::now()->timestamp,
+            'action' => '',
+            'mid' => $vend->code,
+        ]));
+        $contentLength = strlen($content);
+        $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+        $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+
+        return true;
     }
 
     public function temp(Request $request, $vendId, $type)

@@ -14,10 +14,12 @@ class DeliveryPlatformCampaign extends Model
         'datetime_from',
         'datetime_to',
         'desc',
+        'min_amount',
         'name',
-        'platform_campaign_type',
-        'platform_campaign_scope',
-        'platform_campaign_value',
+        'platform_ref_id',
+        'total_redeemable_count',
+        'total_redeemable_count_per_user',
+        'user_type'
     ];
 
     protected $casts = [

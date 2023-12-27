@@ -248,12 +248,6 @@ function onDeleteClicked(deliveryProductMapping) {
   router.delete('/delivery-product-mappings/' + deliveryProductMapping.id)
 }
 
-function onEditClicked(telcoValue) {
-  type.value = 'update'
-  deliveryProductMapping.value = telcoValue
-  showModal.value = true
-}
-
 function onSearchFilterUpdated() {
   router.get('/delivery-product-mappings', {
       ...filters.value,

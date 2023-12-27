@@ -148,11 +148,13 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/vends/{deliveryProductMappingVendId}/toggle-pause-vend', [DeliveryProductMappingController::class, 'togglePauseVend']);
         Route::post('/channels/{channelId}/toggle-pause', [DeliveryProductMappingController::class, 'togglePauseChannel']);
         Route::post('/channels/{channelId}/update', [DeliveryProductMappingController::class, 'updateChannel']);
+        Route::post('/{id}/save-bundle-sales', [DeliveryProductMappingController::class, 'saveBundleSales']);
     });
 
     Route::prefix('delivery-product-mapping-items')->group(function() {
         Route::delete('/{id}', [DeliveryProductMappingController::class, 'deleteDeliveryProductMappingItem']);
         Route::post('/delivery-product-mapping/{id}/store', [DeliveryProductMappingController::class, 'storeDeliveryProductMappingItem']);
+        Route::post('/{id}/update', [DeliveryProductMappingController::class, 'updateDeliveryProductMappingItem']);
         Route::post('/{id}/toggle-pause', [DeliveryProductMappingController::class, 'togglePauseDeliveryProductMappingItem']);
     });
 
@@ -382,6 +384,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/unbind', [VendController::class, 'unbindCustomer']);
         Route::post('/{id}/edit-products', [VendController::class, 'editProducts']);
         Route::post('/{id}/dispense-product', [VendController::class, 'dispenseProduct']);
+        Route::post('/{id}/restart', [VendController::class, 'restart']);
     });
 
     Route::prefix('vend-channel-errors')->group(function() {

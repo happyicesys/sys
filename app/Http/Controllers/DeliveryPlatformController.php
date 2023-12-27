@@ -208,6 +208,10 @@ class DeliveryPlatformController extends Controller
                     'driver_request_json' => $request->all(),
                     'is_verified' => true,
                     'status' => DeliveryPlatformOrder::STATUS_DISPENSED,
+                    'status_json' => array_merge_recursive($deliveryPlatformOrder->status_json, [
+                        'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DISPENSED],
+                        'datetime' => Carbon::now()->toDateTimeString(),
+                    ])
                 ]);
                 DispenseDeliveryPlatformOrder::dispatch($deliveryPlatformOrder);
                 return true;

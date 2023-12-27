@@ -27,12 +27,17 @@ class DeliveryProductMapping extends Model
         'delivery_product_mapping_items_json' => 'json',
     ];
 
-    // protected $with = ['operator.country'];
+    protected $with = ['operator.country'];
 
     // relationships
     public function deliveryPlatformOperator()
     {
         return $this->belongsTo(DeliveryPlatformOperator::class);
+    }
+
+    public function deliveryProductMappingBulks()
+    {
+        return $this->hasMany(DeliveryProductMappingBulk::class);
     }
 
     public function deliveryProductMappingItems()
