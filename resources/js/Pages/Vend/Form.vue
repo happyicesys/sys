@@ -58,8 +58,7 @@
             <div class="flex space-x-1 mt-5 justify-end">
               <Button
                 class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
-                @click="restartVend(vend.id)"
-                form="submit"
+                @click.prevent="restartVend(vend.id)"
               >
                 <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                 <span>
