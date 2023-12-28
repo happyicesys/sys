@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\DeliveryProductMappingResource;
+use App\Http\Resources\DeliveryProductMappingBulkResource;
 use App\Http\Resources\DeliveryProductMappingItemResource;
 use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\OperatorResource;
@@ -14,6 +15,7 @@ use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryProductMapping;
+use App\Models\DeliveryProductMappingBulk;
 use App\Models\DeliveryProductMappingItem;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryProductMappingVendChannel;
@@ -151,6 +153,15 @@ class DeliveryProductMappingController extends Controller
         return redirect()->route('delivery-product-mappings');
     }
 
+    public function deleteDeliveryProductMappingBulk($deliveryProductMappingBuldID)
+    {
+        $deliveryProductMappingBulk = DeliveryProductMappingBulk::findOrFail($deliveryProductMappingBuldID);
+        $deliveryProductMappingBulk->deliveryProductMappingBulkItems()->delete();
+        $deliveryProductMappingBulk->delete();
+
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingBulk->deliveryProductMapping->id]);
+    }
+
     public function deleteDeliveryProductMappingItem($id)
     {
         $deliveryProductMappingItem = DeliveryProductMappingItem::findOrFail($id);
@@ -193,8 +204,7 @@ class DeliveryProductMappingController extends Controller
         if(isset($request->bundleSalesItems)) {
             foreach($request->bundleSalesItems as $bundleSalesItem) {
                 $deliveryProductMappingBulk->deliveryProductMappingBulkItems()->create([
-                    'delivery_product_mapping_item_id' => $bundleSalesItem['id'],
-                    'qty' => $bundleSalesItem['qty'],
+                    'delivery_product_mapping_item_id' => $bundleSalesItem['id']
                 ]);
             }
         }
@@ -266,7 +276,7 @@ class DeliveryProductMappingController extends Controller
             ->with([
                 'deliveryPlatformOperator:id,delivery_platform_id,operator_id,type',
                 'deliveryPlatformOperator.deliveryPlatform:id,name,slug',
-                'deliveryProductMappingBulks.deliveryProductMappingBulkItems',
+                'deliveryProductMappingBulks.deliveryProductMappingBulkItems.deliveryProductMappingItem.product.thumbnail',
                 'deliveryProductMappingItems.product:id,code,name',
                 'deliveryProductMappingItems.product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
                 'deliveryProductMappingVends:id,delivery_product_mapping_id,platform_ref_id,vend_code,vend_id,is_active',
@@ -486,7 +496,12 @@ class DeliveryProductMappingController extends Controller
         $deliveryProductMapping->update($request->all());
 
         $deliveryProductMapping->update([
-            'delivery_product_mapping_items_json' => $deliveryProductMapping->deliveryProductMappingItems()->with('product.thumbnail')->get(),
+            'delivery_product_mapping_items_json' =>
+                $deliveryProductMapping->deliveryProductMappingItems()->with([
+                    'product.thumbnail',
+                    'deliveryProductMapping' => function($query) {
+                        $query->select('id', 'name', 'operator_id');
+                    }])->get(),
         ]);
 
         // update reserved percent and qty for all delivery product mapping vend channels

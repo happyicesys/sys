@@ -18,8 +18,8 @@ class DeliveryProductMappingBulkItemResource extends JsonResource
             'id' => $this->id,
             'delivery_product_mapping_bulk_id' => $this->delivery_product_mapping_bulk_id,
             'delivery_product_mapping_item_id' => $this->delivery_product_mapping_item_id,
-            'qty' => $this->qty,
             'sub_category_json' => $this->sub_category_json,
+            'deliveryProductMappingItem' => new DeliveryProductMappingItemResource($this->whenLoaded('deliveryProductMappingItem')),
         ];
     }
 }

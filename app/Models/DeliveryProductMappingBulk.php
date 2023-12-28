@@ -11,7 +11,6 @@ class DeliveryProductMappingBulk extends Model
     use HasFactory;
 
     protected $fillable = [
-        'amount',
         'delivery_platform_campaign_id',
         'delivery_product_mapping_id',
         'group_json',
@@ -47,14 +46,5 @@ class DeliveryProductMappingBulk extends Model
     public function thumbnail()
     {
         return $this->morphOne(Attachment::class, 'modelable');
-    }
-
-    // getter and setter
-    protected function amount(): Attribute
-    {
-        return Attribute::make(
-            get: fn (string $value) => $value/ ($this->deliveryProductMapping ? pow(10, $this->deliveryProductMapping->operator->country->currency_exponent) : 100) ,
-            set: fn (string $value) => $value * ($this->deliveryProductMapping ? pow(10, $this->deliveryProductMapping->operator->country->currency_exponent) : 100),
-        );
     }
 }

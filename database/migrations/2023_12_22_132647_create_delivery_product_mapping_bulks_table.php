@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('delivery_product_mapping_bulks', function (Blueprint $table) {
             $table->id();
-            $table->integer('amount')->default(0);
             $table->bigInteger('delivery_product_mapping_id')->index('del_pro_map_id');
             $table->json('group_json')->nullable();
             $table->boolean('is_active')->default(true);

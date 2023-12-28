@@ -149,6 +149,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/channels/{channelId}/toggle-pause', [DeliveryProductMappingController::class, 'togglePauseChannel']);
         Route::post('/channels/{channelId}/update', [DeliveryProductMappingController::class, 'updateChannel']);
         Route::post('/{id}/save-bundle-sales', [DeliveryProductMappingController::class, 'saveBundleSales']);
+        Route::delete('/bulks/{deliveryProductMappingBulkID}', [DeliveryProductMappingController::class, 'deleteDeliveryProductMappingBulk']);
     });
 
     Route::prefix('delivery-product-mapping-items')->group(function() {

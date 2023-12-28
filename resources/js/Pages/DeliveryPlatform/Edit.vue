@@ -286,7 +286,7 @@
                   </div>
                 </div>
               </div>
-              <div v-if="form.id" :class="[form.promo_label ? 'sm:col-span-6' : 'sm:col-span-5']">
+              <div v-if="form.id" class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   (Create New) Type
                 </label>
@@ -321,7 +321,7 @@
               <span class="sm:col-span-6 text-blue-700 text-semibold">
                 {{ bundleDesc }}
               </span>
-              <span v-if="form.promo_label" class="sm:col-span-4">
+              <span v-if="form.promo_label" class="sm:col-span-5">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Product
                 </label>
@@ -334,15 +334,9 @@
                   placeholder="Select"
                   open-direction="bottom"
                   class="mt-1"
-                  @selected="onDeliveryProductMappingItemSelected"
                 >
                 </MultiSelect>
               </span>
-              <div v-if="form.promo_label && !isBundleSingleSKU" class="sm:col-span-1">
-                <FormInput v-model="form.qty" :error="form.errors.qty" placeholderStr="Qty">
-                  Qty
-                </FormInput>
-              </div>
               <div class="sm:col-span-1" v-if="form.product_mapping_id">
                 <Button
                 type="button"
@@ -370,13 +364,10 @@
                         {{ bundleSalesItemIndex + 1 }}
                       </span>
                       <img class="h-12 w-12 flex-none rounded-full bg-gray-50" :src="bundleSalesItem.delivery_product_mapping_item_id.img_url" alt="">
-                      <div class="min-w-0 flex-auto">
+                      <div class="min-w-0 flex-auto pt-3">
                         <p class="text-sm font-semibold leading-6 text-gray-900">
                           <span class="absolute inset-x-0 -top-px bottom-0" />
                           {{ bundleSalesItem.delivery_product_mapping_item_id.full_name }}
-                        </p>
-                        <p class="mt-1 flex text-sm leading-5 text-gray-500">
-                          Quantity: {{ bundleSalesItem.qty }}
                         </p>
                       </div>
                     </div>
@@ -389,16 +380,9 @@
                       </Button>
                     </div>
                   </li>
-                  <li class="flex justify-between gap-x-6 px-4 py-5 hover:bg-gray-50 sm:px-6" v-if="bundleSalesItems && bundleSalesItems.length > 0">
-                    <div class="flex min-w-0 gap-x-4">
-                      <span class="text-sm pt-3 font-bold">
-                        Total Amount: {{ bundleTotalAmount.toLocaleString(undefined, {minimumFractionDigits: (props.deliveryProductMapping.data.operator.country.is_currency_exponent_hidden ? 0 : props.deliveryProductMapping.data.operator.country.currency_exponent), maximumFractionDigits: (props.deliveryProductMapping.data.operator.country.is_currency_exponent_hidden ? 0 : props.deliveryProductMapping.data.operator.country.currency_exponent)}) }}
-                      </span>
-                    </div>
-                  </li>
                 </ul>
               </div>
-              <div class="sm:col-span-1" v-if="form.product_mapping_id">
+              <div class="sm:col-span-6" v-if="form.product_mapping_id">
                 <Button
                 type="button"
                 @click.prevent="saveBundleSales()"
@@ -431,110 +415,56 @@
                                   Type
                                 </TableHead>
                                 <TableHead>
-                                  (Channel) Item x Qty
+                                  (Channel) Product
                                 </TableHead>
                                 <TableHead>
-                                  Amount
+                                  Action
                                 </TableHead>
-
                               </tr>
                             </thead>
                             <tbody class="bg-white">
-                              <!-- <tr v-for="(deliveryPlatformOrder, deliveryPlatformOrderIndex) in deliveryPlatformOrders.data" :key="deliveryPlatformOrder.id" class="divide-x divide-gray-200">
-                                <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
-                                  {{ deliveryPlatformOrders.meta.from + deliveryPlatformOrderIndex }}
+                              <tr v-for="(deliveryProductMappingBulk, deliveryProductMappingBulkIndex) in props.deliveryProductMapping.data.deliveryProductMappingBulks" :key="deliveryProductMappingBulk.id" class="divide-x divide-gray-300">
+                                <TableData :currentIndex="deliveryProductMappingBulkIndex" :totalLength="deliveryProductMappingBulks.length" inputClass="text-center">
+                                  {{ deliveryProductMappingBulkIndex + 1 }}
                                 </TableData>
-                                <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
-                                  {{ deliveryPlatformOrder.order_created_at }}
+                                <TableData :currentIndex="deliveryProductMappingBulkIndex" :totalLength="deliveryProductMappingBulks.length" inputClass="text-center">
+                                  {{ deliveryProductMappingBulk.name }}
                                 </TableData>
-                                <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
-                                  {{ deliveryPlatformOrder && deliveryPlatformOrder.deliveryPlatform ? deliveryPlatformOrder.deliveryPlatform.name : null }}
-                                  <span v-if="deliveryPlatformOrder.deliveryPlatformOperator">
-                                    <br>({{ deliveryPlatformOrder.deliveryPlatformOperator ? deliveryPlatformOrder.deliveryPlatformOperator.type : null }})
-                                  </span>
+                                <TableData :currentIndex="deliveryProductMappingBulkIndex" :totalLength="deliveryProductMappingBulks.length" inputClass="text-center">
+                                  {{ deliveryProductMappingBulk.promo_desc }}
                                 </TableData>
-                                <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
-                                  <Link :href="'/delivery-platform-orders/' + deliveryPlatformOrder.id + '/edit'" class="text-blue-600">
-                                    {{ deliveryPlatformOrder.order_id }}
-                                  </Link>
-                                </TableData>
-                                <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
-                                  {{ deliveryPlatformOrder.short_order_id }}
-                                </TableData>
-                                <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
-                                  <div
-                                      class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                      :class="statusClass(deliveryPlatformOrder.status)"
-                                  >
-                                      <div class="flex flex-col">
-                                          <span class="font-semibold">
-                                            {{ deliveryPlatformOrder.status_name }}
-                                          </span>
-                                      </div>
-
-                                  </div>
-                                </TableData>
-                                <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
-                                  {{ deliveryPlatformOrder.deliveryProductMappingVend.vend.full_name }}
-                                </TableData>
-                                <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
-                                    {{ deliveryPlatformOrder.vend_transaction_order_id  }}
-                                </TableData>
-                                <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
+                                <TableData :currentIndex="deliveryProductMappingBulkIndex" :totalLength="deliveryProductMappingBulks.length" inputClass="text-left">
                                   <ul class="divide-y divide-gray-200">
-                                    <li class="flex py-1 px-3 space-x-2" v-for="deliveryPlatformOrderItem in deliveryPlatformOrder.deliveryPlatformOrderItems">
+                                    <li class="flex py-1 px-3 space-x-2" v-for="deliveryProductMappingBulkItem in deliveryProductMappingBulk.deliveryProductMappingBulkItems">
                                       <span class="self-center font-semibold text-blue-700">
-                                        <span v-if="deliveryPlatformOrderItem.orderItemVendChannels[0]">
-                                          (#{{ deliveryPlatformOrderItem.orderItemVendChannels[0].vend_channel_code }})
-                                        </span>
-                                      </span>
-                                      <span>
-                                        {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.code }} <br>
-                                        {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.name }}
+                                        (#{{ deliveryProductMappingBulkItem.deliveryProductMappingItem.channel_code }})
                                       </span>
                                       <div class="flex self-center">
-                                        <a :href="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" target="_blank" v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail">
-                                          <img class="object-scale-down h-24 w-24 md:h-16 md:w-20 rounded-full" :src="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" alt="" />
+                                        <a :href="deliveryProductMappingBulkItem.deliveryProductMappingItem.product.thumbnail.full_url" target="_blank" v-if="deliveryProductMappingBulkItem.deliveryProductMappingItem.product.thumbnail">
+                                          <img class="object-scale-down h-24 w-24 md:h-16 md:w-20 rounded-full" :src="deliveryProductMappingBulkItem.deliveryProductMappingItem.product.thumbnail.full_url" alt="" />
                                         </a>
                                       </div>
-                                      <span class="self-center">
-                                        x
-                                      </span>
-                                      <span class="self-center">
-                                        {{ deliveryPlatformOrderItem.qty }}
+                                      <span class="mt-3">
+                                        {{ deliveryProductMappingBulkItem.deliveryProductMappingItem.product.code }} <br>
+                                        {{ deliveryProductMappingBulkItem.deliveryProductMappingItem.product.name }}
                                       </span>
                                     </li>
                                   </ul>
                                 </TableData>
-                                <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-right">
-                                  {{ deliveryPlatformOrder.subtotal_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-                                </TableData>
-                                <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
-                                  <div class="flex flex-col space-y-1">
-                                    <span>
-                                      {{ deliveryPlatformOrder.driver_phone_number }}
-                                    </span>
-                                    <div
-                                        class="inline-flex justify-center items-center rounded px-1.5 py-1 text-xs font-medium border min-w-full bg-yellow-400 text-gray-800 hover:cursor-pointer"
-                                        v-if="deliveryPlatformOrder.deliveryPlatformOrderComplaint"
-                                        @click="onDeliveryPlatformOrderComplaintClicked(deliveryPlatformOrder)"
+                                <TableData :currentIndex="deliveryProductMappingBulkIndex" :totalLength="deliveryProductMappingBulks.length" inputClass="text-center">
+                                    <Button
+                                      @click.prevent="removeDeliveryProductMappingBulk(deliveryProductMappingBulk.id)"
+                                      class="flex space-x-1 bg-red-500 hover:bg-red-600 text-white"
                                     >
-                                        <div class="flex space-x-1">
-                                            <ChatBubbleLeftEllipsisIcon class="h-4 w-4" aria-hidden="true"/>
-                                            <span class="font-semibold">
-                                              Complaint
-                                            </span>
-                                        </div>
-
-                                    </div>
-                                  </div>
+                                      <XCircleIcon class="w-4 h-4" ></XCircleIcon>
+                                    </Button>
                                 </TableData>
-                              </tr> -->
-                              <!-- <tr v-if="!deliveryPlatformOrders.data.length">
+                              </tr>
+                               <tr v-if="!deliveryProductMappingBulks.length">
                                 <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                                     No Results Found
                                 </td>
-                              </tr> -->
+                              </tr>
                             </tbody>
                         </table>
                       </div>
@@ -542,7 +472,7 @@
               </div>
               </div>
 
-            <!-- <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6"> -->
+             <!-- <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">  -->
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.product_mapping_id">
                 <div class="relative">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -773,6 +703,7 @@ import ChannelOverview from '@/Pages/DeliveryPlatform/ChannelOverview.vue';
 import EditItem from '@/Pages/DeliveryPlatform/EditItem.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import TableData from '@/Components/TableData.vue';
 import TableHead from '@/Components/TableHead.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon, PauseCircleIcon, PencilSquareIcon, PlayCircleIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted, computed } from 'vue';
@@ -791,6 +722,7 @@ const props = defineProps({
   const bundleSalesItems = ref([])
   const bundleSalesOptions = ref([])
   const deliveryProductMapping = ref([])
+  const deliveryProductMappingBulks = ref([])
   const deliveryProductMappingItemObj = ref([])
   const deliveryProductMappingItemOptions = ref([])
   const form = ref(
@@ -827,7 +759,7 @@ onMounted(() => {
       }})
     ]
     deliveryProductMapping.value = props.deliveryProductMapping.data
-    deliveryProductMappingItemOptions.value = props.deliveryProductMapping.data.deliveryProductMappingItems
+    deliveryProductMappingBulks.value = props.deliveryProductMapping.data.deliveryProductMappingBulks
     deliveryProductMappingItemOptions.value = props.deliveryProductMapping.data.deliveryProductMappingItems.map((data) => {return {
       id: data.id,
       full_name: '(#' + data.channel_code + ') ' + data.product.code + ' ' + data.product.name,
@@ -851,60 +783,25 @@ const bundleDesc = computed(function() {
   }
 })
 
-const bundleTotalAmount = computed(function() {
-  if(!bundleSalesItems.value && form.value.promo_label && form.value.promo_value) return 0
-  let totalAmount = 0
-
-  totalAmount = Number(parseFloat(Object
-      .values(bundleSalesItems.value)
-      .reduce((acc, current) => {return Number(acc) + (Number(current.delivery_product_mapping_item_id.amount) * Number(current.qty))}, 0)))
-
-  switch(form.value.promo_label.type) {
-    case 'absolute':
-      totalAmount = Number(form.value.promo_value)
-      break
-    case 'value_off':
-      totalAmount = Number(parseFloat(totalAmount - form.value.promo_value))
-      break
-    case 'percentage':
-      totalAmount = Number(parseFloat(totalAmount - (totalAmount * (form.value.promo_value / 100))))
-      break
-  }
-
-  return totalAmount
-})
-
 const isBundleAddable = computed(function() {
   let isAddable = true
   bundleSalesErrorMsg.value = ''
 
-  if(!form.value.promo_label || !form.value.qty || !form.value.promo_value || !form.value.delivery_product_mapping_item_id) {
+  if(!form.value.promo_label || !form.value.promo_value || !form.value.delivery_product_mapping_item_id) {
     isAddable = false
   }
 
-  if(form.value.qty == 0 || form.value.total_qty == 0) {
+  if(form.value.total_qty == 0) {
     isAddable = false
   }
 
-  if(isBundleSingleSKU.value && bundleSalesItems.value.length > 0) {
+  if(isBundleSingleSKU.value && bundleSalesItems.value.length == 1) {
     isAddable = false
   }
 
-  if(!isBundleSingleSKU.value && bundleSalesItems.value.length > 0 && bundleSalesItems.value.filter((item) => {return form.value.delivery_product_mapping_item_id.id == item.delivery_product_mapping_item_id.id}).length > 0 && form.value.qty) {
+  if(!isBundleSingleSKU.value && bundleSalesItems.value.length > 0 && bundleSalesItems.value.filter((item) => {return form.value.delivery_product_mapping_item_id.id == item.delivery_product_mapping_item_id.id}).length > 0) {
     isAddable = false
     bundleSalesErrorMsg.value = 'Product already added'
-  }
-
-  if(Number(parseFloat(Object
-      .values(bundleSalesItems.value)
-      .reduce((acc, current) => {return Number(acc) + Number(current.qty)}, 0)) + Number(parseFloat(form.value.qty))) > Number(parseFloat(form.value.total_qty))) {
-    isAddable = false
-    bundleSalesErrorMsg.value = 'Product Qty cannot more than Total Qty'
-  }
-
-  if(bundleSalesItems.value.length == 0 && form.value.qty > form.value.total_qty) {
-    isAddable = false
-    bundleSalesErrorMsg.value = 'Product Qty cannot more than Total Qty'
   }
 
   return isAddable
@@ -913,10 +810,11 @@ const isBundleAddable = computed(function() {
 const isBundleCompleted = computed(function() {
   let isCompleted = false
 
-  // current.delivery_product_mapping_item_id.amount
-  if(Number(parseFloat(Object
-      .values(bundleSalesItems.value)
-      .reduce((acc, current) => {return Number(acc) + Number(current.qty)}, 0))) == Number(parseFloat(form.value.total_qty)) && bundleSalesItems.value.length > 0) {
+  if(bundleSalesItems.value.length > 1 && !isBundleSingleSKU.value) {
+    isCompleted = true
+  }
+
+  if(bundleSalesItems.value.length == 1 && isBundleSingleSKU.value) {
     isCompleted = true
   }
 
@@ -936,7 +834,6 @@ function getDefaultForm() {
     promo_label: '',
     promo_type: '',
     promo_value: '',
-    qty: '',
     reserved_percent: 0,
     reserved_qty: 0,
     sub_category_json: '',
@@ -949,9 +846,7 @@ function addBundleSalesItem() {
   if(form.value.delivery_product_mapping_item_id) {
     bundleSalesItems.value.push({
       delivery_product_mapping_item_id: form.value.delivery_product_mapping_item_id,
-      qty: isBundleSingleSKU.value ? form.value.total_qty : form.value.qty,
     })
-    form.value.qty = ''
   }
 }
 
@@ -997,12 +892,6 @@ function onChannelOverviewClosed() {
   showChannelOverviewModal.value = false
 }
 
-function onDeliveryProductMappingItemSelected() {
-  if(isBundleSingleSKU.value && bundleSalesItems.value.length == 0) {
-    form.value.qty = form.value.total_qty
-  }
-}
-
 function onItemEditClicked(deliveryProductMappingItem) {
   deliveryProductMappingItemObj.value = deliveryProductMappingItem
   showItemEditModal.value = true
@@ -1014,6 +903,18 @@ function onItemEditClosed() {
 
 function removeBundleSalesItem(bundleSalesItemIndex) {
   bundleSalesItems.value.splice(bundleSalesItemIndex, 1)
+}
+
+function removeDeliveryProductMappingBulk(deliveryProductMappingBulkID) {
+  const approval = confirm('Are you sure to delete this entry?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/delivery-product-mappings/bulks/' + deliveryProductMappingBulkID, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+  })
 }
 
 function removeDeliveryProductMappingItem(productMappingItem) {
@@ -1029,7 +930,6 @@ function saveBundleSales()
   router.post('/delivery-product-mappings/' + form.value.id + '/save-bundle-sales', {
       bundle_label: form.value.promo_label.id,
       bundle_name: form.value.bundle_name,
-      bundle_amount: bundleTotalAmount.value,
       bundle_type: form.value.promo_label.type,
       bundle_value: form.value.promo_value,
       bundle_desc: bundleDesc.value,

@@ -15,7 +15,6 @@ return new class extends Migration
             $table->id();
             $table->bigInteger('delivery_product_mapping_bulk_id')->index('del_pro_map_bulk_id');
             $table->bigInteger('delivery_product_mapping_item_id')->index('del_pro_map_item_id');
-            $table->integer('qty')->default(1);
             $table->json('sub_category_json')->nullable();
             $table->timestamps();
         });

@@ -28,6 +28,6 @@ class DeliveryProductMappingBulkItem extends Model
 
     public function deliveryProductMappingItem()
     {
-        return $this->belongsTo(DeliveryProductMappingItem::class);
+        return $this->belongsTo(DeliveryProductMappingItem::class)->orderBy('channel_code');
     }
 }

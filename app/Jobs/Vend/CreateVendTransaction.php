@@ -243,8 +243,8 @@ class CreateVendTransaction implements ShouldQueue
 
         if(isset($input['transf_info']) and sizeof($input['transf_info']) == 1) {
             $data['isMultiple'] = false;
-            $data['errorCode'] = $input['transf_info']['SErr'];
-            $data['vendChannelCode'] = $input['transf_info']['SId'];
+            $data['errorCode'] = $input['transf_info'][0]['SErr'];
+            $data['vendChannelCode'] = $input['transf_info'][0]['SId'];
         }
 
         if(isset($input['transf_info']) and sizeof($input['transf_info']) > 1) {
