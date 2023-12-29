@@ -36,6 +36,7 @@ class StoreVendsRecord implements ShouldQueue
     {
         $vends = VendTransaction::query()
             ->with('vend:id,code,name')
+            ->leftJoin('delivery_platform_orders', 'vend_transactions.id', '=', 'delivery_platform_orders.vend_transaction_id')
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->where('vend_transactions.created_at', '>=', Carbon::parse($this->dateFrom)->startOfDay())
             ->where('vend_transactions.created_at', '<=', Carbon::parse($this->dateTo)->endOfDay())
@@ -92,7 +93,43 @@ class StoreVendsRecord implements ShouldQueue
                             ELSE 1
                         END
                     ) as failure_count'
-                )
+                ),
+                DB::raw(
+                    'SUM(
+                        CASE
+                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN amount
+                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 6 THEN amount
+                            ELSE 0
+                        END
+                    ) as online_success_amount'
+                ),
+                DB::raw(
+                    'COUNT(
+                        CASE
+                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN vend_transactions.id
+                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 6 THEN vend_transactions.id
+                            ELSE NULL
+                        END
+                    ) as online_success_count'
+                ),
+                DB::raw(
+                    'SUM(
+                        CASE
+                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN 0
+                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 6 THEN 0
+                            ELSE amount
+                        END
+                    ) as online_failure_amount'
+                ),
+                DB::raw(
+                    'COUNT(
+                        CASE
+                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN NULL
+                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 6 THEN NULL
+                            ELSE 1
+                        END
+                    ) as online_failure_count'
+                ),
             )
             ->get();
 
@@ -108,6 +145,10 @@ class StoreVendsRecord implements ShouldQueue
                 'failure_count' => $vend->failure_count,
                 'month' => $vend->month,
                 'monthname' => $vend->month_name,
+                'online_failure_amount' => $vend->online_failure_amount,
+                'online_failure_count' => $vend->online_failure_count,
+                'online_success_amount' => $vend->online_success_amount,
+                'online_success_count' => $vend->online_success_count,
                 'operator_id' => $vend->operator_id,
                 'total_amount' => $vend->total_amount,
                 'total_count' => $vend->total_count,

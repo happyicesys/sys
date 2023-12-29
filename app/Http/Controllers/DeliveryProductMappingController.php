@@ -59,14 +59,7 @@ class DeliveryProductMappingController extends Controller
                         'deliveryProductMappingVends.vend:id,code,name',
                         'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name',
                     ])
-                    ->when($request->name, function($query, $search) {
-                        $query->where('name', 'LIKE', "%{$search}%");
-                    })
-                    ->when($request->vend_code, function($query, $search) use ($request) {
-                        $query->whereHas('deliveryProductMappingVends.vend', function($query) use ($request) {
-                            $query->where('code', 'LIKE', "{$request->vend_code}%");
-                        });
-                    })
+                    ->filterIndex($request)
                     ->when($sortKey, function($query, $search) use ($sortBy) {
                         $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                     })
@@ -479,10 +472,29 @@ class DeliveryProductMappingController extends Controller
     public function unbindVend($deliveryProductMappingVendId)
     {
         $deliveryProductMappingVend = DeliveryProductMappingVend::findOrFail($deliveryProductMappingVendId);
-        $deliveryProductMappingVend->deliveryProductMappingVendChannels()->delete();
-        $deliveryProductMappingVend->delete();
+        $deliveryProductMappingVend->update([
+            'is_active' => false,
+        ]);
+        if($deliveryProductMappingVend->deliveryProductMappingVendChannels()->exists()) {
+            $deliveryProductMappingVend->deliveryProductMappingVendChannels()->update([
+                'is_active' => false,
+            ]);
+        }
+        if($deliveryProductMappingVend->is_active) {
+            $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingVend->deliveryProductMapping->id, $deliveryProductMappingVend->vend->id);
+        }else {
+            $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend);
+        }
 
-        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVend->deliveryProductMapping->id]);
+        return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVend->delivery_product_mapping_id]);
+
+
+
+        // $deliveryProductMappingVend = DeliveryProductMappingVend::findOrFail($deliveryProductMappingVendId);
+        // $deliveryProductMappingVend->deliveryProductMappingVendChannels()->delete();
+        // $deliveryProductMappingVend->delete();
+
+        // return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVend->deliveryProductMapping->id]);
     }
 
     public function update(Request $request, $id)

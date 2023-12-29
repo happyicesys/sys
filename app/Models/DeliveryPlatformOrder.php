@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\DeliveryPlatforms\Grab;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -139,5 +140,50 @@ class DeliveryPlatformOrder extends Model
     public function vendTransaction()
     {
         return $this->belongsTo(VendTransaction::class);
+    }
+
+    // scopes
+    public function scopeFilterIndex($query, $request)
+    {
+
+        $query = $query
+        ->when($request->delivery_platform_operator_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('delivery_platform_operator_id', $search);
+            }
+        })
+        ->when($request->order_id, function($query, $search) {
+            $query->where('order_id', 'LIKE', "%{$search}%");
+        })
+        ->when($request->short_order_id, function($query, $search) {
+            $query->where('short_order_id', 'LIKE', "%{$search}%");
+        })
+        ->when($request->vend_code, function($query, $search) use ($request) {
+            $query->whereHas('deliveryProductMappingVend.vend', function($query) use ($request) {
+                $query->where('code', 'LIKE', "{$request->vend_code}%");
+            });
+        })
+        ->when($request->date_from, function ($query, $search) {
+            $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
+        })
+        ->when($request->date_to, function ($query, $search) {
+            $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
+        })
+        ->when($request->status, function ($query, $search) {
+            if($search != 'all') {
+                $query->where('status', $search);
+            }
+        })
+        ->when($request->has_complaint, function ($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->has('deliveryPlatformOrderComplaint');
+                }else {
+                    $query->doesntHave('deliveryPlatformOrderComplaint');
+                }
+            }
+        });
+
+        return $query;
     }
 }

@@ -145,6 +145,20 @@
               </MultiSelect>
           </div>
         </div>
+        <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
+            <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <dt class="truncate text-sm font-medium text-gray-500">Total Amount (Delivered)</dt>
+                <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                    {{(totals['total_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                </dd>
+            </div>
+            <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <dt class="truncate text-sm font-medium text-gray-500">Total Orders (Delivered)</dt>
+                <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                    {{totals['order_count'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                </dd>
+            </div>
+        </dl>
       </div>
 
       <div class="mt-6 flex flex-col">
@@ -323,6 +337,7 @@ const props = defineProps({
   deliveryPlatformOrders: Object,
   deliveryPlatformOperatorOptions: Object,
   deliveryPlatformOrderStatusOptions: Object,
+  totals: Object,
 })
 
 const booleanOptions = ref([])

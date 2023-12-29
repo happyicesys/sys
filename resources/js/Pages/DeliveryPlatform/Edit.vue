@@ -454,9 +454,14 @@
                                 <TableData :currentIndex="deliveryProductMappingBulkIndex" :totalLength="deliveryProductMappingBulks.length" inputClass="text-center">
                                     <Button
                                       @click.prevent="removeDeliveryProductMappingBulk(deliveryProductMappingBulk.id)"
-                                      class="flex space-x-1 bg-red-500 hover:bg-red-600 text-white"
+                                      class="flex flex-col space-x-1 bg-red-500 hover:bg-red-600 text-white"
+                                      :disabled="deliveryProductMappingBulk.delivery_platform_campaign_id"
+                                      :class="[deliveryProductMappingBulk.delivery_platform_campaign_id ? 'opacity-50 cursor-not-allowed' : '']"
                                     >
                                       <XCircleIcon class="w-4 h-4" ></XCircleIcon>
+                                      <span v-if="deliveryProductMappingBulk.delivery_platform_campaign_id">
+                                        (Campaigns running, cannot delete)
+                                      </span>
                                     </Button>
                                 </TableData>
                               </tr>
@@ -621,7 +626,7 @@
                                 @click.prevent="unbindVend(deliveryProductMappingVend.id)"
                               >
                                 <XCircleIcon class="w-3 h-3" v-if="deliveryProductMappingVend.is_active"></XCircleIcon>
-                                <span>Unbind VM</span>
+                                <span class="text-xs">Unbind VM</span>
                               </Button>
                             </div>
                           </td>
