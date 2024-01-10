@@ -93,11 +93,11 @@ class DeliveryPlatformCampaignService
       'merchantID' => $model->deliveryProductMappingVend->platform_ref_id,
       'name' => $model->deliveryPlatformCampaignItem->settings_label,
       'quotas' => [
-        'totalCount' => $model->deliveryPlatformCampaignItem->settings_json['totalCount'] && $model->deliveryPlatformCampaignItem->settings_json['totalCount'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCount']) : 0,
-        'totalCountPerUser' => $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] && $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser']) : 0,
+        'totalCount' => $model->deliveryPlatformCampaignItem->settings_json['totalCount'] && $model->deliveryPlatformCampaignItem->settings_json['totalCount'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCount']) : null,
+        'totalCountPerUser' => $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] && $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser']) : null,
       ],
       'conditions' => [
-        'startTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_from)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
+        'startTime' => Carbon::now()->addMinutes(5)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
         'endTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_to)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
         'eaterType' => $model->deliveryPlatformCampaignItem->settings_json['eaterType'],
         'minBasketAmount' => $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] && $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['minBasketAmount']) : 0,
