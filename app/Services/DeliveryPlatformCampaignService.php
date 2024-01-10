@@ -164,7 +164,7 @@ class DeliveryPlatformCampaignService
       'discount' => [
         'type' => $model->deliveryPlatformCampaignItem->settings_json['type'],
         'cap' => $model->deliveryPlatformCampaignItem->settings_json['cap'] && $model->deliveryPlatformCampaignItem->settings_json['cap'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['cap']) : 0,
-        'value' => $model->deliveryPlatformCampaignItem->settings_json['value'],
+        'value' => floatval($model->deliveryPlatformCampaignItem->settings_json['value']),
         'scope' => [
           'type' => $model->deliveryPlatformCampaignItem->settings_json['scope'],
           'objectIDs' => $model->deliveryPlatformCampaignItem->settings_json['objectIDs'],
