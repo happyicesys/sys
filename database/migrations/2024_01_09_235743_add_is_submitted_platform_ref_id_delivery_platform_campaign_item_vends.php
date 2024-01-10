@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('delivery_platform_campaign_item_vends', function (Blueprint $table) {
             $table->boolean('is_submitted')->default(false);
-            $table->string('platform_ref_id')->nullable();
+            // $table->string('platform_ref_id')->nullable();
         });
     }
 
@@ -24,7 +24,7 @@ return new class extends Migration
     {
         Schema::table('delivery_platform_campaign_item_vends', function (Blueprint $table) {
             $table->dropColumn('is_submitted');
-            $table->dropColumn('platform_ref_id');
+            // $table->dropColumn('platform_ref_id');
         });
     }
 };
