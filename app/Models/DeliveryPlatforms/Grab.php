@@ -753,7 +753,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         }
 
         $response = Http::withHeaders($this->getHeaders())
-        ->post($this->getPartnerEndpoint() . '/partner/v1/campaign', $campaignParams);
+        ->post($this->getPartnerEndpoint() . '/partner/v1/campaigns', $campaignParams);
 
         return $this->getResponse($response, 'createCampaign');
 

@@ -8,6 +8,7 @@ use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformCampaign;
 use App\Models\DeliveryPlatformCampaignItemVend;
 use App\Models\DeliveryPlatformOperator;
+use App\Models\VendData;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Facades\Http;
@@ -28,6 +29,11 @@ class DeliveryPlatformCampaignService
     switch($deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $response = $this->model->createCampaign($this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend));
+        VendData::create([
+          'connection' => 'GRAB-CAMPAIGN',
+          'processed' => $response,
+          'value' => $this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend),
+        ]);
         if($response['success']) {
           $deliveryPlatformCampaignItemVend->update([
             'is_submitted' => true,
