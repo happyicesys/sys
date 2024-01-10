@@ -184,11 +184,11 @@ class DeliveryPlatformCampaignService
     }
   }
 
-  private function removeNullValuesRecursively($array)
+  protected function removeNullValuesRecursively($array)
   {
       return array_filter($array, function ($value) {
           if (is_array($value)) {
-              return removeNullValuesRecursively($value);
+              return $this->removeNullValuesRecursively($value);
           }
           return !is_null($value);
       });
