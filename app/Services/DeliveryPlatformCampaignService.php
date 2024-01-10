@@ -187,15 +187,12 @@ class DeliveryPlatformCampaignService
 
   protected function removeNullValuesRecursively($array)
   {
-      foreach ($array as $key => $value) {
+      return array_filter($array, function ($value) {
           if (is_array($value)) {
-              $this->removeNullValuesRecursively($value);
+              return $this->removeNullValuesRecursively($value);
           }
-          if ($value === null) {
-              unset($array[$key]);
-          }
-      }
-      return $array;
+          return !is_null($value);
+      });
   }
 
 }
