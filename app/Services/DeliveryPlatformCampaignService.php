@@ -6,6 +6,7 @@ use App\Jobs\CreateDeliveryPlatformCampaign;
 use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformCampaign;
+use App\Models\DeliveryPlatformCampaignItemVend;
 use App\Models\DeliveryPlatformOperator;
 use Carbon\Carbon;
 use DB;
