@@ -100,7 +100,7 @@ class DeliveryPlatformCampaignService
         'startTime' => Carbon::now()->addMinutes(5)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
         'endTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_to)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
         'eaterType' => $model->deliveryPlatformCampaignItem->settings_json['eaterType'],
-        'minBasketAmount' => $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] && $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['minBasketAmount']) : 0,
+        'minBasketAmount' => $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] && $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] != null ? $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] : 0,
         'bundleQuantity' => $model->deliveryPlatformCampaignItem->settings_json['qty'] && $model->deliveryPlatformCampaignItem->settings_json['qty'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['qty']) : 0,
         'workingHour' => [
           'sun' => [
@@ -164,7 +164,7 @@ class DeliveryPlatformCampaignService
       'discount' => [
         'type' => $model->deliveryPlatformCampaignItem->settings_json['type'],
         'cap' => $model->deliveryPlatformCampaignItem->settings_json['cap'] && $model->deliveryPlatformCampaignItem->settings_json['cap'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['cap']) : 0,
-        'value' => intval($model->deliveryPlatformCampaignItem->settings_json['value']),
+        'value' => $model->deliveryPlatformCampaignItem->settings_json['value'],
         'scope' => [
           'type' => $model->deliveryPlatformCampaignItem->settings_json['scope'],
           'objectIDs' => $model->deliveryPlatformCampaignItem->settings_json['objectIDs'],
