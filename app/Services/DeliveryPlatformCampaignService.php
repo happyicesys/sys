@@ -185,9 +185,9 @@ class DeliveryPlatformCampaignService
     }
   }
 
-  protected function removeNullValuesRecursively(&$array)
+  protected function removeNullValuesRecursively($array)
   {
-      foreach ($array as $key => &$value) {
+      foreach ($array as $key => $value) {
           if (is_array($value)) {
               $this->removeNullValuesRecursively($value);
           }
@@ -195,6 +195,7 @@ class DeliveryPlatformCampaignService
               unset($array[$key]);
           }
       }
+      return $array;
   }
 
 }
