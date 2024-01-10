@@ -748,12 +748,12 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     {
         $this->verifyOauthAccessToken();
 
-        if(!$campaignParam) {
+        if(!$campaignParams) {
             throw new \Exception('Campaign Param Not Found for Create Campaign ');
         }
 
         $response = Http::withHeaders($this->getHeaders())
-        ->post($this->getPartnerEndpoint() . '/partner/v1/campaign', $campaignParam);
+        ->post($this->getPartnerEndpoint() . '/partner/v1/campaign', $campaignParams);
 
         return $this->getResponse($response, 'createCampaign');
 
