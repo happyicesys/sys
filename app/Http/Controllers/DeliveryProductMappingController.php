@@ -457,7 +457,7 @@ class DeliveryProductMappingController extends Controller
                 'delivery_product_mapping_id' => $deliveryProductMapping->id,
                 'product_id' => $productMappingItem['product']['id'],
                 'product_mapping_id' => $deliveryProductMapping->product_mapping_id,
-                'product_mapping_item_id' => $productMappingItem['id'],
+                'product_mapping_item_id' => isset($productMappingItem['id']) ? $productMappingItem['id'] : null,
                 'sub_category_json' => $productMappingItem['delivery_platform_sub_category_json'],
             ]);
         }
