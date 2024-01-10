@@ -65,7 +65,7 @@ class DeliveryPlatformCampaignService
     if($deliveryPlatformCampaign->deliveryPlatformCampaignItems()->exists() and $deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends()->exists()) {
       foreach($deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
           foreach($deliveryPlatformCampaign->deliveryPlatformCampaignItems as $deliveryPlatformCampaignItem) {
-              $deliveryProductMappingVend->deliveryPlatformCampaignItems()->create([
+              $deliveryProductMappingVend->deliveryPlatformCampaignItemVends()->create([
                   'delivery_platform_campaign_id' => $deliveryPlatformCampaign->id,
                   'delivery_platform_campaign_item_id' => $deliveryPlatformCampaignItem->id,
                   'is_active' => $deliveryPlatformCampaignItem->is_active,
