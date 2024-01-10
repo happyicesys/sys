@@ -92,15 +92,15 @@ class DeliveryPlatformCampaignService
       'merchantID' => $model->deliveryProductMappingVend->platform_ref_id,
       'name' => $model->deliveryPlatformCampaignItem->settings_label,
       'quotas' => [
-        'totalCount' => $model->deliveryPlatformCampaignItem->settings_json['totalCount'],
-        'totalCountPerUser' => $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'],
+        'totalCount' => $model->deliveryPlatformCampaignItem->settings_json['totalCount'] ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCount']) : '',
+        'totalCountPerUser' => $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser']) : '',
       ],
       'conditions' => [
-        'startTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_from)->setTimezone('UTC')->toDatetimeString(),
-        'endTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_to)->setTimezone('UTC')->toDatetimeString(),
+        'startTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_from)->setTimezone('UTC')->toIso8601String(),
+        'endTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_to)->setTimezone('UTC')->toIso8601String(),
         'eaterType' => $model->deliveryPlatformCampaignItem->settings_json['eaterType'],
-        'minBasketAmount' => $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'],
-        'bundleQuantity' => $model->deliveryPlatformCampaignItem->settings_json['qty'],
+        'minBasketAmount' => $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] ? intval($model->deliveryPlatformCampaignItem->settings_json['minBasketAmount']) : '',
+        'bundleQuantity' => $model->deliveryPlatformCampaignItem->settings_json['qty'] ? intval($model->deliveryPlatformCampaignItem->settings_json['qty']) : '',
         'workingHour' => [
           'sun' => [
             'periods' => [
@@ -162,11 +162,11 @@ class DeliveryPlatformCampaignService
       ],
       'discount' => [
         'type' => $model->deliveryPlatformCampaignItem->settings_json['type'],
-        'cap' => $model->deliveryPlatformCampaignItem->settings_json['cap'],
-        'value' => $model->deliveryPlatformCampaignItem->settings_json['value'],
+        'cap' => $model->deliveryPlatformCampaignItem->settings_json['cap'] ? intval($model->deliveryPlatformCampaignItem->settings_json['cap']) : '',
+        'value' => intval($model->deliveryPlatformCampaignItem->settings_json['value']),
         'scope' => [
           'type' => $model->deliveryPlatformCampaignItem->settings_json['scope'],
-          'objectIDs' => $model->deliveryPlatformCampaignItem->settings_json['objectIDs'],
+          'objectIDs' => $model->deliveryPlatformCampaignItem->settings_json['objectIDs'] ? json_encode($model->deliveryPlatformCampaignItem->settings_json['objectIDs'], JSON_NUMERIC_CHECK) : [],
         ]
       ],
       'customTag' => '',

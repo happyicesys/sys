@@ -17,6 +17,7 @@ class CreateDeliveryPlatformCampaign implements ShouldQueue
 
     protected $deliveryPlatformCampaignItemVend;
     protected $deliveryPlatformCampaignService;
+    public $tries = 1;
     /**
      * Create a new job instance.
      */
