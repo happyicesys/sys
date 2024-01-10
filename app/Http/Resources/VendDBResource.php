@@ -30,6 +30,7 @@ class VendDBResource extends JsonResource
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,
             'customer_person_id' => isset($this->customer_person_id) ? $this->customer_person_id : null,
             'full_name' => isset($this->customer_code) ? $this->customer_code . ' - ' . $this->customer_name : $this->name,
+            'cust_full_name' => isset($this->customer_code) ? $this->customer_code . ' - ' . $this->customer_name : $this->name,
             'temp' => isset($this->temp) ? $this->temp/ 10 : null,
             'temp_updated_at' => isset($this->temp_updated_at) ? Carbon::parse($this->temp_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'termination_date' => isset($this->termination_date) ? Carbon::parse($this->termination_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,

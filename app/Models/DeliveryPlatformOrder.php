@@ -13,14 +13,16 @@ class DeliveryPlatformOrder extends Model
     use HasFactory;
 
     const DEFAULT_VALID_COLLECTION_HOURS = 2;
+    const ORDER_EXPIRED_HOURS = 12;
 
     const STATUS_PENDING = 1;
     const STATUS_ACCEPTED = 2;
     const STATUS_ASSIGNED = 3;
     const STATUS_ARRIVED = 4;
-    const STATUS_DISPENSED = 5;
-    const STATUS_COLLECTED = 6;
-    const STATUS_DELIVERED = 7;
+    const STATUS_REQUESTED = 5;
+    const STATUS_DISPENSED = 6;
+    const STATUS_COLLECTED = 7;
+    const STATUS_DELIVERED = 8;
     const STATUS_CANCELLED = 98;
     const STATUS_FAILED = 99;
 
@@ -40,6 +42,7 @@ class DeliveryPlatformOrder extends Model
         self::STATUS_ACCEPTED => 'Accepted',
         self::STATUS_ASSIGNED => 'Assigned',
         self::STATUS_ARRIVED => 'Arrived',
+        self::STATUS_REQUESTED => 'Requested',
         self::STATUS_DISPENSED => 'Dispensed',
         self::STATUS_COLLECTED => 'Collected',
         self::STATUS_DELIVERED => 'Delivered',

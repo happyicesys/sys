@@ -213,7 +213,7 @@ class DeliveryPlatformService
     switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $deliveryPlatformOrder->update([
-          'status' => DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']],
+          'status' => DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']] > $deliveryPlatformOrder->status ? DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']] : $deliveryPlatformOrder->status,
           'status_json' => array_merge_recursive($deliveryPlatformOrder->status_json, [
             'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']]],
             'datetime' => Carbon::now()->toDateTimeString(),
@@ -702,7 +702,6 @@ class DeliveryPlatformService
   private function getGrabMenuSubCategories($model)
   {
       return [
-          // 'id' => $model->,
           'name' => $params['sub_category_json']['name'],
           'availableStatus' => isset($params['status']) ? $params['status'] : self::STATUS_AVAILABLE,
           'sellingTimeID' => $this->getGrabMenuSellingTimes()['id'],
@@ -725,22 +724,8 @@ class DeliveryPlatformService
       'maxStock' => $params['available_qty'],
       'maxCount' => $params['available_qty'],
       'soldByWeight' => false,
-      // 'advancedPricing' => [],
-      // 'purchasability' => [],
-      // 'modifierGroups' => [],
     ];
   }
-
-  // private function grabMenuSubCategories($params = [])
-  // {
-  //   return [
-  //     'id' => $params['sub_category_id'],
-  //     'name' => $params['sub_category_name'],
-  //     'availableStatus' => 'AVAILABLE',
-  //     'sellingTimeID' => 'ST-1003',
-  //     'items' => [],
-  //   ];
-  // }
 
   // order
   private function setGrabOrderIncomingParam($params = [])
@@ -770,7 +755,7 @@ class DeliveryPlatformService
   }
 
   // campaign
-  private function getGrabCampaigns($params = [])
+  private function getGrabCampaignParams($params = [])
   {
     return [
       'merchantID' => $params['platform_ref_id'],

@@ -59,8 +59,6 @@ class DeliveryPlatformController extends Controller
                     ->where('secret', $request->client_secret)
                     ->get();
 
-            // dd($clients->toArray());
-
             $operator = Operator::findOrFail($operatorId);
             $response = $this->deliveryPlatformService->getOauth($operator, $type);
             if(!$this->deliveryPlatformService->getDeliveryPlatformOperator()->externalOauthToken()->exists()) {
@@ -80,12 +78,6 @@ class DeliveryPlatformController extends Controller
         $partnerMerchantID = $request->partnerMerchantID;
         try {
             $response = $this->deliveryPlatformService->getMenu($merchantID, $partnerMerchantID);
-            VendData::create([
-                'connection' => 'http-api',
-                'type' => 'GRAB_MENU',
-                'value' => $response,
-                'vend_code' => $partnerMerchantID,
-              ]);
             return $response;
         } catch(\Exception $e) {
             return $e->getMessage();
@@ -172,13 +164,6 @@ class DeliveryPlatformController extends Controller
             ], 400));
         }
 
-        VendData::create([
-            'connection' => 'http-api',
-            'type' => 'GRAB_SEARCH_ORDER',
-            'value' => $request->all(),
-            'vend_code' => $code,
-        ]);
-
         $deliveryPlatformOrder = DeliveryPlatformOrder::query()
             ->where(function($query) use ($shortOrderID) {
                 $query->where('short_order_id', $shortOrderID)
@@ -200,16 +185,21 @@ class DeliveryPlatformController extends Controller
             'error_json' => $request->all(),
         ]);
 
-        if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
+        if($deliveryPlatformOrder->deliveryPlatformOperator->type === 'production' and Carbon::parse($deliveryPlatformOrder->created_at)->diffInHours(Carbon::now()) >= DeliveryPlatformOrder::ORDER_EXPIRED_HOURS) {
+            abort(response([
+                'error_code' => 405,
+                'error_message' => 'Order expired',
+            ], 405));
+        }
 
+        if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
             if($dispenseSearch) {
                 $deliveryPlatformOrder->update([
                     'driver_phone_number' => $driverPhoneNumber,
                     'driver_request_json' => $request->all(),
-                    'is_verified' => true,
-                    'status' => DeliveryPlatformOrder::STATUS_DISPENSED,
+                    'status' => DeliveryPlatformOrder::STATUS_REQUESTED,
                     'status_json' => array_merge_recursive($deliveryPlatformOrder->status_json, [
-                        'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DISPENSED],
+                        'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_REQUESTED],
                         'datetime' => Carbon::now()->toDateTimeString(),
                     ])
                 ]);

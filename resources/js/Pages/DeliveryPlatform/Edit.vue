@@ -276,7 +276,7 @@
               </div>
             </div>
 
-              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <!-- <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
                 <div class="relative">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
                     <div class="w-full border-t border-gray-300"></div>
@@ -358,7 +358,6 @@
               <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.product_mapping_id">
                 <ul role="list" class="divide-y divide-gray-100 overflow-hidden bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
                   <li v-for="(bundleSalesItem, bundleSalesItemIndex) in bundleSalesItems" class=" flex justify-between gap-x-6 px-4 py-5 hover:bg-gray-50 sm:px-6">
-                    <!-- {{ bundleSalesItem }} -->
                     <div class="flex min-w-0 gap-x-4">
                       <span class="text-sm pt-3">
                         {{ bundleSalesItemIndex + 1 }}
@@ -475,7 +474,7 @@
                       </div>
                   </div>
               </div>
-              </div>
+              </div> -->
 
              <!-- <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">  -->
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.product_mapping_id">

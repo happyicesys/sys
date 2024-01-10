@@ -492,7 +492,11 @@ class ReportController extends Controller
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
             ->where('vend_transactions.created_at', '>=', Carbon::parse($request->date_from)->startOfDay())
             ->where('vend_transactions.created_at', '<=', Carbon::parse($request->date_to)->endOfDay())
-            ->whereIn('error_code_normalized', [0, 6]);
+            ->where(function($query) {
+                $query->where('error_code_normalized', 0)
+                    ->orWhere('error_code_normalized', 6)
+                    ->orWhere('is_multiple', true);
+            });
 
         switch($className) {
             case 'categories':

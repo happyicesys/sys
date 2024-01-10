@@ -461,24 +461,33 @@ class VendController extends Controller
             ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 
-        $totals = VendTransaction::query()
-            ->filterTransactionIndex($request)
-            ->whereIn('error_code_normalized', [0, 6])
-            ->select(
+        // $totals = VendTransaction::query()
+        //     ->filterTransactionIndex($request)
+        //     ->whereIn('error_code_normalized', [0, 6])
+        //     ->select(
 
-                DB::raw('ROUND(COALESCE(SUM(vend_transactions.amount)/ 100, 0), 2) AS amount'),
-                DB::raw('COUNT(*) AS count')
-            )
-            ->first();
+        //         DB::raw('ROUND(COALESCE(SUM(vend_transactions.amount)/ 100, 0), 2) AS amount'),
+        //         DB::raw('COUNT(*) AS count')
+        //     )
+        //     ->first();
 
         $totals = [
             'amount' => VendTransaction::query()
                 ->filterTransactionIndex($request)
-                ->whereIn('error_code_normalized', [0, 6])
+                ->where(function($query) {
+                    $query->where('error_code_normalized', 0)
+                        ->orWhere('error_code_normalized', 6)
+                        ->orWhere('is_multiple', true);
+                })
                 ->sum('vend_transactions.amount'),
             'count' => VendTransaction::query()
                 ->filterTransactionIndex($request)
-                ->whereIn('error_code_normalized', [0, 6])
+                // ->whereIn('error_code_normalized', [0, 6])
+                ->where(function($query) {
+                    $query->where('error_code_normalized', 0)
+                        ->orWhere('error_code_normalized', 6)
+                        ->orWhere('is_multiple', true);
+                })
                 ->count()
         ];
 

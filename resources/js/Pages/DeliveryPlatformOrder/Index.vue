@@ -225,21 +225,27 @@
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                       {{ deliveryPlatformOrder.short_order_id }}
                     </TableData>
-                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
+                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center max-w-xs">
+                      <div class="max-w-xs">
                       <div
-                          class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                          :class="statusClass(deliveryPlatformOrder.status)"
+                          class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border max-w-xs"
+                          :class="statusClass(deliveryPlatformOrder).statusClass"
                       >
                           <div class="flex flex-col">
                               <span class="font-semibold">
                                 {{ deliveryPlatformOrder.status_name }}
                               </span>
                           </div>
-
+                      </div>
+                      <span class="text-xs" v-if="statusClass(deliveryPlatformOrder).statusDesc">
+                        <br>
+                        {{ statusClass(deliveryPlatformOrder).statusDesc }}
+                      </span>
                       </div>
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
-                      {{ deliveryPlatformOrder.deliveryProductMappingVend.vend.full_name }}
+                      {{ deliveryPlatformOrder.vend_code }} <br>
+                      {{ deliveryPlatformOrder.deliveryProductMappingVend.vend.cust_full_name }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                         {{ deliveryPlatformOrder.vend_transaction_order_id  }}
@@ -439,9 +445,10 @@ function sortTable(sortKey) {
   onSearchFilterUpdated()
 }
 
-function statusClass(status) {
+function statusClass(deliveryPlatformOrder) {
   let statusClass = ''
-  switch(status) {
+  let statusDesc = ''
+  switch(deliveryPlatformOrder.status) {
     case 1:
     case 2:
       statusClass = 'bg-blue-400 text-gray-800'
@@ -450,17 +457,22 @@ function statusClass(status) {
     case 4:
     case 5:
     case 6:
+    case 7:
       statusClass = 'bg-yellow-400 text-gray-800'
       break;
-    case 7:
+    case 8:
       statusClass = 'bg-green-400 text-white-800'
       break;
     case 98:
     case 99:
       statusClass = 'bg-red-400 text-white-800'
+      statusDesc = deliveryPlatformOrder.request_history_json['code'] + ' (' + deliveryPlatformOrder.request_history_json['message'] + ')'
       break;
   }
-  return statusClass
+  return {
+    statusClass: statusClass,
+    statusDesc: statusDesc,
+  }
 }
 
 </script>

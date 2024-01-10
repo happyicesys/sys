@@ -32,6 +32,11 @@ class DeliveryProductMappingVend extends Model
     ];
 
     // relationships
+    public function deliveryPlatformCampaignItemVends()
+    {
+        return $this->hasMany(DeliveryPlatformCampaignItemVend::class);
+    }
+
     public function deliveryProductMapping()
     {
         return $this->belongsTo(DeliveryProductMapping::class);

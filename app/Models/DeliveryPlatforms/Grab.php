@@ -30,6 +30,12 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     const CAMPAIGN_SCOPE_CATEGORY = 'category';
     const CAMPAIGN_SCOPE_ORDER = 'order';
 
+    const CAMPAIGN_SCOPE_MAPPING = [
+        self::CAMPAIGN_SCOPE_ITEM => 'Item',
+        self::CAMPAIGN_SCOPE_CATEGORY => 'Category',
+        self::CAMPAIGN_SCOPE_ORDER => 'Order',
+    ];
+
     const CAMPAIGN_BUNDLE_MAPPING = [
         [
             'id' => self::CAMPAIGN_TYPE_BUNDLE_SAME_FIXED,
@@ -87,59 +93,322 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         ],
     ];
 
-    const CAMPAIGN_TYPE_MAPPING = [
-        self::CAMPAIGN_TYPE_DOLLAR => 'Dollar Off',
-        self::CAMPAIGN_TYPE_PERCENT => 'Percent Off',
-        self::CAMPAIGN_TYPE_BUNDLE_SAME_FIXED => 'Bundle Same Items Fixed Price',
-        self::CAMPAIGN_TYPE_BUNDLE_DIFF_FIXED => 'Bundle Different Items Fixed Price',
-        self::CAMPAIGN_TYPE_BUNDLE_SAME_DOLLAR => 'Bundle Same Items Dollar Off',
-        self::CAMPAIGN_TYPE_BUNDLE_DIFF_DOLLAR => 'Bundle Different Items Dollar Off',
-        self::CAMPAIGN_TYPE_BUNDLE_SAME_PERCENT => 'Bundle Same Items Percent Off',
-        self::CAMPAIGN_TYPE_BUNDLE_DIFF_PERCENT => 'Bundle Different Items Percent Off',
-        self::CAMPAIGN_TYPE_DELIVERY => 'Delivery Fee Off',
-        self::CAMPAIGN_TYPE_FREEITEM => 'Free Item',
-    ];
-
-    const CAMPAIGN_SCOPE_MAPPING = [
-        self::CAMPAIGN_SCOPE_ITEM => 'Item',
-        self::CAMPAIGN_SCOPE_CATEGORY => 'Category',
-        self::CAMPAIGN_SCOPE_ORDER => 'Order',
-    ];
-
-    const CAMPAIGN_TYPE_SCOPE_MAPPING = [
-        self::CAMPAIGN_TYPE_DOLLAR => [
-            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
-            self::CAMPAIGN_SCOPE_CATEGORY => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_CATEGORY],
-            self::CAMPAIGN_SCOPE_ORDER => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ORDER],
+    const CAMPAIGN_MAPPINGS = [
+        [
+            'id' => self::CAMPAIGN_TYPE_BUNDLE_SAME_FIXED,
+            'name' => 'Bundle Same Items Fixed Price',
+            'cap' => false,
+            'qty' => true,
+            'phrase1' => 'Buy ',
+            'phrase2' => ' Same Items for $',
+            'phrase3' => '',
+            'scope' => [
+                [
+                    'id' => self::CAMPAIGN_SCOPE_ITEM,
+                    'name' => 'Item',
+                    'isProduct' => true,
+                    'isCategory' => false,
+                    'singleObjectOnly' => true,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                    ],
+                    'minBasketAmount' => false,
+                ]
+            ]
         ],
-        self::CAMPAIGN_TYPE_PERCENT => [
-            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
-            self::CAMPAIGN_SCOPE_CATEGORY => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_CATEGORY],
-            self::CAMPAIGN_SCOPE_ORDER => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ORDER],
+        [
+            'id' => self::CAMPAIGN_TYPE_BUNDLE_DIFF_FIXED,
+            'name' => 'Bundle Different Items Fixed Price',
+            'cap' => false,
+            'qty' => true,
+            'phrase1' => 'Any ',
+            'phrase2' => ' Mixed Items for $',
+            'phrase3' => '',
+            'scope' => [
+                [
+                    'id' => self::CAMPAIGN_SCOPE_ITEM,
+                    'name' => 'Item',
+                    'isProduct' => true,
+                    'isCategory' => false,
+                    'singleObjectOnly' => false,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                    ],
+                    'minBasketAmount' => false,
+                ]
+            ]
         ],
-        self::CAMPAIGN_TYPE_BUNDLE_SAME_FIXED => [
-            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        [
+            'id' => self::CAMPAIGN_TYPE_BUNDLE_SAME_DOLLAR,
+            'name' => 'Bundle Same Items Dollar Off',
+            'cap' => false,
+            'qty' => true,
+            'phrase1' => 'Buy ',
+            'phrase2' => ' Same Items Get $',
+            'phrase3' => 'off',
+            'scope' => [
+                [
+                    'id' => self::CAMPAIGN_SCOPE_ITEM,
+                    'name' => 'Item',
+                    'isProduct' => true,
+                    'isCategory' => false,
+                    'singleObjectOnly' => true,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                    ],
+                    'minBasketAmount' => false,
+                ]
+            ]
         ],
-        self::CAMPAIGN_TYPE_BUNDLE_DIFF_FIXED => [
-            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        [
+            'id' => self::CAMPAIGN_TYPE_BUNDLE_DIFF_DOLLAR,
+            'name' => 'Bundle Different Items Dollar Off',
+            'cap' => false,
+            'qty' => true,
+            'phrase1' => 'Any ',
+            'phrase2' => ' Mixed Items Get $',
+            'phrase3' => 'off',
+            'scope' => [
+                [
+                    'id' => self::CAMPAIGN_SCOPE_ITEM,
+                    'name' => 'Item',
+                    'isProduct' => true,
+                    'isCategory' => false,
+                    'singleObjectOnly' => false,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                    ],
+                    'minBasketAmount' => false,
+                ]
+            ]
         ],
-        self::CAMPAIGN_TYPE_BUNDLE_SAME_DOLLAR => [
-            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        [
+            'id' => self::CAMPAIGN_TYPE_BUNDLE_SAME_PERCENT,
+            'name' => 'Bundle Same Items Percent Off',
+            'cap' => false,
+            'qty' => true,
+            'phrase1' => 'Buy ',
+            'phrase2' => ' Same Items Get ',
+            'phrase3' => '% off',
+            'scope' => [
+                [
+                    'id' => self::CAMPAIGN_SCOPE_ITEM,
+                    'name' => 'Item',
+                    'isProduct' => true,
+                    'isCategory' => false,
+                    'singleObjectOnly' => true,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                    ],
+                    'minBasketAmount' => false,
+                ]
+            ]
         ],
-        self::CAMPAIGN_TYPE_BUNDLE_DIFF_DOLLAR => [
-            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        [
+            'id' => self::CAMPAIGN_TYPE_BUNDLE_DIFF_PERCENT,
+            'name' => 'Bundle Different Items Percent Off',
+            'cap' => false,
+            'qty' => true,
+            'phrase1' => 'Any ',
+            'phrase2' => ' Mixed Items Get ',
+            'phrase3' => '% off',
+            'scope' => [
+                [
+                    'id' => self::CAMPAIGN_SCOPE_ITEM,
+                    'name' => 'Item',
+                    'isProduct' => true,
+                    'isCategory' => false,
+                    'singleObjectOnly' => false,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                    ],
+                    'minBasketAmount' => false,
+                ]
+            ]
         ],
-        self::CAMPAIGN_TYPE_BUNDLE_SAME_PERCENT => [
-            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        [
+            'id' => self::CAMPAIGN_TYPE_DOLLAR,
+            'name' => 'Dollar Off',
+            'cap' => false,
+            'qty' => false,
+            'phrase1' => '$',
+            'phrase2' => ' off',
+            'phrase3' => ' for selected ',
+            'scope' => [
+                [
+                    'id' => self::CAMPAIGN_SCOPE_ITEM,
+                    'name' => 'Item',
+                    'isProduct' => true,
+                    'isCategory' => false,
+                    'singleObjectOnly' => false,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                    ],
+                    'minBasketAmount' => false,
+                ],
+                [
+                    'id' => self::CAMPAIGN_SCOPE_CATEGORY,
+                    'name' => 'Category',
+                    'isProduct' => false,
+                    'isCategory' => true,
+                    'singleObjectOnly' => false,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                    ],
+                    'minBasketAmount' => false,
+                ],
+                [
+                    'id' => self::CAMPAIGN_SCOPE_ORDER,
+                    'name' => 'Order',
+                    'isProduct' => false,
+                    'isCategory' => false,
+                    'singleObjectOnly' => false,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                        [
+                            'id' => 'new',
+                            'name' => 'New',
+                        ],
+                    ],
+                    'minBasketAmount' => true,
+                ],
+            ]
         ],
-        self::CAMPAIGN_TYPE_BUNDLE_DIFF_PERCENT => [
-            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        [
+            'id' => self::CAMPAIGN_TYPE_PERCENT,
+            'name' => 'Percent Off',
+            'cap' => true,
+            'qty' => false,
+            'phrase1' => '',
+            'phrase2' => '% off up to $',
+            'phrase3' => ' for selected ',
+            'scope' => [
+                [
+                    'id' => self::CAMPAIGN_SCOPE_ITEM,
+                    'name' => 'Item',
+                    'isProduct' => true,
+                    'isCategory' => false,
+                    'singleObjectOnly' => false,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                    ],
+                    'minBasketAmount' => false,
+                ],
+                [
+                    'id' => self::CAMPAIGN_SCOPE_CATEGORY,
+                    'name' => 'Category',
+                    'isProduct' => false,
+                    'isCategory' => true,
+                    'singleObjectOnly' => false,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                    ],
+                    'minBasketAmount' => false,
+                ],
+                [
+                    'id' => self::CAMPAIGN_SCOPE_ORDER,
+                    'name' => 'Order',
+                    'isProduct' => false,
+                    'isCategory' => false,
+                    'singleObjectOnly' => false,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                        [
+                            'id' => 'new',
+                            'name' => 'New',
+                        ],
+                    ],
+                    'minBasketAmount' => true,
+                ],
+            ]
         ],
-        self::CAMPAIGN_TYPE_DELIVERY => [
-            self::CAMPAIGN_SCOPE_ORDER => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ORDER],
+        [
+            'id' => self::CAMPAIGN_TYPE_DELIVERY,
+            'name' => 'Delivery Fee Off',
+            'cap' => false,
+            'qty' => false,
+            'phrase_1' => '$',
+            'phrase_2' => ' delivery off',
+            'scope' => [
+                [
+                    'id' => self::CAMPAIGN_SCOPE_ORDER,
+                    'name' => 'Order',
+                    'isProduct' => false,
+                    'isCategory' => false,
+                    'singleObjectOnly' => false,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                        [
+                            'id' => 'new',
+                            'name' => 'New',
+                        ],
+                    ],
+                    'minBasketAmount' => true,
+                ],
+            ]
         ],
-        self::CAMPAIGN_TYPE_FREEITEM => [
-            self::CAMPAIGN_SCOPE_ITEM => self::CAMPAIGN_SCOPE_MAPPING[self::CAMPAIGN_SCOPE_ITEM],
+        [
+            'id' => self::CAMPAIGN_TYPE_FREEITEM,
+            'name' => 'Free Item',
+            'cap' => false,
+            'qty' => false,
+            'phrase_1' => 'Free Item',
+            'phrase_2' => '',
+            'scope' => [
+                [
+                    'id' => self::CAMPAIGN_SCOPE_ITEM,
+                    'name' => 'Item',
+                    'isProduct' => true,
+                    'isCategory' => false,
+                    'singleObjectOnly' => true,
+                    'eaterType' => [
+                        [
+                            'id' => 'all',
+                            'name' => 'All',
+                        ],
+                    ],
+                    'minBasketAmount' => false,
+                ],
+            ]
         ],
     ];
 
@@ -177,10 +446,6 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 
     public static $sandbox_scope = 'sandbox.mart.partner_api';
     public static $production_scope = 'mart.partner_api';
-
-    public static $product_active = 'AVAILABLE';
-    public static $product_inactive = 'UNAVAILABLE';
-    public static $product_inactive_today = 'UNAVAILABLETODAY';
 
     protected $deliveryPlatformOperator;
 

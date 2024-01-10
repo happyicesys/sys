@@ -13,19 +13,28 @@ class DeliveryPlatformCampaignItem extends Model
         'delivery_platform_campaign_id',
         'datetime_from',
         'datetime_to',
-        'platform_campaign_type',
-        'platform_campaign_scope',
-        'platform_campaign_value',
+        'is_active',
+        'items_json',
+        'settings_json',
+        'settings_label',
+        'settings_name',
     ];
 
     protected $casts = [
         'datetime_from' => 'datetime',
         'datetime_to' => 'datetime',
+        'items_json' => 'json',
+        'settings_json' => 'json',
     ];
 
     // relationships
-    public function deliveryProductMapping()
+    public function deliveryPlatformCampaign()
     {
-        return $this->belongsTo(DeliveryProductMapping::class);
+        return $this->belongsTo(DeliveryPlatformCampaign::class);
+    }
+
+    public function deliveryPlatformCampaignItemVends()
+    {
+        return $this->hasMany(DeliveryPlatformCampaignItemVend::class);
     }
 }

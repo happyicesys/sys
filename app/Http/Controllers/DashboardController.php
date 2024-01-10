@@ -60,7 +60,11 @@ class DashboardController extends Controller
             );
         $todayGraph = VendTransaction::query()
             ->filterTransactionIndex($request)
-            ->whereIn('error_code_normalized', [0, 6])
+            ->where(function($query) {
+                $query->where('error_code_normalized', 0)
+                    ->orWhere('error_code_normalized', 6)
+                    ->orWhere('is_multiple', true);
+            })
             ->where('transaction_datetime', '>=', Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay())
             ->where('transaction_datetime', '<=', Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay())
             ->select(

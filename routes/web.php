@@ -125,7 +125,12 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('delivery-platform-campaigns')->group(function() {
         Route::get('/', [DeliveryPlatformCampaignController::class, 'index'])->name('delivery-platform-campaigns');
+        Route::get('/create', [DeliveryPlatformCampaignController::class, 'create']);
         Route::get('/{id}/edit', [DeliveryPlatformCampaignController::class, 'edit'])->name('delivery-platform-campaigns.edit');
+        Route::post('/store', [DeliveryPlatformCampaignController::class, 'store']);
+        Route::post('/{id}/create-item', [DeliveryPlatformCampaignController::class, 'createItem']);
+        Route::post('/{id}/submit-platform', [DeliveryPlatformCampaignController::class, 'submitPlatform']);
+        Route::delete('/item/{deliveryPlatformCampaignItemID}', [DeliveryPlatformCampaignController::class, 'deleteItem']);
     });
 
     Route::prefix('delivery-platform-orders')->group(function() {

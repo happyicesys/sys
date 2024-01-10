@@ -14,8 +14,12 @@
       :valueProp="valueProp"
       @select="onSelected"
       @deselect="onDeselected"
+      :clear="clear"
+      @refreshOptions="refreshOptions"
       :clearOnBlur="clearOnBlur"
       :openDirection="openDirection"
+      :ref="ref"
+      :max="max"
     />
     <!-- @select="$emit('update:modelValue', $event)" -->
   </div>
@@ -32,6 +36,7 @@
 
   const props = defineProps({
     canClear: Boolean,
+    clear: Boolean,
     clearOnBlur: {
       type: [Boolean, String],
       default: true,
@@ -45,11 +50,20 @@
     modelValue: [Array, Boolean, Object, String, Number],
     options: [Array, Object, String],
     placeholder: String,
+    refreshOptions: Boolean,
     trackBy: String,
     valueProp: String,
     required: {
       type: [Boolean, String],
       default: false,
+    },
+    ref: {
+      type: String,
+      default: 'multiselect'
+    },
+    max: {
+      type: Number,
+      default: -1
     }
   })
 

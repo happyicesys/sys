@@ -41,6 +41,11 @@ class VendResource extends JsonResource
             }, function(){
                 return $this->name ? ' - '.$this->name : '';
             }),
+            'cust_full_name' => $this->when($this->relationLoaded('latestVendBinding'), function() {
+                return $this->latestVendBinding && $this->latestVendBinding->customer ? ($this->latestVendBinding->customer->code.' - '.$this->latestVendBinding->customer->name) : ($this->name ? ' - '.$this->name : '');
+            }, function(){
+                return $this->name ? ' - '.$this->name : '';
+            }),
             'temp' => $this->temp/ 10,
             'temp_updated_at' => $this->temp_updated_at ? Carbon::parse($this->temp_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'termination_date' => isset($this->termination_date) ? Carbon::parse($this->termination_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,

@@ -63,6 +63,7 @@ class StoreVendsRecord implements ShouldQueue
                         CASE
                             WHEN error_code_normalized = 0 THEN amount
                             WHEN error_code_normalized = 6 THEN amount
+                            WHEN is_multiple = 1 THEN amount
                             ELSE 0
                         END
                     ) as total_amount'
@@ -72,6 +73,7 @@ class StoreVendsRecord implements ShouldQueue
                         CASE
                             WHEN error_code_normalized = 0 THEN vend_transactions.id
                             WHEN error_code_normalized = 6 THEN vend_transactions.id
+                            WHEN is_multiple = 1 THEN amount
                             ELSE NULL
                         END
                     ) as total_count'

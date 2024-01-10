@@ -3,7 +3,7 @@
     <label for="text" class="block text-sm font-medium text-gray-700">
         <slot></slot>
     </label>
-    <div class="mt-1 flex rounded-md shadow-sm">
+    <div class="mt-1 flex rounded-md">
       <Datepicker
         :modelValue="modelValue"
         @update:modelValue="onSelected"
@@ -15,6 +15,7 @@
         :minDate="minDate"
         :maxDate="maxDate"
         :enableTimePicker="enableTimePicker"
+        class="grow"
       >
       </Datepicker>
       <button type="button" class="border border-gray-300 bg-gray-50 px-2 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
