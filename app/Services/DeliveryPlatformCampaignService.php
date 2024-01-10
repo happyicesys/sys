@@ -23,6 +23,8 @@ class DeliveryPlatformCampaignService
 
   public function createCampaign(DeliveryPlatformCampaignItemVend $deliveryPlatformCampaignItemVend)
   {
+    $this->setDeliveryPlatform($deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug, $deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator);
+
     switch($deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $response = $this->model->createCampaign($this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend));
@@ -163,6 +165,17 @@ class DeliveryPlatformCampaignService
       ],
       'customTag' => '',
     ];
+  }
+
+  private function setDeliveryPlatform($slug, DeliveryPlatformOperator $deliveryPlatformOperator)
+  {
+    switch($slug) {
+      case 'grab':
+        $this->model = new Grab($deliveryPlatformOperator);
+        break;
+      default:
+        return;
+    }
   }
 
 }
