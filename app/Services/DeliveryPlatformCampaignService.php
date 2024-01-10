@@ -88,19 +88,19 @@ class DeliveryPlatformCampaignService
   private function mapGrabCampaignParam($model)
   {
     // from grab deliveryPlatformCampaignItemVend
-    return [
+    return $this->removeNullValuesRecursively([
       'merchantID' => $model->deliveryProductMappingVend->platform_ref_id,
       'name' => $model->deliveryPlatformCampaignItem->settings_label,
       'quotas' => [
-        'totalCount' => $model->deliveryPlatformCampaignItem->settings_json['totalCount'] ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCount']) : '',
-        'totalCountPerUser' => $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser']) : '',
+        'totalCount' => $model->deliveryPlatformCampaignItem->settings_json['totalCount'] ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCount']) : null,
+        'totalCountPerUser' => $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser']) : null,
       ],
       'conditions' => [
         'startTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_from)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
         'endTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_to)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
         'eaterType' => $model->deliveryPlatformCampaignItem->settings_json['eaterType'],
-        'minBasketAmount' => $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] ? intval($model->deliveryPlatformCampaignItem->settings_json['minBasketAmount']) : '',
-        'bundleQuantity' => $model->deliveryPlatformCampaignItem->settings_json['qty'] ? intval($model->deliveryPlatformCampaignItem->settings_json['qty']) : '',
+        'minBasketAmount' => $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] ? intval($model->deliveryPlatformCampaignItem->settings_json['minBasketAmount']) : null,
+        'bundleQuantity' => $model->deliveryPlatformCampaignItem->settings_json['qty'] ? intval($model->deliveryPlatformCampaignItem->settings_json['qty']) : null,
         'workingHour' => [
           'sun' => [
             'periods' => [
@@ -162,15 +162,15 @@ class DeliveryPlatformCampaignService
       ],
       'discount' => [
         'type' => $model->deliveryPlatformCampaignItem->settings_json['type'],
-        'cap' => $model->deliveryPlatformCampaignItem->settings_json['cap'] ? intval($model->deliveryPlatformCampaignItem->settings_json['cap']) : '',
+        'cap' => $model->deliveryPlatformCampaignItem->settings_json['cap'] ? intval($model->deliveryPlatformCampaignItem->settings_json['cap']) : null,
         'value' => intval($model->deliveryPlatformCampaignItem->settings_json['value']),
         'scope' => [
           'type' => $model->deliveryPlatformCampaignItem->settings_json['scope'],
           'objectIDs' => $model->deliveryPlatformCampaignItem->settings_json['objectIDs'],
         ]
       ],
-      'customTag' => '',
-    ];
+      'customTag' => null,
+    ]);
   }
 
   private function setDeliveryPlatform($slug, DeliveryPlatformOperator $deliveryPlatformOperator)
@@ -182,6 +182,16 @@ class DeliveryPlatformCampaignService
       default:
         return;
     }
+  }
+
+  private function removeNullValuesRecursively($array)
+  {
+      return array_filter($array, function ($value) {
+          if (is_array($value)) {
+              return removeNullValuesRecursively($value);
+          }
+          return !is_null($value);
+      });
   }
 
 }
