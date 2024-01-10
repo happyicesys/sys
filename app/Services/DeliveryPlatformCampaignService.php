@@ -187,12 +187,25 @@ class DeliveryPlatformCampaignService
 
   protected function removeNullValuesRecursively($array)
   {
-      return array_filter($array, function ($value) {
-          if (is_array($value)) {
-              return $this->removeNullValuesRecursively($value);
-          }
-          return !is_null($value);
-      });
+    $filteredArray = [];
+    foreach ($array as $key => $value) {
+        if (is_array($value)) {
+            $filteredValue = $this->removeNullValuesRecursively($value);
+            if (!empty($filteredValue)) {
+                $filteredArray[$key] = $filteredValue;
+            }
+        } elseif (!is_null($value)) {
+            $filteredArray[$key] = $value;
+        }
+    }
+    return $filteredArray;
+
+      // return array_filter($array, function ($value) {
+      //     if (is_array($value)) {
+      //         return $this->removeNullValuesRecursively($value);
+      //     }
+      //     return !is_null($value);
+      // });
   }
 
 }
