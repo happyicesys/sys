@@ -96,8 +96,8 @@ class DeliveryPlatformCampaignService
         'totalCountPerUser' => $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser']) : '',
       ],
       'conditions' => [
-        'startTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_from)->setTimezone('UTC')->toIso8601String(),
-        'endTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_to)->setTimezone('UTC')->toIso8601String(),
+        'startTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_from)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
+        'endTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_to)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
         'eaterType' => $model->deliveryPlatformCampaignItem->settings_json['eaterType'],
         'minBasketAmount' => $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] ? intval($model->deliveryPlatformCampaignItem->settings_json['minBasketAmount']) : '',
         'bundleQuantity' => $model->deliveryPlatformCampaignItem->settings_json['qty'] ? intval($model->deliveryPlatformCampaignItem->settings_json['qty']) : '',
@@ -166,7 +166,7 @@ class DeliveryPlatformCampaignService
         'value' => intval($model->deliveryPlatformCampaignItem->settings_json['value']),
         'scope' => [
           'type' => $model->deliveryPlatformCampaignItem->settings_json['scope'],
-          'objectIDs' => $model->deliveryPlatformCampaignItem->settings_json['objectIDs'] ? json_encode($model->deliveryPlatformCampaignItem->settings_json['objectIDs'], JSON_NUMERIC_CHECK) : [],
+          'objectIDs' => $model->deliveryPlatformCampaignItem->settings_json['objectIDs'],
         ]
       ],
       'customTag' => '',
