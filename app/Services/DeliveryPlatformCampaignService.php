@@ -74,9 +74,10 @@ class DeliveryPlatformCampaignService
     if($deliveryPlatformCampaign->deliveryPlatformCampaignItems()->exists() and $deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends()->exists()) {
       foreach($deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
           foreach($deliveryPlatformCampaign->deliveryPlatformCampaignItems as $deliveryPlatformCampaignItem) {
-              $deliveryProductMappingVend->deliveryPlatformCampaignItemVends()->create([
+              $deliveryProductMappingVend->deliveryPlatformCampaignItemVends()->updateOrCreate([
                   'delivery_platform_campaign_id' => $deliveryPlatformCampaign->id,
                   'delivery_platform_campaign_item_id' => $deliveryPlatformCampaignItem->id,
+              ], [
                   'is_active' => $deliveryPlatformCampaignItem->is_active,
               ]);
           }
@@ -184,14 +185,16 @@ class DeliveryPlatformCampaignService
     }
   }
 
-  protected function removeNullValuesRecursively($array)
+  protected function removeNullValuesRecursively(&$array)
   {
-      return array_filter($array, function ($value) {
+      foreach ($array as $key => &$value) {
           if (is_array($value)) {
-              return $this->removeNullValuesRecursively($value);
+              $this->removeNullValuesRecursively($value);
           }
-          return !is_null($value);
-      });
+          if ($value === null) {
+              unset($array[$key]);
+          }
+      }
   }
 
 }
