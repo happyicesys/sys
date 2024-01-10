@@ -143,7 +143,7 @@ class DeliveryPlatformCampaignController extends Controller
                 'value' => $request->promo_value,
                 'scope' => $request->delivery_platform_campaign_item_scope,
                 'objectIDs' => $request->delivery_product_mapping_items ? collect($request->delivery_product_mapping_items)->pluck('id')->map(function($id) {
-                    return intval($id);
+                    return (string)$id;
                 })->toArray() : collect([$request->category])->pluck('id')->toArray(),
             ],
             'settings_label' => $request->settings_label,
