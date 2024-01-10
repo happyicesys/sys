@@ -93,15 +93,15 @@ class DeliveryPlatformCampaignService
       'merchantID' => $model->deliveryProductMappingVend->platform_ref_id,
       'name' => $model->deliveryPlatformCampaignItem->settings_label,
       'quotas' => [
-        'totalCount' => $model->deliveryPlatformCampaignItem->settings_json['totalCount'] ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCount']) : null,
-        'totalCountPerUser' => $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser']) : null,
+        'totalCount' => $model->deliveryPlatformCampaignItem->settings_json['totalCount'] && $model->deliveryPlatformCampaignItem->settings_json['totalCount'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCount']) : null,
+        'totalCountPerUser' => $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] && $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser']) : null,
       ],
       'conditions' => [
         'startTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_from)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
         'endTime' => Carbon::parse($model->deliveryPlatformCampaignItem->datetime_to)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
         'eaterType' => $model->deliveryPlatformCampaignItem->settings_json['eaterType'],
-        'minBasketAmount' => $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] ? intval($model->deliveryPlatformCampaignItem->settings_json['minBasketAmount']) : null,
-        'bundleQuantity' => $model->deliveryPlatformCampaignItem->settings_json['qty'] ? intval($model->deliveryPlatformCampaignItem->settings_json['qty']) : null,
+        'minBasketAmount' => $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] && $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['minBasketAmount']) : null,
+        'bundleQuantity' => $model->deliveryPlatformCampaignItem->settings_json['qty'] && $model->deliveryPlatformCampaignItem->settings_json['qty'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['qty']) : null,
         'workingHour' => [
           'sun' => [
             'periods' => [
@@ -163,14 +163,14 @@ class DeliveryPlatformCampaignService
       ],
       'discount' => [
         'type' => $model->deliveryPlatformCampaignItem->settings_json['type'],
-        'cap' => $model->deliveryPlatformCampaignItem->settings_json['cap'] ? intval($model->deliveryPlatformCampaignItem->settings_json['cap']) : null,
+        'cap' => $model->deliveryPlatformCampaignItem->settings_json['cap'] && $model->deliveryPlatformCampaignItem->settings_json['cap'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['cap']) : null,
         'value' => intval($model->deliveryPlatformCampaignItem->settings_json['value']),
         'scope' => [
           'type' => $model->deliveryPlatformCampaignItem->settings_json['scope'],
           'objectIDs' => $model->deliveryPlatformCampaignItem->settings_json['objectIDs'],
         ]
       ],
-      'customTag' => null,
+      'customTag' => '',
     ]);
   }
 
