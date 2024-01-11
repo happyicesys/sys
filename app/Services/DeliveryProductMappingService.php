@@ -23,6 +23,7 @@ class DeliveryProductMappingService
           ->when($vendId, function($query, $search) {
               $query->where('vend_id', $search);
           })
+          ->whereNull('end_date')
           ->get();
 
         if(count($deliveryProductMappingVends) > 0) {

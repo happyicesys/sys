@@ -621,7 +621,7 @@
                               </Button>
                               <Button
                                 class="flex space-x-1 bg-red-500 hover:bg-red-600 text-white"
-                                v-if="roles.includes('superadmin') && !deliveryProductMappingVend.is_active"
+                                v-if="!deliveryProductMappingVend.is_active"
                                 @click.prevent="unbindVend(deliveryProductMappingVend.id)"
                               >
                                 <XCircleIcon class="w-3 h-3" ></XCircleIcon>

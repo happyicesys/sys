@@ -26,6 +26,7 @@ use App\Models\ProductMappingItem;
 use App\Models\Vend;
 use App\Services\DeliveryPlatformService;
 use App\Services\DeliveryProductMappingService;
+use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -56,6 +57,9 @@ class DeliveryProductMappingController extends Controller
                     ->with([
                         'deliveryPlatformOperator.deliveryPlatform',
                         'operator:id,name',
+                        'deliveryProductMappingVends' => function($query) {
+                            $query->whereNull('end_date');
+                        },
                         'deliveryProductMappingVends.vend:id,code,name',
                         'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name',
                     ])
@@ -272,7 +276,10 @@ class DeliveryProductMappingController extends Controller
                 'deliveryProductMappingBulks.deliveryProductMappingBulkItems.deliveryProductMappingItem.product.thumbnail',
                 'deliveryProductMappingItems.product:id,code,name',
                 'deliveryProductMappingItems.product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
-                'deliveryProductMappingVends:id,delivery_product_mapping_id,platform_ref_id,vend_code,vend_id,is_active',
+                'deliveryProductMappingVends' => function($query) {
+                    $query->whereNull('end_date')
+                        ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
+                },
                 'deliveryProductMappingVends.vend:id,code,name',
                 'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name',
                 'deliveryProductMappingVends.deliveryProductMappingVendChannels.vendChannel:id,code,capacity,qty',
@@ -472,29 +479,10 @@ class DeliveryProductMappingController extends Controller
     public function unbindVend($deliveryProductMappingVendId)
     {
         $deliveryProductMappingVend = DeliveryProductMappingVend::findOrFail($deliveryProductMappingVendId);
-        $deliveryProductMappingVend->update([
-            'is_active' => false,
-        ]);
-        if($deliveryProductMappingVend->deliveryProductMappingVendChannels()->exists()) {
-            $deliveryProductMappingVend->deliveryProductMappingVendChannels()->update([
-                'is_active' => false,
-            ]);
-        }
-        if($deliveryProductMappingVend->is_active) {
-            $this->deliveryProductMappingService->syncVendChannels($deliveryProductMappingVend->deliveryProductMapping->id, $deliveryProductMappingVend->vend->id);
-        }else {
-            $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend);
-        }
+        $deliveryProductMappingVend->end_date = Carbon::now();
+        $deliveryProductMappingVend->save();
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVend->delivery_product_mapping_id]);
-
-
-
-        // $deliveryProductMappingVend = DeliveryProductMappingVend::findOrFail($deliveryProductMappingVendId);
-        // $deliveryProductMappingVend->deliveryProductMappingVendChannels()->delete();
-        // $deliveryProductMappingVend->delete();
-
-        // return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVend->deliveryProductMapping->id]);
     }
 
     public function update(Request $request, $id)
