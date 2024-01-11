@@ -348,14 +348,14 @@
                                 <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
                                     <Button
                                       @click.prevent="removeDeliveryPlatformCampaignItem(deliveryPlatformCampaignItem.id)"
-                                      class="flex flex-col space-x-1 bg-red-500 hover:bg-red-600 text-white"
+                                      class="flex flex-col bg-red-500 hover:bg-red-600 text-white"
                                       :disabled="deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends && deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends.length > 0"
                                       :class="[deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends && deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends.length > 0 ? 'opacity-50 cursor-not-allowed' : '']"
                                     >
 
                                       <XCircleIcon class="w-4 h-4" ></XCircleIcon>
-                                      <span v-if="deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends && deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends.length > 0">
-                                        (Campaigns running, cannot delete)
+                                      <span class="text-xs" v-if="deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends && deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends.length > 0">
+                                        Campaigns running, cannot delete
                                       </span>
                                     </Button>
                                 </TableData>

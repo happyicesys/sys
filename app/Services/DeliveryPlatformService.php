@@ -98,7 +98,6 @@ class DeliveryPlatformService
         $response = $this->model->checkOrderCancelable($deliveryPlatformOrder->order_id, $deliveryPlatformOrder->deliveryProductMappingVend->platform_ref_id);
 
         if($response['success']) {
-          $deliveryPlatformOrder->cancelled_json = $response['data'];
           if($response['data']['cancelable']) {
             $response = $this->model->cancelOrder($deliveryPlatformOrder->order_id, $deliveryPlatformOrder->deliveryProductMappingVend->platform_ref_id, 1001);
             $deliveryPlatformOrder->is_cancelled = true;
@@ -129,7 +128,7 @@ class DeliveryPlatformService
     $dispenseData = [
       'orderId' => $orderID,
       'paymentMethod' => $deliveryPlatformOrder->deliveryPlatform->paymentMethod->code,
-      'amount' => $deliveryPlatformOrder->subtotal_amount,
+      'amount' => ($deliveryPlatformOrder->subtotal_amount - $deliveryPlatformOrder->promo_amount),
       'vendCode' => $deliveryPlatformOrder->deliveryProductMappingVend->vend->code,
       'channels' => [],
     ];
@@ -219,8 +218,6 @@ class DeliveryPlatformService
             'datetime' => Carbon::now()->toDateTimeString(),
           ]),
           'request_history_json' => $deliveryPlatformOrder->request_history_json ? array_merge($deliveryPlatformOrder->request_history_json, $input) : $input,
-          'driver_eta_seconds' => isset($input['driverETA']) ? $input['driverETA'] : null,
-          'driver_eta_updated_at' => isset($input['driverETA']) ? Carbon::now() : null,
         ]);
         return $deliveryPlatformOrder;
       break;
@@ -731,12 +728,13 @@ class DeliveryPlatformService
   private function setGrabOrderIncomingParam($params = [])
   {
     $originalArr = [
-      'driver_eta_seconds' => isset($params['driverETA']) ? $params['driverETA'] : null,
+      'campaign_json' => isset($params['campaigns']) ? $params['campaigns'] : null,
       'order_id' => $params['orderID'],
       'short_order_id' => $params['shortOrderNumber'],
       'platform_ref_id' => $params['merchantID'],
       'vend_code' => $params['partnerMerchantID'],
       'order_created_at' => isset($params['orderTime']) ? Carbon::parse($params['orderTime'], 'UTC')->setTimezone($this->getUserTimezone()) : null,
+      'order_json' => $params,
       'request_history_json' => $params,
       'status' => isset($params['orderState']) ? DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$params['orderState']] : DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_PENDING],
       'status_json' => [
@@ -747,8 +745,10 @@ class DeliveryPlatformService
       'featureFlags' => isset($params['featureFlags']) ? $params['featureFlags'] : null,
       'items' => isset($params['items']) ? $params['items'] : null,
       'price' => isset($params['price']) ? $params['price'] : null,
-      'subtotal_amount' => isset($params['price']['subtotal']) ? $params['price']['subtotal'] : null,
-      'total_amount' => isset($params['price']['eaterPayment']) ? $params['price']['eaterPayment'] : null,
+      'promo_amount' => isset($params['price']['merchantFundPromo']) ? $params['price']['merchantFundPromo'] : 0,
+      // 'subtotal_amount' => isset($params['price']['subtotal']) ? (isset($params['price']['merchantFundPromo']) and $params['price']['merchantFundPromo'] > 0 ? (+ $params['price']['subtotal'] - $params['price']['merchantFundPromo']) : $params['price']['subtotal']) : 0,
+      'subtotal_amount' => isset($params['price']['subtotal']) ? $params['price']['subtotal'] : 0,
+      'total_amount' => isset($params['price']['eaterPayment']) ? $params['price']['eaterPayment'] : 0,
     ];
 
     return $originalArr;

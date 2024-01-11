@@ -199,6 +199,12 @@
                       Subtotal
                     </TableHead>
                     <TableHead>
+                      Campaign
+                    </TableHead>
+                    <TableHead>
+                      Channel Error(s)
+                    </TableHead>
+                    <TableHead>
                       Driver Phone Number
                     </TableHead>
                   </tr>
@@ -225,14 +231,14 @@
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                       {{ deliveryPlatformOrder.short_order_id }}
                     </TableData>
-                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center max-w-xs">
-                      <div class="max-w-xs">
+                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center w-xs">
+                      <div class="w-xs">
                       <div
-                          class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border max-w-xs"
+                          class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs"
                           :class="statusClass(deliveryPlatformOrder).statusClass"
                       >
                           <div class="flex flex-col">
-                              <span class="font-semibold">
+                              <span class="font-semibold grow-0">
                                 {{ deliveryPlatformOrder.status_name }}
                               </span>
                           </div>
@@ -262,11 +268,11 @@
                             {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.code }} <br>
                             {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.name }}
                           </span>
-                          <div class="flex self-center">
+                          <!-- <div class="flex self-center">
                             <a :href="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" target="_blank" v-if="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail">
                               <img class="object-scale-down h-24 w-24 md:h-16 md:w-20 rounded-full" :src="deliveryPlatformOrderItem.deliveryProductMappingItem.product.thumbnail.full_url" alt="" />
                             </a>
-                          </div>
+                          </div> -->
                           <span class="self-center">
                             x
                           </span>
@@ -279,6 +285,27 @@
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-right">
                       <!-- {{ (deliveryPlatformOrder.subtotal_amount / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} -->
                       {{ deliveryPlatformOrder.subtotal_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                    </TableData>
+                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-right">
+                      <div class="flex flex-col space-y-1">
+                        <span v-if="deliveryPlatformOrder.campaign_json" v-for="campaign in deliveryPlatformOrder.campaign_json" class="inline-flex items-center rounded-md bg-purple-50 px-1 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10 max-w-[130px] truncate hover:text-clip">
+                          {{ campaign.name }}
+                        </span>
+                      </div>
+                    </TableData>
+                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
+                      <span v-if="deliveryPlatformOrder.vendTransaction && deliveryPlatformOrder.vendTransaction.itemsJson" v-for="item in deliveryPlatformOrder.vendTransaction.itemsJson" class="inline-flex items-center rounded px-2 py-0.5 text-xs">
+                        <span class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium border bg-red-100 text-red-800" v-if="item.vendChannelError != null">
+                          <div class="flex flex-col space-x-1">
+                              <div>
+                                  #{{ item.vendChannelCode }}
+                                  <span class="font-bold">
+                                    {{ item.vendChannelError.desc }}
+                                  </span>
+                              </div>
+                          </div>
+                        </span>
+                      </span>
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                       <div class="flex flex-col space-y-1">

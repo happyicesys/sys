@@ -43,7 +43,7 @@ class DeliveryPlatformOrderController extends Controller
             ->filterIndex($request)
             ->where('status', DeliveryPlatformOrder::STATUS_DELIVERED)
             ->select(
-                DB::raw('SUM(subtotal_amount) AS total_amount'),
+                DB::raw('SUM(subtotal_amount) - SUM(promo_amount) AS total_amount'),
                 DB::raw('COUNT(id) AS order_count')
             )
             ->first();
@@ -181,7 +181,7 @@ class DeliveryPlatformOrderController extends Controller
             'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',
             'deliveryPlatformOrderItems.deliveryProductMappingItem.product.thumbnail',
             'deliveryPlatformOrderItems.orderItemVendChannels',
-
+            'vendTransaction'
         ])
         ->filterIndex($request)
         ->when($request->sortKey, function($query, $search) use ($request) {

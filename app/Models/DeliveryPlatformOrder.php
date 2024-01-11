@@ -51,26 +51,21 @@ class DeliveryPlatformOrder extends Model
     ];
 
     protected $fillable = [
-        'cancelled_json',
+        'campaign_json',
         'delivery_platform_id',
         'delivery_platform_operator_id',
         'delivery_product_mapping_vend_id',
-        'driver_arrived_at',
-        'driver_assigned_at',
-        'driver_eta_seconds',
-        'driver_eta_updated_at',
         'driver_phone_number',
         'driver_request_json',
         'error_json',
         'is_cancelled',
         'is_edited',
         'is_verified',
-        'order_completed_at',
         'order_created_at',
         'order_id',
-        'ref_id',
         'order_json',
         'platform_ref_id',
+        'promo_amount',
         'remarks',
         'request_history_json',
         'response_history_json',
@@ -86,13 +81,9 @@ class DeliveryPlatformOrder extends Model
     ];
 
     protected $casts = [
-        'cancelled_json' => 'json',
-        'driver_arrived_at' => 'datetime',
-        'driver_assigned_at' => 'datetime',
-        'driver_eta_updated_at' => 'datetime',
+        'campaign_json' => 'json',
         'driver_request_json' => 'json',
         'error_json' => 'json',
-        'order_completed_at' => 'datetime',
         'order_created_at' => 'datetime',
         'order_json' => 'json',
         'request_history_json' => 'json',
@@ -102,10 +93,17 @@ class DeliveryPlatformOrder extends Model
     ];
 
     // getter and setter
+    protected function promoAmount(): Attribute
+    {
+        return Attribute::make(
+            get: fn (string $value) => $value/ ($this->deliveryProductMappingVend->deliveryProductMapping && $this->deliveryProductMappingVend->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100),
+        );
+    }
+
     protected function subtotalAmount(): Attribute
     {
         return Attribute::make(
-            get: fn (string $value) => $value/ ($this->deliveryProductMappingVend->deliveryProductMappin && $this->deliveryProductMappingVend->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100),
+            get: fn (string $value) => $value/ ($this->deliveryProductMappingVend->deliveryProductMapping && $this->deliveryProductMappingVend->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100),
         );
     }
 

@@ -17,6 +17,7 @@ class DeliveryPlatformCampaignItemResource extends JsonResource
         return [
             'id' => $this->id,
             'deliveryPlatformCampaign' => DeliveryPlatformCampaignResource::make($this->whenLoaded('deliveryPlatformCampaign')),
+            'deliveryPlatformCampaignItemVends' => DeliveryPlatformCampaignItemVendResource::collection($this->whenLoaded('deliveryPlatformCampaignItemVends')),
             'datetime_from' => $this->datetime_from ? $this->datetime_from->setTimezone($request->user()->timezone)->format('Y-m-d H:i:s') : null,
             'datetime_to' => $this->datetime_to ? $this->datetime_to->setTimezone($request->user()->timezone)->format('Y-m-d H:i:s') : null,
             'is_active' => $this->is_active,
