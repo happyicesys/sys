@@ -176,6 +176,7 @@ class DeliveryPlatformOrderController extends Controller
             'deliveryProductMappingVend.deliveryProductMapping:id,name',
             'deliveryProductMappingVend.vend:id,code,name',
             'deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
+            'deliveryProductMappingVend.deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
             'deliveryPlatformOperator',
             'deliveryPlatformOrderComplaint',
             'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',

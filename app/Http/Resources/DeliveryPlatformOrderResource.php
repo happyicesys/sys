@@ -53,6 +53,7 @@ class DeliveryPlatformOrderResource extends JsonResource
             'vend_json' => $this->vend_json,
             'vend_transaction_order_id' => $this->vend_transaction_order_id,
             'vend' => VendResource::make($this->whenLoaded('vend')),
+            'virtual_campaign_id_json' => $this->virtual_campaign_id_json,
         ];
     }
 }

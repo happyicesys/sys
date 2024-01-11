@@ -112,6 +112,12 @@ class DeliveryPlatformCampaignController extends Controller
                 'deliveryProductMapping:id,category_json,name',
                 'deliveryProductMapping.deliveryProductMappingItems.product.thumbnail',
                 'deliveryProductMapping.deliveryProductMappingBulks.deliveryProductMappingBulkItems.deliveryProductMappingItem.product.thumbnail',
+                'deliveryProductMapping.deliveryProductMappingVends' => function($query) {
+                    $query->whereNull('end_date')
+                        ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
+                },
+                'deliveryProductMapping.deliveryProductMappingVends.vend:id,code,name',
+                'deliveryProductMapping.deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name',
             ])
             ->findOrFail($id);
 

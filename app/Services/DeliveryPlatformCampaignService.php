@@ -28,14 +28,26 @@ class DeliveryPlatformCampaignService
 
     switch($deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
-        $response = $this->model->createCampaign($this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend));
+        $startTime = Carbon::now()->addMinutes(5)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
+        $endTime = Carbon::now()->addMonths(2)->subDays(1)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
+
+        $response = $this->model->createCampaign($this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend, [
+          'startTime' => $startTime,
+          'endTime' => $endTime,
+        ]));
+
         VendData::create([
           'connection' => 'GRAB-CAMPAIGN',
           'processed' => $response,
-          'value' => $this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend),
+          'value' => $this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend, [
+            'startTime' => $startTime,
+            'endTime' => $endTime,
+          ]),
         ]);
         if($response['success']) {
           $deliveryPlatformCampaignItemVend->update([
+            'datetime_from' => $startTime,
+            'datetime_to' => $endTime,
             'is_submitted' => true,
             'platform_ref_id' => $response['data']['id'],
           ]);
@@ -71,8 +83,8 @@ class DeliveryPlatformCampaignService
 
   public function syncItemVends(DeliveryPlatformCampaign $deliveryPlatformCampaign)
   {
-    if($deliveryPlatformCampaign->deliveryPlatformCampaignItems()->exists() and $deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends()->exists()) {
-      foreach($deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
+    if($deliveryPlatformCampaign->deliveryPlatformCampaignItems()->exists() and $deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends()->whereNull('end_date')->exists()) {
+      foreach($deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends()->whereNull('end_date')->get() as $deliveryProductMappingVend) {
           foreach($deliveryPlatformCampaign->deliveryPlatformCampaignItems as $deliveryPlatformCampaignItem) {
               $deliveryProductMappingVend->deliveryPlatformCampaignItemVends()->updateOrCreate([
                   'delivery_platform_campaign_id' => $deliveryPlatformCampaign->id,
@@ -86,7 +98,7 @@ class DeliveryPlatformCampaignService
     return true;
   }
 
-  private function mapGrabCampaignParam($model)
+  private function mapGrabCampaignParam($model, $params=[])
   {
     // from grab deliveryPlatformCampaignItemVend
     return $this->removeNullValuesRecursively([
@@ -97,8 +109,8 @@ class DeliveryPlatformCampaignService
         'totalCountPerUser' => $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] && $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser']) : null,
       ],
       'conditions' => [
-        'startTime' => Carbon::now()->addMinutes(5)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
-        'endTime' => Carbon::now()->addMonths(2)->subDays(1)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
+        'startTime' => $params['startTime'],
+        'endTime' => $params['endTime'],
         'eaterType' => $model->deliveryPlatformCampaignItem->settings_json['eaterType'],
         'minBasketAmount' => $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] && $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] != null ? $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] : 0,
         'bundleQuantity' => $model->deliveryPlatformCampaignItem->settings_json['qty'] && $model->deliveryPlatformCampaignItem->settings_json['qty'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['qty']) : 0,

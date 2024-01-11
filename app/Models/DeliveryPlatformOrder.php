@@ -78,6 +78,7 @@ class DeliveryPlatformOrder extends Model
         'vend_json',
         'vend_transaction_id',
         'vend_transaction_order_id',
+        'virtual_campaign_id_json',
     ];
 
     protected $casts = [
@@ -90,6 +91,7 @@ class DeliveryPlatformOrder extends Model
         'response_history_json' => 'json',
         'status_json' => 'json',
         'vend_json' => 'json',
+        'virtual_campaign_id_json' => 'json',
     ];
 
     // getter and setter

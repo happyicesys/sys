@@ -283,13 +283,20 @@
                       </ul>
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-right">
-                      <!-- {{ (deliveryPlatformOrder.subtotal_amount / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} -->
                       {{ deliveryPlatformOrder.subtotal_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                     </TableData>
-                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-right">
+                    <!-- <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-right">
                       <div class="flex flex-col space-y-1">
                         <span v-if="deliveryPlatformOrder.campaign_json" v-for="campaign in deliveryPlatformOrder.campaign_json" class="inline-flex items-center rounded-md bg-purple-50 px-1 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10 max-w-[130px] truncate hover:text-clip">
                           {{ campaign.name }}
+                        </span>
+                      </div>
+                    </TableData> -->
+                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
+                      <!-- {{ deliveryPlatformOrder.deliveryProductMappingVend.deliveryPlatformCampaignItemVends }} -->
+                      <div class="flex flex-col space-y-1">
+                        <span v-for="campaign in deliveryPlatformOrder.virtual_campaign_id_json" class="inline-flex items-center rounded-md bg-purple-50 px-1 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10 hover:text-clip">
+                          {{ getCampaignSettingsName(deliveryPlatformOrder, campaign) }}
                         </span>
                       </div>
                     </TableData>
@@ -418,6 +425,10 @@ onMounted(() => {
   filters.value.has_complaint = booleanOptions.value[0]
   filters.value.status = props.deliveryPlatformOrderStatusOptions[0]
 })
+
+function getCampaignSettingsName(deliveryPlatformOrder, campaignID) {
+  return deliveryPlatformOrder.deliveryProductMappingVend.deliveryPlatformCampaignItemVends.find((vend) => vend.platform_ref_id == campaignID).deliveryPlatformCampaignItem.settings_name
+}
 
 function onDeliveryPlatformOrderComplaintClicked(deliveryPlatformOrder) {
   model.value = deliveryPlatformOrder

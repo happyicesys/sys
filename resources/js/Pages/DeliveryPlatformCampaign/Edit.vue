@@ -277,8 +277,6 @@
                 </Button>
               </div>
 
-              <span class="sm:col-span-6">
-              </span>
               <div class="sm:col-span-6 flex flex-col mt-2 mx-2 mb-3" v-if="form.id">
                 <div class="mt-6 flex flex-col">
                   <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8 px-3">
@@ -371,6 +369,92 @@
                   </div>
               </div>
               </div>
+<!--
+              <div class="sm:col-span-6 flex flex-col mt-2 mx-2 mb-3" v-if="form.id">
+                <div class="mt-6 flex flex-col">
+                  <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8 px-3">
+                      <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
+                        <table class="min-w-full border-separate" style="border-spacing: 0">
+                            <thead class="bg-gray-100">
+                              <tr class="divide-x divide-gray-200">
+                                <TableHead>
+                                  #
+                                </TableHead>
+                                <TableHead>
+                                  Vend
+                                </TableHead>
+                                <TableHead>
+                                  Campaign
+                                </TableHead>
+                              </tr>
+                            </thead>
+                            <tbody class="bg-white">
+                              <tr v-for="(deliveryPlatformCampaignItem, deliveryPlatformCampaignItemIndex) in deliveryPlatformCampaign.deliveryPlatformCampaignItems" :key="deliveryPlatformCampaignItem.id" class="divide-x divide-gray-300">
+                                <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
+                                  {{ deliveryPlatformCampaignItemIndex + 1 }}
+                                </TableData>
+                                <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
+                                  {{ deliveryPlatformCampaignItem.settings_name }}
+                                  <br>
+                                  <span class="text-blue-700">
+                                    {{ deliveryPlatformCampaignItem.settings_label }}
+                                  </span>
+                                </TableData>
+                                <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
+                                  <ul role="list" class="divide-y divide-gray-100 overflow-scroll bg-white" v-if="deliveryPlatformCampaignItem.settings_json">
+                                    <li v-for="(setting, settingIndex) in deliveryPlatformCampaignItem.settings_json" class=" flex justify-between gap-x-1 px-1 py-0.5">
+                                      <div class="flex min-w-0 gap-x-4">
+                                        <span class="text-sm">
+                                          {{ settingIndex }}:
+                                        </span>
+                                        <div class="min-w-0 flex-auto">
+                                          <p class="text-sm font-semibold leading-2 text-gray-900">
+                                            {{ setting }}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </li>
+                                  </ul>
+                                </TableData>
+                                <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-left">
+                                  <ul role="list" class="divide-y divide-gray-100 overflow-scroll bg-white" v-if="deliveryPlatformCampaignItem.items_json">
+                                    <li v-for="item in deliveryPlatformCampaignItem.items_json" class=" flex justify-between gap-x-2 px-1 py-0.5">
+                                      <div class="flex min-w-0 gap-x-3">
+                                        <div class="min-w-0 flex-auto pt-1">
+                                          <p class="text-sm font-semibold leading-2 text-gray-900">
+                                            {{ item.full_name ? item.full_name : item.name }}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </li>
+                                  </ul>
+                                </TableData>
+                                <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
+                                    <Button
+                                      @click.prevent="removeDeliveryPlatformCampaignItem(deliveryPlatformCampaignItem.id)"
+                                      class="flex flex-col bg-red-500 hover:bg-red-600 text-white"
+                                      :disabled="deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends && deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends.length > 0"
+                                      :class="[deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends && deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends.length > 0 ? 'opacity-50 cursor-not-allowed' : '']"
+                                    >
+
+                                      <XCircleIcon class="w-4 h-4" ></XCircleIcon>
+                                      <span class="text-xs" v-if="deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends && deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends.length > 0">
+                                        Campaigns running, cannot delete
+                                      </span>
+                                    </Button>
+                                </TableData>
+                              </tr>
+                               <tr v-if="!deliveryPlatformCampaign.deliveryPlatformCampaignItems.length">
+                                <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                                    No Results Found
+                                </td>
+                              </tr>
+                            </tbody>
+                        </table>
+                      </div>
+                  </div>
+              </div>
+              </div> -->
 
           </div>
           </form>
