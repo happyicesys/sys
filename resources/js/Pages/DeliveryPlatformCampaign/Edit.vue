@@ -369,7 +369,7 @@
                   </div>
               </div>
               </div>
-<!--
+
               <div class="sm:col-span-6 flex flex-col mt-2 mx-2 mb-3" v-if="form.id">
                 <div class="mt-6 flex flex-col">
                   <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8 px-3">
@@ -389,62 +389,31 @@
                               </tr>
                             </thead>
                             <tbody class="bg-white">
-                              <tr v-for="(deliveryPlatformCampaignItem, deliveryPlatformCampaignItemIndex) in deliveryPlatformCampaign.deliveryPlatformCampaignItems" :key="deliveryPlatformCampaignItem.id" class="divide-x divide-gray-300">
-                                <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
-                                  {{ deliveryPlatformCampaignItemIndex + 1 }}
+                              <tr v-for="(deliveryProductMappingVend, deliveryProductMappingVendIndex) in deliveryProductMappingVends.data" :key="deliveryProductMappingVend.id" class="divide-x divide-gray-300">
+                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
+                                  {{ deliveryProductMappingVendIndex + 1 }}
                                 </TableData>
-                                <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
-                                  {{ deliveryPlatformCampaignItem.settings_name }}
+                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-left">
+                                  {{ deliveryProductMappingVend.vend.code }}
                                   <br>
-                                  <span class="text-blue-700">
-                                    {{ deliveryPlatformCampaignItem.settings_label }}
-                                  </span>
+                                  {{ deliveryProductMappingVend.vend.cust_full_name }}
                                 </TableData>
-                                <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
-                                  <ul role="list" class="divide-y divide-gray-100 overflow-scroll bg-white" v-if="deliveryPlatformCampaignItem.settings_json">
-                                    <li v-for="(setting, settingIndex) in deliveryPlatformCampaignItem.settings_json" class=" flex justify-between gap-x-1 px-1 py-0.5">
-                                      <div class="flex min-w-0 gap-x-4">
-                                        <span class="text-sm">
-                                          {{ settingIndex }}:
-                                        </span>
-                                        <div class="min-w-0 flex-auto">
-                                          <p class="text-sm font-semibold leading-2 text-gray-900">
-                                            {{ setting }}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </li>
-                                  </ul>
-                                </TableData>
-                                <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-left">
-                                  <ul role="list" class="divide-y divide-gray-100 overflow-scroll bg-white" v-if="deliveryPlatformCampaignItem.items_json">
-                                    <li v-for="item in deliveryPlatformCampaignItem.items_json" class=" flex justify-between gap-x-2 px-1 py-0.5">
-                                      <div class="flex min-w-0 gap-x-3">
-                                        <div class="min-w-0 flex-auto pt-1">
-                                          <p class="text-sm font-semibold leading-2 text-gray-900">
-                                            {{ item.full_name ? item.full_name : item.name }}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </li>
-                                  </ul>
-                                </TableData>
-                                <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
-                                    <Button
-                                      @click.prevent="removeDeliveryPlatformCampaignItem(deliveryPlatformCampaignItem.id)"
-                                      class="flex flex-col bg-red-500 hover:bg-red-600 text-white"
-                                      :disabled="deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends && deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends.length > 0"
-                                      :class="[deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends && deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends.length > 0 ? 'opacity-50 cursor-not-allowed' : '']"
-                                    >
-
-                                      <XCircleIcon class="w-4 h-4" ></XCircleIcon>
-                                      <span class="text-xs" v-if="deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends && deliveryPlatformCampaignItem.deliveryPlatformCampaignItemVends.length > 0">
-                                        Campaigns running, cannot delete
-                                      </span>
-                                    </Button>
+                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
+                                  <div class="flex flex-col space-y-1 max-w-fit">
+                                    <span class="flex justify-between items-center gap-x-0.5 rounded-md bg-blue-100 px-2 py-1 text-sm font-medium text-blue-700" v-for="deliveryPlatformCampaignItemVend in deliveryProductMappingVend.deliveryPlatformCampaignItemVends">
+                                      {{ deliveryPlatformCampaignItemVend.deliveryPlatformCampaignItem.settings_name }}
+                                      <button type="button" class="group -mr-1 h-4 w-4 rounded-sm hover:bg-blue-700/20 ">
+                                        <span class="sr-only">Remove</span>
+                                        <svg viewBox="0 0 14 14" class="h-4 w-4 stroke-blue-900/50 group-hover:stroke-blue-900/75" @click.prevent="onDeleteCampaign(deliveryPlatformCampaignItemVend.id)">
+                                          <path d="M4 4l6 6m0-6l-6 6" />
+                                        </svg>
+                                        <span class="absolute -inset-1" />
+                                      </button>
+                                    </span>
+                                  </div>
                                 </TableData>
                               </tr>
-                               <tr v-if="!deliveryPlatformCampaign.deliveryPlatformCampaignItems.length">
+                               <tr v-if="!deliveryProductMappingVends.length">
                                 <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                                     No Results Found
                                 </td>
@@ -454,7 +423,7 @@
                       </div>
                   </div>
               </div>
-              </div> -->
+              </div>
 
           </div>
           </form>
@@ -480,6 +449,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 const props = defineProps({
     deliveryPlatformCampaign: Object,
     deliveryPlatformCampaignItemOptions: Object,
+    deliveryProductMappingVends: Object,
     type: String,
   })
   const categoryOptions = ref([])
@@ -628,6 +598,18 @@ const isFormCompleted = computed(function() {
 
   return isCompleted
 })
+
+function onDeleteCampaign(deliveryPlatformCampaignItemVendId) {
+  const approval = confirm('Are you sure to delete this entry?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/delivery-platform-campaigns/item-vend/' + deliveryPlatformCampaignItemVendId, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+  })
+}
 
 function onDeliveryPlatformCampaignItemChanged() {
   isClearForm.value = true

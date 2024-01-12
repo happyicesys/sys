@@ -6,9 +6,11 @@ use App\Models\DeliveryPlatformCampaign;
 use App\Models\DeliveryPlatformCampaignItem;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryProductMapping;
+use App\Models\DeliveryProductMappingVend;
 use App\Http\Resources\DeliveryPlatformCampaignResource;
 use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\DeliveryProductMappingResource;
+use App\Http\Resources\DeliveryProductMappingVendResource;
 use App\Services\DeliveryPlatformCampaignService;
 use App\Services\DeliveryPlatformService;
 use App\Traits\GetUserTimezone;
@@ -121,10 +123,28 @@ class DeliveryPlatformCampaignController extends Controller
             ])
             ->findOrFail($id);
 
+        $deliveryProductMappingVends = DeliveryProductMappingVend::query()
+            ->with([
+                'deliveryPlatformCampaignItemVends',
+                'deliveryPlatformCampaignItemVends.deliveryPlatformCampaign',
+                'deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
+                'vend:id,code,name',
+                'vend.latestVendBinding.customer:id,code,name',
+            ])
+            ->when($id, function($query, $search) {
+                $query->whereHas('deliveryPlatformCampaignItemVends.deliveryPlatformCampaign', function($query) use ($search) {
+                    $query->where('id', $search);
+                });
+            })
+            ->get();
+
         return Inertia::render('DeliveryPlatformCampaign/Edit', [
             'deliveryPlatformCampaignItemOptions' => $this->deliveryPlatformCampaignService->getItemOptions($deliveryPlatformCampaign),
             'deliveryPlatformCampaign' => DeliveryPlatformCampaignResource::make(
                 $deliveryPlatformCampaign
+            ),
+            'deliveryProductMappingVends' => DeliveryProductMappingVendResource::collection(
+                $deliveryProductMappingVends
             ),
             'type' => 'edit',
         ]);
@@ -170,6 +190,18 @@ class DeliveryPlatformCampaignController extends Controller
         $deliveryPlatformCampaignItem->delete();
 
         return redirect()->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaignItem->deliveryPlatformCampaign->id]);
+    }
+
+    public function deleteItemVend($deliveryPlatformCampaignItemVendID)
+    {
+        $deliveryPlatformCampaignItemVend = DeliveryPlatformCampaignItemVend::findOrFail($deliveryPlatformCampaignItemVendID);
+
+        //grab delete campaign
+
+
+        $deliveryPlatformCampaignItemVend->delete();
+
+        return redirect()->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->id]);
     }
 
     public function submitPlatform($id)

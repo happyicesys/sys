@@ -157,6 +157,15 @@ class DeliveryPlatformController extends Controller
         $driverPhoneNumber = $request->driver_phone_number;
         $shortOrderID = $request->short_order_id;
 
+        VendData::create([
+            'value' => $request->all(),
+            'connection' => 'GRAB-DRIVER-REQUEST',
+            'vend_code' => $code,
+            'processed' => '[]',
+            'type' => $dispenseSearch,
+            'is_keep' => true,
+        ]);
+
         if(!$shortOrderID || !$code) {
             abort(response([
                 'error_code' => 400,
