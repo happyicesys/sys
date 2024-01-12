@@ -407,7 +407,6 @@
                                         <svg viewBox="0 0 14 14" class="h-4 w-4 stroke-blue-900/50 group-hover:stroke-blue-900/75" @click.prevent="onDeleteCampaign(deliveryPlatformCampaignItemVend.id)">
                                           <path d="M4 4l6 6m0-6l-6 6" />
                                         </svg>
-                                        <span class="absolute -inset-1" />
                                       </button>
                                     </span>
                                   </div>
