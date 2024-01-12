@@ -390,15 +390,15 @@
                             </thead>
                             <tbody class="bg-white">
                               <tr v-for="(deliveryProductMappingVend, deliveryProductMappingVendIndex) in deliveryProductMappingVends.data" :key="deliveryProductMappingVend.id" class="divide-x divide-gray-300">
-                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
+                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                                   {{ deliveryProductMappingVendIndex + 1 }}
                                 </TableData>
-                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-left">
+                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-left">
                                   {{ deliveryProductMappingVend.vend.code }}
                                   <br>
                                   {{ deliveryProductMappingVend.vend.cust_full_name }}
                                 </TableData>
-                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
+                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                                   <div class="flex flex-col space-y-1 max-w-fit">
                                     <span class="flex justify-between items-center gap-x-0.5 rounded-md bg-blue-100 px-2 py-1 text-sm font-medium text-blue-700" v-for="deliveryPlatformCampaignItemVend in deliveryProductMappingVend.deliveryPlatformCampaignItemVends">
                                       {{ deliveryPlatformCampaignItemVend.deliveryPlatformCampaignItem.settings_name }}

@@ -12,8 +12,7 @@ class DeliveryPlatformOrder extends Model
 {
     use HasFactory;
 
-    const DEFAULT_VALID_COLLECTION_HOURS = 3;
-    const ORDER_EXPIRED_HOURS = 12;
+    const ORDER_EXPIRED_HOURS = 48;
 
     const STATUS_PENDING = 1;
     const STATUS_ACCEPTED = 2;
