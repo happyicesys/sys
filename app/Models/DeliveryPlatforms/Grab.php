@@ -363,8 +363,8 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'name' => 'Delivery Fee Off',
             'cap' => false,
             'qty' => false,
-            'phrase_1' => '$',
-            'phrase_2' => ' delivery off',
+            'phrase1' => '$',
+            'phrase2' => ' delivery off',
             'scope' => [
                 [
                     'id' => self::CAMPAIGN_SCOPE_ORDER,
@@ -391,8 +391,8 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'name' => 'Free Item',
             'cap' => false,
             'qty' => false,
-            'phrase_1' => 'Free Item',
-            'phrase_2' => '',
+            'phrase1' => 'Free Item',
+            'phrase2' => '',
             'scope' => [
                 [
                     'id' => self::CAMPAIGN_SCOPE_ITEM,
