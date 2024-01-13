@@ -59,6 +59,28 @@ class DeliveryPlatformCampaignService
     }
   }
 
+  public function deleteCampaign(DeliveryPlatformCampaignItemVend $deliveryPlatformCampaignItemVend)
+  {
+    $this->setDeliveryPlatform($deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug, $deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator);
+
+    switch($deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug) {
+      case 'grab':
+        $response = $this->model->deleteCampaign($deliveryPlatformCampaignItemVend->platform_ref_id);
+
+        VendData::create([
+          'connection' => 'GRAB-CAMPAIGN-DELETE',
+          'processed' => $response,
+          'value' => $deliveryPlatformCampaignItemVend->platform_ref_id,
+        ]);
+        if($response['success']) {
+          return $response['data'];
+        }
+        break;
+      default:
+        return;
+    }
+  }
+
   public function getItemOptions(DeliveryPlatformCampaign $deliveryPlatformCampaign)
   {
     switch($deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug) {
@@ -89,6 +111,9 @@ class DeliveryPlatformCampaignService
               $deliveryProductMappingVend->deliveryPlatformCampaignItemVends()->updateOrCreate([
                   'delivery_platform_campaign_id' => $deliveryPlatformCampaign->id,
                   'delivery_platform_campaign_item_id' => $deliveryPlatformCampaignItem->id,
+                  'settings_name' => $deliveryPlatformCampaignItem->settings_name,
+                  'settings_label' => $deliveryPlatformCampaignItem->settings_label,
+                  'settings_json' => $deliveryPlatformCampaignItem->settings_json,
               ], [
                   'is_active' => $deliveryPlatformCampaignItem->is_active,
               ]);
@@ -103,17 +128,17 @@ class DeliveryPlatformCampaignService
     // from grab deliveryPlatformCampaignItemVend
     return $this->removeNullValuesRecursively([
       'merchantID' => $model->deliveryProductMappingVend->platform_ref_id,
-      'name' => $model->deliveryPlatformCampaignItem->settings_label,
+      'name' => $model->settings_label,
       'quotas' => [
-        'totalCount' => $model->deliveryPlatformCampaignItem->settings_json['totalCount'] && $model->deliveryPlatformCampaignItem->settings_json['totalCount'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCount']) : null,
-        'totalCountPerUser' => $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] && $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser']) : null,
+        'totalCount' => $model->settings_json['totalCount'] && $model->settings_json['totalCount'] != null ? intval($model->settings_json['totalCount']) : null,
+        'totalCountPerUser' => $model->settings_json['totalCountPerUser'] && $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] != null ? intval($model->settings_json['totalCountPerUser']) : null,
       ],
       'conditions' => [
         'startTime' => $params['startTime'],
         'endTime' => $params['endTime'],
-        'eaterType' => $model->deliveryPlatformCampaignItem->settings_json['eaterType'],
-        'minBasketAmount' => $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] && $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] != null ? $model->deliveryPlatformCampaignItem->settings_json['minBasketAmount'] : 0,
-        'bundleQuantity' => $model->deliveryPlatformCampaignItem->settings_json['qty'] && $model->deliveryPlatformCampaignItem->settings_json['qty'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['qty']) : 0,
+        'eaterType' => $model->settings_json['eaterType'],
+        'minBasketAmount' => $model->settings_json['minBasketAmount'] && $model->settings_json['minBasketAmount'] != null ? $model->settings_json['minBasketAmount'] : 0,
+        'bundleQuantity' => $model->settings_json['qty'] && $model->settings_json['qty'] != null ? intval($model->settings_json['qty']) : 0,
         'workingHour' => [
           'sun' => [
             'periods' => [
@@ -174,12 +199,12 @@ class DeliveryPlatformCampaignService
         ]
       ],
       'discount' => [
-        'type' => $model->deliveryPlatformCampaignItem->settings_json['type'],
-        'cap' => $model->deliveryPlatformCampaignItem->settings_json['cap'] && $model->deliveryPlatformCampaignItem->settings_json['cap'] != null ? intval($model->deliveryPlatformCampaignItem->settings_json['cap']) : 0,
-        'value' => floatval($model->deliveryPlatformCampaignItem->settings_json['value']),
+        'type' => $model->settings_json['type'],
+        'cap' => $model->settings_json['cap'] && $model->settings_json['cap'] != null ? intval($model->settings_json['cap']) : 0,
+        'value' => floatval($model->settings_json['value']),
         'scope' => [
-          'type' => $model->deliveryPlatformCampaignItem->settings_json['scope'],
-          'objectIDs' => $model->deliveryPlatformCampaignItem->settings_json['objectIDs'],
+          'type' => $model->settings_json['scope'],
+          'objectIDs' => $model->settings_json['objectIDs'],
         ]
       ],
       'customTag' => '',

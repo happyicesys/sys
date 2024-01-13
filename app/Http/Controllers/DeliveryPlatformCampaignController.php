@@ -115,8 +115,7 @@ class DeliveryPlatformCampaignController extends Controller
                 'deliveryProductMapping.deliveryProductMappingItems.product.thumbnail',
                 'deliveryProductMapping.deliveryProductMappingBulks.deliveryProductMappingBulkItems.deliveryProductMappingItem.product.thumbnail',
                 'deliveryProductMapping.deliveryProductMappingVends' => function($query) {
-                    $query->whereNull('end_date')
-                        ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
+                        $query->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
                 },
                 'deliveryProductMapping.deliveryProductMappingVends.vend:id,code,name',
                 'deliveryProductMapping.deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name',
@@ -125,7 +124,9 @@ class DeliveryPlatformCampaignController extends Controller
 
         $deliveryProductMappingVends = DeliveryProductMappingVend::query()
             ->with([
-                'deliveryPlatformCampaignItemVends',
+                'deliveryPlatformCampaignItemVends' => function($query) {
+                    $query->where('datetime_to', '<=', Carbon::now()->setTimezone('UTC'));
+                },
                 'deliveryPlatformCampaignItemVends.deliveryPlatformCampaign',
                 'deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
                 'vend:id,code,name',
@@ -137,6 +138,7 @@ class DeliveryPlatformCampaignController extends Controller
                 });
             })
             ->get();
+        // dd($deliveryProductMappingVends->toArray());
 
         return Inertia::render('DeliveryPlatformCampaign/Edit', [
             'deliveryPlatformCampaignItemOptions' => $this->deliveryPlatformCampaignService->getItemOptions($deliveryPlatformCampaign),
@@ -197,9 +199,13 @@ class DeliveryPlatformCampaignController extends Controller
         $deliveryPlatformCampaignItemVend = DeliveryPlatformCampaignItemVend::findOrFail($deliveryPlatformCampaignItemVendID);
 
         //grab delete campaign
+        if($deliveryPlatformCampaignItemVend->is_submitted) {
+            $this->deliveryPlatformCampaignService->deleteCampaign($deliveryPlatformCampaignItemVend);
+        }
 
-
-        $deliveryPlatformCampaignItemVend->delete();
+        $deliveryPlatformCampaignItemVend->update([
+            'end_date' => Carbon::now(),
+          ]);
 
         return redirect()->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->id]);
     }

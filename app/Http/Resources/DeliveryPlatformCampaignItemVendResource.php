@@ -22,6 +22,9 @@ class DeliveryPlatformCampaignItemVendResource extends JsonResource
             'is_active' => $this->is_active,
             'is_submitted' => $this->is_submitted,
             'platform_ref_id' => $this->platform_ref_id,
+            'settings_json' => $this->settings_json,
+            'settings_label' => $this->settings_label,
+            'settings_name' => $this->settings_name,
         ];
     }
 }

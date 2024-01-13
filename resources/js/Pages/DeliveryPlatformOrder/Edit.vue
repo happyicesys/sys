@@ -332,6 +332,14 @@
                               </Button> -->
                           <!-- </td> -->
                         </tr>
+                        <tr v-if="props.deliveryPlatformOrder.data.deliveryPlatformOrderItems && props.deliveryPlatformOrder.data.campaign_json">
+                          <td colspan="5" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold text-gray-900 sm:pl-6 text-center col-span-4">
+                            Promo
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold text-gray-900 sm:pl-6 text-right col-span-1">
+                            -{{ props.deliveryPlatformOrder.data.promo_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </td>
+                        </tr>
                         <tr v-if="props.deliveryPlatformOrder.data.deliveryPlatformOrderItems">
                           <td colspan="5" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold text-gray-900 sm:pl-6 text-center col-span-4">
                             Subtotal

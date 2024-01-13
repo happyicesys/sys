@@ -10,12 +10,23 @@ class DeliveryPlatformCampaignItemVend extends Model
     use HasFactory;
 
     protected $fillable = [
+        'datetime_from',
+        'datetime_to',
         'delivery_platform_campaign_id',
         'delivery_platform_campaign_item_id',
         'delivery_product_mapping_vend_id',
         'is_active',
         'is_submitted',
         'platform_ref_id',
+        'settings_json',
+        'settings_label',
+        'settings_name',
+    ];
+
+    protected $casts = [
+        'datetime_from' => 'datetime',
+        'datetime_to' => 'datetime',
+        'settings_json' => 'json',
     ];
 
     // relationships

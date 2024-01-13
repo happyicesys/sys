@@ -342,6 +342,9 @@
                                       </div>
                                     </li>
                                   </ul>
+                                  <div v-if="!deliveryPlatformCampaignItem.items_json">
+                                    NA
+                                  </div>
                                 </TableData>
                                 <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
                                     <Button
@@ -370,6 +373,17 @@
               </div>
               </div>
 
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded">Binded Campaign(s)</span>
+                  </div>
+                </div>
+              </div>
+
               <div class="sm:col-span-6 flex flex-col mt-2 mx-2 mb-3" v-if="form.id">
                 <div class="mt-6 flex flex-col">
                   <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8 px-3">
@@ -384,24 +398,26 @@
                                   Vend
                                 </TableHead>
                                 <TableHead>
-                                  Campaign
+                                  Campaign(s)
                                 </TableHead>
                               </tr>
                             </thead>
                             <tbody class="bg-white">
                               <tr v-for="(deliveryProductMappingVend, deliveryProductMappingVendIndex) in deliveryProductMappingVends.data" :key="deliveryProductMappingVend.id" class="divide-x divide-gray-300">
-                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
+                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.data.length" inputClass="text-center">
                                   {{ deliveryProductMappingVendIndex + 1 }}
                                 </TableData>
-                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-left">
+                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.data.length" inputClass="text-left">
                                   {{ deliveryProductMappingVend.vend.code }}
                                   <br>
                                   {{ deliveryProductMappingVend.vend.cust_full_name }}
                                 </TableData>
-                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
+                                <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.data.length" inputClass="text-center">
                                   <div class="flex flex-col space-y-1 max-w-fit">
-                                    <span class="flex justify-between items-center gap-x-0.5 rounded-md bg-blue-100 px-2 py-1 text-sm font-medium text-blue-700" v-for="deliveryPlatformCampaignItemVend in deliveryProductMappingVend.deliveryPlatformCampaignItemVends">
-                                      {{ deliveryPlatformCampaignItemVend.deliveryPlatformCampaignItem.settings_name }}
+                                    <span class="flex justify-between items-center gap-x-0.5 rounded-md px-2 py-1 text-sm font-medium"
+                                    :class="[deliveryPlatformCampaignItemVend.is_submitted ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700']"
+                                    v-for="deliveryPlatformCampaignItemVend in deliveryProductMappingVend.deliveryPlatformCampaignItemVends">
+                                      {{ deliveryPlatformCampaignItemVend.settings_name }}
                                       <button type="button" class="group -mr-1 h-4 w-4 rounded-sm hover:bg-blue-700/20 ">
                                         <span class="sr-only">Remove</span>
                                         <svg viewBox="0 0 14 14" class="h-4 w-4 stroke-blue-900/50 group-hover:stroke-blue-900/75" @click.prevent="onDeleteCampaign(deliveryPlatformCampaignItemVend.id)">
@@ -412,7 +428,7 @@
                                   </div>
                                 </TableData>
                               </tr>
-                               <tr v-if="!deliveryProductMappingVends.length">
+                               <tr v-if="!deliveryProductMappingVends.data.length">
                                 <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
                                     No Results Found
                                 </td>
