@@ -237,6 +237,7 @@
                           class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs"
                           :class="statusClass(deliveryPlatformOrder).statusClass"
                       >
+                          <!-- <div class="flex flex-col" @click="onStatusModalClicked(deliveryPlatformOrder)"> -->
                           <div class="flex flex-col">
                               <span class="font-semibold grow-0">
                                 {{ deliveryPlatformOrder.status_name }}
@@ -354,6 +355,13 @@
     @modalClose="onDeliveryPlatformOrderComplaintClosed"
   >
   </Complaint>
+  <!-- <StatusModal
+    v-if="showDeliveryPlatformOrderComplaintModal"
+    :deliveryPlatformOrder="deliveryPlatformOrder"
+    :showModal="showStatusModal"
+    @modalClose="onStatusModalClosed"
+  >
+  </StatusModal> -->
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -395,13 +403,14 @@ const filters = ref({
   numberPerPage: 100,
 })
 const deliveryPlatformOperatorOptions = ref([])
+const deliveryPlatformOrder = ref()
 const loading = ref(false)
 const model = ref()
-const type = ref('')
 const operatorCountry = usePage().props.auth.operatorCountry
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const showDeliveryPlatformOrderComplaintModal = ref(false)
+const showStatusModal = ref(false)
 
 onMounted(() => {
   booleanOptions.value = [
@@ -437,6 +446,15 @@ function onDeliveryPlatformOrderComplaintClicked(deliveryPlatformOrder) {
 
 function onDeliveryPlatformOrderComplaintClosed() {
   showDeliveryPlatformOrderComplaintModal.value = false
+}
+
+function onStatusModalClicked(deliveryPlatformOrder) {
+  deliveryPlatformOrder.value = deliveryPlatformOrder
+  showStatusModal.value = true
+}
+
+function onStatusModalClosed() {
+  showStatusModal.value = false
 }
 
 function onExportExcelClicked() {

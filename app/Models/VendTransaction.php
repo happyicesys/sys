@@ -380,7 +380,11 @@ class VendTransaction extends Model
 
     public function scopeIsSuccessful($query)
     {
-        return $query->whereIn('vend_transaction_json->SErr', [0, 6]);
+        return $query->where(function($query) {
+            $query->where('vend_transaction_json->SErr', 0)
+            ->orWhere('vend_transaction_json->SErr', 6)
+            ->orWhere('vend_transaction_json->GET_TYPE', 1);
+        });
     }
 
     public function scopeIsFailure($query)
