@@ -70,7 +70,29 @@ class DeliveryPlatformCampaignService
         VendData::create([
           'connection' => 'GRAB-CAMPAIGN-DELETE',
           'processed' => $response,
-          'value' => $deliveryPlatformCampaignItemVend->platform_ref_id,
+          'value' => $response,
+        ]);
+        if($response['success']) {
+          return $response['data'];
+        }
+        break;
+      default:
+        return;
+    }
+  }
+
+  public function updateCampaign(DeliveryPlatformCampaignItemVend $deliveryPlatformCampaignItemVend)
+  {
+    $this->setDeliveryPlatform($deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug, $deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator);
+
+    switch($deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug) {
+      case 'grab':
+        $response = $this->model->updateCampaign($deliveryPlatformCampaignItemVend->platform_ref_id, $this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend));
+
+        VendData::create([
+          'connection' => 'GRAB-CAMPAIGN-UPDATE',
+          'processed' => $response,
+          'value' => $response,
         ]);
         if($response['success']) {
           return $response['data'];
@@ -134,8 +156,8 @@ class DeliveryPlatformCampaignService
         'totalCountPerUser' => $model->settings_json['totalCountPerUser'] && $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] != null ? intval($model->settings_json['totalCountPerUser']) : null,
       ],
       'conditions' => [
-        'startTime' => $params['startTime'],
-        'endTime' => $params['endTime'],
+        'startTime' => isset($params['startTime']) ? $params['startTime'] : $model->datetime_from,
+        'endTime' => isset($params['endTime']) ? $params['endTime'] : $model->datetime_to,
         'eaterType' => $model->settings_json['eaterType'],
         'minBasketAmount' => $model->settings_json['minBasketAmount'] && $model->settings_json['minBasketAmount'] != null ? $model->settings_json['minBasketAmount'] : 0,
         'bundleQuantity' => $model->settings_json['qty'] && $model->settings_json['qty'] != null ? intval($model->settings_json['qty']) : 0,

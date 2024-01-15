@@ -165,7 +165,7 @@
                           </span>
                           <ul class="divide-y divide-gray-200 pl-3">
                             <li class="flex py-1 px-3 space-x-2" v-for="item in deliveryPlatformCampaignItem.items_json">
-                              <span>
+                              <span v-if="item && 'full_name' in item">
                                 {{ item.full_name ? item.full_name : item.name }}
                               </span>
                             </li>

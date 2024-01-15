@@ -115,7 +115,8 @@ class DeliveryPlatformCampaignController extends Controller
                 'deliveryProductMapping.deliveryProductMappingItems.product.thumbnail',
                 'deliveryProductMapping.deliveryProductMappingBulks.deliveryProductMappingBulkItems.deliveryProductMappingItem.product.thumbnail',
                 'deliveryProductMapping.deliveryProductMappingVends' => function($query) {
-                        $query->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
+                        $query->whereNull('end_date')
+                            ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
                 },
                 'deliveryProductMapping.deliveryProductMappingVends.vend:id,code,name',
                 'deliveryProductMapping.deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name',
@@ -125,7 +126,10 @@ class DeliveryPlatformCampaignController extends Controller
         $deliveryProductMappingVends = DeliveryProductMappingVend::query()
             ->with([
                 'deliveryPlatformCampaignItemVends' => function($query) {
-                    $query->where('datetime_to', '<=', Carbon::now()->setTimezone('UTC'));
+                    $query->where(function($query) {
+                        $query->where('datetime_to', '>=', Carbon::now()->setTimezone('UTC'))
+                            ->orWhereNull('datetime_to');
+                    });
                 },
                 'deliveryPlatformCampaignItemVends.deliveryPlatformCampaign',
                 'deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
@@ -137,6 +141,7 @@ class DeliveryPlatformCampaignController extends Controller
                     $query->where('id', $search);
                 });
             })
+            ->whereNull('end_date')
             ->get();
         // dd($deliveryProductMappingVends->toArray());
 

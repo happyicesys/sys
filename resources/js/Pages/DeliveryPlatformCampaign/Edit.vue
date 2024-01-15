@@ -335,7 +335,7 @@
                                     <li v-for="item in deliveryPlatformCampaignItem.items_json" class=" flex justify-between gap-x-2 px-1 py-0.5">
                                       <div class="flex min-w-0 gap-x-3">
                                         <div class="min-w-0 flex-auto pt-1">
-                                          <p class="text-sm font-semibold leading-2 text-gray-900">
+                                          <p class="text-sm font-semibold leading-2 text-gray-900" v-if="item && 'full_name' in item">
                                             {{ item.full_name ? item.full_name : item.name }}
                                           </p>
                                         </div>
@@ -415,7 +415,7 @@
                                 <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.data.length" inputClass="text-center">
                                   <div class="flex flex-col space-y-1 max-w-fit">
                                     <span class="flex justify-between items-center gap-x-0.5 rounded-md px-2 py-1 text-sm font-medium"
-                                    :class="[deliveryPlatformCampaignItemVend.is_submitted ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700']"
+                                    :class="[deliveryPlatformCampaignItemVend.platform_ref_id ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700']"
                                     v-for="deliveryPlatformCampaignItemVend in deliveryProductMappingVend.deliveryPlatformCampaignItemVends">
                                       {{ deliveryPlatformCampaignItemVend.settings_name }}
                                       <button type="button" class="group -mr-1 h-4 w-4 rounded-sm hover:bg-blue-700/20 ">

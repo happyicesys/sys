@@ -760,6 +760,44 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         throw new \Exception('Create Campaign Failed: ' . $response->body());
     }
 
+    // create campaign
+    public function deleteCampaign($platformRefID)
+    {
+        $this->verifyOauthAccessToken();
+
+        if(!$platformRefID) {
+            throw new \Exception('Campaign ID Not Found for Delete Campaign ');
+        }
+
+        $response = Http::withHeaders($this->getHeaders([
+            'campaignId' => $platformRefID,
+        ]))
+        ->delete($this->getPartnerEndpoint() . '/partner/v1/campaigns/'. $platformRefID);
+
+        return $this->getResponse($response, 'deleteCampaign');
+
+        throw new \Exception('Delete Campaign Failed: ' . $response->body());
+    }
+
+    // update campaign
+    public function updateCampaign($platformRefID, $campaignParams = [])
+    {
+        $this->verifyOauthAccessToken();
+
+        if(!$platformRefID) {
+            throw new \Exception('Campaign ID Not Found for Update Campaign ');
+        }
+
+        $response = Http::withHeaders($this->getHeaders([
+            'campaignId' => $platformRefID,
+        ]))
+        ->put($this->getPartnerEndpoint() . '/partner/v1/campaigns/'. $platformRefID, $campaignParams);
+
+        return $this->getResponse($response, 'updateCampaign');
+
+        throw new \Exception('Update Campaign Failed: ' . $response->body());
+    }
+
     // init default headers for grab
     private function getHeaders($params = [])
     {
