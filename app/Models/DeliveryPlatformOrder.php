@@ -51,6 +51,8 @@ class DeliveryPlatformOrder extends Model
 
     protected $fillable = [
         'campaign_json',
+        'collected_datetime',
+        'delivered_datetime',
         'delivery_platform_id',
         'delivery_platform_operator_id',
         'delivery_product_mapping_vend_id',
@@ -60,6 +62,7 @@ class DeliveryPlatformOrder extends Model
         'is_cancelled',
         'is_edited',
         'is_verified',
+        'last_mile_timediff_mins',
         'order_created_at',
         'order_id',
         'order_json',
@@ -82,6 +85,8 @@ class DeliveryPlatformOrder extends Model
 
     protected $casts = [
         'campaign_json' => 'json',
+        'collected_datetime' => 'datetime',
+        'delivered_datetime' => 'datetime',
         'driver_request_json' => 'json',
         'error_json' => 'json',
         'order_created_at' => 'datetime',

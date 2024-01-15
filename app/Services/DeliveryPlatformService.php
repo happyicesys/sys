@@ -219,9 +219,12 @@ class DeliveryPlatformService
           ]),
           'request_history_json' => $deliveryPlatformOrder->request_history_json ? array_merge($deliveryPlatformOrder->request_history_json, $input) : $input,
         ]);
-        return $deliveryPlatformOrder;
+
+        $this->handleLastMileTimediff($deliveryPlatformOrder);
       break;
     }
+
+    return $deliveryPlatformOrder;
   }
 
   public function getDeliveryPlatformOperator()
@@ -500,6 +503,27 @@ class DeliveryPlatformService
 
       }
     }
+  }
+
+  // collect timestamp for last mile time diff
+  private function handleLastMileTimediff(DeliveryPlatformOrder $deliveryPlatformOrder)
+  {
+    if($deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_COLLECTED) {
+      $deliveryPlatformOrder->update([
+        'collected_datetime' => Carbon::now()->toDateTimeString(),
+      ]);
+    }
+    if($deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_DELIVERED) {
+      $deliveryPlatformOrder->update([
+        'delivered_datetime' => Carbon::now()->toDateTimeString(),
+      ]);
+    }
+    if($deliveryPlatformOrder->collected_datetime and $deliveryPlatformOrder->delivered_datetime) {
+      $deliveryPlatformOrder->update([
+        'last_mile_timediff_mins' => Carbon::parse($deliveryPlatformOrder->collected_datetime)->diffInMinutes(Carbon::parse($deliveryPlatformOrder->delivered_datetime)),
+      ]);
+    }
+
   }
 
   private function syncProductMappingVendChannelOrderQtyByOrder(DeliveryPlatformOrder $deliveryPlatformOrder, $isAddition = true)

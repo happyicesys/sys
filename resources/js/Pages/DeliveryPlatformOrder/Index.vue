@@ -233,22 +233,26 @@
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center w-xs">
                       <div class="w-xs">
-                      <div
-                          class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs hover:cursor-pointer"
-                          :class="statusClass(deliveryPlatformOrder).statusClass"
-                          @click.prevent="onStatusModalClicked(deliveryPlatformOrder)"
-                      >
-                          <div class="flex flex-col">
-                          <!-- <div class="flex flex-col"> -->
-                              <span class="font-semibold grow-0">
-                                {{ deliveryPlatformOrder.status_name }}
-                              </span>
-                          </div>
-                      </div>
-                      <span class="text-xs" v-if="statusClass(deliveryPlatformOrder).statusDesc">
-                        <br>
-                        {{ statusClass(deliveryPlatformOrder).statusDesc }}
-                      </span>
+                        <div
+                            class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs hover:cursor-pointer"
+                            :class="statusClass(deliveryPlatformOrder).statusClass"
+                            @click.prevent="onStatusModalClicked(deliveryPlatformOrder)"
+                        >
+                            <div class="flex flex-col">
+                            <!-- <div class="flex flex-col"> -->
+                                <span class="font-semibold grow-0">
+                                  {{ deliveryPlatformOrder.status_name }}
+                                </span>
+                            </div>
+                        </div>
+                        <span class="text-xs" v-if="statusClass(deliveryPlatformOrder).statusDesc">
+                          <br>
+                          {{ statusClass(deliveryPlatformOrder).statusDesc }}
+                        </span>
+                        <span class="text-xs" v-if="deliveryPlatformOrder.last_mile_timediff_mins && deliveryPlatformOrder.last_mile_timediff_mins >= 0">
+                          <br>
+                          CD ({{ deliveryPlatformOrder.last_mile_timediff_mins }}m)
+                        </span>
                       </div>
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
