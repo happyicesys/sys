@@ -57,9 +57,9 @@
             $deliveryPlatformOrder->deliveryProductMappingVend->vend and
             $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding and
             $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer)
-              {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->name }}
+              {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->code }}
               <br>
-              {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->phone }}
+              {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->name }}
             <span>
             @else
               {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->name }}
