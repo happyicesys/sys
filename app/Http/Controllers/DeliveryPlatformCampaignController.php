@@ -205,13 +205,17 @@ class DeliveryPlatformCampaignController extends Controller
         $deliveryPlatformCampaignItemVend = DeliveryPlatformCampaignItemVend::findOrFail($delPlaCamItemVendID);
 
         //grab delete campaign
-        if($deliveryPlatformCampaignItemVend->is_submitted) {
-            $this->deliveryPlatformCampaignService->deleteCampaign($deliveryPlatformCampaignItemVend);
+        if($deliveryPlatformCampaignItemVend->is_submitted and $deliveryPlatformCampaignItemVend->platform_ref_id) {
+            $response = $this->deliveryPlatformCampaignService->deleteCampaign($deliveryPlatformCampaignItemVend);
+            $deliveryPlatformCampaignItemVend->update([
+                'end_date' => Carbon::now(),
+            ]);
+        }else {
+            $deliveryPlatformCampaignItemVend->delete();
         }
 
-        $deliveryPlatformCampaignItemVend->update([
-            'end_date' => Carbon::now(),
-          ]);
+
+
 
         return redirect()->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->id]);
     }
