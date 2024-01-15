@@ -234,11 +234,12 @@
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center w-xs">
                       <div class="w-xs">
                       <div
-                          class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs"
+                          class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs hover:cursor-pointer"
                           :class="statusClass(deliveryPlatformOrder).statusClass"
+                          @click.prevent="onStatusModalClicked(deliveryPlatformOrder)"
                       >
-                          <!-- <div class="flex flex-col" @click="onStatusModalClicked(deliveryPlatformOrder)"> -->
                           <div class="flex flex-col">
+                          <!-- <div class="flex flex-col"> -->
                               <span class="font-semibold grow-0">
                                 {{ deliveryPlatformOrder.status_name }}
                               </span>
@@ -355,13 +356,13 @@
     @modalClose="onDeliveryPlatformOrderComplaintClosed"
   >
   </Complaint>
-  <!-- <StatusModal
-    v-if="showDeliveryPlatformOrderComplaintModal"
-    :deliveryPlatformOrder="deliveryPlatformOrder"
+  <StatusModal
+    v-if="showStatusModal"
+    :model="model"
     :showModal="showStatusModal"
     @modalClose="onStatusModalClosed"
   >
-  </StatusModal> -->
+  </StatusModal>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -371,6 +372,7 @@ import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
+import StatusModal from '@/Pages/DeliveryPlatformOrder/StatusModal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import moment from 'moment';
 import Complaint from '@/Pages/DeliveryPlatformOrder/Complaint.vue';
@@ -449,7 +451,7 @@ function onDeliveryPlatformOrderComplaintClosed() {
 }
 
 function onStatusModalClicked(deliveryPlatformOrder) {
-  deliveryPlatformOrder.value = deliveryPlatformOrder
+  model.value = deliveryPlatformOrder
   showStatusModal.value = true
 }
 

@@ -131,9 +131,8 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/create-item', [DeliveryPlatformCampaignController::class, 'createItem']);
         Route::post('/{id}/submit-platform', [DeliveryPlatformCampaignController::class, 'submitPlatform']);
         Route::delete('/item/{deliveryPlatformCampaignItemID}', [DeliveryPlatformCampaignController::class, 'deleteItem']);
-        Route::delete('/item-vend/{deliveryPlatformCampaignItemVendID}', [DeliveryPlatformCampaignController::class, 'deleteItemVend']);
+        Route::delete('/item-vend/{delPlaCamItemVendID}', [DeliveryPlatformCampaignController::class, 'deleteItemVend']);
     });
-
     Route::prefix('delivery-platform-orders')->group(function() {
         Route::get('/', [DeliveryPlatformOrderController::class, 'index'])->name('delivery-platform-orders');
         Route::get('/excel', [DeliveryPlatformOrderController::class, 'exportExcel']);

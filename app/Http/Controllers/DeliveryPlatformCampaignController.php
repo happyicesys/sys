@@ -194,9 +194,9 @@ class DeliveryPlatformCampaignController extends Controller
         return redirect()->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaignItem->deliveryPlatformCampaign->id]);
     }
 
-    public function deleteItemVend($deliveryPlatformCampaignItemVendID)
+    public function deleteItemVend($delPlaCamItemVendID)
     {
-        $deliveryPlatformCampaignItemVend = DeliveryPlatformCampaignItemVend::findOrFail($deliveryPlatformCampaignItemVendID);
+        $deliveryPlatformCampaignItemVend = DeliveryPlatformCampaignItemVend::findOrFail($delPlaCamItemVendID);
 
         //grab delete campaign
         if($deliveryPlatformCampaignItemVend->is_submitted) {

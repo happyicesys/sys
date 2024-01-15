@@ -45,6 +45,7 @@ class DeliveryPlatformOrderResource extends JsonResource
             'short_order_id' => $this->short_order_id,
             'status' => $this->status,
             'status_name' => DeliveryPlatformOrder::STATUS_MAPPING[$this->status],
+            'status_json' => $this->status_json,
             'subtotal_amount' => $this->subtotal_amount - $this->promo_amount,
             'total_amount' => $this->total_amount,
             'vendTransaction' => VendTransactionResource::make($this->whenLoaded('vendTransaction')),
