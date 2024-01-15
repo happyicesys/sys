@@ -1,5 +1,4 @@
-@inject('deliveryPlatformOrderModel', 'App\Models\DeliveryPlatformOrder')
-
+{{-- @inject('deliveryPlatformOrderModel', 'App\Models\DeliveryPlatformOrder' --}}
 <table>
   <thead>
   <tr>
@@ -17,6 +16,11 @@
       <th>Campaign</th>
       <th>Campaign Total</th>
       <th>Subtotal</th>
+      <th>Product Code</th>
+      <th>Product Name</th>
+      <th>Qty</th>
+      <th>Channel</th>
+      <th>Error</th>
   </tr>
   </thead>
   <tbody>
@@ -26,7 +30,7 @@
             {{ $deliveryPlatformOrderIndex + 1 }}
           </td>
           <td>
-            {{ $deliveryPlatformOrder->order_created_at->format('Y-m-d H:i:s') }}
+            {{ $deliveryPlatformOrder->order_created_at }}
           </td>
           <td>
             {{ $deliveryPlatformOrder->deliveryPlatform->name }}
@@ -40,12 +44,18 @@
             {{ $deliveryPlatformOrder->short_order_id }}
           </td>
           <td>
-            {{ $deliveryPlatformOrderModel::STATUS_MAPPING[$deliveryPlatformOrder->status] }}
+            {{-- {{ $deliveryPlatformOrderModel::STATUS_MAPPING[$deliveryPlatformOrder->status] }} --}}
+            {{ $deliveryPlatformOrder->status_name }}
           </td>
           <td>
             {{ $deliveryPlatformOrder->last_mile_timediff_mins }}
           </td>
-
+          <td>
+            {{ $deliveryPlatformOrder->vend_code }}
+          </td>
+          <td>
+            {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->cust_full_name }}
+          </td>
       </tr>
   @endforeach
   </tbody>

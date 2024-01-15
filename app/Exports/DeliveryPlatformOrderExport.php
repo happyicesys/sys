@@ -19,7 +19,7 @@ class DeliveryPlatformOrderExport implements FromView
     public function view(): View
     {
         return view('exports.delivery-platform-orders', [
-            'deliveryPlatformOrders' => $this->deliveryPlatformOrders
+            'deliveryPlatformOrders' => DeliveryPlatformOrderResource::collection($this->deliveryPlatformOrders)
         ]);
     }
 }
