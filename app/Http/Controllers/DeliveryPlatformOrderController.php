@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\DeliveryPlatformOrderResource;
+use App\Exports\DeliveryPlatformOrderExport;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryPlatformOrderItem;
@@ -13,6 +14,7 @@ use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 use Rap2hpoutre\FastExcel\FastExcel;
 
 class DeliveryPlatformOrderController extends Controller
@@ -110,48 +112,51 @@ class DeliveryPlatformOrderController extends Controller
             'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
         ]);
 
-        $query = DeliveryPlatformOrderItem::query()
-        ->with([
-            'deliveryPlatformOrder.deliveryPlatform:id,name,country_id,slug',
-            'deliveryProductMappingItem.deliveryProductMapping:id,name',
-            'deliveryPlatformOrder.deliveryProductMappingVend.vend:id,code,name',
-            'deliveryPlatformOrder.deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
-            'deliveryPlatformOrder.deliveryPlatformOperator',
-            'deliveryPlatformOrder.deliveryPlatformOrderComplaint',
-            'deliveryProductMappingItem.product:id,code,name,is_active',
-            'deliveryProductMappingItem.product.thumbnail',
-            'orderItemVendChannels',
+        // $query = DeliveryPlatformOrderItem::query()
+        // ->with([
+        //     'deliveryPlatformOrder.deliveryPlatform:id,name,country_id,slug',
+        //     'deliveryProductMappingItem.deliveryProductMapping:id,name',
+        //     'deliveryPlatformOrder.deliveryProductMappingVend.vend:id,code,name',
+        //     'deliveryPlatformOrder.deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
+        //     'deliveryPlatformOrder.deliveryPlatformOperator',
+        //     'deliveryPlatformOrder.deliveryPlatformOrderComplaint',
+        //     'deliveryProductMappingItem.product:id,code,name,is_active',
+        //     'deliveryProductMappingItem.product.thumbnail',
+        //     'orderItemVendChannels',
 
-        ])
-        ->filterIndex($request)
-        ->when($request->sortKey, function($query, $search) use ($request) {
-            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-        });
+        // ])
+        $query = $this->getDeliveryPlatformOrderQuery($request);
+        $query->filterIndex($request)
+            ->when($request->sortKey, function($query, $search) use ($request) {
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            })
+            ->get();
 
-        return (new FastExcel($this->yieldOneByOne($query->get())))->download('Delivery_Platform_Order_'.Carbon::now()->toDateTimeString().'.xlsx', function ($orderItem) {
-            return [
-                'Platform Order ID' => $orderItem->deliveryPlatformOrder->order_id,
-                'Short Order ID' => $orderItem->deliveryPlatformOrder->short_order_id,
-                'Platform' => $orderItem->deliveryPlatformOrder->deliveryPlatform->name . ' ('. $orderItem->deliveryPlatformOrder->deliveryPlatformOperator->type .')',
-                'Order Time' => $orderItem->deliveryPlatformOrder->order_created_at->toDateTimeString(),
-                'Status' => DeliveryPlatformOrder::STATUS_MAPPING[$orderItem->deliveryPlatformOrder->status],
-                'Vend ID' => $orderItem->deliveryPlatformOrder->vend_code,
-                'Customer' => isset($orderItem->deliveryPlatformOrder->vend_json) && isset($orderItem->deliveryPlatformOrder->vend_json['full_name']) ?
-                                    $orderItem->deliveryPlatformOrder->vend_json['full_name'] :
-                                    ($orderItem->deliveryPlatformOrder && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer ? $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->code. ' ' . $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->name : ''),
-                'Sys Order ID' => $orderItem->deliveryPlatformOrder->vend_transaction_order_id,
-                'Channel' => $orderItem->orderItemVendChannels[0]->vend_channel_code,
-                'Product Code' => isset($orderItem->product_json) ?
-                                $orderItem->product_json['code'] :
-                                ($orderItem->product ? $orderItem->product->code : '' ),
-                'Product Name' => isset($orderItem->product_json) ?
-                                $orderItem->product_json['name'] :
-                                ($orderItem->product ? $orderItem->product->name : '' ),
-                'Qty' => $orderItem->qty,
-                'Subtotal' => $orderItem->amount / 100,
-                'Order Grand Total' => $orderItem->deliveryPlatformOrder->subtotal_amount,
-            ];
-        });
+            return Excel::download(new DeliveryPlatformOrderExport($query), 'Delivery_Platform_Order_'.Carbon::now()->toDateTimeString().'.xlsx');
+        // return (new FastExcel($this->yieldOneByOne($query->get())))->download('Delivery_Platform_Order_'.Carbon::now()->toDateTimeString().'.xlsx', function ($orderItem) {
+        //     return [
+        //         'Platform Order ID' => $orderItem->deliveryPlatformOrder->order_id,
+        //         'Short Order ID' => $orderItem->deliveryPlatformOrder->short_order_id,
+        //         'Platform' => $orderItem->deliveryPlatformOrder->deliveryPlatform->name . ' ('. $orderItem->deliveryPlatformOrder->deliveryPlatformOperator->type .')',
+        //         'Order Time' => $orderItem->deliveryPlatformOrder->order_created_at->toDateTimeString(),
+        //         'Status' => DeliveryPlatformOrder::STATUS_MAPPING[$orderItem->deliveryPlatformOrder->status],
+        //         'Vend ID' => $orderItem->deliveryPlatformOrder->vend_code,
+        //         'Customer' => isset($orderItem->deliveryPlatformOrder->vend_json) && isset($orderItem->deliveryPlatformOrder->vend_json['full_name']) ?
+        //                             $orderItem->deliveryPlatformOrder->vend_json['full_name'] :
+        //                             ($orderItem->deliveryPlatformOrder && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer ? $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->code. ' ' . $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->name : ''),
+        //         'Sys Order ID' => $orderItem->deliveryPlatformOrder->vend_transaction_order_id,
+        //         'Channel' => $orderItem->orderItemVendChannels[0]->vend_channel_code,
+        //         'Product Code' => isset($orderItem->product_json) ?
+        //                         $orderItem->product_json['code'] :
+        //                         ($orderItem->product ? $orderItem->product->code : '' ),
+        //         'Product Name' => isset($orderItem->product_json) ?
+        //                         $orderItem->product_json['name'] :
+        //                         ($orderItem->product ? $orderItem->product->name : '' ),
+        //         'Qty' => $orderItem->qty,
+        //         'Subtotal' => $orderItem->amount / 100,
+        //         'Order Grand Total' => $orderItem->deliveryPlatformOrder->subtotal_amount,
+        //     ];
+        // });
     }
 
     public function requestCancelOrder($id)
