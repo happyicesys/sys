@@ -1,4 +1,3 @@
-@inject('deliveryPlatformOrderModel', 'App\Models\DeliveryPlatformOrder')
 <table>
   <thead>
   <tr>
@@ -10,7 +9,8 @@
       <th>Status</th>
       <th>C to D (minutes)</th>
       <th>Vend ID</th>
-      <th>Customer</th>
+      <th>Customer Code</th>
+      <th>Customer Name</th>
       <th>Transaction Order ID</th>
       <th>Driver Phone Number</th>
       <th>Campaign</th>
@@ -20,7 +20,6 @@
       <th>Product Name</th>
       <th>Qty</th>
       <th>Channel</th>
-      <th>Error</th>
   </tr>
   </thead>
   <tbody>
@@ -58,12 +57,16 @@
             $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding and
             $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer)
               {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->code }}
-              <br>
+            @endif
+          </td>
+          <td>
+            @if($deliveryPlatformOrder->deliveryProductMappingVend and
+            $deliveryPlatformOrder->deliveryProductMappingVend->vend and
+            $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding and
+            $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer)
               {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->name }}
-            <span>
             @else
               {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->name }}
-            </span>
             @endif
           </td>
           <td>
@@ -75,9 +78,7 @@
           <td>
             @if($deliveryPlatformOrder->campaign_json)
               @foreach($deliveryPlatformOrder->campaign_json as $campaign)
-              <span>
                 {{ $campaign['name'] }}
-              </span>
               @endforeach
             @endif
           </td>
@@ -88,6 +89,39 @@
             {{ $deliveryPlatformOrder->subtotal_amount }}
           </td>
       </tr>
+      @if($deliveryPlatformOrder->deliveryPlatformOrderItems)
+        @foreach($deliveryPlatformOrder->deliveryPlatformOrderItems as $deliveryPlatformOrderItemIndex => $deliveryPlatformOrderItem)
+          <tr>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td>
+                {{ $deliveryPlatformOrderItem->product->code }}
+              </td>
+              <td>
+                {{ $deliveryPlatformOrderItem->product->name }}
+              </td>
+              <td>
+                {{ $deliveryPlatformOrderItem->orderItemVendChannels[0]->qty }}
+              </td>
+              <td>
+                {{ $deliveryPlatformOrderItem->orderItemVendChannels[0]->vend_channel_code }}
+              </td>
+          </tr>
+        @endforeach
+      @endif
   @endforeach
   </tbody>
 </table>
