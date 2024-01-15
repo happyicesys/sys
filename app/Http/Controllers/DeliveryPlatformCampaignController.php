@@ -7,6 +7,7 @@ use App\Models\DeliveryPlatformCampaignItem;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
+use App\Models\DeliveryPlatformCampaignItemVend;
 use App\Http\Resources\DeliveryPlatformCampaignResource;
 use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\DeliveryProductMappingResource;
