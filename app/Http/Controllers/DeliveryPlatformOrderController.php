@@ -126,7 +126,7 @@ class DeliveryPlatformOrderController extends Controller
 
         // ])
         $query = $this->getDeliveryPlatformOrderQuery($request);
-        $query->filterIndex($request)
+        $query = $query->filterIndex($request)
             ->when($request->sortKey, function($query, $search) use ($request) {
                 $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             })

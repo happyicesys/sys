@@ -1,3 +1,5 @@
+@inject('deliveryPlatformOrderModel', 'App\Models\DeliveryPlatformOrder')
+
 <table>
   <thead>
   <tr>
@@ -30,6 +32,12 @@
             {{ $deliveryPlatformOrder->deliveryPlatform->name }}
             <br>
             ({{ $deliveryPlatformOrder->deliveryPlatformOperator->type }})
+          </td>
+          <td>
+            {{ $deliveryPlatformOrder->order_id }}
+          </td>
+          <td>
+            {{ $deliveryPlatformOrder->short_order_id }}
           </td>
           <td>
             {{ $deliveryPlatformOrderModel::STATUS_MAPPING[$deliveryPlatformOrder->status] }}
