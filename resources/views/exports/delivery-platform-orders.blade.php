@@ -1,4 +1,4 @@
-{{-- @inject('deliveryPlatformOrderModel', 'App\Models\DeliveryPlatformOrder' --}}
+@inject('deliveryPlatformOrderModel', 'App\Models\DeliveryPlatformOrder')
 <table>
   <thead>
   <tr>
@@ -44,8 +44,7 @@
             {{ $deliveryPlatformOrder->short_order_id }}
           </td>
           <td>
-            {{-- {{ $deliveryPlatformOrderModel::STATUS_MAPPING[$deliveryPlatformOrder->status] }} --}}
-            {{ $deliveryPlatformOrder->status_name }}
+            {{ $deliveryPlatformOrderModel::STATUS_MAPPING[$deliveryPlatformOrder->status] }}
           </td>
           <td>
             {{ $deliveryPlatformOrder->last_mile_timediff_mins }}
@@ -54,7 +53,39 @@
             {{ $deliveryPlatformOrder->vend_code }}
           </td>
           <td>
-            {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->cust_full_name }}
+            @if($deliveryPlatformOrder->deliveryProductMappingVend and
+            $deliveryPlatformOrder->deliveryProductMappingVend->vend and
+            $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding and
+            $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer)
+              {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->name }}
+              <br>
+              {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->phone }}
+            <span>
+            @else
+              {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->name }}
+            </span>
+            @endif
+          </td>
+          <td>
+            {{ $deliveryPlatformOrder->vend_transaction_order_id }}
+          </td>
+          <td>
+            {{ $deliveryPlatformOrder->driver_phone_number }}
+          </td>
+          <td>
+            @if($deliveryPlatformOrder->campaign_json)
+              @foreach($deliveryPlatformOrder->campaign_json as $campaign)
+              <span>
+                {{ $campaign['name'] }}
+              </span>
+              @endforeach
+            @endif
+          </td>
+          <td>
+            {{ $deliveryPlatformOrder->promo_amount }}
+          </td>
+          <td>
+            {{ $deliveryPlatformOrder->subtotal_amount }}
           </td>
       </tr>
   @endforeach
