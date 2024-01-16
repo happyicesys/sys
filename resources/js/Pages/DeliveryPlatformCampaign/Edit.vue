@@ -576,6 +576,8 @@ onMounted(() => {
       id: data.id,
       name: data.settings_name,
       settings_json: data.settings_json,
+      settings_label: data.settings_label,
+      settings_name: data.settings_name,
       items_json: data.items_json,
     }})
     categoryOptions.value = [

@@ -211,9 +211,9 @@ class DeliveryPlatformCampaignController extends Controller
                 'is_submitted' => false,
                 'vend_code' => $request->vend_code,
                 'platform_ref_id' => null,
-                'settings_json' => $deliveryPlatformCampaignItem->settings_json,
-                'settings_label' => $deliveryPlatformCampaignItem->settings_label,
-                'settings_name' => $deliveryPlatformCampaignItem->settings_name,
+                'settings_json' => $request->settings_json,
+                'settings_label' => $request->settings_label,
+                'settings_name' => $request->settings_name,
             ]);
         }
 
