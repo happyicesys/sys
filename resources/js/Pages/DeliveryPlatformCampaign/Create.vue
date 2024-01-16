@@ -63,22 +63,6 @@
                   {{ form.errors.delivery_platform_operator_id }}
                 </div>
               </div>
-              <div class="sm:col-span-3">
-                <DatetimePicker v-model="form.datetime_from" :error="form.errors.datetime_from" :minDate="datetimeFrom" @input="onDateFromChanged()">
-                  Begin Date
-                  <span class="text-red-500">
-                    *
-                  </span>
-                </DatetimePicker>
-              </div>
-              <div class="sm:col-span-3">
-                <DatetimePicker v-model="form.datetime_to" :error="form.errors.datetime_to" :minDate="minDatetimeTo">
-                  End Date
-                  <span class="text-red-500">
-                    *
-                  </span>
-                </DatetimePicker>
-              </div>
               <div class="sm:col-span-6">
                 <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
                   Remarks
@@ -132,12 +116,6 @@ const props = defineProps({
   deliveryProductMappingOptions: Object,
 })
 
-const datetimeFrom = computed(function() {
-  return moment().add(30, 'minutes').format('YYYY-MM-DD HH:mm:ss')
-})
-const minDatetimeTo = computed(function() {
-  return moment(form.value.datetime_from).add(2, 'hours').format('YYYY-MM-DD HH:mm:ss')
-})
 const deliveryPlatformOperatorOptions = ref([])
 const form = ref(
   useForm(getDefaultForm())
@@ -146,8 +124,6 @@ const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
     form.value = useForm(getDefaultForm())
-    form.value.datetime_from = moment().add(30, 'minutes').format('YYYY-MM-DD HH:mm:ss')
-    form.value.datetime_to = moment(form.value.datetime_from).endOf('month').format('YYYY-MM-DD HH:mm:ss')
     deliveryPlatformOperatorOptions.value = [
       ...props.deliveryPlatformOperatorOptions.data.map((data) => {
       return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
@@ -159,8 +135,6 @@ function getDefaultForm() {
     name: '',
     delivery_product_mapping_id: '',
     delivery_platform_operator_id: '',
-    datetime_from: '',
-    datetime_to: '',
     remarks: '',
   }
 }

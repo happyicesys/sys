@@ -47,22 +47,6 @@
                   />
                 </div>
               </div>
-              <div class="sm:col-span-3">
-                <DatetimePicker v-model="form.datetime_from" :error="form.errors.datetime_from" :minDate="datetimeFrom" @input="onDateFromChanged()">
-                  Begin Date
-                  <span class="text-red-500">
-                    *
-                  </span>
-                </DatetimePicker>
-              </div>
-              <div class="sm:col-span-3">
-                <DatetimePicker v-model="form.datetime_to" :error="form.errors.datetime_to" :minDate="minDatetimeTo">
-                  End Date
-                  <span class="text-red-500">
-                    *
-                  </span>
-                </DatetimePicker>
-              </div>
 
             <div class="sm:col-span-6">
               <div class="flex space-x-1 mt-5 justify-end">
@@ -83,15 +67,6 @@
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
                     Save
-                  </span>
-                </Button>
-                <Button
-                  class="bg-yellow-500 hover:bg-yellow-600 text-black flex space-x-1"
-                  @click.prevent="submitCampaign(deliveryPlatformCampaign.id)"
-                >
-                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                  <span>
-                    Sync to VM & Submit to Platform
                   </span>
                 </Button>
               </div>
@@ -384,6 +359,87 @@
                 </div>
               </div>
 
+              <div v-if="form.id" class="sm:col-span-6">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Campaign Item(s)
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.bind_delivery_platform_campaign_item"
+                  :options="deliveryPlatformCampaignItems"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="top"
+                  class="mt-1"
+                >
+                </MultiSelect>
+              </div>
+
+              <div v-if="form.id" class="sm:col-span-6">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Vend
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.bind_delivery_product_mapping_vend"
+                  :options="deliveryProductMappingVendOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="top"
+                  class="mt-1"
+                >
+                </MultiSelect>
+              </div>
+
+              <div class="sm:col-span-3">
+                <DatetimePicker v-model="form.datetime_from" :error="form.errors.datetime_from" :minDate="datetimeFrom">
+                  Begin Date
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </DatetimePicker>
+              </div>
+              <div class="sm:col-span-3">
+                <DatetimePicker v-model="form.datetime_to" :error="form.errors.datetime_to" :minDate="minDatetimeTo">
+                  End Date
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </DatetimePicker>
+              </div>
+
+              <div class="sm:col-span-6 flex justify-between" v-if="form.id">
+                <Button
+                type="button"
+                @click.prevent="createItemVend()"
+                class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-1"
+                :class="[!isBindCampaignFormCompleted ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="!isBindCampaignFormCompleted"
+                >
+                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                  <span>
+                    Bind Campaign to VM
+                  </span>
+                </Button>
+                <Button
+                  class="bg-yellow-500 hover:bg-yellow-600 text-black flex space-x-1 sm:mt-1"
+                  @click.prevent="submitCampaign(deliveryPlatformCampaign.id)"
+                >
+                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                  <span>
+                    Submit to Platform
+                  </span>
+                </Button>
+              </div>
+
               <div class="sm:col-span-6 flex flex-col mt-2 mx-2 mb-3" v-if="form.id">
                 <div class="mt-6 flex flex-col">
                   <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8 px-3">
@@ -470,6 +526,8 @@ const props = defineProps({
   const categoryOptions = ref([])
   const deliveryPlatformCampaign = ref([])
   const deliveryProductMappingItemOptions = ref([])
+  const deliveryProductMappingVendOptions = ref([])
+  const deliveryPlatformCampaignItems = ref([])
   const form = ref(
     useForm(getDefaultForm())
   )
@@ -509,6 +567,17 @@ onMounted(() => {
       img_url: data.product.thumbnail ? data.product.thumbnail.full_url : '',
       product_id: data.product.id,
     }})
+    deliveryProductMappingVendOptions.value = props.deliveryProductMappingVends.data.map((data) => {return {
+      id: data.id,
+      name: data.vend.cust_full_name,
+      code: data.vend.code,
+    }})
+    deliveryPlatformCampaignItems.value = props.deliveryPlatformCampaign.data.deliveryPlatformCampaignItems.map((data) => {return {
+      id: data.id,
+      name: data.settings_name,
+      settings_json: data.settings_json,
+      items_json: data.items_json,
+    }})
     categoryOptions.value = [
       props.deliveryPlatformCampaign.data.deliveryProductMapping.category_json ? {
         id: props.deliveryPlatformCampaign.data.deliveryProductMapping.category_json.id,
@@ -522,6 +591,8 @@ onMounted(() => {
     form.value = deliveryPlatformCampaign.value ?
       useForm(deliveryPlatformCampaign.value) :
       useForm(getDefaultForm())
+
+    form.value.datetime_from = datetimeFrom.value
 })
 
 const datetimeFrom = computed(function() {
@@ -613,6 +684,29 @@ const isFormCompleted = computed(function() {
 
   return isCompleted
 })
+
+const isBindCampaignFormCompleted = computed(function() {
+  let isCompleted = true
+
+  if(!form.value.bind_delivery_platform_campaign_item || !form.value.bind_delivery_product_mapping_vend || !form.value.datetime_from || !form.value.datetime_to) {
+    isCompleted = false
+  }
+
+  return isCompleted
+})
+
+function createItemVend() {
+  router.post('/delivery-platform-campaigns/' + form.value.id + '/item-vend', {
+    ...form.value,
+    delivery_platform_campaign_item_id: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.id : '',
+    delivery_product_mapping_vend_id: form.value.bind_delivery_product_mapping_vend ? form.value.bind_delivery_product_mapping_vend.id : '',
+    vend_code: form.value.bind_delivery_product_mapping_vend ? form.value.bind_delivery_product_mapping_vend.code : '',
+  }, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+  })
+}
 
 function onDeleteCampaign(deliveryPlatformCampaignItemVendId) {
   const approval = confirm('Are you sure to delete this entry?');

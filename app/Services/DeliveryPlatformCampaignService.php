@@ -28,30 +28,20 @@ class DeliveryPlatformCampaignService
 
     switch($deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
-        $startTime = Carbon::now()->addMinutes(5)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
-        $endTime = Carbon::now()->addMonths(2)->subDays(1)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z');
 
-        $response = $this->model->createCampaign($this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend, [
-          'startTime' => $startTime,
-          'endTime' => $endTime,
-        ]));
-
-        VendData::create([
-          'connection' => 'GRAB-CAMPAIGN',
-          'processed' => $response,
-          'value' => $this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend, [
-            'startTime' => $startTime,
-            'endTime' => $endTime,
-          ]),
-        ]);
+        $response = $this->model->createCampaign($this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend));
         if($response['success']) {
           $deliveryPlatformCampaignItemVend->update([
-            'datetime_from' => $startTime,
-            'datetime_to' => $endTime,
             'is_submitted' => true,
             'platform_ref_id' => $response['data']['id'],
+            'submission_response_json' => $response,
           ]);
           return $response['data'];
+        }else {
+          $deliveryPlatformCampaignItemVend->update([
+            'is_submitted' => false,
+            'submission_response_json' => $response,
+          ]);
         }
         break;
       default:
@@ -66,12 +56,6 @@ class DeliveryPlatformCampaignService
     switch($deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $response = $this->model->deleteCampaign($deliveryPlatformCampaignItemVend->platform_ref_id);
-
-        VendData::create([
-          'connection' => 'GRAB-CAMPAIGN-DELETE',
-          'processed' => $response,
-          'value' => $response,
-        ]);
         if($response['success']) {
           return $response['data'];
         }
@@ -118,7 +102,7 @@ class DeliveryPlatformCampaignService
   {
       if($deliveryPlatformCampaign->deliveryPlatformCampaignItemVends()->exists()) {
           foreach($deliveryPlatformCampaign->deliveryPlatformCampaignItemVends as $deliveryPlatformCampaignItemVend) {
-            if(!$deliveryPlatformCampaignItemVend->is_submitted) {
+            if(!$deliveryPlatformCampaignItemVend->is_submitted and $deliveryPlatformCampaignItemVend->is_active) {
               CreateDeliveryPlatformCampaign::dispatch($deliveryPlatformCampaignItemVend)->onQueue('default');
             }
           }
@@ -156,8 +140,8 @@ class DeliveryPlatformCampaignService
         'totalCountPerUser' => $model->settings_json['totalCountPerUser'] && $model->deliveryPlatformCampaignItem->settings_json['totalCountPerUser'] != null ? intval($model->settings_json['totalCountPerUser']) : null,
       ],
       'conditions' => [
-        'startTime' => isset($params['startTime']) ? $params['startTime'] : $model->datetime_from,
-        'endTime' => isset($params['endTime']) ? $params['endTime'] : $model->datetime_to,
+        'startTime' => Carbon::parse($model->datetime_from)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
+        'endTime' => Carbon::parse($model->datetime_to)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
         'eaterType' => $model->settings_json['eaterType'],
         'minBasketAmount' => $model->settings_json['minBasketAmount'] && $model->settings_json['minBasketAmount'] != null ? $model->settings_json['minBasketAmount'] : 0,
         'bundleQuantity' => $model->settings_json['qty'] && $model->settings_json['qty'] != null ? intval($model->settings_json['qty']) : 0,

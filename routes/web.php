@@ -130,6 +130,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/store', [DeliveryPlatformCampaignController::class, 'store']);
         Route::post('/{id}/create-item', [DeliveryPlatformCampaignController::class, 'createItem']);
         Route::post('/{id}/submit-platform', [DeliveryPlatformCampaignController::class, 'submitPlatform']);
+        Route::post('/{id}/item-vend', [DeliveryPlatformCampaignController::class, 'createItemVend']);
         Route::delete('/item/{deliveryPlatformCampaignItemID}', [DeliveryPlatformCampaignController::class, 'deleteItem']);
         Route::delete('/item-vend/{delPlaCamItemVendID}', [DeliveryPlatformCampaignController::class, 'deleteItemVend']);
     });

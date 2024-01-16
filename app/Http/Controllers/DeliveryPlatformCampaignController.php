@@ -9,6 +9,7 @@ use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryPlatformCampaignItemVend;
 use App\Http\Resources\DeliveryPlatformCampaignResource;
+use App\Http\Resources\DeliveryPlatformCampaignItemResource;
 use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\DeliveryProductMappingResource;
 use App\Http\Resources\DeliveryProductMappingVendResource;
@@ -91,14 +92,10 @@ class DeliveryPlatformCampaignController extends Controller
         $request->validate([
             'name' => 'required',
             'delivery_product_mapping_id' => 'required|unique:delivery_platform_campaigns,delivery_product_mapping_id',
-            'datetime_from' => 'required',
-            'datetime_to' => 'required',
         ], [
             'name.required' => 'Name is required',
             'delivery_product_mapping_id.required' => 'Delivery Product Mapping is required',
             'delivery_platform_operator_id.required' => 'Delivery Platform is required',
-            'datetime_from.required' => 'Begin Date is required',
-            'datetime_to.required' => 'End Date is required',
         ]);
 
         $deliveryPlatformCampaign = DeliveryPlatformCampaign::create($request->all());
@@ -129,7 +126,7 @@ class DeliveryPlatformCampaignController extends Controller
                 'deliveryPlatformCampaignItemVends' => function($query) {
                     $query
                         ->where(function($query) {
-                            $query->where('datetime_to', '>=', Carbon::now()->setTimezone('UTC'))
+                            $query->where('datetime_to', '>=', Carbon::now())
                                 ->orWhereNull('datetime_to');
                         })
                         ->where('is_active', true);
@@ -147,7 +144,7 @@ class DeliveryPlatformCampaignController extends Controller
             ->whereNull('end_date')
             ->where('is_active', true)
             ->get();
-        // dd($deliveryProductMappingVends->toArray());
+
 
         return Inertia::render('DeliveryPlatformCampaign/Edit', [
             'deliveryPlatformCampaignItemOptions' => $this->deliveryPlatformCampaignService->getItemOptions($deliveryPlatformCampaign),
@@ -190,6 +187,41 @@ class DeliveryPlatformCampaignController extends Controller
         return redirect()->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaign->id]);
     }
 
+    public function createItemVend(Request $request, $id)
+    {
+
+
+        $deliveryPlatformCampaign = DeliveryPlatformCampaign::findOrFail($id);
+        $existedDeliveryPlatformCampaignItemVend = DeliveryPlatformCampaignItemVend::query()
+            ->where('delivery_platform_campaign_item_id', $request->delivery_platform_campaign_item_id)
+            ->where('delivery_product_mapping_vend_id', $request->delivery_product_mapping_vend_id)
+            ->where('is_active', true)
+            ->where(function($query) {
+                $query->where('datetime_to', '>=', Carbon::now())
+                    ->orWhereNull('datetime_to');
+            })
+            ->first();
+
+        if(!$existedDeliveryPlatformCampaignItemVend) {
+            DeliveryPlatformCampaignItemVend::create([
+                'datetime_from' => $request->datetime_from,
+                'datetime_to' => $request->datetime_to,
+                'delivery_platform_campaign_id' => $deliveryPlatformCampaignItem->delivery_platform_campaign_id,
+                'delivery_platform_campaign_item_id' => $request->delivery_platform_campaign_item_id,
+                'delivery_product_mapping_vend_id' => $request->delivery_product_mapping_vend_id,
+                'is_active' => true,
+                'is_submitted' => false,
+                'vend_code' => $request->vend_code,
+                'platform_ref_id' => null,
+                'settings_json' => $deliveryPlatformCampaignItem->settings_json,
+                'settings_label' => $deliveryPlatformCampaignItem->settings_label,
+                'settings_name' => $deliveryPlatformCampaignItem->settings_name,
+            ]);
+        }
+
+        return redirect()->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaign->id]);
+    }
+
     public function deleteItem($deliveryPlatformCampaignItemID)
     {
         $deliveryPlatformCampaignItem = DeliveryPlatformCampaignItem::findOrFail($deliveryPlatformCampaignItemID);
@@ -213,13 +245,11 @@ class DeliveryPlatformCampaignController extends Controller
             $deliveryPlatformCampaignItemVend->update([
                 'datetime_to' => Carbon::now(),
                 'is_active' => false,
+                'submission_response_json' => $response,
             ]);
         }else {
             $deliveryPlatformCampaignItemVend->delete();
         }
-
-
-
 
         return redirect()->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->id]);
     }
@@ -227,7 +257,7 @@ class DeliveryPlatformCampaignController extends Controller
     public function submitPlatform($id)
     {
         $deliveryPlatformCampaign = DeliveryPlatformCampaign::findOrFail($id);
-        $this->deliveryPlatformCampaignService->syncItemVends($deliveryPlatformCampaign);
+        // $this->deliveryPlatformCampaignService->syncItemVends($deliveryPlatformCampaign);
 
         $this->deliveryPlatformCampaignService->syncCampaigns($deliveryPlatformCampaign);
 

@@ -21,12 +21,15 @@ class DeliveryPlatformCampaignItemVend extends Model
         'settings_json',
         'settings_label',
         'settings_name',
+        'submission_response_json',
+        'vend_code',
     ];
 
     protected $casts = [
         'datetime_from' => 'datetime',
         'datetime_to' => 'datetime',
         'settings_json' => 'json',
+        'submission_response_json' => 'json',
     ];
 
     // relationships

@@ -14,16 +14,9 @@ class DeliveryPlatformCampaign extends Model
     protected $fillable = [
         'delivery_platform_operator_id',
         'delivery_product_mapping_id',
-        'datetime_from',
-        'datetime_to',
         'is_active',
         'name',
         'remarks',
-    ];
-
-    protected $casts = [
-        'datetime_from' => 'datetime',
-        'datetime_to' => 'datetime',
     ];
 
     // relationships
