@@ -144,7 +144,7 @@ class DeliveryPlatformCampaignService
         'startTime' => Carbon::parse($model->datetime_from)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
         'endTime' => Carbon::parse($model->datetime_to)->setTimezone('UTC')->format('Y-m-d\TH:i:s\Z'),
         'eaterType' => $model->settings_json['eaterType'],
-        'minBasketAmount' => $model->settings_json['minBasketAmount'] && $model->settings_json['minBasketAmount'] != null ? $model->settings_json['minBasketAmount'] : 0,
+        'minBasketAmount' => $model->settings_json['minBasketAmount'] && $model->settings_json['minBasketAmount'] != null ? floatval($model->settings_json['minBasketAmount']) : 0,
         'bundleQuantity' => $model->settings_json['qty'] && $model->settings_json['qty'] != null ? intval($model->settings_json['qty']) : 0,
         'workingHour' => [
           'sun' => [
