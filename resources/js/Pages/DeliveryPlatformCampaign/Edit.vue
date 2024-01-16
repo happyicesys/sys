@@ -702,6 +702,9 @@ function createItemVend() {
     ...form.value,
     delivery_platform_campaign_item_id: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.id : '',
     delivery_product_mapping_vend_id: form.value.bind_delivery_product_mapping_vend ? form.value.bind_delivery_product_mapping_vend.id : '',
+    settings_json: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.settings_json : '',
+    settings_label: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.settings_label : '',
+    settings_name: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.settings_name : '',
     vend_code: form.value.bind_delivery_product_mapping_vend ? form.value.bind_delivery_product_mapping_vend.code : '',
   }, {
       preserveState: false,
