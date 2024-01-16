@@ -143,6 +143,7 @@ class DeliveryPlatformCampaignController extends Controller
                 });
             })
             ->whereNull('end_date')
+            ->where('is_active', true)
             ->get();
         // dd($deliveryProductMappingVends->toArray());
 
@@ -208,7 +209,8 @@ class DeliveryPlatformCampaignController extends Controller
         if($deliveryPlatformCampaignItemVend->is_submitted and $deliveryPlatformCampaignItemVend->platform_ref_id) {
             $response = $this->deliveryPlatformCampaignService->deleteCampaign($deliveryPlatformCampaignItemVend);
             $deliveryPlatformCampaignItemVend->update([
-                'end_date' => Carbon::now(),
+                'datetime_to' => Carbon::now(),
+                'is_active' => false,
             ]);
         }else {
             $deliveryPlatformCampaignItemVend->delete();
