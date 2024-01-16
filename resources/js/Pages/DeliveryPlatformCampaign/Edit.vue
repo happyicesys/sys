@@ -417,18 +417,32 @@
               </div>
 
               <div class="sm:col-span-6 flex justify-between" v-if="form.id">
-                <Button
-                type="button"
-                @click.prevent="createItemVend()"
-                class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-1"
-                :class="[!isBindCampaignFormCompleted ? 'opacity-50 cursor-not-allowed' : '']"
-                :disabled="!isBindCampaignFormCompleted"
-                >
-                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                  <span>
-                    Bind Campaign to VM
-                  </span>
-                </Button>
+                <span class="flex space-x-1">
+                  <Button
+                  type="button"
+                  @click.prevent="createItemVend()"
+                  class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-1"
+                  :class="[!isBindCampaignFormCompleted ? 'opacity-50 cursor-not-allowed' : '']"
+                  :disabled="!isBindCampaignFormCompleted"
+                  >
+                    <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                    <span>
+                      Bind Campaign to VM
+                    </span>
+                  </Button>
+                  <Button
+                  type="button"
+                  @click.prevent="batchCreateItemVend()"
+                  class="bg-green-700 hover:bg-green-800 text-white flex space-x-1 sm:mt-1"
+                  :class="[!isBatchBindCampaignFormCompleted ? 'opacity-50 cursor-not-allowed' : '']"
+                  :disabled="!isBatchBindCampaignFormCompleted"
+                  >
+                    <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                    <span>
+                      Batch Bind Campaign to VM
+                    </span>
+                  </Button>
+                </span>
                 <Button
                   class="bg-yellow-500 hover:bg-yellow-600 text-black flex space-x-1 sm:mt-1"
                   @click.prevent="submitCampaign(deliveryPlatformCampaign.id)"
@@ -697,6 +711,16 @@ const isBindCampaignFormCompleted = computed(function() {
   return isCompleted
 })
 
+const isBatchBindCampaignFormCompleted = computed(function() {
+  let isCompleted = true
+
+  if(!form.value.bind_delivery_platform_campaign_item || !form.value.datetime_from || !form.value.datetime_to) {
+    isCompleted = false
+  }
+
+  return isCompleted
+})
+
 function createItemVend() {
   router.post('/delivery-platform-campaigns/' + form.value.id + '/item-vend', {
     ...form.value,
@@ -706,6 +730,20 @@ function createItemVend() {
     settings_label: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.settings_label : '',
     settings_name: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.settings_name : '',
     vend_code: form.value.bind_delivery_product_mapping_vend ? form.value.bind_delivery_product_mapping_vend.code : '',
+  }, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+  })
+}
+
+function batchCreateItemVend() {
+  router.post('/delivery-platform-campaigns/' + form.value.id + '/batch-item-vend', {
+    ...form.value,
+    delivery_platform_campaign_item_id: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.id : '',
+    settings_json: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.settings_json : '',
+    settings_label: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.settings_label : '',
+    settings_name: form.value.bind_delivery_platform_campaign_item ? form.value.bind_delivery_platform_campaign_item.settings_name : '',
   }, {
       preserveState: false,
       preserveScroll: true,

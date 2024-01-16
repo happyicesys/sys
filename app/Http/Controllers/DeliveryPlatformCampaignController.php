@@ -187,8 +187,6 @@ class DeliveryPlatformCampaignController extends Controller
 
     public function createItemVend(Request $request, $id)
     {
-
-
         $deliveryPlatformCampaign = DeliveryPlatformCampaign::findOrFail($id);
         $existedDeliveryPlatformCampaignItemVend = DeliveryPlatformCampaignItemVend::query()
             ->where('delivery_platform_campaign_item_id', $request->delivery_platform_campaign_item_id)
@@ -215,6 +213,45 @@ class DeliveryPlatformCampaignController extends Controller
                 'settings_label' => $request->settings_label,
                 'settings_name' => $request->settings_name,
             ]);
+        }
+
+        return redirect()->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaign->id]);
+    }
+
+    public function batchCreateItemVend(Request $request, $id)
+    {
+        $deliveryPlatformCampaign = DeliveryPlatformCampaign::findOrFail($id);
+
+        if($deliveryPlatformCampaign->deliveryPlatformCampaignItems()->exists() and $deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends()->whereNull('end_date')->exists()) {
+            foreach($deliveryPlatformCampaign->deliveryProductMapping->deliveryProductMappingVends()->whereNull('end_date')->get() as $deliveryProductMappingVend) {
+
+                $existedDeliveryPlatformCampaignItemVend = DeliveryPlatformCampaignItemVend::query()
+                ->where('delivery_platform_campaign_item_id', $request->delivery_platform_campaign_item_id)
+                ->where('delivery_product_mapping_vend_id', $deliveryProductMappingVend->id)
+                ->where('is_active', true)
+                ->where(function($query) {
+                    $query->where('datetime_to', '>=', Carbon::now())
+                        ->orWhereNull('datetime_to');
+                })
+                ->first();
+
+                if(!$existedDeliveryPlatformCampaignItemVend) {
+                    DeliveryPlatformCampaignItemVend::create([
+                        'datetime_from' => $request->datetime_from,
+                        'datetime_to' => $request->datetime_to,
+                        'delivery_platform_campaign_id' => $deliveryPlatformCampaign->id,
+                        'delivery_platform_campaign_item_id' => $request->delivery_platform_campaign_item_id,
+                        'delivery_product_mapping_vend_id' => $deliveryProductMappingVend->id,
+                        'is_active' => true,
+                        'is_submitted' => false,
+                        'vend_code' => $deliveryProductMappingVend->vend_code,
+                        'platform_ref_id' => null,
+                        'settings_json' => $request->settings_json,
+                        'settings_label' => $request->settings_label,
+                        'settings_name' => $request->settings_name,
+                    ]);
+                }
+            }
         }
 
         return redirect()->route('delivery-platform-campaigns.edit', [$deliveryPlatformCampaign->id]);
