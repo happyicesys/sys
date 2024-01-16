@@ -204,7 +204,7 @@ class DeliveryPlatformCampaignController extends Controller
             DeliveryPlatformCampaignItemVend::create([
                 'datetime_from' => $request->datetime_from,
                 'datetime_to' => $request->datetime_to,
-                'delivery_platform_campaign_id' => $deliveryPlatformCampaignItem->delivery_platform_campaign_id,
+                'delivery_platform_campaign_id' => $deliveryPlatformCampaign->id,
                 'delivery_platform_campaign_item_id' => $request->delivery_platform_campaign_item_id,
                 'delivery_product_mapping_vend_id' => $request->delivery_product_mapping_vend_id,
                 'is_active' => true,
