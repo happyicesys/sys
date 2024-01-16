@@ -162,8 +162,6 @@ class DeliveryPlatformCampaignController extends Controller
     {
         $deliveryPlatformCampaign = DeliveryPlatformCampaign::findOrFail($id);
         $deliveryPlatformCampaign->deliveryPlatformCampaignItems()->create([
-            'datetime_from' => $deliveryPlatformCampaign->datetime_from,
-            'datetime_to' => $deliveryPlatformCampaign->datetime_to,
             'is_active' => true,
             'items_json' => $request->delivery_product_mapping_items ? $request->delivery_product_mapping_items : [$request->category],
             'settings_json' => [

@@ -11,8 +11,6 @@ class DeliveryPlatformCampaignItem extends Model
 
     protected $fillable = [
         'delivery_platform_campaign_id',
-        'datetime_from',
-        'datetime_to',
         'is_active',
         'items_json',
         'settings_json',
@@ -21,8 +19,6 @@ class DeliveryPlatformCampaignItem extends Model
     ];
 
     protected $casts = [
-        'datetime_from' => 'datetime',
-        'datetime_to' => 'datetime',
         'items_json' => 'json',
         'settings_json' => 'json',
     ];
