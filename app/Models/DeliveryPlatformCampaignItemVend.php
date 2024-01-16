@@ -21,6 +21,7 @@ class DeliveryPlatformCampaignItemVend extends Model
         'settings_json',
         'settings_label',
         'settings_name',
+        'submission_request_json',
         'submission_response_json',
         'vend_code',
     ];
@@ -29,6 +30,7 @@ class DeliveryPlatformCampaignItemVend extends Model
         'datetime_from' => 'datetime',
         'datetime_to' => 'datetime',
         'settings_json' => 'json',
+        'submission_request_json' => 'json',
         'submission_response_json' => 'json',
     ];
 

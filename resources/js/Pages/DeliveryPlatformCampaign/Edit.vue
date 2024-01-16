@@ -714,7 +714,7 @@ const isBindCampaignFormCompleted = computed(function() {
 const isBatchBindCampaignFormCompleted = computed(function() {
   let isCompleted = true
 
-  if(!form.value.bind_delivery_platform_campaign_item || !form.value.datetime_from || !form.value.datetime_to) {
+  if(!form.value.bind_delivery_platform_campaign_item || !form.value.datetime_from || !form.value.datetime_to || form.value.bind_delivery_product_mapping_vend) {
     isCompleted = false
   }
 

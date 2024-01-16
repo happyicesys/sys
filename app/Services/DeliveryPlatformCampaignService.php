@@ -28,18 +28,19 @@ class DeliveryPlatformCampaignService
 
     switch($deliveryPlatformCampaignItemVend->deliveryPlatformCampaign->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
-
         $response = $this->model->createCampaign($this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend));
         if($response['success']) {
           $deliveryPlatformCampaignItemVend->update([
             'is_submitted' => true,
             'platform_ref_id' => $response['data']['id'],
+            'submission_request_json' => $this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend),
             'submission_response_json' => $response,
           ]);
           return $response['data'];
         }else {
           $deliveryPlatformCampaignItemVend->update([
             'is_submitted' => false,
+            'submission_request_json' => $this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend),
             'submission_response_json' => $response,
           ]);
         }

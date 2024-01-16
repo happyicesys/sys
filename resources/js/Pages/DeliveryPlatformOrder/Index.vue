@@ -251,7 +251,7 @@
                         </span>
                         <span class="text-xs" v-if="deliveryPlatformOrder.last_mile_timediff_mins && deliveryPlatformOrder.last_mile_timediff_mins >= 0">
                           <br>
-                          CD ({{ deliveryPlatformOrder.last_mile_timediff_mins }}m)
+                          CD ({{ deliveryPlatformOrder.last_mile_timediff_mins }} m)
                         </span>
                       </div>
                     </TableData>
