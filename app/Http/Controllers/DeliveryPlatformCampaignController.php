@@ -127,10 +127,12 @@ class DeliveryPlatformCampaignController extends Controller
         $deliveryProductMappingVends = DeliveryProductMappingVend::query()
             ->with([
                 'deliveryPlatformCampaignItemVends' => function($query) {
-                    $query->where(function($query) {
-                        $query->where('datetime_to', '>=', Carbon::now()->setTimezone('UTC'))
-                            ->orWhereNull('datetime_to');
-                    });
+                    $query
+                        ->where(function($query) {
+                            $query->where('datetime_to', '>=', Carbon::now()->setTimezone('UTC'))
+                                ->orWhereNull('datetime_to');
+                        })
+                        ->where('is_active', true);
                 },
                 'deliveryPlatformCampaignItemVends.deliveryPlatformCampaign',
                 'deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
