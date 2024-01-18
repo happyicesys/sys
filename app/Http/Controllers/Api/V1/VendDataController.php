@@ -44,4 +44,16 @@ class VendDataController extends Controller
 
         return $vends;
     }
+
+    public function uploadLog(Request $request)
+    {
+        dd($request->all());
+        // $url = Storage::url($request->thumbnail->storePublicly('sys/products'));
+        // $product->thumbnail()->updateOrCreate([
+        //     'type' => 1,
+        // ], [
+        //     'full_url' => $url,
+        //     'local_url' => $url,
+        // ]);
+    }
 }

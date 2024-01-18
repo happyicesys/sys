@@ -28,6 +28,7 @@ Route::prefix('v1')->group(function() {
     Route::post('/payment-gateway-status/{company?}', [PaymentController::class, 'createPaymentGatewayLog']);
     Route::get('/binded-vends', [VendDataController::class, 'getBindedVends']);
     Route::get('/payment-merchants/{countryCode}/{paymentGatewayName}', [PaymentController::class, 'getPaymentMerchantsApi']);
+    Route::post('/upload-log', [VendDataController::class, 'uploadLog']);
 });
 
 Route::prefix('delivery')->group(function() {
