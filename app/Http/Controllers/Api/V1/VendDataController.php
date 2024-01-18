@@ -14,6 +14,7 @@ use App\Models\VendTransaction;
 use App\Services\VendDataService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Log;
 
 class VendDataController extends Controller
@@ -47,6 +48,7 @@ class VendDataController extends Controller
 
     public function uploadLog(Request $request)
     {
+        Log::info('upload log', $request->all());
         dd($request->all());
         // $url = Storage::url($request->thumbnail->storePublicly('sys/products'));
         // $product->thumbnail()->updateOrCreate([
