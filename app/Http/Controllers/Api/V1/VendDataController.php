@@ -14,6 +14,7 @@ use App\Models\VendTransaction;
 use App\Services\VendDataService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Log;
 
 class VendDataController extends Controller
@@ -45,16 +46,20 @@ class VendDataController extends Controller
         return $vends;
     }
 
-    public function uploadLog(Request $request)
+    public function uploadLog(Request $request, $id)
     {
-        Log::info($request->all());
-        dd($request->all());
-        // $url = Storage::url($request->thumbnail->storePublicly('sys/products'));
-        // $product->thumbnail()->updateOrCreate([
-        //     'type' => 1,
-        // ], [
-        //     'full_url' => $url,
-        //     'local_url' => $url,
-        // ]);
+        $request->validate([
+            'file' => 'sometimes|max:10000',
+        ]);
+
+        $vend = Vend::findOrFail($id);
+
+        $url = Storage::url($request->file->storePublicly('sys/vends/logs'));
+        $vend->logs()->create([
+            'full_url' => $url,
+            'local_url' => $url,
+        ]);
+
+        return true;
     }
 }

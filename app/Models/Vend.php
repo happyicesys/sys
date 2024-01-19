@@ -151,6 +151,11 @@ class Vend extends Model
         return $this->hasMany(VendSnapshot::class)->latest();
     }
 
+    public function logs()
+    {
+        return $this->morphMany(Attachment::class, 'modelable')->latest();
+    }
+
     public function operators()
     {
         return $this->belongsToMany(Operator::class);

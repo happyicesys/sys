@@ -382,6 +382,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/create', [VendController::class, 'create']);
         Route::get('/channels/excel', [VendController::class, 'exportChannelExcel']);
         Route::get('/', [VendController::class, 'index'])->name('vends');
+        Route::get('/{id}/edit', [VendController::class, 'edit'])->name('vends.edit');
         Route::get('/{id}/temp/{type}', [VendController::class, 'temp'])->name('temp');
         Route::get('/{id}/temp/{type}/excel', [VendController::class, 'exportTempExcel']);
         Route::get('/transactions', [VendController::class, 'transactionIndex'])->name('vends-transactions');

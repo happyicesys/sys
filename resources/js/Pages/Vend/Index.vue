@@ -816,7 +816,7 @@
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="flex justify-center space-x-1">
-                                    <Button
+                                    <!-- <Button
                                         type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                                         @click="onEditClicked(vend)"
                                     >
@@ -824,7 +824,17 @@
                                         <span>
                                             Edit
                                         </span>
-                                    </Button>
+                                    </Button> -->
+                                    <Link :href="'/vends/' + vend.id + '/edit'">
+                                        <Button
+                                        type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                                        >
+                                        <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                                        <span>
+                                            Edit
+                                        </span>
+                                        </Button>
+                                    </Link>
                                 </div>
                             </TableData>
                         </tr>
@@ -918,7 +928,7 @@
   import TableHeadSort from '@/Components/TableHeadSort.vue';
   import SingleSortItem from '@/Components/SingleSortItem.vue';
   import { ref, onMounted } from 'vue';
-  import { router } from '@inertiajs/vue3';
+  import { router, Link } from '@inertiajs/vue3';
   import { Head, usePage } from '@inertiajs/vue3';
   import moment from 'moment';
   import axios from 'axios';

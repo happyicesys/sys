@@ -52,6 +52,8 @@ class VendDBResource extends JsonResource
             'next_invoice_diff' => isset($this->next_invoice_date) ? Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'location_type_id' => isset($this->location_type_id) ? $this->location_type_id : null,
             'location_type_name' => isset($this->location_type_name) ? $this->location_type_name : null,
+            'log_created_at' => isset($this->log_created_at) ? Carbon::parse($this->log_created_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
+            'log_url' => isset($this->log_url) ? $this->log_url : null,
             'operator_name' => isset($this->operator_name) ? $this->operator_name : null,
             'parameterJson' => isset($this->parameter_json) ? json_decode($this->parameter_json) : null,
             'postcode' => isset($this->postcode) ? $this->postcode : null,

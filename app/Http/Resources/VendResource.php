@@ -32,6 +32,7 @@ class VendResource extends JsonResource
             'latestOperator' =>  $this->when($this->relationLoaded('latestOperator'), function() {
                 return OperatorResource::make($this->operators()->first());
             }),
+            'logs' => AttachmentResource::collection($this->whenLoaded('logs')),
             'operators' => $this->when($this->relationLoaded('operators'), function() {
                 return OperatorResource::collection($this->operators);
             }),

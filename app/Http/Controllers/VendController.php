@@ -188,7 +188,7 @@ class VendController extends Controller
                 'product_mappings.name AS product_mapping_name',
                 'product_mappings.remarks AS product_mapping_remarks',
                 'operators.name AS operator_name',
-                'addresses.postcode AS postcode'
+                'addresses.postcode AS postcode',
             );
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends);
@@ -686,10 +686,8 @@ class VendController extends Controller
         ]);
 
         if($request->customer_id) {
-            // dd('1');
             SyncVendCustomerCms::dispatch($vend->id, $request->customer_id)->onQueue('default');
         }else {
-            // dd('2');
             if($vend->latestVendBinding) {
                 $vend->latestVendBinding->update([
                     'is_active' => false,
@@ -701,7 +699,6 @@ class VendController extends Controller
         if($request->operator_id) {
             $vend->operators()->sync([$request->operator_id]);
         }
-
 
         return redirect()->route('settings');
     }
@@ -775,6 +772,22 @@ class VendController extends Controller
                 'Balance Percent(%)' => isset($vendChannel->capacity) && $vendChannel->capacity > 0 ? round($vendChannel->qty/ $vendChannel->capacity * 100) : 0,
             ];
         });
+    }
+
+
+    public function edit(Request $request, $id)
+    {
+        $vend = Vend::query()
+            ->with([
+                'latestVendBinding.customer:id,code,name',
+                'logs',
+            ])
+            ->find($id);
+
+        return Inertia::render('Vend/Edit', [
+            'type' => 'update',
+            'vend' => VendResource::make($vend),
+        ]);
     }
 
     public function editProducts(Request $request, $vendId)

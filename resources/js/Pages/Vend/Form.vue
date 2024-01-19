@@ -88,6 +88,62 @@
             </div>
           </div>
         </form>
+          <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+            <div class="relative">
+              <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                <div class="w-full border-t border-gray-300"></div>
+              </div>
+              <div class="relative flex justify-center">
+                <span class="px-3 bg-white text-lg font-medium text-gray-900"> APK Logs </span>
+              </div>
+            </div>
+          </div>
+          <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+          <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+            <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+              <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                <table class="min-w-full divide-y divide-gray-300">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                        #
+                      </th>
+                      <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                        Created At
+                      </th>
+                      <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                        File
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white">
+                    <!-- <tr v-for="(vendSnapshot, vendSnapshotIndex) in vend.vendSnapshots" :key="vendSnapshot.id" :class="vendSnapshotIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                        {{ vendSnapshotIndex + 1 }}
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                        {{ vendSnapshot.endOfMonthNameYear }}
+                      </td>
+                      <td class="whitespace-nowrap py-4 text-sm text-center">
+                        <Button
+                          class="bg-gray-200 hover:bg-gray-300"
+                          @click="downloadVendSnapshot(vendSnapshot.id)"
+                        >
+                          <ArrowDownTrayIcon class="w-4 h-4"></ArrowDownTrayIcon>
+                        </Button>
+                      </td>
+                    </tr>
+                    <tr v-if="!vend.vendSnapshots || !vend.vendSnapshots.length">
+                      <td colspan="3" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
+                        No records found
+                      </td>
+                    </tr> -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          </div>
           <!-- <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
             <div class="relative">
               <div class="absolute inset-0 flex items-center" aria-hidden="true">
