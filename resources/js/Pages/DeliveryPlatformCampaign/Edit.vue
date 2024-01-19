@@ -124,7 +124,7 @@
                   Bundle Total Qty
                 </FormInput>
               </div>
-              <div v-if="form.delivery_platform_campaign_item && form.delivery_platform_campaign_item.id && form.delivery_platform_campaign_item.value" class="sm:col-span-2">
+              <div v-if="form.delivery_platform_campaign_item && form.delivery_platform_campaign_item.id && form.delivery_platform_campaign_item.promo_value" class="sm:col-span-2">
                 <FormInput v-model="form.promo_value" :error="form.errors.promo_value" placeholderStr="Number" required="true">
                   Value ({{ form.delivery_platform_campaign_item.id }})
                 </FormInput>
@@ -625,7 +625,7 @@ const deliveryPlatformCampaignItemDesc = computed(function() {
     if(form.value.delivery_platform_campaign_item.qty) {
       descStr += form.value.qty ? form.value.qty : ''
     }else {
-      if(form.value.delivery_platform_campaign_item.value) {
+      if(form.value.delivery_platform_campaign_item.promo_value) {
         descStr += form.value.promo_value ? form.value.promo_value : ''
       }
     }
@@ -641,7 +641,7 @@ const deliveryPlatformCampaignItemDesc = computed(function() {
     if(!form.value.delivery_platform_campaign_item.qty) {
       descStr += form.value.qty ? form.value.qty : ''
     }else {
-      if(form.value.delivery_platform_campaign_item.value) {
+      if(form.value.delivery_platform_campaign_item.promo_value) {
         descStr += form.value.promo_value ? form.value.promo_value : ''
       }
     }
@@ -702,7 +702,7 @@ const isFormCompleted = computed(function() {
     }
   }
 
-  if(form.value.delivery_platform_campaign_item.value && form.value.promo_value == null) {
+  if(form.value.delivery_platform_campaign_item.promo_value && form.value.promo_value == null) {
     isCompleted = false
   }
 
