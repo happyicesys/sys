@@ -4,8 +4,8 @@
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
         Editing
-        <span v-if="vend">
-          {{ vend.code }}
+        <span v-if="vend.data">
+          {{ vend.data.code }}
         </span>
       </h2>
     </template>
@@ -43,7 +43,7 @@
               <div class="flex space-x-1 mt-5 justify-between">
                 <Button
                   class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                  @click.prevent="restartVend(vend.id)"
+                  @click.prevent="restartVend(vend.data.id)"
                 >
                   <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                   <span>
