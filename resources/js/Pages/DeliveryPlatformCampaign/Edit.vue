@@ -609,6 +609,8 @@ onMounted(() => {
       useForm(getDefaultForm())
 
     form.value.datetime_from = datetimeFrom.value
+
+    console.log(form.value.delivery_platform_campaign_item)
 })
 
 const datetimeFrom = computed(function() {
@@ -702,7 +704,7 @@ const isFormCompleted = computed(function() {
     }
   }
 
-  if(form.value.delivery_platform_campaign_item.promo_value && form.value.promo_value == null) {
+  if(form.value.delivery_platform_campaign_item && form.value.delivery_platform_campaign_item.promo_value && form.value.promo_value == null) {
     isCompleted = false
   }
 
