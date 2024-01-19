@@ -153,7 +153,7 @@ class Vend extends Model
 
     public function logs()
     {
-        return $this->morphMany(Attachment::class, 'modelable')->latest();
+        return $this->morphMany(Attachment::class, 'modelable')->latest()->take(10);
     }
 
     public function operators()

@@ -115,12 +115,6 @@
                     <TableHead>
                       Platform
                     </TableHead>
-                    <TableHeadSort modelName="datetime_from" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('datetime_from')">
-                      Date From
-                    </TableHeadSort>
-                    <TableHeadSort modelName="datetime_to" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('datetime_to')">
-                      Date To
-                    </TableHeadSort>
                     <TableHead>
                       Name
                     </TableHead>
@@ -144,12 +138,6 @@
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformCampaignIndex" :totalLength="deliveryPlatformCampaigns.length" inputClass="text-center">
                       {{ deliveryPlatformCampaign.deliveryPlatformOperator.deliveryPlatform.name }} ({{ deliveryPlatformCampaign.deliveryPlatformOperator.type }})
-                    </TableData>
-                    <TableData :currentIndex="deliveryPlatformCampaignIndex" :totalLength="deliveryPlatformCampaigns.length" inputClass="text-center">
-                      {{ deliveryPlatformCampaign.datetime_from }}
-                    </TableData>
-                    <TableData :currentIndex="deliveryPlatformCampaignIndex" :totalLength="deliveryPlatformCampaigns.length" inputClass="text-center">
-                      {{ deliveryPlatformCampaign.datetime_to }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformCampaignIndex" :totalLength="deliveryPlatformCampaigns.length" inputClass="text-center">
                       {{ deliveryPlatformCampaign.name }}
