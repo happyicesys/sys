@@ -666,7 +666,7 @@ const minDatetimeTo = computed(function() {
 const isFormCompleted = computed(function() {
   let isCompleted = true
 
-  if(!form.value.delivery_platform_campaign_item || !form.value.promo_value || !form.value.delivery_platform_campaign_item_scope) {
+  if(!form.value.delivery_platform_campaign_item || !form.value.delivery_platform_campaign_item_scope) {
     isCompleted = false
   }
 
