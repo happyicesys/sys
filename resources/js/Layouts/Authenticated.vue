@@ -137,6 +137,7 @@ const navigation = [
         href: 'delivery-product-mappings',
         permission: 'admin-access vends',
         children: [
+            {name: 'Machines', href: '/delivery-product-mapping-vends'},
             {name: 'Orders', href: '/delivery-platform-orders'},
             {name: 'Product Mapping', href: '/delivery-product-mappings'},
             {name: 'Campaign', href: '/delivery-platform-campaigns'}

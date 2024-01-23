@@ -13,6 +13,7 @@ use App\Http\Controllers\DeliveryPlatformCampaignController;
 use App\Http\Controllers\DeliveryPlatformController;
 use App\Http\Controllers\DeliveryPlatformOrderController;
 use App\Http\Controllers\DeliveryProductMappingController;
+use App\Http\Controllers\DeliveryProductMappingVendController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\LocationTypeController;
 use App\Http\Controllers\MapController;
@@ -164,6 +165,10 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/delivery-product-mapping/{id}/store', [DeliveryProductMappingController::class, 'storeDeliveryProductMappingItem']);
         Route::post('/{id}/update', [DeliveryProductMappingController::class, 'updateDeliveryProductMappingItem']);
         Route::post('/{id}/toggle-pause', [DeliveryProductMappingController::class, 'togglePauseDeliveryProductMappingItem']);
+    });
+
+    Route::prefix('delivery-product-mapping-vends')->group(function() {
+        Route::get('/', [DeliveryProductMappingVendController::class, 'index'])->name('delivery-product-mapping-vends');
     });
 
     Route::prefix('delivery-platform-operators')->group(function() {

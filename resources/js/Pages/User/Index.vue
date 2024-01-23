@@ -143,7 +143,7 @@
                               {{ user.roles[0] ? user.roles[0].name : null }}
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
-                              {{ user.operator.name }}
+                              {{ user.operator ? user.operator.name : null }}
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
                               <div class="flex justify-center space-x-1">

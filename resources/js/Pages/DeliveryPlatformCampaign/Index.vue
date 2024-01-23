@@ -1,6 +1,6 @@
 <template>
 
-  <Head title="Delivery Platform" />
+  <Head title="Delivery Campaign" />
 
   <BreezeAuthenticatedLayout>
     <template #header>

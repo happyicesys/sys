@@ -51,4 +51,28 @@ class DeliveryProductMappingVend extends Model
     {
         return $this->belongsTo(Vend::class);
     }
+
+    // scopes
+    public function scopeFilterIndex($query, $request)
+    {
+        $query = $query
+            ->when($request->delivery_platform_operator_id, function($query, $search) {
+                if($search != 'all') {
+                    $query->where('delivery_platform_operator_id', $search);
+                }
+            })
+            ->when($request->delivery_product_mapping_id, function($query, $search) {
+                if($search != 'all') {
+                    $query->where('delivery_product_mapping_id', $search);
+                }
+            })
+            ->when($request->platform_ref_id, function($query, $search) {
+                $query->where('platform_ref_id', 'LIKE', "{$search}%");
+            })
+            ->when($request->vend_code, function($query, $search) use ($request) {
+                $query->where('vend_code', 'LIKE', "{$search}%");
+            });
+
+        return $query;
+    }
 }
