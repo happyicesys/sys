@@ -48,7 +48,7 @@ class VendDataController extends Controller
 
     public function uploadLog(Request $request, $id)
     {
-        dd($request->all());
+        // dd($request->all());
         $request->validate([
             'file' => 'sometimes|max:10000',
         ]);
