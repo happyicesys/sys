@@ -13,6 +13,9 @@ class Vend extends Model
 {
     use HasFactory;
 
+    const ATTACHMENT_TYPE_LOG = 1;
+    const ATTACHMENT_TYPE_MEDIA_CONTENT = 2;
+
     protected static function booted()
     {
         static::addGlobalScope(new OperatorVendFilterScope);
@@ -153,7 +156,12 @@ class Vend extends Model
 
     public function logs()
     {
-        return $this->morphMany(Attachment::class, 'modelable')->latest()->take(10);
+        return $this->morphMany(Attachment::class, 'modelable')->where('type', Vend::ATTACHMENT_TYPE_LOG)->latest()->take(10);
+    }
+
+    public function mediaContents()
+    {
+        return $this->morphMany(Attachment::class, 'modelable')->where('type', Vend::ATTACHMENT_TYPE_MEDIA_CONTENT)->oldest();
     }
 
     public function operators()

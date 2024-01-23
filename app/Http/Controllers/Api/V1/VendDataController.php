@@ -46,9 +46,15 @@ class VendDataController extends Controller
         return $vends;
     }
 
+    public function getVendMediaContent($code)
+    {
+        $vend = Vend::where('code', $code)->firstOrFail();
+
+        return $vend->mediaContents;
+    }
+
     public function uploadLog(Request $request, $id)
     {
-        // dd($request->all());
         $request->validate([
             'file' => 'sometimes|max:10000',
         ]);
@@ -58,6 +64,7 @@ class VendDataController extends Controller
         $vend->logs()->create([
             'full_url' => $url,
             'local_url' => $url,
+            'type' => Vend::ATTACHMENT_TYPE_LOG,
         ]);
 
         return true;
