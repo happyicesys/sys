@@ -49,11 +49,10 @@ class VendDataController extends Controller
     public function uploadLog(Request $request, $id)
     {
         // dd($request->all());
-        // $request->validate([
-        //     'file' => 'sometimes|max:10000',
-        // ]);
-
-        $vend = Vend::findOrFail($id);
+        $request->validate([
+            'file' => 'sometimes|max:10000',
+        ]);
+        $vend = Vend::where('code', $id)->firstOrFail();
 
         $url = Storage::url($request->file->storePublicly('sys/vends/logs'));
         $vend->logs()->create([
