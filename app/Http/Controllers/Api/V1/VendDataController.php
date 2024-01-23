@@ -50,7 +50,9 @@ class VendDataController extends Controller
     {
         $vend = Vend::where('code', $code)->firstOrFail();
 
-        return $vend->mediaContents;
+        $imgUrl = $vend->mediaContents->first()->full_url ?? null;
+
+        return $imgUrl;
     }
 
     public function uploadLog(Request $request, $id)
