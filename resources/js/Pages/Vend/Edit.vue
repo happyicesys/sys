@@ -115,7 +115,7 @@
                       </tr>
                     </thead>
                     <tbody class="bg-white">
-                      <tr v-for="(log, logIndex) in vend.logs" :key="log.id" :class="logIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                      <tr v-for="(log, logIndex) in vend.data.logs" :key="log.id" :class="logIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                           {{ logIndex + 1 }}
                         </td>
@@ -129,7 +129,7 @@
                           </div>
                         </td>
                       </tr>
-                      <tr v-if="!vend.logs || !vend.logs.length">
+                      <tr v-if="!vend.data.logs || !vend.data.logs.length">
                         <td colspan="3" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
                           No records found
                         </td>
