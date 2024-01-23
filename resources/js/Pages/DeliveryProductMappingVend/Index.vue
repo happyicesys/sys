@@ -112,16 +112,19 @@
                       Vend ID
                     </TableHead>
                     <TableHead>
-                      Name
+                      Platform ID
                     </TableHead>
                     <TableHead>
-                      Channel Status
+                      Customer ID
+                    </TableHead>
+                    <TableHead>
+                      Customer Name
+                    </TableHead>
+                    <TableHead>
+                      Channel
                     </TableHead>
                     <TableHead>
                       VM Status
-                    </TableHead>
-                    <TableHead>
-                      Platform ID
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -133,21 +136,27 @@
                       {{ deliveryProductMappingVends.meta.from + deliveryProductMappingVendIndex }}
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
-
                       {{ deliveryProductMappingVend.vend.code }}
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-left">
+                      {{ deliveryProductMappingVend.platform_ref_id }}
+                    </TableData>
+                    <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                       <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.latestVendBinding && deliveryProductMappingVend.vend.latestVendBinding.customer">
                         {{ deliveryProductMappingVend.vend.latestVendBinding.customer.code }}
-                        <br>
+                      </span>
+                    </TableData>
+                    <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-left">
+                      <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.latestVendBinding && deliveryProductMappingVend.vend.latestVendBinding.customer">
                         {{ deliveryProductMappingVend.vend.latestVendBinding.customer.name }}
                       </span>
                       <span v-else>
                         {{ deliveryProductMappingVend.vend.name }}
                       </span>
                     </TableData>
-                    <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-left">
-                      <ul
+                    <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
+                      <MagnifyingGlassCircleIcon class="h-5 w-5 text-green-500 hover:cursor-pointer" aria-hidden="true" v-if="deliveryProductMappingVend.deliveryProductMappingVendChannels" @click="onChannelOverviewClicked(deliveryProductMappingVend)"/>
+                      <!-- <ul
                         class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
                         v-if="deliveryProductMappingVend.deliveryProductMappingVendChannels"
                         @click="onChannelOverviewClicked(deliveryProductMappingVend)"
@@ -160,11 +169,44 @@
                                 <span>
                                   #{{channel.vend_channel_code}}
                                 </span>
-                                <!-- <CheckCircleIcon v-if="channel.is_active == 1" class="w-4 h-4 fill-green-500"></CheckCircleIcon> -->
-                                <!-- <PauseCircleIcon v-else class="w-4 h-4 fill-red-500"></PauseCircleIcon> -->
                             </span>
                             </li>
-                        </ul>
+                        </ul> -->
+
+                    </TableData>
+                    <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
+                      <span class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 1">
+                        Operating
+                      </span>
+                      <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 0">
+                        Paused
+                      </span>
+                    </TableData>
+                    <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
+                      <div class="flex flex-col space-y-1">
+                        <Button
+                          class="flex space-x-1 w-fit"
+                          :class="[deliveryProductMappingVend.is_active ? 'bg-yellow-300 hover:bg-yellow-400 text-black' : 'bg-green-500 hover:bg-green-600 text-white']"
+                          @click.prevent="togglePauseVend(deliveryProductMappingVend)"
+                        >
+                          <PauseCircleIcon class="w-3 h-3" v-if="deliveryProductMappingVend.is_active"></PauseCircleIcon>
+                          <PlayCircleIcon class="w-3 h-3" v-else></PlayCircleIcon>
+                          <span class="text-xs" v-if="deliveryProductMappingVend.is_active">
+                            Pause VM
+                          </span>
+                          <span class="text-xs" v-else>
+                            Resume VM
+                          </span>
+                        </Button>
+                        <Button
+                          class="flex space-x-1 bg-red-500 hover:bg-red-600 text-white w-fit"
+                          v-if="!deliveryProductMappingVend.is_active"
+                          @click.prevent="unbindVend(deliveryProductMappingVend.id)"
+                        >
+                          <XCircleIcon class="w-3 h-3" ></XCircleIcon>
+                          <span class="text-xs">Unbind VM</span>
+                        </Button>
+                      </div>
                     </TableData>
 
                     <!-- <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
@@ -245,7 +287,7 @@ import ChannelOverview from '@/Pages/DeliveryProductMappingVend/ChannelOverview.
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, MagnifyingGlassIcon, MagnifyingGlassCircleIcon, PauseCircleIcon, PlayCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { ref, onMounted } from 'vue';
@@ -330,6 +372,35 @@ function sortTable(sortKey) {
   filters.value.sortKey = sortKey
   filters.value.sortBy = !filters.value.sortBy
   onSearchFilterUpdated()
+}
+
+function togglePauseVend(deliveryProductMappingVend) {
+  let approvalText = deliveryProductMappingVend.is_active ? 'Are you sure to pause this vending machine?' : 'Are you sure to resume this vending machine?'
+  const approval = confirm(approvalText);
+  if (!approval) {
+      return;
+  }
+  router.post('/delivery-product-mappings/vends/' + deliveryProductMappingVend.id + '/toggle-pause-vend', {}, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+  })
+}
+
+function unbindVend(deliveryProductMappingVendId) {
+  const approval = confirm('Are you sure to delete this entry?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/delivery-product-mappings/unbind/' + deliveryProductMappingVendId, {
+      preserveState: false,
+      preserveScroll: true,
+      replace: true,
+      onSuccess: () => {
+        router.reload({only: ['unbindedVendOptions']})
+        unbindedVendOptions.value = props.unbindedVendOptions ? props.unbindedVendOptions.data : []
+      },
+  })
 }
 
 </script>
