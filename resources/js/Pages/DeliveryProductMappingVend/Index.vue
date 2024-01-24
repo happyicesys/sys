@@ -50,6 +50,22 @@
           <SearchInput placeholderStr="Platform ID" v-model="filters.platform_ref_id">
             Platform ID
           </SearchInput>
+          <div>
+              <label for="text" class="block text-sm font-medium text-gray-700">
+                  Is Active?
+              </label>
+              <MultiSelect
+                  v-model="filters.is_active"
+                  :options="booleanOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+              >
+              </MultiSelect>
+          </div>
         </div>
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -140,6 +156,9 @@
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-left">
                       {{ deliveryProductMappingVend.platform_ref_id }}
+                      <span class="inline-flex items-center rounded-md bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-800/10" v-if="deliveryProductMappingVend.binded_times > 1">
+                        {{ deliveryProductMappingVend.binded_times }}
+                      </span>
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                       <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.latestVendBinding && deliveryProductMappingVend.vend.latestVendBinding.customer">
@@ -309,6 +328,7 @@ const filters = ref({
   status: '',
   numberPerPage: 100,
 })
+const booleanOptions = ref([])
 const deliveryPlatformOperatorOptions = ref([])
 const deliveryProductMapping = ref()
 const deliveryProductMappingOptions = ref([])
@@ -320,6 +340,11 @@ const permissions = usePage().props.auth.permissions
 const vend = ref()
 
 onMounted(() => {
+  booleanOptions.value = [
+      {id: 'all', value: 'All'},
+      {id: 'true', value: 'Yes'},
+      {id: 'false', value: 'No'},
+  ]
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },
@@ -339,6 +364,8 @@ onMounted(() => {
     ...props.deliveryProductMappingOptions.data.map((data) => {
     return {id: data.id, name: data.name }})
   ]
+  filters.value.is_active = booleanOptions.value[1]
+  filters.value.delivery_platform_operator_id = deliveryPlatformOperatorOptions.value[2]
   filters.value.delivery_product_mapping_id = deliveryProductMappingOptions.value[0]
 })
 
@@ -357,6 +384,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       delivery_platform_operator_id: filters.value.delivery_platform_operator_id.id,
       delivery_product_mapping_id: filters.value.delivery_product_mapping_id.id,
+      is_active: filters.value.is_active.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

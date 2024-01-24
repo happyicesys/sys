@@ -11,6 +11,7 @@ use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryProductMapping;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
+use DB;
 use Inertia\Inertia;
 
 class DeliveryProductMappingVendController extends Controller
@@ -20,7 +21,8 @@ class DeliveryProductMappingVendController extends Controller
     {
         $request->merge([
             'delivery_product_mapping_id' => $request->delivery_product_mapping_id ? $request->delivery_product_mapping_id : 'all',
-            'delivery_platform_operator_id' => $request->delivery_platform_operator_id ? $request->delivery_platform_operator_id : 'all',
+            'delivery_platform_operator_id' => $request->delivery_platform_operator_id ? $request->delivery_platform_operator_id : '15',
+            'is_active' => $request->is_active ? $request->is_active : 'true',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : '100',
             'status' => $request->status ? $request->status : 'all',
             'sortBy' => $request->sortBy ? $request->sortBy : false,
@@ -53,6 +55,7 @@ class DeliveryProductMappingVendController extends Controller
             'start_date',
             'vend_code',
             'vend_id',
+            DB::raw('(SELECT COUNT(*) FROM delivery_product_mapping_vend y WHERE delivery_product_mapping_vend.platform_ref_id = y.platform_ref_id) AS binded_times')
         )
         ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
         ->withQueryString();

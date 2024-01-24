@@ -58,7 +58,9 @@ class DeliveryProductMappingVend extends Model
         $query = $query
             ->when($request->delivery_platform_operator_id, function($query, $search) {
                 if($search != 'all') {
-                    $query->where('delivery_platform_operator_id', $search);
+                    $query->whereHas('deliveryProductMapping', function($query) use ($search) {
+                        $query->where('delivery_platform_operator_id', $search);
+                    });
                 }
             })
             ->when($request->delivery_product_mapping_id, function($query, $search) {
@@ -71,6 +73,16 @@ class DeliveryProductMappingVend extends Model
             })
             ->when($request->vend_code, function($query, $search) use ($request) {
                 $query->where('vend_code', 'LIKE', "{$search}%");
+            })
+            ->when($request->is_active, function($query, $search) use ($request) {
+                // dd($request->all());
+                if($search != 'all') {
+                    if($search == 'true') {
+                        $query->whereNull('end_date');
+                    } else {
+                        $query->whereNotNull('end_date');
+                    }
+                }
             });
 
         return $query;

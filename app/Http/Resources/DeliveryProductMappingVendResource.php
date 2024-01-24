@@ -17,6 +17,7 @@ class DeliveryProductMappingVendResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'binded_times' => isset($this->binded_times) ? $this->binded_times : null,
             'delivery_product_mapping_id' => $this->delivery_product_mapping_id,
             'is_active' => $this->is_active,
             'delivery_product_mapping_vend_channels_json' => $this->delivery_product_mapping_vend_channels_json,
