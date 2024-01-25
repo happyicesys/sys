@@ -44,9 +44,9 @@ class DeliveryProductMappingService
     )
     {
       if($isAddition) {
-        $deliveryProductMappingVendChannel->order_qty = $deliveryProductMappingVendChannel->order_qty + $orderQty;
+        $deliveryProductMappingVendChannel->order_qty = ($deliveryProductMappingVendChannel->order_qty + $orderQty) > 0 ? ($deliveryProductMappingVendChannel->order_qty + $orderQty) : 0;
       }else {
-        $deliveryProductMappingVendChannel->order_qty = $deliveryProductMappingVendChannel->order_qty - $orderQty;
+        $deliveryProductMappingVendChannel->order_qty = ($deliveryProductMappingVendChannel->order_qty - $orderQty) > 0 ? ($deliveryProductMappingVendChannel->order_qty - $orderQty) : 0;
       }
       $historyOrderQty = $deliveryProductMappingVendChannel->order_qty_json ?? [];
       $historyOrderQty[] = [
