@@ -48,6 +48,14 @@ class DeliveryProductMappingService
       }else {
         $deliveryProductMappingVendChannel->order_qty = $deliveryProductMappingVendChannel->order_qty - $orderQty;
       }
+      $historyOrderQty = $deliveryProductMappingVendChannel->order_qty_json ?? [];
+      $historyOrderQty[] = [
+        'previous_order_qty' => $deliveryProductMappingVendChannel->order_qty,
+        'order_qty' => $orderQty,
+        'is_addition' => $isAddition,
+        'created_at' => Carbon::now()->toDateTimeString(),
+      ];
+      $deliveryProductMappingVendChannel->order_qty_json = $historyOrderQty;
       $deliveryProductMappingVendChannel->save();
     }
 
@@ -82,7 +90,7 @@ class DeliveryProductMappingService
             $calReservedQty = $reservedQty;
           }
 
-          $availableQty = $vendChannelQty - $calReservedQty;
+          $availableQty = $vendChannelQty - $calReservedQty - $orderQty;
 
           if($availableQty > 0) {
             $status = true;

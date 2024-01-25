@@ -204,9 +204,11 @@ class DeliveryPlatformController extends Controller
         // }
 
         if(($deliveryPlatformOrder->deliveryPlatformOperator->type === 'production') and (Carbon::parse($deliveryPlatformOrder->created_at)->diffInHours(Carbon::now()) > DeliveryPlatformOrder::ORDER_EXPIRED_HOURS)) {
+            // order expired
             abort(response([
-                'error_code' => 405,
-                'error_message' => 'Order expired',
+                // 'error_code' => 405,
+                // 'error_message' => 'Order expired',
+                $deliveryPlatformOrder->response_history_json
             ], 405));
         }
 

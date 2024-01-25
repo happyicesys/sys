@@ -13,6 +13,7 @@ class DeliveryProductMappingVendChannel extends Model
     protected $fillable = [
         'amount',
         'order_qty',
+        'order_qty_json',
         'delivery_product_mapping_id',
         'delivery_product_mapping_item_id',
         'delivery_product_mapping_vend_id',
@@ -31,6 +32,10 @@ class DeliveryProductMappingVendChannel extends Model
 
     protected $with = [
         'deliveryProductMappingVend.deliveryProductMapping.operator.country',
+    ];
+
+    protected $casts = [
+        'order_qty_json' => 'json',
     ];
 
     // protected $casts = [

@@ -47,7 +47,6 @@ class CustomerController extends Controller
                     'category.categoryGroup',
                     'deliveryAddress',
                     'firstTransaction',
-                    'priceTemplate',
                     'profile',
                     'status',
                     'tagBindings',

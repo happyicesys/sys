@@ -262,7 +262,7 @@
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         {{ customers.meta.from + customerIndex }}
                       </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
+                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
                         {{ customer.code }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
