@@ -157,15 +157,6 @@ class DeliveryPlatformController extends Controller
         $driverPhoneNumber = $request->driver_phone_number;
         $shortOrderID = $request->short_order_id;
 
-        VendData::create([
-            'value' => $request->all(),
-            'connection' => 'GRAB-DRIVER-REQUEST',
-            'vend_code' => $code,
-            'processed' => '[]',
-            'type' => $dispenseSearch,
-            'is_keep' => true,
-        ]);
-
         if(!$shortOrderID || !$code) {
             abort(response([
                 'error_code' => 400,
@@ -205,11 +196,11 @@ class DeliveryPlatformController extends Controller
 
         if(($deliveryPlatformOrder->deliveryPlatformOperator->type === 'production') and (Carbon::parse($deliveryPlatformOrder->created_at)->diffInHours(Carbon::now()) > DeliveryPlatformOrder::ORDER_EXPIRED_HOURS)) {
             // order expired
-            abort(response([
+            abort(response(
                 // 'error_code' => 405,
                 // 'error_message' => 'Order expired',
                 $deliveryPlatformOrder->response_history_json
-            ], 405));
+            , 405));
         }
 
         if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
