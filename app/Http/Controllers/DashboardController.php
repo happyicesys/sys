@@ -58,6 +58,7 @@ class DashboardController extends Controller
                 DB::raw('SUM(total_amount) as amount'),
                 DB::raw('SUM(total_count) as count'),
             );
+
         $todayGraph = VendTransaction::query()
             ->filterTransactionIndex($request)
             ->where(function($query) {
@@ -78,6 +79,54 @@ class DashboardController extends Controller
         $dayGraph = $dayGraph->union($todayGraph)
             ->orderBy('date', 'asc')
             ->get();
+
+        // dd($todayGraph->get()->toArray());
+
+        // do the looping to fill in empty dates
+        if($dayGraph) {
+            $startDate = Carbon::today()->subMonth()->startOfMonth();
+            $endDate = Carbon::today();
+            $currentDate = $startDate->copy();
+
+            $dateArr = [];
+            while($currentDate->lte($endDate)) {
+                // Check if the current date exists in your original data
+                $found = false;
+                foreach ($dayGraph as $graphDayValue) {
+                    try{
+                        if ($graphDayValue->day === $currentDate->day && $graphDayValue->month === $currentDate->month) {
+                            $found = true;
+                            break;
+                        }
+                    } catch(\Exception $e) {
+                        dd($graphDayValue);
+                    }
+                }
+
+                // If the date was not found in the original data, add a new entry with default values
+                if(!$found) {
+                    $newModel = new VendRecord();
+                    $newModel->amount = 0;
+                    $newModel->count = 0;
+                    $newModel->date = $currentDate->copy()->startOfDay();
+                    $newModel->day = $currentDate->copy()->day;
+                    $newModel->month = $currentDate->copy()->month;
+                    $newModel->month_name = $currentDate->copy()->format('F');
+
+                    $dayGraph->push($newModel);
+                }
+
+                $currentDate->addDay();
+            }
+
+            $dayGraph = collect($dayGraph)->sortBy([
+                ['date', 'asc'],
+                // ['date', 'asc']
+            ]);
+            // dd($dayGraph->toArray());
+        }
+
+
 
         // 7 days
         // products

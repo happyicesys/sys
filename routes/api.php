@@ -4,6 +4,7 @@ use App\Http\Controllers\DeliveryPlatformController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\VendController;
+use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\Api\Client\ClientController;
 use App\Http\Controllers\Api\V1\VendDataController;
 use Illuminate\Http\Request;
@@ -45,11 +46,17 @@ Route::prefix('delivery')->group(function() {
     Route::post('/order/complaint', [DeliveryPlatformController::class, 'submitGrabOrderComplaint']);
 });
 
+Route::prefix('vouchers')->group(function() {
+    Route::post('/search', [VoucherController::class, 'searchVoucherCode']);
+});
+
 // Internal api
 Route::prefix('vends')->group(function() {
     Route::get('/search/{code?}', [VendController::class, 'searchVendCode']);
     Route::get('/search/operator/{code?}', [VendController::class, 'searchVendCodeWithOperator']);
 });
+
+
 
 
 

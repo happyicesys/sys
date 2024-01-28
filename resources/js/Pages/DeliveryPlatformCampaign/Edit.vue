@@ -487,7 +487,17 @@
                                     <span class="flex justify-between items-center gap-x-0.5 rounded-md px-2 py-1 text-sm font-medium"
                                     :class="[deliveryPlatformCampaignItemVend.platform_ref_id ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700']"
                                     v-for="deliveryPlatformCampaignItemVend in deliveryProductMappingVend.deliveryPlatformCampaignItemVends">
-                                      {{ deliveryPlatformCampaignItemVend.settings_name }}
+                                      <span class="flex flex-col justify-start">
+                                        <span class="text-blue-700">
+                                          {{ deliveryPlatformCampaignItemVend.settings_name }}
+                                        </span>
+                                        <span class="text-xs">
+                                          Start: {{ deliveryPlatformCampaignItemVend.datetime_from }}
+                                        </span>
+                                        <span class="text-xs">
+                                          End: {{ deliveryPlatformCampaignItemVend.datetime_to }}
+                                        </span>
+                                      </span>
                                       <button type="button" class="group -mr-1 h-4 w-4 rounded-sm hover:bg-blue-700/20 ">
                                         <span class="sr-only">Remove</span>
                                         <svg viewBox="0 0 14 14" class="h-4 w-4 stroke-blue-900/50 group-hover:stroke-blue-900/75" @click.prevent="onDeleteCampaign(deliveryPlatformCampaignItemVend.id)">
