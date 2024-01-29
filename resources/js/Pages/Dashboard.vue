@@ -643,7 +643,6 @@
             '#c9cbcf'
         ]
         dayGraphData.value = JSON.parse(JSON.stringify(props.dayGraphData))
-        console.log(dayGraphData.value)
         let months = []
         months = _.groupBy(JSON.parse(JSON.stringify(props.dayGraphData)).data, 'month_name')
         Object.keys(months).forEach((month, monthIndex) => {

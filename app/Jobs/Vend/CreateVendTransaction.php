@@ -88,6 +88,7 @@ class CreateVendTransaction implements ShouldQueue
                     'datetime' => Carbon::now()->toDateTimeString(),
                 ]),
                 'is_verified' => true,
+                'response_history_json' => $vendTransaction->vend_transaction_json,
             ]);
         }
         DB::commit();

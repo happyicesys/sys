@@ -167,10 +167,6 @@ class DeliveryPlatformController extends Controller
         $shortOrderIDNum = preg_replace("/[^0-9]/", "", $shortOrderID);
 
         $deliveryPlatformOrder = DeliveryPlatformOrder::query()
-            // ->where(function($query) use ($shortOrderID) {
-            //     $query->where('short_order_id', $shortOrderID)
-            //         ->orWhere('short_order_id', $shortOrderID.'T');
-            // })
             ->whereRaw('REGEXP_REPLACE(short_order_id, "[^0-9]", "") = ?', $shortOrderIDNum)
             ->where('vend_code', $code)
             ->orderby('created_at', 'desc')
@@ -187,18 +183,11 @@ class DeliveryPlatformController extends Controller
             'error_json' => $request->all(),
         ]);
 
-        // if(($deliveryPlatformOrder->deliveryPlatformOperator->type === 'production') and ((Carbon::parse($deliveryPlatformOrder->created_at)->diffInHours(Carbon::now()) > DeliveryPlatformOrder::ORDER_EXPIRED_HOURS) or ($deliveryPlatformOrder->status > DeliveryPlatformOrder::STATUS_DELIVERED))) {
-        //     abort(response([
-        //         'error_code' => 405,
-        //         'error_message' => 'Order expired',
-        //     ], 405));
-        // }
-
         if(($deliveryPlatformOrder->deliveryPlatformOperator->type === 'production') and (Carbon::parse($deliveryPlatformOrder->created_at)->diffInHours(Carbon::now()) > DeliveryPlatformOrder::ORDER_EXPIRED_HOURS)) {
             // order expired
             abort(response(
-                // 'error_code' => 405,
-                // 'error_message' => 'Order expired',
+                $deliveryPlatformOrder->vendTransaction ?
+                $deliveryPlatformOrder->vendTransaction->vend_transaction_json :
                 $deliveryPlatformOrder->response_history_json
             , 405));
         }
