@@ -300,6 +300,7 @@
                     </TableData> -->
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                       <!-- {{ deliveryPlatformOrder.deliveryProductMappingVend.deliveryPlatformCampaignItemVends }} -->
+                      <span>.</span>
                       <div class="flex flex-col space-y-1">
                         <span v-for="campaign in deliveryPlatformOrder.virtual_campaign_id_json" class="inline-flex items-center rounded-md bg-purple-50 px-1 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10 hover:text-clip">
                           {{ getCampaignSettingsName(deliveryPlatformOrder, campaign) }}
@@ -442,7 +443,7 @@ onMounted(() => {
 })
 
 function getCampaignSettingsName(deliveryPlatformOrder, campaignID) {
-  return deliveryPlatformOrder.deliveryProductMappingVend.deliveryPlatformCampaignItemVends.find((vend) => vend.platform_ref_id == campaignID).deliveryPlatformCampaignItem.settings_name
+  return deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.deliveryPlatformCampaignItemVends.find((vend) => vend.platform_ref_id == campaignID) ? deliveryPlatformOrder.deliveryProductMappingVend.deliveryPlatformCampaignItemVends.find((vend) => vend.platform_ref_id == campaignID).deliveryPlatformCampaignItem.settings_name : ''
 }
 
 function onDeliveryPlatformOrderComplaintClicked(deliveryPlatformOrder) {

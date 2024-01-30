@@ -213,13 +213,15 @@ class DeliveryPlatformController extends Controller
                     ])
                 ]);
                 DispenseDeliveryPlatformOrder::dispatch($deliveryPlatformOrder);
-                return response($deliveryPlatformOrder->response_history_json, 200);
+                // return response($deliveryPlatformOrder->response_history_json, 200);
+                return true;
             }else {
                 $deliveryPlatformOrder->update([
                     'driver_phone_number' => $driverPhoneNumber,
                     'driver_request_json' => $request->all(),
                 ]);
-                return response($deliveryPlatformOrder->response_history_json, 200);
+                // return response($deliveryPlatformOrder->response_history_json, 200);
+                return true;
             }
 
         } else {
