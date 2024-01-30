@@ -152,7 +152,6 @@ class DeliveryPlatformController extends Controller
     public function searchGrabOrder(Request $request, $dispenseSearch = true)
     {
         // delivery/order/search/1
-
         $code = $request->Vid;
         $driverPhoneNumber = $request->driver_phone_number;
         $shortOrderID = $request->short_order_id;
@@ -171,6 +170,7 @@ class DeliveryPlatformController extends Controller
             ->where('vend_code', $code)
             ->orderby('created_at', 'desc')
             ->first();
+            // dd($deliveryPlatformOrder->toArray());
 
         if(!$deliveryPlatformOrder) {
             abort(response([
@@ -184,13 +184,22 @@ class DeliveryPlatformController extends Controller
         ]);
 
         if(($deliveryPlatformOrder->deliveryPlatformOperator->type === 'production') and (Carbon::parse($deliveryPlatformOrder->created_at)->diffInHours(Carbon::now()) > DeliveryPlatformOrder::ORDER_EXPIRED_HOURS)) {
-            // order expired
-            abort(response(
-                $deliveryPlatformOrder->vendTransaction ?
-                $deliveryPlatformOrder->vendTransaction->vend_transaction_json :
-                $deliveryPlatformOrder->response_history_json
-            , 405));
+            abort(response([
+                'error_code' => 400,
+                'error_message' => 'Order Expired',
+            ], 405));
         }
+        // $transactionResponse = $deliveryPlatformOrder->vendTransaction ? $deliveryPlatformOrder->vendTransaction->vend_transaction_json : null;
+        // if($transactionResponse) {
+        //     $orderItems = $deliveryPlatformOrder->response_history_json['shipment_info'];
+        //     $transactionItems = $transactionResponse['transf_info'];
+        //     dd($orderItems, $transactionItems);
+        //     foreach($items as $item) {
+        //         if($item['vend_code'] === $code) {
+        //             $data = $item;
+        //         }
+        //     }
+        // }
 
         if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
             if($dispenseSearch) {
@@ -204,20 +213,19 @@ class DeliveryPlatformController extends Controller
                     ])
                 ]);
                 DispenseDeliveryPlatformOrder::dispatch($deliveryPlatformOrder);
-                return true;
+                return response($deliveryPlatformOrder->response_history_json, 200);
             }else {
                 $deliveryPlatformOrder->update([
                     'driver_phone_number' => $driverPhoneNumber,
                     'driver_request_json' => $request->all(),
                 ]);
-                return $deliveryPlatformOrder->response_history_json;
+                return response($deliveryPlatformOrder->response_history_json, 200);
             }
 
         } else {
-            abort(response([
-                'error_code' => 405,
-                'error_message' => 'Order has been redeemed',
-            ], 405));
+            if($deliveryPlatformOrder->vendTransaction) {
+                abort(response($deliveryPlatformOrder->vendTransaction->vend_transaction_json, 405));
+            }
         }
     }
 
