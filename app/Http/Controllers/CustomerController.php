@@ -121,6 +121,17 @@ class CustomerController extends Controller
         ]);
     }
 
+    // retrieve all or single vendcodes from sys.happyice
+    public function getCustomersByPersonID($personID = null)
+    {
+        $customers = Customer::query()
+            ->with(['vendBinding.vend'])
+            ->when($personID, fn($query, $input) => $query->where('person_id', $input))
+            ->get();
+
+        return $customers;
+    }
+
     public function migrate(Request $request)
     {
         $value = $request->all();

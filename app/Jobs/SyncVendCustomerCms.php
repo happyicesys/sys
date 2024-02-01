@@ -28,6 +28,7 @@ class SyncVendCustomerCms implements ShouldQueue
      *
      * @return void
      */
+    protected $callBackVendCodeEndPoint;
     protected $endPointUrl;
     protected $personId;
     protected $vendId;
@@ -35,6 +36,7 @@ class SyncVendCustomerCms implements ShouldQueue
 
     public function __construct($vendId, $personId)
     {
+        $this->callBackVendCodeEndPoint = env('CMS_URL') . '/api/person/vendcode/' .  $personId;
         $this->endPointUrl = env('CMS_URL') . '/api/person/migrate/' .  $personId;
         $this->vendId = $vendId;
     }
@@ -212,8 +214,8 @@ class SyncVendCustomerCms implements ShouldQueue
 
                 $vend->update([
                     'begin_date' => $beginDate,
-                    'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' && !$vend->termination_date ? true : false,
-                    'termination_date' => $vend->termination_date ? $vend->termination_date : (isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null),
+                    'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? true : false,
+                    'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null,
                 ]);
 
                 $customer->vendBinding()->updateOrCreate([
@@ -223,12 +225,15 @@ class SyncVendCustomerCms implements ShouldQueue
                     'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
                     'begin_date' => $beginDate,
                     'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
-                    'termination_date' => $vend->termination_date ? $vend->termination_date : (isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null),
+                    'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null,
                     'person_id' => $customerCollection['id'],
-                    'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' && !$vend->termination_date ? true : false,
+                    'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? true : false,
                 ]);
 
-
+                // call back point to cms to update vend code
+                Http::post($this->callBackVendCodeEndPoint, [
+                    'vendCode' => $vend->code,
+                ]);
             }
         }
     }

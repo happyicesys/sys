@@ -26,6 +26,7 @@ Route::prefix('client')
 Route::prefix('v1')->group(function() {
     Route::post('/vend-data', [VendDataController::class, 'create']);
     Route::post('/customer/migrate', [CustomerController::class, 'migrate']);
+    Route::post('/customers/person/{personID?}', [CustomerController::class, 'getCustomersByPersonID']);
     Route::post('/payment-gateway-status/{company?}', [PaymentController::class, 'createPaymentGatewayLog']);
     Route::get('/binded-vends', [VendDataController::class, 'getBindedVends']);
     Route::get('/payment-merchants/{countryCode}/{paymentGatewayName}', [PaymentController::class, 'getPaymentMerchantsApi']);

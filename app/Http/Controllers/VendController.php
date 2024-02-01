@@ -688,11 +688,15 @@ class VendController extends Controller
         if($request->customer_id) {
             SyncVendCustomerCms::dispatch($vend->id, $request->customer_id)->onQueue('default');
         }else {
-            if($vend->latestVendBinding) {
-                $vend->latestVendBinding->update([
-                    'is_active' => false,
-                    'termination_date' => Carbon::now()->toDateString(),
-                ]);
+            if($vend->vendBindings()->exists()) {
+                foreach($vend->vendBindings as $vendBinding) {
+                    if($vendBinding->is_active) {
+                        $vendBinding->update([
+                            'is_active' => false,
+                            'termination_date' => Carbon::now()->toDateString(),
+                        ]);
+                    }
+                }
             }
         }
 
