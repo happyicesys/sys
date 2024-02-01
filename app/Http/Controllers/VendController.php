@@ -664,6 +664,8 @@ class VendController extends Controller
 
         if($request->operator_id) {
             $vend->operators()->sync([$request->operator_id]);
+        }else {
+            $vend->operators()->sync([auth()->user()->operator_id]);
         }
 
         return redirect()->route('settings');

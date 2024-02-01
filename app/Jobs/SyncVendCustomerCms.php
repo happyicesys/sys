@@ -231,7 +231,7 @@ class SyncVendCustomerCms implements ShouldQueue
                 ]);
 
                 // call back point to cms to update vend code
-                Http::post($this->callBackVendCodeEndPoint, [
+                Http::get($this->callBackVendCodeEndPoint, [
                     'vendCode' => $vend->code,
                 ]);
             }
