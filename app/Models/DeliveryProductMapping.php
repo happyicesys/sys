@@ -55,6 +55,11 @@ class DeliveryProductMapping extends Model
         return $this->belongsTo(ProductMapping::class);
     }
 
+    public function deliveryPlatformCampaign()
+    {
+        return $this->hasOne(DeliveryPlatformCampaign::class);
+    }
+
     public function deliveryProductMappingVends()
     {
         return $this->hasMany(DeliveryProductMappingVend::class);

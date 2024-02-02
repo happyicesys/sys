@@ -137,7 +137,7 @@ class DeliveryPlatformCampaignController extends Controller
                 'vend.latestVendBinding.customer:id,code,name',
             ])
             ->when($id, function($query, $search) {
-                $query->whereHas('deliveryPlatformCampaignItemVends.deliveryPlatformCampaign', function($query) use ($search) {
+                $query->whereHas('deliveryProductMapping.deliveryPlatformCampaign', function($query) use ($search) {
                     $query->where('id', $search);
                 });
             })
