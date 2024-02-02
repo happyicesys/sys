@@ -36,7 +36,7 @@ class SyncVendCustomerCms implements ShouldQueue
 
     public function __construct($vendId, $personId)
     {
-        $this->callBackVendCodeEndPoint = env('CMS_URL') . '/api/person/vendcode/' .  $personId;
+        $this->callBackVendCodeEndPoint = env('CMS_URL') . '/api/person/' . $personId . '/vendcode/';
         $this->endPointUrl = env('CMS_URL') . '/api/person/migrate/' .  $personId;
         $this->vendId = $vendId;
     }
@@ -231,9 +231,7 @@ class SyncVendCustomerCms implements ShouldQueue
                 ]);
 
                 // call back point to cms to update vend code
-                Http::get($this->callBackVendCodeEndPoint, [
-                    'vendCode' => $vend->code,
-                ]);
+                Http::get($this->callBackVendCodeEndPoint.$vend->code);
             }
         }
     }
