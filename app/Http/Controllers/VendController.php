@@ -52,6 +52,7 @@ use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Role;
@@ -717,6 +718,11 @@ class VendController extends Controller
             'is_active' => false,
             'termination_date' => Carbon::now()->toDateString(),
         ]);
+
+        // callback to cms to unbind vendcode
+        if($vend->latestVendBinding->customer && $vend->latestVendBinding->customer->person_id) {
+            Http::get(env('CMS_URL') . '/api/person/' . $vend->latestVendBinding->customer->person_id . '/detach-vendcode');
+        }
 
         // return redirect()->route('vends');
         return redirect()->route('settings.edit', [$vendId, 'update']);
