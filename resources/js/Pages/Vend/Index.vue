@@ -483,7 +483,9 @@
                                 {{ vends.meta.from + vendIndex }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                <Link :href="'/settings/vend/' + vend.id + '/update'" class="text-blue-600">
                                 {{ vend.code }}
+                                </Link>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                                 <span v-if="vend.customer_code">
