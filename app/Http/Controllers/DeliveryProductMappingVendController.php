@@ -16,10 +16,13 @@ use Inertia\Inertia;
 
 class DeliveryProductMappingVendController extends Controller
 {
+    use GetUserTimezone;
 
     public function index(Request $request)
     {
         $request->merge([
+            'date_from' => $request->date_from ? $request->date_from : Carbon::now()->setTimezone($this->getUserTimezone())->startOfWeek()->format('Y-m-d'),
+            'date_to' => $request->date_to ? $request->date_to : Carbon::now()->setTimezone($this->getUserTimezone())->format('Y-m-d'),
             'delivery_product_mapping_id' => $request->delivery_product_mapping_id ? $request->delivery_product_mapping_id : 'all',
             'delivery_platform_operator_id' => $request->delivery_platform_operator_id ? $request->delivery_platform_operator_id : '15',
             'is_active' => $request->is_active ? $request->is_active : 'true',
@@ -28,6 +31,8 @@ class DeliveryProductMappingVendController extends Controller
             'sortBy' => $request->sortBy ? $request->sortBy : false,
             'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
         ]);
+
+        // dd($request->date_from);
 
         $deliveryProductMappingVends = DeliveryProductMappingVend::query()
         ->with([
@@ -41,22 +46,29 @@ class DeliveryProductMappingVendController extends Controller
             'deliveryProductMappingVendChannels.deliveryProductMappingItem.product:id,code,name',
             'deliveryProductMappingVendChannels.deliveryProductMappingItem.product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
         ])
+        ->withSum(['deliveryPlatformOrders' => function($query) use ($request) {
+            $query
+                ->when($request->date_from, function($query, $search) {
+                    $query->where('created_at', '>=', Carbon::parse($search)->startOfDay());
+                })
+                ->when($request->date_to, function($query, $search) {
+                    $query->where('created_at', '<=', Carbon::parse($search)->endOfDay());
+                });
+        }], 'subtotal_amount')
+        ->withCount(['deliveryPlatformOrders' => function($query) use ($request) {
+            $query
+                ->when($request->date_from, function($query, $search) {
+                    $query->where('created_at', '>=', Carbon::parse($search)->startOfDay());
+                })
+                ->when($request->date_to, function($query, $search) {
+                    $query->where('created_at', '<=', Carbon::parse($search)->endOfDay());
+                });
+        }])
         ->filterIndex($request)
         ->when($request->sortKey, function($query, $search) use ($request) {
             $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
         })
-        ->select(
-            'id',
-            'delivery_product_mapping_id',
-            'delivery_product_mapping_vend_channels_json',
-            'end_date',
-            'is_active',
-            'platform_ref_id',
-            'start_date',
-            'vend_code',
-            'vend_id',
-            DB::raw('(SELECT COUNT(*) FROM delivery_product_mapping_vend y WHERE delivery_product_mapping_vend.platform_ref_id = y.platform_ref_id) AS binded_times')
-        )
+        ->addSelect(DB::raw('(SELECT COUNT(*) FROM delivery_product_mapping_vend y WHERE delivery_product_mapping_vend.platform_ref_id = y.platform_ref_id) AS binded_times'))
         ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
         ->withQueryString();
 

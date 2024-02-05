@@ -66,6 +66,21 @@
               >
               </MultiSelect>
           </div>
+          <div>
+              <DatePicker
+                  v-model="filters.date_from"
+              >
+                  From
+              </DatePicker>
+          </div>
+          <div>
+              <DatePicker
+                  v-model="filters.date_to"
+                  :minDate="filters.date_from"
+              >
+                  To
+              </DatePicker>
+          </div>
         </div>
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -143,6 +158,12 @@
                       VM Status
                     </TableHead>
                     <TableHead>
+                      Amount
+                    </TableHead>
+                    <TableHead>
+                      Count
+                    </TableHead>
+                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -200,6 +221,12 @@
                       <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 0">
                         Paused
                       </span>
+                    </TableData>
+                    <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-right">
+                      {{ deliveryProductMappingVend.delivery_platform_orders_sum_subtotal_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                    </TableData>
+                    <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-right">
+                      {{ deliveryProductMappingVend.delivery_platform_orders_count }}
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                       <div class="flex flex-col space-y-1">
@@ -303,8 +330,10 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import ChannelOverview from '@/Pages/DeliveryProductMappingVend/ChannelOverview.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
+import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { BackspaceIcon, MagnifyingGlassIcon, MagnifyingGlassCircleIcon, PauseCircleIcon, PlayCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
@@ -320,6 +349,8 @@ const props = defineProps({
 
 const filters = ref({
   vend_code: '',
+  date_from: moment().startOf('week').format('YYYY-MM-DD'),
+  date_to: moment().format('YYYY-MM-DD'),
   delivery_platform_operator_id: '',
   delivery_product_mapping_id: '',
   platform_ref_id: '',

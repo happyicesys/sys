@@ -217,7 +217,6 @@ class SyncVendCustomerCms implements ShouldQueue
                     'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? true : false,
                     'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null,
                 ]);
-
                 $customer->vendBinding()->updateOrCreate([
                     'vend_id' => $vend->id,
                     'customer_id' => $customer->id,
