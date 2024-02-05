@@ -56,7 +56,7 @@
                       :disabled="vend.customer_id && type == 'update'"
                       name="is_customer" type="checkbox"
                       class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-                      :class="[vend.customer_id && type == 'update' ? 'bg-gray-200 hover:cursor-not-allowed' : '']"
+                      :class="[vend.customer_id && type == 'update' ? 'bg-gray-200 text-indigo-200 hover:cursor-not-allowed' : '']"
                     />
                   </div>
                   <div class="ml-3 text-sm leading-6">
@@ -66,7 +66,8 @@
                   </div>
                 </div>
               </div>
-              <div class="sm:col-span-6" v-if="form.is_customer">
+              <!-- {{ vend.customer_id }} -->
+              <div class="sm:col-span-6" v-if="form.is_customer && !vend.customer_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Customer
                 </label>
@@ -81,6 +82,19 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+              </div>
+              <div class="sm:col-span-6" v-if="vend.customer_id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Customer
+                </label>
+                <div class="mt-1">
+                  <input
+                    type="text"
+                    class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
+                    :value="vend.customer_code + ' - ' + vend.customer_name"
+                    disabled
+                  />
+                </div>
               </div>
               <div class="sm:col-span-6" v-if="!form.is_customer">
                 <FormInput v-model="form.name" :error="form.errors.name">
