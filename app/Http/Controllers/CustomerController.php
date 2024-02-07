@@ -1,8 +1,6 @@
 <?php
 
 namespace App\Http\Controllers;
-
-use App\Jobs\ProcessCustomerData;
 use App\Jobs\SyncSingleCustomer;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
@@ -32,11 +30,13 @@ class CustomerController extends Controller
 {
     public function index(Request $request)
     {
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
-        $sortKey = $request->sortKey ? $request->sortKey : 'created_at';
-        $sortBy = $request->sortBy ? $request->sortBy : false;
+        $request->merge([
+            'status' => $request->status ? $request->status : Customer::STATUS_ACTIVE,
+            'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
+            'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
+            'sortBy' => $request->sortBy ? $request->sortBy : false,
+        ]);
         $className = get_class(new Customer());
-        // dd($request->statuses);
 
         return Inertia::render('Customer/Index', [
             'customers' => CustomerResource::collection(
@@ -66,12 +66,12 @@ class CustomerController extends Controller
                     ->when($request->name, fn($query, $input) => $query->where('name', 'LIKE', '%'.$input.'%'))
                     ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
                     ->when($request->profile_id, fn($query, $input) => $query->where('profile_id', $input))
-                    ->when($request->statuses, fn($query, $input) => $query->whereIn('status_id', $input))
+                    ->when($request->status, fn($query, $input) => $query->where('status_id', $input))
                     ->when($request->zone_id, fn($query, $input) => $query->where('zone_id', $input))
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($request->sortKey, function($query, $search) use ($request) {
+                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                     })
-                    ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                    ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
             ),
             'categories' => CategoryResource::collection(
@@ -96,12 +96,18 @@ class CustomerController extends Controller
                     ->orderBy('name')
                     ->get()
             ),
-            'statuses' => StatusResource::collection(
-                Status::query()
-                    ->where('classname', $className)
-                    ->orderBy('sequence')
-                    ->get()
-            ),
+            'statuses' => [
+                [
+                    'id' => 'all',
+                    'name' => 'All',
+                ],
+                ...collect(Customer::STATUSES_MAPPING)->map(function($status, $index) {
+                    return [
+                        'id' => $index,
+                        'name' => $status,
+                    ];
+                })
+            ],
             'tags' => TagResource::collection(
                 Tag::query()
                     ->orderBy('name')
@@ -125,7 +131,7 @@ class CustomerController extends Controller
     public function getCustomersByPersonID($personID = null)
     {
         $customers = Customer::query()
-            ->with(['vendBinding.vend'])
+            ->with(['latestVendBinding.vend'])
             ->when($personID, fn($query, $input) => $query->where('person_id', $input))
             ->get();
 
@@ -136,7 +142,6 @@ class CustomerController extends Controller
     {
         $value = $request->all();
         SyncSingleCustomer::dispatch($value['id']);
-        // ProcessCustomerData::dispatch($request->all(), null);
     }
 
     public function syncNextDeliveryDate()

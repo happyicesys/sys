@@ -93,14 +93,14 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(permission, paymentTermIndex) in permissions.data" :key="permission.id" class="divide-x divide-gray-200">
-                      <TableData :currentIndex="paymentTermIndex" :totalLength="permissions.length" inputClass="text-center">
-                        {{ permissions.meta.from + paymentTermIndex }}
+                    <tr v-for="(permission, permissionIndex) in permissions.data" :key="permission.id" class="divide-x divide-gray-200">
+                      <TableData :currentIndex="permissionIndex" :totalLength="permissions.length" inputClass="text-center">
+                        {{ permissions.meta.from + permissionIndex }}
                       </TableData>
-                      <TableData :currentIndex="paymentTermIndex" :totalLength="permissions.length" inputClass="text-left">
+                      <TableData :currentIndex="permissionIndex" :totalLength="permissions.length" inputClass="text-left">
                         {{ permission.name }}
                       </TableData>
-                      <TableData :currentIndex="paymentTermIndex" :totalLength="permissions.length" inputClass="text-center">
+                      <TableData :currentIndex="permissionIndex" :totalLength="permissions.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
                           <Button
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
@@ -199,9 +199,9 @@ function onDeleteClicked(permission) {
   router.delete('/permissions/' + permission.id)
 }
 
-function onEditClicked(paymentTermValue) {
+function onEditClicked(permissionValue) {
   type.value = 'update'
-  permission.value = paymentTermValue
+  permission.value = permissionValue
   showModal.value = true
 }
 

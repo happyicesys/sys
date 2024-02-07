@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Api\V1\VendDataController;
-use App\Http\Controllers\BankController;
 use App\Http\Controllers\CashlessProviderController;
 use App\Http\Controllers\CashlessTerminalController;
 use App\Http\Controllers\CategoryController;
@@ -20,7 +19,6 @@ use App\Http\Controllers\MapController;
 use App\Http\Controllers\OauthController;
 use App\Http\Controllers\OperatorController;
 use App\Http\Controllers\PaymentMethodController;
-use App\Http\Controllers\PaymentTermController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductMappingController;
 use App\Http\Controllers\ProfileController;
@@ -76,13 +74,6 @@ Route::get('/', function () {
 Route::post('/SetPara2', [VendDataController::class, 'create']);
 
 Route::middleware(['auth', 'cors'])->group(function() {
-
-    Route::prefix('banks')->group(function() {
-        Route::get('/', [BankController::class, 'index'])->name('banks');
-        Route::post('/create', [BankController::class, 'create']);
-        Route::post('/{id}/update', [BankController::class, 'update']);
-        Route::delete('/{id}', [BankController::class, 'delete']);
-    });
 
     Route::prefix('cashless-providers')->group(function() {
         Route::get('/', [CashlessProviderController::class, 'index'])->name('cashless-providers');
@@ -271,13 +262,6 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/create', [PaymentMethodController::class, 'create']);
         Route::post('/{id}/update', [PaymentMethodController::class, 'update']);
         Route::delete('/{id}', [PaymentMethodController::class, 'delete']);
-    });
-
-    Route::prefix('payment-terms')->group(function() {
-        Route::get('/', [PaymentTermController::class, 'index'])->name('payment-terms');
-        Route::post('/create', [PaymentTermController::class, 'create']);
-        Route::post('/{id}/update', [PaymentTermController::class, 'update']);
-        Route::delete('/{id}', [PaymentTermController::class, 'delete']);
     });
 
     Route::prefix('products')->group(function() {

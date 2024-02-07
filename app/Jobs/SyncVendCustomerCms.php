@@ -177,6 +177,7 @@ class SyncVendCustomerCms implements ShouldQueue
                     'person_id' => $customerCollection['id'],
                 ], [
                     'code' => $customerCollection['cust_id'],
+                    'customer_json' => $customerCollection,
                     'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
                     'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
                     'name' => isset($customerCollection['company']) ? $customerCollection['company'] : null,
@@ -217,13 +218,11 @@ class SyncVendCustomerCms implements ShouldQueue
                     'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? true : false,
                     'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null,
                 ]);
-                $customer->vendBinding()->updateOrCreate([
+                $customer->latestVendBinding()->updateOrCreate([
                     'vend_id' => $vend->id,
                     'customer_id' => $customer->id,
                     ],[
-                    'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
                     'begin_date' => $beginDate,
-                    'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
                     'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null,
                     'person_id' => $customerCollection['id'],
                     'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? true : false,

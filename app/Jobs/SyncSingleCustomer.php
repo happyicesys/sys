@@ -199,8 +199,8 @@ class SyncSingleCustomer implements ShouldQueue
                     $beginDate = '2023-01-01';
                 }
 
-                if($customer->vendBinding()->exists() and $customer->vendBinding->vend->exists()) {
-                    $vend = $customer->vendBinding->vend;
+                if($customer->latestVendBinding()->exists() and $customer->latestVendBinding->vend->exists()) {
+                    $vend = $customer->latestVendBinding->vend;
                     $vend->update([
                         'begin_date' => $beginDate,
                         'is_active' => isset($customerCollection['active']) && $customerCollection['active'] != 'Yes' ? false : $vend->is_active,
@@ -208,23 +208,23 @@ class SyncSingleCustomer implements ShouldQueue
                     ]);
 
                     if(
-                        $vendBinding = $customer
-                            ->vendBinding()
+                        $latestVendBinding = $customer
+                            ->latestVendBinding()
                             ->where('vend_id', $vend->id)
                             ->where('customer_id', $customer->id)
                             ->first()
                     ) {
-                        $vendBinding->update([
+                        $latestVendBinding->update([
                             'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
                             'begin_date' => $beginDate,
-                            'is_active' => isset($customerCollection['active']) && $customerCollection['active'] != 'Yes' ? false : $vendBinding->is_active,
+                            'is_active' => isset($customerCollection['active']) && $customerCollection['active'] != 'Yes' ? false : $latestVendBinding->is_active,
                             'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
                             'termination_date' => $vend->termination_date ? $vend->termination_date : (isset($customerCollection['active']) && $customerCollection['active'] != 'Yes' ? Carbon::now() : null),
                             'person_id' => $customerCollection['id'],
                         ]);
                     }else {
                         $customer
-                            ->vendBinding()
+                            ->latestVendBinding()
                             ->create([
                                 'vend_id' => $vend->id,
                                 'customer_id' => $customer->id,

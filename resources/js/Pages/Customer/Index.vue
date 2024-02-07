@@ -68,19 +68,18 @@
               Status
             </label>
             <MultiSelect
-              v-model="filters.statuses"
+              v-model="filters.status"
               :options="statusOptions"
               trackBy="id"
               valueProp="id"
               label="name"
-              mode="tags"
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
             >
             </MultiSelect>
           </div>
-          <div>
+          <!-- <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Account Manager
             </label>
@@ -95,7 +94,7 @@
               class="mt-1"
             >
             </MultiSelect>
-          </div>
+          </div> -->
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Zone
@@ -205,13 +204,10 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-                      ID
+
                     </TableHeadSort>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      ID Name
-                    </TableHeadSort>
-                    <TableHeadSort modelName="first_transaction_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('first_transaction_id')">
-                      First Inv Date
+                      Customer
                     </TableHeadSort>
                     <TableHeadSort modelName="category_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('category_id')">
                       Category
@@ -219,15 +215,15 @@
                     <TableHeadSort modelName="category_group" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('category_group')">
                       Group
                     </TableHeadSort>
-                    <TableHeadSort modelName="handled_by" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('handled_by')">
+                    <!-- <TableHeadSort modelName="handled_by" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('handled_by')">
                       Acc Manager
-                    </TableHeadSort>
-                    <TableHead>
+                    </TableHeadSort> -->
+                    <!-- <TableHead>
                       Attn Name
                     </TableHead>
                     <TableHead>
                       Contact
-                    </TableHead>
+                    </TableHead> -->
                     <TableHead>
                       Del Address
                     </TableHead>
@@ -241,19 +237,10 @@
                       Zone
                     </TableHead>
                     <TableHead>
-                      Updated At
-                    </TableHead>
-                    <TableHead>
-                      Updated By
-                    </TableHead>
-                    <TableHead>
-                      Created At
-                    </TableHead>
-                    <TableHead>
-                      Created By
-                    </TableHead>
-                    <TableHead>
                       Status
+                    </TableHead>
+                    <TableHead>
+                      Action
                     </TableHead>
                   </tr>
                 </thead>
@@ -269,23 +256,20 @@
                         {{ customer.name }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        <!-- {{ customer.firstTransaction.delivery_date }} -->
+                        {{ customer.category ? customer.category.name : '' }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.category.name }}
+                        {{ customer.category && customer.category.categoryGroup ? customer.category.categoryGroup.name : '' }}
+                      </TableData>
+                      <!-- <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
+                        {{ customer.accountManager.name }}
+                      </TableData> -->
+                      <!-- <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
+                        {{ customer.contacts[0].name }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.category.categoryGroup.name }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        <!-- {{ customer.accountManager.name }} -->
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        <!-- {{ customer.contacts[0].name }} -->
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        <!-- {{ customer.contacts[0].phone_num }} -->
-                      </TableData>
+                        {{ customer.contacts[0].phone_num }}
+                      </TableData> -->
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
                         {{ customer.deliveryAddress ? customer.deliveryAddress.full_address : null }}
                       </TableData>
@@ -293,24 +277,12 @@
                         {{ customer.deliveryAddress ? customer.deliveryAddress.postcode : null }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
-                        <span v-for="tag in tags" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                        <span v-for="tag in customer.tags" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
                           {{tag.name}}
                         </span>
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         {{ customer.zone ? customer.zone.name : null }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.updatedBy ? customer.updatedBy.name : null }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.updated_at }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.createdBy ? customer.createdBy.name : null }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.created_at }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         {{ customer.status ? customer.status.name : '' }}
@@ -380,7 +352,7 @@ const props = defineProps({
 
 const filters = ref({
   name: '',
-  statuses: [],
+  status: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
@@ -410,11 +382,13 @@ onMounted(() => {
   categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
   priceTemplateOptions.value = props.priceTemplates.data.map((data) => {return {id: data.id, name: data.name}})
   profileOptions.value = props.profiles.data.map((data) => {return {id: data.id, name: data.name}})
-  statusOptions.value = props.statuses.data.map((data) => {return {id: data.id, name: data.name}})
+  statusOptions.value = props.statuses.map((data) => {return {id: data.id, name: data.name}})
   userOptions.value = props.users.data.map((data) => {return {id: data.id, name: data.name}})
   zoneOptions.value = props.zones.data.map((data) => {return {id: data.id, name: data.name}})
   priceTemplateOptions.value = props.priceTemplates.data.map((data) => {return {id: data.id, name: data.name}})
   tagOptions.value = props.tags.data.map((data) => {return {id: data.id, name: data.name}})
+
+  filters.value.status = statusOptions.value[3]
 })
 
 function onCreateClicked() {
@@ -432,7 +406,7 @@ function onEditClicked(customerValue) {
 function onSearchFilterUpdated() {
   router.get('/customers', {
       ...filters.value,
-      statuses: filters.value.statuses.map((status) => { return status.id }),
+      status: filters.value.status.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

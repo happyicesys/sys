@@ -9,9 +9,22 @@ class Customer extends Model
 {
     use HasFactory;
 
+    const STATUS_NEW = 4;
+    const STATUS_PENDING = 3;
+    const STATUS_ACTIVE = 2;
+    const STATUS_INACTIVE = 1;
+
+    const STATUSES_MAPPING = [
+        self::STATUS_NEW => 'New',
+        self::STATUS_PENDING => 'Pending',
+        self::STATUS_ACTIVE => 'Active',
+        self::STATUS_INACTIVE => 'Inactive',
+    ];
+
     protected $casts = [
         'account_manager_json' => 'json',
         'cms_invoice_history' => 'json',
+        'customer_json' => 'json',
         'last_invoice_date' => 'datetime',
         'next_invoice_date' => 'datetime',
     ];
@@ -22,18 +35,16 @@ class Customer extends Model
         'cms_invoice_history',
         'code',
         'created_at',
+        'customer_json',
         'first_transaction_id',
         'name',
         'is_active',
-        'is_freezer',
         'last_invoice_date',
         'location_type_id',
         'next_invoice_date',
-        'ops_note',
-        'payment_term_id',
+        // for cms person id
         'person_id',
         'profile_id',
-        'remarks',
         'status_id',
         'zone_id',
     ];
@@ -84,14 +95,14 @@ class Customer extends Model
         return $this->belongsTo(Transaction::class, 'first_transaction_id');
     }
 
+    public function latestVendBinding()
+    {
+        return $this->hasOne(VendBinding::class)->where('is_active', true)->latest('begin_date');
+    }
+
     public function locationType()
     {
         return $this->belongsTo(LocationType::class);
-    }
-
-    public function paymentTerm()
-    {
-        return $this->belongsTo(PaymentTerm::class);
     }
 
     public function profile()
@@ -114,9 +125,9 @@ class Customer extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
-    public function vendBinding()
+    public function vendBindings()
     {
-        return $this->hasOne(VendBinding::class)->where('is_active', true)->latest('begin_date');
+        return $this->hasMany(VendBinding::class)->latest('begin_date');
     }
 
     public function zone()

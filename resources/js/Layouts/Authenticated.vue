@@ -162,7 +162,6 @@ const navigation = [
     //     icon: FolderIcon,
     //     current: false,
     //     children: [
-    //         // {name: 'Bank', href: '/banks'},
     //         // {name: 'Cashless Providers', href: '/cashless-providers'},
     //         // {name: 'Cashless Terminals', href: '/cashless-terminals'},
     //         {name: 'Country & Currency', href: '/countries'},

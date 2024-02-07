@@ -52,7 +52,7 @@ class Category extends Model
             }else {
                 $search = [$search];
             }
-            $query->whereHas('customers.vendBinding.vend', function($query) use ($search) {
+            $query->whereHas('customers.latestVendBinding.vend', function($query) use ($search) {
                 $query->whereIn('code', $search);
             });
         })
@@ -65,7 +65,7 @@ class Category extends Model
             $query->whereHas('customers', function($query) use ($search) {
                 $query->where('name', 'LIKE', "%{$search}%");
             })
-            ->orWhereHas('customers.vendBinding.vend', function($query) use ($search) {
+            ->orWhereHas('customers.latestVendBinding.vend', function($query) use ($search) {
                 $query->where('name', 'LIKE', "%{$search}%");
             });
         })
@@ -80,9 +80,9 @@ class Category extends Model
         ->when($request->is_binded_customer, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
-                    $query->has('customers.vendBinding');
+                    $query->has('customers.latestVendBinding');
                 }else {
-                    $query->doesntHave('customers.vendBinding');
+                    $query->doesntHave('customers.latestVendBinding');
                 }
             }
         })
@@ -95,7 +95,7 @@ class Category extends Model
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereHas('customers.vendBinding.vend.operators', function($query) use ($search) {
+                $query->whereHas('customers.latestVendBinding.vend.operators', function($query) use ($search) {
                     $query->where('operators.id', $search);
                 });
             }

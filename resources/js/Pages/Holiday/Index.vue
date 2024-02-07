@@ -233,9 +233,9 @@ function onDeleteClicked(holiday) {
   router.delete('/holidays/' + holiday.id)
 }
 
-function onEditClicked(bankValue) {
+function onEditClicked(holidayValue) {
   type.value = 'update'
-  holiday.value = bankValue
+  holiday.value = holidayValue
   showModal.value = true
 }
 

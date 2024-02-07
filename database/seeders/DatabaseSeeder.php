@@ -48,7 +48,6 @@ class DatabaseSeeder extends Seeder
                 // PaymentMethodSeeder::class,
                 // VendChannelErrorSeeder::class,
                 // CountrySeeder::class,
-            // PaymentTermSeeder::class,
             // TaxSeeder::class,
 
             // CashlessProviderSeeder::class,
@@ -79,7 +78,10 @@ class DatabaseSeeder extends Seeder
             // PaymentMerchantSeeder::class,
             // ConvertTempVendTransactionDatetime::class,
             // SyncTempVendTransaction::class,
+
+
             CustomerPermissionSeeder::class,
+            SyncCurrentCustomerSeeder::class,
         ]);
     }
 }

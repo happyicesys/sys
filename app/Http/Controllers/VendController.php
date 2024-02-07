@@ -660,7 +660,7 @@ class VendController extends Controller
         ]);
 
         if($request->customer_id) {
-            SyncVendCustomerCms::dispatch($vend->id, $request->customer_id)->onQueue('default');
+            SyncVendCustomerCms::dispatchSync($vend->id, $request->customer_id);
         }
 
         if($request->operator_id) {
@@ -689,7 +689,7 @@ class VendController extends Controller
         ]);
 
         if($request->customer_id) {
-            SyncVendCustomerCms::dispatch($vend->id, $request->customer_id)->onQueue('default');
+            SyncVendCustomerCms::dispatchSync($vend->id, $request->customer_id);
         }else {
             if($vend->vendBindings()->exists()) {
                 foreach($vend->vendBindings as $vendBinding) {
