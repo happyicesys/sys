@@ -50,6 +50,7 @@ class CustomerController extends Controller
                     'profile',
                     'status',
                     'tagBindings',
+                    'vendBindings.vend',
                     'zone'
                     ])
                     ->when($request->categories, function($query, $search) {

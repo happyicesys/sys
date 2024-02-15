@@ -203,9 +203,9 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-
-                    </TableHeadSort>
+                    <TableHead>
+                      Vend ID
+                    </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
                       Customer
                     </TableHeadSort>
@@ -249,10 +249,13 @@
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         {{ customers.meta.from + customerIndex }}
                       </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
-                        {{ customer.code }}
+                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
+                        {{ customer.vendBindings && customer.vendBindings[0] ? customer.vendBindings[0].vend.code : '' }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
+                        <span v-if="customer.virtual_customer_prefix && customer.virtual_customer_code">
+                          {{ customer.virtual_customer_prefix }}-{{ customer.virtual_customer_code }} <br>
+                        </span>
                         {{ customer.name }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">

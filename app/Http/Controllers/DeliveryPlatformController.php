@@ -187,7 +187,7 @@ class DeliveryPlatformController extends Controller
             abort(response([
                 'error_code' => 400,
                 'error_message' => 'Order Expired',
-            ], 405));
+            ], 400));
         }
         // $transactionResponse = $deliveryPlatformOrder->vendTransaction ? $deliveryPlatformOrder->vendTransaction->vend_transaction_json : null;
         // if($transactionResponse) {

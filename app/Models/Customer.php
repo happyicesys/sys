@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\OperatorCustomerFilterScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -20,6 +21,11 @@ class Customer extends Model
         self::STATUS_ACTIVE => 'Active',
         self::STATUS_INACTIVE => 'Inactive',
     ];
+
+    protected static function booted()
+    {
+        static::addGlobalScope(new OperatorCustomerFilterScope);
+    }
 
     protected $casts = [
         'account_manager_json' => 'json',
@@ -42,6 +48,7 @@ class Customer extends Model
         'last_invoice_date',
         'location_type_id',
         'next_invoice_date',
+        'operator_id',
         // for cms person id
         'person_id',
         'profile_id',
@@ -103,6 +110,11 @@ class Customer extends Model
     public function locationType()
     {
         return $this->belongsTo(LocationType::class);
+    }
+
+    public function operator()
+    {
+        return $this->belongsTo(Operator::class);
     }
 
     public function profile()

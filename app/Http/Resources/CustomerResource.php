@@ -28,6 +28,8 @@ class CustomerResource extends JsonResource
             'profile_id' => $this->profile_id,
             'status_id' => $this->status_id,
             'updated_at' => Carbon::parse($this->updated_at)->toDateString(),
+            'virtual_customer_code' => $this->virtual_customer_code,
+            'virtual_customer_prefix' => $this->virtual_customer_prefix,
             'zone_id' => $this->zone_id,
             'accountManager' => UserResource::make($this->whenLoaded('handledBy')),
             'addresses' => AddressResource::make($this->whenLoaded('addresses')),
@@ -39,6 +41,7 @@ class CustomerResource extends JsonResource
             'firstTransaction' => TransactionResource::make($this->whenLoaded('firstTransaction')),
             'status' => StatusResource::make($this->whenLoaded('status')),
             'tags' => TagResource::collection($this->whenLoaded('tagBindings')),
+            'vendBindings' => VendBindingResource::collection($this->whenLoaded('vendBindings')),
         ];
     }
 }

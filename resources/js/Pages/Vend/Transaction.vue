@@ -135,7 +135,7 @@
                     Product Name
                 </SearchInput>
             </div>
-            <div v-if="permissions.includes('admin-access transactions')">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Operator
                 </label>
@@ -151,7 +151,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div v-if="permissions.includes('admin-access transactions')">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Customer Binded?
                 </label>
@@ -167,7 +167,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div>
+            <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Payment Received
                 </label>
@@ -183,7 +183,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div>
+            <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Location Type
                 </label>
