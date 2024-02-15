@@ -129,7 +129,7 @@ class VendRecord extends Model
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                $query->where('operator_id', $search);
+                $query->where('vend_records.operator_id', $search);
             }
         });
 
