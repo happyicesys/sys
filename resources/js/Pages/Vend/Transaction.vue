@@ -115,7 +115,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+            <!-- <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" @keyup.enter="onSearchFilterUpdated()">
                     Cust ID
                 </SearchInput>
@@ -123,6 +123,11 @@
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" @keyup.enter="onSearchFilterUpdated()">
                     Cust Name
+                </SearchInput>
+            </div> -->
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+                <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+                    Customer
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
@@ -298,7 +303,7 @@
                             Vend ID
                         </TableHead>
                         <TableHead>
-                            Customer Name
+                            Customer
                         </TableHead>
                         <TableHead>
                             Channel
@@ -338,16 +343,19 @@
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.vend.code }}
                         </TableData>
-                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            <span v-if="vendTransaction.customerJson && 'code' in vendTransaction.customerJson">
-                                {{ vendTransaction.customerJson['code'] }} <br>
-                                {{ vendTransaction.customerJson['name'] }}
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
+                            <span v-if="vendTransaction.customer && vendTransaction.customer.customer_json">
+                                {{ vendTransaction.customer.customer_json.prefix }}-{{ vendTransaction.customer.customer_json.code }} <br>
+                                ({{ vendTransaction.customer.customer_json.cust_id }}) <br>
+                                {{ vendTransaction.customer.customer_json.company }}
                             </span>
-                            <span v-else-if="!vendTransaction.customerJson && vendTransaction.customer_code">
-                                {{ vendTransaction.customerCode }} <br>
-                                {{ vendTransaction.customerName }}
+                            <span v-else-if="vendTransaction.customer && !vendTransaction.customer.customer_json && vendTransaction.customer.name">
+                                {{ vendTransaction.customer.code }} <br>
+                                {{ vendTransaction.customer.name }}
                             </span>
-                            <span v-else></span>
+                            <span v-else>
+                                {{ vendTransaction.vend.name }}
+                            </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="!vendTransaction.is_multiple">

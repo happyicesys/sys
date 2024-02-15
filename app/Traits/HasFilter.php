@@ -142,15 +142,24 @@ trait HasFilter {
       ->when($request->serialNum, function($query, $search) {
           $query->where('serial_num', 'LIKE', "%{$search}%");
       })
-      ->when($request->customer_code, function($query, $search) {
-          $query->where('customers.code', 'LIKE', "%{$search}%");
-      })
-      ->when($request->customer_name, function($query, $search) {
-          $query->where(function($query) use ($search) {
-            $query->where('customers.name', 'LIKE', "%{$search}%")
-                  ->orWhere('vends.name', 'LIKE', "%{$search}%");
-          });
-      })
+    //   ->when($request->customer_code, function($query, $search) {
+    //       $query->where('customers.code', 'LIKE', "%{$search}%");
+    //   })
+    //   ->when($request->customer_name, function($query, $search) {
+    //       $query->where(function($query) use ($search) {
+    //         $query->where('customers.name', 'LIKE', "%{$search}%")
+    //               ->orWhere('vends.name', 'LIKE', "%{$search}%");
+    //       });
+    //   })
+    ->when($request->customer, function($query, $search) {
+        $query->where(function($query) use ($search) {
+          $query->where('customers.customer_json->prefix', 'LIKE', "{$search}%")
+                ->orWhere('customers.customer_json->code', 'LIKE', "{$search}%")
+                ->orWhere('customers.customer_json->cust_id', 'LIKE', "{$search}%")
+                ->orWhere('customers.name', 'LIKE', "%{$search}%")
+                ->orWhere('vends.name', 'LIKE', "%{$search}%");
+        });
+    })
       ->when($request->product_code, function($query, $search) {
         $query->where('products.code', 'LIKE', "%{$search}%");
     })

@@ -30,11 +30,14 @@
                 ("," for multiple)
             </span>
           </SearchInput>
-          <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+          <!-- <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
             Cust ID
           </SearchInput>
           <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
             Cust Name
+          </SearchInput> -->
+          <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+            Customer
           </SearchInput>
           <div v-if="permissions.includes('admin-access vends')">
             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -224,12 +227,19 @@
                         {{ vend.code }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                        <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
+                        <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.virtual_customer_code">
                           <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.latestVendBinding.customer.person_id + '/edit'">
-                            {{ vend.latestVendBinding.customer.code }}
+                            {{ vend.latestVendBinding.customer.virtual_customer_prefix }}-{{ vend.latestVendBinding.customer.virtual_customer_code }}
+                            <br>
+                            ({{ vend.latestVendBinding.customer.customer_json.cust_id }})
                             <br>
                             {{ vend.latestVendBinding.customer.name }}
                           </a>
+                        </span>
+                        <span v-else-if="vend.latestVendBinding && vend.latestVendBinding.customer && !vend.latestVendBinding.customer.virtual_customer_code">
+                            {{ vend.latestVendBinding.customer.code }}
+                            <br>
+                            {{ vend.latestVendBinding.customer.name }}
                         </span>
                         <span v-else>
                           {{ vend.name }}

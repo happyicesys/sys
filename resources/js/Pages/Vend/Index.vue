@@ -49,11 +49,11 @@
                     >
                     </MultiSelect>
                 </div>
-                <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+                <!-- <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
                     Cust ID
-                </SearchInput>
-                <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
-                    Cust Name
+                </SearchInput> -->
+                <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+                    Customer
                 </SearchInput>
                 <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  v-if="permissions.includes('admin-access vends')">
                     <label for="text" class="block text-sm font-medium text-gray-700">
@@ -488,7 +488,25 @@
                                 </Link>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                                <span v-if="vend.customer_code">
+                                <span v-if="vend.customer_json">
+                                    <span v-if="permissions.includes('admin-access vends')">
+                                        <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.customer_json.id + '/edit'">
+                                            {{ vend.customer_json.prefix }}-{{ vend.customer_json.code }}
+                                            <br>
+                                            ({{ vend.customer_json.cust_id }})
+                                            <br>
+                                            {{ vend.customer_name }}
+                                        </a>
+                                    </span>
+                                    <span v-else>
+                                        {{ vend.customer_json.prefix }}-{{ vend.customer_json.code }}
+                                        <br>
+                                        ({{ vend.customer_json.cust_id }})
+                                        <br>
+                                        {{ vend.customer_name }}
+                                    </span>
+                                </span>
+                                <span v-else-if="!vend.customer_json">
                                     <span v-if="permissions.includes('admin-access vends')">
                                         <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.customer_person_id + '/edit'">
                                             {{ vend.customer_code }} <br>
@@ -951,8 +969,7 @@
     codes: '',
     channel_codes: '',
     serialNum: '',
-    customer_code: '',
-    customer_name: '',
+    customer: '',
     categories: [],
     categoryGroups: [],
     errors: [],

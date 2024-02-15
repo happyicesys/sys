@@ -20,6 +20,7 @@ class CustomerResource extends JsonResource
             'category_id' => CategoryResource::make($this->whenLoaded('category')),
             'code' => $this->code,
             'created_at' => Carbon::parse($this->created_at)->toDateString(),
+            'customer_json' => $this->customer_json,
             'name' => $this->name,
             'first_transaction_id' => $this->first_transaction_id,
             'is_active' => $this->is_active,

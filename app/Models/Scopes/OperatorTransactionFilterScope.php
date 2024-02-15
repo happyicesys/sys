@@ -27,7 +27,8 @@ class OperatorTransactionFilterScope implements Scope
             $builder->where('operator_id', $operatorId);
         }
 
-        $vendIds = auth()->user()->vends()->exists() ? auth()->user()->vends->pluck('id')->toArray() : null;
+        $user = auth()->user();
+        $vendIds = $user->vends ? $user->vends->pluck('id')->toArray() : null;
         if($vendIds) {
             $builder->whereIn('vend_id', $vendIds);
         }

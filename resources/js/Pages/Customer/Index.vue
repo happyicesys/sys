@@ -23,11 +23,14 @@
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="ID" v-model="filters.code">
+          <!-- <SearchInput placeholderStr="ID" v-model="filters.code">
             ID
           </SearchInput>
           <SearchInput placeholderStr="Name" v-model="filters.name">
             ID Name
+          </SearchInput> -->
+          <SearchInput placeholderStr="Customer" v-model="filters.customer">
+            Customer
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -256,6 +259,9 @@
                         <span v-if="customer.virtual_customer_prefix && customer.virtual_customer_code">
                           {{ customer.virtual_customer_prefix }}-{{ customer.virtual_customer_code }} <br>
                         </span>
+                        <span v-if="customer.customer_json">
+                          ({{ customer.customer_json.cust_id }}) <br>
+                        </span>
                         {{ customer.name }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
@@ -354,6 +360,7 @@ const props = defineProps({
 })
 
 const filters = ref({
+  customer: '',
   name: '',
   status: '',
   sortKey: '',

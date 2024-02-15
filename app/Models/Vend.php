@@ -375,8 +375,16 @@ class Vend extends Model
                     })
                     ->orWhere('vends.name', 'LIKE', "%{$search}%");
             });
-
-
+        })
+        ->when($request->customer, function($query, $search) {
+            $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                $query->where(function($query) use ($search) {
+                    $query->where('customer_json->prefix', 'LIKE', "{$search}%")
+                          ->orWhere('customer_json->code', 'LIKE', "{$search}%")
+                          ->orWhere('customer_json->cust_id', 'LIKE', "{$search}%")
+                          ->orWhere('name', 'LIKE', "%{$search}%");
+                  });
+            });
         })
         ->when($request->categories, function($query, $search) {
             $query->whereHas('latestVendBinding.customer.category', function($query) use ($search) {
@@ -403,15 +411,6 @@ class Vend extends Model
                 $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
             }
         })
-        // ->when($request->is_binded_customer, function($query, $search) {
-        //     if($search != 'all') {
-        //         if($search == 'true') {
-        //             $query->has('latestVendBinding');
-        //         }else {
-        //             $query->doesntHave('latestVendBinding');
-        //         }
-        //     }
-        // })
         ->when($request->tempHigherThan, function($query, $search) {
             if(is_numeric($search)) {
                 $query->where('temp', '>=', $search * 10);

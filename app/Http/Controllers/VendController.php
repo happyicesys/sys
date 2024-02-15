@@ -182,6 +182,7 @@ class VendController extends Controller
                 'vends.is_active',
                 'customers.cms_invoice_history',
                 'customers.code AS customer_code',
+                'customers.customer_json',
                 'customers.name AS customer_name',
                 'customers.person_id AS customer_person_id',
                 'customers.location_type_id',
@@ -449,7 +450,7 @@ class VendController extends Controller
         $vendTransactions = VendTransaction::query()
             ->with([
                 'vend:id,code,name',
-                'customer:id,code,name',
+                'customer:id,code,name,customer_json',
                 'operator:id,code,name',
                 'paymentMethod:id,code,name',
                 'product:id,code,name',

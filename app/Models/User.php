@@ -51,7 +51,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
     ];
 
-    // protected $with = ['operator.country'];
+    // protected $with = ['vends'];
 
     // mutators
     protected function password(): Attribute
