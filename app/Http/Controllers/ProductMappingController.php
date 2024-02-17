@@ -34,7 +34,7 @@ class ProductMappingController extends Controller
                     'productMappingItems.product:id,code,name,is_active',
                     'productMappingItems.product.thumbnail',
                     'vends:id,code,name,product_mapping_id',
-                    'vends.latestVendBinding.customer:id,code,name',
+                    'vends.latestVendBinding.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                 ])
                 ->when($request->name, function($query, $search) {
                     $query->where('name', 'LIKE', "%{$search}%");

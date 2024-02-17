@@ -259,9 +259,6 @@
                         <span v-if="customer.virtual_customer_prefix && customer.virtual_customer_code">
                           {{ customer.virtual_customer_prefix }}-{{ customer.virtual_customer_code }} <br>
                         </span>
-                        <span v-if="customer.customer_json">
-                          ({{ customer.customer_json.cust_id }}) <br>
-                        </span>
                         {{ customer.name }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">

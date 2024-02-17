@@ -450,7 +450,7 @@ class VendController extends Controller
         $vendTransactions = VendTransaction::query()
             ->with([
                 'vend:id,code,name',
-                'customer:id,code,name,customer_json',
+                'customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                 'operator:id,code,name',
                 'paymentMethod:id,code,name',
                 'product:id,code,name',

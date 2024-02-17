@@ -128,12 +128,13 @@
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
                         <ul class="divide-y divide-gray-200">
-                          <li class="flex py-1 px-3 space-x-2" v-for="productMappingVend in productMapping.vendsJson">
-                            <!-- <span class="text-blue-700 text-md pr-2">
-                              {{ productMappingVend['code'] }}
-                            </span> -->
-                            <span v-if="productMappingVend['full_name']">
-                              {{ productMappingVend['full_name'] }}
+                          <li class="flex py-1 px-3 space-x-2" v-for="vend in productMapping.vends">
+                            <span class="text-blue-700 text-md pr-2">
+                              {{ vend.code }}
+                            </span>
+
+                            <span v-if="vend.cust_full_name">
+                              {{ vend.cust_full_name }}
                             </span>
                           </li>
                         </ul>

@@ -493,15 +493,11 @@
                                         <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.customer_json.id + '/edit'">
                                             {{ vend.customer_json.prefix }}-{{ vend.customer_json.code }}
                                             <br>
-                                            ({{ vend.customer_json.cust_id }})
-                                            <br>
                                             {{ vend.customer_name }}
                                         </a>
                                     </span>
                                     <span v-else>
                                         {{ vend.customer_json.prefix }}-{{ vend.customer_json.code }}
-                                        <br>
-                                        ({{ vend.customer_json.cust_id }})
                                         <br>
                                         {{ vend.customer_name }}
                                     </span>

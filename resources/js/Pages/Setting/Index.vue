@@ -231,8 +231,6 @@
                           <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.latestVendBinding.customer.person_id + '/edit'">
                             {{ vend.latestVendBinding.customer.virtual_customer_prefix }}-{{ vend.latestVendBinding.customer.virtual_customer_code }}
                             <br>
-                            ({{ vend.latestVendBinding.customer.customer_json.cust_id }})
-                            <br>
                             {{ vend.latestVendBinding.customer.name }}
                           </a>
                         </span>

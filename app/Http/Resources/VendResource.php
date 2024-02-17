@@ -37,13 +37,21 @@ class VendResource extends JsonResource
                 return OperatorResource::collection($this->operators);
             }),
             'name' => $this->name,
-            'full_name' => $this->code.$this->when($this->relationLoaded('latestVendBinding'), function() {
-                return $this->latestVendBinding && $this->latestVendBinding->customer ? (' - '.$this->latestVendBinding->customer->code.' - '.$this->latestVendBinding->customer->name) : ($this->name ? ' - '.$this->name : '');
+            'full_name' => $this->when($this->relationLoaded('latestVendBinding'), function() {
+                return $this->latestVendBinding && $this->latestVendBinding->customer ?
+                    ($this->latestVendBinding->customer->virtual_customer_code ?
+                    $this->latestVendBinding->customer->virtual_customer_prefix . '-' . $this->latestVendBinding->customer->virtual_customer_code . ' - ' . $this->latestVendBinding->customer->name :
+                    $this->latestVendBinding->customer->code.' - '.$this->latestVendBinding->customer->name)
+                : ($this->name ? $this->name : '');
             }, function(){
                 return $this->name ? ' - '.$this->name : '';
             }),
             'cust_full_name' => $this->when($this->relationLoaded('latestVendBinding'), function() {
-                return $this->latestVendBinding && $this->latestVendBinding->customer ? ($this->latestVendBinding->customer->code.' - '.$this->latestVendBinding->customer->name) : ($this->name ? ' - '.$this->name : '');
+                return $this->latestVendBinding && $this->latestVendBinding->customer ?
+                    ($this->latestVendBinding->customer->virtual_customer_code ?
+                    $this->latestVendBinding->customer->virtual_customer_prefix . '-' . $this->latestVendBinding->customer->virtual_customer_code . ' - ' . $this->latestVendBinding->customer->name :
+                    $this->latestVendBinding->customer->code.' - '.$this->latestVendBinding->customer->name)
+                : ($this->name ? $this->name : '');
             }, function(){
                 return $this->name ? ' - '.$this->name : '';
             }),

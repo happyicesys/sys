@@ -53,6 +53,8 @@ class Customer extends Model
         'person_id',
         'profile_id',
         'status_id',
+        'virtual_customer_code',
+        'virtual_customer_prefix',
         'zone_id',
     ];
 

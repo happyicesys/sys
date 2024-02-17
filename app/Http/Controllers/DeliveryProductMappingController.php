@@ -61,7 +61,7 @@ class DeliveryProductMappingController extends Controller
                             $query->whereNull('end_date');
                         },
                         'deliveryProductMappingVends.vend:id,code,name',
-                        'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name',
+                        'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                     ])
                     ->filterIndex($request)
                     ->when($sortKey, function($query, $search) use ($sortBy) {
@@ -281,7 +281,7 @@ class DeliveryProductMappingController extends Controller
                         ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
                 },
                 'deliveryProductMappingVends.vend:id,code,name',
-                'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name',
+                'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                 'deliveryProductMappingVends.deliveryProductMappingVendChannels.vendChannel:id,code,capacity,qty',
                 'deliveryProductMappingVends.deliveryProductMappingVendChannels.deliveryProductMappingItem:id,amount,channel_code,delivery_product_mapping_id,product_mapping_item_id,sub_category_json',
                 'operator:id,code,name,country_id',

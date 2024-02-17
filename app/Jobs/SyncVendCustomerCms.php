@@ -176,7 +176,7 @@ class SyncVendCustomerCms implements ShouldQueue
                 $customer = Customer::updateOrCreate([
                     'person_id' => $customerCollection['id'],
                 ], [
-                    'code' => $customerCollection['cust_id'],
+                    'code' => $customerCollection['code'],
                     'customer_json' => $customerCollection,
                     'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
                     'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,

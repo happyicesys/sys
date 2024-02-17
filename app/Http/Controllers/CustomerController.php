@@ -63,7 +63,7 @@ class CustomerController extends Controller
                     }))
                     ->when($request->code, fn($query, $input) => $query->where('code', 'LIKE', '%'.$input.'%'))
                     ->when($request->created_in, fn($query, $input) => $query->whereDate('created_at', '>=', Carbon::createFromFormat('m-Y', $input)->startOfMonth())->whereDate('created_at', '<=', Carbon::createFromFormat('m-Y', $input)->endOfMonth()))
-                    ->when($request->customer, fn($query, $input) => $query->where('customer_json->prefix', 'LIKE', "{$input}%")->orWhere('customer_json->code', 'LIKE', "{$input}%")->orWhere('customer_json->cust_id', 'LIKE', "{$input}%")->orWhere('name', 'LIKE', "%{$input}%"))
+                    ->when($request->customer, fn($query, $input) => $query->where('customer_json->prefix', 'LIKE', "{$input}%")->orWhere('customer_json->code', 'LIKE', "{$input}%")->orWhere('name', 'LIKE', "%{$input}%"))
                     ->when($request->handled_by, fn($query, $input) => $query->where('handled_by', $input))
                     ->when($request->name, fn($query, $input) => $query->where('name', 'LIKE', '%'.$input.'%'))
                     ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))

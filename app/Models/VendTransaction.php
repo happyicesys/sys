@@ -249,7 +249,6 @@ class VendTransaction extends Model
                     $query->select('id')->from('customers')->where(function($query) use ($search) {
                         $query->where('customer_json->prefix', 'LIKE', "{$search}%")
                         ->orWhere('customer_json->code', 'LIKE', "{$search}%")
-                        ->orWhere('customer_json->cust_id', 'LIKE', "{$search}%")
                         ->orWhere('name', 'LIKE', "%{$search}%");
                     });
                 });

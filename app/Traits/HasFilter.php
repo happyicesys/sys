@@ -155,7 +155,6 @@ trait HasFilter {
         $query->where(function($query) use ($search) {
           $query->where('customers.customer_json->prefix', 'LIKE', "{$search}%")
                 ->orWhere('customers.customer_json->code', 'LIKE', "{$search}%")
-                ->orWhere('customers.customer_json->cust_id', 'LIKE', "{$search}%")
                 ->orWhere('customers.name', 'LIKE', "%{$search}%")
                 ->orWhere('vends.name', 'LIKE', "%{$search}%");
         });

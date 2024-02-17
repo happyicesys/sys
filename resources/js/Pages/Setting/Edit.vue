@@ -231,7 +231,7 @@ onMounted(() => {
     } else {
         typeName.value = 'Edit'
     }
-    adminCustomerOptions.value = props.adminCustomerOptions.map((data) => {return {id: data.id, full_name: data.prefix + '-' + data.code + ' (' + data.cust_id + ') - ' + data.company}})
+    adminCustomerOptions.value = props.adminCustomerOptions.map((data) => {return {id: data.id, full_name: data.prefix + '-' + data.code + ' - ' + data.company}})
     operatorOptions.value = [
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]

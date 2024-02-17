@@ -344,12 +344,11 @@
                             {{ vendTransaction.vend.code }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
-                            <span v-if="vendTransaction.customer && vendTransaction.customer.customer_json">
-                                {{ vendTransaction.customer.customer_json.prefix }}-{{ vendTransaction.customer.customer_json.code }} <br>
-                                ({{ vendTransaction.customer.customer_json.cust_id }}) <br>
-                                {{ vendTransaction.customer.customer_json.company }}
+                            <span v-if="vendTransaction.customer && vendTransaction.customer.virtual_customer_prefix && vendTransaction.customer.virtual_customer_code">
+                                {{ vendTransaction.customer.virtual_customer_prefix }}-{{ vendTransaction.customer.virtual_customer_code }} <br>
+                                {{ vendTransaction.customer.name }}
                             </span>
-                            <span v-else-if="vendTransaction.customer && !vendTransaction.customer.customer_json && vendTransaction.customer.name">
+                            <span v-else-if="vendTransaction.customer && !vendTransaction.customer.virtual_customer_prefix && !vendTransaction.customer.virtual_customer_code && vendTransaction.customer.name">
                                 {{ vendTransaction.customer.code }} <br>
                                 {{ vendTransaction.customer.name }}
                             </span>
