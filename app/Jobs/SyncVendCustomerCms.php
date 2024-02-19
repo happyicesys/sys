@@ -34,10 +34,11 @@ class SyncVendCustomerCms implements ShouldQueue
     protected $vendId;
 
 
-    public function __construct($vendId, $personId)
+    public function __construct($vendId = null, $personId = null)
     {
         $this->callBackVendCodeEndPoint = env('CMS_URL') . '/api/person/' . $personId . '/vendcode/';
         $this->endPointUrl = env('CMS_URL') . '/api/person/migrate/' .  $personId;
+        $this->personId = $personId;
         $this->vendId = $vendId;
     }
 
@@ -51,37 +52,9 @@ class SyncVendCustomerCms implements ShouldQueue
         $categoryId = null;
         $categoryGroupId = null;
         $profileId = null;
-        $statusId = null;
 
         if($customerCollection and isset($customerCollection[0])) {
             $customerCollection = collect($customerCollection[0]);
-            if($this->vendId) {
-                $vend = Vend::findOrFail($this->vendId);
-                switch($statusData = $customerCollection['active']) {
-                    case 'Yes':
-                        $status = Status::updateOrCreate([
-                            'name' => 'Active',
-                            'classname' => $className,
-                        ]);
-                        $statusId = $status->id;
-                        break;
-                    case 'No':
-                        $status = Status::updateOrCreate([
-                            'name' => 'Inactive',
-                            'classname' => $className,
-                        ]);
-                        $statusId = $status->id;
-                        break;
-                    case 'New':
-                    case 'Pending':
-                        $status = Status::updateOrCreate([
-                            'name' => $statusData,
-                            'classname' => $className,
-                        ]);
-                        $statusId = $status->id;
-                        break;
-                }
-
                 if(isset($customerCollection['location_type'])) {
                     $locationTypeData = $customerCollection['location_type'];
                     $locationType = LocationType::updateOrCreate([
@@ -90,7 +63,6 @@ class SyncVendCustomerCms implements ShouldQueue
                     [
                         'remarks' => isset($locationTypeData['remarks']) ? $locationTypeData['remarks'] : null,
                         'sequence' => isset($locationTypeData['sequence']) ? $locationTypeData['sequence'] : null,
-
                     ]);
                     $locationTypeId = $locationType->id;
                 }
@@ -173,8 +145,9 @@ class SyncVendCustomerCms implements ShouldQueue
                     $profileId = $profile->id;
                 }
 
+            if($this->personId) {
                 $customer = Customer::updateOrCreate([
-                    'person_id' => $customerCollection['id'],
+                    'person_id' => $this->personId,
                 ], [
                     'code' => $customerCollection['code'],
                     'customer_json' => $customerCollection,
@@ -182,7 +155,7 @@ class SyncVendCustomerCms implements ShouldQueue
                     'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
                     'name' => isset($customerCollection['company']) ? $customerCollection['company'] : null,
                     'profile_id' => $profileId,
-                    'status_id' => $statusId,
+                    'status_id' => Customer::STATUS_ACTIVE,
                     'category_id' => $categoryId,
                     'location_type_id' => isset($locationTypeId) ? $locationTypeId : null,
                     'created_at' => $customerCollection['created_at'],
@@ -203,29 +176,21 @@ class SyncVendCustomerCms implements ShouldQueue
                         ]);
                     }
                 }
+            }
 
-                // if($vend->vendBindings()->exists()) {
-                //     $vend->vendBindings()->update(['is_active' => false, 'termination_date' => Carbon::now()]);
-                // }
-
+            if($this->vendId) {
                 $beginDate = isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'];
                 if($beginDate and Carbon::parse($beginDate)->lt(Carbon::parse('2023-01-01')->startOfDay())) {
                     $beginDate = '2023-01-01';
                 }
 
-                $vend->update([
-                    'begin_date' => $beginDate,
-                    'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? true : false,
-                    'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null,
-                ]);
+                $vend = Vend::findOrFail($this->vendId);
                 $customer->latestVendBinding()->updateOrCreate([
                     'vend_id' => $vend->id,
                     'customer_id' => $customer->id,
                     ],[
                     'begin_date' => $beginDate,
-                    'termination_date' => isset($customerCollection['active']) && $customerCollection['active'] == 'No' ? Carbon::now() : null,
                     'person_id' => $customerCollection['id'],
-                    'is_active' => isset($customerCollection['active']) && $customerCollection['active'] == 'Yes' ? true : false,
                 ]);
 
                 // call back point to cms to update vend code

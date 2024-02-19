@@ -128,7 +128,7 @@ class SettingController extends Controller
             $vend = new Vend();
         }
 
-        $response = Http::get(env('CMS_URL') . '/api/vends');
+        $response = Http::get(env('CMS_URL') . '/api/vends/unbind');
 
 
         return Inertia::render('Setting/Edit', [

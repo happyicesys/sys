@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Jobs\SyncSingleCustomer;
+use App\Jobs\SyncVendCustomerCms;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CustomerResource;
@@ -143,7 +143,7 @@ class CustomerController extends Controller
     public function migrate(Request $request)
     {
         $value = $request->all();
-        SyncSingleCustomer::dispatch($value['id']);
+        SyncVendCustomerCms::dispatch(null, $value['id']);
     }
 
     public function syncNextDeliveryDate()
