@@ -183,7 +183,7 @@
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                       <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.latestVendBinding && deliveryProductMappingVend.vend.latestVendBinding.customer">
-                        {{ deliveryProductMappingVend.vend.latestVendBinding.customer.code }}
+                        {{ deliveryProductMappingVend.vend.latestVendBinding.customer.virtual_customer_prefix }}-{{ deliveryProductMappingVend.vend.latestVendBinding.customer.virtual_customer_code }}
                       </span>
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-left">

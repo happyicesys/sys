@@ -377,13 +377,21 @@ class Vend extends Model
             });
         })
         ->when($request->customer, function($query, $search) {
-            $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
-                $query->where(function($query) use ($search) {
-                    $query->where('customer_json->prefix', 'LIKE', "{$search}%")
-                          ->orWhere('customer_json->code', 'LIKE', "{$search}%")
-                          ->orWhere('name', 'LIKE', "%{$search}%");
-                  });
-            });
+            if(strpos($search, "-")) {
+                $searchArray = explode("-", $search);
+                $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                    $query->where('virtual_customer_prefix', $searchArray[0])
+                    ->where('virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
+                });
+            }else {
+                $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                    $query->where(function($query) use ($search) {
+                        $query->where('virtual_customer_prefix', 'LIKE', "{$search}%")
+                            ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
+                            ->orWhere('name', 'LIKE', "%{$search}%");
+                    });
+                });
+            }
         })
         ->when($request->categories, function($query, $search) {
             $query->whereHas('latestVendBinding.customer.category', function($query) use ($search) {

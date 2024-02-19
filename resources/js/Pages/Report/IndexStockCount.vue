@@ -27,12 +27,15 @@
                       ("," for multiple)
                   </span>
               </SearchInput>
-              <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+              <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+                  Customer
+              </SearchInput>
+              <!-- <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
                   Cust ID
               </SearchInput>
               <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
                   Cust Name
-              </SearchInput>
+              </SearchInput> -->
               <div v-if="permissions.includes('admin-access vends')">
                   <label for="text" class="block text-sm font-medium text-gray-700">
                       Category
@@ -242,21 +245,35 @@
                               {{ vendSnapshot.vend_code }}
                           </TableData>
                           <TableData :currentIndex="vendIndex" :totalLength="vendSnapshots.length" inputClass="text-left">
-                              <span v-if="vendSnapshot.customer_code">
-                                  <span v-if="permissions.includes('admin-access vendSnapshots')">
-                                      <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/vendSnapshot-code/' + vendSnapshot.customer_code">
-                                          {{ vendSnapshot.customer_code }} <br>
-                                          {{ vendSnapshot.customer_name }}
-                                      </a>
-                                  </span>
-                                  <span v-else>
-                                      {{ vendSnapshot.customer_code }} <br>
-                                      {{ vendSnapshot.customer_name }}
-                                  </span>
-                              </span>
-                              <span v-else>
-                                  {{ vendSnapshot.vend_name }}
-                              </span>
+                            <span v-if="vendSnapshot.virtual_customer_code">
+                                <span v-if="permissions.includes('admin-access vends')">
+                                    <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vendSnapshot.person_id + '/edit'">
+                                        {{ vendSnapshot.virtual_customer_prefix }}-{{ vendSnapshot.virtual_customer_code }}
+                                        <br>
+                                        {{ vendSnapshot.customer_name }}
+                                    </a>
+                                </span>
+                                <span v-else>
+                                    {{ vendSnapshot.virtual_customer_prefix }}-{{ vendSnapshot.virtual_customer_code }}
+                                    <br>
+                                    {{ vendSnapshot.customer_name }}
+                                </span>
+                            </span>
+                            <span v-else-if="!vendSnapshot.virtual_customer_code">
+                                <span v-if="permissions.includes('admin-access vends')">
+                                    <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vendSnapshot.person_id + '/edit'">
+                                        {{ vendSnapshot.customer_code }} <br>
+                                        {{ vendSnapshot.customer_name }}
+                                    </a>
+                                </span>
+                                <span v-else>
+                                    {{ vend.customer_code }} <br>
+                                    {{ vend.customer_name }}
+                                </span>
+                            </span>
+                            <span v-else>
+                                {{ vend.name }}
+                            </span>
                           </TableData>
                           <TableData :currentIndex="vendIndex" :totalLength="vendSnapshots.length" inputClass="text-left">
                               <ul

@@ -488,23 +488,23 @@
                                 </Link>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                                <span v-if="vend.customer_json">
+                                <span v-if="vend.virtual_customer_code">
                                     <span v-if="permissions.includes('admin-access vends')">
-                                        <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.customer_json.id + '/edit'">
-                                            {{ vend.customer_json.prefix }}-{{ vend.customer_json.code }}
+                                        <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'">
+                                            {{ vend.virtual_customer_prefix }}-{{ vend.virtual_customer_code }}
                                             <br>
                                             {{ vend.customer_name }}
                                         </a>
                                     </span>
                                     <span v-else>
-                                        {{ vend.customer_json.prefix }}-{{ vend.customer_json.code }}
+                                        {{ vend.virtual_customer_prefix }}-{{ vend.virtual_customer_code }}
                                         <br>
                                         {{ vend.customer_name }}
                                     </span>
                                 </span>
-                                <span v-else-if="!vend.customer_json">
+                                <span v-else-if="!vend.virtual_customer_code">
                                     <span v-if="permissions.includes('admin-access vends')">
-                                        <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.customer_person_id + '/edit'">
+                                        <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'">
                                             {{ vend.customer_code }} <br>
                                             {{ vend.customer_name }}
                                         </a>

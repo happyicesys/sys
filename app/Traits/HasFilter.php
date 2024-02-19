@@ -78,6 +78,20 @@ trait HasFilter {
                     ->orWhere('vends.name', 'LIKE', "%{$search}%");
             });
         })
+        ->when($request->customer, function($query, $search) {
+            if(strpos($search, "-")) {
+                $searchArray = explode("-", $search);
+                $query->where('customers.virtual_customer_prefix', $searchArray[0])
+                    ->where('customers.virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
+            }else {
+                $query->where(function($query) use ($search) {
+                    $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
+                          ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                          ->orWhere('customers.name', 'LIKE', "%{$search}%")
+                          ->orWhere('vends.name', 'LIKE', "%{$search}%");
+                  });
+            }
+        })
         ->when($request->is_binded_customer, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
@@ -142,22 +156,19 @@ trait HasFilter {
       ->when($request->serialNum, function($query, $search) {
           $query->where('serial_num', 'LIKE', "%{$search}%");
       })
-    //   ->when($request->customer_code, function($query, $search) {
-    //       $query->where('customers.code', 'LIKE', "%{$search}%");
-    //   })
-    //   ->when($request->customer_name, function($query, $search) {
-    //       $query->where(function($query) use ($search) {
-    //         $query->where('customers.name', 'LIKE', "%{$search}%")
-    //               ->orWhere('vends.name', 'LIKE', "%{$search}%");
-    //       });
-    //   })
     ->when($request->customer, function($query, $search) {
-        $query->where(function($query) use ($search) {
-          $query->where('customers.customer_json->prefix', 'LIKE', "{$search}%")
-                ->orWhere('customers.customer_json->code', 'LIKE', "{$search}%")
-                ->orWhere('customers.name', 'LIKE', "%{$search}%")
-                ->orWhere('vends.name', 'LIKE', "%{$search}%");
-        });
+        if(strpos($search, "-")) {
+            $searchArray = explode("-", $search);
+            $query->where('customers.virtual_customer_prefix', $searchArray[0])
+                ->where('customers.virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
+        }else {
+            $query->where(function($query) use ($search) {
+                $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
+                      ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                      ->orWhere('customers.name', 'LIKE', "%{$search}%")
+                      ->orWhere('vends.name', 'LIKE', "%{$search}%");
+              });
+        }
     })
       ->when($request->product_code, function($query, $search) {
         $query->where('products.code', 'LIKE', "%{$search}%");

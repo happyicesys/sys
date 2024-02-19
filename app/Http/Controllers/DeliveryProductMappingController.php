@@ -327,7 +327,7 @@ class DeliveryProductMappingController extends Controller
             'unbindedVendOptions' => VendResource::collection(
                 Vend::with([
                     'latestVendBinding:id,vend_id,customer_id',
-                    'latestVendBinding.customer:id,code,name',
+                    'latestVendBinding.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
                 ])
                 ->where(function ($query) use ($deliveryProductMapping) {
                     $query
@@ -344,10 +344,10 @@ class DeliveryProductMappingController extends Controller
                     }
                 })
                 ->when($deliveryProductMapping->deliveryPlatformOperator->type == '', function($query, $search) use ($request) {
-                    $query->where('code', 'LIKE', "{$request->vend_code}%");
+                    $query->where('vends.code', 'LIKE', "{$request->vend_code}%");
                 })
-                ->orderBy('code')
-                ->select('vends.id', 'vends.code', 'vends.name')
+                ->orderBy('vends.code')
+                // ->select('vends.id', 'vends.code', 'vends.name')
                 ->get()
             ),
         ]);

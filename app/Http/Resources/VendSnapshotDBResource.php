@@ -27,8 +27,9 @@ class VendSnapshotDBResource extends JsonResource
             'vendChannelsJson' => isset($this->vend_channels_json) ? json_decode($this->vend_channels_json) : null,
             'vend_code' => isset($this->vend_code) ? $this->vend_code : null,
             'vend_name' => isset($this->vend_name) ? $this->vend_name : null,
+            'virtual_customer_code' => isset($this->virtual_customer_code) ? $this->virtual_customer_code : null,
+            'virtual_customer_prefix' => isset($this->virtual_customer_prefix) ? $this->virtual_customer_prefix : null,
             'year_number' => isset($this->year_number) ? $this->year_number : null,
-
         ];
     }
 }
