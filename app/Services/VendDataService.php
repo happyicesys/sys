@@ -247,15 +247,16 @@ class VendDataService
             SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
             break;
           default:
-            VendData::create([
-              'connection' => $connectionType,
-              'ip_address' => $ipAddress,
-              'processed' => $processedInput,
-              'type' => isset($processedInput['Type']) ? $processedInput['Type'] : 'error',
-              'value' => $originalInput,
-              'vend_code' => isset($originalInput['m']) ? $originalInput['m'] : null,
-            ]);
-            throw new \Exception('Type is not set or please check the parameters');
+            $saveVendData = false;
+            // VendData::create([
+            //   'connection' => $connectionType,
+            //   'ip_address' => $ipAddress,
+            //   'processed' => $processedInput,
+            //   'type' => isset($processedInput['Type']) ? $processedInput['Type'] : 'error',
+            //   'value' => $originalInput,
+            //   'vend_code' => isset($originalInput['m']) ? $originalInput['m'] : null,
+            // ]);
+            // throw new \Exception('Type is not set or please check the parameters');
         }
       }else {
         UpdateVendLastUpdated::dispatch($vend, $connectionType)->onQueue('default');

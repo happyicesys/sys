@@ -35,7 +35,7 @@ class SyncProductUnitCostsTiming extends Command
                     'is_current' => false,
                 ]);
             }
-            $currentUnitCost = $product->unitCosts()->whereDate('date_from', '<=', Carbon::today()->setTimezone($product->operator->timezone)->toDateString())->latest('created_at')->first();
+            $currentUnitCost = $product->unitCosts()->whereDate('date_from', '<=', Carbon::today()->setTimezone($product->operator ? $product->operator->timezone : 'Asia/Singapore')->toDateString())->latest('created_at')->first();
             $currentUnitCost->is_current = true;
             $currentUnitCost->save();
         }
