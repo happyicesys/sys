@@ -265,7 +265,8 @@ class VendTransaction extends Model
                             ->select('id')
                             ->from('customers')
                             ->where('virtual_customer_prefix', 'LIKE', "{$search}%")
-                            ->orWhere('virtual_customer_code', 'LIKE', "{$search}%");
+                            ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
+                            ->orWhere('name', 'LIKE', "{$search}%");
                     })->orWhereIn('vend_id', function($query) use ($search) {
                         $query->select('id')->from('vends')->where('name', 'LIKE', "{$search}%");
                         $query->orWhere('vends.name', 'LIKE', "{$search}%");
