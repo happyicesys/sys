@@ -137,7 +137,13 @@ class VendTransaction extends Model
     {
         $isPaymentReceived = $request->is_payment_received != null ? $request->is_payment_received : 'all';
 
-        $query = $query->when($request->has('visited'), function($query, $search) use ($request) {
+        $query = $query->when($request->date_from, function($query, $search) {
+            $query->where('vend_transactions.transaction_datetime', '>=', $search);
+        })
+        ->when($request->date_to, function($query, $search) {
+            $query->where('vend_transactions.transaction_datetime', '<=', $search);
+        })
+        ->when($request->has('visited'), function($query, $search) use ($request) {
             if($request->visited == 'true') {
                 $query->whereRaw('1 = 1');
             }else {
@@ -246,23 +252,35 @@ class VendTransaction extends Model
         ->when($request->customer, function($query, $search) {
             if(strpos($search, "-")) {
                 $searchArray = explode("-", $search);
-                $query->whereIn('customer_id', function($query) use ($searchArray) {
-                    $query->select('id')->from('customers')->where(function($query) use ($searchArray) {
-                        $query->where('virtual_customer_prefix', $searchArray[0])
-                        ->where('virtual_customer_code', $searchArray[1]);
-                    });
-                });
+                // $query->whereIn('customer_id', function($query) use ($searchArray) {
+                    // $query->select('id')->from('customers')->where(function($query) use ($searchArray) {
+                        $query->where('customers.virtual_customer_prefix', $searchArray[0])
+                        ->where('customers.virtual_customer_code', $searchArray[1]);
+                    // });
+                // });
             }else {
-                $query->whereIn('customer_id', function($query) use ($search) {
-                    $query->select('id')->from('customers')->where(function($query) use ($search) {
-                        $query->where('virtual_customer_prefix', 'LIKE', "{$search}")
-                        ->orWhere('virtual_customer_code', 'LIKE', "{$search}")
-                        ->orWhere('name', 'LIKE', "{$search}%");
+                $query->where(function($query) use ($search) {
+                    $query->whereIn('customer_id', function($query) use ($search) {
+                        $query
+                            ->select('id')
+                            ->from('customers')
+                            ->where('virtual_customer_prefix', 'LIKE', "{$search}%")
+                            ->orWhere('virtual_customer_code', 'LIKE', "{$search}%");
+                    })->orWhereIn('vend_id', function($query) use ($search) {
+                        $query->select('id')->from('vends')->where('name', 'LIKE', "{$search}%");
+                        $query->orWhere('vends.name', 'LIKE', "{$search}%");
                     });
                 });
-                $query->orWhereIn('vend_id', function($query) use ($search) {
-                    $query->select('id')->from('vends')->where('name', 'LIKE', "{$search}%");
-                });
+
+                // $query->whereIn('customer_id', function($query) use ($search) {
+                //         $query->select('id')->from('customers')->where('customers.virtual_customer_prefix', 'LIKE', "{$search}")
+                //         ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}")
+                //         ->orWhere('customers.name', 'LIKE', "{$search}%");
+                // });
+                // $query->orWhereIn('vend_id', function($query) use ($search) {
+                //     $query->select('id')->from('vends')->where('name', 'LIKE', "{$search}%");
+                //     $query->orWhere('vends.name', 'LIKE', "{$search}%");
+                // });
             }
         })
         ->when($request->location_type_id, function($query, $search) {
@@ -292,12 +310,6 @@ class VendTransaction extends Model
             $query->whereIn('product_id', function($query) use ($search) {
                 $query->select('id')->from('products')->where('name', 'LIKE', "%{$search}%");
             });
-        })
-        ->when($request->date_from, function($query, $search) {
-            $query->where('created_at', '>=', $search);
-        })
-        ->when($request->date_to, function($query, $search) {
-            $query->where('created_at', '<=', $search);
         });
 
         return $query;

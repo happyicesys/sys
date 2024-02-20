@@ -458,6 +458,8 @@ class VendController extends Controller
                 'product:id,code,name',
                 'vendChannelError:id,desc',
             ])
+            ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+            ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->filterTransactionIndex($request)
             ->when($request->sortKey, function($query, $search) use ($request) {
                 $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
@@ -477,6 +479,8 @@ class VendController extends Controller
 
         $totals = [
             'amount' => VendTransaction::query()
+                ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+                ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
                 ->filterTransactionIndex($request)
                 ->where(function($query) {
                     $query->where('error_code_normalized', 0)
@@ -485,6 +489,8 @@ class VendController extends Controller
                 })
                 ->sum('vend_transactions.amount'),
             'count' => VendTransaction::query()
+                ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+                ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
                 ->filterTransactionIndex($request)
                 // ->whereIn('error_code_normalized', [0, 6])
                 ->where(function($query) {
