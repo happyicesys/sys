@@ -180,9 +180,10 @@ class VendController extends Controller
                 'vends.vend_type_id',
                 'vends.virtual_vend_records_thirty_days_amount_average',
                 'vends.is_active',
+                DB::raw("customers.account_manager_json->>'$.name' AS account_manager_name"),
                 'customers.cms_invoice_history',
                 'customers.code AS customer_code',
-                'customers.customer_json',
+                'customers.person_json',
                 'customers.name AS customer_name',
                 'customers.person_id AS person_id',
                 'customers.location_type_id',
@@ -458,8 +459,8 @@ class VendController extends Controller
                 'product:id,code,name',
                 'vendChannelError:id,desc',
             ])
-            ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
-            ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+            // ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+            // ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->filterTransactionIndex($request)
             ->when($request->sortKey, function($query, $search) use ($request) {
                 $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
@@ -479,8 +480,8 @@ class VendController extends Controller
 
         $totals = [
             'amount' => VendTransaction::query()
-                ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
-                ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+                // ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+                // ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
                 ->filterTransactionIndex($request)
                 ->where(function($query) {
                     $query->where('error_code_normalized', 0)
@@ -489,8 +490,8 @@ class VendController extends Controller
                 })
                 ->sum('vend_transactions.amount'),
             'count' => VendTransaction::query()
-                ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
-                ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+                // ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+                // ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
                 ->filterTransactionIndex($request)
                 // ->whereIn('error_code_normalized', [0, 6])
                 ->where(function($query) {

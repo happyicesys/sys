@@ -254,6 +254,9 @@
                     >
                     </MultiSelect>
                 </div>
+                <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Account Manager" v-model="filters.account_manager_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+                    Account Manager
+                </SearchInput>
             </div>
 
             <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -471,6 +474,9 @@
                             </TableHead>
                             <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
                                 Location
+                            </TableHeadSort>
+                            <TableHeadSort modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
+                                Acc Manager
                             </TableHeadSort>
                             <TableHead>
                             </TableHead>
@@ -831,6 +837,9 @@
                                 {{ vend.location_type_name }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                                {{ vend.account_manager_name }}
+                            </TableData>
+                            <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="flex justify-center space-x-1">
                                     <!-- <Button
                                         type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
@@ -962,6 +971,7 @@
   })
 
   const filters = ref({
+    account_manager_name: '',
     codes: '',
     channel_codes: '',
     serialNum: '',

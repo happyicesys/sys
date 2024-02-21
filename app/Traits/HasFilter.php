@@ -136,6 +136,9 @@ trait HasFilter {
               $query->whereRaw('1 = 0');
           }
       })
+      ->when($request->account_manager_name, function($query, $search) {
+        $query->where('customers.account_manager_json->name', 'LIKE', "{$search}%");
+      })
       ->when($request->codes, function($query, $search) {
         if(strpos($search, ',') !== false) {
             $search = explode(',', $search);

@@ -52,7 +52,7 @@ class SettingController extends Controller
         $vends = Vend::query()
             ->with([
                 'latestOperator:id,code,name',
-                'latestVendBinding.customer:id,code,name,is_active,person_id,customer_json,virtual_customer_code,virtual_customer_prefix',
+                'latestVendBinding.customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix',
             ])
             ->filterIndex($request)
             ->select(

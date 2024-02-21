@@ -47,7 +47,7 @@ class OperatorController extends Controller
                     'country:id,name,code,currency_name,currency_symbol',
                     // 'operatorPaymentGateways.paymentGateway',
                     'vends:id,code,name',
-                    // 'vends.latestVendBinding.customer:id,code,name',
+                    'vends.latestVendBinding.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
                     ])
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
@@ -142,7 +142,7 @@ class OperatorController extends Controller
                 'deliveryPlatformOperators.deliveryPlatform',
                 'operatorPaymentGateways.paymentGateway',
                 'vends:id,code,name',
-                'vends.latestVendBinding.customer:id,code,name',
+                'vends.latestVendBinding.customer:id,code,name,virtual_customer_code,virtual_customer_prefix',
             ])
             ->find($id);
         $timezones = DateTimeZone::listIdentifiers();

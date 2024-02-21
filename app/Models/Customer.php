@@ -30,7 +30,7 @@ class Customer extends Model
     protected $casts = [
         'account_manager_json' => 'json',
         'cms_invoice_history' => 'json',
-        'customer_json' => 'json',
+        'person_json' => 'json',
         'last_invoice_date' => 'datetime',
         'next_invoice_date' => 'datetime',
     ];
@@ -41,7 +41,7 @@ class Customer extends Model
         'cms_invoice_history',
         'code',
         'created_at',
-        'customer_json',
+        'person_json',
         'first_transaction_id',
         'name',
         'is_active',

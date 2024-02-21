@@ -14,6 +14,7 @@ class VendDBResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'account_manager_name' => isset($this->account_manager_name) ? $this->account_manager_name : null,
             'balance_percent' => isset($this->balance_percent) ? $this->balance_percent : null,
             'code' => $this->code,
             'amount_average_day' => isset($this->amount_average_day) ? $this->amount_average_day/100 : null,

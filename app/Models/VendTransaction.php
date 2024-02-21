@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Scopes\OperatorTransactionFilterScope;
 use Carbon\Carbon;
+use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\GetUserTimezone;
@@ -252,36 +253,31 @@ class VendTransaction extends Model
         ->when($request->customer, function($query, $search) {
             if(strpos($search, "-")) {
                 $searchArray = explode("-", $search);
-                // $query->whereIn('customer_id', function($query) use ($searchArray) {
-                    // $query->select('id')->from('customers')->where(function($query) use ($searchArray) {
-                        $query->where('customers.virtual_customer_prefix', $searchArray[0])
-                        ->where('customers.virtual_customer_code', $searchArray[1]);
-                    // });
-                // });
+                    // $query->where('customers.virtual_customer_prefix', $searchArray[0])
+                    // ->where('customers.virtual_customer_code', $searchArray[1]);
+                    $query->where('vend_transactions.customer_json->prefix', $searchArray[0])
+                        ->where('vend_transactions.customer_json->code', $searchArray[1]);
             }else {
+                // $query->where(function($query) use ($search) {
+                //     $query->whereIn('customer_id', function($query) use ($search) {
+                //         $query
+                //             ->select('id')
+                //             ->from('customers')
+                //             ->where('virtual_customer_prefix', 'LIKE', "{$search}%")
+                //             ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
+                //             ->orWhere('name', 'LIKE', "{$search}%");
+                //     })->orWhereIn('vend_id', function($query) use ($search) {
+                //         $query->select('id')->from('vends')->where('name', 'LIKE', "{$search}%");
+                //         $query->orWhere('vends.name', 'LIKE', "{$search}%");
+                //     });
+                // });
                 $query->where(function($query) use ($search) {
-                    $query->whereIn('customer_id', function($query) use ($search) {
-                        $query
-                            ->select('id')
-                            ->from('customers')
-                            ->where('virtual_customer_prefix', 'LIKE', "{$search}%")
-                            ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
-                            ->orWhere('name', 'LIKE', "{$search}%");
-                    })->orWhereIn('vend_id', function($query) use ($search) {
-                        $query->select('id')->from('vends')->where('name', 'LIKE', "{$search}%");
-                        $query->orWhere('vends.name', 'LIKE', "{$search}%");
-                    });
+                    $query->where('vend_transactions.customer_json->virtual_customer_prefix', 'LIKE', "{$search}%")
+                        ->orWhere('vend_transactions.customer_json->virtual_customer_code', 'LIKE', "{$search}%")
+                        // ->orWhere('vend_transactions.customer_json->name', 'LIKE', "%{$search}%")
+                        ->orWhere(DB::raw("lower(json_unquote(json_extract(vend_transactions.customer_json, '$.name')))"), 'LIKE', '%'.strtolower( $search ).'%')
+                        ->orWhere(DB::raw("lower(json_unquote(json_extract(vend_transactions.vend_json, '$.name')))"), 'LIKE', '%'.strtolower( $search ).'%');
                 });
-
-                // $query->whereIn('customer_id', function($query) use ($search) {
-                //         $query->select('id')->from('customers')->where('customers.virtual_customer_prefix', 'LIKE', "{$search}")
-                //         ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}")
-                //         ->orWhere('customers.name', 'LIKE', "{$search}%");
-                // });
-                // $query->orWhereIn('vend_id', function($query) use ($search) {
-                //     $query->select('id')->from('vends')->where('name', 'LIKE', "{$search}%");
-                //     $query->orWhere('vends.name', 'LIKE', "{$search}%");
-                // });
             }
         })
         ->when($request->location_type_id, function($query, $search) {

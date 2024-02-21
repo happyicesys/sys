@@ -538,13 +538,23 @@
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ vend.code }}
                           </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-left">
+                            <!-- <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
                               {{ vend.latestVendBinding.customer.code }} <br>
                               {{ vend.latestVendBinding.customer.name }}
                             </span>
                             <span v-else>
                               {{ vend.name }}
+                            </span> -->
+                            <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.virtual_customer_code">
+                                <span v-if="permissions.includes('admin-access vends')">
+                                  {{ vend.latestVendBinding.customer.virtual_customer_prefix }}-{{ vend.latestVendBinding.customer.virtual_customer_code }}
+                                  <br>
+                                  {{ vend.latestVendBinding.customer.name }}
+                                </span>
+                            </span>
+                            <span v-else>
+                                {{ vend.name }}
                             </span>
                           </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
