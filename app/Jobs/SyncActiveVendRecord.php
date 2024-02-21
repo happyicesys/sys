@@ -105,6 +105,7 @@ class SyncActiveVendRecord implements ShouldQueue
                 ],
                 [
                     'customer_id' => $vend->customer_id,
+                    'customer_json' => isset($vend->customer_id) ? $vend->customer : ['name' => $vend->name],
                     'day' => $date->copy()->day,
                     'month' => $date->copy()->month,
                     'monthname' => $date->copy()->format('F'),

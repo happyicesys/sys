@@ -133,7 +133,10 @@ class DashboardController extends Controller
         $seven_days_date_from = Carbon::today()->subDays(6)->setTimezone($this->getUserTimezone());
         $seven_days_date_to = Carbon::today()->setTimezone($this->getUserTimezone());
         $productGraph = VendTransaction::query()
-            ->with('product:id,code,name')
+            ->with([
+                'customer.id,code,name,virtual_customer_prefix,virtual_customer_code',
+                'product:id,code,name'
+            ])
             ->filterTransactionIndex($request)
             ->where('transaction_datetime', '>=', $seven_days_date_from->copy()->startOfDay())
             ->where('transaction_datetime', '<=', $seven_days_date_to->copy()->endOfDay())
@@ -151,7 +154,7 @@ class DashboardController extends Controller
 
         $bestPerformer = VendRecord::query()
             ->with([
-                'customer:id,code,name',
+                'customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                 'vend:id,code,name',
             ])
             ->filterIndex($request)

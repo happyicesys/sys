@@ -142,6 +142,7 @@ class StoreVendsRecord implements ShouldQueue
                 'date' => $vend->date,
             ], [
                 'customer_id' => isset($vend->customer_id) ? $vend->customer_id : null,
+                'customer_json' => isset($vend->customer_id) ? $vend->customer : ['name' => $vend->name],
                 'day' => $vend->day,
                 'failure_amount' => $vend->failure_amount,
                 'failure_count' => $vend->failure_count,

@@ -57,6 +57,7 @@ class InitTodayVendRecords implements ShouldQueue
                 'date' => Carbon::yesterday()->toDateString(),
             ], [
                 'customer_id' => $vend->customer_id,
+                'customer_json' => isset($vend->customer_id) ? $vend->customer : ['name' => $vend->name],
                 'day' => Carbon::yesterday()->day,
                 'month' => Carbon::yesterday()->month,
                 'monthname' => Carbon::yesterday()->format('F'),
