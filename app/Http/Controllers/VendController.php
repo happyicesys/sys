@@ -461,7 +461,6 @@ class VendController extends Controller
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
             ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->filterTransactionIndex($request)
-            ->select('*', 'vend_transactions.operator_id')
             ->when($request->sortKey, function($query, $search) use ($request) {
                 $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             })
@@ -483,7 +482,6 @@ class VendController extends Controller
                 ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
                 ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
                 ->filterTransactionIndex($request)
-                ->select('*', 'vend_transactions.operator_id')
                 ->where(function($query) {
                     $query->where('error_code_normalized', 0)
                         ->orWhere('error_code_normalized', 6)
@@ -494,7 +492,6 @@ class VendController extends Controller
                 ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
                 ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
                 ->filterTransactionIndex($request)
-                ->select('*', 'vend_transactions.operator_id')
                 // ->whereIn('error_code_normalized', [0, 6])
                 ->where(function($query) {
                     $query->where('error_code_normalized', 0)
