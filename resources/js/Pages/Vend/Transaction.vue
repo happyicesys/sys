@@ -341,7 +341,7 @@
                             {{ vendTransaction.transaction_datetime }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vend.code }}
+                            {{ vendTransaction.vendJson.code }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
                             <span v-if="vendTransaction.customer_json && vendTransaction.customer_json.virtual_customer_prefix && vendTransaction.customer_json.virtual_customer_code">

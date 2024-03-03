@@ -154,6 +154,7 @@ class SyncVendCustomerCms implements ShouldQueue
                     'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
                     'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
                     'name' => isset($customerCollection['company']) ? $customerCollection['company'] : null,
+                    'operator_id' => 1,
                     'profile_id' => $profileId,
                     'status_id' => Customer::STATUS_ACTIVE,
                     'category_id' => $categoryId,

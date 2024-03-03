@@ -151,9 +151,6 @@ class DeliveryPlatformService
           'name' => $item->deliveryProductMappingItem->product->name,
         ];
       }
-
-      // sync order qty to delivery product mapping vend channel
-      $this->deliveryProductMappingService->syncDeliveryProductMappingVendChannelOrderQty($item->deliveryProductMappingVendChannel, $item->qty, false);
     }
 
     // get dispense parameters
@@ -163,6 +160,9 @@ class DeliveryPlatformService
     $deliveryPlatformOrder->update([
       'response_history_json' => $dispenseDataset,
     ]);
+
+    // sync order qty to delivery product mapping vend channel by delivery platform order
+    $this->deliveryProductMappingService->syncVendChannelOrderQtyByDeliveryOrder($deliveryPlatformOrder, false);
 
     // send dispense request to vend
     $this->mqttService->publishVend(
@@ -219,7 +219,7 @@ class DeliveryPlatformService
           ]),
           'request_history_json' => $deliveryPlatformOrder->request_history_json ? array_merge($deliveryPlatformOrder->request_history_json, $input) : $input,
         ]);
-
+        $this->syncOrderQtyBasedOnStatus($deliveryPlatformOrder);
         $this->handleLastMileTimediff($deliveryPlatformOrder);
       break;
     }
@@ -500,7 +500,7 @@ class DeliveryPlatformService
             'qty' => $deliveryPlatformOrderItem->qty,
           ]);
 
-          $this->deliveryProductMappingService->syncDeliveryProductMappingVendChannelOrderQty($deliveryProductMappingVendChannel, $deliveryPlatformOrderItem->qty, true);
+          $this->deliveryProductMappingService->syncVendChannelOrderQty($deliveryProductMappingVendChannel, $deliveryPlatformOrderItem->qty, true);
         }
       }else {
         // handle multiple vend channel same product id case
@@ -508,6 +508,14 @@ class DeliveryPlatformService
       }
     }
   }
+
+    // add back order qty when order is cancelled
+    private function syncOrderQtyBasedOnStatus(DeliveryPlatformOrder $deliveryPlatformOrder)
+    {
+      if($deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_CANCELLED or $deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_FAILED) {
+        $this->deliveryProductMappingService->syncVendChannelOrderQtyByDeliveryOrder($deliveryPlatformOrder, false);
+      }
+    }
 
   // collect timestamp for last mile time diff
   private function handleLastMileTimediff(DeliveryPlatformOrder $deliveryPlatformOrder)
@@ -527,7 +535,6 @@ class DeliveryPlatformService
         'last_mile_timediff_mins' => Carbon::parse($deliveryPlatformOrder->collected_datetime)->diffInMinutes(Carbon::parse($deliveryPlatformOrder->delivered_datetime)),
       ]);
     }
-
   }
 
   private function syncProductMappingVendChannelOrderQtyByOrder(DeliveryPlatformOrder $deliveryPlatformOrder, $isAddition = true)
@@ -536,7 +543,7 @@ class DeliveryPlatformService
     $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems;
     foreach($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
       foreach($deliveryProductMappingVendChannels as $deliveryProductMappingVendChannel) {
-        $this->deliveryProductMappingService->syncDeliveryProductMappingVendChannelOrderQty($deliveryProductMappingVendChannel, $deliveryPlatformOrderItem->qty, $isAddition);
+        $this->deliveryProductMappingService->syncVendChannelOrderQty($deliveryProductMappingVendChannel, $deliveryPlatformOrderItem->qty, $isAddition);
       }
     }
   }

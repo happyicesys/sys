@@ -2,7 +2,9 @@
 
 namespace App\Jobs\Vend;
 
+use App\Models\Customer;
 use App\Models\Vend;
+use App\Models\VendBinding;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -15,15 +17,15 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected $vend;
+    protected $model;
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct(Vend $vend)
+    public function __construct($model)
     {
-        $this->vend = $vend;
+        $this->model = $model;
     }
 
     /**
@@ -33,35 +35,79 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
      */
     public function handle()
     {
-        $vend = $this->vend;
+        if($this->model instanceof Vend) {
+            $customer = $this->model->latestVendBinding->customer;
+        } else if($this->model instanceof VendBinding) {
+            $customer = $this->model->customer;
+        } else if($this->model instanceof Customer){
+            $customer = $this->model;
+        } else {
+            return;
+        }
 
-        $vend->update([
-            'vend_transaction_totals_json' => [
-                'today_amount' => $vend->vendTodayTransactions->sum('amount'),
-                'today_count' => $vend->vendTodayTransactions->count(),
-                'yesterday_amount' => $vend->vendYesterdayTransactions->sum('amount'),
-                'yesterday_count' => $vend->vendYesterdayTransactions->count(),
-                'seven_days_amount' => $vend->vendSevenDaysTransactions->sum('amount'),
-                'seven_days_count' => $vend->vendSevenDaysTransactions->count(),
-                'thirty_days_amount' => $vend->vendThirtyDaysTransactions->sum('amount'),
-                'thirty_days_count' => $vend->vendThirtyDaysTransactions->count(),
-                'thirty_days_revenue' => $vend->vendThirtyDaysTransactions->sum(function($vendTransaction) {
-                    return $vendTransaction->getRevenue();
-                }),
-                'thirty_days_gross_profit' => $vend->vendThirtyDaysTransactions->sum(function($vendTransaction) {
-                    return $vendTransaction->getGrossProfit();
-                }),
-                'vend_records_amount_latest' => $vend->vendRecordsLatest->sum('total_amount'),
-                'vend_records_amount_average_day' => $vend->vendRecordsLatest->sum('total_amount')/ (Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?? Carbon::now())) ?: 1),
-                'vend_records_thirty_days_amount' => $vend->vendRecordsThirtyDays->sum('total_amount'),
-                'vend_records_thirty_days_amount_average' =>
-                    $vend->vendRecordsThirtyDays->sum('total_amount')/
-                    (
-                        Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) < 30 ?
-                        (Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($vend->begin_date)->diffInDays(Carbon::now())) :
-                        30
-                    ),
-            ]
-        ]);
+        // dd($customer->daysVendTransactions(0, 0)->sum('amount'));
+        // Retrieve today's date
+        $today = Carbon::today();
+
+        // Calculate the begin and termination dates of the latest binding
+        $latestBindingBeginDate = $customer->latestVendBinding ? Carbon::parse($customer->latestVendBinding->begin_date) : $customer->created_at;
+        $latestBindingTerminationDate = $customer->latestVendBinding ? Carbon::parse($customer->latestVendBinding->termination_date) : Carbon::now();
+
+        // Calculate the date ranges for different periods
+        $todayTransactions = $customer->daysVendTransactions(0, 0);
+        $yesterdayTransactions = $customer->daysVendTransactions(1, 1);
+        $sevenDaysTransactions = $customer->daysVendTransactions(6, 0);
+        $thirtyDaysTransactions = $customer->daysVendTransactions(29, 0);
+        $thirtyDaysVendRecords = $customer->daysVendRecords(29, 0);
+
+
+        // Calculate the totals
+        $totalsJson = [
+            'today_amount' => $todayTransactions->sum('amount'),
+            'today_count' => $todayTransactions->count(),
+            'yesterday_amount' => $yesterdayTransactions->sum('amount'),
+            'yesterday_count' => $yesterdayTransactions->count(),
+            'seven_days_amount' => $sevenDaysTransactions->sum('amount'),
+            'seven_days_count' => $sevenDaysTransactions->count(),
+            'thirty_days_amount' => $thirtyDaysTransactions->sum('amount'),
+            'thirty_days_count' => $thirtyDaysTransactions->count(),
+            'thirty_days_revenue' => $thirtyDaysTransactions->sum('revenue'),
+            'thirty_days_gross_profit' => $thirtyDaysTransactions->sum('gross_profit'),
+            'vend_records_amount_latest' => $customer->lifetimeVendRecords->sum('total_amount'),
+            'vend_records_amount_average_day' => $customer->lifetimeVendRecords->sum('total_amount') / max($latestBindingBeginDate->diffInDays($latestBindingTerminationDate) ?: 1, 1),
+            'vend_records_thirty_days_amount' => $thirtyDaysVendRecords->sum('total_amount'),
+            'vend_records_thirty_days_amount_average' => $thirtyDaysVendRecords->sum('total_amount') / max($latestBindingBeginDate->diffInDays($today) < 30 ? ($latestBindingBeginDate->diffInDays($today) == 0 ? 1 : $latestBindingBeginDate->diffInDays($today)) : 30, 1),
+        ];
+
+        $customer->latestVendBinding()->update(['totals_json' => $totalsJson]);
+        // $customer->latestVendBinding()
+        //     ->update([
+        //         'totals_json' => [
+        //             'today_amount' => $customer->daysVendTransactions(0, 0)->sum('amount'),
+        //             'today_count' => $customer->daysVendTransactions(0, 0)->count(),
+        //             'yesterday_amount' => $customer->daysVendTransactions(1, 1)->sum('amount'),
+        //             'yesterday_count' => $customer->daysVendTransactions(1, 1)->count(),
+        //             'seven_days_amount' => $customer->daysVendTransactions(6, 0)->sum('amount'),
+        //             'seven_days_count' => $customer->daysVendTransactions(6, 0)->count(),
+        //             'thirty_days_amount' => $customer->daysVendTransactions(29, 0)->sum('amount'),
+        //             'thirty_days_count' => $customer->daysVendTransactions(29, 0)->count(),
+        //             'thirty_days_revenue' => $customer->daysVendTransactions(29, 0)->sum(function($vendTransaction) {
+        //                 return $vendTransaction->getRevenue();
+        //             }),
+        //             'thirty_days_gross_profit' => $customer->daysVendTransactions(29, 0)->sum(function($vendTransaction) {
+        //                 return $vendTransaction->getGrossProfit();
+        //             }),
+        //             'vend_records_amount_latest' => $customer->lifetimeVendRecords->sum('total_amount'),
+        //             'vend_records_amount_average_day' => $customer->lifetimeVendRecords->sum('total_amount')/ (Carbon::parse($customer->latestVendBinding && $customer->latestVendBinding->begin_date ? $customer->latestVendBinding->begin_date : $customer->created_at)->diffInDays(Carbon::parse($customer->latestVendBinding && $customer->latestVendBinding->termination_date ? $customer->latestVendBinding->termination_date : Carbon::now())) ?: 1),
+        //             'vend_records_thirty_days_amount' => $customer->daysVendRecords(29, 0)->sum('total_amount'),
+        //             'vend_records_thirty_days_amount_average' =>
+        //                 $customer->daysVendRecords(29, 0)->sum('total_amount')/
+        //                 (
+        //                     Carbon::parse($customer->latestVendBinding && $customer->latestVendBinding->begin_date ? $customer->latestVendBinding->begin_date : $customer->created_at)->diffInDays(Carbon::now()) < 30 ?
+        //                     (Carbon::parse($customer->latestVendBinding && $customer->latestVendBinding->begin_date ? $customer->latestVendBinding->begin_date : $customer->created_at)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($customer->latestVendBinding && $customer->latestVendBinding->begin_date ? $customer->latestVendBinding->begin_date : $customer->created_at)->diffInDays(Carbon::now())) :
+        //                     30
+        //                 ),
+        //         ]
+        //     ]);
     }
 }

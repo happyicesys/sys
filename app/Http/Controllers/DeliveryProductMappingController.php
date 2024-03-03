@@ -373,6 +373,27 @@ class DeliveryProductMappingController extends Controller
         return redirect()->route('delivery-product-mappings.edit', [$id]);
     }
 
+    // pause vends operation in delivery product mapping
+    public function pauseAllVends(Request $request, $id)
+    {
+        $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
+
+        if($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
+            foreach($deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
+                $deliveryProductMappingVend->update([
+                    'is_active' => false,
+                ]);
+                $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend);
+            }
+        }
+
+        $deliveryProductMapping->update([
+            'is_active' => false,
+        ]);
+
+        return redirect()->route('delivery-product-mappings.edit', [$id]);
+    }
+
     // pause single vend channel
     public function togglePauseChannel($deliveryProductMappingVendChannelId)
     {

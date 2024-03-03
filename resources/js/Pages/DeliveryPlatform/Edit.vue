@@ -488,6 +488,18 @@
                 </div>
               </div>
 
+              <Button
+                class="flex space-x-1 bg-yellow-300 hover:bg-yellow-400 text-black"
+                @click.prevent="togglePauseAllVends()"
+              >
+                <PauseCircleIcon class="w-3 h-3"></PauseCircleIcon>
+                <span class="text-xs">
+                  Pause All VM
+                </span>
+              </Button>
+
+
+
               <div class="sm:col-span-3" v-if="form.product_mapping_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Vending Machine
@@ -960,13 +972,13 @@ function submit() {
   })
 }
 
-function togglePauseAllVends(deliveryProductMappingId) {
-  let approvalText = form.value.is_active ? 'Are you sure to pause all vending machines?' : 'Are you sure to resume all vending machines?'
+function togglePauseAllVends() {
+  let approvalText =  'Are you sure to pause all vending machines?'
   const approval = confirm(approvalText);
   if (!approval) {
       return;
   }
-  router.post('/delivery-product-mappings/' + deliveryProductMappingId + '/toggle-pause-all-vends', {}, {
+  router.post('/delivery-product-mappings/' + form.value.id + '/toggle-pause-all-vends', {}, {
       preserveState: false,
       preserveScroll: true,
       replace: true,

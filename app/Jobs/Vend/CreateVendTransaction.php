@@ -4,6 +4,7 @@ namespace App\Jobs\Vend;
 
 use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryPlatforms\Grab;
+use App\Models\Operator;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentGatewayLog;
@@ -116,6 +117,7 @@ class CreateVendTransaction implements ShouldQueue
             'items_json' => $input['children'],
             'payment_method_id' => $input['paymentMethodID'],
             'vend_id' => $this->vend->id,
+            'vend_binding_id' => $this->vend->latestVendBinding()->exists() ? $this->vend->latestVendBinding->id : null,
             'vend_channel_code' => $input['vendChannelCode'],
             'vend_channel_id' => $input['vendChannelID'],
             'vend_channel_error_id' => $input['vendChannelErrorID'],
@@ -130,8 +132,8 @@ class CreateVendTransaction implements ShouldQueue
                 'name' => $this->vend->name,
             ],
             'location_type_json' => $this->vend->latestVendBinding()->exists() && $this->vend->latestVendBinding->customer()->exists() && $this->vend->latestVendBinding->customer->locationType()->exists() ? collect($this->vend->latestVendBinding->customer->locationType) : null,
-            'operator_id' => $this->vend->currentOperator()->exists() ? $this->vend->currentOperator->first()->id : null,
-            'operator_json' => $this->vend->currentOperator()->exists() ? collect($this->vend->currentOperator->first()) : null,
+            'operator_id' => $this->vend->currentOperator()->exists() ? $this->vend->currentOperator->first()->id : ($this->vend->operators()->exists() ? $this->vend->operators()->max('operator_id') : 1),
+            'operator_json' => $this->vend->currentOperator()->exists() ? collect($this->vend->currentOperator->first()) : collect($this->vend->operators()->exists() ? $this->vend->operators()->orderBy('operator_id', 'desc')->first() : Operator::first()),
             'product_json' => $input['productID'] ? collect($this->vend->productMapping->productMappingItems()->where('channel_code', $input['vendChannelCode'])->first()->product)->except(['product_mapping_items']) : null,
             'unit_cost_id' => $input['unitCostID'],
             'gst_vat_rate' => $input['gstVatRate'],
@@ -150,6 +152,7 @@ class CreateVendTransaction implements ShouldQueue
             'vend_channel_id' => $input['vendChannelID'],
             'vend_channel_code' => $input['vendChannelCode'],
             'vend_channel_error_id' => $input['vendChannelErrorID'],
+            'vend_channel_error_json' => isset($input['vendChannelErrorID']) && $input['vendChannelErrorID'] ? VendChannelError::find($input['vendChannelErrorID']) : null,
             'vend_transaction_id' => $vendTransaction->id,
         ]);
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Scopes\OperatorCustomerFilterScope;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -144,8 +145,48 @@ class Customer extends Model
         return $this->hasMany(VendBinding::class)->latest('begin_date');
     }
 
+    public function vendRecords()
+    {
+        return $this->hasMany(VendRecord::class);
+    }
+
+    public function vendTransactions()
+    {
+        return $this->hasMany(VendTransaction::class);
+    }
+
     public function zone()
     {
         return $this->belongsTo(Zone::class);
+    }
+
+    public function daysVendTransactions($from = 0, $to = 0)
+    {
+        return $this->vendTransactions()
+                    ->isSuccessful()
+                    ->where('transaction_datetime', '>=', Carbon::today()->subDays($from)->startOfDay())
+                    ->where('transaction_datetime', '<=', Carbon::today()->subDays($to)->endOfDay());
+    }
+
+    public function monthsVendTransactions($from = 0, $to = 0)
+    {
+        return $this->vendTransactions()
+                    ->isSuccessful()
+                    ->where('transaction_datetime', '>=', Carbon::today()->subMonths($from)->startOfMonth())
+                    ->where('transaction_datetime', '<=', Carbon::today()->subMonths($to)->endOfMonth());
+    }
+
+    public function lifetimeVendRecords()
+    {
+        return $this->vendRecords()
+                    ->where('date', '>=', Carbon::parse($this->latestVendBinding->begin_date)->startOfDay())
+                    ->where('date', '<=', ($this->latestVendBinding && $this->latestVendBinding->termination_date ? Carbon::parse($this->latestVendBinding->termination_date)->endOfDay() : Carbon::today()->endOfDay()));
+    }
+
+    public function daysVendRecords($from = 0, $to = 0)
+    {
+        return $this->vendRecords()
+                    ->where('date', '>=', Carbon::today()->subDays($from)->startOfDay())
+                    ->where('date', '<=', Carbon::today()->subDays($to)->endOfDay());
     }
 }

@@ -17,13 +17,8 @@
           <form @submit.prevent="submit" id="submit">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
               <div class="sm:col-span-6">
-                <FormInput v-model="form.name" :error="form.errors.name" required="true" :disabled="form.cust_full_name">
+                <FormInput v-model="form.customer.name" :error="form.errors.name" required="true" :disabled="form.cust_full_name">
                   Name
-                </FormInput>
-              </div>
-              <div class="sm:col-span-6">
-                <FormInput v-model="form.private_key" :error="form.errors.private_key" :disabled="!permissions.includes('update vends')">
-                  Private Key
                 </FormInput>
               </div>
               <div class="sm:col-span-6">

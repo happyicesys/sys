@@ -14,6 +14,7 @@ use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendResource;
+use App\Http\Resources\VendBindingResource;
 use App\Http\Resources\VendChannelErrorResource;
 use App\Http\Resources\VendFanResource;
 use App\Http\Resources\VendTransactionDBResource;
@@ -109,33 +110,22 @@ class VendController extends Controller
         $request->merge(['sortBy' => isset($request->sortBy) ? $request->sortBy : true]);
         $className = get_class(new Customer());
 
-        $vends = DB::table('vends')
-            ->leftJoinSub(
-                VendBinding::query()
-                    ->select('vend_id', 'customer_id', DB::raw('MAX(begin_date) as begin_date'))
-                    ->where('is_active', true)
-                    ->groupBy('vend_id'),
-                'vend_bindings',
-                function ($join) {
-                    $join->on('vend_bindings.vend_id', '=', 'vends.id');
-                }
-            )
-            // ->leftJoin('vend_bindings', function($query) {
-            //     $query->on('vend_bindings.vend_id', '=', 'vends.id')
-            //             // ->where('vend_bindings.is_active', true)
-            //             ->latest('begin_date')
-            //             ->limit(1);
-            // })
+        $vends = DB::table('vend_bindings')
+            // ->leftJoinSub(
+            //     VendBinding::query()
+            //         ->select('vend_id', 'customer_id', DB::raw('MAX(begin_date) as begin_date'))
+            //         ->groupBy('vend_id'),
+            //     'vend_bindings',
+            //     function ($join) {
+            //         $join->on('vend_bindings.customer_id', '=', 'customers.id');
+            //     }
+            // )
             ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+            ->leftJoin('vends', 'vends.id', '=', 'vend_bindings.vend_id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-            ->leftJoin('operator_vend', function($query) {
-                $query->on('operator_vend.vend_id', '=', 'vends.id')
-                        ->latest('operator_vend.begin_date')
-                        ->limit(1);
-            })
-            ->leftJoin('operators', 'operators.id', '=', 'operator_vend.operator_id')
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('addresses', function($query) {
                 $query->on('addresses.modelable_id', '=', 'customers.id')
@@ -144,18 +134,17 @@ class VendController extends Controller
                         ->limit(1);
             })
             ->select(
-                'operator_vend.operator_id',
-                'vends.id',
+                'vend_bindings.id AS id',
                 'vends.amount_average_day',
-                'vends.begin_date',
+                'vend_bindings.begin_date',
                 'vends.code',
                 'vends.name',
                 'vends.apk_ver_json',
                 'vends.balance_percent',
                 'vends.serial_num',
                 'vends.name',
-                'vends.temp',
-                'vends.temp_updated_at',
+                DB::raw("CASE WHEN vend_bindings.is_active THEN vends.temp ELSE vend_bindings.snap_vend_status_json->>'$.t1' END AS temp"),
+                DB::raw("CASE WHEN vend_bindings.is_active THEN vends.temp_updated_at ELSE vend_bindings.snap_vend_status_json->>'$.temp_updated_at' END AS temp_updated_at"),
                 'vends.termination_date',
                 'vends.coin_amount',
                 'vends.firmware_ver',
@@ -170,16 +159,17 @@ class VendController extends Controller
                 'vends.last_updated_at',
                 'vends.mqtt_last_updated_at',
                 'vends.out_of_stock_sku_percent',
-                'vends.parameter_json',
+                DB::raw('CASE WHEN vend_bindings.is_active THEN vends.parameter_json ELSE vend_bindings.snap_parameter_json END AS parameter_json'),
                 'vends.product_mapping_id',
                 'vends.private_key',
                 'vends.vend_channels_json',
+                DB::raw('CASE WHEN vend_bindings.is_active THEN vends.vend_channels_json ELSE vend_bindings.snap_vend_channels_json END AS vend_channels_json'),
                 'vends.vend_channel_totals_json',
-                'vends.vend_channel_error_logs_json',
+                DB::raw('CASE WHEN vend_bindings.is_active THEN vends.vend_channel_error_logs_json ELSE vend_bindings.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
                 'vends.vend_transaction_totals_json',
                 'vends.vend_type_id',
                 'vends.virtual_vend_records_thirty_days_amount_average',
-                'vends.is_active',
+                'vend_bindings.is_active',
                 DB::raw("customers.account_manager_json->>'$.name' AS account_manager_name"),
                 'customers.cms_invoice_history',
                 'customers.code AS customer_code',
@@ -452,11 +442,11 @@ class VendController extends Controller
 
         $vendTransactions = VendTransaction::query()
             ->with([
-                'vend:id,code,name',
-                'customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
-                'operator:id,code,name',
+                // 'vend:id,code,name',
+                // 'customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
+                // 'operator:id,code,name',
                 'paymentMethod:id,code,name',
-                'product:id,code,name',
+                // 'product:id,code,name',
                 'vendChannelError:id,desc',
             ])
             // ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
@@ -727,6 +717,32 @@ class VendController extends Controller
         $vend->latestVendBinding->update([
             'is_active' => false,
             'termination_date' => Carbon::now()->toDateString(),
+            'snap_parameter_json' => $vend->parameter_json,
+            'snap_vend_channels_json' => $vend->vend_channels_json,
+            'snap_vend_channel_error_logs_json' => $vend->vend_channel_error_logs_json,
+            'snap_vend_status_json' => [
+                'coin_count' => $vend->parameter_json && isset($vend->parameter_json['CoinCnt']) ? $vend->parameter_json['CoinCnt']/ 100 : null,
+                'is_door_open' => $vend->parameter_json && isset($vend->parameter_json['door']) ? ($vend->parameter_json['door'] == 'open' ? true : false) : false,
+                'is_mqtt' => $vend->is_mqtt,
+                'is_mqtt_active' => $vend->is_mqtt_active,
+                'mqtt_last_updated_at' => $vend->mqtt_last_updated_at,
+                'is_online' => $vend->is_online,
+                'is_sensor' => $vend->parameter_json && isset($vend->parameter_json['Sensor']) ? ($vend->parameter_json['Sensor'] % 2 == 0 ?  true : false) : false,
+                'fan_speed' => $vend->parameter_json && isset($vend->parameter_json['fan']) ? $vend->parameter_json['fan'] : null,
+                'is_temp_error' => $vend->is_temp_error,
+                'last_updated_at' => $vend->last_updated_at,
+                't1' => $vend->temp,
+                'temp_updated_at' => $vend->temp_updated_at,
+                't2' => $vend->parameter_json && isset($vend->parameter_json['t2']) ? $vend->parameter_json['t2'] : null,
+                't3' => $vend->parameter_json && isset($vend->parameter_json['t3']) ? $vend->parameter_json['t3'] : null,
+                't4' => $vend->parameter_json && isset($vend->parameter_json['t4']) ? $vend->parameter_json['t4'] : null,
+                'firmware_ver' => $vend->parameter_json && isset($vend->parameter_json['Ver']) ? $vend->parameter_json['Ver'] : null,
+                'apk_ver' => $vend->apk_ver_json && isset($vend->apk_ver_json['apkver']) ? $vend->apk_ver_json['apkver'] : null,
+                'apk_ver_build_time' => $vend->apk_ver_json && isset($vend->apk_ver_json['buildtime']) ? $vend->apk_ver_json['buildtime'] : null,
+                'location_type_name' => $vend->latestVendBinding->customer->locationType->name,
+                'account_manager_name' => $vend->latestVendBinding->customer->account_manager_json && isset($vend->latestVendBinding->customer->account_manager_json['name']) ? $vend->latestVendBinding->customer->account_manager_json['name'] : null,
+            ],
+
         ]);
 
         // callback to cms to unbind vendcode
@@ -799,16 +815,31 @@ class VendController extends Controller
 
     public function edit(Request $request, $id)
     {
-        $vend = Vend::query()
-            ->with([
-                'latestVendBinding.customer:id,code,name',
-                'logs',
-            ])
-            ->find($id);
+        // $vend = Vend::query()
+        //     ->with([
+        //         'latestVendBinding.customer:id,code,name',
+        //         'logs',
+        //     ])
+        //     ->find($id);
+
+        $vend = VendBinding::query()
+                ->with([
+                    'customer',
+                    'vend.logs',
+                ])
+                ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+                ->leftJoin('vends', 'vends.id', '=', 'vend_bindings.vend_id')
+                ->where('vend_bindings.id', $id)
+                ->select(
+                    'vends.id',
+                    'vend_bindings.begin_date',
+                    'vend_bindings.termination_date'
+                )
+                ->first();
 
         return Inertia::render('Vend/Edit', [
             'type' => 'update',
-            'vend' => VendResource::make($vend),
+            'vend' => VendBindingResource::make($vend),
         ]);
     }
 

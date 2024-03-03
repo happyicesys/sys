@@ -80,8 +80,11 @@ class DatabaseSeeder extends Seeder
             // SyncTempVendTransaction::class,
             // CustomerPermissionSeeder::class,
             // SyncCurrentCustomerSeeder::class,
+            // CustomerOperatorRunningNumberSeeder::class,
 
-            CustomerOperatorRunningNumberSeeder::class,
+
+            CleanCustomerSeeder::class,
+            // SyncVendBindingIDVendTransactionSeeder::class,
         ]);
     }
 }

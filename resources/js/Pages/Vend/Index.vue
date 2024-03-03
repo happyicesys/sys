@@ -489,14 +489,14 @@
                                 {{ vends.meta.from + vendIndex }}
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <Link :href="'/settings/vend/' + vend.id + '/update'" class="text-blue-600">
+                                <Link :href="'/settings/vend/' + vend.id + '/update'" :class="[vend.is_active ? 'text-blue-600' : 'text-gray-400']">
                                 {{ vend.code }}
                                 </Link>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                                 <span v-if="vend.virtual_customer_code">
                                     <span v-if="permissions.includes('admin-access vends')">
-                                        <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'">
+                                        <a :class="[vend.is_active ? 'text-blue-700' : 'text-gray-500']" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'">
                                             {{ vend.virtual_customer_prefix }}-{{ vend.virtual_customer_code }}
                                             <br>
                                             {{ vend.customer_name }}
@@ -528,8 +528,8 @@
                                 <div class="flex flex-col items-center space-y-1">
                                     <button
                                         type="button"
-                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                        :class="[vend.is_online ? (vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 w-4/5 text-right justify-center"
+                                        :class="[vend.is_online && vend.is_active ? (vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600 text-black' : 'bg-green-400 active:bg-green-500 hover:bg-green-600 text-black') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600 text-gray-700']"
                                         @click="onVendTempClicked(vend.id, 1)"
                                         v-if="vend.temp_updated_at"
                                     >
@@ -537,8 +537,8 @@
                                     </button>
                                     <button
                                         type="button"
-                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                        :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 w-4/5 text-right justify-center"
+                                        :class="[vend.is_online && vend.is_active ? (vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600 text-black' : 'bg-green-400 active:bg-green-500 hover:bg-green-600 text-black') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600 text-gray-700']"
                                         @click="onVendTempClicked(vend.id, 2)"
                                         v-if="vend.parameterJson && 't2' in vend.parameterJson"
                                     >
@@ -547,7 +547,7 @@
                                     <button
                                         type="button"
                                         class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                        :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t3'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                        :class="[vend.is_online && vend.is_active ? (vend.temp > -15 || vend.parameterJson['t3'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
                                         @click="onVendTempClicked(vend.id, 3)"
                                         v-if="vend.parameterJson && vend.parameterJson['t3'] && vend.parameterJson['t3'] != constTempError"
                                     >
@@ -556,18 +556,18 @@
                                     <button
                                         type="button"
                                         class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                        :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t4'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                        :class="[vend.is_online && vend.is_active ? (vend.temp > -15 || vend.parameterJson['t4'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
                                         @click="onVendTempClicked(vend.id, 4)"
                                         v-if="vend.parameterJson && vend.parameterJson['t4'] && vend.parameterJson['t4'] != constTempError"
                                     >
                                         {{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)
                                     </button>
-                                    <span class="mt-1">
+                                    <span class="mt-1" :class="[vend.is_active ? '' : 'text-gray-400']">
                                         {{ vend.temp_updated_at }}
                                     </span>
                                     <span
                                         class="mt-1"
-                                        :class="(vend.temp - vend.parameterJson['t2']/10).toFixed(1) >= 4 ? 'text-red-700' : 'text-green-700'"
+                                        :class="[vend.is_active ? ((vend.temp - vend.parameterJson['t2']/10).toFixed(1) >= 4 ? 'text-red-700' : 'text-green-700') : 'text-gray-400' ]"
                                         v-if="vend.parameterJson && vend.parameterJson['t2'] && vend.parameterJson['t2'] != constTempError && !vend.is_temp_error"
                                     >
                                         {{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
@@ -585,13 +585,13 @@
                                         :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
                                     >
                                     <span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
-                                        <span>
+                                        <span :class="[vend.is_active ? 'text-black' : 'text-gray-600']">
                                             #{{channel['code']}},
                                         </span>
-                                        <span class="text-blue-600">
+                                        <span :class="[vend.is_active ? 'text-blue-600' : 'text-gray-500']">
                                             {{channel['capacity'] - channel['qty']}},
                                         </span>
-                                        <span :class="[channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700']">
+                                        <span :class="[vend.is_active ? (channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700') : 'text-gray-400']">
                                             {{channel['qty']}}/{{channel['capacity']}}
                                         </span>
                                     </span>
@@ -632,7 +632,7 @@
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <span
                                     v-if="vend.vendChannelTotalsJson"
-                                    :class="[vend.balance_percent <= 20 ? 'text-red-700' : (vend.balance_percent > 50 ? 'text-green-700' : 'text-blue-700')]"
+                                    :class="[vend.is_active ? (vend.balance_percent <= 20 ? 'text-red-700' : (vend.balance_percent > 50 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
                                 >
                                     {{ vend.vendChannelTotalsJson['qty'] }}/ {{ vend.vendChannelTotalsJson['capacity'] }} <br>
                                     ({{ vend.balance_percent }}%)
@@ -641,7 +641,7 @@
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <span
                                     v-if="vend.vendChannelTotalsJson"
-                                    :class="[100 - vend.out_of_stock_sku_percent <= 40 ? 'text-red-700' : (100 - vend.out_of_stock_sku_percent > 70 ? 'text-green-700' : 'text-blue-700')]"
+                                    :class="[vend.is_active ? (100 - vend.out_of_stock_sku_percent <= 40 ? 'text-red-700' : (100 - vend.out_of_stock_sku_percent > 70 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
                                 >
                                     {{ vend.vendChannelTotalsJson['count'] - vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
                                     ({{ 100 - vend.out_of_stock_sku_percent }}%)
@@ -651,7 +651,9 @@
                                 <span
                                 v-if="vend.vendTransactionTotalsJson && 'today_amount' in vend.vendTransactionTotalsJson"
                                 :class="[
-                                    (vend.vendTransactionTotalsJson['today_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) >= 30 ? 'text-green-700' : 'text-red-700'
+                                    vend.is_active ?
+                                    ((vend.vendTransactionTotalsJson['today_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) >= 30 ? 'text-green-700' : 'text-red-700') :
+                                    'text-gray-400'
                                 ]">
                                     {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['today_amount'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                                     ({{vend.vendTransactionTotalsJson['today_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
@@ -659,7 +661,9 @@
                                 <span
                                 v-if="vend.vendTransactionTotalsJson && 'yesterday_amount' in vend.vendTransactionTotalsJson"
                                 :class="[
-                                    (vend.vendTransactionTotalsJson['yesterday_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) >= 30 ? 'text-green-700' : 'text-red-700'
+                                    vend.is_active ?
+                                    ((vend.vendTransactionTotalsJson['yesterday_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) >= 30 ? 'text-green-700' : 'text-red-700') :
+                                    'text-gray-400'
                                 ]">
                                     <br>
                                     {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['yesterday_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
@@ -668,7 +672,9 @@
                                 <span
                                 v-if="vend.vendTransactionTotalsJson && 'seven_days_amount' in vend.vendTransactionTotalsJson"
                                 :class="[
-                                    (vend.vendTransactionTotalsJson['seven_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) > 200 ? 'text-green-700' : 'text-red-700'
+                                    vend.is_active ?
+                                    ((vend.vendTransactionTotalsJson['seven_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) > 200 ? 'text-green-700' : 'text-red-700') :
+                                    'text-gray-400'
                                 ]">
                                     <br>
                                     {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['seven_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}({{vend.vendTransactionTotalsJson['seven_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
@@ -676,7 +682,9 @@
                                 <span
                                 v-if="vend.vendTransactionTotalsJson && 'thirty_days_amount' in vend.vendTransactionTotalsJson"
                                 :class="[
-                                    (vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) > 1000 ? 'text-green-700' : 'text-red-700'
+                                    vend.is_active ?
+                                    ((vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) > 1000 ? 'text-green-700' : 'text-red-700') :
+                                    'text-gray-400'
                                 ]">
                                     <br>
                                     {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}({{vend.vendTransactionTotalsJson['thirty_days_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
@@ -697,7 +705,7 @@
                                     </div>
                                     <div
                                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                        :class="[vend.is_online ? 'bg-green-200' : 'bg-red-200']"
+                                        :class="[vend.is_active ? (vend.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
                                     >
                                         <div class="flex flex-col">
                                             <span class="font-bold">
@@ -711,7 +719,7 @@
                                     </div>
                                     <div
                                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                        :class="[vend.parameterJson['Sensor'] % 2 == 0 ? 'bg-red-200' : 'bg-green-200']"
+                                        :class="[vend.is_active ? (vend.parameterJson['Sensor'] % 2 == 0 ? 'bg-red-200' : 'bg-green-200') : 'bg-gray-200 text-gray-400']"
                                         v-if="vend.parameterJson"
                                     >
                                         <div class="flex flex-col">
@@ -724,7 +732,8 @@
                                         </div>
                                     </div>
                                     <div
-                                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-green-200"
+                                        class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                        :class="[vend.is_active ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
                                         v-if="vend.parameterJson && 'fan' in vend.parameterJson"
                                     >
                                         <div class="flex flex-col">
@@ -738,7 +747,7 @@
                                     </div>
                                     <div
                                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                        :class="[vend.parameterJson['door'] == 'close' ? 'bg-green-200' : 'bg-red-200']"
+                                        :class="[vend.is_active ? (vend.parameterJson['door'] == 'close' ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
                                         v-if="vend.parameterJson && vend.parameterJson['door']"
                                     >
                                         <div class="flex flex-col">
@@ -752,7 +761,7 @@
                                     </div>
                                     <div
                                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                        :class="[vend.parameterJson['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200']"
+                                        :class="[vend.is_active ? (vend.parameterJson['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
                                         v-if="vend.parameterJson && vend.parameterJson['CoinCnt']"
                                     >
                                         <div class="flex flex-col">
@@ -766,7 +775,7 @@
                                     </div>
                                     <div
                                         class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                        :class="[vend.is_mqtt_active ? 'bg-green-200' : 'bg-gray-200']"
+                                        :class="[vend.is_active ? (vend.is_mqtt_active ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
                                         v-if="vend.is_mqtt"
                                     >
                                         <div class="flex flex-col">
@@ -781,33 +790,35 @@
                                 </div>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span v-if="vend.cms_invoice_history && 'last_delivery_driver' in vend.cms_invoice_history">
+                                <span v-if="vend.cms_invoice_history && 'last_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                                     {{ vend.cms_invoice_history['last_delivery_driver'] }} <br>
                                 </span>
-                                <span>
+                                <span :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                                     {{ vend.last_invoice_date }} <br>
                                     {{ vend.last_invoice_diff }}
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span>
+                                <span  :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                                     {{ vend.next_invoice_date }} <br>
                                     {{ vend.next_invoice_diff }}
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                <span :class="[vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700']">
+                                <span :class="[vend.is_active ? (vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
                                     {{ operatorCountry.currency_symbol }}{{ vend.virtual_vend_records_thirty_days_amount_average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <span
                                 v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_latest' in vend.vendTransactionTotalsJson"
+                                :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'"
                                 >
-                                {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_latest'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                                    {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_latest'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                                 </span>
                                 <span
-                                v-if="vend.begin_date"
+                                    v-if="vend.begin_date"
+                                    :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'"
                                 >
                                     <br>
                                     {{ vend.begin_date_short }}
@@ -815,18 +826,22 @@
                                 <br>
                                 <span
                                 v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson"
-                                :class="getVendRecordsAmountAverageDayClass(vend.vendTransactionTotalsJson['vend_records_amount_average_day'])"
+                                :class="[ vend.is_active ? getVendRecordsAmountAverageDayClass(vend.vendTransactionTotalsJson['vend_records_amount_average_day']) : 'text-gray-400']"
                                 >
                                     {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_average_day'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                                 </span>
                             </TableData>
 
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.postcode }}
+                                <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
+                                    {{ vend.postcode }}
+                                </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.parameterJson && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
-                                <span class="text-blue-600" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
+                                <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
+                                    {{ vend.parameterJson && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
+                                </span>
+                                <span class="text-blue-600" :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
                                     <br>Apk: {{ vend.apkVerJson['apkver'] }}
                                     <span v-if="vend.apkVerJson && 'buildtime' in vend.apkVerJson">
                                         {{ moment(new Date(vend.apkVerJson['buildtime'])).format('YYMMDD HH:mm:ss')  }}
@@ -834,22 +849,17 @@
                                 </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.location_type_name }}
+                                <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
+                                    {{ vend.location_type_name }}
+                                </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                                {{ vend.account_manager_name }}
+                                <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
+                                    {{ vend.account_manager_name }}
+                                </span>
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="flex justify-center space-x-1">
-                                    <!-- <Button
-                                        type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-                                        @click="onEditClicked(vend)"
-                                    >
-                                        <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                                        <span>
-                                            Edit
-                                        </span>
-                                    </Button> -->
                                     <Link :href="'/vends/' + vend.id + '/edit'">
                                         <Button
                                         type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
