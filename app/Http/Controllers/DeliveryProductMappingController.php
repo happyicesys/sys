@@ -361,13 +361,15 @@ class DeliveryProductMappingController extends Controller
         if($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
             foreach($deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
                 $deliveryProductMappingVend->update([
-                    'is_active' => ! $deliveryProductMapping->is_active,
+                    'is_active' => false,
                 ]);
+
+                $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend);
             }
         }
 
         $deliveryProductMapping->update([
-            'is_active' => ! $deliveryProductMapping->is_active,
+            'is_active' => false,
         ]);
 
         return redirect()->route('delivery-product-mappings.edit', [$id]);
