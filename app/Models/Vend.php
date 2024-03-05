@@ -379,7 +379,7 @@ class Vend extends Model
         ->when($request->customer, function($query, $search) {
             if(strpos($search, "-")) {
                 $searchArray = explode("-", $search);
-                $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                $query->whereHas('latestVendBinding.customer', function($query) use ($searchArray) {
                     $query->where('virtual_customer_prefix', $searchArray[0])
                     ->where('virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
                 });
