@@ -333,11 +333,11 @@ class DeliveryProductMappingController extends Controller
                     $query
                     ->whereIn('vends.id', DB::table('operator_vend')
                     ->where('operator_id', $deliveryProductMapping->operator_id)
-                    ->pluck('vend_id'))
-                    ->whereDoesntHave('deliveryProductMappingVends.deliveryProductMapping', function($query) use ($deliveryProductMapping) {
-                        $query->where('delivery_platform_operator_id', $deliveryProductMapping->delivery_platform_operator_id);
-                    })
-                    ->orDoesntHave('deliveryProductMappingVends.deliveryProductMapping');
+                    ->pluck('vend_id'));
+                    // ->whereDoesntHave('deliveryProductMappingVends.deliveryProductMapping', function($query) use ($deliveryProductMapping) {
+                    //     $query->where('delivery_platform_operator_id', $deliveryProductMapping->delivery_platform_operator_id);
+                    // })
+                    // ->orDoesntHave('deliveryProductMappingVends.deliveryProductMapping');
 
                     if($deliveryProductMapping->deliveryPlatformOperator->type == 'production') {
                         $query->has('latestVendBinding');
