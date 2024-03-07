@@ -10,6 +10,7 @@ use App\Models\LocationType;
 use App\Models\Profile;
 use App\Models\Status;
 use App\Models\Vend;
+use App\Models\VendBinding;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -180,19 +181,36 @@ class SyncVendCustomerCms implements ShouldQueue
             }
 
             if($this->vendId) {
-                $beginDate = isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'];
-                if($beginDate and Carbon::parse($beginDate)->lt(Carbon::parse('2023-01-01')->startOfDay())) {
-                    $beginDate = '2023-01-01';
-                }
+                // $beginDate = isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'];
+                // if($beginDate and Carbon::parse($beginDate)->lt(Carbon::parse('2023-01-01')->startOfDay())) {
+                //     $beginDate = '2023-01-01';
+                // }
 
                 $vend = Vend::findOrFail($this->vendId);
-                $customer->latestVendBinding()->updateOrCreate([
-                    'vend_id' => $vend->id,
-                    'customer_id' => $customer->id,
-                    ],[
-                    'begin_date' => $beginDate,
-                    'person_id' => $customerCollection['id'],
-                ]);
+
+                if($vend && $customer) {
+                    $vendBinding = VendBinding::where('vend_id', $vend->id)->where('customer_id', $customer->id)->latest()->first();
+                    $vendBinding->is_active = true;
+                    $vendBinding->termination_date = null;
+                    $vendBinding->save();
+
+                    if(!$vendBinding) {
+                        $vendBinding = VendBinding::create([
+                            'vend_id' => $vend->id,
+                            'customer_id' => $customer->id,
+                            'begin_date' => Carbon::now(),
+                        ]);
+                    }
+                }
+
+
+                // $customer->latestVendBinding()->updateOrCreate([
+                //     'vend_id' => $vend->id,
+                //     'customer_id' => $customer->id,
+                //     ],[
+                //     'begin_date' => $beginDate,
+                //     'person_id' => $customerCollection['id'],
+                // ]);
 
                 // call back point to cms to update vend code
                 Http::get($this->callBackVendCodeEndPoint.$vend->code);

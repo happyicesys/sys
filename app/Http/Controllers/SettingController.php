@@ -161,12 +161,12 @@ class SettingController extends Controller
                 'is_active' => true,
                 'termination_date' => null,
             ]);
-            // if($vend->firstVendBinding()->exists()) {
-            //     $vend->firstVendBinding->update([
-            //         'is_active' => true,
-            //         'termination_date' => null,
-            //     ]);
-            // }
+            if($vend->latestVendBinding()->exists()) {
+                $vend->latestVendBinding->update([
+                    'is_active' => true,
+                    'termination_date' => null,
+                ]);
+            }
         }
 
         return redirect()->route('settings.edit', [$vendId, 'update']);
