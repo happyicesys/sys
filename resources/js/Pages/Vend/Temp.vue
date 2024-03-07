@@ -25,7 +25,7 @@
         <div class="p-4 sm:px-6 lg:px-8">
             <div class="flex flex-col items-start pl-1">
                 <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.customer_code">
-                    {{ vend.customer_code }}
+                    {{ vend.virtual_customer_prefix }}-{{ vend.virtual_customer_code }}
                 </h2>
                 <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.customer_name">
                     {{ vend.customer_name }}

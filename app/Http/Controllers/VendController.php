@@ -316,6 +316,8 @@ class VendController extends Controller
                 'vends.id',
                 'vends.code',
                 'vends.name',
+                'customers.virtual_customer_prefix',
+                'customers.virtual_customer_code',
                 'customers.code AS customer_code',
                 'customers.name AS customer_name',
                 'parameter_json',

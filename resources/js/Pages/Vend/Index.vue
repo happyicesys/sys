@@ -1176,7 +1176,11 @@
     }
 
     function onVendTempClicked(vendId, type) {
-        router.get('/vends/' + vendId + '/temp/' + type)
+
+        const url = '/vends/' + vendId + '/temp/' + type
+
+        window.open(url, '_blank')
+        // router.get('/vends/' + vendId + '/temp/' + type)
     }
 
     function resetFilters() {
