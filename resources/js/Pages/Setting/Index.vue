@@ -251,7 +251,7 @@
                           >
                             <div class="flex flex-col">
                               <span class="font-bold">
-                                {{vend.is_active ? 'Active' : 'Inactive'}}
+                                {{vend.is_active ? 'Active' : 'Not Active'}}
                               </span>
                             </div>
                           </div>

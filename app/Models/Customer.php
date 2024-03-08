@@ -20,7 +20,7 @@ class Customer extends Model
         self::STATUS_NEW => 'New',
         self::STATUS_PENDING => 'Pending',
         self::STATUS_ACTIVE => 'Active',
-        self::STATUS_INACTIVE => 'Inactive',
+        self::STATUS_INACTIVE => 'Not Active',
     ];
 
     protected static function booted()

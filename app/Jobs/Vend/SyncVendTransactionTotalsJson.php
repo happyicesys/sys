@@ -45,13 +45,12 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
             return;
         }
 
-        // dd($customer->daysVendTransactions(0, 0)->sum('amount'));
-        // Retrieve today's date
-        $today = Carbon::today();
+        $timezone = $customer->operator ? $customer->operator->timezone : 'Asia/Singapore';
+        $today = Carbon::today()->setTimezone($timezone);
 
         // Calculate the begin and termination dates of the latest binding
-        $latestBindingBeginDate = $customer->latestVendBinding ? Carbon::parse($customer->latestVendBinding->begin_date) : $customer->created_at;
-        $latestBindingTerminationDate = $customer->latestVendBinding ? Carbon::parse($customer->latestVendBinding->termination_date) : Carbon::now();
+        $latestBindingBeginDate = $customer->latestVendBinding ? Carbon::parse($customer->latestVendBinding->begin_date)->setTimezone($timezone) : $customer->created_at;
+        $latestBindingTerminationDate = $customer->latestVendBinding ? Carbon::parse($customer->latestVendBinding->termination_date)->setTimezone($timezone) : Carbon::now()->setTimezone($timezone);
 
         // Calculate the date ranges for different periods
         $todayTransactions = $customer->daysVendTransactions(0, 0);
