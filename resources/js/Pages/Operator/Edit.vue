@@ -357,6 +357,11 @@
                 </FormInput>
               </div>
 
+              <div class="sm:col-span-3" v-if="form.id && form.delivery_platform">
+                <FormInput v-model="form.endpoint" :error="form.errors.endpoint">
+                  Endpoint
+                </FormInput>
+              </div>
 
               <div class="sm:col-span-3" v-if="form.id && form.delivery_platform">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -379,7 +384,7 @@
                   {{ form.errors.delivery_platform_type }}
                 </div>
               </div>
-              <div class="sm:col-span-6 flex justify-end" v-if="form.id && form.delivery_platform">
+              <div class="sm:col-span-6 flex justify-end pt-2" v-if="form.id && form.delivery_platform">
                 <Button
                 type="button"
                 @click="storeDeliveryPlatformOperator()"
@@ -659,6 +664,7 @@ function getDefaultForm() {
     delivery_platform_field4: '',
     delivery_platform_oauth_client_id: '',
     delivery_platform_oauth_client_secret: '',
+    endpoint: '',
     payment_gateway_id: '',
     payment_gateway_type: '',
     payment_gateway_key1: '',
