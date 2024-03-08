@@ -110,17 +110,18 @@ class VendController extends Controller
         $request->merge(['sortBy' => isset($request->sortBy) ? $request->sortBy : true]);
         $className = get_class(new Customer());
 
-        $vends = DB::table('vend_bindings')
-            // ->leftJoinSub(
-            //     VendBinding::query()
-            //         ->select('vend_id', 'customer_id', DB::raw('MAX(begin_date) as begin_date'))
-            //         ->groupBy('vend_id'),
-            //     'vend_bindings',
-            //     function ($join) {
-            //         $join->on('vend_bindings.customer_id', '=', 'customers.id');
-            //     }
-            // )
-            ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
+        $vends = DB::table('customers')
+        // DB::table('vend_bindings')
+            ->leftJoinSub(
+                VendBinding::query()
+                    ->select('vend_id', 'customer_id', 'is_active', DB::raw('MAX(begin_date) as begin_date'), 'snap_vend_status_json', 'snap_parameter_json', 'snap_vend_channels_json', 'snap_vend_channel_error_logs_json')
+                    ->groupBy('customer_id'),
+                'vend_bindings',
+                function ($join) {
+                    $join->on('vend_bindings.customer_id', '=', 'customers.id');
+                }
+            )
+            // ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
             ->leftJoin('vends', 'vends.id', '=', 'vend_bindings.vend_id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
@@ -134,7 +135,7 @@ class VendController extends Controller
                         ->limit(1);
             })
             ->select(
-                'vend_bindings.id AS id',
+                'customers.id AS id',
                 'vends.amount_average_day',
                 'vend_bindings.begin_date',
                 'vends.code',
