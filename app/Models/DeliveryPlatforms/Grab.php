@@ -496,7 +496,8 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
             'client_id' => $this->deliveryPlatformOperator->externalOauthToken->client_id,
             'client_secret' => $this->deliveryPlatformOperator->externalOauthToken->client_secret,
             'grant_type' => $this->deliveryPlatformOperator->externalOauthToken->granted_type,
-            'scope' => $this->getScope(),
+            // 'scope' => $this->getScope(),
+            'scope' => $this->deliveryPlatformOperator->externalOauthToken->scopes,
         ]);
 
         return $this->getResponse($response, 'getGrabOAuthToken');

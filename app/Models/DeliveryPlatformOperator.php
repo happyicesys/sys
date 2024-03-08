@@ -19,6 +19,7 @@ class DeliveryPlatformOperator extends Model
         'field2',
         'field3',
         'field4',
+        'scope',
         'type',
     ];
 
