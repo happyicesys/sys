@@ -160,10 +160,10 @@ class SyncVendCustomerCms implements ShouldQueue
                     'location_type_id' => isset($locationTypeId) ? $locationTypeId : null,
                     'created_at' => $customerCollection['created_at'],
                 ]);
-                dd($customerCollection['delivery_country'], $customerCollection['del_postcode'], $customerCollection);
+                // dd($customerCollection['delivery_country'], $customerCollection['del_postcode'], $customerCollection);
                 if(isset($customerCollection['delivery_country']) and isset($customerCollection['del_postcode'])) {
                     $deliveryCountry = $customerCollection['delivery_country'];
-                    $deliveryPostcode = trim($customerCollection['del_postcode']);
+                    $deliveryPostcode = $customerCollection['del_postcode'];
 
                     $deliveryCountryCol = Country::where('name', $deliveryCountry['name'])->first();
 
@@ -171,7 +171,7 @@ class SyncVendCustomerCms implements ShouldQueue
                         $customer->addresses()->updateOrCreate([
                             'type' => 2,
                         ], [
-                            'postcode' => $deliveryPostcode,
+                            'postcode' => trim($deliveryPostcode),
                             'country_id' => $deliveryCountryCol->id,
                         ]);
                     }
