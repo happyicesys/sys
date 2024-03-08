@@ -163,7 +163,7 @@ class SyncVendCustomerCms implements ShouldQueue
 
                 if(isset($customerCollection['delivery_country']) and isset($customerCollection['del_postcode'])) {
                     $deliveryCountry = $customerCollection['delivery_country'];
-                    $deliveryPostcode = $customerCollection['del_postcode'];
+                    $deliveryPostcode = trim($customerCollection['del_postcode']);
 
                     $deliveryCountryCol = Country::where('name', $deliveryCountry['name'])->first();
 
