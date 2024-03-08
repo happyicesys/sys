@@ -161,21 +161,21 @@ class SyncVendCustomerCms implements ShouldQueue
                     'created_at' => $customerCollection['created_at'],
                 ]);
                 // dd($customerCollection['delivery_country'], $customerCollection['del_postcode'], $customerCollection);
-                if(isset($customerCollection['delivery_country']) and isset($customerCollection['del_postcode'])) {
-                    $deliveryCountry = $customerCollection['delivery_country'];
-                    $deliveryPostcode = $customerCollection['del_postcode'];
+                // if(isset($customerCollection['delivery_country']) and isset($customerCollection['del_postcode'])) {
+                //     $deliveryCountry = $customerCollection['delivery_country'];
+                //     $deliveryPostcode = $customerCollection['del_postcode'];
 
-                    $deliveryCountryCol = Country::where('name', $deliveryCountry['name'])->first();
+                //     $deliveryCountryCol = Country::where('name', $deliveryCountry['name'])->first();
 
-                    if($deliveryCountryCol and $deliveryCountryCol->name == 'Singapore') {
-                        $customer->addresses()->updateOrCreate([
-                            'type' => 2,
-                        ], [
-                            'postcode' => trim($deliveryPostcode),
-                            'country_id' => $deliveryCountryCol->id,
-                        ]);
-                    }
-                }
+                //     if($deliveryCountryCol and $deliveryCountryCol->name == 'Singapore') {
+                //         $customer->addresses()->updateOrCreate([
+                //             'type' => 2,
+                //         ], [
+                //             'postcode' => trim($deliveryPostcode),
+                //             'country_id' => $deliveryCountryCol->id,
+                //         ]);
+                //     }
+                // }
             }
 
             if($this->vendId) {
