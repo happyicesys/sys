@@ -32,6 +32,7 @@ class AuthServiceProvider extends ServiceProvider
 
         Passport::tokensCan([
             'mart.partner_api' => 'Grab Mart Delivery API',
+            'food.partner_api' => 'Grab Food Delivery API',
         ]);
 
         // Passport::loadKeysFrom(__DIR__.'/../secrets/oauth');
