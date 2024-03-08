@@ -526,7 +526,17 @@
                             </TableData>
                             <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                                 <div class="flex flex-col items-center space-y-1">
-                                    <button
+                                    <a :href="'/vends/' + vend.id + '/temp/' + 1 " target="_blank" class="w-full">
+                                        <button
+                                        type="button"
+                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
+                                        :class="[vend.is_online ? (vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                        v-if="vend.temp_updated_at"
+                                        >
+                                            {{ vend.is_temp_error ? 'Error' : vend.temp }}
+                                        </button>
+                                    </a>
+                                    <!-- <button
                                         type="button"
                                         class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
                                         :class="[vend.is_online ? (vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
@@ -534,34 +544,38 @@
                                         v-if="vend.temp_updated_at"
                                     >
                                         {{ vend.is_temp_error ? 'Error' : vend.temp }}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                        :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
-                                        @click="onVendTempClicked(vend.id, 2)"
-                                        v-if="vend.parameterJson && 't2' in vend.parameterJson"
-                                    >
-                                        {{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                        :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t3'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
-                                        @click="onVendTempClicked(vend.id, 3)"
-                                        v-if="vend.parameterJson && vend.parameterJson['t3'] && vend.parameterJson['t3'] != constTempError"
-                                    >
-                                        {{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                        :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t4'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
-                                        @click="onVendTempClicked(vend.id, 4)"
-                                        v-if="vend.parameterJson && vend.parameterJson['t4'] && vend.parameterJson['t4'] != constTempError"
-                                    >
-                                        {{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)
-                                    </button>
+                                    </button> -->
+                                    <a :href="'/vends/' + vend.id + '/temp/' + 2 " target="_blank" class="w-full">
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
+                                            :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                            v-if="vend.parameterJson && 't2' in vend.parameterJson"
+                                        >
+                                        <!-- @click="onVendTempClicked(vend.id, 2)" -->
+                                            {{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)
+                                        </button>
+                                    </a>
+                                    <a :href="'/vends/' + vend.id + '/temp/' + 3 " target="_blank" class="w-full">
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
+                                            :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t3'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                            v-if="vend.parameterJson && vend.parameterJson['t3'] && vend.parameterJson['t3'] != constTempError"
+                                        >
+                                            {{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)
+                                        </button>
+                                    </a>
+                                    <a :href="'/vends/' + vend.id + '/temp/' + 4 " target="_blank" class="w-full">
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
+                                            :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t4'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                            v-if="vend.parameterJson && vend.parameterJson['t4'] && vend.parameterJson['t4'] != constTempError"
+                                        >
+                                            {{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)
+                                        </button>
+                                    </a>
                                     <span class="mt-1">
                                         {{ vend.temp_updated_at }}
                                     </span>
@@ -953,8 +967,7 @@
   import TableHeadSort from '@/Components/TableHeadSort.vue';
   import SingleSortItem from '@/Components/SingleSortItem.vue';
   import { ref, onMounted } from 'vue';
-  import { router, Link } from '@inertiajs/vue3';
-  import { Head, usePage } from '@inertiajs/vue3';
+  import { router, Link, Head, usePage } from '@inertiajs/vue3';
   import moment from 'moment';
   import axios from 'axios';
 
