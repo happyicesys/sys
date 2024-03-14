@@ -153,7 +153,7 @@ class DeliveryPlatformService
       }
 
       // sync order qty to delivery product mapping vend channel
-      $this->deliveryProductMappingService->syncDeliveryProductMappingVendChannelOrderQty($item->deliveryProductMappingVendChannel, $item->qty, false);
+      $this->deliveryProductMappingService->syncVendChannelOrderQty($item->deliveryProductMappingVendChannel, $item->qty, false);
     }
 
     // get dispense parameters
@@ -505,7 +505,7 @@ class DeliveryPlatformService
             'qty' => $deliveryPlatformOrderItem->qty,
           ]);
 
-          $this->deliveryProductMappingService->syncDeliveryProductMappingVendChannelOrderQty($deliveryProductMappingVendChannel, $deliveryPlatformOrderItem->qty, true);
+          $this->deliveryProductMappingService->syncVendChannelOrderQty($deliveryProductMappingVendChannel, $deliveryPlatformOrderItem->qty, true);
         }
       }else {
         // handle multiple vend channel same product id case
@@ -541,7 +541,7 @@ class DeliveryPlatformService
     $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems;
     foreach($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
       foreach($deliveryProductMappingVendChannels as $deliveryProductMappingVendChannel) {
-        $this->deliveryProductMappingService->syncDeliveryProductMappingVendChannelOrderQty($deliveryProductMappingVendChannel, $deliveryPlatformOrderItem->qty, $isAddition);
+        $this->deliveryProductMappingService->syncVendChannelOrderQty($deliveryProductMappingVendChannel, $deliveryPlatformOrderItem->qty, $isAddition);
       }
     }
   }
