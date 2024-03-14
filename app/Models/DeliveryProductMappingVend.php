@@ -19,6 +19,7 @@ class DeliveryProductMappingVend extends Model
         'delivery_product_mapping_vend_channels_json',
         'end_date',
         'is_active',
+        'last_menu_json',
         'platform_ref_id',
         'start_date',
         'vend_code',
@@ -28,6 +29,7 @@ class DeliveryProductMappingVend extends Model
     protected $casts = [
         'delivery_product_mapping_vend_channels_json' => 'json',
         'end_date' => 'datetime',
+        'last_menu_json' => 'json',
         'start_date' => 'datetime',
     ];
 

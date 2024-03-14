@@ -300,6 +300,10 @@ class DeliveryPlatformService
             ]],
           ];
 
+          $deliveryProductMappingVend->update([
+            'last_menu_json' => $response,
+          ]);
+
         return $response;
       break;
     }

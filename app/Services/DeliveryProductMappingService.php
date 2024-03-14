@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\NotifyDeliveryPlatformUpdateMenu;
 use App\Jobs\SyncDeliveryProductMappingVendChannels;
 use App\Models\DeliveryPlatforms\Grab;
+use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryProductMappingVendChannel;
@@ -37,13 +38,61 @@ class DeliveryProductMappingService
     }
 
     // sync delivery product mapping vend channel order qty by adding when order created and subtract when order retrieved or expired
-    public function syncDeliveryProductMappingVendChannelOrderQty(
+    public function syncVendChannelOrderQty(
       DeliveryProductMappingVendChannel $deliveryProductMappingVendChannel,
       $orderQty,
       $isAddition = true
     )
     {
       if($isAddition) {
+        $deliveryProductMappingVendChannel->order_qty = ($deliveryProductMappingVendChannel->order_qty + $orderQty) > 0 ? ($deliveryProductMappingVendChannel->order_qty + $orderQty) : 0;
+      }else {
+        $deliveryProductMappingVendChannel->order_qty = ($deliveryProductMappingVendChannel->order_qty - $orderQty) > 0 ? ($deliveryProductMappingVendChannel->order_qty - $orderQty) : 0;
+      }
+      $historyOrderQty = $deliveryProductMappingVendChannel->order_qty_json ?? [];
+      $historyOrderQty[] = [
+        'previous_order_qty' => $deliveryProductMappingVendChannel->order_qty,
+        'order_qty' => $orderQty,
+        'is_addition' => $isAddition,
+        'created_at' => Carbon::now()->toDateTimeString(),
+      ];
+      $deliveryProductMappingVendChannel->order_qty_json = $historyOrderQty;
+      $deliveryProductMappingVendChannel->save();
+    }
+
+        // sync delivery product mapping vend channel order qty by adding when order created and subtract when order retrieved or expired
+    public function syncVendChannelOrderQtyByDeliveryOrder(
+      DeliveryPlatformOrder $deliveryPlatformOrder,
+      $isAddition = true
+    )
+    {
+      if($deliveryPlatformOrder->orderItemVendChannels()->exists()) {
+        foreach($deliveryPlatformOrder->orderItemVendChannels as $orderItemVendChannel) {
+          if($orderItemVendChannel->deliveryProductMappingVendChannel) {
+            $deliveryProductMappingVendChannel = $orderItemVendChannel->deliveryProductMappingVendChannel;
+            $orderQty = $orderItemVendChannel->qty;
+            if($isAddition) {
+              $deliveryProductMappingVendChannel->order_qty = ($deliveryProductMappingVendChannel->order_qty + $orderQty) > 0 ? ($deliveryProductMappingVendChannel->order_qty + $orderQty) : 0;
+            }else {
+              $deliveryProductMappingVendChannel->order_qty = ($deliveryProductMappingVendChannel->order_qty - $orderQty) > 0 ? ($deliveryProductMappingVendChannel->order_qty - $orderQty) : 0;
+            }
+            $historyOrderQty = $deliveryProductMappingVendChannel->order_qty_json ?? [];
+            $historyOrderQty[] = [
+              'previous_order_qty' => $deliveryProductMappingVendChannel->order_qty,
+              'order_qty' => $orderQty,
+              'is_addition' => $isAddition,
+              'created_at' => Carbon::now()->toDateTimeString(),
+            ];
+            $deliveryProductMappingVendChannel->order_qty_json = $historyOrderQty;
+            $deliveryProductMappingVendChannel->save();
+          }
+        }
+      }
+
+
+      if($isAddition) {
+
+
         $deliveryProductMappingVendChannel->order_qty = ($deliveryProductMappingVendChannel->order_qty + $orderQty) > 0 ? ($deliveryProductMappingVendChannel->order_qty + $orderQty) : 0;
       }else {
         $deliveryProductMappingVendChannel->order_qty = ($deliveryProductMappingVendChannel->order_qty - $orderQty) > 0 ? ($deliveryProductMappingVendChannel->order_qty - $orderQty) : 0;
