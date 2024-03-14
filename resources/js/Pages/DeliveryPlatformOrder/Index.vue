@@ -256,7 +256,9 @@
                       </div>
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
-                      {{ deliveryPlatformOrder.vend_code }} <br>
+                      <span class="text-blue-800">
+                        {{ deliveryPlatformOrder.vend_code }} <br>
+                      </span>
                       {{ deliveryPlatformOrder.deliveryProductMappingVend.vend.cust_full_name }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">

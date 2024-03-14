@@ -51,8 +51,8 @@ class SettingController extends Controller
 
         $vends = Vend::query()
             ->with([
-                'latestOperator:id,code,name',
-                'latestVendBinding.customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix',
+                'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix',
+                'customer.operator:id,code,name',
             ])
             ->filterIndex($request)
             ->select(
@@ -60,6 +60,7 @@ class SettingController extends Controller
                 'vends.id',
                 'vends.begin_date',
                 'vends.code',
+                'vends.customer_id',
                 'vends.apk_ver_json',
                 'vends.serial_num',
                 'vends.is_active',
@@ -98,29 +99,20 @@ class SettingController extends Controller
     {
         if($id) {
             $vend = Vend::query()
-                ->leftJoin('vend_bindings', function($query) {
-                    $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                            ->where('vend_bindings.is_active', true)
-                            ->latest('vend_bindings.begin_date')
-                            ->limit(1);
-                })
-                ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
-                ->leftJoin('operator_vend', function($query) {
-                    $query->on('operator_vend.vend_id', '=', 'vends.id')
-                            ->latest('operator_vend.begin_date')
-                            ->limit(1);
-                })
+                ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+                ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
                 ->select(
                     '*',
                     'vends.id',
                     'vends.begin_date',
                     'vends.code',
+                    'vends.is_active AS vend_is_active',
                     'vends.name',
                     'vends.termination_date',
                     'customers.id AS customer_id',
-                    'customers.code AS customer_code',
+                    DB::raw('IF(customers.person_id, CONCAT(customers.virtual_customer_code, " (", customers.virtual_customer_prefix, ")"), customers.code) AS customer_code'),
                     'customers.name AS customer_name',
-                    'vends.is_active'
+                    'customers.is_active AS customer_is_active',
                     )
                 ->where('vends.id', $id)
                 ->first();
@@ -150,8 +142,8 @@ class SettingController extends Controller
                 'is_active' => false,
                 'termination_date' => Carbon::now(),
             ]);
-            if($vend->latestVendBinding()->exists()) {
-                $vend->latestVendBinding->update([
+            if($vend->customer()->exists()) {
+                $vend->customer->update([
                     'is_active' => false,
                     'termination_date' => Carbon::now(),
                 ]);
@@ -161,8 +153,8 @@ class SettingController extends Controller
                 'is_active' => true,
                 'termination_date' => null,
             ]);
-            if($vend->latestVendBinding()->exists()) {
-                $vend->latestVendBinding->update([
+            if($vend->customer()->exists()) {
+                $vend->customer->update([
                     'is_active' => true,
                     'termination_date' => null,
                 ]);

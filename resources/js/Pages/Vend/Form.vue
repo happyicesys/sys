@@ -67,7 +67,7 @@
               <Button
                 type="button"
                 class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1"
-                v-if="vend.latestVendBinding && vend.latestVendBinding.customer && permissions.includes('update vends')"
+                v-if="vend && vend.customer && permissions.includes('update vends')"
                 @click="unbindCustomer(form.id)"
               >
                 <ArrowUturnDownIcon class="w-4 h-4"></ArrowUturnDownIcon>

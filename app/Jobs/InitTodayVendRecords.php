@@ -30,25 +30,15 @@ class InitTodayVendRecords implements ShouldQueue
     public function handle(): void
     {
         $vends = Vend::query()
-            ->has('latestVendBinding')
-            ->leftJoin('vend_bindings', function($query) {
-                $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                        ->where('vend_bindings.is_active', true)
-                        ->latest('begin_date')
-                        ->limit(1);
-            })
-            ->leftJoin('operator_vend', function($query) {
-                $query->on('operator_vend.vend_id', '=', 'vends.id')
-                        ->latest('operator_vend.begin_date')
-                        ->limit(1);
-            })
+            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
             ->select(
                 'vends.id as id',
                 'vends.code as code',
-                'operator_vend.operator_id as operator_id',
-                'vend_bindings.customer_id as customer_id'
+                'operators.id as operator_id',
+                'customers.id as customer_id'
             )
-            ->where('vends.is_active', true)
+            ->where('customers.is_active', true)
             ->get();
 
         foreach($vends as $vend) {
@@ -64,39 +54,6 @@ class InitTodayVendRecords implements ShouldQueue
                 'operator_id' => $vend->operator_id,
                 'year' => Carbon::yesterday()->year,
                 'vend_code' => $vend->code,
-            ]);
-        }
-
-        $unbindVends = Vend::query()
-        ->leftJoin('operator_vend', function($query) {
-            $query->on('operator_vend.vend_id', '=', 'vends.id')
-                    ->latest('operator_vend.created_at')
-                    ->limit(1);
-        })
-        ->doesntHave('vendBindings')
-        ->has('operators')
-        ->select(
-            'vends.id as id',
-            'vends.code as code',
-            'operator_vend.operator_id as operator_id'
-        )
-        ->whereNull('vends.termination_date')
-        ->where('vends.last_updated_at', '>=', Carbon::now()->subDays(3)->startOfDay())
-        ->where('vends.is_active', true)
-        ->get();
-
-        foreach($unbindVends as $unbindVend) {
-            VendRecord::updateOrCreate([
-                'vend_id' => $unbindVend->id,
-                'date' => Carbon::yesterday()->toDateString(),
-            ],
-            [
-                'day' => Carbon::yesterday()->day,
-                'month' => Carbon::yesterday()->month,
-                'monthname' => Carbon::yesterday()->format('F'),
-                'operator_id' => $unbindVend->operator_id,
-                'year' => Carbon::yesterday()->year,
-                'vend_code' => $unbindVend->code,
             ]);
         }
     }

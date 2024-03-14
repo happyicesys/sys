@@ -117,7 +117,7 @@ class DeliveryPlatformCampaignController extends Controller
                             ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
                 },
                 'deliveryProductMapping.deliveryProductMappingVends.vend:id,code,name',
-                'deliveryProductMapping.deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
+                'deliveryProductMapping.deliveryProductMappingVends.vend.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
             ])
             ->findOrFail($id);
 
@@ -134,7 +134,7 @@ class DeliveryPlatformCampaignController extends Controller
                 'deliveryPlatformCampaignItemVends.deliveryPlatformCampaign',
                 'deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
                 'vend:id,code,name',
-                'vend.latestVendBinding.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
+                'vend.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
             ])
             ->when($id, function($query, $search) {
                 $query->whereHas('deliveryProductMapping.deliveryPlatformCampaign', function($query) use ($search) {

@@ -189,7 +189,7 @@ class VendDataService
 
     if(isset($originalInput['m'])) {
 
-      $vend = Vend::with('latestVendBinding.customer')->where('code', $originalInput['m'])->first();
+      $vend = Vend::with('customer')->where('code', $originalInput['m'])->first();
 
       if(!$vend) {
         return $response;

@@ -14,15 +14,24 @@
         <MagnifyingGlassCircleIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
       </ComboboxButton>
 
-      <ComboboxOptions v-if="options.length > 0" class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+      <ComboboxOptions v-if="options && options.length > 0" class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
         <ComboboxOption v-for="option in options"  as="template">
           <li class="relative cursor-default select-none py-2 pl-3 pr-9 hover:bg-gray-100" @click="selected(option)">
             <span class="block truncate">
-              {{ option.ADDRESS }}
+              {{ option.vend.code }}
+              <span v-if="option.person_id">
+                - {{ option.virtual_customer_code }} ({{ option.virtual_customer_prefix }}) - {{ option.name }}
+              </span>
+              <span v-if="option.operator">
+                - [{{ option.operator.name }}]
+              </span>
             </span>
           </li>
         </ComboboxOption>
       </ComboboxOptions>
+      <div class="text-sm text-red-600" v-if="error">
+        {{ error }}
+      </div>
     </div>
   </Combobox>
 </template>
@@ -40,21 +49,30 @@ import {
 } from '@headlessui/vue'
 
 defineProps({
-  modelValue: String,
+  modelValue: [String, Number],
   required: [Boolean, String],
+  error: String,
 })
 
 const emit = defineEmits(['update:modelValue', 'selected'])
 
 const options = ref([])
 
+
 const fetchAddresses = _.debounce(async (e) => {
-  const url = 'https://www.onemap.gov.sg/api/common/elastic/search?searchVal=' + e.target.value + '&returnGeom=Y&getAddrDetails=Y'
-  let response = await (await fetch(url)).json()
-  if(response) {
-    options.value = await response.results
+  if(!e.target.value.length) {
+    options.value = []
+    return
   }
-}, 300)
+  axios({
+        method: 'get',
+        url: '/api/customers/search/' + e.target.value,
+    }).then(response => {
+      options.value = response.data
+    }).catch(error => {
+        console.log(error)
+    })
+}, 500)
 
 function onInputChanged(e) {
   emit('update:modelValue', e.target.value)

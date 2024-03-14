@@ -209,7 +209,9 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/{id}/edit', [OperatorController::class, 'edit'])->name('operators.edit');
         Route::post('/{id}/update', [OperatorController::class, 'update']);
         Route::delete('/{id}', [OperatorController::class, 'delete']);
+        Route::post('/bind-customer', [OperatorController::class, 'bindCustomer']);
         Route::post('/bind-vend', [OperatorController::class, 'bindVend']);
+        Route::post('/unbind-customer', [OperatorController::class, 'unbindCustomer']);
         Route::post('/unbind-vend', [OperatorController::class, 'unbindVend']);
         Route::post('/{id}/delivery-platform/create', [OperatorController::class, 'bindDeliveryPlatform']);
         Route::delete('/delivery-platform/{delivery_platform_operator_id}', [OperatorController::class, 'unbindDeliveryPlatform']);

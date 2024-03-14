@@ -22,8 +22,8 @@ class ClientVendResource extends JsonResource
             'serial_num' => $this->serial_num,
             'last_updated_at' => $this->last_updated_at ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'name' => $this->name,
-            'full_name' => $this->code.$this->when($this->relationLoaded('latestVendBinding'), function() {
-                return $this->latestVendBinding && $this->latestVendBinding->customer ? (' - '.$this->latestVendBinding->customer->code.' - '.$this->latestVendBinding->customer->name) : ($this->name ? ' - '.$this->name : '');
+            'full_name' => $this->code.$this->when($this->relationLoaded('customer'), function() {
+                return $this->customer ? (' - '.$this->customer->code.' - '.$this->customer->name) : ($this->name ? ' - '.$this->name : '');
             }, function(){
                 return $this->name ? ' - '.$this->name : '';
             }),

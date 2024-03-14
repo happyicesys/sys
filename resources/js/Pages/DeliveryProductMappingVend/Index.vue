@@ -146,10 +146,10 @@
                       Platform ID
                     </TableHead>
                     <TableHead>
-                      Customer ID
+                      Cust Prefix
                     </TableHead>
                     <TableHead>
-                      Customer Name
+                      Cust Name
                     </TableHead>
                     <TableHead>
                       Channel
@@ -182,16 +182,13 @@
                       </span>
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
-                      <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.latestVendBinding && deliveryProductMappingVend.vend.latestVendBinding.customer">
-                        {{ deliveryProductMappingVend.vend.latestVendBinding.customer.virtual_customer_prefix }}-{{ deliveryProductMappingVend.vend.latestVendBinding.customer.virtual_customer_code }}
+                      <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.customer">
+                        {{ deliveryProductMappingVend.vend.customer.virtual_customer_code }} ({{ deliveryProductMappingVend.vend.customer.virtual_customer_prefix }})
                       </span>
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-left">
-                      <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.latestVendBinding && deliveryProductMappingVend.vend.latestVendBinding.customer">
-                        {{ deliveryProductMappingVend.vend.latestVendBinding.customer.name }}
-                      </span>
-                      <span v-else>
-                        {{ deliveryProductMappingVend.vend.name }}
+                      <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.customer">
+                        {{ deliveryProductMappingVend.vend.customer.name }}
                       </span>
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">

@@ -48,6 +48,7 @@ class Vend extends Model
         'apk_ver_json',
         'begin_date',
         'code',
+        'customer_id',
         'serial_num',
         'name',
         'temp',
@@ -92,9 +93,9 @@ class Vend extends Model
         return $this->morphOne(Category::class, 'modelable');
     }
 
-    public function currentOperator()
+    public function customer()
     {
-        return $this->operators()->latest('operator_vend.created_at')->where('is_main', true)->limit(1);
+        return $this->belongsTo(Customer::class);
     }
 
     public function deliveryProductMappingVends()
@@ -102,14 +103,10 @@ class Vend extends Model
         return $this->hasMany(DeliveryProductMappingVend::class);
     }
 
-    public function firstVendBinding()
+    // for the use of cleanCustomerSeeder before deprecate
+    public function vendBindings()
     {
-        return $this->hasOne(VendBinding::class)->latest('begin_date');
-    }
-
-    public function latestOperator()
-    {
-        return $this->operators()->latest('operator_vend.created_at')->where('is_main', true)->limit(1);
+        return $this->hasMany(VendBinding::class);
     }
 
     public function latestVendBinding()
@@ -117,19 +114,9 @@ class Vend extends Model
         return $this->hasOne(VendBinding::class)->where('is_active', true)->latest('begin_date');
     }
 
-    public function latestVendBindingAll()
-    {
-        return $this->hasOne(VendBinding::class)->latest('begin_date');
-    }
-
     public function users()
     {
         return $this->belongsToMany(User::class);
-    }
-
-    public function vendBindings()
-    {
-        return $this->hasMany(VendBinding::class);
     }
 
     public function vendChannels()
@@ -164,14 +151,10 @@ class Vend extends Model
         return $this->morphMany(Attachment::class, 'modelable')->where('type', Vend::ATTACHMENT_TYPE_MEDIA_CONTENT)->oldest();
     }
 
+    // deprecated, will use customer operator_id instead (keep now for cleanCustomerSeeder)
     public function operators()
     {
         return $this->belongsToMany(Operator::class);
-    }
-
-    public function primaryOperator()
-    {
-        return $this->belongsToMany(Operator::class)->withPivot('is_primary', true);
     }
 
     public function productMapping()
@@ -363,43 +346,41 @@ class Vend extends Model
             $query->where('serial_num', 'LIKE', "%{$search}%");
         })
         ->when($request->customer_code, function($query, $search) {
-            $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
+            $query->whereHas('customer', function($query) use ($search) {
                 $query->where('code', 'LIKE', "%{$search}%");
             });
         })
         ->when($request->customer_name, function($query, $search) {
             $query->where(function($query) use ($search) {
                 $query
-                    ->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                    ->whereHas('customer', function($query) use ($search) {
                         $query->where('name', 'LIKE', "%{$search}%");
-                    })
-                    ->orWhere('vends.name', 'LIKE', "%{$search}%");
+                    });
             });
         })
         ->when($request->customer, function($query, $search) {
             if(strpos($search, "-")) {
                 $searchArray = explode("-", $search);
-                $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                $query->whereHas('customer', function($query) use ($search) {
                     $query->where('virtual_customer_prefix', $searchArray[0])
                     ->where('virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
                 });
             }else {
-                $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                $query->whereHas('customer', function($query) use ($search) {
                     $query->where(function($query) use ($search) {
                         $query->where('virtual_customer_prefix', 'LIKE', "{$search}%")
-                            ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
-                            ->orWhere('name', 'LIKE', "%{$search}%");
+                            ->orWhere('virtual_customer_code', 'LIKE', "{$search}%");
                     });
                 });
             }
         })
         ->when($request->categories, function($query, $search) {
-            $query->whereHas('latestVendBinding.customer.category', function($query) use ($search) {
+            $query->whereHas('customer.category', function($query) use ($search) {
                 $query->whereIn('id', $search);
             });
         })
         ->when($request->categoryGroups, function($query, $search) {
-            $query->whereHas('latestVendBinding.customer.category.categoryGroup', function($query) use ($search) {
+            $query->whereHas('customer.category.categoryGroup', function($query) use ($search) {
                 $query->whereIn('id', $search);
             });
         })
@@ -445,7 +426,7 @@ class Vend extends Model
         })
         ->when($request->location_type_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                $query->whereHas('customer', function($query) use ($search) {
                     $query->where('location_type_id', $search);
                 });
             }
@@ -478,7 +459,7 @@ class Vend extends Model
         })
         ->when($request->lastVisitedGreaterThan, function($query, $search) {
                 // dd('here');
-                $query->whereHas('latestVendBinding.customer', function($query) use ($search) {
+                $query->whereHas('customer', function($query) use ($search) {
                     $query->whereDate('last_invoice_date', '<=', Carbon::now()->subDays($search)->toDateString());
                 });
         })

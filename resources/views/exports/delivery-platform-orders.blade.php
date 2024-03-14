@@ -54,17 +54,15 @@
           <td>
             @if($deliveryPlatformOrder->deliveryProductMappingVend and
             $deliveryPlatformOrder->deliveryProductMappingVend->vend and
-            $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding and
-            $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer)
-              {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->code }}
+            $deliveryPlatformOrder->deliveryProductMappingVend->vend->customer)
+              {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->customer->code }}
             @endif
           </td>
           <td>
             @if($deliveryPlatformOrder->deliveryProductMappingVend and
             $deliveryPlatformOrder->deliveryProductMappingVend->vend and
-            $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding and
-            $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer)
-              {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->name }}
+            $deliveryPlatformOrder->deliveryProductMappingVend->vend->customer)
+              {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->customer->name }}
             @else
               {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->name }}
             @endif

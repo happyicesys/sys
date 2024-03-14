@@ -25,6 +25,8 @@ class CustomerResource extends JsonResource
             'first_transaction_id' => $this->first_transaction_id,
             'is_active' => $this->is_active,
             'location_type_id' => $this->location_type_id,
+            'operator_id' => $this->operator_id,
+            'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'person_id' => $this->person_id,
             'profile_id' => $this->profile_id,
             'status_id' => $this->status_id,
@@ -42,7 +44,8 @@ class CustomerResource extends JsonResource
             'firstTransaction' => TransactionResource::make($this->whenLoaded('firstTransaction')),
             'status' => StatusResource::make($this->whenLoaded('status')),
             'tags' => TagResource::collection($this->whenLoaded('tagBindings')),
-            'vendBindings' => VendBindingResource::collection($this->whenLoaded('vendBindings')),
+            'vend' => VendResource::make($this->whenLoaded('vend')),
+            'vends' => VendResource::collection($this->whenLoaded('vends')),
         ];
     }
 }

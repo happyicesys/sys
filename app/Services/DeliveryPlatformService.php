@@ -74,7 +74,7 @@ class DeliveryPlatformService
           $deliveryPlatformOrder->delivery_platform_id = $this->deliveryPlatformOperator->deliveryPlatform->id;
           $deliveryPlatformOrder->delivery_platform_operator_id = $this->deliveryPlatformOperator->id;
           $deliveryPlatformOrder->delivery_product_mapping_vend_id = $deliveryProductMappingVend->id;
-          $deliveryPlatformOrder->vend_json = collect($deliveryProductMappingVend->vend()->with('latestVendBinding')->first())->except(['product_mapping', 'vend_channels_json']);
+          $deliveryPlatformOrder->vend_json = collect($deliveryProductMappingVend->vend()->with('customer')->first())->except(['product_mapping', 'vend_channels_json']);
           $deliveryPlatformOrder->save();
           $this->createDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
           DB::commit();

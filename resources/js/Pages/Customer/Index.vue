@@ -253,11 +253,11 @@
                         {{ customers.meta.from + customerIndex }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.vendBindings && customer.vendBindings[0] ? customer.vendBindings[0].vend.code : '' }}
+                        {{ customer.vend ? customer.vend.code : null }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
                         <span v-if="customer.virtual_customer_prefix && customer.virtual_customer_code">
-                          {{ customer.virtual_customer_prefix }}-{{ customer.virtual_customer_code }} <br>
+                          {{ customer.virtual_customer_code }} ({{ customer.virtual_customer_prefix }}) <br>
                         </span>
                         {{ customer.name }}
                       </TableData>

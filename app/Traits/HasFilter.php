@@ -193,7 +193,7 @@ trait HasFilter {
       ->when($request->is_active, function($query, $search) {
         // dd($search);
         if($search != 'all') {
-            $query->where('vend_bindings.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            $query->where('customers.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
         }
     })
     ->when($request->is_mqtt, function($query, $search) {

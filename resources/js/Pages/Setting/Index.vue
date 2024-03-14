@@ -197,19 +197,19 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-                      Code
+                      Vend ID
                     </TableHeadSort>
                     <TableHead>
-                      Name
+                      Customer
                     </TableHead>
                     <TableHead>
                       Status
                     </TableHead>
                     <TableHead>
-                      Begin Date
+                      Deploy Date
                     </TableHead>
                     <TableHead>
-                      Deactivation Date
+                      Retired Date
                     </TableHead>
                     <TableHead>
                       Operator
@@ -223,21 +223,21 @@
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vends.meta.from + vendIndex }}
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.code }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                        <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.virtual_customer_code">
-                          <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.latestVendBinding.customer.person_id + '/edit'">
-                            {{ vend.latestVendBinding.customer.virtual_customer_prefix }}-{{ vend.latestVendBinding.customer.virtual_customer_code }}
+                        <span v-if="vend && vend.customer && vend.customer.person_id">
+                          <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.customer.person_id + '/edit'">
+                            {{ vend.customer.virtual_customer_code }} ({{ vend.customer.virtual_customer_prefix }})
                             <br>
-                            {{ vend.latestVendBinding.customer.name }}
+                            {{ vend.customer.name }}
                           </a>
                         </span>
-                        <span v-else-if="vend.latestVendBinding && vend.latestVendBinding.customer && !vend.latestVendBinding.customer.virtual_customer_code">
-                            {{ vend.latestVendBinding.customer.code }}
+                        <span v-else-if="vend && vend.customer && !vend.customer.person_id">
+                            {{ vend.customer.code }}
                             <br>
-                            {{ vend.latestVendBinding.customer.name }}
+                            {{ vend.customer.name }}
                         </span>
                         <span v-else>
                           {{ vend.name }}
@@ -264,7 +264,7 @@
                         {{ vend.termination_date_short }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                          {{ vend.latestOperator ? vend.latestOperator.full_name : '' }}
+                          {{ vend.customer && vend.customer.operator ? vend.operator.full_name : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">

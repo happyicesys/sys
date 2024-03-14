@@ -35,17 +35,12 @@ class StoreVendsRecord implements ShouldQueue
     public function handle(): void
     {
         $vends = VendTransaction::query()
-            ->with('vend:id,code,name')
+            ->with(['vend:id,code,name'])
             ->leftJoin('delivery_platform_orders', 'vend_transactions.id', '=', 'delivery_platform_orders.vend_transaction_id')
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
+            ->leftJoin('customers', 'vend_transactions.customer_id', '=', 'customers.id')
             ->where('vend_transactions.created_at', '>=', Carbon::parse($this->dateFrom)->startOfDay())
             ->where('vend_transactions.created_at', '<=', Carbon::parse($this->dateTo)->endOfDay())
-            // ->where('vends.is_active', true)
-            // ->whereIn('vend_id', function($query) {
-            //     $query->select('vend_id')
-            //         ->from('vend_bindings')
-            //         ->where('is_active', true);
-            // })
             ->groupBy('date', 'vends.id')
             ->select(
                 'vends.id AS vend_id',

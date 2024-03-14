@@ -61,7 +61,7 @@ class DeliveryProductMappingController extends Controller
                             $query->whereNull('end_date');
                         },
                         'deliveryProductMappingVends.vend:id,code,name',
-                        'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
+                        'deliveryProductMappingVends.vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                     ])
                     ->filterIndex($request)
                     ->when($sortKey, function($query, $search) use ($sortBy) {
@@ -281,7 +281,7 @@ class DeliveryProductMappingController extends Controller
                         ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
                 },
                 'deliveryProductMappingVends.vend:id,code,name',
-                'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
+                'deliveryProductMappingVends.vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                 'deliveryProductMappingVends.deliveryProductMappingVendChannels.vendChannel:id,code,capacity,qty',
                 'deliveryProductMappingVends.deliveryProductMappingVendChannels.deliveryProductMappingItem:id,amount,channel_code,delivery_product_mapping_id,product_mapping_item_id,sub_category_json',
                 'operator:id,code,name,country_id',
@@ -326,21 +326,23 @@ class DeliveryProductMappingController extends Controller
             'type' => 'edit',
             'unbindedVendOptions' => VendResource::collection(
                 Vend::with([
-                    'latestVendBinding:id,vend_id,customer_id',
-                    'latestVendBinding.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
+                    'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
                 ])
+                ->whereHas('customer', function($query) use ($deliveryProductMapping) {
+                    $query->where(function($query) use ($deliveryProductMapping) {
+                        $query->where('is_active', true)
+                            ->where('operator_id', $deliveryProductMapping->operator_id);
+                    });
+                })
                 ->where(function ($query) use ($deliveryProductMapping) {
                     $query
-                    ->whereIn('vends.id', DB::table('operator_vend')
-                    ->where('operator_id', $deliveryProductMapping->operator_id)
-                    ->pluck('vend_id'))
                     ->whereDoesntHave('deliveryProductMappingVends.deliveryProductMapping', function($query) use ($deliveryProductMapping) {
                         $query->where('delivery_platform_operator_id', $deliveryProductMapping->delivery_platform_operator_id);
                     })
                     ->orDoesntHave('deliveryProductMappingVends.deliveryProductMapping');
 
                     if($deliveryProductMapping->deliveryPlatformOperator->type == 'production') {
-                        $query->has('latestVendBinding');
+                        $query->has('customer')->where('customers.is_active', true);
                     }
                 })
                 ->when($deliveryProductMapping->deliveryPlatformOperator->type == '', function($query, $search) use ($request) {

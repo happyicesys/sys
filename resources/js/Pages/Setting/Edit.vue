@@ -21,12 +21,12 @@
       <span>
         <div
           class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-fit"
-          :class="[vend.is_active ? 'bg-green-200' : 'bg-red-200']"
-          v-if="vend.is_active != null"
+          :class="[vend.vend_is_active ? 'bg-green-200' : 'bg-red-200']"
+          v-if="vend.vend_is_active != null"
         >
           <div class="flex flex-col">
             <span class="font-bold">
-              {{ vend.is_active ? 'Active' : 'Not Active'}}
+              {{ vend.vend_is_active ? 'Active' : 'Not Active'}}
             </span>
           </div>
         </div>

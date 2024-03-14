@@ -93,25 +93,25 @@ class VendChannel extends Model
             });
         })
         ->when($request->customer_code, function($query, $search) {
-            $query->whereHas('vend.latestVendBinding.customer', function($query) use ($search) {
+            $query->whereHas('vend.customer', function($query) use ($search) {
                 $query->where('customers.code', 'LIKE', "%{$search}%");
             });
         })
         ->when($request->customer_name, function($query, $search) {
             $query->where(function($query) use ($search) {
-                $query->whereHas('vend.latestVendBinding.customer', function($query) use ($search) {
+                $query->whereHas('vend.customer', function($query) use ($search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
                     ->orWhere('vends.name', 'LIKE', "%{$search}%");
             });
         })
         ->when($request->categories, function($query, $search) {
-            $query->whereHas('vend.latestVendBinding.customer.category', function($query) use ($search) {
+            $query->whereHas('vend.customer.category', function($query) use ($search) {
                 $query->whereIn('id', $search);
             });
         })
         ->when($request->categoryGroups, function($query, $search) {
-            $query->whereHas('vend.latestVendBinding.customer.category.categoryGroup', function($query) use ($search) {
+            $query->whereHas('vend.customer.category.categoryGroup', function($query) use ($search) {
                 $query->whereIn('id', $search);
             });
         })
@@ -132,9 +132,9 @@ class VendChannel extends Model
         ->when($isBindedCustomer, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
-                    $query->has('vend.latestVendBinding');
+                    $query->has('vend.customer');
                 }else {
-                    $query->doesntHave('vend.latestVendBinding');
+                    $query->doesntHave('vend.customer');
                 }
             }
         })

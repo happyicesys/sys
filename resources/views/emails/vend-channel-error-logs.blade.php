@@ -59,7 +59,7 @@
                       </td>
                       <td class="whitespace-nowrap border-b border-gray-200 px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
                         {{
-                          $vendChannelErrorLog->vendChannel->vend->latestVendBinding && $vendChannelErrorLog->vendChannel->vend->latestVendBinding->customer ? $vendChannelErrorLog->vendChannel->vend->latestVendBinding->customer->code.'-'.$vendChannelErrorLog->vendChannel->vend->latestVendBinding->customer->name :
+                          $vendChannelErrorLog->vendChannel->vend && $vendChannelErrorLog->vendChannel->vend->customer ? $vendChannelErrorLog->vendChannel->vend->customer->code.'-'.$vendChannelErrorLog->vendChannel->vend->customer->name :
                           null
                         }}
                       </td>

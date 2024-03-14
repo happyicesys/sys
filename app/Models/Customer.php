@@ -30,14 +30,23 @@ class Customer extends Model
 
     protected $casts = [
         'account_manager_json' => 'json',
+        'begin_date' => 'datetime',
         'cms_invoice_history' => 'json',
         'person_json' => 'json',
         'last_invoice_date' => 'datetime',
         'next_invoice_date' => 'datetime',
+        'snap_parameter_json' => 'json',
+        'snap_vend_channels_json' => 'json',
+        'snap_vend_channel_error_logs_json' => 'json',
+        'snap_vend_status_json' => 'json',
+        'termination_date' => 'datetime',
+        'totals_json' => 'json',
+
     ];
 
     protected $fillable = [
         'account_manager_json',
+        'begin_date',
         'category_id',
         'cms_invoice_history',
         'code',
@@ -46,6 +55,7 @@ class Customer extends Model
         'first_transaction_id',
         'name',
         'is_active',
+        'is_testing',
         'last_invoice_date',
         'location_type_id',
         'next_invoice_date',
@@ -53,7 +63,13 @@ class Customer extends Model
         // for cms person id
         'person_id',
         'profile_id',
+        'snap_parameter_json',
+        'snap_vend_channels_json',
+        'snap_vend_channel_error_logs_json',
+        'snap_vend_status_json',
         'status_id',
+        'termination_date',
+        'totals_json',
         'virtual_customer_code',
         'virtual_customer_prefix',
         'zone_id',
@@ -105,11 +121,6 @@ class Customer extends Model
         return $this->belongsTo(Transaction::class, 'first_transaction_id');
     }
 
-    public function latestVendBinding()
-    {
-        return $this->hasOne(VendBinding::class)->where('is_active', true)->latest('begin_date');
-    }
-
     public function locationType()
     {
         return $this->belongsTo(LocationType::class);
@@ -140,9 +151,14 @@ class Customer extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
-    public function vendBindings()
+    public function vend()
     {
-        return $this->hasMany(VendBinding::class)->latest('begin_date');
+        return $this->hasOne(Vend::class)->latest('begin_date')->latest('created_at');
+    }
+
+    public function vends()
+    {
+        return $this->hasMany(Vend::class);
     }
 
     public function vendRecords()
@@ -158,6 +174,17 @@ class Customer extends Model
     public function zone()
     {
         return $this->belongsTo(Zone::class);
+    }
+
+    // for the use of cleanCustomerSeeder before deprecate
+    public function vendBindings()
+    {
+        return $this->hasMany(VendBinding::class);
+    }
+
+    public function latestVendBinding()
+    {
+        return $this->hasOne(VendBinding::class)->where('is_active', true)->latest('begin_date');
     }
 
     public function daysVendTransactions($from = 0, $to = 0)
@@ -179,8 +206,8 @@ class Customer extends Model
     public function lifetimeVendRecords()
     {
         return $this->vendRecords()
-                    ->where('date', '>=', Carbon::parse($this->latestVendBinding->begin_date)->startOfDay())
-                    ->where('date', '<=', ($this->latestVendBinding && $this->latestVendBinding->termination_date ? Carbon::parse($this->latestVendBinding->termination_date)->endOfDay() : Carbon::today()->endOfDay()));
+                    ->where('date', '>=', Carbon::parse($this->begin_date)->startOfDay())
+                    ->where('date', '<=', ($this->termination_date ? Carbon::parse($this->termination_date)->endOfDay() : Carbon::today()->endOfDay()));
     }
 
     public function daysVendRecords($from = 0, $to = 0)

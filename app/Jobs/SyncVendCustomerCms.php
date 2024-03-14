@@ -10,7 +10,6 @@ use App\Models\LocationType;
 use App\Models\Profile;
 use App\Models\Status;
 use App\Models\Vend;
-use App\Models\VendBinding;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -189,28 +188,23 @@ class SyncVendCustomerCms implements ShouldQueue
                 $vend = Vend::findOrFail($this->vendId);
 
                 if($vend && $customer) {
-                    $vendBinding = VendBinding::where('vend_id', $vend->id)->where('customer_id', $customer->id)->latest()->first();
-                    $vendBinding->is_active = true;
-                    $vendBinding->termination_date = null;
-                    $vendBinding->save();
+                    $isExisting = Vend::where('customer_id', $customer->id)->where('id', $vend->id)->first();
 
-                    if(!$vendBinding) {
-                        $vendBinding = VendBinding::create([
-                            'vend_id' => $vend->id,
+                    $vend->customer->update([
+                        'is_active' => true,
+                        'termination_date' => null,
+                    ]);
+
+                    if(!$isExisting) {
+                        $vend->update([
                             'customer_id' => $customer->id,
-                            'begin_date' => Carbon::now(),
+                        ]);
+                        $customer->update([
+                            'is_active' => true,
+                            'termination_date' => null,
                         ]);
                     }
                 }
-
-
-                // $customer->latestVendBinding()->updateOrCreate([
-                //     'vend_id' => $vend->id,
-                //     'customer_id' => $customer->id,
-                //     ],[
-                //     'begin_date' => $beginDate,
-                //     'person_id' => $customerCollection['id'],
-                // ]);
 
                 // call back point to cms to update vend code
                 Http::get($this->callBackVendCodeEndPoint.$vend->code);

@@ -579,9 +579,9 @@
                             ({{ deliveryProductMappingVend.platform_ref_id }})
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                            <span v-if="deliveryProductMappingVend.vend.latestVendBinding && deliveryProductMappingVend.vend.latestVendBinding.customer">
-                              {{ deliveryProductMappingVend.vend.latestVendBinding.customer.code }} <br>
-                              {{ deliveryProductMappingVend.vend.latestVendBinding.customer.name }}
+                            <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.customer">
+                              {{ deliveryProductMappingVend.vend.customer.code }} <br>
+                              {{ deliveryProductMappingVend.vend.customer.name }}
                             </span>
                             <span v-else>
                               {{ deliveryProductMappingVend.vend.name }}

@@ -525,7 +525,7 @@ class ReportController extends Controller
                 $transactionsQuery
                     ->selectRaw('vends.id as id')
                     ->selectRaw('vends.code as code')
-                    ->selectRaw('CASE WHEN customers.id THEN CONCAT(customers.virtual_customer_prefix,"-", customers.virtual_customer_code," - ", customers.name) ELSE vends.name END as name');
+                    ->selectRaw('CASE WHEN customers.id THEN CONCAT(customers.virtual_customer_code," (", customers.virtual_customer_prefix,") - ", customers.name) ELSE vends.name END as name');
                 break;
         }
 
@@ -561,7 +561,7 @@ class ReportController extends Controller
             ->select(
                 'vends.id',
                 'customers.id AS customer_id',
-                'customers.code AS customer_code',
+                DB::raw('CASE WHEN customers.person_id THEN CONCAT(customers.virtual_customer_code," (", customers.virtual_customer_prefix,")") ELSE vends.code END as customer_code'),
                 'customers.name AS customer_name',
                 'vends.name',
                 'vends.code',

@@ -21,8 +21,6 @@ class VendTransactionResource extends JsonResource
             'amount' => $this->amount/ 100,
             'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'customer_json' => $this->customer_json,
-            // 'customerCode' => $this->customer_json && isset($this->customer_json['code']) ? $this->customer_json['code'] : ($this->vend_json && isset($this->vend_json['latest_vend_binding']) ? $this->vend_json['latest_vend_binding']['customer']['code'] : null),
-            // 'customerName' => $this->customer_json && isset($this->customer_json['name']) ? $this->customer_json['name'] : ($this->vend_json && isset($this->vend_json['latest_vend_binding']) ? $this->vend_json['latest_vend_binding']['customer']['name'] : ($this->name ? $this->name : null)),
             'is_multiple' => $this->is_multiple,
             'is_payment_received' => $this->is_payment_received,
             'itemsJson' => $this->items_json,

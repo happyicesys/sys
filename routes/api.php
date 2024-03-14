@@ -52,6 +52,10 @@ Route::prefix('vouchers')->group(function() {
 });
 
 // Internal api
+Route::prefix('customers')->group(function() {
+    Route::get('/search/{search?}', [CustomerController::class, 'search']);
+});
+
 Route::prefix('vends')->group(function() {
     Route::get('/search/{code?}', [VendController::class, 'searchVendCode']);
     Route::get('/search/operator/{code?}', [VendController::class, 'searchVendCodeWithOperator']);

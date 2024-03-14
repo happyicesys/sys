@@ -69,9 +69,7 @@ class DatabaseSeeder extends Seeder
                 // ExportPermissionSeeder::class,
             // MsiaThaiPaymentMethodSeeder::class,
                 // VendCriteriaSeeder::class,
-            // VendBindingFromToSeeder::class,
                 // ObserverRoleSeeder::class,
-                // InitVendBeginTerminationDateSeeder::class,
             // OperatorBindingSync::class,
             // SyncTransactionsRecordsSeeder::class,
             // MonthSeeder::class,
@@ -84,7 +82,6 @@ class DatabaseSeeder extends Seeder
 
 
             CleanCustomerSeeder::class,
-            // SyncVendBindingIDVendTransactionSeeder::class,
         ]);
     }
 }

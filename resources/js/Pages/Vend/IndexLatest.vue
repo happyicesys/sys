@@ -202,13 +202,13 @@
                               </div>
                           </TableData>
                           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                              <!-- {{  vend.latestVendBinding.customer.code }} -->
-                              {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.code : null }} <br>
-                              {{ vend.latestVendBinding && vend.latestVendBinding.customer ? vend.latestVendBinding.customer.name : null }}
+                              <!-- {{  vend.customer.code }} -->
+                              {{ vend && vend.customer ? vend.customer.code : null }} <br>
+                              {{ vend && vend.customer ? vend.customer.name : null }}
                           </TableData>
                           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                              {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.category ? vend.latestVendBinding.customer.category.name : null }} <br>
-                              {{ vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.category && vend.latestVendBinding.customer.category.category_group ? vend.latestVendBinding.customer.category.category_group.name : null }}
+                              {{ vend && vend.customer && vend.customer.category ? vend.customer.category.name : null }} <br>
+                              {{ vend && vend.customer && vend.customer.category && vend.customer.category.category_group ? vend.customer.category.category_group.name : null }}
                           </TableData>
                           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
 

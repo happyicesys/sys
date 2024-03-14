@@ -45,6 +45,10 @@
   const emit = defineEmits(['update:modelValue'])
 
   const props = defineProps({
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
     modelValue: [Date, String, Object],
     minDate: [Date, String, Object],
     maxDate: [Date, String, Object],

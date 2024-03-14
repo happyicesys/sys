@@ -50,7 +50,7 @@ class CustomerController extends Controller
                     'profile',
                     'status',
                     'tagBindings',
-                    'vendBindings.vend',
+                    'vend',
                     'zone'
                     ])
                     ->when($request->categories, function($query, $search) {
@@ -133,7 +133,7 @@ class CustomerController extends Controller
     public function getCustomersByPersonID($personID = null)
     {
         $customers = Customer::query()
-            ->with(['latestVendBinding.vend'])
+            ->with(['vends'])
             ->when($personID, fn($query, $input) => $query->where('person_id', $input))
             ->get();
 
@@ -144,6 +144,29 @@ class CustomerController extends Controller
     {
         $value = $request->all();
         SyncVendCustomerCms::dispatch(null, $value['id']);
+    }
+
+    public function search(Request $request)
+    {
+        $search = $request->search;
+        $customers = Customer::query()
+            ->with([
+                'operator:id,name',
+                'vend:id,code,customer_id'
+            ])
+            ->has('vend')
+            ->where(function($query) use ($search) {
+                $query->where('name', 'LIKE', '%'.$search.'%')
+                    ->orWhere('virtual_customer_code', 'LIKE', '%'.$search.'%')
+                    ->orWhere('virtual_customer_prefix', 'LIKE', '%'.$search.'%')
+                    ->orWhereHas('vend', function($query) use ($search){
+                        $query->where('code', 'LIKE', '%'.$search.'%');
+                    });
+            })
+            ->whereNull('operator_id')
+            ->get();
+
+        return $customers;
     }
 
     public function syncNextDeliveryDate()
