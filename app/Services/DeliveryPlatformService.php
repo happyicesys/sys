@@ -239,6 +239,7 @@ class DeliveryPlatformService
         return $query->where('platform_ref_id', $platformRefId);
       })
       ->where('vend_code', $vendCode)
+      ->where('is_active', true)
       ->first();
 
     if(!$deliveryProductMappingVend) {
