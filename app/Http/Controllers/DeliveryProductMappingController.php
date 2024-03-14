@@ -60,8 +60,8 @@ class DeliveryProductMappingController extends Controller
                         'deliveryProductMappingVends' => function($query) {
                             $query->whereNull('end_date');
                         },
-                        'deliveryProductMappingVends.vend:id,code,name',
-                        'deliveryProductMappingVends.vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
+                        'deliveryProductMappingVends.vend:id,code,name,customer_id',
+                        'deliveryProductMappingVends.vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code,person_id',
                     ])
                     ->filterIndex($request)
                     ->when($sortKey, function($query, $search) use ($sortBy) {
@@ -326,13 +326,13 @@ class DeliveryProductMappingController extends Controller
             'type' => 'edit',
             'unbindedVendOptions' => VendResource::collection(
                 Vend::with([
-                    'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
+                    'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
                 ])
                 ->whereHas('customer', function($query) use ($deliveryProductMapping) {
-                    $query->where(function($query) use ($deliveryProductMapping) {
-                        $query->where('is_active', true)
+                    // $query->where(function($query) use ($deliveryProductMapping) {
+                        $query
                             ->where('operator_id', $deliveryProductMapping->operator_id);
-                    });
+                    // });
                 })
                 ->where(function ($query) use ($deliveryProductMapping) {
                     $query

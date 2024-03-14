@@ -143,7 +143,15 @@
                       <TableData :currentIndex="deliveryProductMappingIndex" :totalLength="deliveryProductMappings.length" inputClass="text-left">
                         <ul class="divide-y divide-gray-200">
                           <li class="flex py-1 px-3 space-x-2" v-for="deliveryProductMappingVend in deliveryProductMapping.deliveryProductMappingVends">
-                            {{ deliveryProductMappingVend.vend.full_name }}
+                            <span v-if="deliveryProductMappingVend.vend.customer && deliveryProductMappingVend.vend.customer.person_id">
+                              {{ deliveryProductMappingVend.vend.code }} - {{ deliveryProductMappingVend.vend.customer.virtual_customer_code }} ({{ deliveryProductMappingVend.vend.customer.virtual_customer_prefix }}) - {{ deliveryProductMappingVend.vend.customer.name }}
+                            </span>
+                            <span v-else-if="deliveryProductMappingVend.vend.customer && !deliveryProductMappingVend.vend.customer.person_id">
+                              {{ deliveryProductMappingVend.vend.code }} - {{ deliveryProductMappingVend.vend.customer.name }}
+                            </span>
+                            <span v-else>
+                              {{ deliveryProductMappingVend.vend.code }}
+                            </span>
                           </li>
                         </ul>
                       </TableData>
