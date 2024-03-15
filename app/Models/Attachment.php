@@ -22,12 +22,12 @@ class Attachment extends Model
         'desc',
     ];
 
-    protected function createdAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn (string $value) => Carbon::parse($value)->format('ymd h:i a'),
-        );
-    }
+    // protected function createdAt(): Attribute
+    // {
+    //     return Attribute::make(
+    //         get: fn (string $value) => Carbon::parse($value)->format('ymd h:i a'),
+    //     );
+    // }
 
     // relationships
     public function modelable()

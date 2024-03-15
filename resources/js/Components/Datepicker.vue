@@ -8,7 +8,7 @@
         :modelValue="modelValue"
         @update:modelValue="onSelected"
         format="yyyy-MM-dd"
-        :clearable="false"
+        :clearable="true"
         :monthChangeOnScroll="false"
         autoApply
         :closeOnAutoApply="true"
@@ -38,17 +38,14 @@
 
 <script setup>
   import Datepicker from '@vuepic/vue-datepicker';
-  import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon } from '@heroicons/vue/20/solid';
+  import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon, XCircleIcon } from '@heroicons/vue/20/solid';
   import '@vuepic/vue-datepicker/dist/main.css'
   import moment from 'moment';
 
   const emit = defineEmits(['update:modelValue'])
 
   const props = defineProps({
-    disabled: {
-      type: Boolean,
-      default: false,
-    },
+    disabled: [Boolean, String],
     modelValue: [Date, String, Object],
     minDate: [Date, String, Object],
     maxDate: [Date, String, Object],

@@ -190,4 +190,23 @@ class CustomerController extends Controller
 
         return true;
     }
+
+    public function update(Request $request, $id)
+    {
+        $customer = Customer::find($id);
+        // dd($request->all());
+        $customer->update($request->customer);
+
+        if($request->customer['contact']) {
+            $customer->contact()->updateOrCreate($request->customer['contact']);
+        }
+
+        if($request->customer['address']) {
+            $customer->deliveryAddress()->updateOrCreate([
+                'type' => Customer::ADDRESS_TYPE_DELIVERY,
+            ], $request->customer['address']);
+        }
+
+        return redirect()->route('vends.edit', [$request->id]);
+    }
 }

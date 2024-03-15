@@ -329,10 +329,9 @@ class DeliveryProductMappingController extends Controller
                     'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
                 ])
                 ->whereHas('customer', function($query) use ($deliveryProductMapping) {
-                    // $query->where(function($query) use ($deliveryProductMapping) {
                         $query
+                            ->where('is_active', true)
                             ->where('operator_id', $deliveryProductMapping->operator_id);
-                    // });
                 })
                 ->where(function ($query) use ($deliveryProductMapping) {
                     $query
@@ -342,14 +341,13 @@ class DeliveryProductMappingController extends Controller
                     ->orDoesntHave('deliveryProductMappingVends.deliveryProductMapping');
 
                     if($deliveryProductMapping->deliveryPlatformOperator->type == 'production') {
-                        $query->has('customer')->where('customers.is_active', true);
+                        $query->has('customer');
                     }
                 })
                 ->when($deliveryProductMapping->deliveryPlatformOperator->type == '', function($query, $search) use ($request) {
                     $query->where('vends.code', 'LIKE', "{$request->vend_code}%");
                 })
                 ->orderBy('vends.code')
-                // ->select('vends.id', 'vends.code', 'vends.name')
                 ->get()
             ),
         ]);

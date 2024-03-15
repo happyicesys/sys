@@ -16,6 +16,9 @@ class Customer extends Model
     const STATUS_ACTIVE = 2;
     const STATUS_INACTIVE = 1;
 
+    const ADDRESS_TYPE_BILLING = 1;
+    const ADDRESS_TYPE_DELIVERY = 2;
+
     const STATUSES_MAPPING = [
         self::STATUS_NEW => 'New',
         self::STATUS_PENDING => 'Pending',

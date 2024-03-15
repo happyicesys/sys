@@ -47,6 +47,7 @@ class VendDBResource extends JsonResource
             'is_online' => isset($this->is_online) ? $this->is_online : null,
             'is_sensor_normal' => isset($this->is_sensor_normal) && $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => isset($this->is_temp_error) && $this->is_temp_error ? true : false,
+            'is_testing' => isset($this->is_testing) && $this->is_testing ? true : false,
             'last_invoice_date' => isset($this->last_invoice_date) ? Carbon::parse($this->last_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'last_invoice_diff' => isset($this->last_invoice_date) ? Carbon::parse($this->last_invoice_date)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'out_of_stock_sku_percent' => isset($this->out_of_stock_sku_percent) ? $this->out_of_stock_sku_percent : null,

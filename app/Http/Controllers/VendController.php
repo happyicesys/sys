@@ -650,35 +650,38 @@ class VendController extends Controller
         return redirect()->route('settings');
     }
 
-    public function update(Request $request, $vendId)
+    public function update(Request $request, $vendID)
     {
-        $vend = Vend::findOrFail($vendId);
+        $vend = Vend::findOrFail($vendID);
+        // dd($request->all());
 
+        dd($request->all());
         $vend->update([
             'name' => $request->name,
             'begin_date' => $request->begin_date,
+            'is_testing' => $request->is_testing,
             'termination_date' => $request->termination_date,
         ]);
 
-        if($request->customer_id) {
-            SyncVendCustomerCms::dispatchSync($vend->id, $request->customer_id);
-        }else {
-            if($vend->customer->exists()) {
-                $vend->customer->update([
-                    'is_active' => false,
-                    'termination_date' => Carbon::now()->toDateString(),
-                ]);
-                $vend->update([
-                    'customer_id' => null,
-                ]);
-            }
-        }
+        // if($request->customer_id) {
+        //     SyncVendCustomerCms::dispatchSync($vend->id, $request->customer_id);
+        // }else {
+        //     if($vend->customer->exists()) {
+        //         $vend->customer->update([
+        //             'is_active' => false,
+        //             'termination_date' => Carbon::now()->toDateString(),
+        //         ]);
+        //         $vend->update([
+        //             'customer_id' => null,
+        //         ]);
+        //     }
+        // }
 
-        if($request->operator_id) {
-            $vend->operators()->sync([$request->operator_id]);
-        }
+        // if($request->operator_id) {
+        //     $vend->operators()->sync([$request->operator_id]);
+        // }
 
-        return redirect()->route('settings');
+        return redirect()->route('vends.edit', [$vendID]);
     }
 
     public function unbindCustomer($vendId)
@@ -807,6 +810,7 @@ class VendController extends Controller
                     'customers.person_id',
                     'vends.begin_date',
                     'vends.termination_date',
+                    DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
                 )
                 ->first();
 

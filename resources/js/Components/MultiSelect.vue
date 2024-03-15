@@ -42,7 +42,7 @@
       type: [Boolean, String],
       default: true,
     },
-    disabled: [Boolean, Number, String],
+    disabled: [Array, Boolean, Object, String, Number],
     openDirection: {
       type: String,
       default: 'bottom',

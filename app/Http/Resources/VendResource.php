@@ -34,20 +34,20 @@ class VendResource extends JsonResource
             'full_name' => $this->when($this->relationLoaded('customer'), function() {
                 return $this->customer ?
                     ($this->customer->virtual_customer_code ?
-                    $this->customer->virtual_customer_code . ' (' . $this->customer->virtual_customer_prefix . ') - ' . $this->customer->name :
-                    $this->customer->code.' - '.$this->customer->name)
-                : ($this->name ? $this->name : '');
+                    $this->code . ' - '. $this->customer->virtual_customer_code . ' (' . $this->customer->virtual_customer_prefix . ') - ' . $this->customer->name :
+                    $this->code . ' - ' . $this->customer->code.' - '.$this->customer->name)
+                : ($this->name ? $this->code . ' - ' . $this->name : '');
             }, function(){
-                return $this->name ? ' - '.$this->name : '';
+                return $this->code ? ' - '.$this->name : '';
             }),
             'cust_full_name' => $this->when($this->relationLoaded('customer'), function() {
-                return $this->customer && $this->customer ?
+                return $this->customer ?
                     ($this->customer->virtual_customer_code ?
-                    $this->customer->virtual_customer_code . ' (' . $this->customer->virtual_customer_prefix . ') - ' . $this->customer->name :
-                    $this->customer->code.' - '.$this->customer->name)
-                : ($this->name ? $this->name : '');
+                    $this->code . ' - '. $this->customer->virtual_customer_code . ' (' . $this->customer->virtual_customer_prefix . ') - ' . $this->customer->name :
+                    $this->code . ' - ' . $this->customer->code.' - '.$this->customer->name)
+                : ($this->name ? $this->code . ' - ' . $this->name : '');
             }, function(){
-                return $this->name ? ' - '.$this->name : '';
+                return $this->code ? ' - '.$this->name : '';
             }),
             'temp' => $this->temp/ 10,
             'temp_updated_at' => $this->temp_updated_at ? Carbon::parse($this->temp_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
@@ -60,6 +60,7 @@ class VendResource extends JsonResource
             'is_online' => $this->is_online,
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
+            'is_testing' => $this->is_testing ? true : false,
             'last_invoice_date' => $this->when($this->relationLoaded('customer'), function() {
                 return ($this->customer && $this->customer->last_invoice_date) ? Carbon::parse($this->customer->last_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null;
             }),

@@ -488,18 +488,6 @@
                 </div>
               </div>
 
-              <Button
-                class="flex space-x-1 bg-yellow-300 hover:bg-yellow-400 text-black"
-                @click.prevent="togglePauseAllVends()"
-              >
-                <PauseCircleIcon class="w-3 h-3"></PauseCircleIcon>
-                <span class="text-xs">
-                  Pause All VM
-                </span>
-              </Button>
-
-
-
               <div class="sm:col-span-3" v-if="form.product_mapping_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Vending Machine
@@ -537,6 +525,18 @@
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                   <span>
                     Add
+                  </span>
+                </Button>
+              </div>
+
+              <div class="sm:col-span-6">
+                <Button
+                  class="flex space-x-1 bg-yellow-300 hover:bg-yellow-400 text-black"
+                  @click.prevent="togglePauseAllVends()"
+                >
+                  <PauseCircleIcon class="w-3 h-3"></PauseCircleIcon>
+                  <span class="text-xs">
+                    Pause All VM
                   </span>
                 </Button>
               </div>
