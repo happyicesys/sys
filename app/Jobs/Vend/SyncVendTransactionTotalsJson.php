@@ -16,6 +16,8 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $tries = 1;
+
     protected $model;
     /**
      * Create a new job instance.
