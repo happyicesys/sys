@@ -198,6 +198,14 @@ class Customer extends Model
                     ->where('transaction_datetime', '<=', Carbon::today()->subDays($to)->endOfDay());
     }
 
+    public function thirtyDaysVendTransactions()
+    {
+        return $this->hasMany(VendTransaction::class)
+                    ->isSuccessful()
+                    ->where('transaction_datetime', '>=', Carbon::today()->subDays(29)->startOfDay())
+                    ->where('transaction_datetime', '<=', Carbon::today()->endOfDay());
+    }
+
     public function monthsVendTransactions($from = 0, $to = 0)
     {
         return $this->vendTransactions()
