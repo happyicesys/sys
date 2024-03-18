@@ -203,6 +203,9 @@
                       Customer
                     </TableHead>
                     <TableHead>
+                      Cust Operator
+                    </TableHead>
+                    <TableHead>
                       Status
                     </TableHead>
                     <TableHead>
@@ -210,9 +213,6 @@
                     </TableHead>
                     <TableHead>
                       Retired Date
-                    </TableHead>
-                    <TableHead>
-                      Operator
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -244,6 +244,9 @@
                         </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                          {{ vend.customer && vend.customer.operator ? vend.customer.operator.full_name : '' }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <div class="flex flex-col space-y-1">
                           <div
                             class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
@@ -262,9 +265,6 @@
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.termination_date_short }}
-                      </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                          {{ vend.customer && vend.customer.operator ? vend.operator.full_name : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">

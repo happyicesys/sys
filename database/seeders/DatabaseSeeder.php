@@ -82,6 +82,7 @@ class DatabaseSeeder extends Seeder
 
 
             CleanCustomerSeeder::class,
+            SyncCurrentCustomerSeeder::class,
         ]);
     }
 }

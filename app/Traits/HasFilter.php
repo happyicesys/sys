@@ -168,8 +168,7 @@ trait HasFilter {
             $query->where(function($query) use ($search) {
                 $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
                       ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                      ->orWhere('customers.name', 'LIKE', "%{$search}%")
-                      ->orWhere('vends.name', 'LIKE', "%{$search}%");
+                      ->orWhere('customers.name', 'LIKE', "%{$search}%");
               });
         }
     })

@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 use App\Jobs\SyncVendCustomerCms;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
+use App\Http\Resources\CountryResource;
 use App\Http\Resources\CustomerResource;
+use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PriceTemplateResource;
 use App\Http\Resources\ProfileResource;
 use App\Http\Resources\StatusResource;
@@ -13,12 +15,15 @@ use App\Http\Resources\UserResource;
 use App\Http\Resources\ZoneResource;
 use App\Models\Category;
 use App\Models\CategoryGroup;
+use App\Models\Country;
 use App\Models\Customer;
+use App\Models\Operator;
 use App\Models\PriceTemplate;
 use App\Models\Profile;
 use App\Models\Status;
 use App\Models\Tag;
 use App\Models\User;
+use App\Models\Vend;
 use App\Models\VendData;
 use App\Models\Zone;
 use Carbon\Carbon;
@@ -31,6 +36,7 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         $request->merge([
+            'is_cms' => $request->is_cms ? $request->is_cms : 'all',
             'status' => $request->status ? $request->status : Customer::STATUS_ACTIVE,
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
@@ -41,17 +47,18 @@ class CustomerController extends Controller
         return Inertia::render('Customer/Index', [
             'customers' => CustomerResource::collection(
                 Customer::with([
-                    'attachments',
-                    'billingAddress',
-                    'category',
-                    'category.categoryGroup',
-                    'deliveryAddress',
-                    'firstTransaction',
-                    'profile',
-                    'status',
-                    'tagBindings',
-                    'vend',
-                    'zone'
+                        'attachments',
+                        'billingAddress',
+                        'category',
+                        'category.categoryGroup',
+                        'contact',
+                        'deliveryAddress',
+                        'firstTransaction',
+                        'profile',
+                        'status',
+                        'tagBindings',
+                        'vend',
+                        'zone'
                     ])
                     ->when($request->categories, function($query, $search) {
                         $query->whereHas('categories', function($query) use ($search) {
@@ -63,7 +70,29 @@ class CustomerController extends Controller
                     }))
                     ->when($request->code, fn($query, $input) => $query->where('code', 'LIKE', '%'.$input.'%'))
                     ->when($request->created_in, fn($query, $input) => $query->whereDate('created_at', '>=', Carbon::createFromFormat('m-Y', $input)->startOfMonth())->whereDate('created_at', '<=', Carbon::createFromFormat('m-Y', $input)->endOfMonth()))
-                    ->when($request->customer, fn($query, $input) => $query->where('customer_json->prefix', 'LIKE', "{$input}%")->orWhere('customer_json->code', 'LIKE', "{$input}%")->orWhere('name', 'LIKE', "%{$input}%"))
+                    ->when($request->customer, function($query, $search) {
+                        if(strpos($search, "-")) {
+                            $searchArray = explode("-", $search);
+                            $query->where('customers.virtual_customer_prefix', $searchArray[0])
+                                ->where('customers.virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
+                        }else {
+                            $query->where(function($query) use ($search) {
+                                $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
+                                      ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                                      ->orWhere('customers.name', 'LIKE', "%{$search}%");
+                              });
+                        }
+                    })
+                    ->when($request->is_cms, function($query, $search) {
+                        if($search != 'all') {
+                            $searchBoolean = filter_var($search, FILTER_VALIDATE_BOOLEAN);
+                            if($searchBoolean)
+                                $query->whereNotNull('person_id');
+                            else {
+                                $query->whereNull('person_id');
+                            }
+                        }
+                    })
                     ->when($request->handled_by, fn($query, $input) => $query->where('handled_by', $input))
                     ->when($request->name, fn($query, $input) => $query->where('name', 'LIKE', '%'.$input.'%'))
                     ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
@@ -129,6 +158,66 @@ class CustomerController extends Controller
         ]);
     }
 
+    public function create()
+    {
+        return Inertia::render('Customer/Create', [
+            'cmsCustomerOptions' => Http::get(env('CMS_URL') . '/api/vends/unbind')->collect(),
+            'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
+            'customer' => new Customer(),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'vendOptions' => Vend::query()
+                ->select('id', 'code', 'customer_id')
+                ->where('customer_id', null)
+                ->orderBy('code')
+                ->get(),
+            'type' => 'create',
+        ]);
+    }
+
+    public function delete($id)
+    {
+        $customer = Customer::find($id);
+        $customer->delete();
+
+        return redirect()->route('customers');
+    }
+
+    public function edit(Request $request, $id)
+    {
+        $customer = Customer::query()
+        ->with([
+            'attachments',
+            'billingAddress',
+            'category',
+            'category.categoryGroup',
+            'contact',
+            'deliveryAddress',
+            'firstTransaction',
+            'profile',
+            'status',
+            'tagBindings',
+            'vend',
+            'zone'
+        ])
+        ->find($id);
+
+        return Inertia::render('Customer/Edit', [
+            'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'vendOptions' => Vend::query()
+                ->select('id', 'code', 'customer_id')
+                ->where('customer_id', null)
+                ->orderBy('code')
+                ->get(),
+            'customer' => $customer,
+            'type' => 'update',
+        ]);
+    }
+
     // retrieve all or single vendcodes from sys.happyice
     public function getCustomersByPersonID($personID = null)
     {
@@ -169,6 +258,40 @@ class CustomerController extends Controller
         return $customers;
     }
 
+    public function store(Request $request)
+    {
+        $request->validate([
+            'operator_id' => 'required',
+        ]);
+
+        // dd($request->all(), $request->customer, $request->contact, $request->address);
+        if($request->is_existing) {
+            $request->validate([
+                'cms_customer_id' => 'required',
+            ]);
+            SyncVendCustomerCms::dispatchSync($request->cms_customer_id, null);
+
+            $customer = Customer::where('person_id', $request->cms_customer_id)->first();
+        } else {
+            $request->validate([
+                'name' => 'required',
+            ]);
+            $customer = Customer::create($request->all());
+
+            if($request->contact) {
+                $customer->contact()->updateOrCreate($request->contact);
+            }
+
+            if($request->address) {
+                $customer->deliveryAddress()->updateOrCreate([
+                    'type' => Customer::ADDRESS_TYPE_DELIVERY,
+                ], $request->address);
+            }
+        }
+
+        return redirect()->route('customers.edit', [$customer->id]);
+    }
+
     public function syncNextDeliveryDate()
     {
         $response = Http::get(env('CMS_URL') . '/api/people/last-invoice-date');
@@ -193,20 +316,45 @@ class CustomerController extends Controller
 
     public function update(Request $request, $id)
     {
-        $customer = Customer::find($id);
         // dd($request->all());
-        $customer->update($request->customer);
+        $customer = Customer::find($id);
+        $vend = Vend::find($request->id);
 
-        if($request->customer['contact']) {
-            $customer->contact()->updateOrCreate($request->customer['contact']);
+        if(!$customer) {
+            if($request->is_existing) {
+                $request->validate([
+                    'customer_id' => 'required',
+                ]);
+                $customer = Customer::where('id', $request->customer_id)->first();
+            } else {
+                $request->validate([
+                    'operator_id' => 'required',
+                    'name' => 'required',
+                ]);
+
+                $customer = Customer::create($request->customer);
+
+                // dd($request->customer['contact'], $request->customer['address']);
+                if($request->customer['contact']) {
+                    $customer->contact()->updateOrCreate($request->customer['contact']);
+                }
+
+                if($request->customer['address']) {
+                    $customer->deliveryAddress()->updateOrCreate([
+                        'type' => Customer::ADDRESS_TYPE_DELIVERY,
+                    ], $request->customer['address']);
+                }
+            }
+            $vend->customer_id = $customer->id;
+            $vend->save();
+        }else {
+            $customer->update($request->customer);
         }
 
-        if($request->customer['address']) {
-            $customer->deliveryAddress()->updateOrCreate([
-                'type' => Customer::ADDRESS_TYPE_DELIVERY,
-            ], $request->customer['address']);
+        if($customer and $customer->person_id and $vend) {
+            SyncVendCustomerCms::dispatchSync($customer->person_id, $vend->id);
         }
 
-        return redirect()->route('vends.edit', [$request->id]);
+        return redirect()->back();
     }
 }

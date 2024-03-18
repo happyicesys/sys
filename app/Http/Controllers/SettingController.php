@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CountryResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
+use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendDBResource;
 use App\Models\Category;
+use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CategoryGroup;
 use App\Models\LocationType;
@@ -51,7 +54,7 @@ class SettingController extends Controller
 
         $vends = Vend::query()
             ->with([
-                'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix',
+                'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix,operator_id',
                 'customer.operator:id,code,name',
             ])
             ->filterIndex($request)
@@ -99,35 +102,67 @@ class SettingController extends Controller
     {
         if($id) {
             $vend = Vend::query()
-                ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-                ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
-                ->select(
-                    '*',
-                    'vends.id',
-                    'vends.begin_date',
-                    'vends.code',
-                    'vends.is_active AS vend_is_active',
-                    'vends.name',
-                    'vends.termination_date',
-                    'customers.id AS customer_id',
-                    DB::raw('IF(customers.person_id, CONCAT(customers.virtual_customer_code, " (", customers.virtual_customer_prefix, ")"), customers.code) AS customer_code'),
-                    'customers.name AS customer_name',
-                    'customers.is_active AS customer_is_active',
-                    )
-                ->where('vends.id', $id)
-                ->first();
+            ->with([
+                'customer',
+                'customer.deliveryAddress',
+                'customer.contact',
+            ])
+            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->leftJoin('addresses', function($query) {
+                $query->on('addresses.modelable_id', '=', 'customers.id')
+                        ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                        ->where('addresses.type', '=', 2)
+                        ->limit(1);
+            })
+            ->where('vends.id', $id)
+            ->select(
+                'vends.id',
+                'vends.code',
+                'customers.id AS customer_id',
+                DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (",customers.virtual_customer_prefix,")") ELSE customers.code END AS customer_code'),
+                'customers.name AS customer_name',
+                'customers.person_id',
+                'vends.begin_date',
+                'vends.termination_date',
+                DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
+            )
+            ->first();
         }else {
             $vend = new Vend();
         }
 
-        $response = Http::get(env('CMS_URL') . '/api/vends/unbind');
-
+        $customers = Customer::query()
+            ->select(
+                'id',
+                'code',
+                'name',
+                'is_active',
+                'person_id',
+                'person_json',
+                'virtual_customer_code',
+                'virtual_customer_prefix',
+                'operator_id'
+            )
+            ->whereDoesntHave('vend')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return Inertia::render('Setting/Edit', [
+            'countries' => CountryResource::collection(
+                Country::query()
+                    ->orderBy('sequence')
+                    ->orderBy('name')
+                    ->get()
+                ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
-            'adminCustomerOptions' => $response->collect(),
+            'adminCustomerOptions' => CustomerResource::collection(
+                $customers
+            ),
             'vend' => $vend,
             'type' => $type,
         ]);

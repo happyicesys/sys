@@ -14,11 +14,12 @@ class SyncCurrentCustomerSeeder extends Seeder
      */
     public function run(): void
     {
-        $vends = Vend::all();
+        $vends = Vend::has('customer')->get();
 
+        // dd($vends->toArray());
         foreach($vends as $vend) {
-            if($vend->customer()->exists()) {
-                SyncVendCustomerCms::dispatch($vend->id, $vend->customer->person_id)->onQueue('default');
+            if($vend->customer->person_id) {
+                SyncVendCustomerCms::dispatch($vend->customer->person_id, null)->onQueue('default');
             }
         }
     }

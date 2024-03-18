@@ -181,8 +181,11 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('customers')->group(function() {
         Route::get('/', [CustomerController::class, 'index'])->name('customers');
-        Route::post('/create', [CustomerController::class, 'create']);
+        Route::get('/{id}/edit', [CustomerController::class, 'edit'])->name('customers.edit');
+        Route::get('/create', [CustomerController::class, 'create']);
+        Route::post('/store', [CustomerController::class, 'store']);
         Route::post('/{id}/update', [CustomerController::class, 'update']);
+        Route::post('/{id}/toggle-activation', [CustomerController::class, 'toggleActivation']);
         Route::delete('/{id}', [CustomerController::class, 'delete']);
         Route::get('/sync-next-delivery-date', [CustomerController::class, 'syncNextDeliveryDate']);
     });
@@ -385,6 +388,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/edit-products', [VendController::class, 'editProducts']);
         Route::post('/{id}/dispense-product', [VendController::class, 'dispenseProduct']);
         Route::post('/{id}/restart', [VendController::class, 'restart']);
+        Route::post('/{id}/unbind-customer', [VendController::class, 'unbindCustomer']);
     });
 
     Route::prefix('vend-channel-errors')->group(function() {

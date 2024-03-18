@@ -8,6 +8,7 @@ use Rap2hpoutre\FastExcel\FastExcel;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CountryResource;
+use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentMethodResource;
@@ -637,9 +638,9 @@ class VendController extends Controller
             'private_key' => $request->private_key,
         ]);
 
-        if($request->customer_id) {
-            SyncVendCustomerCms::dispatchSync($vend->id, $request->customer_id);
-        }
+        // if($request->customer_id) {
+        //     SyncVendCustomerCms::dispatchSync($vend->id, $request->customer_id);
+        // }
 
         if($request->operator_id) {
             $vend->operators()->sync([$request->operator_id]);
@@ -653,13 +654,11 @@ class VendController extends Controller
     public function update(Request $request, $vendID)
     {
         $vend = Vend::findOrFail($vendID);
-        // dd($request->all());
 
-        dd($request->all());
         $vend->update([
             'name' => $request->name,
             'begin_date' => $request->begin_date,
-            'is_testing' => $request->is_testing,
+            'is_testing' => $request->is_testing == 'true' ? true : false,
             'termination_date' => $request->termination_date,
         ]);
 
@@ -681,12 +680,13 @@ class VendController extends Controller
         //     $vend->operators()->sync([$request->operator_id]);
         // }
 
-        return redirect()->route('vends.edit', [$vendID]);
+        // return redirect()->route('vends.edit', [$vendID]);
+        return redirect()->back();
     }
 
-    public function unbindCustomer($vendId)
+    public function unbindCustomer($vendID)
     {
-        $vend = Vend::findOrFail($vendId);
+        $vend = Vend::findOrFail($vendID);
 
         $vend->customer->update([
             'is_active' => false,
@@ -713,10 +713,9 @@ class VendController extends Controller
                 'firmware_ver' => $vend->parameter_json && isset($vend->parameter_json['Ver']) ? $vend->parameter_json['Ver'] : null,
                 'apk_ver' => $vend->apk_ver_json && isset($vend->apk_ver_json['apkver']) ? $vend->apk_ver_json['apkver'] : null,
                 'apk_ver_build_time' => $vend->apk_ver_json && isset($vend->apk_ver_json['buildtime']) ? $vend->apk_ver_json['buildtime'] : null,
-                'location_type_name' => $vend->customer->locationType->name,
+                'location_type_name' => $vend->customer && $vend->customer->locationType ? $vend->customer->locationType->name : null,
                 'account_manager_name' => $vend->customer->account_manager_json && isset($vend->customer->account_manager_json['name']) ? $vend->customer->account_manager_json['name'] : null,
-            ],
-
+            ]
         ]);
 
         // callback to cms to unbind vendcode
@@ -724,8 +723,12 @@ class VendController extends Controller
             Http::get(env('CMS_URL') . '/api/person/' . $vend->customer->person_id . '/detach-vendcode');
         }
 
+        $vend->customer_id = null;
+        $vend->save();
+
         // return redirect()->route('vends');
-        return redirect()->route('settings.edit', [$vendId, 'update']);
+        // return redirect()->route('settings.edit', [$vendID, 'update']);
+        return redirect()->back();
     }
 
     public function exportChannelExcel(Request $request)
@@ -815,7 +818,27 @@ class VendController extends Controller
                 ->first();
 
         return Inertia::render('Vend/Edit', [
+            'adminCustomerOptions' => CustomerResource::collection(
+                Customer::query()
+                ->select(
+                    'id',
+                    'code',
+                    'name',
+                    'is_active',
+                    'person_id',
+                    'person_json',
+                    'virtual_customer_code',
+                    'virtual_customer_prefix',
+                    'operator_id'
+                )
+                ->whereDoesntHave('vend')
+                ->orderBy('created_at', 'desc')
+                ->get()
+            ),
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::all()
+            ),
             'type' => 'update',
             'vend' => $vend,
         ]);
