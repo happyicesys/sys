@@ -30,7 +30,7 @@ class SyncVendTransactionTotalsJson extends Command
      */
     public function handle()
     {
-        $customers = Customer::has('vends')->get();
+        $customers = Customer::has('vends')->whereNull('totals_json')->take(50);
         // dd($customers);
 
         foreach($customers as $customer) {
