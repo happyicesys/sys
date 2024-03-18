@@ -181,8 +181,11 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('customers')->group(function() {
         Route::get('/', [CustomerController::class, 'index'])->name('customers');
-        Route::post('/create', [CustomerController::class, 'create']);
+        Route::get('/{id}/edit', [CustomerController::class, 'edit'])->name('customers.edit');
+        Route::get('/create', [CustomerController::class, 'create']);
+        Route::post('/store', [CustomerController::class, 'store']);
         Route::post('/{id}/update', [CustomerController::class, 'update']);
+        Route::post('/{id}/toggle-activation', [CustomerController::class, 'toggleActivation']);
         Route::delete('/{id}', [CustomerController::class, 'delete']);
         Route::get('/sync-next-delivery-date', [CustomerController::class, 'syncNextDeliveryDate']);
     });
@@ -209,7 +212,9 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/{id}/edit', [OperatorController::class, 'edit'])->name('operators.edit');
         Route::post('/{id}/update', [OperatorController::class, 'update']);
         Route::delete('/{id}', [OperatorController::class, 'delete']);
+        Route::post('/bind-customer', [OperatorController::class, 'bindCustomer']);
         Route::post('/bind-vend', [OperatorController::class, 'bindVend']);
+        Route::post('/unbind-customer', [OperatorController::class, 'unbindCustomer']);
         Route::post('/unbind-vend', [OperatorController::class, 'unbindVend']);
         Route::post('/{id}/delivery-platform/create', [OperatorController::class, 'bindDeliveryPlatform']);
         Route::delete('/delivery-platform/{delivery_platform_operator_id}', [OperatorController::class, 'unbindDeliveryPlatform']);
@@ -383,6 +388,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/edit-products', [VendController::class, 'editProducts']);
         Route::post('/{id}/dispense-product', [VendController::class, 'dispenseProduct']);
         Route::post('/{id}/restart', [VendController::class, 'restart']);
+        Route::post('/{id}/unbind-customer', [VendController::class, 'unbindCustomer']);
     });
 
     Route::prefix('vend-channel-errors')->group(function() {

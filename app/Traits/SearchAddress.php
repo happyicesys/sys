@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Http;
 
 trait SearchAddress{
 
-    public $endpointUrl = 'https://developers.onemap.sg/commonapi/search';
+    public $endpointUrl = 'https://www.onemap.gov.sg/api/common/elastic/search';
 
     public function getAddressResult($searchParams)
     {

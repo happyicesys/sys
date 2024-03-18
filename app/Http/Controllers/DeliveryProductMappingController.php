@@ -60,8 +60,8 @@ class DeliveryProductMappingController extends Controller
                         'deliveryProductMappingVends' => function($query) {
                             $query->whereNull('end_date');
                         },
-                        'deliveryProductMappingVends.vend:id,code,name',
-                        'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
+                        'deliveryProductMappingVends.vend:id,code,name,customer_id',
+                        'deliveryProductMappingVends.vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code,person_id',
                     ])
                     ->filterIndex($request)
                     ->when($sortKey, function($query, $search) use ($sortBy) {
@@ -281,7 +281,7 @@ class DeliveryProductMappingController extends Controller
                         ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
                 },
                 'deliveryProductMappingVends.vend:id,code,name',
-                'deliveryProductMappingVends.vend.latestVendBinding.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
+                'deliveryProductMappingVends.vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                 'deliveryProductMappingVends.deliveryProductMappingVendChannels.vendChannel:id,code,capacity,qty',
                 'deliveryProductMappingVends.deliveryProductMappingVendChannels.deliveryProductMappingItem:id,amount,channel_code,delivery_product_mapping_id,product_mapping_item_id,sub_category_json',
                 'operator:id,code,name,country_id',
@@ -326,9 +326,13 @@ class DeliveryProductMappingController extends Controller
             'type' => 'edit',
             'unbindedVendOptions' => VendResource::collection(
                 Vend::with([
-                    'latestVendBinding:id,vend_id,customer_id',
-                    'latestVendBinding.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
+                    'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
                 ])
+                ->whereHas('customer', function($query) use ($deliveryProductMapping) {
+                        $query
+                            ->where('is_active', true)
+                            ->where('operator_id', $deliveryProductMapping->operator_id);
+                })
                 ->where(function ($query) use ($deliveryProductMapping) {
                     $query
                     ->whereIn('vends.id', DB::table('operator_vend')
@@ -340,14 +344,13 @@ class DeliveryProductMappingController extends Controller
                     // ->orDoesntHave('deliveryProductMappingVends.deliveryProductMapping');
 
                     if($deliveryProductMapping->deliveryPlatformOperator->type == 'production') {
-                        $query->has('latestVendBinding');
+                        $query->has('customer');
                     }
                 })
                 ->when($deliveryProductMapping->deliveryPlatformOperator->type == '', function($query, $search) use ($request) {
                     $query->where('vends.code', 'LIKE', "{$request->vend_code}%");
                 })
                 ->orderBy('vends.code')
-                // ->select('vends.id', 'vends.code', 'vends.name')
                 ->get()
             ),
         ]);
@@ -364,6 +367,27 @@ class DeliveryProductMappingController extends Controller
                     'is_active' => false,
                 ]);
 
+                $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend);
+            }
+        }
+
+        $deliveryProductMapping->update([
+            'is_active' => false,
+        ]);
+
+        return redirect()->route('delivery-product-mappings.edit', [$id]);
+    }
+
+    // pause vends operation in delivery product mapping
+    public function pauseAllVends(Request $request, $id)
+    {
+        $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
+
+        if($deliveryProductMapping->deliveryProductMappingVends()->exists()) {
+            foreach($deliveryProductMapping->deliveryProductMappingVends as $deliveryProductMappingVend) {
+                $deliveryProductMappingVend->update([
+                    'is_active' => false,
+                ]);
                 $this->deliveryPlatformService->pauseStore($deliveryProductMappingVend);
             }
         }

@@ -521,9 +521,9 @@
                           {{ vend.code }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                          <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
-                            {{ vend.latestVendBinding.customer.code }} <br>
-                            {{ vend.latestVendBinding.customer.name }}
+                          <span v-if="vend && vend.customer">
+                            {{ vend.customer.code }} <br>
+                            {{ vend.customer.name }}
                           </span>
                           <span v-else>
                             {{ vend.name }}

@@ -2,7 +2,7 @@
   <Teleport to="body">
     <Modal :open="showModal" @modalClose="$emit('modalClose')">
       <template #header >
-        <div class="flex flex-col md:flex-row space-x-2">
+        <div class="flex flex-col md:flex-row space-x-2" :class="[vend.is_active ? 'text-black' : 'text-gray-500']">
           <span class="text-gray-600" v-if="props.profile">
             Channel Overview
           </span>
@@ -95,7 +95,7 @@
                   </thead>
                   <tbody class="bg-white">
                     <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="channelIndex % 2 === 0 ? undefined : 'bg-gray-50'">
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-500']">
                         {{ channel.code }}
                       </td>
                       <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center" v-if="vend.product_mapping_name">
@@ -104,28 +104,29 @@
                         </div>
                       </td>
 
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-blue-600 sm:pl-6 text-center">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-blue-600' : 'text-gray-400']">
                         {{ channel.capacity - channel.qty }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                         {{ channel.qty }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                         {{ channel.capacity }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                         {{ (channel.amount/100).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                       </td>
                       <td
-                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
+                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center"
+                        :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']"
                         v-if="channels.some(channel => 'amount2' in channel)"
                       >
                         {{ (channel.amount2/100).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                         {{ channel.discount_group }}
                       </td>
-                      <td class="py-1 pl-1 pr-1 text-xs font-medium text-gray-900 sm:pl-1 text-center">
+                      <td class="py-1 pl-1 pr-1 text-xs font-medium sm:pl-1 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                         <span
                           v-if="channel.vend_channel_error_logs
                                 && channel.vend_channel_error_logs[0]
@@ -148,7 +149,7 @@
                             </div>
                         </span>
                       </td>
-                      <td class="py-4 text-sm font-semibold text-gray-900 text-center" v-if="vend.product_mapping_name">
+                      <td class="py-4 text-sm font-semibold text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']" v-if="vend.product_mapping_name">
                         <span v-if="!editable">
                           <span v-if="channel.product && channel.product.code">
                             {{ channel.product.code }}
@@ -173,19 +174,21 @@
                         </span>
                       </td>
                       <td
-                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
+                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center"
+                        :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']"
                         v-if="channels.some(channel => 'sku_code' in channel)"
                       >
                         {{ channel.sku_code }}
                       </td>
                       <td
-                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
+                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center"
+                        :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']"
                         v-if="channels.some(channel => 'qty_not_available_duration' in channel)"
                       >
                         {{ channel.qty_not_available_duration }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
-                      v-if="permissions.includes('admin-access vends')">
+                      v-if="permissions.includes('admin-access vends') && vend.is_active">
                         <div class="flex justify-center space-x-1">
                           <Button
                             type="button" class="bg-yellow-300 hover:bg-yellow-400 px-1 py-1 text-xs text-gray-800 flex space-x-1"

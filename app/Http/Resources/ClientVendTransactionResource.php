@@ -23,7 +23,7 @@ class ClientVendTransactionResource extends JsonResource
             'product_name' => isset($this->product) && $this->product ? $this->product->name : null,
             'transaction_datetime' => $this->transaction_datetime?->toDatetimeString(),
             'vend_id' => $this->vend->code,
-            'vend_name' => $this->vend && $this->vend->latestVendBinding && $this->vend->latestVendBinding->customer ? $this->vend->latestVendBinding->customer->name : $this->vend->name,
+            'vend_name' => $this->vend && $this->vend->customer ? $this->vend->customer->name : $this->vend->name,
             'channel' => $this->vendChannel->code,
             'error' => $this->vendChannelError?->code,
         ];

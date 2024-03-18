@@ -12,9 +12,9 @@ class MapController extends Controller
     public function index(Request $request)
     {
         $vends = Vend::with([
-                    'latestVendBinding.customer.deliveryAddress',
+                    'customer.deliveryAddress',
                 ])
-                ->has('latestVendBinding')
+                ->has('customer')
                 ->orderBy('code')
                 ->get();
 

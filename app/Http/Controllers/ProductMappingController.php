@@ -33,8 +33,8 @@ class ProductMappingController extends Controller
                     'productMappingItems',
                     'productMappingItems.product:id,code,name,is_active',
                     'productMappingItems.product.thumbnail',
-                    'vends:id,code,name,product_mapping_id',
-                    'vends.latestVendBinding.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
+                    'vends:id,code,name,product_mapping_id,customer_id',
+                    'vends.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',
                 ])
                 ->when($request->name, function($query, $search) {
                     $query->where('name', 'LIKE', "%{$search}%");
@@ -63,13 +63,15 @@ class ProductMappingController extends Controller
             'unbindedVends' => fn () =>
                 VendResource::collection(
                     Vend::with([
-                        'latestVendBinding.customer'
+                        'customer'
                     ])
+                    ->has('customer')
                     ->whereNull('product_mapping_id')
                     ->select(
                         'id',
                         'code',
-                        'name'
+                        'customer_id',
+                        'name',
                     )
                     ->orderBy('code')
                     ->get()

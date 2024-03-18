@@ -26,34 +26,28 @@ class VendResource extends JsonResource
             'apkVerJson' => $this->apk_ver_json,
             'begin_date' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'begin_date_short' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
-            'currentOperator' => OperatorResource::make($this->whenLoaded('currentOperator')),
+            'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'serial_num' => $this->serial_num,
             'last_updated_at' => $this->last_updated_at ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
-            'latestOperator' =>  $this->when($this->relationLoaded('latestOperator'), function() {
-                return OperatorResource::make($this->operators()->first());
-            }),
             'logs' => AttachmentResource::collection($this->whenLoaded('logs')),
-            'operators' => $this->when($this->relationLoaded('operators'), function() {
-                return OperatorResource::collection($this->operators);
-            }),
             'name' => $this->name,
-            'full_name' => $this->when($this->relationLoaded('latestVendBinding'), function() {
-                return $this->latestVendBinding && $this->latestVendBinding->customer ?
-                    ($this->latestVendBinding->customer->virtual_customer_code ?
-                    $this->latestVendBinding->customer->virtual_customer_prefix . '-' . $this->latestVendBinding->customer->virtual_customer_code . ' - ' . $this->latestVendBinding->customer->name :
-                    $this->latestVendBinding->customer->code.' - '.$this->latestVendBinding->customer->name)
-                : ($this->name ? $this->name : '');
+            'full_name' => $this->when($this->relationLoaded('customer'), function() {
+                return $this->customer ?
+                    ($this->customer->virtual_customer_code ?
+                    $this->code . ' - '. $this->customer->virtual_customer_code . ' (' . $this->customer->virtual_customer_prefix . ') - ' . $this->customer->name :
+                    $this->code . ' - ' . $this->customer->code.' - '.$this->customer->name)
+                : ($this->name ? $this->code . ' - ' . $this->name : '');
             }, function(){
-                return $this->name ? ' - '.$this->name : '';
+                return $this->code ? ' - '.$this->name : '';
             }),
-            'cust_full_name' => $this->when($this->relationLoaded('latestVendBinding'), function() {
-                return $this->latestVendBinding && $this->latestVendBinding->customer ?
-                    ($this->latestVendBinding->customer->virtual_customer_code ?
-                    $this->latestVendBinding->customer->virtual_customer_prefix . '-' . $this->latestVendBinding->customer->virtual_customer_code . ' - ' . $this->latestVendBinding->customer->name :
-                    $this->latestVendBinding->customer->code.' - '.$this->latestVendBinding->customer->name)
-                : ($this->name ? $this->name : '');
+            'cust_full_name' => $this->when($this->relationLoaded('customer'), function() {
+                return $this->customer ?
+                    ($this->customer->virtual_customer_code ?
+                    $this->code . ' - '. $this->customer->virtual_customer_code . ' (' . $this->customer->virtual_customer_prefix . ') - ' . $this->customer->name :
+                    $this->code . ' - ' . $this->customer->code.' - '.$this->customer->name)
+                : ($this->name ? $this->code . ' - ' . $this->name : '');
             }, function(){
-                return $this->name ? ' - '.$this->name : '';
+                return $this->code ? ' - '.$this->name : '';
             }),
             'temp' => $this->temp/ 10,
             'temp_updated_at' => $this->temp_updated_at ? Carbon::parse($this->temp_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
@@ -66,14 +60,15 @@ class VendResource extends JsonResource
             'is_online' => $this->is_online,
             'is_sensor_normal' => $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => $this->is_temp_error ? true : false,
-            'last_invoice_date' => $this->when($this->relationLoaded('latestVendBinding'), function() {
-                return ($this->latestVendBinding && $this->latestVendBinding->customer && $this->latestVendBinding->customer->last_invoice_date) ? Carbon::parse($this->latestVendBinding->customer->last_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null;
+            'is_testing' => $this->is_testing ? true : false,
+            'last_invoice_date' => $this->when($this->relationLoaded('customer'), function() {
+                return ($this->customer && $this->customer->last_invoice_date) ? Carbon::parse($this->customer->last_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null;
             }),
-            'last_invoice_diff' => $this->when($this->relationLoaded('latestVendBinding'), function() {
-                return ($this->latestVendBinding && $this->latestVendBinding->customer && $this->latestVendBinding->customer->last_invoice_date) ? Carbon::parse($this->latestVendBinding->customer->last_invoice_date)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null;
+            'last_invoice_diff' => $this->when($this->relationLoaded('customer'), function() {
+                return ($this->customer && $this->customer->last_invoice_date) ? Carbon::parse($this->customer->last_invoice_date)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null;
             }),
             'locationType' => $this->when($this->relationLoaded('locationType'), function() {
-                return ($this->latestVendBinding && $this->latestVendBinding->customer && $this->latestVendBinding->customer->locationType) ? $this->latestVendBinding->customer->locationType : null;
+                return ($this->customer && $this->customer->locationType) ? $this->customer->locationType : null;
             }),
             'location_type_id' => $this->location_type_id,
             'location_type_name' => $this->location_type_name,
@@ -86,7 +81,6 @@ class VendResource extends JsonResource
             'vendChannelTotalsJson' => $this->vend_channel_totals_json,
             'vendSnapshots' => VendSnapshotDBResource::collection($this->whenLoaded('vendSnapshots')),
             'vendTransactionTotalsJson' => $this->vend_transaction_totals_json,
-            'latestVendBinding' => VendBindingResource::make($this->whenLoaded('latestVendBinding')),
             'salesData' => [
                 'today' => [
                     'sales' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {

@@ -384,20 +384,74 @@
                 return vendTemp.type == type;
             })
 
-            vendTempsArr[type] = vendTempsDataByType
-            let processList = []
-            for(let i = 0; i < vendTempsArr[type].length; i++) {
-                if(i > 0 && Math.abs(moment(vendTempsArr[type][i].created_at).diff(moment(vendTempsArr[type][i-1].created_at), 'minutes')) > 5) {
-                    processList.push({
-                        past: vendTempsArr[type][i-1],
-                        current: vendTempsArr[type][i]
+            if(vendTempsDataByType.length > 0) {
+
+                vendTempsArr[type] = vendTempsDataByType
+                let processList = []
+                for(let i = 0; i < vendTempsArr[type].length; i++) {
+                    if(i > 0 && Math.abs(moment(vendTempsArr[type][i].created_at).diff(moment(vendTempsArr[type][i-1].created_at), 'minutes')) > 5) {
+                        processList.push({
+                            past: vendTempsArr[type][i-1],
+                            current: vendTempsArr[type][i]
+                        })
+                    }
+                }
+                lastTempValue[type] = vendTempsArr[type][vendTempsArr[type].length - 1].value
+                if(processList.length) {
+                    processList.forEach((value, index) => {
+                        let tempTimer = moment(value.past.created_at).add(5, 'minutes')
+                        do {
+                            vendTempsArr[type].push({
+                                value: 'NaN',
+                                created_at: tempTimer.format(),
+                                type: type,
+                            })
+                            tempTimer = tempTimer.add(5, 'minutes')
+                        }while (moment(value.current.created_at).diff(tempTimer, 'minutes')> 5)
                     })
                 }
-            }
-            lastTempValue[type] = vendTempsArr[type][vendTempsArr[type].length - 1].value
-            if(processList.length) {
-                processList.forEach((value, index) => {
-                    let tempTimer = moment(value.past.created_at).add(5, 'minutes')
+
+                if(vendTempsArr[type][vendTempsDataByType.length - 1] && moment().diff(moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at), 'minutes') > 10 ) {
+                    let addNullTempSetting = {
+                        unit: 'hours',
+                        qty: 2,
+                    }
+                    let startTimer = moment(vendTempsArr[type][0].created_at)
+                    let endTimer = moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at)
+                    let timerDiffMinutes = endTimer.diff(startTimer, 'minutes')
+
+                    if(timerDiffMinutes <= 60) {
+                        addNullTempSetting = {
+                            unit: 'hours',
+                            qty: 2,
+                        }
+                    }else if(timerDiffMinutes > 60 && timerDiffMinutes <= 360) {
+                        addNullTempSetting = {
+                            unit: 'hours',
+                            qty: 3,
+                        }
+                    }else if(timerDiffMinutes > 360 && timerDiffMinutes <= 1440) {
+                        addNullTempSetting = {
+                            unit: 'hours',
+                            qty: 4,
+                        }
+                    }else {
+                        addNullTempSetting = {
+                            unit: 'hours',
+                            qty: 6,
+                        }
+                    }
+
+                    let finalTimer = moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at).add(addNullTempSetting.qty, addNullTempSetting.unit)
+                    if(moment().diff(finalTimer, 'minutes') < 10) {
+                        addNullTempSetting = {
+                            unit: 'hours',
+                            qty: 2,
+                        }
+                    }
+
+                    let tempTimer = moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at).add(5, 'minutes')
+
                     do {
                         vendTempsArr[type].push({
                             value: 'NaN',
@@ -405,61 +459,11 @@
                             type: type,
                         })
                         tempTimer = tempTimer.add(5, 'minutes')
-                    }while (moment(value.current.created_at).diff(tempTimer, 'minutes')> 5)
-                })
+                    }while (finalTimer.diff(tempTimer, 'minutes') > 5)
+
+                }
+                vendTempsArr[type].sort((a,b) => moment(a.created_at).unix() - moment(b.created_at).unix())
             }
-
-            if(vendTempsArr[type][vendTempsDataByType.length - 1] && moment().diff(moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at), 'minutes') > 10 ) {
-                let addNullTempSetting = {
-                    unit: 'hours',
-                    qty: 2,
-                }
-                let startTimer = moment(vendTempsArr[type][0].created_at)
-                let endTimer = moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at)
-                let timerDiffMinutes = endTimer.diff(startTimer, 'minutes')
-
-                if(timerDiffMinutes <= 60) {
-                    addNullTempSetting = {
-                        unit: 'hours',
-                        qty: 2,
-                    }
-                }else if(timerDiffMinutes > 60 && timerDiffMinutes <= 360) {
-                    addNullTempSetting = {
-                        unit: 'hours',
-                        qty: 3,
-                    }
-                }else if(timerDiffMinutes > 360 && timerDiffMinutes <= 1440) {
-                    addNullTempSetting = {
-                        unit: 'hours',
-                        qty: 4,
-                    }
-                }else {
-                    addNullTempSetting = {
-                        unit: 'hours',
-                        qty: 6,
-                    }
-                }
-
-                let finalTimer = moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at).add(addNullTempSetting.qty, addNullTempSetting.unit)
-                if(moment().diff(finalTimer, 'minutes') < 10) {
-                    addNullTempSetting = {
-                        unit: 'hours',
-                        qty: 2,
-                    }
-                }
-
-                let tempTimer = moment(vendTempsArr[type][vendTempsArr[type].length - 1].created_at).add(5, 'minutes')
-
-                do {
-                    vendTempsArr[type].push({
-                        value: 'NaN',
-                        created_at: tempTimer.format(),
-                        type: type,
-                    })
-                    tempTimer = tempTimer.add(5, 'minutes')
-                }while (finalTimer.diff(tempTimer, 'minutes') > 5)
-            }
-            vendTempsArr[type].sort((a,b) => moment(a.created_at).unix() - moment(b.created_at).unix())
         })
         vendTemps.value = vendTempsArr
 

@@ -470,42 +470,27 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Access Vending Machine(s) </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Access Customer(s) </span>
                   </div>
                 </div>
               </div>
 
               <div class="sm:col-span-5" v-if="form.id">
-                <!-- <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Vending Machine to Bind
-                </label>
-                <MultiSelect
-                  v-model="form.vend_id"
-                  :options="unbindedVendOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="full_name"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                  ref="multiselect"
-                >
-                </MultiSelect> -->
-                <SearchVendCodeWithOperatorInput v-model="form.vend_id" @selected="onVendCodeSelected" required="true" :error="form.errors.code">
-                  Vending Machine to Bind
-                </SearchVendCodeWithOperatorInput>
-                <div class="text-sm text-red-600" v-if="form.errors.vend_id">
-                  {{ form.errors.vend_id }}
+                <SearchCustomerWithOperatorInput v-model="form.customer_id" @selected="onCustomerSelected" required="true" :error="form.errors.customer_id">
+                  Customer to Bind
+                </SearchCustomerWithOperatorInput>
+                <div class="text-sm text-red-600" v-if="form.errors.customer_id">
+                  {{ form.errors.customer_id }}
                 </div>
               </div>
 
               <div class="sm:col-span-1" v-if="form.id">
                 <Button
                 type="button"
-                @click="storeOperatorVend()"
+                @click="bindOperatorCustomer()"
                 class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
-                :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
-                :disabled="!form.vend_id && !permissions.includes('update operators')"
+                :class="[!form.customer_id ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="!form.customer_id && !permissions.includes('update operators')"
                 >
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                   <span>
@@ -520,61 +505,96 @@
                   <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                     <table class="min-w-full divide-y divide-gray-300">
                       <thead class="bg-gray-50">
+                        <tr class="bg-gray-200">
+                          <th scope="col" colspan="4" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            <span class="flex space-x-2">
+                              <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code" @input="onSearchFilterUpdated()">
+                                  Vend ID
+                              </SearchInput>
+                              <SearchInput placeholderStr="Cust Name" v-model="filters.name" @input="onSearchFilterUpdated()">
+                                  Cust Name
+                              </SearchInput>
+                              <SearchInput placeholderStr="Prefix Code" v-model="filters.prefix_code" @input="onSearchFilterUpdated()">
+                                  Prefix Code
+                              </SearchInput>
+                              <div class="w-1/5">
+                                <label for="text" class="block text-sm font-medium text-gray-700">
+                                    Has Active VM?
+                                </label>
+                                <MultiSelect
+                                    v-model="filters.is_active_vend"
+                                    :options="booleanOptions"
+                                    trackBy="id"
+                                    valueProp="id"
+                                    label="value"
+                                    placeholder="Select"
+                                    open-direction="bottom"
+                                    class="mt-1"
+                                    @selected="onSearchFilterUpdated()"
+                                >
+                                </MultiSelect>
+                            </div>
+                              <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-400 px-2 py-3 md:px-5 text-sm font-medium leading-4 text-gray-900 shadow-sm hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 h-fit mt-2"
+                              @click="resetFilters()"
+                              >
+                                  <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
+                                  <span>
+                                      Reset
+                                  </span>
+                              </Button> -->
+                            </span>
+                          </th>
+                        </tr>
                         <tr>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Vend ID
+                            Customer
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Name
+                            Vend ID
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Action
                           </th>
                         </tr>
+
                       </thead>
                       <tbody class="bg-white">
-                        <tr v-for="(vend, vendIndex) in vends" :key="vend.id" :class="vendIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <tr v-for="(customer, customerIndex) in customers" :key="customer.id" :class="customerIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            {{ vendIndex + 1 }}
+                            {{ customerIndex + 1 }}
                           </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ vend.code }}
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                            <span v-if="customer && customer.person_id">
+                                {{ customer.virtual_customer_code }} ({{ customer.virtual_customer_prefix }})
+                                <br>
+                                {{ customer.name }}
+                            </span>
+                            <span v-else>
+                              <span v-if="customer.code">
+                                {{ customer.code }} <br>
+                              </span>
+                              {{ customer.name }}
+                            </span>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-left">
-                            <!-- <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer">
-                              {{ vend.latestVendBinding.customer.code }} <br>
-                              {{ vend.latestVendBinding.customer.name }}
-                            </span>
-                            <span v-else>
-                              {{ vend.name }}
-                            </span> -->
-                            <span v-if="vend.latestVendBinding && vend.latestVendBinding.customer && vend.latestVendBinding.customer.virtual_customer_code">
-                                <span v-if="permissions.includes('admin-access vends')">
-                                  {{ vend.latestVendBinding.customer.virtual_customer_prefix }}-{{ vend.latestVendBinding.customer.virtual_customer_code }}
-                                  <br>
-                                  {{ vend.latestVendBinding.customer.name }}
-                                </span>
-                            </span>
-                            <span v-else>
-                                {{ vend.name }}
-                            </span>
+                            {{ customer.vend ? customer.vend.code : null }}
                           </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button
                               class="bg-red-400 hover:bg-red-500 text-white"
-                              @click.prevent="deleteOperatorVend(vend)"
+                              @click.prevent="deleteOperatorCustomer(customer)"
                               v-if="permissions.includes('update operators')"
                             >
                               <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                             </Button>
                           </td>
                         </tr>
-                        <tr v-if="!vends.length">
+                        <tr v-if="!customers.length">
                           <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-red-600 text-center">
-                            No Binding = Access to All
+                            No Binding = Access to All Customers
                           </td>
                         </tr>
                       </tbody>
@@ -595,9 +615,10 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
+import SearchInput from '@/Components/SearchInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import SearchVendCodeWithOperatorInput from '@/Components/SearchVendCodeWithOperatorInput.vue';
+import SearchCustomerWithOperatorInput from '@/Components/SearchCustomerWithOperatorInput.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PauseCircleIcon, PlusCircleIcon, PlayIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
@@ -614,14 +635,26 @@ const props = defineProps({
     permissions: [Array, Object],
   })
 
+  const booleanOptions = ref([
+    {id: 'all', value: 'All'},
+    {id: 'true', value: 'Yes'},
+    {id: 'false', value: 'No'},
+  ])
   const countryOptions = ref([])
   const countryDeliveryPlatformOptions = ref([])
   const countryPaymentGatewayOptions = ref([])
+  const customers = ref([])
   const deliveryPlatformOperators = ref([])
   const deliveryPlatformOperatorTypes = ref([])
   const form = ref(
     useForm(getDefaultForm())
   )
+  const filters = ref({
+    vend_code: '',
+    name: '',
+    is_active_vend: booleanOptions.value[1],
+    prefix_code: ''
+  })
   const loading = ref(false)
 
   const operatorPaymentGateways = ref([])
@@ -629,7 +662,7 @@ const props = defineProps({
   const permissions = usePage().props.auth.permissions
   const timezoneOptions = ref([])
   const typeName = ref('')
-  const vends = ref([])
+  // const vends = ref([])
 
 onMounted(() => {
     if(props.type == 'create') {
@@ -646,7 +679,9 @@ onMounted(() => {
     timezoneOptions.value = props.timezones.map((timezone, index) => {return {id: index, name: timezone}})
     operatorPaymentGatewayTypes.value = props.operatorPaymentGatewayTypes
     operatorPaymentGateways.value = props.operator ? props.operator.data.operatorPaymentGateways : null
-    vends.value = props.operator ? props.operator.data.vends : null
+    // vends.value = props.operator ? props.operator.data.vends : null
+    customers.value = props.operator ? props.operator.data.customers : null
+
 })
 
 function getDefaultForm() {
@@ -672,7 +707,8 @@ function getDefaultForm() {
     payment_gateway_key3: '',
     timezone: '',
     remarks: '',
-    vend_id: '',
+    customer_id: '',
+    customer_id_value: '',
   }
 }
 
@@ -700,13 +736,13 @@ function deleteOperatorPaymentGateway(model) {
   })
 }
 
-function deleteOperatorVend(model) {
+function deleteOperatorCustomer(model) {
   const approval = confirm('Are you sure to delete this entry?');
   if (!approval) {
       return;
   }
-  router.post('/operators/unbind-vend', {
-    vend_id: model.id,
+  router.post('/operators/unbind-customer', {
+    customer_id: model.id,
     operator_id: form.value.id,
   },{
       preserveState: false,
@@ -750,10 +786,10 @@ function storeOperatorPaymentGateway() {
   )
 }
 
-function storeOperatorVend() {
+function bindOperatorCustomer() {
   router.post(
-    '/operators/bind-vend', {
-      code: form.value.vend_id,
+    '/operators/bind-customer', {
+      customer_id: form.value.customer_id_value,
       operator_id: form.value.id,
     }, {
       preserveState: false,
@@ -763,8 +799,42 @@ function storeOperatorVend() {
   )
 }
 
-function onVendCodeSelected(vend) {
-  form.value.vend_id = vend.vend_code
+function onSearchFilterUpdated() {
+  router.reload({
+    only: ['operator'],
+    data: {
+      ...filters.value,
+      is_active_vend: filters.value.is_active_vend.id,
+    },
+    replace: true,
+    preserveState: true,
+    onSuccess: page => {
+      customers.value = props.operator ? props.operator.data.customers : null
+    }
+  })
+
+  // router.get('/operators/' + form.value.id + '/edit', {
+  //     ...filters.value,
+  // }, {
+  //     preserveState: true,
+  //     replace: true,
+  //     onFinish: visit => {
+  //         now.value = moment().format('HH:mm:ss')
+  //     },
+  // })
+}
+
+function onCustomerSelected(obj) {
+  form.value.customer_id = obj.vend.code + ' - ' + obj.virtual_customer_code + ' (' + obj.virtual_customer_prefix + ') ' + obj.name
+  form.value.customer_id_value = obj.id
+}
+
+function resetFilters() {
+  router.get('/operators/' + form.value.id + '/edit', filters.value, {
+    onSuccess: page => {
+      customers.value = props.operator ? props.operator.data.customers : null
+    }
+  })
 }
 
 function submit() {

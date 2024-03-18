@@ -124,7 +124,7 @@ trait HasFilter {
     public function filterVendsDB($query, $request)
     {
         // dd($request->all());
-        // $isActive = $request->is_active != null ? $request->is_active : 'all';
+    // $isActive = $request->is_active != null ? $request->is_active : 'all';
       $isDoorOpen = $request->is_door_open != null ? $request->is_door_open : 'all';
       $isOnline = $request->is_online != null ? $request->is_online : 'all';
       $isSensor = $request->is_sensor != null ? $request->is_sensor : 'all';
@@ -168,8 +168,7 @@ trait HasFilter {
             $query->where(function($query) use ($search) {
                 $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
                       ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                      ->orWhere('customers.name', 'LIKE', "%{$search}%")
-                      ->orWhere('vends.name', 'LIKE', "%{$search}%");
+                      ->orWhere('customers.name', 'LIKE', "%{$search}%");
               });
         }
     })
@@ -193,7 +192,7 @@ trait HasFilter {
       ->when($request->is_active, function($query, $search) {
         // dd($search);
         if($search != 'all') {
-            $query->where('vends.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            $query->where('customers.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
         }
     })
     ->when($request->is_mqtt, function($query, $search) {

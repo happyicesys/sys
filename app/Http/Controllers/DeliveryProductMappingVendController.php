@@ -36,8 +36,8 @@ class DeliveryProductMappingVendController extends Controller
 
         $deliveryProductMappingVends = DeliveryProductMappingVend::query()
         ->with([
-            'vend:id,code,name',
-            'vend.latestVendBinding.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',
+            'vend:id,code,name,customer_id',
+            'vend.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',
             'deliveryProductMapping:id,operator_id',
             'deliveryProductMappingVendChannels:id,delivery_product_mapping_vend_id,delivery_product_mapping_item_id,vend_channel_id,vend_channel_code,amount,qty,reserved_percent,reserved_qty,is_active',
             'deliveryProductMappingVendChannels.deliveryProductMappingVend:id',

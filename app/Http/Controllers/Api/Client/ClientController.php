@@ -23,7 +23,7 @@ class ClientController extends Controller
             VendTransaction::with([
                 'paymentMethod',
                 'product',
-                'vend.latestVendBinding.customer',
+                'vend.customer',
                 'vendChannel',
                 'vendChannelError',
             ])
@@ -37,7 +37,7 @@ class ClientController extends Controller
     {
         $vendChannels = ClientVendResource::collection(
             Vend::with([
-                'latestVendBinding.customer',
+                'customer',
                 'vendChannels.product',
             ])
             ->filterIndex($request)

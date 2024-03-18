@@ -16,7 +16,7 @@ class AttachmentResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'created_at' => $this->created_at ? $this->created_at->format('Y-m-d H:i:s') : null,
+            'created_at' => $this->created_at,
             'local_url' => $this->local_url,
             'full_url' => $this->full_url,
             'is_active' => $this->is_active,

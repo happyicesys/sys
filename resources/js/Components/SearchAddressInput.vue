@@ -9,7 +9,7 @@
       </span>
     </div>
     <div class="relative mt-1">
-      <ComboboxInput class="w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm" @input="onInputChanged"  :value="modelValue"/>
+      <ComboboxInput class="w-full rounded-md border border-gray-300 py-2 pl-3 pr-10 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm" @input="onInputChanged" :value="modelValue" :disabled="disabled" :class="[disabled ? 'bg-gray-200' : 'bg-white']"/>
       <ComboboxButton class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-2 focus:outline-none">
         <MagnifyingGlassCircleIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
       </ComboboxButton>
@@ -40,6 +40,7 @@ import {
 } from '@headlessui/vue'
 
 defineProps({
+  disabled: [Boolean, String, Number],
   modelValue: String,
   required: [Boolean, String],
 })
@@ -49,7 +50,7 @@ const emit = defineEmits(['update:modelValue', 'selected'])
 const options = ref([])
 
 const fetchAddresses = _.debounce(async (e) => {
-  const url = 'https://developers.onemap.sg/commonapi/search?searchVal=' + e.target.value + '&returnGeom=Y&getAddrDetails=Y'
+  const url = 'https://www.onemap.gov.sg/api/common/elastic/search?searchVal=' + e.target.value + '&returnGeom=Y&getAddrDetails=Y'
   let response = await (await fetch(url)).json()
   if(response) {
     options.value = await response.results

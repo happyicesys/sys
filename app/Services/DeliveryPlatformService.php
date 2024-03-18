@@ -74,7 +74,7 @@ class DeliveryPlatformService
           $deliveryPlatformOrder->delivery_platform_id = $this->deliveryPlatformOperator->deliveryPlatform->id;
           $deliveryPlatformOrder->delivery_platform_operator_id = $this->deliveryPlatformOperator->id;
           $deliveryPlatformOrder->delivery_product_mapping_vend_id = $deliveryProductMappingVend->id;
-          $deliveryPlatformOrder->vend_json = collect($deliveryProductMappingVend->vend()->with('latestVendBinding')->first())->except(['product_mapping', 'vend_channels_json']);
+          $deliveryPlatformOrder->vend_json = collect($deliveryProductMappingVend->vend()->with('customer')->first())->except(['product_mapping', 'vend_channels_json']);
           $deliveryPlatformOrder->save();
           $this->createDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
           DB::commit();
@@ -164,6 +164,9 @@ class DeliveryPlatformService
       'response_history_json' => $dispenseDataset,
     ]);
 
+    // sync order qty to delivery product mapping vend channel by delivery platform order
+    $this->deliveryProductMappingService->syncVendChannelOrderQtyByDeliveryOrder($deliveryPlatformOrder, false);
+
     // send dispense request to vend
     $this->mqttService->publishVend(
       $deliveryPlatformOrder->deliveryProductMappingVend->vend,
@@ -219,7 +222,7 @@ class DeliveryPlatformService
           ]),
           'request_history_json' => $deliveryPlatformOrder->request_history_json ? array_merge($deliveryPlatformOrder->request_history_json, $input) : $input,
         ]);
-
+        $this->syncOrderQtyBasedOnStatus($deliveryPlatformOrder);
         $this->handleLastMileTimediff($deliveryPlatformOrder);
       break;
     }
@@ -514,6 +517,14 @@ class DeliveryPlatformService
     }
   }
 
+    // add back order qty when order is cancelled
+    private function syncOrderQtyBasedOnStatus(DeliveryPlatformOrder $deliveryPlatformOrder)
+    {
+      if($deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_CANCELLED or $deliveryPlatformOrder->status == DeliveryPlatformOrder::STATUS_FAILED) {
+        $this->deliveryProductMappingService->syncVendChannelOrderQtyByDeliveryOrder($deliveryPlatformOrder, false);
+      }
+    }
+
   // collect timestamp for last mile time diff
   private function handleLastMileTimediff(DeliveryPlatformOrder $deliveryPlatformOrder)
   {
@@ -532,7 +543,6 @@ class DeliveryPlatformService
         'last_mile_timediff_mins' => Carbon::parse($deliveryPlatformOrder->collected_datetime)->diffInMinutes(Carbon::parse($deliveryPlatformOrder->delivered_datetime)),
       ]);
     }
-
   }
 
   private function syncProductMappingVendChannelOrderQtyByOrder(DeliveryPlatformOrder $deliveryPlatformOrder, $isAddition = true)

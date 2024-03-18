@@ -79,9 +79,9 @@ class VendRecord extends Model
         ->when($request->is_binded_customer, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
-                    $query->has('vend.latestVendBinding');
+                    $query->has('vend.customer');
                 }else {
-                    $query->doesntHave('vend.latestVendBinding');
+                    $query->doesntHave('vend.customer');
                 }
             }
         })

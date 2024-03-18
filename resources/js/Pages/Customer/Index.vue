@@ -12,14 +12,15 @@
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="flex justify-end">
-          <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          @click="onCreateClicked()"
-          >
-            <PlusIcon class="h-4 w-4" aria-hidden="true"/>
-            <span>
-              Create
-            </span>
-          </Button>
+          <Link href="/customers/create">
+            <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            >
+              <PlusIcon class="h-4 w-4" aria-hidden="true"/>
+              <span>
+                Create
+              </span>
+            </Button>
+          </Link>
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
@@ -147,6 +148,22 @@
             >
             </MultiSelect>
           </div>
+          <div>
+              <label for="text" class="block text-sm font-medium text-gray-700">
+                  Is From CMS
+              </label>
+              <MultiSelect
+                  v-model="filters.is_cms"
+                  :options="booleanOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+              >
+              </MultiSelect>
+          </div>
         </div>
 
 
@@ -212,6 +229,9 @@
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
                       Customer
                     </TableHeadSort>
+                    <TableHead>
+                      Label
+                    </TableHead>
                     <TableHeadSort modelName="category_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('category_id')">
                       Category
                     </TableHeadSort>
@@ -242,6 +262,9 @@
                     <TableHead>
                       Status
                     </TableHead>
+                    <TableHeadSort modelName="created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('created_at')">
+                      Created At
+                    </TableHeadSort>
                     <TableHead>
                       Action
                     </TableHead>
@@ -253,13 +276,23 @@
                         {{ customers.meta.from + customerIndex }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.vendBindings && customer.vendBindings[0] ? customer.vendBindings[0].vend.code : '' }}
+                        {{ customer.vend ? customer.vend.code : null }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
-                        <span v-if="customer.virtual_customer_prefix && customer.virtual_customer_code">
-                          {{ customer.virtual_customer_prefix }}-{{ customer.virtual_customer_code }} <br>
-                        </span>
-                        {{ customer.name }}
+                        <a :class="[customer.person_id ? 'text-blue-700' : 'text-gray-800']" target="_blank" :href="'//admin.happyice.com.sg/person/' + customer.person_id + '/edit'">
+                          <span v-if="customer.person_id">
+                            {{ customer.virtual_customer_code }} ({{ customer.virtual_customer_prefix }}) <br>
+                          </span>
+                          {{ customer.name }}
+                        </a>
+                      </TableData>
+                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
+                        <div
+                            class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[10px] font-small border min-w-full bg-green-200"
+                            v-if="customer.person_id"
+                        >
+                          From CMS
+                        </div>
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         {{ customer.category ? customer.category.name : '' }}
@@ -294,16 +327,20 @@
                         {{ customer.status ? customer.status.name : '' }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
+                        {{ customer.created_at }}
+                      </TableData>
+                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
-                          <Button
-                            type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-                            @click="onEditClicked(customer)"
-                          >
-                            <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                            <span>
-                                Edit
-                            </span>
-                          </Button>
+                          <Link :href="'/customers/' + customer.id + '/edit'">
+                              <Button
+                              type="button" class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800 flex space-x-1"
+                              >
+                              <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                              <span>
+                                  Edit
+                              </span>
+                              </Button>
+                          </Link>
                         </div>
                       </TableData>
                       </tr>
@@ -342,7 +379,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   customers: Object,
@@ -365,6 +402,7 @@ const filters = ref({
   numberPerPage: 100,
 })
 const showModal = ref(false)
+const booleanOptions = ref([])
 const customer = ref()
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
@@ -378,6 +416,11 @@ const type = ref('')
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
+  booleanOptions.value = [
+    {id: 'all', value: 'All'},
+    {id: 'true', value: 'Yes'},
+    {id: 'false', value: 'No'},
+  ]
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },
@@ -394,8 +437,8 @@ onMounted(() => {
   zoneOptions.value = props.zones.data.map((data) => {return {id: data.id, name: data.name}})
   priceTemplateOptions.value = props.priceTemplates.data.map((data) => {return {id: data.id, name: data.name}})
   tagOptions.value = props.tags.data.map((data) => {return {id: data.id, name: data.name}})
-
   filters.value.status = statusOptions.value[3]
+  filters.value.is_cms = booleanOptions.value[0]
 })
 
 function onCreateClicked() {
@@ -413,6 +456,7 @@ function onEditClicked(customerValue) {
 function onSearchFilterUpdated() {
   router.get('/customers', {
       ...filters.value,
+      is_cms: filters.value.is_cms.id,
       status: filters.value.status.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {

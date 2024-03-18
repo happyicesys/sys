@@ -41,7 +41,7 @@ class VendDataController extends Controller
 
     public function getBindedVends()
     {
-        $vends = Vend::with('latestVendBinding.customer')->has('latestVendBinding')->get();
+        $vends = Vend::with('customer')->has('customer')->get();
 
         return $vends;
     }

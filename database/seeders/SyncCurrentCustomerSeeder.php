@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Customer;
+use App\Models\Vend;
 use App\Jobs\SyncVendCustomerCms;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -14,13 +14,12 @@ class SyncCurrentCustomerSeeder extends Seeder
      */
     public function run(): void
     {
-        $customers = Customer::all();
+        $vends = Vend::has('customer')->get();
 
-        foreach($customers as $customer) {
-            if($customer->vendBindings()->exists()) {
-                foreach($customer->vendBindings as $vendBinding) {
-                    SyncVendCustomerCms::dispatch($vendBinding->vend_id, $customer->person_id)->onQueue('default');
-                }
+        // dd($vends->toArray());
+        foreach($vends as $vend) {
+            if($vend->customer->person_id) {
+                SyncVendCustomerCms::dispatch($vend->customer->person_id, null)->onQueue('default');
             }
         }
     }

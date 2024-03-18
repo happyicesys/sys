@@ -8,6 +8,7 @@ use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentGatewayResource;
 use App\Http\Resources\VendResource;
 use App\Models\Country;
+use App\Models\Customer;
 use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\Operator;
@@ -45,9 +46,8 @@ class OperatorController extends Controller
                     'address:id,postcode',
                     // 'deliveryPlatformOperators.deliveryPlatform',
                     'country:id,name,code,currency_name,currency_symbol',
-                    // 'operatorPaymentGateways.paymentGateway',
-                    'vends:id,code,name',
-                    'vends.latestVendBinding.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
+                    'customers:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
+                    'customers.vends:id,code,name',
                     ])
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
@@ -86,7 +86,7 @@ class OperatorController extends Controller
             // 'unbindedVends' => fn () =>
             //     VendResource::collection(
             //         Vend::with([
-            //             'latestVendBinding.customer:id,code,name'
+            //             'customer:id,code,name'
             //         ])->whereNotIn('id', function($query) use ($request) {
             //             $query->select('vend_id')
             //                 ->from('operator_vend')
@@ -104,7 +104,7 @@ class OperatorController extends Controller
             //         'deliveryPlatformOperators.deliveryPlatform',
             //         'operatorPaymentGateways.paymentGateway',
             //         'vends',
-            //         'vends.latestVendBinding.customer',
+            //         'vends.customer',
             //     ])
             //     ->when($request->name, function($query, $search) {
             //         $query->where('name', 'LIKE', "%{$search}%");
@@ -134,15 +134,49 @@ class OperatorController extends Controller
 
     public function edit(Request $request, $id)
     {
+        $request->merge(['is_active_vend' => isset($request->is_active_vend) ? $request->is_active_vend : 'true']);
+
         $operator = Operator::query()
             ->with([
                 'address',
                 'address.country',
                 'country',
+                'customers' => function($query) use ($request) {
+                    $query
+                    ->when($request->prefix_code, function($query, $search) {
+                        $query->where(function($query) use ($search) {
+                            $query->where('virtual_customer_prefix', 'LIKE', '%'.$search.'%')
+                                ->orWhere('virtual_customer_code', 'LIKE', '%'.$search.'%');
+                        });
+                    })
+                    ->when($request->name, function($query, $search) {
+                        $query->where('name', 'LIKE', '%'.$search.'%');
+                    })
+                    ->when($request->vend_code, function($query, $search) {
+                        $query->whereHas('vend', function($query) use ($search) {
+                            $query->where('code', 'LIKE', '%'.$search.'%');
+                        });
+                    })
+                    ->when($request->is_active_vend, function($query, $search) {
+                        if($search != 'all') {
+                            $query->whereHas('vend', function($query) use ($search) {
+                                $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+                            });
+                        }
+                    });
+                    $query->select('id', 'code', 'name', 'virtual_customer_code', 'virtual_customer_prefix', 'operator_id', 'person_id');
+                },
+                'customers.vend' => function($query) use ($request) {
+                    $query
+                    ->when($request->is_active_vend, function($query, $search) {
+                        if($search != 'all') {
+                            $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+                        }
+                    });
+                    $query->select('id', 'code', 'name', 'customer_id');
+                },
                 'deliveryPlatformOperators.deliveryPlatform',
                 'operatorPaymentGateways.paymentGateway',
-                'vends:id,code,name',
-                'vends.latestVendBinding.customer:id,code,name,virtual_customer_code,virtual_customer_prefix',
             ])
             ->find($id);
         $timezones = DateTimeZone::listIdentifiers();
@@ -271,6 +305,15 @@ class OperatorController extends Controller
         return redirect()->route('operators');
     }
 
+    public function bindCustomer(Request $request)
+    {
+        $customer = Customer::findOrFail($request->customer_id);
+        $customer->operator_id = $request->operator_id;
+        $customer->save();
+
+        return redirect()->route('operators.edit', [$request->operator_id]);
+    }
+
     public function bindVend(Request $request)
     {
         $operator = Operator::findOrFail($request->operator_id);
@@ -278,6 +321,15 @@ class OperatorController extends Controller
         $operator->vends()->attach($vend->id);
 
         return redirect()->route('operators.edit', [$operator->id]);
+    }
+
+    public function unbindCustomer(Request $request)
+    {
+        $customer = Customer::findOrFail($request->customer_id);
+        $customer->operator_id = null;
+        $customer->save();
+
+        return redirect()->route('operators.edit', [$request->operator_id]);
     }
 
     public function unbindVend(Request $request)

@@ -30,9 +30,9 @@
             {{ $vendTransaction->vend->code }}
           </td>
           <td>
-            {{ $vendTransaction->vend->latestVendBinding ? $vendTransaction->vend->latestVendBinding->customer->code :
+            {{ $vendTransaction->vend ? $vendTransaction->vend->customer->code :
             $vendTransaction->vend->name }}<br>
-            {{ $vendTransaction->vend->latestVendBinding ? $vendTransaction->vend->latestVendBinding->customer->name : '' }}
+            {{ $vendTransaction->vend ? $vendTransaction->vend->customer->name : '' }}
           </td>
           <td>
             {{ $vendTransaction->vendChannel->code }}

@@ -38,7 +38,7 @@ class LocationType extends Model
             }else {
                 $search = [$search];
             }
-            $query->whereHas('customers.latestVendBinding.vend', function($query) use ($search) {
+            $query->whereHas('customers.vends', function($query) use ($search) {
                 $query->whereIn('code', $search);
             });
         })
@@ -49,9 +49,6 @@ class LocationType extends Model
         })
         ->when($request->customer_name, function($query, $search) {
             $query->whereHas('customers', function($query) use ($search) {
-                $query->where('name', 'LIKE', "%{$search}%");
-            })
-            ->orWhereHas('customers.latestVendBinding.vend', function($query) use ($search) {
                 $query->where('name', 'LIKE', "%{$search}%");
             });
         })
@@ -68,9 +65,9 @@ class LocationType extends Model
         ->when($request->is_binded_customer, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
-                    $query->has('customers.latestVendBinding');
+                    $query->has('customers');
                 }else {
-                    $query->doesntHave('customers.latestVendBinding');
+                    $query->doesntHave('customers');
                 }
             }
         })
@@ -83,7 +80,7 @@ class LocationType extends Model
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereHas('customers.latestVendBinding.vend.opeartors', function($query) use ($search) {
+                $query->whereHas('customers.operator', function($query) use ($search) {
                     $query->where('operators.id', $search);
                 });
             }

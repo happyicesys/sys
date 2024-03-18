@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CountryResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
+use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendDBResource;
 use App\Models\Category;
+use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CategoryGroup;
 use App\Models\LocationType;
@@ -51,8 +54,8 @@ class SettingController extends Controller
 
         $vends = Vend::query()
             ->with([
-                'latestOperator:id,code,name',
-                'latestVendBinding.customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix',
+                'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix,operator_id',
+                'customer.operator:id,code,name',
             ])
             ->filterIndex($request)
             ->select(
@@ -60,6 +63,7 @@ class SettingController extends Controller
                 'vends.id',
                 'vends.begin_date',
                 'vends.code',
+                'vends.customer_id',
                 'vends.apk_ver_json',
                 'vends.serial_num',
                 'vends.is_active',
@@ -98,44 +102,67 @@ class SettingController extends Controller
     {
         if($id) {
             $vend = Vend::query()
-                ->leftJoin('vend_bindings', function($query) {
-                    $query->on('vend_bindings.vend_id', '=', 'vends.id')
-                            ->where('vend_bindings.is_active', true)
-                            ->latest('vend_bindings.begin_date')
-                            ->limit(1);
-                })
-                ->leftJoin('customers', 'customers.id', '=', 'vend_bindings.customer_id')
-                ->leftJoin('operator_vend', function($query) {
-                    $query->on('operator_vend.vend_id', '=', 'vends.id')
-                            ->latest('operator_vend.begin_date')
-                            ->limit(1);
-                })
-                ->select(
-                    '*',
-                    'vends.id',
-                    'vends.begin_date',
-                    'vends.code',
-                    'vends.name',
-                    'vends.termination_date',
-                    'customers.id AS customer_id',
-                    'customers.code AS customer_code',
-                    'customers.name AS customer_name',
-                    'vends.is_active'
-                    )
-                ->where('vends.id', $id)
-                ->first();
+            ->with([
+                'customer',
+                'customer.deliveryAddress',
+                'customer.contact',
+            ])
+            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->leftJoin('addresses', function($query) {
+                $query->on('addresses.modelable_id', '=', 'customers.id')
+                        ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                        ->where('addresses.type', '=', 2)
+                        ->limit(1);
+            })
+            ->where('vends.id', $id)
+            ->select(
+                'vends.id',
+                'vends.code',
+                'customers.id AS customer_id',
+                DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (",customers.virtual_customer_prefix,")") ELSE customers.code END AS customer_code'),
+                'customers.name AS customer_name',
+                'customers.person_id',
+                'vends.begin_date',
+                'vends.termination_date',
+                DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
+            )
+            ->first();
         }else {
             $vend = new Vend();
         }
 
-        $response = Http::get(env('CMS_URL') . '/api/vends/unbind');
-
+        $customers = Customer::query()
+            ->select(
+                'id',
+                'code',
+                'name',
+                'is_active',
+                'person_id',
+                'person_json',
+                'virtual_customer_code',
+                'virtual_customer_prefix',
+                'operator_id'
+            )
+            ->whereDoesntHave('vend')
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return Inertia::render('Setting/Edit', [
+            'countries' => CountryResource::collection(
+                Country::query()
+                    ->orderBy('sequence')
+                    ->orderBy('name')
+                    ->get()
+                ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
-            'adminCustomerOptions' => $response->collect(),
+            'adminCustomerOptions' => CustomerResource::collection(
+                $customers
+            ),
             'vend' => $vend,
             'type' => $type,
         ]);
@@ -150,8 +177,8 @@ class SettingController extends Controller
                 'is_active' => false,
                 'termination_date' => Carbon::now(),
             ]);
-            if($vend->latestVendBinding()->exists()) {
-                $vend->latestVendBinding->update([
+            if($vend->customer()->exists()) {
+                $vend->customer->update([
                     'is_active' => false,
                     'termination_date' => Carbon::now(),
                 ]);
@@ -161,12 +188,12 @@ class SettingController extends Controller
                 'is_active' => true,
                 'termination_date' => null,
             ]);
-            // if($vend->firstVendBinding()->exists()) {
-            //     $vend->firstVendBinding->update([
-            //         'is_active' => true,
-            //         'termination_date' => null,
-            //     ]);
-            // }
+            if($vend->customer()->exists()) {
+                $vend->customer->update([
+                    'is_active' => true,
+                    'termination_date' => null,
+                ]);
+            }
         }
 
         return redirect()->route('settings.edit', [$vendId, 'update']);

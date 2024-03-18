@@ -143,7 +143,7 @@
                       {{ deliveryPlatformCampaign.name }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformCampaignIndex" :totalLength="deliveryPlatformCampaigns.length" inputClass="text-center">
-                      {{ deliveryPlatformCampaign.is_active ? 'Active' : 'Inactive' }}
+                      {{ deliveryPlatformCampaign.is_active ? 'Active' : 'Not Active' }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformCampaignIndex" :totalLength="deliveryPlatformCampaigns.length" inputClass="text-left">
                       <ul class="divide-y divide-gray-200">

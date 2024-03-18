@@ -18,7 +18,12 @@ class VendTransactionItem extends Model
         'vend_channel_id',
         'vend_channel_code',
         'vend_channel_error_id',
+        'vend_channel_error_json',
         'vend_transaction_id',
+    ];
+
+    protected $casts = [
+        'vend_channel_error_json' => 'json',
     ];
 
     // relationships

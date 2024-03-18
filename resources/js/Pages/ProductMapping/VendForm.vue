@@ -135,9 +135,14 @@
                           {{ productMappingVend.code }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                          <span v-if="productMappingVend.latestVendBinding && productMappingVend.latestVendBinding.customer">
-                            {{ productMappingVend.latestVendBinding.customer.code }} <br>
-                            {{ productMappingVend.latestVendBinding.customer.name }}
+                          <span v-if="productMappingVend && productMappingVend.customer">
+                            <span v-if="productMappingVend.customer.person_id">
+                              {{ productMappingVend.customer.virtual_customer_code }} ({{ productMappingVend.customer.virtual_customer_prefix }}) <br>
+                            </span>
+                            <span v-else>
+                              {{ productMappingVend.customer.code }} <br>
+                            </span>
+                            {{ productMappingVend.customer.name }}
                           </span>
                           <span v-else>
                             {{ productMappingVend.name }}

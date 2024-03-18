@@ -85,7 +85,7 @@ class DeliveryPlatformOrderController extends Controller
                 'deliveryPlatformOrderItems',
                 'deliveryProductMappingVend.deliveryProductMapping:id,name',
                 'deliveryProductMappingVend.vend:id,code,name',
-                'deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
+                'deliveryProductMappingVend.vend.customer:id,code,name',
                 'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',
                 'deliveryPlatformOrderItems.deliveryProductMappingItem.product.thumbnail',
                 'deliveryPlatformOrderItems.orderItemVendChannels',
@@ -117,7 +117,7 @@ class DeliveryPlatformOrderController extends Controller
         //     'deliveryPlatformOrder.deliveryPlatform:id,name,country_id,slug',
         //     'deliveryProductMappingItem.deliveryProductMapping:id,name',
         //     'deliveryPlatformOrder.deliveryProductMappingVend.vend:id,code,name',
-        //     'deliveryPlatformOrder.deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name',
+        //     'deliveryPlatformOrder.deliveryProductMappingVend.vend.customer:id,code,name',
         //     'deliveryPlatformOrder.deliveryPlatformOperator',
         //     'deliveryPlatformOrder.deliveryPlatformOrderComplaint',
         //     'deliveryProductMappingItem.product:id,code,name,is_active',
@@ -143,7 +143,7 @@ class DeliveryPlatformOrderController extends Controller
         //         'Vend ID' => $orderItem->deliveryPlatformOrder->vend_code,
         //         'Customer' => isset($orderItem->deliveryPlatformOrder->vend_json) && isset($orderItem->deliveryPlatformOrder->vend_json['full_name']) ?
         //                             $orderItem->deliveryPlatformOrder->vend_json['full_name'] :
-        //                             ($orderItem->deliveryPlatformOrder && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer ? $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->code. ' ' . $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->latestVendBinding->customer->name : ''),
+        //                             ($orderItem->deliveryPlatformOrder && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend && $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->customer ? $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->customer->code. ' ' . $orderItem->deliveryPlatformOrder->deliveryProductMappingVend->vend->customer->name : ''),
         //         'Sys Order ID' => $orderItem->deliveryPlatformOrder->vend_transaction_order_id,
         //         'Channel' => $orderItem->orderItemVendChannels[0]->vend_channel_code,
         //         'Product Code' => isset($orderItem->product_json) ?
@@ -179,8 +179,8 @@ class DeliveryPlatformOrderController extends Controller
             'deliveryPlatform:id,name,country_id,slug',
             'deliveryPlatformOrderItems',
             'deliveryProductMappingVend.deliveryProductMapping:id,name',
-            'deliveryProductMappingVend.vend:id,code,name',
-            'deliveryProductMappingVend.vend.latestVendBinding.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
+            'deliveryProductMappingVend.vend:id,code,name,customer_id',
+            'deliveryProductMappingVend.vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
             'deliveryProductMappingVend.deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
             'deliveryPlatformOperator',
             'deliveryPlatformOrderComplaint',

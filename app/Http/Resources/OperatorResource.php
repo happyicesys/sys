@@ -18,6 +18,7 @@ class OperatorResource extends JsonResource
         return [
             'id' => $this->id,
             'code' => $this->code,
+            'customers' => CustomerResource::collection($this->whenLoaded('customers')),
             'deliveryPlatformOperators' => DeliveryPlatformOperatorResource::collection($this->whenLoaded('deliveryPlatformOperators')),
             'name' => $this->name,
             'gst_vat_rate' => $this->gst_vat_rate,

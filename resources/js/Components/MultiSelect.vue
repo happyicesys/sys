@@ -4,6 +4,7 @@
       :modelValue="modelValue"
       :canClear="canClear"
       :canDeselect="false"
+      :disabled="disabled"
       :label="label"
       :mode="mode"
       :object="true"
@@ -41,6 +42,7 @@
       type: [Boolean, String],
       default: true,
     },
+    disabled: [Array, Boolean, Object, String, Number],
     openDirection: {
       type: String,
       default: 'bottom',

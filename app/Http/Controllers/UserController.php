@@ -37,7 +37,7 @@ class UserController extends Controller
                     'operator',
                     'roles',
                     'vends:id,code,name',
-                    'vends.latestVendBinding.customer:id,code,name',
+                    'vends.customer:id,code,name',
                 ])
                 ->when($request->name, function($query, $search) {
                     $query->where('name', 'LIKE', "%{$search}%");
@@ -61,12 +61,15 @@ class UserController extends Controller
             'unbindedVends' => fn () =>
                 VendResource::collection(
                     Vend::with([
-                        'latestVendBinding.customer:id,code,name'
-                    ])->whereNotIn('id', function($query) use ($request) {
-                        $query->select('vend_id')
-                            ->from('user_vend')
-                            ->where('user_id', $request->user_id);
+                        'customer:id,code,name'
+                    ])->whereHas('users', function($query) use ($request) {
+                        $query->whereNot('user_id', $request->user_id);
                     })
+                    // ->whereNotIn('id', function($query) use ($request) {
+                    //     $query->select('vend_id')
+                    //         ->from('user_vend')
+                    //         ->where('user_id', $request->user_id);
+                    // })
                     ->orderBy('code')
                     ->get()
             )
