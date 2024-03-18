@@ -2609,25 +2609,25 @@
       "_MultiSelect.vue_vue_type_style_index_1_lang.3b89a0cf.js"
     ]
   },
+  "MultiSelect.css": {
+    "file": "assets/MultiSelect.d6bfc34a.css",
+    "src": "MultiSelect.css"
+  },
   "resources/js/Pages/Welcome.css": {
     "file": "assets/Welcome.b7da5231.css",
     "src": "resources/js/Pages/Welcome.css"
   },
-  "resources/js/Pages/DeliveryProductMappingVend/Index.css": {
+  "resources/js/Pages/Vend/Index.css": {
     "file": "assets/Index.8b3a4ee5.css",
-    "src": "resources/js/Pages/DeliveryProductMappingVend/Index.css"
-  },
-  "resources/js/Pages/Report/IndexStockCount.css": {
-    "file": "assets/IndexStockCount.8b3a4ee5.css",
-    "src": "resources/js/Pages/Report/IndexStockCount.css"
+    "src": "resources/js/Pages/Vend/Index.css"
   },
   "resources/js/Pages/DeliveryPlatform/Edit.css": {
     "file": "assets/Edit.8b3a4ee5.css",
     "src": "resources/js/Pages/DeliveryPlatform/Edit.css"
   },
-  "MultiSelect.css": {
-    "file": "assets/MultiSelect.d6bfc34a.css",
-    "src": "MultiSelect.css"
+  "resources/js/Pages/Report/IndexStockCount.css": {
+    "file": "assets/IndexStockCount.8b3a4ee5.css",
+    "src": "resources/js/Pages/Report/IndexStockCount.css"
   },
   "main.css": {
     "file": "assets/main.768eba40.css",
