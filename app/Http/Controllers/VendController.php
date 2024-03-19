@@ -104,9 +104,11 @@ class VendController extends Controller
                 $request->merge(['is_active' => 'all']);
             }
         }
-        $request->merge(['numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50]);
-        $request->merge(['sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent']);
-        $request->merge(['sortBy' => isset($request->sortBy) ? $request->sortBy : true]);
+        $request->merge([
+            'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
+            'sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent',
+            'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
+        ]);
         $className = get_class(new Customer());
 
         $vends = DB::table('customers')

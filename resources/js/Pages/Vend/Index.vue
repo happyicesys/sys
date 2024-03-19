@@ -105,12 +105,12 @@
                     >
                     </MultiSelect>
                 </div>
-                <!-- <div v-if="permissions.includes('admin-access vends')">
+                <div v-if="permissions.includes('admin-access vends')">
                     <label for="text" class="block text-sm font-medium text-gray-700">
-                        Customer Binded?
+                        Is Active?
                     </label>
                     <MultiSelect
-                        v-model="filters.is_binded_customer"
+                        v-model="filters.is_active"
                         :options="booleanOptions"
                         trackBy="id"
                         valueProp="id"
@@ -120,13 +120,13 @@
                         class="mt-1"
                     >
                     </MultiSelect>
-                </div> -->
+                </div>
                 <div v-if="permissions.includes('admin-access vends')">
                     <label for="text" class="block text-sm font-medium text-gray-700">
-                        Is Active?
+                        Is Factory?
                     </label>
                     <MultiSelect
-                        v-model="filters.is_active"
+                        v-model="filters.is_testing"
                         :options="booleanOptions"
                         trackBy="id"
                         valueProp="id"
@@ -1014,6 +1014,7 @@
     is_mqtt_active: '',
     is_online: '',
     is_sensor: '',
+    is_testing: '',
     is_door_open: '',
     fanSpeedLowerThan: '',
     balanceStockLessThan: '',
@@ -1106,6 +1107,7 @@
     filters.value.is_mqtt_active = booleanOptions.value[0]
     filters.value.is_online = booleanOptions.value[0]
     filters.value.is_sensor = enableOptions.value[0]
+    filters.value.is_testing = booleanOptions.value[2]
     // console.log(initBinded, roles[0])
     filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]
     filters.value.locationType = locationTypeOptions.value[0]
@@ -1176,6 +1178,7 @@
             is_mqtt_active: filters.value.is_mqtt_active.id,
             is_online: filters.value.is_online.id,
             is_sensor: filters.value.is_sensor.id,
+            is_testing: filters.value.is_testing.id,
             numberPerPage: filters.value.numberPerPage.id,
         }, {
             preserveState: true,
@@ -1238,6 +1241,7 @@ function onExportChannelExcelClicked() {
             is_mqtt_active: filters.value.is_mqtt_active.id,
             is_online: filters.value.is_online.id,
             is_sensor: filters.value.is_sensor.id,
+            is_testing: filters.value.is_testing.id,
         },
         responseType: 'blob',
     }).then(response => {

@@ -123,11 +123,12 @@ trait HasFilter {
 
     public function filterVendsDB($query, $request)
     {
-        // dd($request->all());
-    // $isActive = $request->is_active != null ? $request->is_active : 'all';
-      $isDoorOpen = $request->is_door_open != null ? $request->is_door_open : 'all';
-      $isOnline = $request->is_online != null ? $request->is_online : 'all';
-      $isSensor = $request->is_sensor != null ? $request->is_sensor : 'all';
+        $request->merge([
+            'is_door_open' => $request->is_door_open != null ? $request->is_door_open : 'all',
+            'is_online' => $request->is_online != null ? $request->is_online : 'all',
+            'is_sensor' => $request->is_sensor != null ? $request->is_sensor : 'all',
+            'is_testing' => $request->is_testing != null ? $request->is_testing : 'false',
+        ]);
 
       return $query->when($request->has('visited'), function($query, $search) use ($request) {
           if($request->visited == 'true') {
@@ -190,9 +191,13 @@ trait HasFilter {
           }
       })
       ->when($request->is_active, function($query, $search) {
-        // dd($search);
         if($search != 'all') {
             $query->where('customers.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+        }
+    })
+    ->when($request->is_testing, function($query, $search) {
+        if($search != 'all') {
+            $query->where('vends.is_testing', filter_var($search, FILTER_VALIDATE_BOOLEAN));
         }
     })
     ->when($request->is_mqtt, function($query, $search) {
@@ -205,7 +210,7 @@ trait HasFilter {
             $query->where('vends.is_mqtt', true)->where('vends.is_mqtt_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
         }
     })
-      ->when($isDoorOpen, function($query, $search) {
+      ->when($request->is_door_open, function($query, $search) {
           if($search != 'all') {
               $query->where('parameter_json->door', '=', $search);
           }
@@ -275,7 +280,7 @@ trait HasFilter {
             );
           }
       })
-      ->when($isOnline, function($query, $search) {
+      ->when($request->is_online, function($query, $search) {
           if($search != 'all') {
               if($search == 'true') {
                   $search = true;
@@ -285,7 +290,7 @@ trait HasFilter {
               $query->where('is_online', $search);
           }
       })
-      ->when($isSensor, function($query, $search) {
+      ->when($request->is_sensor, function($query, $search) {
           if($search != 'all') {
               if($search == 'true') {
                   $query->whereIn('parameter_json->Sensor', ['1', '3', '5', '7', '9']);
