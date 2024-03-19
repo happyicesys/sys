@@ -305,7 +305,9 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('settings')->group(function() {
         Route::get('/', [SettingController::class, 'index'])->name('settings');
-        Route::get('/vend/{id}/{type}', [SettingController::class, 'editOrCreate'])->name('settings.edit');
+        Route::get('/vend/create', [SettingController::class, 'create']);
+        Route::get('/vend/{id}/update', [SettingController::class, 'edit'])->name('settings.edit');
+        Route::post('/vend/store', [SettingController::class, 'store']);
         Route::post('/{id}/toggle-activation', [SettingController::class, 'toggleActivation']);
     });
 

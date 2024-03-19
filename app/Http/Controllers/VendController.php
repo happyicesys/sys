@@ -110,6 +110,7 @@ class VendController extends Controller
         $className = get_class(new Customer());
 
         $vends = DB::table('customers')
+            // ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
@@ -158,7 +159,7 @@ class VendController extends Controller
                 'customers.totals_json AS vend_transaction_totals_json',
                 'vends.vend_type_id',
                 'vends.virtual_vend_records_thirty_days_amount_average',
-                'vends.is_active',
+                'customers.is_active',
                 DB::raw("customers.account_manager_json->>'$.name' AS account_manager_name"),
                 'customers.begin_date AS customer_begin_date',
                 'customers.cms_invoice_history',
@@ -229,15 +230,7 @@ class VendController extends Controller
     public function searchVendCode($vendCode)
     {
         $vends = Vend::query()
-            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
-            ->where('vends.code', 'LIKE', "%{$vendCode}%")
-            ->select(
-                'vends.id',
-                'vends.code AS vend_code',
-                'operators.code AS operator_code',
-                'operators.name AS operator_name'
-            )
+            ->where('vends.code', 'LIKE', "{$vendCode}%")
             ->get();
 
         return $vends;
@@ -727,7 +720,7 @@ class VendController extends Controller
         $vend->save();
 
         // return redirect()->route('vends');
-        // return redirect()->route('settings.edit', [$vendID, 'update']);
+        // return redirect()->route('settings.edit', [$vendID]);
         return redirect()->back();
     }
 

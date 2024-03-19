@@ -69,11 +69,11 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Status
+              Is Active?
             </label>
             <MultiSelect
-              v-model="filters.status"
-              :options="statusOptions"
+              v-model="filters.is_active"
+              :options="booleanOptions"
               trackBy="id"
               valueProp="id"
               label="name"

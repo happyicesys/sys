@@ -316,7 +316,6 @@ class CustomerController extends Controller
 
     public function update(Request $request, $id)
     {
-        // dd($request->all());
         $customer = Customer::find($id);
         $vend = Vend::find($request->id);
 
@@ -328,18 +327,17 @@ class CustomerController extends Controller
                 $customer = Customer::where('id', $request->customer_id)->first();
             } else {
                 $request->validate([
-                    'operator_id' => 'required',
-                    'name' => 'required',
+                    'customer.operator_id' => 'required',
+                    'customer.name' => 'required',
                 ]);
 
                 $customer = Customer::create($request->customer);
-
                 // dd($request->customer['contact'], $request->customer['address']);
-                if($request->customer['contact']) {
+                if($request->customer['contact'] && isset($request->customer['contact']['name']) && $request->customer['contact']['name']) {
                     $customer->contact()->updateOrCreate($request->customer['contact']);
                 }
 
-                if($request->customer['address']) {
+                if($request->customer['address'] && isset($request->customer['address']['postcode']) && $request->customer['address']['postcode']) {
                     $customer->deliveryAddress()->updateOrCreate([
                         'type' => Customer::ADDRESS_TYPE_DELIVERY,
                     ], $request->customer['address']);
@@ -349,6 +347,16 @@ class CustomerController extends Controller
             $vend->save();
         }else {
             $customer->update($request->customer);
+
+            if($request->customer['contact'] && isset($request->customer['contact']['name']) && $request->customer['contact']['name']) {
+                $customer->contact()->updateOrCreate($request->customer['contact']);
+            }
+
+            if($request->customer['address'] && isset($request->customer['address']['postcode']) && $request->customer['address']['postcode']) {
+                $customer->deliveryAddress()->updateOrCreate([
+                    'type' => Customer::ADDRESS_TYPE_DELIVERY,
+                ], $request->customer['address']);
+            }
         }
 
         if($customer and $customer->person_id and $vend) {

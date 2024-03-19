@@ -25,6 +25,20 @@
               </div>
             </div>
 
+            <div class="sm:col-span-6" v-if="vend">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Vend ID#
+              </label>
+              <div class="mt-1">
+                <input
+                  type="text"
+                  class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
+                  :value="vend ? vend.code : ''"
+                  disabled
+                />
+              </div>
+            </div>
+
             <div class="sm:col-span-2">
               <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
               v-if="permissions.includes('update vends')">
@@ -39,9 +53,8 @@
             </div>
             <div class="sm:col-span-5">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Manufacture or Testing Unit?
+                Is Factory?
               </label>
-              <!-- {{ form.customer }} -->
               <MultiSelect
                 v-model="form.is_testing"
                 :options="booleanStrictOptions"
@@ -349,8 +362,8 @@
                 class="mt-1"
               >
               </MultiSelect>
-              <div class="text-sm text-red-600" v-if="form.errors['customer.operator_id']">
-                {{ form.errors['customer.operator_id'] }}
+              <div class="text-sm text-red-600" v-if="form.errors.operator_id">
+                {{ form.errors.operator_id }}
               </div>
             </div>
 

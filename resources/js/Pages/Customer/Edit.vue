@@ -53,36 +53,6 @@
                     </div>
                 </div>
               </div>
-
-              <div class="sm:col-span-6" v-if="customer.vend">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Vend ID#
-                </label>
-                <div class="mt-1">
-                  <input
-                    type="text"
-                    class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                    :value="customer.vend ? customer.vend.code : ''"
-                    disabled
-                  />
-                </div>
-              </div>
-              <div class="sm:col-span-6" v-if="!customer.vend">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Vend ID#
-                </label>
-                <MultiSelect
-                  v-model="form.vend_id"
-                  :options="vendOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="full_name"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                >
-                </MultiSelect>
-              </div>
               <!-- <div class="sm:col-span-6" v-if="!form.id && isExisting == 1">
                 <div class="sm:col-span-6">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -299,6 +269,47 @@
               </div>
             </div>
 
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-start">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Vending Machine </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sm:col-span-6 mb-3" v-if="customer.vend">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Vend ID#
+              </label>
+              <div class="mt-1">
+                <input
+                  type="text"
+                  class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
+                  :value="customer.vend ? customer.vend.code : ''"
+                  disabled
+                />
+              </div>
+            </div>
+            <div class="sm:col-span-6" v-if="!customer.vend">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Vend ID#
+              </label>
+              <MultiSelect
+                v-model="form.vend_id"
+                :options="vendOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+
             <div class="sm:col-span-6">
                 <span class="flex justify-between">
                   <span class="flex space-x-1">
@@ -399,28 +410,28 @@ function getDefaultForm() {
   return {
     id: '',
     customer_id: '',
-    // customer: {
-      operator_id: '',
-      begin_date: '',
-      termination_date: '',
-      code: '',
+    person_id: '',
+    operator_id: '',
+    begin_date: '',
+    termination_date: '',
+    code: '',
+    name: '',
+    address: {
+      block_num: '',
+      building: '',
+      country_id: '',
+      latitude: '',
+      longitude: '',
+      postcode: '',
+      street_name: '',
+      unit_num: '',
+    },
+    contact: {
       name: '',
-      address: {
-        block_num: '',
-        building: '',
-        country_id: '',
-        latitude: '',
-        longitude: '',
-        postcode: '',
-        street_name: '',
-        unit_num: '',
-      },
-      contact: {
-        name: '',
-        email: '',
-        phone_country_id: '',
-        phone_num: '',
-      },
+      email: '',
+      phone_country_id: '',
+      phone_num: '',
+    },
     // },
     vend_id: '',
   }
@@ -434,6 +445,7 @@ onMounted(() => {
     code: props.customer && props.customer.person_id ? props.customer.virtual_customer_code + ' (' + props.customer.virtual_customer_prefix + ')' : (props.customer ? props.customer.code : null),
     operator_id: props.customer ? props.customer.operator_id ? operatorOptions.value.find(operator => operator.id === props.customer.operator_id) : null : null,
     vend_id: '',
+    person_id: props.customer ? props.customer.person_id : null,
     contact: props.customer ? {
       ...JSON.parse(JSON.stringify(props.customer.contact))
     } : {
@@ -518,7 +530,6 @@ function saveCustomer(customerID) {
     }))
     .post('/customers/' + customerID + '/update', {
     onSuccess: () => {
-      // emit('modalClose')
     },
     preserveState: true,
     replace: true,

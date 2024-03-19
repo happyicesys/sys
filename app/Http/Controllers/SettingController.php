@@ -98,41 +98,48 @@ class SettingController extends Controller
         ]);
     }
 
-    public function editOrCreate($id = null, $type)
+    public function create()
     {
-        if($id) {
-            $vend = Vend::query()
-            ->with([
-                'customer',
-                'customer.deliveryAddress',
-                'customer.contact',
-            ])
-            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
-            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
-            ->leftJoin('addresses', function($query) {
-                $query->on('addresses.modelable_id', '=', 'customers.id')
-                        ->where('addresses.modelable_type', '=', 'App\Models\Customer')
-                        ->where('addresses.type', '=', 2)
-                        ->limit(1);
-            })
-            ->where('vends.id', $id)
-            ->select(
-                'vends.id',
-                'vends.code',
-                'customers.id AS customer_id',
-                DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (",customers.virtual_customer_prefix,")") ELSE customers.code END AS customer_code'),
-                'customers.name AS customer_name',
-                'customers.person_id',
-                'vends.begin_date',
-                'vends.termination_date',
-                DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
-            )
-            ->first();
-        }else {
-            $vend = new Vend();
-        }
+        $vend = new Vend();
+
+        return Inertia::render('Setting/Create', [
+            'vend' => $vend,
+            'type' => 'create',
+        ]);
+    }
+
+
+    public function edit($id)
+    {
+        $vend = Vend::query()
+        ->with([
+            'customer',
+            'customer.deliveryAddress',
+            'customer.contact',
+        ])
+        ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+        ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+        ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+        ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+        ->leftJoin('addresses', function($query) {
+            $query->on('addresses.modelable_id', '=', 'customers.id')
+                    ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                    ->where('addresses.type', '=', 2)
+                    ->limit(1);
+        })
+        ->where('vends.id', $id)
+        ->select(
+            'vends.id',
+            'vends.code',
+            'customers.id AS customer_id',
+            DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (",customers.virtual_customer_prefix,")") ELSE customers.code END AS customer_code'),
+            'customers.name AS customer_name',
+            'customers.person_id',
+            'vends.begin_date',
+            'vends.termination_date',
+            DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
+        )
+        ->first();
 
         $customers = Customer::query()
             ->select(
@@ -164,8 +171,23 @@ class SettingController extends Controller
                 $customers
             ),
             'vend' => $vend,
-            'type' => $type,
+            'type' => 'update',
         ]);
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'code' => 'required',
+        ]);
+
+        if(Vend::where('code', $request->code)->exists()) {
+            return redirect()->back()->with('errors', 'Vend ID already exists');
+        }
+
+        $vend = Vend::create($request->all());
+
+        return redirect()->route('settings.edit', [$vend->id]);
     }
 
     public function toggleActivation($vendId)
@@ -196,6 +218,6 @@ class SettingController extends Controller
             }
         }
 
-        return redirect()->route('settings.edit', [$vendId, 'update']);
+        return redirect()->route('settings.edit', [$vendId]);
     }
 }

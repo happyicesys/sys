@@ -388,7 +388,7 @@ trait HasFilter {
         })
         ->when($request->is_active, function($query, $search) use ($request) {
             if($search != 'all') {
-                $query->where('vends.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+                $query->where('customers.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
             }
         })
         ->when($isDoorOpen, function($query, $search) {
