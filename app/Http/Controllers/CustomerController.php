@@ -37,13 +37,14 @@ class CustomerController extends Controller
     {
         $request->merge([
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
-            'status' => $request->status ? $request->status : Customer::STATUS_ACTIVE,
+            'is_active' => $request->is_active ? $request->is_active : 'all',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
             'sortBy' => $request->sortBy ? $request->sortBy : false,
         ]);
         $className = get_class(new Customer());
 
+        // dd($request->all());
         return Inertia::render('Customer/Index', [
             'customers' => CustomerResource::collection(
                 Customer::with([
@@ -71,16 +72,15 @@ class CustomerController extends Controller
                     ->when($request->code, fn($query, $input) => $query->where('code', 'LIKE', '%'.$input.'%'))
                     ->when($request->created_in, fn($query, $input) => $query->whereDate('created_at', '>=', Carbon::createFromFormat('m-Y', $input)->startOfMonth())->whereDate('created_at', '<=', Carbon::createFromFormat('m-Y', $input)->endOfMonth()))
                     ->when($request->customer, function($query, $search) {
-                        if(strpos($search, "-")) {
-                            $searchArray = explode("-", $search);
-                            $query->where('customers.virtual_customer_prefix', $searchArray[0])
-                                ->where('customers.virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
-                        }else {
-                            $query->where(function($query) use ($search) {
-                                $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
-                                      ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                                      ->orWhere('customers.name', 'LIKE', "%{$search}%");
-                              });
+                        $query->where(function($query) use ($search) {
+                            $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
+                                    ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                                    ->orWhere('customers.name', 'LIKE', "%{$search}%");
+                            });
+                    })
+                    ->when($request->is_active, function($query, $search) use ($request) {
+                        if($search != 'all') {
+                            $query->where('customers.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
                         }
                     })
                     ->when($request->is_cms, function($query, $search) {
@@ -94,7 +94,7 @@ class CustomerController extends Controller
                         }
                     })
                     ->when($request->handled_by, fn($query, $input) => $query->where('handled_by', $input))
-                    ->when($request->name, fn($query, $input) => $query->where('name', 'LIKE', '%'.$input.'%'))
+                    // ->when($request->name, fn($query, $input) => $query->where('name', 'LIKE', '%'.$input.'%'))
                     ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
                     ->when($request->profile_id, fn($query, $input) => $query->where('profile_id', $input))
                     ->when($request->status, fn($query, $input) => $query->where('status_id', $input))

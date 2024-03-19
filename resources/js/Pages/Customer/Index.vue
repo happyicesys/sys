@@ -76,7 +76,7 @@
               :options="booleanOptions"
               trackBy="id"
               valueProp="id"
-              label="name"
+              label="value"
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
@@ -324,7 +324,18 @@
                         {{ customer.zone ? customer.zone.name : null }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.status ? customer.status.name : '' }}
+                        <div
+                            class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-green-300"
+                            v-if="customer.is_active"
+                        >
+                          Active
+                        </div>
+                        <div
+                            class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-red-300"
+                            v-if="!customer.is_active"
+                        >
+                          Not Active
+                        </div>
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         {{ customer.created_at }}
@@ -432,12 +443,13 @@ onMounted(() => {
   categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
   priceTemplateOptions.value = props.priceTemplates.data.map((data) => {return {id: data.id, name: data.name}})
   profileOptions.value = props.profiles.data.map((data) => {return {id: data.id, name: data.name}})
-  statusOptions.value = props.statuses.map((data) => {return {id: data.id, name: data.name}})
+  // statusOptions.value = props.statuses.map((data) => {return {id: data.id, name: data.name}})
   userOptions.value = props.users.data.map((data) => {return {id: data.id, name: data.name}})
   zoneOptions.value = props.zones.data.map((data) => {return {id: data.id, name: data.name}})
   priceTemplateOptions.value = props.priceTemplates.data.map((data) => {return {id: data.id, name: data.name}})
   tagOptions.value = props.tags.data.map((data) => {return {id: data.id, name: data.name}})
-  filters.value.status = statusOptions.value[3]
+  // filters.value.status = statusOptions.value[3]
+  filters.value.is_active = booleanOptions.value[0]
   filters.value.is_cms = booleanOptions.value[0]
 })
 
@@ -457,7 +469,8 @@ function onSearchFilterUpdated() {
   router.get('/customers', {
       ...filters.value,
       is_cms: filters.value.is_cms.id,
-      status: filters.value.status.id,
+      is_active: filters.value.is_active.id,
+      // status: filters.value.status.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,
