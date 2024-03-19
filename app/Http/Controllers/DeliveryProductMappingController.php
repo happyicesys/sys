@@ -332,7 +332,7 @@ class DeliveryProductMappingController extends Controller
                         $query
                             ->where('is_active', true)
                             ->where('operator_id', $deliveryProductMapping->operator_id);
-                }))
+                })
                 ->when($deliveryProductMapping->deliveryPlatformOperator->type == '', function($query, $search) use ($request) {
                     $query->where('vends.code', 'LIKE', "{$request->vend_code}%");
                 })
