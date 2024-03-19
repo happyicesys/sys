@@ -50,14 +50,10 @@ class VendCriteriaBindingController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-            ->leftJoin('operator_vend', function($query) {
-                $query->on('operator_vend.vend_id', '=', 'vends.id')
-                        ->latest('operator_vend.begin_date')
-                        ->limit(1);
-            })
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->select(
-                'operator_vend.operator_id',
+                'customers.operator_id',
                 'vends.id',
                 'vends.code',
                 'vends.name',

@@ -736,12 +736,8 @@ class VendController extends Controller
         $vendChannels = DB::table('vend_channels')
             ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
             ->leftJoin('vends', 'vends.id', '=', 'vend_channels.vend_id')
-            ->leftJoin('operator_vend', function($query) {
-                $query->on('operator_vend.vend_id', '=', 'vends.id')
-                        ->latest('operator_vend.begin_date')
-                        ->limit(1);
-            })
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->select(

@@ -16,7 +16,7 @@ trait HasFilter {
               $operatorId = null;
             }
             if($operatorId) {
-                $query = $query->where('operator_vend.operator_id', $operatorId);
+                $query = $query->where('operators.id', $operatorId);
             }
 
             $vendIds = auth()->user()->vends()->exists() ? auth()->user()->vends->pluck('id')->toArray() : null;
@@ -266,7 +266,13 @@ trait HasFilter {
       })
       ->when($request->operator_id, function($query, $search) {
           if($search != 'all') {
-            $query->whereIn('vends.id', DB::table('operator_vend')->select('vend_id')->where('operator_id', $search)->pluck('vend_id'));
+            $query->whereIn('vends.id',
+                DB::table('vends')
+                    ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+                    ->select('vends.id')
+                    ->where('customers.operator_id', $search)
+                    ->pluck('vends.id')
+            );
           }
       })
       ->when($isOnline, function($query, $search) {
@@ -439,7 +445,12 @@ trait HasFilter {
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-              $query->whereIn('vends.id', DB::table('operator_vend')->select('vend_id')->where('operator_id', $search)->pluck('vend_id'));
+                $query->whereIn('vends.id',
+                    DB::table('vends')
+                    ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+                    ->select('vends.id')
+                    ->where('customers.operator_id', $search)
+                    ->pluck('vends.id'));
             }
         })
         ->when($isOnline, function($query, $search) {

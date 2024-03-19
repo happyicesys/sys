@@ -332,21 +332,7 @@ class DeliveryProductMappingController extends Controller
                         $query
                             ->where('is_active', true)
                             ->where('operator_id', $deliveryProductMapping->operator_id);
-                })
-                ->where(function ($query) use ($deliveryProductMapping) {
-                    $query
-                    ->whereIn('vends.id', DB::table('operator_vend')
-                    ->where('operator_id', $deliveryProductMapping->operator_id)
-                    ->pluck('vend_id'));
-                    // ->whereDoesntHave('deliveryProductMappingVends.deliveryProductMapping', function($query) use ($deliveryProductMapping) {
-                    //     $query->where('delivery_platform_operator_id', $deliveryProductMapping->delivery_platform_operator_id);
-                    // })
-                    // ->orDoesntHave('deliveryProductMappingVends.deliveryProductMapping');
-
-                    if($deliveryProductMapping->deliveryPlatformOperator->type == 'production') {
-                        $query->has('customer');
-                    }
-                })
+                }))
                 ->when($deliveryProductMapping->deliveryPlatformOperator->type == '', function($query, $search) use ($request) {
                     $query->where('vends.code', 'LIKE', "{$request->vend_code}%");
                 })

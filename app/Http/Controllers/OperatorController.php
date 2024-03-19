@@ -89,7 +89,7 @@ class OperatorController extends Controller
             //             'customer:id,code,name'
             //         ])->whereNotIn('id', function($query) use ($request) {
             //             $query->select('vend_id')
-            //                 ->from('operator_vend')
+
             //                 ->where('operator_id', $request->operator_id);
             //         })
             //         ->orderBy('code')
