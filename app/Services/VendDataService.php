@@ -195,7 +195,7 @@ class VendDataService
         return $response;
       }
 
-      if(!$vend->vend_transaction_totals_json) {
+      if(!$vend->customer->totals_json) {
         SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
       }
       if(isset($processedInput['Type'])) {
