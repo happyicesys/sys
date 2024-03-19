@@ -161,12 +161,9 @@ class SyncVendCustomerCms implements ShouldQueue
                     'created_at' => $customerCollection['created_at'],
                 ]);
                 // dd($customerCollection['delivery_country'], $customerCollection['del_postcode'], $customerCollection);
-                // if(isset($customerCollection['delivery_country']) and isset($customerCollection['del_postcode'])) {
-                //     $deliveryCountry = $customerCollection['delivery_country'];
-                //     $deliveryPostcode = $customerCollection['del_postcode'];
-
-                //     $deliveryCountryCol = Country::where('name', $deliveryCountry['name'])->first();
-
+                if(isset($customerCollection['delivery_country']) and isset($customerCollection['del_postcode'])) {
+                    $deliveryCountry = $customerCollection['delivery_country'];
+                    $deliveryPostcode = $customerCollection['del_postcode'];
                     $deliveryCountryCol = Country::where('name', $deliveryCountry['name'])->first();
 
                     if($deliveryCountryCol and $deliveryCountryCol->name == 'Singapore') {
@@ -215,6 +212,6 @@ class SyncVendCustomerCms implements ShouldQueue
             }
 
 
-
+        }
     }
 }
