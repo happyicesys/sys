@@ -153,7 +153,7 @@ class SettingController extends Controller
                 'virtual_customer_prefix',
                 'operator_id'
             )
-            ->whereDoesntHave('vend')
+            ->doesntHave('vend')
             ->orderBy('created_at', 'desc')
             ->get();
 

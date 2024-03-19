@@ -182,7 +182,7 @@ class SyncVendCustomerCms implements ShouldQueue
                     $vend = Vend::findOrFail($this->vendID);
 
                     if($vend && $customer) {
-                        $isExisting = Vend::where('customer_id', $customer->id)->where('id', $vend->id)->first();
+                        $isExisting = Vend::where('customer_id', $customer->id)->first();
 
                         if(!$isExisting) {
                             $vend->update([
@@ -194,16 +194,6 @@ class SyncVendCustomerCms implements ShouldQueue
                             'is_active' => true,
                             'termination_date' => null,
                         ]);
-
-                        // if(!$isExisting) {
-                        //     $vend->update([
-                        //         'customer_id' => $customer->id,
-                        //     ]);
-                        //     $customer->update([
-                        //         'is_active' => true,
-                        //         'termination_date' => null,
-                        //     ]);
-                        // }
                     }
 
                     // call back point to cms to update vend code
