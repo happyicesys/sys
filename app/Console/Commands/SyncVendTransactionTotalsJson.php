@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Jobs\Vend\SyncVendTransactionTotalsJson as SyncTotalsJson;
-use App\Models\Customer;
+use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
@@ -30,10 +30,10 @@ class SyncVendTransactionTotalsJson extends Command
      */
     public function handle()
     {
-        $customers = Customer::has('vends')->whereNull('totals_json')->take(100)->get();
+        $vends = Vend::has('customer')->where('is_active', true)->get();
 
-        foreach($customers as $customer) {
-            SyncTotalsJson::dispatch($customer);
+        foreach($vends as $vend) {
+            SyncTotalsJson::dispatch($vend);
         }
 
 

@@ -3,9 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Vend;
-use App\Jobs\InitTodayVendRecords;
 use App\Jobs\StoreVendsRecord;
-use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class StorePreviousDayVendRecords extends Command
@@ -29,8 +27,7 @@ class StorePreviousDayVendRecords extends Command
      */
     public function handle()
     {
-        $yesterday = Carbon::yesterday()->toDateString();
-        StoreVendsRecord::dispatch($yesterday, $yesterday);
-        InitTodayVendRecords::dispatch();
+        // store yesterday sales into vend records table
+        StoreVendsRecord::dispatch();
     }
 }
