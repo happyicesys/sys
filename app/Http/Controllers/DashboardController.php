@@ -49,6 +49,11 @@ class DashboardController extends Controller
             ->where('date' , '>=', $day_date_from->copy()->subMonth()->startOfMonth()->startOfDay())
             ->where('date', '<=', $day_date_to->copy()->endOfDay())
             ->filterIndex($request)
+            ->whereNotIn('vend_id', function($query) {
+                $query->select('id')
+                    ->from('vends')
+                    ->where('is_testing', true);
+            })
             ->groupBy('date')
             ->select(
                 DB::raw('month'),
@@ -68,6 +73,11 @@ class DashboardController extends Controller
             })
             ->where('transaction_datetime', '>=', Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay())
             ->where('transaction_datetime', '<=', Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay())
+            ->whereNotIn('vend_id', function($query) {
+                $query->select('id')
+                    ->from('vends')
+                    ->where('is_testing', true);
+            })
             ->select(
                 DB::raw('MONTH(transaction_datetime) as month'),
                 DB::raw('MONTHNAME(transaction_datetime) AS month_name'),
@@ -141,6 +151,11 @@ class DashboardController extends Controller
             ->where('transaction_datetime', '>=', $seven_days_date_from->copy()->startOfDay())
             ->where('transaction_datetime', '<=', $seven_days_date_to->copy()->endOfDay())
             ->whereIn('error_code_normalized', [0, 6])
+            ->whereNotIn('vend_id', function($query) {
+                $query->select('id')
+                    ->from('vends')
+                    ->where('is_testing', true);
+            })
             ->groupBy('product_id')
             ->select(
                 'id',
@@ -160,6 +175,11 @@ class DashboardController extends Controller
             ->filterIndex($request)
             ->where('date', '>=', $today->copy()->subDays(29)->startOfDay())
             ->where('date', '<=', $today->copy()->endOfDay())
+            ->whereNotIn('vend_id', function($query) {
+                $query->select('id')
+                    ->from('vends')
+                    ->where('is_testing', true);
+            })
             ->groupBy('vend_id')
             ->select(
                 'id',
@@ -174,6 +194,11 @@ class DashboardController extends Controller
         $vendCount = VendRecord::query()
             ->filterIndex($request)
             ->whereDate('date', '=', $today->copy()->subDay())
+            ->whereNotIn('vend_id', function($query) {
+                $query->select('id')
+                    ->from('vends')
+                    ->where('is_testing', true);
+            })
             ->count();
 
         // 2 years
@@ -205,6 +230,11 @@ class DashboardController extends Controller
             ->where('date' , '>=', $lastYear->copy()->startOfDay())
             ->where('date', '<=', $thisYear->copy()->endOfDay())
             ->filterIndex($request)
+            ->whereNotIn('vend_id', function($query) {
+                $query->select('id')
+                    ->from('vends')
+                    ->where('is_testing', true);
+            })
             ->groupBy('year', 'month')
             ->select(
                 DB::raw('month'),
@@ -236,6 +266,11 @@ class DashboardController extends Controller
                     ->groupBy('year', 'month');
             })
             ->filterIndex($request)
+            ->whereNotIn('vend_id', function($query) {
+                $query->select('id')
+                    ->from('vends')
+                    ->where('is_testing', true);
+            })
             ->select(
                 'date',
                 'month',
@@ -353,6 +388,11 @@ class DashboardController extends Controller
             ->where('vend_records.date', '>=', Carbon::parse($request->monthlyDateFrom))
             ->where('vend_records.date', '<=', Carbon::parse($request->monthlyDateTo))
             ->filterIndex($request)
+            ->whereNotIn('vend_records.vend_id', function($query) {
+                $query->select('id')
+                    ->from('vends')
+                    ->where('is_testing', true);
+            })
             ->select('date', DB::raw('COUNT(DISTINCT(vend_id)) as count'));
 
             switch($className) {
@@ -391,7 +431,12 @@ class DashboardController extends Controller
             })
             ->where('vend_records.date', '>=', Carbon::parse($request->monthlyDateFrom))
             ->where('vend_records.date', '<=', Carbon::parse($request->monthlyDateTo))
-            ->filterIndex($request);
+            ->filterIndex($request)
+            ->whereNotIn('vend_records.vend_id', function($query) {
+                $query->select('id')
+                    ->from('vends')
+                    ->where('is_testing', true);
+            });
 
         switch($className) {
             case 'categories':

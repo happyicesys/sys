@@ -446,6 +446,11 @@ class VendController extends Controller
                 // ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
                 // ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
                 ->filterTransactionIndex($request)
+                ->whereNotIn('vend_id', function($query) {
+                    $query->select('id')
+                        ->from('vends')
+                        ->where('is_testing', true);
+                })
                 ->where(function($query) {
                     $query->where('error_code_normalized', 0)
                         ->orWhere('error_code_normalized', 6)
@@ -456,6 +461,11 @@ class VendController extends Controller
                 // ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
                 // ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
                 ->filterTransactionIndex($request)
+                ->whereNotIn('vend_id', function($query) {
+                    $query->select('id')
+                        ->from('vends')
+                        ->where('is_testing', true);
+                })
                 // ->whereIn('error_code_normalized', [0, 6])
                 ->where(function($query) {
                     $query->where('error_code_normalized', 0)
