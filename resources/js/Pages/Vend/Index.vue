@@ -28,7 +28,7 @@
                     Serial Num
                 </SearchInput>
                 <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @keyup.enter="onSearchFilterUpdated()">
-                    Temp &gt;&gt;
+                    T1 &gt;&gt;
                 </SearchInput>
                 <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Number" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()">
                     T1-T2 Delta &gt;&gt;
@@ -401,13 +401,20 @@
                             <TableHead>
                                 Name
                             </TableHead>
-                            <TableHeadSort modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp')">
-                                T1&#8451;(freezer)
-                                <br>
-                                T2&#8451;(evap)
-                                <br>
+                            <TableHead>
+                                <SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
+                                    T1&#8451;
+                                </SingleSortItem>
+                                <SingleSortItem modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2', true)">
+                                    T2&#8451;
+                                </SingleSortItem>
+                                <SingleSortItem modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at', true)">
+                                    Updated
+                                </SingleSortItem>
+
                                 &Delta;T1-T2
-                            </TableHeadSort>
+
+                            </TableHead>
                             <TableHead>
                                 Inventory Status <br>
                                 (#Channel, Sold, Balance/Capacity)
@@ -417,13 +424,6 @@
                             </TableHead>
                             <TableHeadSort modelName="balance_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('balance_percent')">
                                 Balance Stock
-                                <!-- <span class="flex justify-center" data-tooltip-target="balance-stock" data-tooltip-style="light">
-                                    <QuestionMarkCircleIcon class="w-4 h-4"></QuestionMarkCircleIcon>
-                                    <div id="balance-stock" role="tooltip" class="absolute z-10 invisible inline-block px-3 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-lg shadow-sm opacity-0 tooltip">
-                                        Tooltip content
-                                        <div class="tooltip-arrow" data-popper-arrow></div>
-                                    </div>
-                                </span> -->
                             </TableHeadSort>
                             <TableHeadSort modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent')">
                                 Remaining SKU#
