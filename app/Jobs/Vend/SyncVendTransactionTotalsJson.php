@@ -45,7 +45,7 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
             return;
         }
 
-        if($vend) {
+        if($vend and $vend->customer) {
             // $totalsJson = [
             //     'today_amount' => $customer->daysVendTransactions(0,0)->sum('amount'),
             //     'today_count' => $customer->daysVendTransactions(0,0)->count(),
