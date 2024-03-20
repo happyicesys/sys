@@ -55,6 +55,7 @@
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Is Factory?
               </label>
+              <!-- {{ form.customer }} -->
               <MultiSelect
                 v-model="form.is_testing"
                 :options="booleanStrictOptions"
@@ -195,20 +196,20 @@
                     Cust Name
                   </FormInput>
                 </div>
-              </div>
-              <div class="sm:col-span-6 text-blue-600 text-xs" v-if="form.customer.person_id">
-                ** Customer Data only editable from CMS
-                <span>
-                  <a :class="[form.customer.person_id ? 'text-blue-700' : 'text-gray-500']" target="_blank" :href="'//admin.happyice.com.sg/person/' + form.customer.person_id + '/edit'">
-                    (Click Here)
-                  </a>
-                </span>
-              </div>
-              <div class="sm:col-span-2">
-                <DatePicker v-model="form.customer.begin_date" :error="form.errors['customer.begin_date']" @input="onDateFromChanged()"
-                v-if="permissions.includes('update vends')">
-                  Begin Date
-                </DatePicker>
+                <div class="sm:col-span-6 text-blue-600 text-xs" v-if="form.customer.person_id">
+                  ** Customer Data only editable from CMS
+                  <span>
+                    <a :class="[form.customer.person_id ? 'text-blue-700' : 'text-gray-500']" target="_blank" :href="'//admin.happyice.com.sg/person/' + form.customer.person_id + '/edit'">
+                      (Click Here)
+                    </a>
+                  </span>
+                </div>
+                <div class="sm:col-span-2">
+                  <DatePicker v-model="form.customer.begin_date" :error="form.errors['customer.begin_date']" @input="onDateFromChanged()"
+                  v-if="permissions.includes('update vends')">
+                    Begin Date
+                  </DatePicker>
+                </div>
               </div>
               <!-- <div class="sm:col-span-2">
                 <DatePicker v-model="form.customer.termination_date" :error="form.errors['customer.termination_date']" :minDate="form.customer.begin_date"
@@ -218,119 +219,119 @@
               </div> -->
 
             <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(form.customer.id && !form.customer.person_id) || (!form.customer.id && isExisting != 1)">
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-6 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-start">
-                  <span class="px-4 bg-white text-lg font-medium text-gray-900 rounded"> Contact </span>
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-6 md:pb-3">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-start">
+                    <span class="px-4 bg-white text-lg font-medium text-gray-900 rounded"> Contact </span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="sm:col-span-3">
-              <FormInput v-model="form.customer.contact.name" :error="form.errors['customer.contact.name']" :disabled="form.customer.person_id">
-                Name
-              </FormInput>
-            </div>
-            <div class="sm:col-span-3">
-              <FormInput v-model="form.customer.contact.email" :error="form.errors['customer.contact.email']" :disabled="form.customer.person_id">
-                Email
-              </FormInput>
-            </div>
-            <div class="sm:col-span-2">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Phone Code
-              </label>
-              <MultiSelect
-                v-model="form.customer.contact.phone_country_id"
-                :options="countryOptions"
-                :disabled="form.customer.person_id"
-                trackBy="id"
-                valueProp="id"
-                label="phone_code"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-              >
-              </MultiSelect>
-              <div class="text-sm text-red-600" v-if="form.errors['customer.contact.phone_country_id']">
-                {{ form.errors['customer.contact.phone_country_id'] }}
+              <div class="sm:col-span-3">
+                <FormInput v-model="form.customer.contact.name" :error="form.errors['customer.contact.name']" :disabled="form.customer.person_id">
+                  Name
+                </FormInput>
               </div>
-            </div>
-            <div class="sm:col-span-4">
-              <FormInput v-model="form.customer.contact.phone_num" required="true" :error="form.errors['customer.contact.phone_num']" :disabled="form.customer.person_id">
-                Phone Number
-              </FormInput>
-            </div>
+              <div class="sm:col-span-3">
+                <FormInput v-model="form.customer.contact.email" :error="form.errors['customer.contact.email']" :disabled="form.customer.person_id">
+                  Email
+                </FormInput>
+              </div>
+              <div class="sm:col-span-2">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Phone Code
+                </label>
+                <MultiSelect
+                  v-model="form.customer.contact.phone_country_id"
+                  :options="countryOptions"
+                  :disabled="form.customer.person_id"
+                  trackBy="id"
+                  valueProp="id"
+                  label="phone_code"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors['customer.contact.phone_country_id']">
+                  {{ form.errors['customer.contact.phone_country_id'] }}
+                </div>
+              </div>
+              <div class="sm:col-span-4">
+                <FormInput v-model="form.customer.contact.phone_num" required="true" :error="form.errors['customer.contact.phone_num']" :disabled="form.customer.person_id">
+                  Phone Number
+                </FormInput>
+              </div>
 
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Address </span>
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-start">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Address </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
 
-            <div class="sm:col-span-6">
-              <SearchAddressInput v-model="form.customer.address.postcode" @selected="onAddressSelected" required="true" :error="form.errors['customer.address.postcode']" :disabled="form.customer.person_id">
-                Postcode
-              </SearchAddressInput>
-            </div>
-            <div class="sm:col-span-3">
-              <FormInput v-model="form.customer.address.unit_num" required="true" :error="form.errors['customer.address.unit_num']">
-                Unit Num
-              </FormInput>
-            </div>
-            <div class="sm:col-span-3">
-              <FormInput v-model="form.customer.address.block_num" :error="form.errors['customer.address.block_num']" :disabled="form.customer.person_id">
-                Block Num
-              </FormInput>
-            </div>
-            <div class="sm:col-span-3">
-              <FormInput v-model="form.customer.address.building" :error="form.errors['customer.address.building']" :disabled="form.customer.person_id">
-                Building Name
-              </FormInput>
-            </div>
-            <div class="sm:col-span-3">
-              <FormInput v-model="form.customer.address.street_name" required="true" :error="form.errors['customer.address.street_name']" :disabled="form.customer.person_id">
-                Street Name
-              </FormInput>
-            </div>
-            <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Country
-              </label>
-              <MultiSelect
-                v-model="form.customer.address.country_id"
-                :options="countryOptions"
-                trackBy="id"
-                valueProp="id"
-                label="name"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-                :disabled="form.customer.person_id"
-              >
-              </MultiSelect>
-              <div class="text-sm text-red-600" v-if="form.errors['customer.address.country_id']">
-                {{ form.errors['customer.address.country_id'] }}
+              <div class="sm:col-span-6">
+                <SearchAddressInput v-model="form.customer.address.postcode" @selected="onAddressSelected" required="true" :error="form.errors['customer.address.postcode']" :disabled="form.customer.person_id">
+                  Postcode
+                </SearchAddressInput>
               </div>
-            </div>
-            <div class="sm:col-span-3 hidden">
-              <FormInput v-model="form.customer.address.latitude">
-                Latitude
-              </FormInput>
-            </div>
-            <div class="sm:col-span-3 hidden">
-              <FormInput v-model="form.customer.address.longitude">
-                Longitude
-              </FormInput>
-            </div>
+              <div class="sm:col-span-3">
+                <FormInput v-model="form.customer.address.unit_num" required="true" :error="form.errors['customer.address.unit_num']">
+                  Unit Num
+                </FormInput>
+              </div>
+              <div class="sm:col-span-3">
+                <FormInput v-model="form.customer.address.block_num" :error="form.errors['customer.address.block_num']" :disabled="form.customer.person_id">
+                  Block Num
+                </FormInput>
+              </div>
+              <div class="sm:col-span-3">
+                <FormInput v-model="form.customer.address.building" :error="form.errors['customer.address.building']" :disabled="form.customer.person_id">
+                  Building Name
+                </FormInput>
+              </div>
+              <div class="sm:col-span-3">
+                <FormInput v-model="form.customer.address.street_name" required="true" :error="form.errors['customer.address.street_name']" :disabled="form.customer.person_id">
+                  Street Name
+                </FormInput>
+              </div>
+              <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Country
+                </label>
+                <MultiSelect
+                  v-model="form.customer.address.country_id"
+                  :options="countryOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  :disabled="form.customer.person_id"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors['customer.address.country_id']">
+                  {{ form.errors['customer.address.country_id'] }}
+                </div>
+              </div>
+              <div class="sm:col-span-3 hidden">
+                <FormInput v-model="form.customer.address.latitude">
+                  Latitude
+                </FormInput>
+              </div>
+              <div class="sm:col-span-3 hidden">
+                <FormInput v-model="form.customer.address.longitude">
+                  Longitude
+                </FormInput>
+              </div>
             </div>
 
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
@@ -344,7 +345,7 @@
               </div>
             </div>
 
-            <div class="col-span-12 sm:col-span-6">
+            <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Operator
                 <span class="text-red-500">

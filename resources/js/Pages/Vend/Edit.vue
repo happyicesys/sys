@@ -53,7 +53,7 @@
             </div>
             <div class="sm:col-span-5">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Is Factory?
+                Is
               </label>
               <!-- {{ form.customer }} -->
               <MultiSelect
@@ -97,7 +97,7 @@
               </span>
             </div>
             </div>
-            <div class=" pb-5">
+            <!-- <div class=" pb-5"> -->
                 <!-- <h3 class="text-base font-semibold leading-6 text-gray-900 pb-3">Customer</h3> -->
                 <div class="relative mb-5">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -185,7 +185,7 @@
                 </div>
               </div>
 
-              <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(form.customer.id && !form.customer.person_id) || (!form.customer.id && isExisting != 1)">
+              <div class="sm:col-span-6" v-if="(form.customer.id && !form.customer.person_id) || (!form.customer.id && isExisting != 1)">
                 <div class="sm:col-span-2">
                   <FormInput v-model="form.customer.code" :error="form.errors['customer.code']" :disabled="form.customer.person_id">
                     Cust Code
@@ -211,14 +211,10 @@
                   Begin Date
                 </DatePicker>
               </div>
-              <!-- <div class="sm:col-span-2">
-                <DatePicker v-model="form.customer.termination_date" :error="form.errors['customer.termination_date']" :minDate="form.customer.begin_date"
-                v-if="permissions.includes('update vends')" disabled="true">
-                  Termination Date
-                </DatePicker>
-              </div> -->
+            </div>
 
-            <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(form.customer.id && !form.customer.person_id) || (!form.customer.id && isExisting != 1)">
+            <div  v-if="(form.customer.id && !form.customer.person_id) || (!form.customer.id && isExisting != 1)">
+              <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6">
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-6 md:pb-3">
                 <div class="relative">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -264,6 +260,7 @@
                   Phone Number
                 </FormInput>
               </div>
+
 
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
                 <div class="relative">
@@ -332,20 +329,20 @@
                   Longitude
                 </FormInput>
               </div>
-            </div>
 
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Operator </span>
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-start">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Operator </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div class="col-span-12 sm:col-span-6">
+            <div class="col-span-6 sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Operator
                 <span class="text-red-500">
@@ -368,7 +365,7 @@
               </div>
             </div>
 
-            <div class="sm:col-span-6">
+            <div class="sm:col-span-6 pt-4">
                 <span class="flex justify-between">
                   <span class="flex space-x-1">
                     <Button
@@ -407,7 +404,7 @@
                 </span>
               </div>
           </div>
-          </div>
+          <!-- </div> -->
 
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">

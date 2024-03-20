@@ -112,6 +112,7 @@
                   Begin Date
                 </DatePicker>
               </div>
+            </div>
               <!-- <div class="sm:col-span-2">
                 <DatePicker v-model="form.customer.termination_date" :error="form.errors['customer.termination_date']" :minDate="form.customer.begin_date"
                 v-if="permissions.includes('update customers')" disabled="true">
@@ -310,7 +311,7 @@
               </MultiSelect>
             </div>
 
-            <div class="sm:col-span-6">
+            <div class="sm:col-span-6 mt-3">
                 <span class="flex justify-between">
                   <span class="flex space-x-1">
                     <Button
@@ -360,7 +361,7 @@
                 </span>
               </div>
           </div>
-          </div>
+          <!-- </div> -->
           </form>
         </div>
       </div>
