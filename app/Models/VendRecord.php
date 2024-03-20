@@ -86,12 +86,12 @@ class VendRecord extends Model
             }
         })
         ->when($request->categories, function($query, $search) {
-            $query->whereIn('customer_id', function($query) use ($search) {
+            $query->whereIn('vend_records.customer_id', function($query) use ($search) {
                 $query->select('id')->from('customers')->whereIn('category_id', $search);
             });
         })
         ->when($request->categoryGroups, function($query, $search) {
-            $query->whereIn('customer_id', function($query) use ($search) {
+            $query->whereIn('vend_records.customer_id', function($query) use ($search) {
                 $query->select('id')->from('customers')->whereIn('category_id', function($query) use ($search) {
                     $query->select('id')->from('categories')->whereIn('category_group_id', $search);
                 });
@@ -100,30 +100,14 @@ class VendRecord extends Model
             //     $query->whereIn('id', $search);
             // });
         })
-        ->when($request->customer_code, function($query, $search) {
-            // $query->whereHas('customer', function($query) use ($search) {
-            //     $query->where('code', 'LIKE', "{$search}%");
-            // });
-            $query->whereIn('customer_id', function($query) use ($search) {
-                $query->select('id')->from('customers')->where('code', 'LIKE', "%{$search}%");
-            });
-        })
-        ->when($request->customer_name, function($query, $search) {
-            // $query
-            //     ->whereHas('customer', function($query) use ($search) {
-            //         $query->where('name', 'LIKE', "{$search}%");
-            //     })
-            //     ->orWhereHas('vend', function($query) use ($search) {
-            //         $query->where('name', 'LIKE', "{$search}%");
-            //     });
-            $query->where(function($query) use ($search) {
-                $query->whereIn('customer_id', function($query) use ($search) {
-                    $query->select('id')->from('customers')->where('name', 'LIKE', "{$search}%");
+        ->when($request->customer, function($query, $search) {
+            $query->whereIn('vend_records.customer_id', function($query) use ($search) {
+                $query->select('id')
+                    ->from('customers')
+                    ->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
+                    ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                    ->orWhere('customers.name', 'LIKE', "%{$search}%");
                 });
-                $query->orWhereIn('vend_id', function($query) use ($search) {
-                    $query->select('id')->from('vends')->where('name', 'LIKE', "{$search}%");
-                });
-            });
         })
         ->when($request->location_type_id, function($query, $search) {
             if($search != 'all') {

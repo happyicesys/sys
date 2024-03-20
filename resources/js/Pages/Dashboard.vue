@@ -33,11 +33,8 @@
                                 ("," for multiple)
                             </span>
                         </SearchInput>
-                        <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" @keyup.enter="onSearchFilterUpdated()">
-                            Cust ID
-                        </SearchInput>
-                        <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" @keyup.enter="onSearchFilterUpdated()">
-                            Cust Name
+                        <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+                            Customer
                         </SearchInput>
                         <div v-if="permissions.includes('admin-access vends')">
                             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -385,8 +382,7 @@
         categories: [],
         categoryGroups: [],
         codes: '',
-        customer_code: '',
-        customer_name: '',
+        customer: '',
         day_date_from: '',
         day_date_to: '',
         locationType: '',
