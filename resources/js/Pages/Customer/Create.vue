@@ -163,7 +163,7 @@
               </div>
             </div>
             <div class="sm:col-span-4">
-              <FormInput v-model="form.contact.phone_num" required="true" :error="form.errors['contact.phone_num']" :disabled="customer.person_id">
+              <FormInput v-model="form.contact.phone_num" :error="form.errors['contact.phone_num']" :disabled="customer.person_id">
                 Phone Number
               </FormInput>
             </div>
@@ -181,12 +181,12 @@
 
 
             <div class="sm:col-span-6">
-              <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" required="true" :error="form.errors['address.postcode']" :disabled="customer.person_id">
+              <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']" :disabled="customer.person_id">
                 Postcode
               </SearchAddressInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.address.unit_num" required="true" :error="form.errors['address.unit_num']">
+              <FormInput v-model="form.address.unit_num" :error="form.errors['address.unit_num']">
                 Unit Num
               </FormInput>
             </div>
@@ -201,7 +201,7 @@
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.address.street_name" required="true" :error="form.errors['address.street_name']" :disabled="customer.person_id">
+              <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="customer.person_id">
                 Street Name
               </FormInput>
             </div>
@@ -382,7 +382,11 @@ function getDefaultForm() {
 }
 
 onMounted(() => {
-  cmsCustomerOptions.value = props.cmsCustomerOptions.map((data) => {return {id: data.id, full_name: data.prefix + '-' + data.code + ' - ' + data.company}})
+  console.log(JSON.parse(JSON.stringify(props.cmsCustomerOptions)))
+  cmsCustomerOptions.value = Object.values(props.cmsCustomerOptions).map(data => ({
+  id: data.id,
+  full_name: data.prefix + '-' + data.code + ' - ' + data.company
+}));
   countryOptions.value = props.countries.data
   operatorOptions.value = props.operatorOptions.data
   form.value = useForm(getDefaultForm())
@@ -487,7 +491,7 @@ function submit() {
 }
 
 function onAddressSelected(address) {
-  form.value.customer.address = {
+  form.value.address = {
     block_num: address.BLK_NO,
     building: address.BUILDING,
     country_id: countryOptions.value[0],

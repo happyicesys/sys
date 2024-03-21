@@ -72,7 +72,21 @@
                 </div>
               </div> -->
 
-              <div class="sm:col-span-6" v-if="customer.id && customer.person_id">
+              <div class="sm:col-span-1" v-if="customer.id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  ID
+                </label>
+                <div class="mt-1">
+                  <input
+                    type="text"
+                    class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
+                    :value="customer.id + 10000"
+                    disabled
+                  />
+                </div>
+              </div>
+
+              <div class="sm:col-span-5" v-if="customer.id && customer.person_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Customer
                 </label>
@@ -162,7 +176,7 @@
               </div>
             </div>
             <div class="sm:col-span-4">
-              <FormInput v-model="form.contact.phone_num" required="true" :error="form.errors['contact.phone_num']" :disabled="customer.person_id">
+              <FormInput v-model="form.contact.phone_num" :error="form.errors['contact.phone_num']" :disabled="customer.person_id">
                 Phone Number
               </FormInput>
             </div>
@@ -180,12 +194,12 @@
 
 
             <div class="sm:col-span-6">
-              <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" required="true" :error="form.errors['address.postcode']" :disabled="customer.person_id">
+              <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']" :disabled="customer.person_id">
                 Postcode
               </SearchAddressInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.address.unit_num" required="true" :error="form.errors['address.unit_num']">
+              <FormInput v-model="form.address.unit_num" :error="form.errors['address.unit_num']">
                 Unit Num
               </FormInput>
             </div>
@@ -200,7 +214,7 @@
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.address.street_name" required="true" :error="form.errors['address.street_name']" :disabled="customer.person_id">
+              <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="customer.person_id">
                 Street Name
               </FormInput>
             </div>
@@ -470,6 +484,7 @@ onMounted(() => {
     },
   }) : useForm(getDefaultForm())
 
+  // console.log(JSON.parse(JSON.stringify(props.vendOptions)))
   vendOptions.value = props.vendOptions.map(vend => ({
     id: vend.id,
     full_name: vend.code,
@@ -527,6 +542,7 @@ function saveCustomer(customerID) {
           ...data.address,
           country_id: data.address.country_id ? data.address.country_id.id : null,
         },
+        vend_id: data.vend_id ? data.vend_id.id : null,
       }
     }))
     .post('/customers/' + customerID + '/update', {
@@ -570,7 +586,7 @@ function submit() {
 }
 
 function onAddressSelected(address) {
-  form.value.customer.address = {
+  form.value.address = {
     block_num: address.BLK_NO,
     building: address.BUILDING,
     country_id: countryOptions.value[0],

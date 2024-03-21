@@ -227,8 +227,27 @@
                         {{ vend.code }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                        <span v-if="vend && vend.customer && vend.customer.person_id">
-                          <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.customer.person_id + '/edit'">
+                        <a :class="[vend && vend.customer && vend.customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="vend.customer && vend.customer.person_id ? '//admin.happyice.com.sg/person/' + vend.customer.person_id + '/edit' : (vend.customer ? '/customers/' + vend.customer.id + '/edit' : '#' )">
+                          <span v-if="vend.customer && vend.customer.person_id && (vend.customer.virtual_customer_code || vend.customer.virtual_customer_prefix)">
+                            <span v-if="vend.customer.virtual_customer_code">
+                              {{ vend.customer.virtual_customer_code }}
+                            </span>
+                            <span v-if="vend.customer.virtual_customer_prefix">
+                              ({{ vend.customer.virtual_customer_prefix }})
+                            </span>
+                             <br>
+                          </span>
+                          <span v-else>
+                            <span v-if="vend.customer && vend.customer.code">
+                              {{ vend.customer.code }} <br>
+                            </span>
+                          </span>
+                          <span v-if="vend.customer">
+                            {{ vend.customer.name }}
+                          </span>
+                        </a>
+                        <!-- <span v-if="vend && vend.customer && vend.customer.person_id">
+                          <a :class="[vend && vend.customer && vend.customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.customer.person_id + '/edit'">
                             {{ vend.customer.virtual_customer_code }} ({{ vend.customer.virtual_customer_prefix }})
                             <br>
                             {{ vend.customer.name }}
@@ -241,7 +260,7 @@
                         </span>
                         <span v-else>
                           {{ vend.name }}
-                        </span>
+                        </span> -->
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           {{ vend.customer && vend.customer.operator ? vend.customer.operator.full_name : '' }}

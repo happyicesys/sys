@@ -97,7 +97,16 @@ class CustomerController extends Controller
                     // ->when($request->name, fn($query, $input) => $query->where('name', 'LIKE', '%'.$input.'%'))
                     ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
                     ->when($request->profile_id, fn($query, $input) => $query->where('profile_id', $input))
+                    ->when($request->ref_id, function($query, $search) {
+                        $query->where('id', 'LIKE', $search - 10000);
+                    })
                     ->when($request->status, fn($query, $input) => $query->where('status_id', $input))
+                    ->when($request->vend_code, function($query, $search) {
+                        $query->whereIn('id',
+                            Vend::where('code', 'LIKE', '%'.$search.'%')
+                            ->pluck('customer_id')
+                        );
+                    })
                     ->when($request->zone_id, fn($query, $input) => $query->where('zone_id', $input))
                     ->when($request->sortKey, function($query, $search) use ($request) {
                         $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
@@ -160,8 +169,9 @@ class CustomerController extends Controller
 
     public function create()
     {
+
         return Inertia::render('Customer/Create', [
-            'cmsCustomerOptions' => Http::get(env('CMS_URL') . '/api/vends/unbind')->collect(),
+            'cmsCustomerOptions' => Http::get(env('CMS_URL') . '/api/vends/unbind')->collect() ? Http::get(env('CMS_URL') . '/api/vends/unbind')->collect()->whereNotIn('id', Customer::select('person_id')->pluck('person_id'))->all() : [],
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
             'customer' => new Customer(),
             'operatorOptions' => OperatorResource::collection(
@@ -278,11 +288,11 @@ class CustomerController extends Controller
             ]);
             $customer = Customer::create($request->all());
 
-            if($request->contact) {
+            if($request->contact and isset($request->contact['name']) and $request->contact['name']) {
                 $customer->contact()->updateOrCreate($request->contact);
             }
 
-            if($request->address) {
+            if($request->address and isset($request->address['postcode']) and $request->address['postcode']){
                 $customer->deliveryAddress()->updateOrCreate([
                     'type' => Customer::ADDRESS_TYPE_DELIVERY,
                 ], $request->address);
@@ -346,6 +356,7 @@ class CustomerController extends Controller
             $vend->customer_id = $customer->id;
             $vend->save();
         }else {
+            // dd('here1111', $request->all());
             $customer->update($request->customer);
 
             if($request->customer['contact'] && isset($request->customer['contact']['name']) && $request->customer['contact']['name']) {
@@ -356,6 +367,12 @@ class CustomerController extends Controller
                 $customer->deliveryAddress()->updateOrCreate([
                     'type' => Customer::ADDRESS_TYPE_DELIVERY,
                 ], $request->customer['address']);
+            }
+
+            if($request->customer and isset($request->customer['vend_id']) and $request->customer['vend_id']){
+                $vend = Vend::find($request->customer['vend_id']);
+                $vend->customer_id = $customer->id;
+                $vend->save();
             }
         }
 

@@ -78,6 +78,12 @@ class Customer extends Model
         'zone_id',
     ];
 
+    // mutator
+    public function refID()
+    {
+        return $this->id + 10000;
+    }
+
     // relationships
     public function addresses()
     {

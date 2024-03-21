@@ -25,7 +25,7 @@
               </div>
             </div>
 
-            <div class="sm:col-span-6" v-if="vend">
+            <div class="sm:col-span-5" v-if="vend">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Vend ID#
               </label>
@@ -78,7 +78,7 @@
                   type="button"
                   class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
                   v-if="permissions.includes('update vends')"
-                  @click.prevent="saveVend(form.id)"
+                  @click.prevent="saveVend(vend.id)"
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
@@ -97,7 +97,7 @@
               </span>
             </div>
             </div>
-            <div class=" pb-5">
+            <div>
                 <!-- <h3 class="text-base font-semibold leading-6 text-gray-900 pb-3">Customer</h3> -->
                 <div class="relative mb-5">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -112,7 +112,7 @@
               <div class="sm:col-span-6">
                 <div
                     class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit bg-green-300"
-                    v-if="form.customer.person_id"
+                    v-if="vend.customer.person_id"
                 >
                     <div class="flex flex-col">
                       From CMS
@@ -120,7 +120,7 @@
                 </div>
                 <div
                     class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit bg-gray-300"
-                    v-if="!form.customer || !form.customer.id"
+                    v-if="!vend.customer || !vend.customer.id"
                 >
                     <div class="flex flex-col">
                       No Customer Binding
@@ -130,7 +130,7 @@
               <!-- {{ Boolean((form.customer.id && !form.customer.person_id) || !form.customer.id) }} <br>
               {{ Boolean(form.customer.id && !form.customer.person_id) }}
               {{ Boolean(!form.customer.id) }} -->
-              <fieldset class="sm:col-span-6" v-if="!form.customer.id">
+              <fieldset class="sm:col-span-6" v-if="!vend.customer.id">
                 <legend class="sr-only">Plan</legend>
                 <div class="space-y-5">
                   <div class="relative flex items-start">
@@ -141,18 +141,18 @@
                       <label for="is_existing" class="font-medium text-gray-900">Select Existing Customer</label>
                     </div>
                   </div>
-                  <div class="relative flex items-start">
+                  <!-- <div class="relative flex items-start">
                     <div class="flex h-6 items-center">
                       <input id="isExisting" aria-describedby="is-new-description" name="isExisting" type="radio" v-model="isExisting" value="0" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600" />
                     </div>
                     <div class="ml-3 text-sm leading-6">
                       <label for="is_new" class="font-medium text-gray-900">Create New Customer</label>
                     </div>
-                  </div>
+                  </div> -->
                 </div>
               </fieldset>
 
-              <div class="sm:col-span-6" v-if="!form.customer.id && isExisting == 1">
+              <div class="sm:col-span-6" v-if="!vend.customer.id && isExisting == 1">
                 <div class="sm:col-span-6">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                     Customer
@@ -171,7 +171,7 @@
                 </div>
               </div>
 
-              <div class="sm:col-span-6" v-if="form.customer && form.customer.person_id">
+              <div class="sm:col-span-6" v-if="vend.customer && vend.customer.person_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Customer
                 </label>
@@ -179,14 +179,27 @@
                   <input
                     type="text"
                     class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                    :value="vend.customer_code + ' - ' + vend.customer_name"
+                    :value="'#'+(vend.customer.id + 10000) + ' - ' + vend.customer_code + ' - ' + vend.customer_name"
+                    disabled
+                  />
+                </div>
+              </div>
+              <div class="sm:col-span-6" v-if="vend.customer && !vend.customer.person_id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Customer
+                </label>
+                <div class="mt-1">
+                  <input
+                    type="text"
+                    class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
+                    :value="'#'+(vend.customer.id + 10000) + ' - ' + (vend.customer.code ? vend.customer.code : '')  + ' - ' + vend.customer_name"
                     disabled
                   />
                 </div>
               </div>
 
-              <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(form.customer.id && !form.customer.person_id) || (!form.customer.id && isExisting != 1)">
-                <div class="sm:col-span-2">
+              <!-- <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(vend.customer.id && !vend.customer.person_id) || (!vend.customer.id && isExisting != 1)"> -->
+                <!-- <div class="sm:col-span-2">
                   <FormInput v-model="form.customer.code" :error="form.errors['customer.code']" :disabled="form.customer.person_id">
                     Cust Code
                   </FormInput>
@@ -195,29 +208,31 @@
                   <FormInput v-model="form.customer.name" :error="form.errors['customer.name']" required="true" :disabled="form.customer.person_id">
                     Cust Name
                   </FormInput>
-                </div>
-                <div class="sm:col-span-6 text-blue-600 text-xs" v-if="form.customer.person_id">
+                </div> -->
+                <div class="sm:col-span-6 text-blue-600 text-xs" v-if="vend.customer && vend.customer.person_id">
                   ** Customer Data only editable from CMS
                   <span>
-                    <a :class="[form.customer.person_id ? 'text-blue-700' : 'text-gray-500']" target="_blank" :href="'//admin.happyice.com.sg/person/' + form.customer.person_id + '/edit'">
+                    <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.customer.person_id + '/edit'">
                       (Click Here)
                     </a>
                   </span>
                 </div>
-                <div class="sm:col-span-2">
+                <div class="sm:col-span-6 text-blue-600 text-xs" v-if="vend.customer && !vend.customer.person_id">
+                  ** Edit customer data
+                  <span>
+                    <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer.id + '/edit'">
+                      (Click Here)
+                    </a>
+                  </span>
+                </div>
+                <!-- <div class="sm:col-span-2">
                   <DatePicker v-model="form.customer.begin_date" :error="form.errors['customer.begin_date']" @input="onDateFromChanged()"
                   v-if="permissions.includes('update vends')">
                     Begin Date
                   </DatePicker>
-                </div>
-              </div>
-              <!-- <div class="sm:col-span-2">
-                <DatePicker v-model="form.customer.termination_date" :error="form.errors['customer.termination_date']" :minDate="form.customer.begin_date"
-                v-if="permissions.includes('update vends')" disabled="true">
-                  Termination Date
-                </DatePicker>
-              </div> -->
-
+                </div> -->
+              <!-- </div> -->
+<!--
             <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(form.customer.id && !form.customer.person_id) || (!form.customer.id && isExisting != 1)">
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-6 md:pb-3">
                 <div class="relative">
@@ -332,8 +347,8 @@
                   Longitude
                 </FormInput>
               </div>
-            </div>
-
+            </div> -->
+<!--
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -366,15 +381,15 @@
               <div class="text-sm text-red-600" v-if="form.errors.operator_id">
                 {{ form.errors.operator_id }}
               </div>
-            </div>
+            </div> -->
 
-            <div class="sm:col-span-6">
+            <div class="sm:col-span-6 pt-3">
                 <span class="flex justify-between">
                   <span class="flex space-x-1">
                     <Button
                       type="button"
                       class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
-                      v-if="permissions.includes('update vends')"
+                      v-if="permissions.includes('update vends') && !vend.customer"
                       @click.prevent="saveCustomer(form.customer_id)"
                     >
                       <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
@@ -737,7 +752,7 @@ function onAddressSelected(address) {
 
 function unbindCustomer(vendID) {
   form.value
-      .post('/vends/' + vendID + '/unbind-customer', {
+      .post('/vends/' + vendID + '/unbind-customer/settings', {
         onSuccess: () => {
         },
         preserveState: true,

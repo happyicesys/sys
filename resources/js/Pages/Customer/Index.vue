@@ -24,12 +24,12 @@
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <!-- <SearchInput placeholderStr="ID" v-model="filters.code">
+          <SearchInput placeholderStr="ID" v-model="filters.ref_id">
             ID
           </SearchInput>
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            ID Name
-          </SearchInput> -->
+          <SearchInput placeholderStr="ID" v-model="filters.vend_code">
+            Vend ID
+          </SearchInput>
           <SearchInput placeholderStr="Customer" v-model="filters.customer">
             Customer
           </SearchInput>
@@ -224,6 +224,9 @@
                       #
                     </TableHead>
                     <TableHead>
+                      ID
+                    </TableHead>
+                    <TableHead>
                       Vend ID
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
@@ -232,21 +235,12 @@
                     <TableHead>
                       Label
                     </TableHead>
-                    <TableHeadSort modelName="category_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('category_id')">
+                    <!-- <TableHeadSort modelName="category_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('category_id')">
                       Category
                     </TableHeadSort>
                     <TableHeadSort modelName="category_group" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('category_group')">
                       Group
-                    </TableHeadSort>
-                    <!-- <TableHeadSort modelName="handled_by" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('handled_by')">
-                      Acc Manager
                     </TableHeadSort> -->
-                    <!-- <TableHead>
-                      Attn Name
-                    </TableHead>
-                    <TableHead>
-                      Contact
-                    </TableHead> -->
                     <TableHead>
                       Del Address
                     </TableHead>
@@ -276,12 +270,27 @@
                         {{ customers.meta.from + customerIndex }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
+                        {{ customer.ref_id }}
+                      </TableData>
+                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         {{ customer.vend ? customer.vend.code : null }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
-                        <a :class="[customer.person_id ? 'text-blue-700' : 'text-gray-800']" target="_blank" :href="'//admin.happyice.com.sg/person/' + customer.person_id + '/edit'">
-                          <span v-if="customer.person_id">
-                            {{ customer.virtual_customer_code }} ({{ customer.virtual_customer_prefix }}) <br>
+                        <!-- <a :class="[customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="'//admin.happyice.com.sg/person/' + customer.person_id + '/edit'"> -->
+                        <a :class="[customer && customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="customer && customer.person_id ? '//admin.happyice.com.sg/person/' + customer.person_id + '/edit' : (customer ? '/customers/' + customer.id + '/edit' : '#' )">
+                          <span v-if="customer.person_id && (customer.virtual_customer_code || customer.virtual_customer_prefix)">
+                            <span v-if="customer.virtual_customer_code">
+                              {{ customer.virtual_customer_code }}
+                            </span>
+                            <span v-if="customer.virtual_customer_prefix">
+                              ({{ customer.virtual_customer_prefix }})
+                            </span>
+                             <br>
+                          </span>
+                          <span v-else>
+                            <span v-if="customer.code">
+                              {{ customer.code }} <br>
+                            </span>
                           </span>
                           {{ customer.name }}
                         </a>
@@ -294,20 +303,11 @@
                           From CMS
                         </div>
                       </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
+                      <!-- <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         {{ customer.category ? customer.category.name : '' }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         {{ customer.category && customer.category.categoryGroup ? customer.category.categoryGroup.name : '' }}
-                      </TableData>
-                      <!-- <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.accountManager.name }}
-                      </TableData> -->
-                      <!-- <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.contacts[0].name }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.contacts[0].phone_num }}
                       </TableData> -->
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
                         {{ customer.deliveryAddress ? customer.deliveryAddress.full_address : null }}
@@ -407,7 +407,9 @@ const props = defineProps({
 const filters = ref({
   customer: '',
   name: '',
+  ref_id: '',
   status: '',
+  vend_code: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,

@@ -689,7 +689,7 @@ class VendController extends Controller
         return redirect()->back();
     }
 
-    public function unbindCustomer($vendID)
+    public function unbindCustomer($vendID, $returnUrl)
     {
         $vend = Vend::findOrFail($vendID);
 
@@ -731,9 +731,13 @@ class VendController extends Controller
         $vend->customer_id = null;
         $vend->save();
 
-        // return redirect()->route('vends');
-        // return redirect()->route('settings.edit', [$vendID]);
-        return redirect()->back();
+        if($returnUrl == 'vends') {
+            return redirect()->route('vends.edit', [$vendID]);
+        }else if ($returnUrl == 'settings') {
+            return redirect()->route('settings.edit', [$vendID]);
+        }else {
+            return redirect()->back();
+        }
     }
 
     public function exportChannelExcel(Request $request)
