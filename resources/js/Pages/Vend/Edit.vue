@@ -87,7 +87,7 @@
                 </Button>
                 <Button
                     class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                    @click.prevent="restartVend(vend.data.id)"
+                    @click.prevent="restartVend(vend.id)"
                   >
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                     <span>
