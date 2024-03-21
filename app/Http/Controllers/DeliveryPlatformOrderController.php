@@ -42,11 +42,18 @@ class DeliveryPlatformOrderController extends Controller
         ]);
 
         $totals = DeliveryPlatformOrder::query()
+            ->leftJoin('delivery_product_mapping_vend', 'delivery_platform_orders.delivery_product_mapping_vend_id', '=', 'delivery_product_mapping_vend.id')
             ->filterIndex($request)
+            ->whereNotIn('delivery_product_mapping_vend.vend_id', function($query) {
+                $query
+                    ->select('id')
+                    ->from('vends')
+                    ->where('is_testing', true);
+            })
             ->where('status', DeliveryPlatformOrder::STATUS_DELIVERED)
             ->select(
                 DB::raw('SUM(subtotal_amount) - SUM(promo_amount) AS total_amount'),
-                DB::raw('COUNT(id) AS order_count')
+                DB::raw('COUNT(delivery_platform_orders.id) AS order_count')
             )
             ->first();
 

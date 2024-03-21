@@ -280,7 +280,7 @@ class DeliveryProductMappingController extends Controller
                     $query->whereNull('end_date')
                         ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_code', 'vend_id', 'is_active');
                 },
-                'deliveryProductMappingVends.vend:id,code,name',
+                'deliveryProductMappingVends.vend:id,code,name,customer_id',
                 'deliveryProductMappingVends.vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                 'deliveryProductMappingVends.deliveryProductMappingVendChannels.vendChannel:id,code,capacity,qty',
                 'deliveryProductMappingVends.deliveryProductMappingVendChannels.deliveryProductMappingItem:id,amount,channel_code,delivery_product_mapping_id,product_mapping_item_id,sub_category_json',
@@ -328,11 +328,16 @@ class DeliveryProductMappingController extends Controller
                 Vend::with([
                     'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
                 ])
-                ->whereHas('customer', function($query) use ($deliveryProductMapping) {
-                        $query
-                            ->where('is_active', true)
-                            ->where('operator_id', $deliveryProductMapping->operator_id);
+                ->whereIn('customer_id', function($query) use ($deliveryProductMapping) {
+                    $query->select('id')
+                        ->from('customers')
+                        ->where('operator_id', $deliveryProductMapping->operator_id);
                 })
+                // ->whereHas('customer', function($query) use ($deliveryProductMapping) {
+                //         $query
+                //             ->where('is_active', true)
+                //             ->where('operator_id', $deliveryProductMapping->operator_id);
+                // })
                 ->when($deliveryProductMapping->deliveryPlatformOperator->type == '', function($query, $search) use ($request) {
                     $query->where('vends.code', 'LIKE', "{$request->vend_code}%");
                 })
