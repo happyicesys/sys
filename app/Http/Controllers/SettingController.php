@@ -138,6 +138,7 @@ class SettingController extends Controller
             'vends.begin_date',
             'vends.termination_date',
             DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
+            DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
         )
         ->first();
 

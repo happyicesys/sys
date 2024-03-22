@@ -329,6 +329,17 @@ class CustomerController extends Controller
         $customer = Customer::find($id);
         $vend = Vend::find($request->id);
 
+        $requestCustomerArr = $request->customer;
+        if(isset($requestCustomerArr['is_active']) and $requestCustomerArr['is_active'] === 'true') {
+            $requestCustomerArr['is_active'] = true;
+        } else {
+            $requestCustomerArr['is_active'] = false;
+        }
+        $request->merge([
+            'customer' => $requestCustomerArr,
+        ]);
+        // dd($request->all());
+
         if(!$customer) {
             if($request->is_existing) {
                 $request->validate([

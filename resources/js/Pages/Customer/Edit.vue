@@ -120,6 +120,26 @@
                   </a>
                 </span>
               </div>
+              <div class="sm:col-span-5">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Is Active? (Customer)
+                </label>
+                <!-- {{ form.customer }} -->
+                <MultiSelect
+                  v-model="form.is_active"
+                  :options="booleanStrictOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors['customer.is_testing']">
+                  {{ form.errors['customer.is_testing'] }}
+                </div>
+              </div>
               <div class="sm:col-span-2">
                 <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
                 v-if="permissions.includes('update customers')">
@@ -482,6 +502,7 @@ onMounted(() => {
       street_name: '',
       unit_num: '',
     },
+    is_active: props.customer ? props.customer.is_active ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false') : booleanStrictOptions.value.find(option => option.id === 'true'),
   }) : useForm(getDefaultForm())
 
   // console.log(JSON.parse(JSON.stringify(props.vendOptions)))
@@ -542,6 +563,7 @@ function saveCustomer(customerID) {
           ...data.address,
           country_id: data.address.country_id ? data.address.country_id.id : null,
         },
+        is_active: data.is_active.id,
         vend_id: data.vend_id ? data.vend_id.id : null,
       }
     }))

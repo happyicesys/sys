@@ -24,6 +24,19 @@
                 </div>
               </div>
             </div>
+            <div class="sm:col-span-6">
+              <div
+                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
+                  :class="[vend.is_active ? 'bg-green-300' : 'bg-red-300']"
+              >
+                <span v-if="vend.is_active">
+                  Active
+                </span>
+                <span v-if="!vend.is_active">
+                  Not Active
+                </span>
+              </div>
+            </div>
 
             <div class="sm:col-span-5" v-if="vend">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -51,7 +64,7 @@
                 Retired Date
               </DatePicker>
             </div>
-            <div class="sm:col-span-5">
+            <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Is Factory?
               </label>
@@ -69,6 +82,26 @@
               </MultiSelect>
               <div class="text-sm text-red-600" v-if="form.errors['customer.is_testing']">
                 {{ form.errors['customer.is_testing'] }}
+              </div>
+            </div>
+            <div class="sm:col-span-3">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Is Active? (Vending Machine)
+              </label>
+              <!-- {{ form.customer }} -->
+              <MultiSelect
+                v-model="form.is_active"
+                :options="booleanStrictOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors['is_active']">
+                {{ form.errors['is_active'] }}
               </div>
             </div>
 
@@ -619,6 +652,7 @@ function getDefaultForm() {
     },
     termination_date: '',
     is_testing: '',
+    is_active: '',
   }
 }
 
@@ -628,6 +662,7 @@ onMounted(() => {
   operatorOptions.value = props.operatorOptions.data
   form.value = props.vend ? useForm({
     ...props.vend,
+    is_active: props.vend.is_active == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
     is_testing: props.vend.is_testing == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
     customer: {
       ...JSON.parse(JSON.stringify(props.vend.customer)),
@@ -714,6 +749,7 @@ function saveVend(vendID) {
       ...data,
       begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
+      is_active: data.is_active.id,
       is_testing: data.is_testing.id,
     }))
     .post('/vends/' + vendID + '/update', {

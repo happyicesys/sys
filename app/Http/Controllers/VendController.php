@@ -658,12 +658,18 @@ class VendController extends Controller
 
     public function update(Request $request, $vendID)
     {
+        $request->merge([
+            'is_active' => $request->is_active == 'true' ? true : false,
+            'is_testing' => $request->is_testing == 'true' ? true : false,
+        ]);
+
         $vend = Vend::findOrFail($vendID);
 
         $vend->update([
             'name' => $request->name,
             'begin_date' => $request->begin_date,
-            'is_testing' => $request->is_testing == 'true' ? true : false,
+            'is_active' => $request->is_active,
+            'is_testing' => $request->is_testing,
             'termination_date' => $request->termination_date,
         ]);
 
@@ -819,6 +825,7 @@ class VendController extends Controller
                     'vends.begin_date',
                     'vends.termination_date',
                     DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
+                    DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
                 )
                 ->first();
 

@@ -95,6 +95,7 @@
                   </MultiSelect>
                 </div>
               </div>
+            </div>
 
               <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
                 <div class="sm:col-span-2">
@@ -107,12 +108,13 @@
                     Cust Name
                   </FormInput>
                 </div>
-              </div>
-              <div class="sm:col-span-2">
-                <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
-                v-if="permissions.includes('update customers')">
-                  Begin Date
-                </DatePicker>
+
+                <div class="sm:col-span-2">
+                  <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
+                  v-if="permissions.includes('update customers')">
+                    Begin Date
+                  </DatePicker>
+                </div>
               </div>
               <!-- <div class="sm:col-span-2">
                 <DatePicker v-model="form.customer.termination_date" :error="form.errors['customer.termination_date']" :minDate="form.customer.begin_date"
@@ -121,7 +123,7 @@
                 </DatePicker>
               </div> -->
 
-            <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
+          <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-6 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -271,7 +273,7 @@
               </div>
             </div>
 
-            <div class="sm:col-span-6">
+              <div class="sm:col-span-6 mt-4">
                 <span class="flex justify-between">
                   <span class="flex space-x-1">
                     <Button
@@ -298,7 +300,6 @@
                   </span>
                 </span>
               </div>
-          </div>
           </div>
           </form>
         </div>
@@ -382,7 +383,6 @@ function getDefaultForm() {
 }
 
 onMounted(() => {
-  console.log(JSON.parse(JSON.stringify(props.cmsCustomerOptions)))
   cmsCustomerOptions.value = Object.values(props.cmsCustomerOptions).map(data => ({
   id: data.id,
   full_name: data.prefix + '-' + data.code + ' - ' + data.company
