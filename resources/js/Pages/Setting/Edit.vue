@@ -112,7 +112,7 @@
               <div class="sm:col-span-6">
                 <div
                     class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit bg-green-300"
-                    v-if="vend.customer.person_id"
+                    v-if="vend.customer && vend.customer.person_id"
                 >
                     <div class="flex flex-col">
                       From CMS
@@ -130,7 +130,7 @@
               <!-- {{ Boolean((form.customer.id && !form.customer.person_id) || !form.customer.id) }} <br>
               {{ Boolean(form.customer.id && !form.customer.person_id) }}
               {{ Boolean(!form.customer.id) }} -->
-              <fieldset class="sm:col-span-6" v-if="!vend.customer.id">
+              <fieldset class="sm:col-span-6" v-if="!vend.customer">
                 <legend class="sr-only">Plan</legend>
                 <div class="space-y-5">
                   <div class="relative flex items-start">
@@ -152,7 +152,7 @@
                 </div>
               </fieldset>
 
-              <div class="sm:col-span-6" v-if="!vend.customer.id && isExisting == 1">
+              <div class="sm:col-span-6" v-if="!vend.customer && isExisting == 1">
                 <div class="sm:col-span-6">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                     Customer
