@@ -421,16 +421,16 @@
                       </TableHeadSort>
                       <TableHead>
                           Sales(qty)
-                          <SingleSortItem modelName="vend_transaction_totals_json->today_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->today_amount', true)">
+                          <SingleSortItem modelName="totals_json->today_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->today_amount', true)">
                               Today
                           </SingleSortItem>
-                          <SingleSortItem modelName="vend_transaction_totals_json->yesterday_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->yesterday_amount', true)">
+                          <SingleSortItem modelName="totals_json->yesterday_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->yesterday_amount', true)">
                               Y'day
                           </SingleSortItem>
-                          <SingleSortItem modelName="vend_transaction_totals_json->seven_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->seven_days_amount', true)">
+                          <SingleSortItem modelName="totals_json->seven_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_amount', true)">
                               Last7d
                           </SingleSortItem>
-                          <SingleSortItem modelName="vend_transaction_totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->thirty_days_amount', true)">
+                          <SingleSortItem modelName="totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_amount', true)">
                               Last30d
                           </SingleSortItem>
                       </TableHead>
