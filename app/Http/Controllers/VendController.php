@@ -164,6 +164,7 @@ class VendController extends Controller
                 'customers.is_active',
                 DB::raw("customers.account_manager_json->>'$.name' AS account_manager_name"),
                 'customers.begin_date AS customer_begin_date',
+                'customers.begin_date',
                 'customers.cms_invoice_history',
                 'customers.code AS customer_code',
                 'customers.is_active',
@@ -201,7 +202,7 @@ class VendController extends Controller
                             })/100,
         ];
 
-        return Inertia::render('Vend/Index', [
+        return Inertia::render('Vend/CustomerIndex', [
             'categories' => CategoryResource::collection(
                 Category::where('classname', $className)->orderBy('name')->get()
             ),

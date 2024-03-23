@@ -14,6 +14,7 @@ const navigation = [
         current: false,
         href: 'dashboard',
         permission: 'read dashboard',
+        tagline: null,
     },
     {
         name: 'Vending Machines',
@@ -21,6 +22,7 @@ const navigation = [
         current: false,
         href: 'vends',
         permission: 'read vends',
+        tagline: 'Customer',
     },
     {
         name: 'Customers',
@@ -28,6 +30,7 @@ const navigation = [
         current: false,
         href: 'customers',
         permission: 'read customers',
+        tagline: null,
     },
     {
         name: 'Transactions',
@@ -35,6 +38,7 @@ const navigation = [
         current: false,
         href: 'vends-transactions',
         permission: 'read transactions',
+        tagline: null,
     },
     {
         name: 'Products',
@@ -42,6 +46,7 @@ const navigation = [
         current: false,
         href: 'products',
         permission: 'read products',
+        tagline: null,
     },
     {
         name: 'Product Mapping',
@@ -49,6 +54,7 @@ const navigation = [
         current: false,
         href: 'product-mappings',
         permission: 'read product-mappings',
+        tagline: null,
     },
     {
         name: 'Report',
@@ -56,6 +62,7 @@ const navigation = [
         current: false,
         href: 'reports',
         permission: 'read reports',
+        tagline: null,
         children: [
             {name: 'Month End Stock Count', href: '/reports/stock-count'},
 
@@ -95,6 +102,7 @@ const navigation = [
         current: false,
         href: 'operators',
         permission: 'read operators',
+        tagline: null,
     },
     {
         name: 'Resource Center',
@@ -102,6 +110,7 @@ const navigation = [
         current: false,
         href: 'resource-centers',
         permission: 'read resource-centers',
+        tagline: null,
     },
     {
         name: 'Users',
@@ -109,6 +118,7 @@ const navigation = [
         current: false,
         href: 'users',
         permission: 'read users',
+        tagline: null,
     },
     {
         name: 'Operations',
@@ -116,6 +126,7 @@ const navigation = [
         current: false,
         href: 'holidays',
         permission: 'admin-access vends',
+        tagline: null,
         children: [
             {name: 'Vend & Criteria Bindings', href: '/vend-criteria-bindings'},
             {name: 'Criteria', href: '/vend-criterias'},
@@ -130,6 +141,7 @@ const navigation = [
         current: false,
         href: 'settings',
         permission: 'admin-access vends',
+        tagline: null,
     },
     // {
     //     name: 'OAuth & API',
@@ -144,6 +156,7 @@ const navigation = [
         current: false,
         href: 'delivery-product-mappings',
         permission: 'admin-access vends',
+        tagline: null,
         children: [
             {name: 'Machines', href: '/delivery-product-mapping-vends'},
             {name: 'Orders', href: '/delivery-platform-orders'},
@@ -212,7 +225,14 @@ const permissions = usePage().props.auth.permissions
                                 <component :is="item.icon"
                                     :class="[$page.url === '/' + item.href ? 'text-gray-500' : 'text-gray-400 group-hover:text-gray-500', 'mr-3 flex-shrink-0 h-6 w-6']"
                                     aria-hidden="true" />
-                                {{ item.name }}
+                                <span class="flex flex-col">
+                                    <span>
+                                        {{ item.name }}
+                                    </span>
+                                    <span class="text-[12px] text-gray-500">
+                                        {{ item.tagline }}
+                                    </span>
+                                </span>
                                 </Link>
                             </div>
                             <Disclosure as="div" v-else class="space-y-1" v-slot="{ open }">
@@ -222,8 +242,13 @@ const permissions = usePage().props.auth.permissions
                                     <component :is="item.icon"
                                         class="mr-3 flex-shrink-0 h-6 w-6 text-gray-400 group-hover:text-gray-500"
                                         aria-hidden="true" />
-                                    <span class="flex-1">
-                                        {{ item.name }}
+                                    <span class="flex flex-1 flex-col">
+                                        <span>
+                                            {{ item.name }}
+                                        </span>
+                                        <span class="text-[12px] text-gray-500">
+                                            {{ item.tagline }}
+                                        </span>
                                     </span>
                                     <svg :class="[open ? 'text-gray-400 rotate-90' : 'text-gray-300', 'ml-3 flex-shrink-0 h-5 w-5 transform group-hover:text-gray-400 transition-colors ease-in-out duration-150']"
                                         viewBox="0 0 20 20" aria-hidden="true">
@@ -309,13 +334,25 @@ const permissions = usePage().props.auth.permissions
                             <BreezeResponsiveNavLink
                             v-if="permissions.includes(item.permission)"
                             :href="route(item.href)" :active="route().current(item.href)">
-                                {{ item.name }}
+                                <span class="flex flex-col">
+                                    <span>
+                                        {{ item.name }}
+                                    </span>
+                                    <span class="text-[12px] text-gray-500">
+                                        {{ item.tagline }}
+                                    </span>
+                                </span>
                             </BreezeResponsiveNavLink>
                         </div>
                         <Disclosure as="div" v-else class="space-y-1" v-slot="{ open }">
                             <DisclosureButton class="pt-2 pb-2 mb-1 pl-4 space-y-1 flex" v-if="permissions.includes(item.permission)">
-                                <span class="">
-                                    {{ item.name }}
+                                <span class="flex flex-col">
+                                    <span>
+                                        {{ item.name }}
+                                    </span>
+                                    <span class="text-[12px] text-gray-500">
+                                        {{ item.tagline }}
+                                    </span>
                                 </span>
                                 <svg :class="[open ? 'text-gray-400 rotate-90' : 'text-gray-300', 'ml-3 flex-shrink-0 h-5 w-5 transform group-hover:text-gray-400 transition-colors ease-in-out duration-150']"
                                     viewBox="0 0 20 20" aria-hidden="true">
