@@ -31,8 +31,8 @@ class StoreVendsRecord implements ShouldQueue
             ->leftJoin('delivery_platform_orders', 'vend_transactions.id', '=', 'delivery_platform_orders.vend_transaction_id')
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'vend_transactions.customer_id', '=', 'customers.id')
-            ->where('vend_transactions.created_at', '>=', Carbon::subDays(2)->startOfDay())
-            ->where('vend_transactions.created_at', '<=', Carbon::subDays(2)->endOfDay())
+            ->where('vend_transactions.created_at', '>=', Carbon::yesterday()->startOfDay())
+            ->where('vend_transactions.created_at', '<=', Carbon::yesterday()->endOfDay())
             ->groupBy('date', 'vends.id')
             ->select(
                 'vends.id AS vend_id',
@@ -67,6 +67,28 @@ class StoreVendsRecord implements ShouldQueue
                             ELSE NULL
                         END
                     ) as total_count'
+                ),
+                DB::raw(
+                    'SUM(
+                        CASE
+                            WHEN error_code_normalized IS NULL THEN revenue
+                            WHEN error_code_normalized = 0 THEN revenue
+                            WHEN error_code_normalized = 6 THEN revenue
+                            WHEN is_multiple = 1 THEN revenue
+                            ELSE 0
+                        END
+                    ) as revenue'
+                ),
+                DB::raw(
+                    'SUM(
+                        CASE
+                            WHEN error_code_normalized IS NULL THEN gross_profit
+                            WHEN error_code_normalized = 0 THEN gross_profit
+                            WHEN error_code_normalized = 6 THEN gross_profit
+                            WHEN is_multiple = 1 THEN gross_profit
+                            ELSE 0
+                        END
+                    ) as gross_profit'
                 ),
                 DB::raw(
                     'SUM(
@@ -147,6 +169,7 @@ class StoreVendsRecord implements ShouldQueue
                 'day' => $vend->day,
                 'failure_amount' => $vend->failure_amount,
                 'failure_count' => $vend->failure_count,
+                'gross_profit' => $vend->gross_profit,
                 'month' => $vend->month,
                 'monthname' => $vend->month_name,
                 'online_failure_amount' => $vend->online_failure_amount,
@@ -154,6 +177,7 @@ class StoreVendsRecord implements ShouldQueue
                 'online_success_amount' => $vend->online_success_amount,
                 'online_success_count' => $vend->online_success_count,
                 'operator_id' => $vend->operator_id,
+                'revenue' => $vend->revenue,
                 'total_amount' => $vend->total_amount,
                 'total_count' => $vend->total_count,
                 'vend_code' => $vend->code,
