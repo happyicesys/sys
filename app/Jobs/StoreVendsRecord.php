@@ -47,7 +47,7 @@ class StoreVendsRecord implements ShouldQueue
                 'vend_id',
                 DB::raw('YEAR(vend_transactions.created_at) as year'),
                 DB::raw(
-                    'SUM(
+                    'COALESCE(SUM(
                         CASE
                             WHEN error_code_normalized IS NULL THEN amount
                             WHEN error_code_normalized = 0 THEN amount
@@ -55,7 +55,7 @@ class StoreVendsRecord implements ShouldQueue
                             WHEN is_multiple = 1 THEN amount
                             ELSE 0
                         END
-                    ) as total_amount'
+                    ),0) as total_amount'
                 ),
                 DB::raw(
                     'COUNT(
@@ -69,7 +69,7 @@ class StoreVendsRecord implements ShouldQueue
                     ) as total_count'
                 ),
                 DB::raw(
-                    'SUM(
+                    'COALESCE(SUM(
                         CASE
                             WHEN error_code_normalized IS NULL THEN revenue
                             WHEN error_code_normalized = 0 THEN revenue
@@ -77,10 +77,10 @@ class StoreVendsRecord implements ShouldQueue
                             WHEN is_multiple = 1 THEN revenue
                             ELSE 0
                         END
-                    ) as revenue'
+                    ),0) as revenue'
                 ),
                 DB::raw(
-                    'SUM(
+                    'COALESCE(SUM(
                         CASE
                             WHEN error_code_normalized IS NULL THEN gross_profit
                             WHEN error_code_normalized = 0 THEN gross_profit
@@ -88,17 +88,17 @@ class StoreVendsRecord implements ShouldQueue
                             WHEN is_multiple = 1 THEN gross_profit
                             ELSE 0
                         END
-                    ) as gross_profit'
+                    ),0) as gross_profit'
                 ),
                 DB::raw(
-                    'SUM(
+                    'COALESCE(SUM(
                         CASE
                             WHEN error_code_normalized IS NULL THEN 0
                             WHEN error_code_normalized = 0 THEN 0
                             WHEN error_code_normalized = 6 THEN 0
                             ELSE amount
                         END
-                    ) as failure_amount'
+                    ),0) as failure_amount'
                 ),
                 DB::raw(
                     'COUNT(
@@ -111,7 +111,7 @@ class StoreVendsRecord implements ShouldQueue
                     ) as failure_count'
                 ),
                 DB::raw(
-                    'SUM(
+                    'COALESCE(SUM(
                         CASE
                             WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized IS NULL THEN amount
                             WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN amount
@@ -119,7 +119,7 @@ class StoreVendsRecord implements ShouldQueue
                             WHEN delivery_platform_orders.id IS NULL THEN 0
                             ELSE 0
                         END
-                    ) as online_success_amount'
+                    ),0) as online_success_amount'
                 ),
                 DB::raw(
                     'COUNT(
@@ -133,7 +133,7 @@ class StoreVendsRecord implements ShouldQueue
                     ) as online_success_count'
                 ),
                 DB::raw(
-                    'SUM(
+                    'COALESCE(SUM(
                         CASE
                             WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized IS NULL THEN 0
                             WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN 0
@@ -141,7 +141,7 @@ class StoreVendsRecord implements ShouldQueue
                             WHEN delivery_platform_orders.id IS NULL THEN NULL
                             ELSE amount
                         END
-                    ) as online_failure_amount'
+                    ),0) as online_failure_amount'
                 ),
                 DB::raw(
                     'COUNT(
