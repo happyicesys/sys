@@ -37,6 +37,7 @@ use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use App\Models\VendData;
+use App\Models\VendRecord;
 use App\Models\VendSnapshot;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
@@ -453,8 +454,10 @@ class VendController extends Controller
                         ->where('is_testing', true);
                 })
                 ->where(function($query) {
-                    $query->where('error_code_normalized', 0)
+                    $query
+                        ->where('error_code_normalized', 0)
                         ->orWhere('error_code_normalized', 6)
+                        ->orWhere('error_code_normalized', null)
                         ->orWhere('is_multiple', true);
                 })
                 ->sum('vend_transactions.amount'),
@@ -471,6 +474,7 @@ class VendController extends Controller
                 ->where(function($query) {
                     $query->where('error_code_normalized', 0)
                         ->orWhere('error_code_normalized', 6)
+                        ->orWhere('error_code_normalized', null)
                         ->orWhere('is_multiple', true);
                 })
                 ->count()

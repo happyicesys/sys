@@ -17,7 +17,7 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 1;
-    public $timeout = 10;
+    public $timeout = 30;
 
     protected $model;
     /**

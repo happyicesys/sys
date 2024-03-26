@@ -69,6 +69,7 @@ class DashboardController extends Controller
             ->where(function($query) {
                 $query->where('error_code_normalized', 0)
                     ->orWhere('error_code_normalized', 6)
+                    ->orWhere('error_code_normalized', null)
                     ->orWhere('is_multiple', true);
             })
             ->where('transaction_datetime', '>=', Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay())

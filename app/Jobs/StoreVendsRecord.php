@@ -31,8 +31,8 @@ class StoreVendsRecord implements ShouldQueue
             ->leftJoin('delivery_platform_orders', 'vend_transactions.id', '=', 'delivery_platform_orders.vend_transaction_id')
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'vend_transactions.customer_id', '=', 'customers.id')
-            ->where('vend_transactions.created_at', '>=', Carbon::yesterday()->startOfDay())
-            ->where('vend_transactions.created_at', '<=', Carbon::yesterday()->endOfDay())
+            ->where('vend_transactions.created_at', '>=', Carbon::subDays(2)->startOfDay())
+            ->where('vend_transactions.created_at', '<=', Carbon::subDays(2)->endOfDay())
             ->groupBy('date', 'vends.id')
             ->select(
                 'vends.id AS vend_id',
@@ -49,6 +49,7 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'SUM(
                         CASE
+                            WHEN error_code_normalized IS NULL THEN amount
                             WHEN error_code_normalized = 0 THEN amount
                             WHEN error_code_normalized = 6 THEN amount
                             WHEN is_multiple = 1 THEN amount
@@ -59,6 +60,7 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COUNT(
                         CASE
+                            WHEN error_code_normalized IS NULL THEN vend_transactions.id
                             WHEN error_code_normalized = 0 THEN vend_transactions.id
                             WHEN error_code_normalized = 6 THEN vend_transactions.id
                             WHEN is_multiple = 1 THEN amount
@@ -69,6 +71,7 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'SUM(
                         CASE
+                            WHEN error_code_normalized IS NULL THEN 0
                             WHEN error_code_normalized = 0 THEN 0
                             WHEN error_code_normalized = 6 THEN 0
                             ELSE amount
@@ -78,6 +81,7 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COUNT(
                         CASE
+                            WHEN error_code_normalized IS NULL THEN NULL
                             WHEN error_code_normalized = 0 THEN NULL
                             WHEN error_code_normalized = 6 THEN NULL
                             ELSE 1
@@ -87,8 +91,10 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'SUM(
                         CASE
+                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized IS NULL THEN amount
                             WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN amount
                             WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 6 THEN amount
+                            WHEN delivery_platform_orders.id IS NULL THEN 0
                             ELSE 0
                         END
                     ) as online_success_amount'
@@ -96,8 +102,10 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COUNT(
                         CASE
+                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized IS NULL THEN vend_transactions.id
                             WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN vend_transactions.id
                             WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 6 THEN vend_transactions.id
+                            WHEN delivery_platform_orders.id IS NULL THEN NULL
                             ELSE NULL
                         END
                     ) as online_success_count'
@@ -105,8 +113,10 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'SUM(
                         CASE
+                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized IS NULL THEN 0
                             WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN 0
                             WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 6 THEN 0
+                            WHEN delivery_platform_orders.id IS NULL THEN NULL
                             ELSE amount
                         END
                     ) as online_failure_amount'
@@ -114,8 +124,10 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COUNT(
                         CASE
+                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized IS NULL THEN NULL
                             WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN NULL
                             WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 6 THEN NULL
+                            WHEN delivery_platform_orders.id IS NULL THEN NULL
                             ELSE 1
                         END
                     ) as online_failure_count'
