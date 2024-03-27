@@ -12,7 +12,7 @@ class StoreVendRecordsWithDateRange extends Command
      *
      * @var string
      */
-    protected $signature = 'store:vend-records-date-range {dateFrom} {dateTo}';
+    protected $signature = 'store:vend-records-date-range {from} {to}';
 
     /**
      * The console command description.
@@ -26,8 +26,8 @@ class StoreVendRecordsWithDateRange extends Command
      */
     public function handle()
     {
-        $dateFrom = $this->argument('dateFrom');
-        $dateTo = $this->argument('dateTo');
+        $dateFrom = $this->argument('from');
+        $dateTo = $this->argument('to');
 
         StoreVendsRecord::dispatch($dateFrom, $dateTo);
     }

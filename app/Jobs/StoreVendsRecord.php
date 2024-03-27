@@ -20,6 +20,15 @@ class StoreVendsRecord implements ShouldQueue
     /**
      * Execute the job.
      */
+    protected $from;
+    protected $to;
+
+    public function __construct($from, $to)
+    {
+        $this->from = $from;
+        $this->to = $to;
+    }
+
     public function handle(): void
     {
 
@@ -31,8 +40,8 @@ class StoreVendsRecord implements ShouldQueue
             ->leftJoin('delivery_platform_orders', 'vend_transactions.id', '=', 'delivery_platform_orders.vend_transaction_id')
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'vend_transactions.customer_id', '=', 'customers.id')
-            ->where('vend_transactions.created_at', '>=', Carbon::yesterday()->startOfDay())
-            ->where('vend_transactions.created_at', '<=', Carbon::yesterday()->endOfDay())
+            ->where('vend_transactions.created_at', '>=', Carbon::parse($this->from)->startOfDay())
+            ->where('vend_transactions.created_at', '<=', Carbon::parse($this->to)->endOfDay())
             ->groupBy('date', 'vends.id')
             ->select(
                 'vends.id AS vend_id',
@@ -159,7 +168,7 @@ class StoreVendsRecord implements ShouldQueue
 
         $vendWithTransactions = [];
         foreach($vends as $vend) {
-            $vendWithTransactions[] = $vend->id;
+            $vendWithTransactions[$vend->date][] = $vend->id;
             VendRecord::updateOrCreate([
                 'vend_id' => $vend->vend_id,
                 'date' => $vend->date,
@@ -186,32 +195,38 @@ class StoreVendsRecord implements ShouldQueue
         }
 
         // also init the vends without transactions
-        $vendWithoutTransactions = Vend::query()
-            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-            ->select(
-                'vends.id as id',
-                'vends.code as code',
-                'customers.operator_id',
-                'customers.id as customer_id'
-            )
-            ->where('customers.is_active', true)
-            ->whereNotIn('vends.id', $vendWithTransactions)
-            ->get();
+        if($vendWithTransactions) {
+            foreach($vendWithTransactions as $date => $vendIDs) {
 
-        foreach($vendWithoutTransactions as $vend) {
-            VendRecord::updateOrCreate([
-                'vend_id' => $vend->id,
-                'date' => Carbon::yesterday()->toDateString(),
-            ], [
-                'customer_id' => $vend->customer_id,
-                'customer_json' => isset($vend->customer_id) ? $vend->customer : ['name' => $vend->name],
-                'day' => Carbon::yesterday()->day,
-                'month' => Carbon::yesterday()->month,
-                'monthname' => Carbon::yesterday()->format('F'),
-                'operator_id' => $vend->operator_id,
-                'year' => Carbon::yesterday()->year,
-                'vend_code' => $vend->code,
-            ]);
+                $vendWithoutTransactions = Vend::query()
+                ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+                ->select(
+                    'vends.id as id',
+                    'vends.code as code',
+                    'customers.operator_id',
+                    'customers.id as customer_id'
+                )
+                ->where('customers.is_active', true)
+                ->whereNotIn('vends.id', $vendIDs)
+                ->get();
+
+                foreach($vendWithoutTransactions as $vend) {
+                    VendRecord::updateOrCreate([
+                        'vend_id' => $vend->id,
+                        'date' => Carbon::parse($date)->toDateString(),
+                    ], [
+                        'customer_id' => $vend->customer_id,
+                        'customer_json' => isset($vend->customer_id) ? $vend->customer : ['name' => $vend->name],
+                        'day' => Carbon::parse($date)->day,
+                        'month' => Carbon::parse($date)->month,
+                        'monthname' => Carbon::parse($date)->format('F'),
+                        'operator_id' => $vend->operator_id,
+                        'year' => Carbon::parse($date)->year,
+                        'vend_code' => $vend->code,
+                    ]);
+                }
+            }
         }
+
     }
 }
