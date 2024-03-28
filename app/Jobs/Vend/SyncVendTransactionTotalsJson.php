@@ -57,7 +57,7 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
                     'seven_days_amount' => (int)$vend->daysVendRecords(6,0)->sum('total_amount'),
                     'seven_days_count' => (int)$vend->daysVendRecords(6,0)->sum('total_count'),
                     'thirty_days_amount' => (int)$vend->daysVendRecords(29,0)->sum('total_amount'),
-                    'thirty_days_count' => (int)vend->daysVendRecords(29,0)->sum('total_count'),
+                    'thirty_days_count' => (int)$vend->daysVendRecords(29,0)->sum('total_count'),
                     'thirty_days_revenue' => (int)$vend->daysVendRecords(29,0)->sum('revenue'),
                     'thirty_days_gross_profit' => (int)$vend->daysVendRecords(29,0)->sum('gross_profit'),
                     'vend_records_amount_latest' => (int)$vend->lifetimeVendRecords->sum('total_amount'),
