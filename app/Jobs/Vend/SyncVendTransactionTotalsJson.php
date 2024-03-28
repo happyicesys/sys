@@ -39,8 +39,10 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
     {
         if($this->model instanceof Vend) {
             $vend = $this->model;
+            $customer = $this->model->customer;
         } else if($this->model instanceof Customer){
             $vend = $this->model->vend;
+            $customer = $this->model;
         } else {
             return;
         }
@@ -72,8 +74,8 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
             ]);
         }
 
-        if($vend->customer) {
-            $vend->customer->update([
+        if($customer) {
+            $customer->update([
                 'totals_json' => [
                     'today_amount' => (int)$customer->daysVendTransactions(0,0)->sum('amount'),
                     'today_count' => $customer->daysVendTransactions(0,0)->count(),
