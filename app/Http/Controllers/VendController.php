@@ -92,142 +92,198 @@ class VendController extends Controller
 
     public function index(Request $request)
     {
-        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
-        if(!isset($request->is_active)) {
-            if(
-                auth()->user()->hasRole('superadmin') or
-                auth()->user()->hasRole('admin') or
-                auth()->user()->hasRole('supervisor') or
-                auth()->user()->hasRole('driver')
-            ) {
-                $request->merge(['is_active' => 'true']);
-            }else {
-                $request->merge(['is_active' => 'all']);
-            }
-        }
-        $request->merge([
-            'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
-            'sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent',
-            'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
-        ]);
-        $className = get_class(new Customer());
-
-        $vends = DB::table('customers')
-            // ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
-            ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
-            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
-            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
-            ->leftJoin('addresses', function($query) {
-                $query->on('addresses.modelable_id', '=', 'customers.id')
-                        ->where('addresses.modelable_type', '=', 'App\Models\Customer')
-                        ->where('addresses.type', '=', 2)
-                        ->limit(1);
-            })
-            ->select(
-                'vends.id AS id',
-                'vends.amount_average_day',
-                'vends.code',
-                'vends.name',
-                'vends.apk_ver_json',
-                'vends.balance_percent',
-                'vends.serial_num',
-                'vends.name',
-                DB::raw("CASE WHEN customers.is_active THEN vends.temp ELSE customers.snap_vend_status_json->>'$.t1' END AS temp"),
-                DB::raw("CASE WHEN customers.is_active THEN vends.temp_updated_at ELSE customers.snap_vend_status_json->>'$.temp_updated_at' END AS temp_updated_at"),
-                'vends.termination_date',
-                'vends.coin_amount',
-                'vends.firmware_ver',
-                'vends.is_active AS vend_is_active',
-                'vends.is_door_open',
-                'vends.is_mqtt',
-                'vends.is_mqtt_active',
-                'vends.is_online',
-                'vends.is_sensor_normal',
-                'vends.is_temp_error',
-                DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
-                DB::raw('DATE(customers.next_invoice_date) AS next_invoice_date'),
-                'vends.last_updated_at',
-                'vends.mqtt_last_updated_at',
-                'vends.out_of_stock_sku_percent',
-                DB::raw('CASE WHEN customers.is_active THEN vends.parameter_json ELSE customers.snap_parameter_json END AS parameter_json'),
-                'vends.product_mapping_id',
-                'vends.private_key',
-                'vends.vend_channels_json',
-                DB::raw('CASE WHEN customers.is_active THEN vends.vend_channels_json ELSE customers.snap_vend_channels_json END AS vend_channels_json'),
-                'vends.vend_channel_totals_json',
-                DB::raw('CASE WHEN customers.is_active THEN vends.vend_channel_error_logs_json ELSE customers.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
-                'customers.totals_json AS vend_transaction_totals_json',
-                'vends.vend_type_id',
-                'vends.virtual_vend_records_thirty_days_amount_average',
-                'customers.is_active',
-                DB::raw("customers.account_manager_json->>'$.name' AS account_manager_name"),
-                'customers.begin_date AS customer_begin_date',
-                'customers.begin_date',
-                'customers.cms_invoice_history',
-                'customers.code AS customer_code',
-                'customers.is_active',
-                'customers.is_active AS customer_is_active',
-                'customers.is_testing',
-                'customers.location_type_id',
-                'customers.name AS customer_name',
-                'customers.person_json',
-                'customers.person_id AS person_id',
-                'customers.termination_date AS customer_termination_date',
-                'customers.virtual_customer_prefix',
-                'customers.virtual_customer_code',
-                'location_types.name AS location_type_name',
-                'product_mappings.name AS product_mapping_name',
-                'product_mappings.remarks AS product_mapping_remarks',
-                'operators.name AS operator_name',
-                'addresses.postcode AS postcode',
-            );
-        $vends = $this->filterVendsDB($vends, $request);
-        $vends = $this->filterOperatorDB($vends);
-
-        $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
-            ->withQueryString();
-
-        $totals = [
-            'thirtyDays' => collect((clone $vends)
-                            ->items())
-                            ->sum(function($vend) {
-                                return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->thirty_days_amount : 0;
-                            })/100,
-            'thirthyDaysAvg' => collect((clone $vends)
-                            ->items())
-                            ->sum(function($vend) {
-                                return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->vend_records_thirty_days_amount_average : 0;
-                            })/100,
+        $vend = Vend::where('code', 2129)->first();
+        $vendTotals = [];
+        $customerTotals = [];
+        $vendTotals = [
+            'today_amount' => $vend->daysVendTransactions(0,0)->sum('amount'),
+            'today_count' => $vend->daysVendTransactions(0,0)->count(),
+            'yesterday_amount' => (int)$vend->daysVendRecords(1,1)->sum('total_amount'),
+            'yesterday_count' => $vend->daysVendRecords(1,1)->count(),
+            'seven_days_amount' => (int)$vend->daysVendRecords(6,0)->sum('total_amount'),
+            'seven_days_count' => $vend->daysVendRecords(6,0)->count(),
+            'thirty_days_amount' => (int)$vend->daysVendRecords(29,0)->sum('total_amount'),
+            'thirty_days_count' => $vend->daysVendRecords(29,0)->count(),
+            'thirty_days_revenue' => (int)$vend->daysVendRecords(29,0)->sum('revenue'),
+            'thirty_days_gross_profit' => (int)$vend->daysVendRecords(29,0)->sum('gross_profit'),
+            'vend_records_amount_latest' => (int)$vend->lifetimeVendRecords->sum('total_amount'),
+            'vend_records_amount_average_day' => $vend->lifetimeVendRecords->sum('total_amount')/ (Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?? Carbon::now())) ?: 1),
+            'vend_records_thirty_days_amount' => (int)$vend->daysVendRecords(29,0)->sum('total_amount'),
+            'vend_records_thirty_days_amount_average' =>
+                $vend->daysVendRecords(29,0)->sum('total_amount')/
+                (
+                    Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) < 30 ?
+                    (Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($vend->begin_date)->diffInDays(Carbon::now())) :
+                    30
+                ),
         ];
 
+        if($vend->customer) {
+            $customer = $vend->customer;
+            $customerTotals = [
+                'today_amount' => (int)$customer->daysVendTransactions(0,0)->sum('amount'),
+                'today_count' => $customer->daysVendTransactions(0,0)->count(),
+                'yesterday_amount' => (int)$customer->daysVendRecords(1,1)->sum('total_amount'),
+                'yesterday_count' => $customer->daysVendRecords(1,1)->count(),
+                'seven_days_amount' => (int)$customer->daysVendRecords(6,0)->sum('total_amount'),
+                'seven_days_count' => $customer->daysVendRecords(6,0)->count(),
+                'thirty_days_amount' => (int)$customer->daysVendRecords(29,0)->sum('total_amount'),
+                'thirty_days_count' => $customer->daysVendRecords(29,0)->count(),
+                'thirty_days_revenue' => (int)$customer->daysVendRecords(29,0)->sum('revenue'),
+                'thirty_days_gross_profit' => (int)$customer->daysVendRecords(29,0)->sum('gross_profit'),
+                'vend_records_amount_latest' => (int)$customer->lifetimeVendRecords->sum('total_amount'),
+                'vend_records_amount_average_day' => $customer->lifetimeVendRecords->sum('total_amount')/ (Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?? Carbon::now())) ?: 1),
+                'vend_records_thirty_days_amount' => (int)$customer->daysVendRecords(29,0)->sum('total_amount'),
+                'vend_records_thirty_days_amount_average' =>
+                    $customer->daysVendRecords(29,0)->sum('total_amount')/
+                    (
+                        Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) < 30 ?
+                        (Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($customer->begin_date)->diffInDays(Carbon::now())) :
+                        30
+                    ),
+                ];
+        }
+
+
+        // dd($vendTotals, $customerTotals);
+
+
+        // $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
+        // if(!isset($request->is_active)) {
+        //     if(
+        //         auth()->user()->hasRole('superadmin') or
+        //         auth()->user()->hasRole('admin') or
+        //         auth()->user()->hasRole('supervisor') or
+        //         auth()->user()->hasRole('driver')
+        //     ) {
+        //         $request->merge(['is_active' => 'true']);
+        //     }else {
+        //         $request->merge(['is_active' => 'all']);
+        //     }
+        // }
+        // $request->merge([
+        //     'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
+        //     'sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent',
+        //     'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
+        // ]);
+        // $className = get_class(new Customer());
+
+        // $vends = DB::table('customers')
+        //     // ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
+        //     ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+        //     ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+        //     ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+        //     ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+        //     ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+        //     ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+        //     ->leftJoin('addresses', function($query) {
+        //         $query->on('addresses.modelable_id', '=', 'customers.id')
+        //                 ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+        //                 ->where('addresses.type', '=', 2)
+        //                 ->limit(1);
+        //     })
+        //     ->select(
+        //         'vends.id AS id',
+        //         'vends.amount_average_day',
+        //         'vends.code',
+        //         'vends.name',
+        //         'vends.apk_ver_json',
+        //         'vends.balance_percent',
+        //         'vends.serial_num',
+        //         'vends.name',
+        //         DB::raw("CASE WHEN customers.is_active THEN vends.temp ELSE customers.snap_vend_status_json->>'$.t1' END AS temp"),
+        //         DB::raw("CASE WHEN customers.is_active THEN vends.temp_updated_at ELSE customers.snap_vend_status_json->>'$.temp_updated_at' END AS temp_updated_at"),
+        //         'vends.termination_date',
+        //         'vends.coin_amount',
+        //         'vends.firmware_ver',
+        //         'vends.is_active AS vend_is_active',
+        //         'vends.is_door_open',
+        //         'vends.is_mqtt',
+        //         'vends.is_mqtt_active',
+        //         'vends.is_online',
+        //         'vends.is_sensor_normal',
+        //         'vends.is_temp_error',
+        //         DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
+        //         DB::raw('DATE(customers.next_invoice_date) AS next_invoice_date'),
+        //         'vends.last_updated_at',
+        //         'vends.mqtt_last_updated_at',
+        //         'vends.out_of_stock_sku_percent',
+        //         DB::raw('CASE WHEN customers.is_active THEN vends.parameter_json ELSE customers.snap_parameter_json END AS parameter_json'),
+        //         'vends.product_mapping_id',
+        //         'vends.private_key',
+        //         'vends.vend_channels_json',
+        //         DB::raw('CASE WHEN customers.is_active THEN vends.vend_channels_json ELSE customers.snap_vend_channels_json END AS vend_channels_json'),
+        //         'vends.vend_channel_totals_json',
+        //         DB::raw('CASE WHEN customers.is_active THEN vends.vend_channel_error_logs_json ELSE customers.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
+        //         'customers.totals_json AS vend_transaction_totals_json',
+        //         'vends.vend_type_id',
+        //         'vends.virtual_vend_records_thirty_days_amount_average',
+        //         'customers.is_active',
+        //         DB::raw("customers.account_manager_json->>'$.name' AS account_manager_name"),
+        //         'customers.begin_date AS customer_begin_date',
+        //         'customers.begin_date',
+        //         'customers.cms_invoice_history',
+        //         'customers.code AS customer_code',
+        //         'customers.is_active',
+        //         'customers.is_active AS customer_is_active',
+        //         'customers.is_testing',
+        //         'customers.location_type_id',
+        //         'customers.name AS customer_name',
+        //         'customers.person_json',
+        //         'customers.person_id AS person_id',
+        //         'customers.termination_date AS customer_termination_date',
+        //         'customers.virtual_customer_prefix',
+        //         'customers.virtual_customer_code',
+        //         'location_types.name AS location_type_name',
+        //         'product_mappings.name AS product_mapping_name',
+        //         'product_mappings.remarks AS product_mapping_remarks',
+        //         'operators.name AS operator_name',
+        //         'addresses.postcode AS postcode',
+        //     );
+        // $vends = $this->filterVendsDB($vends, $request);
+        // $vends = $this->filterOperatorDB($vends);
+
+        // $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
+        //     ->withQueryString();
+
+        // $totals = [
+        //     'thirtyDays' => collect((clone $vends)
+        //                     ->items())
+        //                     ->sum(function($vend) {
+        //                         return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->thirty_days_amount : 0;
+        //                     })/100,
+        //     'thirthyDaysAvg' => collect((clone $vends)
+        //                     ->items())
+        //                     ->sum(function($vend) {
+        //                         return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->vend_records_thirty_days_amount_average : 0;
+        //                     })/100,
+        // ];
+
         return Inertia::render('Vend/CustomerIndex', [
-            'categories' => CategoryResource::collection(
-                Category::where('classname', $className)->orderBy('name')->get()
-            ),
-            'categoryGroups' => CategoryGroupResource::collection(
-                CategoryGroup::where('classname', $className)->orderBy('name')->get()
-            ),
-            'constTempError' => VendTemp::TEMPERATURE_ERROR,
-            'locationTypeOptions' => LocationTypeResource::collection(
-                LocationType::orderBy('sequence')->get()
-            ),
-            'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
-            ),
-            'productOptions' => ProductResource::collection(
-                Product::query()
-                    ->select('id', 'code', 'desc', 'name')
-                    ->where('is_active', true)
-                    ->where('is_inventory', true)
-                    ->orderBy('code')
-                    ->get()
-            ),
-            'totals' => $totals,
-            'vends' => VendDBResource::collection($vends),
-            'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
+            // 'categories' => CategoryResource::collection(
+            //     Category::where('classname', $className)->orderBy('name')->get()
+            // ),
+            // 'categoryGroups' => CategoryGroupResource::collection(
+            //     CategoryGroup::where('classname', $className)->orderBy('name')->get()
+            // ),
+            // 'constTempError' => VendTemp::TEMPERATURE_ERROR,
+            // 'locationTypeOptions' => LocationTypeResource::collection(
+            //     LocationType::orderBy('sequence')->get()
+            // ),
+            // 'operatorOptions' => OperatorResource::collection(
+            //     Operator::orderBy('name')->get()
+            // ),
+            // 'productOptions' => ProductResource::collection(
+            //     Product::query()
+            //         ->select('id', 'code', 'desc', 'name')
+            //         ->where('is_active', true)
+            //         ->where('is_inventory', true)
+            //         ->orderBy('code')
+            //         ->get()
+            // ),
+            // 'totals' => $totals,
+            // 'vends' => VendDBResource::collection($vends),
+            // 'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
         ]);
     }
 

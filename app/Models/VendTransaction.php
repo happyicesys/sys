@@ -62,6 +62,10 @@ class VendTransaction extends Model
         'unit_cost_id',
     ];
 
+    protected $with = [
+        'unitCost',
+    ];
+
     // relationships
     public function getGrossProfit()
     {

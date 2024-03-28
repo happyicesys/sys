@@ -45,62 +45,58 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
             return;
         }
 
-        if($vend and $vend->customer) {
-            // $totalsJson = [
-            //     'today_amount' => $customer->daysVendTransactions(0,0)->sum('amount'),
-            //     'today_count' => $customer->daysVendTransactions(0,0)->count(),
-            //     'yesterday_amount' => $customer->daysVendTransactions(1,1)->sum('amount'),
-            //     'yesterday_count' => $customer->daysVendTransactions(1,1)->count(),
-            //     'seven_days_amount' => $customer->daysVendTransactions(6,0)->sum('amount'),
-            //     'seven_days_count' => $customer->daysVendTransactions(6,0)->count(),
-            //     'thirty_days_amount' => $customer->daysVendTransactions(29,0)->sum('amount'),
-            //     'thirty_days_count' => $customer->daysVendTransactions(29,0)->count(),
-            //     'thirty_days_revenue' => $customer->daysVendTransactions(29,0)->sum('revenue'),
-            //     'thirty_days_gross_profit' => $customer->daysVendTransactions(29,0)->sum('gross_profit'),
-            //     'vend_records_amount_latest' => $customer->lifetimeVendRecords->sum('total_amount'),
-            //     'vend_records_amount_average_day' => $customer->lifetimeVendRecords->sum('total_amount')/ (Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?? Carbon::now())) ?: 1),
-            //     'vend_records_thirty_days_amount' => $customer->daysVendRecords(29,0)->sum('total_amount'),
-            //     'vend_records_thirty_days_amount_average' =>
-            //         $customer->daysVendRecords(29,0)->sum('total_amount')/
-            //         (
-            //             Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) < 30 ?
-            //             (Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($customer->begin_date)->diffInDays(Carbon::now())) :
-            //             30
-            //         ),
-            //     ];
-
-                $vend->customer->update([
-                    'totals_json' => [
-                        'today_amount' => $vend->vendTodayTransactions->sum('amount'),
-                        'today_count' => $vend->vendTodayTransactions->count(),
-                        'yesterday_amount' => $vend->vendYesterdayTransactions->sum('amount'),
-                        'yesterday_count' => $vend->vendYesterdayTransactions->count(),
-                        'seven_days_amount' => $vend->vendSevenDaysTransactions->sum('amount'),
-                        'seven_days_count' => $vend->vendSevenDaysTransactions->count(),
-                        'thirty_days_amount' => $vend->vendThirtyDaysTransactions->sum('amount'),
-                        'thirty_days_count' => $vend->vendThirtyDaysTransactions->count(),
-                        'thirty_days_revenue' => $vend->vendThirtyDaysTransactions->sum(function($vendTransaction) {
-                            return $vendTransaction->getRevenue();
-                        }),
-                        'thirty_days_gross_profit' => $vend->vendThirtyDaysTransactions->sum(function($vendTransaction) {
-                            return $vendTransaction->getGrossProfit();
-                        }),
-                        'vend_records_amount_latest' => $vend->vendRecordsLatest->sum('total_amount'),
-                        'vend_records_amount_average_day' => $vend->vendRecordsLatest->sum('total_amount')/ (Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?? Carbon::now())) ?: 1),
-                        'vend_records_thirty_days_amount' => $vend->vendRecordsThirtyDays->sum('total_amount'),
-                        'vend_records_thirty_days_amount_average' =>
-                            $vend->vendRecordsThirtyDays->sum('total_amount')/
-                            (
-                                Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) < 30 ?
-                                (Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($vend->begin_date)->diffInDays(Carbon::now())) :
-                                30
-                            ),
-                    ]
-                ]);
-
-            // $customer->update(['totals_json' => $totalsJson]);
+        if($vend) {
+            $vend->update([
+                'vend_transaction_totals_json' => [
+                    'today_amount' => $vend->daysVendTransactions(0,0)->sum('amount'),
+                    'today_count' => $vend->daysVendTransactions(0,0)->count(),
+                    'yesterday_amount' => (int)$vend->daysVendRecords(1,1)->sum('total_amount'),
+                    'yesterday_count' => $vend->daysVendRecords(1,1)->count(),
+                    'seven_days_amount' => (int)$vend->daysVendRecords(6,0)->sum('total_amount'),
+                    'seven_days_count' => $vend->daysVendRecords(6,0)->count(),
+                    'thirty_days_amount' => (int)$vend->daysVendRecords(29,0)->sum('total_amount'),
+                    'thirty_days_count' => $vend->daysVendRecords(29,0)->count(),
+                    'thirty_days_revenue' => (int)$vend->daysVendRecords(29,0)->sum('revenue'),
+                    'thirty_days_gross_profit' => (int)$vend->daysVendRecords(29,0)->sum('gross_profit'),
+                    'vend_records_amount_latest' => (int)$vend->lifetimeVendRecords->sum('total_amount'),
+                    'vend_records_amount_average_day' => $vend->lifetimeVendRecords->sum('total_amount')/ (Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?? Carbon::now())) ?: 1),
+                    'vend_records_thirty_days_amount' => (int)$vend->daysVendRecords(29,0)->sum('total_amount'),
+                    'vend_records_thirty_days_amount_average' =>
+                        $vend->daysVendRecords(29,0)->sum('total_amount')/
+                        (
+                            Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) < 30 ?
+                            (Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($vend->begin_date)->diffInDays(Carbon::now())) :
+                            30
+                        ),
+                ]
+            ]);
         }
 
-
+        if($vend->customer) {
+            $vend->customer->update([
+                'totals_json' => [
+                    'today_amount' => (int)$customer->daysVendTransactions(0,0)->sum('amount'),
+                    'today_count' => $customer->daysVendTransactions(0,0)->count(),
+                    'yesterday_amount' => (int)$customer->daysVendRecords(1,1)->sum('total_amount'),
+                    'yesterday_count' => $customer->daysVendRecords(1,1)->count(),
+                    'seven_days_amount' => (int)$customer->daysVendRecords(6,0)->sum('total_amount'),
+                    'seven_days_count' => $customer->daysVendRecords(6,0)->count(),
+                    'thirty_days_amount' => (int)$customer->daysVendRecords(29,0)->sum('total_amount'),
+                    'thirty_days_count' => $customer->daysVendRecords(29,0)->count(),
+                    'thirty_days_revenue' => (int)$customer->daysVendRecords(29,0)->sum('revenue'),
+                    'thirty_days_gross_profit' => (int)$customer->daysVendRecords(29,0)->sum('gross_profit'),
+                    'vend_records_amount_latest' => (int)$customer->lifetimeVendRecords->sum('total_amount'),
+                    'vend_records_amount_average_day' => $customer->lifetimeVendRecords->sum('total_amount')/ (Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?? Carbon::now())) ?: 1),
+                    'vend_records_thirty_days_amount' => (int)$customer->daysVendRecords(29,0)->sum('total_amount'),
+                    'vend_records_thirty_days_amount_average' =>
+                        $customer->daysVendRecords(29,0)->sum('total_amount')/
+                        (
+                            Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) < 30 ?
+                            (Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($customer->begin_date)->diffInDays(Carbon::now())) :
+                            30
+                        ),
+                ]
+            ]);
+        }
     }
 }

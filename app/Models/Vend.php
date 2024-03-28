@@ -177,79 +177,14 @@ class Vend extends Model
         return $this->hasMany(VendFan::class);
     }
 
+    public function vendRecords()
+    {
+        return $this->hasMany(VendRecord::class);
+    }
+
     public function vendTemps()
     {
         return $this->hasMany(VendTemp::class);
-    }
-
-    public function vendThisMonthTransactions()
-    {
-        return $this->hasMany(VendTransaction::class)
-                    ->isSuccessful()
-                    ->where('transaction_datetime', '>=', Carbon::today()->startOfMonth()->startOfDay())
-                    ->where('transaction_datetime', '<=', Carbon::today()->endOfMonth()->endOfDay());
-    }
-
-    public function vendLastMonthTransactions()
-    {
-        return $this->hasMany(VendTransaction::class)
-                    ->isSuccessful()
-                    ->where('transaction_datetime', '>=', Carbon::today()->subMonth()->startOfMonth()->startOfDay())
-                    ->where('transaction_datetime', '<=', Carbon::today()->subMonth()->endOfMonth()->endOfDay());
-    }
-
-    public function vendLast2MonthTransactions()
-    {
-        return $this->hasMany(VendTransaction::class)
-                    ->isSuccessful()
-                    ->where('transaction_datetime', '>=', Carbon::today()->subMonths(2)->startOfMonth()->startOfDay())
-                    ->where('transaction_datetime', '<=', Carbon::today()->subMonths(2)->endOfMonth()->endOfDay());
-    }
-
-    public function vendThirtyDaysTransactions()
-    {
-        return $this->hasMany(VendTransaction::class)
-                    ->isSuccessful()
-                    ->where('transaction_datetime', '>=', Carbon::today()->subDays(29)->startOfDay())
-                    ->where('transaction_datetime', '<=', Carbon::today()->endOfDay());
-    }
-
-    public function vendSevenDaysTransactions()
-    {
-        return $this->hasMany(VendTransaction::class)
-                    ->isSuccessful()
-                    ->where('transaction_datetime', '>=', Carbon::today()->subDays(6)->startOfDay())
-                    ->where('transaction_datetime', '<=', Carbon::today()->endOfDay());
-    }
-
-    public function vendYesterdayTransactions()
-    {
-        return $this->hasMany(VendTransaction::class)
-                    ->isSuccessful()
-                    ->where('transaction_datetime', '>=', Carbon::yesterday()->startOfDay())
-                    ->where('transaction_datetime', '<=', Carbon::yesterday()->endOfDay());
-    }
-
-    public function vendTodayTransactions()
-    {
-        return $this->hasMany(VendTransaction::class)
-                    ->isSuccessful()
-                    ->where('transaction_datetime', '>=', Carbon::today()->startOfDay())
-                    ->where('transaction_datetime', '<=', Carbon::today()->endOfDay());
-    }
-
-    public function vendRecordsLatest()
-    {
-        return $this->hasMany(VendRecord::class)
-                    ->where('date', '>=', Carbon::parse($this->begin_date)->startOfDay())
-                    ->where('date', '<=', $this->termination_date ? Carbon::parse($this->termination_date)->endOfDay() : Carbon::today()->endOfDay());
-    }
-
-    public function vendRecordsThirtyDays()
-    {
-        return $this->hasMany(VendRecord::class)
-                    ->where('date', '>=', Carbon::today()->subDays(29)->startOfDay())
-                    ->where('date', '<=', Carbon::today()->endOfDay());
     }
 
     public function vendTransactions()
@@ -260,6 +195,28 @@ class Vend extends Model
     public function vendType()
     {
         return $this->belongsTo(VendType::class);
+    }
+
+    public function daysVendTransactions($from = 0, $to = 0)
+    {
+        return $this->vendTransactions()
+                    ->isSuccessful()
+                    ->where('transaction_datetime', '>=', Carbon::today()->subDays($from)->startOfDay())
+                    ->where('transaction_datetime', '<=', Carbon::today()->subDays($to)->endOfDay());
+    }
+
+    public function lifetimeVendRecords()
+    {
+        return $this->vendRecords()
+                    ->where('date', '>=', Carbon::parse($this->begin_date)->startOfDay())
+                    ->where('date', '<=', ($this->termination_date ? Carbon::parse($this->termination_date)->endOfDay() : Carbon::today()->endOfDay()));
+    }
+
+    public function daysVendRecords($from = 0, $to = 0)
+    {
+        return $this->vendRecords()
+                    ->where('date', '>=', Carbon::today()->subDays($from)->startOfDay())
+                    ->where('date', '<=', Carbon::today()->subDays($to)->endOfDay());
     }
 
     // computed

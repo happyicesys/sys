@@ -196,6 +196,7 @@ class Customer extends Model
         return $this->hasOne(VendBinding::class)->where('is_active', true)->latest('begin_date');
     }
 
+    // vend_transactions with date range
     public function daysVendTransactions($from = 0, $to = 0)
     {
         return $this->vendTransactions()
@@ -204,22 +205,7 @@ class Customer extends Model
                     ->where('transaction_datetime', '<=', Carbon::today()->subDays($to)->endOfDay());
     }
 
-    public function thirtyDaysVendTransactions()
-    {
-        return $this->hasMany(VendTransaction::class)
-                    ->isSuccessful()
-                    ->where('transaction_datetime', '>=', Carbon::today()->subDays(29)->startOfDay())
-                    ->where('transaction_datetime', '<=', Carbon::today()->endOfDay());
-    }
-
-    public function monthsVendTransactions($from = 0, $to = 0)
-    {
-        return $this->vendTransactions()
-                    ->isSuccessful()
-                    ->where('transaction_datetime', '>=', Carbon::today()->subMonths($from)->startOfMonth())
-                    ->where('transaction_datetime', '<=', Carbon::today()->subMonths($to)->endOfMonth());
-    }
-
+    // vend_records with customer begin date and termination date
     public function lifetimeVendRecords()
     {
         return $this->vendRecords()
@@ -227,6 +213,7 @@ class Customer extends Model
                     ->where('date', '<=', ($this->termination_date ? Carbon::parse($this->termination_date)->endOfDay() : Carbon::today()->endOfDay()));
     }
 
+    // vend_records with date range
     public function daysVendRecords($from = 0, $to = 0)
     {
         return $this->vendRecords()

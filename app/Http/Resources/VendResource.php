@@ -81,66 +81,18 @@ class VendResource extends JsonResource
             'vendChannelTotalsJson' => $this->vend_channel_totals_json,
             'vendSnapshots' => VendSnapshotDBResource::collection($this->whenLoaded('vendSnapshots')),
             'vendTransactionTotalsJson' => $this->vend_transaction_totals_json,
-            'salesData' => [
-                'today' => [
-                    'sales' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
-                        return $this->vendSevenDaysTransactions
-                                    ->where('transaction_datetime', '>=', Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay())
-                                    ->where('transaction_datetime', '<=', Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay())
-                                    ->sum('amount')/ 100;
-                    }),
-                    'count' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
-                        return $this->vendSevenDaysTransactions
-                                    // ->where('transaction_datetime', Carbon::today()->toDateString())
-                                    ->where('transaction_datetime', '>=', Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay())
-                                    ->where('transaction_datetime', '<=', Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay())
-                                    ->count();
-                    }),
-                ],
-                'yesterday' => [
-                    'sales' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
-                        return $this->vendSevenDaysTransactions
-                                    ->where('transaction_datetime', '>=', Carbon::yesterday()->setTimezone($this->getUserTimezone())->startOfDay())
-                                    ->where('transaction_datetime', '<=', Carbon::yesterday()->setTimezone($this->getUserTimezone())->endOfDay())
-                                    ->sum('amount')/ 100;
-                    }),
-                    'count' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
-                        return $this->vendSevenDaysTransactions
-                                    // ->where('transaction_datetime', Carbon::today()->toDateString())
-                                    ->where('transaction_datetime', '>=', Carbon::yesterday()->setTimezone($this->getUserTimezone())->startOfDay())
-                                    ->where('transaction_datetime', '<=', Carbon::yesterday()->setTimezone($this->getUserTimezone())->endOfDay())
-                                    ->count();
-                    }),
-                ],
-                'sevenDays' => [
-                    'sales' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
-                        return $this->vendSevenDaysTransactions->sum('amount')/ 100;
-                    }),
-                    'count' => $this->when($this->relationLoaded('vendSevenDaysTransactions'), function() {
-                        return $this->vendSevenDaysTransactions->count();
-                    }),
-                ],
-                'thirtyDays' => [
-                    'sales' => $this->when($this->relationLoaded('vendThirtyDaysTransactions'), function() {
-                        return $this->vendThirtyDaysTransactions->sum('amount')/ 100;
-                    }),
-                    'count' => $this->when($this->relationLoaded('vendThirtyDaysTransactions'), function() {
-                        return $this->vendThirtyDaysTransactions->count();
-                    }),
-                ]
-                ],
-                'this_month_count' => $this->this_month_count,
-                'this_month_revenue' => $this->this_month_revenue/100,
-                'this_month_gross_profit' => $this->this_month_gross_profit/100,
-                'this_month_gross_profit_margin' => $this->this_month_gross_profit_margin,
-                'last_month_count' => $this->last_month_count,
-                'last_month_revenue' => $this->last_month_revenue/100,
-                'last_month_gross_profit' => $this->last_month_gross_profit/100,
-                'last_month_gross_profit_margin' => $this->last_month_gross_profit_margin,
-                'last_two_month_count' => $this->last_two_month_count,
-                'last_two_month_revenue' => $this->last_two_month_revenue/100,
-                'last_two_month_gross_profit' => $this->last_two_month_gross_profit/100,
-                'last_two_month_gross_profit_margin' => $this->last_two_month_gross_profit_margin,
+            'this_month_count' => $this->this_month_count,
+            'this_month_revenue' => $this->this_month_revenue/100,
+            'this_month_gross_profit' => $this->this_month_gross_profit/100,
+            'this_month_gross_profit_margin' => $this->this_month_gross_profit_margin,
+            'last_month_count' => $this->last_month_count,
+            'last_month_revenue' => $this->last_month_revenue/100,
+            'last_month_gross_profit' => $this->last_month_gross_profit/100,
+            'last_month_gross_profit_margin' => $this->last_month_gross_profit_margin,
+            'last_two_month_count' => $this->last_two_month_count,
+            'last_two_month_revenue' => $this->last_two_month_revenue/100,
+            'last_two_month_gross_profit' => $this->last_two_month_gross_profit/100,
+            'last_two_month_gross_profit_margin' => $this->last_two_month_gross_profit_margin,
         ];
     }
 
