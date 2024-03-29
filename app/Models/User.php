@@ -76,7 +76,7 @@ class User extends Authenticatable
         if($this->hasRole('vc_observer') or $this->roles()->exists() == false) {
             return '/dashboard';
         }else {
-            return '/vends';
+            return '/vends/customers';
         }
         // $currentRole = (int)$this->roles()->first()->id;
 

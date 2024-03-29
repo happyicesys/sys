@@ -377,6 +377,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('vends')->group(function() {
         Route::post('/create', [VendController::class, 'create']);
         Route::get('/channels/excel', [VendController::class, 'exportChannelExcel']);
+        Route::get('/customers', [VendController::class, 'indexCustomer'])->name('vends.customer');
         Route::get('/', [VendController::class, 'index'])->name('vends');
         Route::get('/{id}/edit', [VendController::class, 'edit'])->name('vends.edit');
         Route::get('/{id}/temp/{type}', [VendController::class, 'temp'])->name('temp');
@@ -389,7 +390,8 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/unbind/{returnUrl?}', [VendController::class, 'unbindCustomer']);
         Route::post('/{id}/edit-products', [VendController::class, 'editProducts']);
         Route::post('/{id}/dispense-product', [VendController::class, 'dispenseProduct']);
-        Route::post('/{id}/restart', [VendController::class, 'restart']);
+        Route::post('/{id}/restart-apk', [VendController::class, 'restartAPK']);
+        Route::post('/{id}/restart-vmc', [VendController::class, 'restartVMC']);
         Route::post('/{id}/unbind-customer/{returnUrl?}', [VendController::class, 'unbindCustomer']);
     });
 

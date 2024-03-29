@@ -190,9 +190,10 @@ trait HasFilter {
               $query->where('parameter_json->fan', '<=', $search)->where('parameter_json->fan', '>', 0);
           }
       })
-      ->when($request->is_active, function($query, $search) {
+      ->when($request->is_active, function($query, $search) use ($request) {
+        $columnName =  $request->type ? $request->type . '.is_active' : 'vends.is_active';
         if($search != 'all') {
-            $query->where('customers.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            $query->where($columnName, filter_var($search, FILTER_VALIDATE_BOOLEAN));
         }
     })
     ->when($request->is_testing, function($query, $search) {
@@ -308,11 +309,12 @@ trait HasFilter {
       ->when($request->remainingSkuLessThan, function($query, $search) {
           $query->where('out_of_stock_sku_percent', '>=', (100 - $search));
       })
-        ->when($request->virtual_apk_ver, function($query, $search) {
-            $query->where('virtual_apk_ver', 'LIKE', "%{$search}%");
+        ->when($request->apk_ver, function($query, $search) {
+            $query->where('apk_ver_json->apkver', 'LIKE', "{$search}%");
         })
-        ->when($request->virtual_firmware_ver, function($query, $search) {
-            $query->where('virtual_firmware_ver', 'LIKE', "%{$search}%");
+        ->when($request->firmware_ver, function($query, $search) {
+            $search = hexdec($search);
+            $query->where('parameter_json->Ver', 'LIKE', "{$search}%");
         })
         ->when($request->vendRecordsThirtyDaysAmountAverageLessThan, function($query, $search) {
             $query->where('virtual_vend_records_thirty_days_amount_average', '<=', $search*100);

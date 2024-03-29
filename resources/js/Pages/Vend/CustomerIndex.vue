@@ -17,6 +17,7 @@
             :operatorOptions="operatorOptions"
             :productOptions="productOptions"
             :totals="totals"
+            :indexType="indexType"
             :vends="vends"
             :vendChannelErrors="vendChannelErrors"
         >
@@ -33,6 +34,7 @@
     categories: Object,
     categoryGroups: Object,
     constTempError: Number,
+    indexType: String,
     locationTypeOptions: Object,
     operatorOptions: Object,
     productOptions: Object,

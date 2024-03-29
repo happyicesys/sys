@@ -14,6 +14,7 @@ use App\Models\DeliveryProductMappingVendChannel;
 use App\Models\Operator;
 use App\Models\Vend;
 use App\Models\VendChannel;
+use App\Models\VendData;
 use App\Services\DeliveryProductMappingService;
 use App\Services\MqttService;
 use App\Services\RunningNumberService;
@@ -50,7 +51,7 @@ class DeliveryPlatformService
   {
     $deliveryProductMappingVend = DeliveryProductMappingVend::query()
       ->when($platformRefId, function($query) use ($platformRefId) {
-        return $query->where('platform_ref_id', $platformRefId);
+        $query->where('platform_ref_id', $platformRefId);
       })
       ->where('vend_code', $vendCode)
       ->first();
@@ -65,7 +66,10 @@ class DeliveryPlatformService
     switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $deliveryPlatformOrder = DeliveryPlatformOrder::where('order_id', $input['orderID'])->first();
-        // $deliveryPlatformOrder = false;
+
+        if($deliveryPlatformOrder) {
+          throw new \Exception('Replicated Order ID on Creation');
+        }
 
         if(!$deliveryPlatformOrder) {
           DB::beginTransaction();
@@ -78,10 +82,10 @@ class DeliveryPlatformService
           $deliveryPlatformOrder->save();
           $this->createDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
           DB::commit();
-        }
 
-        // check if any channel is not assigned to deliveryPlatformOrderItem
-        $this->verifyIsVendChannelAssigned($deliveryPlatformOrder);
+          // check if any channel is not assigned to deliveryPlatformOrderItem
+          $this->verifyIsVendChannelAssigned($deliveryPlatformOrder);
+        }
 
         return $deliveryPlatformOrder;
       break;
@@ -102,6 +106,10 @@ class DeliveryPlatformService
             $response = $this->model->cancelOrder($deliveryPlatformOrder->order_id, $deliveryPlatformOrder->deliveryProductMappingVend->platform_ref_id, 1001);
             $deliveryPlatformOrder->is_cancelled = true;
             $deliveryPlatformOrder->status = DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_CANCELLED];
+            $deliveryPlatformOrder->status_json = array_merge_recursive($deliveryPlatformOrder->status_json, [
+              'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_CANCELLED]],
+              'datetime' => Carbon::now()->toDateTimeString(),
+            ]);
             $this->syncProductMappingVendChannelOrderQtyByOrder($deliveryPlatformOrder, false);
           }else {
             $deliveryPlatformOrder->is_cancelled = false;
@@ -186,6 +194,10 @@ class DeliveryPlatformService
         if($response['success']) {
           $deliveryPlatformOrder->update([
             'status' => DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_ACCEPTED],
+            'status_json' => array_merge_recursive($deliveryPlatformOrder->status_json, [
+              'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_ACCEPTED]],
+              'datetime' => Carbon::now()->toDateTimeString(),
+            ]),
           ]);
           return true;
         }
@@ -198,10 +210,10 @@ class DeliveryPlatformService
   {
     $deliveryPlatformOrder = DeliveryPlatformOrder::query()
       ->when($platformRefId, function($query, $search) {
-        return $query->where('platform_ref_id', $search);
+        $query->where('platform_ref_id', $search);
       })
       ->when($orderId, function($query, $search) {
-        return $query->where('order_id', $search);
+        $query->where('order_id', $search);
       })
       ->first();
 
@@ -547,7 +559,7 @@ class DeliveryPlatformService
 
   private function syncProductMappingVendChannelOrderQtyByOrder(DeliveryPlatformOrder $deliveryPlatformOrder, $isAddition = true)
   {
-    $deliveryProductMappingVendChannels = $deliveryPlatformOrder->$deliveryProductMappingVend->$deliveryProductMappingVendChannels;
+    $deliveryProductMappingVendChannels = $deliveryPlatformOrder->deliveryProductMappingVend->deliveryProductMappingVendChannels;
     $deliveryPlatformOrderItems = $deliveryPlatformOrder->deliveryPlatformOrderItems;
     foreach($deliveryPlatformOrderItems as $deliveryPlatformOrderItem) {
       foreach($deliveryProductMappingVendChannels as $deliveryProductMappingVendChannel) {

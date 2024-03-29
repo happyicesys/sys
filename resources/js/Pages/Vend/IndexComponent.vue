@@ -46,7 +46,7 @@
           <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
               Customer
           </SearchInput>
-          <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  v-if="permissions.includes('admin-access vends')">
+          <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  v-if="permissions.includes('admin-access vends') && indexType === 'customers'">
               <label for="text" class="block text-sm font-medium text-gray-700">
                   Category
               </label>
@@ -63,7 +63,7 @@
               >
               </MultiSelect>
           </div>
-          <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  v-if="permissions.includes('admin-access vends')">
+          <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  v-if="permissions.includes('admin-access vends') && indexType === 'customers'">
               <label for="text" class="block text-sm font-medium text-gray-700">
                   Group
               </label>
@@ -179,7 +179,7 @@
               >
               </MultiSelect>
           </div>
-          <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']">
+          <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" v-if="indexType === 'customers'">
               <label for="text" class="block text-sm font-medium text-gray-700">
                   Location Type
               </label>
@@ -195,7 +195,7 @@
               >
               </MultiSelect>
           </div>
-          <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()">
+          <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()" v-if="indexType === 'customers'">
               Last Visited Day &gt;&gt;
           </SearchInput>
           <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Balance Stock Less Than" v-model="filters.balanceStockLessThan" @keyup.enter="onSearchFilterUpdated()">
@@ -204,10 +204,10 @@
           <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Remaining SKU Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()">
               Remaining SKU(%) &lt;&lt;
           </SearchInput>
-          <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Firmware Ver" v-model="filters.virtual_firmware_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+          <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Firmware Ver" v-model="filters.firmware_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
               Firmware Ver
           </SearchInput>
-          <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="APK Ver" v-model="filters.virtual_apk_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+          <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="APK Ver" v-model="filters.apk_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
               APK Ver
           </SearchInput>
           <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
@@ -245,7 +245,7 @@
               >
               </MultiSelect>
           </div>
-          <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Account Manager" v-model="filters.account_manager_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+          <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Account Manager" v-model="filters.account_manager_name" v-if="permissions.includes('admin-access vends') && indexType === 'customers'" @keyup.enter="onSearchFilterUpdated()">
               Account Manager
           </SearchInput>
       </div>
@@ -390,7 +390,7 @@
                           ID
                       </TableHeadSort>
                       <TableHead>
-                          Name
+                          Customer
                       </TableHead>
                       <TableHead>
                           <SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
@@ -437,10 +437,10 @@
                       <TableHead>
                           Status
                       </TableHead>
-                      <TableHeadSort modelName="last_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_invoice_date')">
+                      <TableHeadSort modelName="last_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_invoice_date')" v-if="indexType === 'customers'">
                           Last Visited
                       </TableHeadSort>
-                      <TableHeadSort modelName="next_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_invoice_date')">
+                      <TableHeadSort modelName="next_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_invoice_date')" v-if="indexType === 'customers'">
                           Next Planned Visit
                       </TableHeadSort>
                       <TableHeadSort modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
@@ -452,21 +452,16 @@
                           Begin Date, <br>
                           Avg Sales/ Day
                       </TableHeadSort>
-                      <!-- <TableHeadSort modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2')">
-                          Temp2 <br>
-                          (Evap)<br>
-                          &#8451;
-                      </TableHeadSort> -->
-                      <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
+                      <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')" v-if="indexType == 'customers'">
                           Postcode
                       </TableHeadSort>
                       <TableHead>
                           Firmware Ver
                       </TableHead>
-                      <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
+                      <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')" v-if="indexType === 'customers'">
                           Location
                       </TableHeadSort>
-                      <TableHeadSort modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
+                      <TableHeadSort modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')" v-if="indexType === 'customers'">
                           Acc Manager
                       </TableHeadSort>
                       <TableHead>
@@ -510,9 +505,6 @@
                                   {{ vend.customer_code }} <br>
                                   {{ vend.customer_name }}
                               </span>
-                          </span>
-                          <span v-else>
-                              {{ vend.name }}
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -794,7 +786,7 @@
                               </div>
                           </div>
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
                           <span v-if="vend.cms_invoice_history && 'last_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                               {{ vend.cms_invoice_history['last_delivery_driver'] }} <br>
                           </span>
@@ -803,7 +795,7 @@
                               {{ vend.last_invoice_diff }}
                           </span>
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
                           <span  :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                               {{ vend.next_invoice_date }} <br>
                               {{ vend.next_invoice_diff }}
@@ -837,7 +829,7 @@
                           </span>
                       </TableData>
 
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
                           <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
                               {{ vend.postcode }}
                           </span>
@@ -853,12 +845,12 @@
                               </span>
                           </span>
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
                           <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
                               {{ vend.location_type_name }}
                           </span>
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
                           <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
                               {{ vend.account_manager_name }}
                           </span>
@@ -979,6 +971,7 @@ const props = defineProps({
   operatorOptions: Object,
   productOptions: Object,
   totals: [Array, Object],
+  indexType: String,
   vends: Object,
   vendChannelErrors: Object,
 })
@@ -1009,8 +1002,8 @@ const filters = ref({
   fanSpeedLowerThan: '',
   balanceStockLessThan: '',
   remainingSkuLessThan: '',
-  virtual_apk_ver: '',
-  virtual_firmware_ver: '',
+  apk_ver: '',
+  firmware_ver: '',
   vendRecordsThirtyDaysAmountAverageLessThan: '',
   sortKey: '',
   sortBy: true,
@@ -1018,6 +1011,7 @@ const filters = ref({
   visited: true,
 })
 
+const baseUrl = ref(props.indexType === 'customers' ? '/vends/customers' : '/vends')
 const booleanOptions = ref([])
 const booleanStrictOptions = ref([])
 const categoryOptions = ref([])
@@ -1153,30 +1147,29 @@ onMounted(() => {
   }
 
   function onSearchFilterUpdated() {
-
-      router.get('/vends', {
-          ...filters.value,
-          categories: filters.value.categories.map((category) => { return category.id }),
-          categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
-          errors: filters.value.errors.map((error) => { return error.id }),
-          location_type_id: filters.value.locationType.id,
-          operator_id: filters.value.operator.id,
-          is_active: filters.value.is_active.id,
-          is_binded_customer: filters.value.is_binded_customer.id,
-          is_door_open: filters.value.is_door_open.id,
-          is_mqtt: filters.value.is_mqtt.id,
-          is_mqtt_active: filters.value.is_mqtt_active.id,
-          is_online: filters.value.is_online.id,
-          is_sensor: filters.value.is_sensor.id,
-          is_testing: filters.value.is_testing.id,
-          numberPerPage: filters.value.numberPerPage.id,
-      }, {
-          preserveState: true,
-          replace: true,
-          onFinish: visit => {
-              now.value = moment().format('HH:mm:ss')
-          },
-      })
+    router.get(baseUrl.value, {
+        ...filters.value,
+        categories: filters.value.categories.map((category) => { return category.id }),
+        categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
+        errors: filters.value.errors.map((error) => { return error.id }),
+        location_type_id: filters.value.locationType.id,
+        operator_id: filters.value.operator.id,
+        is_active: filters.value.is_active.id,
+        is_binded_customer: filters.value.is_binded_customer.id,
+        is_door_open: filters.value.is_door_open.id,
+        is_mqtt: filters.value.is_mqtt.id,
+        is_mqtt_active: filters.value.is_mqtt_active.id,
+        is_online: filters.value.is_online.id,
+        is_sensor: filters.value.is_sensor.id,
+        is_testing: filters.value.is_testing.id,
+        numberPerPage: filters.value.numberPerPage.id,
+    }, {
+        preserveState: true,
+        replace: true,
+        onFinish: visit => {
+            now.value = moment().format('HH:mm:ss')
+        },
+    })
   }
 
   function onSyncNextDeliveryDate() {
@@ -1200,7 +1193,7 @@ onMounted(() => {
   }
 
   function resetFilters() {
-      router.get('/vends')
+      router.get(baseUrl.value)
   }
 
 function sortTable(sortKey, inverse = false) {

@@ -81,7 +81,7 @@ class VendController extends Controller
         VendDispenseService $vendDispenseService
     )
     {
-        $this->middleware(['permission:read vends'])->only('index');
+        $this->middleware(['permission:read vends'])->only(['index', 'indexCustomer']);
         $this->middleware(['permission:read transactions'])->only('transactionIndex');
         $this->mqttService = $mqttService;
         $this->paymentGatewayService = $paymentGatewayService;
@@ -107,13 +107,136 @@ class VendController extends Controller
         }
         $request->merge([
             'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
+            'indexType' => 'vends',
+            'sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent',
+            'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
+        ]);
+        $className = get_class(new Customer());
+
+        $vends = DB::table('vends')
+            ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
+            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->select(
+                'vends.id AS id',
+                'vends.amount_average_day',
+                'vends.begin_date',
+                'vends.code',
+                'vends.apk_ver_json',
+                'vends.balance_percent',
+                'vends.serial_num',
+                'vends.temp',
+                'vends.temp_updated_at',
+                'vends.termination_date',
+                'vends.coin_amount',
+                'vends.firmware_ver',
+                'vends.is_active AS vend_is_active',
+                'vends.is_door_open',
+                'vends.is_mqtt',
+                'vends.is_mqtt_active',
+                'vends.is_online',
+                'vends.is_sensor_normal',
+                'vends.is_temp_error',
+                'vends.last_updated_at',
+                'vends.mqtt_last_updated_at',
+                'vends.out_of_stock_sku_percent',
+                'vends.parameter_json',
+                'vends.product_mapping_id',
+                'vends.private_key',
+                'vends.termination_date',
+                'vends.vend_channels_json',
+                'vends.vend_channels_json',
+                'vends.vend_channel_totals_json',
+                'vends.vend_channel_error_logs_json',
+                'vends.vend_transaction_totals_json',
+                'vends.vend_type_id',
+                'vends.virtual_vend_records_thirty_days_amount_average',
+                'vends.is_active AS is_active',
+                'customers.code AS customer_code',
+                'customers.is_testing',
+                'customers.name AS customer_name',
+                'customers.person_json',
+                'customers.person_id AS person_id',
+                'customers.virtual_customer_prefix',
+                'customers.virtual_customer_code',
+                'product_mappings.name AS product_mapping_name',
+                'product_mappings.remarks AS product_mapping_remarks',
+                'operators.name AS operator_name',
+            );
+        $vends = $this->filterVendsDB($vends, $request);
+        $vends = $this->filterOperatorDB($vends);
+
+        $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
+            ->withQueryString();
+
+        $totals = [
+            'thirtyDays' => collect((clone $vends)
+                            ->items())
+                            ->sum(function($vend) {
+                                return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->thirty_days_amount : 0;
+                            })/100,
+            'thirthyDaysAvg' => collect((clone $vends)
+                            ->items())
+                            ->sum(function($vend) {
+                                return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->vend_records_thirty_days_amount_average : 0;
+                            })/100,
+        ];
+
+        return Inertia::render('Vend/Index', [
+            'categories' => CategoryResource::collection(
+                Category::where('classname', $className)->orderBy('name')->get()
+            ),
+            'categoryGroups' => CategoryGroupResource::collection(
+                CategoryGroup::where('classname', $className)->orderBy('name')->get()
+            ),
+            'constTempError' => VendTemp::TEMPERATURE_ERROR,
+            'indexType' => $request->indexType,
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
+            ),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'productOptions' => ProductResource::collection(
+                Product::query()
+                    ->select('id', 'code', 'desc', 'name')
+                    ->where('is_active', true)
+                    ->where('is_inventory', true)
+                    ->orderBy('code')
+                    ->get()
+            ),
+            'totals' => $totals,
+            'vends' => VendDBResource::collection($vends),
+            'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
+        ]);
+    }
+
+    public function indexCustomer(Request $request)
+    {
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
+        if(!isset($request->is_active)) {
+            if(
+                auth()->user()->hasRole('superadmin') or
+                auth()->user()->hasRole('admin') or
+                auth()->user()->hasRole('supervisor') or
+                auth()->user()->hasRole('driver')
+            ) {
+                $request->merge(['is_active' => 'true']);
+            }else {
+                $request->merge(['is_active' => 'all']);
+            }
+        }
+        $request->merge([
+            'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
+            'indexType' => 'customers',
             'sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent',
             'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
         ]);
         $className = get_class(new Customer());
 
         $vends = DB::table('customers')
-            // ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
@@ -130,17 +253,13 @@ class VendController extends Controller
                 'vends.id AS id',
                 'vends.amount_average_day',
                 'vends.code',
-                'vends.name',
                 'vends.apk_ver_json',
                 'vends.balance_percent',
                 'vends.serial_num',
-                'vends.name',
                 DB::raw("CASE WHEN customers.is_active THEN vends.temp ELSE customers.snap_vend_status_json->>'$.t1' END AS temp"),
-                DB::raw("CASE WHEN customers.is_active THEN vends.temp_updated_at ELSE customers.snap_vend_status_json->>'$.temp_updated_at' END AS temp_updated_at"),
-                'vends.termination_date',
+                'vends.temp_updated_at',
                 'vends.coin_amount',
                 'vends.firmware_ver',
-                'vends.is_active AS vend_is_active',
                 'vends.is_door_open',
                 'vends.is_mqtt',
                 'vends.is_mqtt_active',
@@ -162,20 +281,17 @@ class VendController extends Controller
                 'customers.totals_json AS vend_transaction_totals_json',
                 'vends.vend_type_id',
                 'vends.virtual_vend_records_thirty_days_amount_average',
-                'customers.is_active',
                 DB::raw("customers.account_manager_json->>'$.name' AS account_manager_name"),
-                'customers.begin_date AS customer_begin_date',
                 'customers.begin_date',
                 'customers.cms_invoice_history',
                 'customers.code AS customer_code',
-                'customers.is_active',
-                'customers.is_active AS customer_is_active',
+                'customers.is_active AS is_active',
                 'customers.is_testing',
                 'customers.location_type_id',
                 'customers.name AS customer_name',
                 'customers.person_json',
                 'customers.person_id AS person_id',
-                'customers.termination_date AS customer_termination_date',
+                'customers.termination_date',
                 'customers.virtual_customer_prefix',
                 'customers.virtual_customer_code',
                 'location_types.name AS location_type_name',
@@ -211,6 +327,7 @@ class VendController extends Controller
                 CategoryGroup::where('classname', $className)->orderBy('name')->get()
             ),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
+            'indexType' => $request->indexType,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
@@ -240,7 +357,26 @@ class VendController extends Controller
         return $vends;
     }
 
-    public function restart($id)
+    public function restartAPK($id)
+    {
+        $vend = Vend::findOrFail($id);
+        $fid = 1;
+        $content = base64_encode(json_encode([
+            'Type' => 'REBOOTANDROID',
+            'time' => Carbon::now()->timestamp,
+            'action' => '',
+            'mid' => $vend->code,
+        ]));
+        $contentLength = strlen($content);
+        $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+        $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+
+        return true;
+    }
+
+    public function restartVMC($id)
     {
         $vend = Vend::findOrFail($id);
         $fid = 1;

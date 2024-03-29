@@ -121,11 +121,20 @@
                 </Button>
                 <Button
                     class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                    @click.prevent="restartVend(vend.id)"
+                    @click.prevent="restartAPK(vend.id)"
                   >
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                     <span>
-                      Restart
+                      Restart APK
+                    </span>
+                </Button>
+                <Button
+                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                    @click.prevent="restartVMC(vend.id)"
+                  >
+                    <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                    <span>
+                      Restart VMC
                     </span>
                 </Button>
               </span>
@@ -697,8 +706,19 @@ onMounted(() => {
   // console.log(JSON.parse(JSON.stringify(form.value)))
 })
 
-function restartVend(vendID) {
-  router.post('/vends/' + vendID + '/restart', {}, {
+function restartAPK(vendID) {
+  router.post('/vends/' + vendID + '/restart-apk', {}, {
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+    onSuccess: () => {
+      emit('modalClose')
+    }
+  })
+}
+
+function restartVMC(vendID) {
+  router.post('/vends/' + vendID + '/restart-vmc', {}, {
     preserveScroll: true,
     preserveState: true,
     replace: true,

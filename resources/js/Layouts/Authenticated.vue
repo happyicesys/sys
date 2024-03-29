@@ -20,9 +20,17 @@ const navigation = [
         name: 'Vending Machines',
         icon: CommandLineIcon,
         current: false,
-        href: 'vends',
+        href: 'vends.customer',
         permission: 'read vends',
         tagline: 'Customer',
+    },
+    {
+        name: 'Vending Machines',
+        icon: CommandLineIcon,
+        current: false,
+        href: 'vends',
+        permission: 'read vends',
+        tagline: 'Device',
     },
     {
         name: 'Customers',
