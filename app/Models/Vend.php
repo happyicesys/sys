@@ -83,7 +83,6 @@ class Vend extends Model
         'vend_criteria_weightage_json',
         'vend_transaction_totals_json',
         'vend_type_id',
-        'virtual_apk_ver',
         'virtual_firmware_ver',
     ];
 
