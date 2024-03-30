@@ -282,8 +282,8 @@ class DeliveryProductMappingController extends Controller
                 },
                 'deliveryProductMappingVends.vend:id,code,name,customer_id',
                 'deliveryProductMappingVends.vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
-                'deliveryProductMappingVends.deliveryProductMappingVendChannels.vendChannel:id,code,capacity,qty',
-                'deliveryProductMappingVends.deliveryProductMappingVendChannels.deliveryProductMappingItem:id,amount,channel_code,delivery_product_mapping_id,product_mapping_item_id,sub_category_json',
+                // 'deliveryProductMappingVends.deliveryProductMappingVendChannels.vendChannel:id,code,capacity,qty',
+                // 'deliveryProductMappingVends.deliveryProductMappingVendChannels.deliveryProductMappingItem:id,amount,channel_code,delivery_product_mapping_id,product_mapping_item_id,sub_category_json',
                 'operator:id,code,name,country_id',
                 'operator.country',
                 'productMapping:id,name',
@@ -324,24 +324,28 @@ class DeliveryProductMappingController extends Controller
                 ->get()
             ),
             'type' => 'edit',
-            'unbindedVendOptions' => VendResource::collection(
+            'unbindedVendOptions' =>
+                VendResource::collection(
                 Vend::with([
                     'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
                 ])
                 ->whereIn('customer_id', function($query) use ($deliveryProductMapping) {
                     $query->select('id')
                         ->from('customers')
-                        ->where('operator_id', $deliveryProductMapping->operator_id);
+                        ->where('operator_id', $deliveryProductMapping->operator_id)
+                        ->where('is_active', true);
                 })
-                // ->whereHas('customer', function($query) use ($deliveryProductMapping) {
-                //         $query
-                //             ->where('is_active', true)
-                //             ->where('operator_id', $deliveryProductMapping->operator_id);
-                // })
+                ->whereNotIn('id', function($query) use ($deliveryProductMapping) {
+                    $query->select('vend_id')
+                        ->from('delivery_product_mapping_vend')
+                        ->where('delivery_product_mapping_id', $deliveryProductMapping->id);
+                })
                 ->when($deliveryProductMapping->deliveryPlatformOperator->type == '', function($query, $search) use ($request) {
                     $query->where('vends.code', 'LIKE', "{$request->vend_code}%");
                 })
+                ->where('is_testing', false)
                 ->orderBy('vends.code')
+                ->select('id', 'code', 'name', 'customer_id')
                 ->get()
             ),
         ]);

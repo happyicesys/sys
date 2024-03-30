@@ -558,9 +558,9 @@
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Vend Name
                           </th>
-                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          <!-- <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Channel Status
-                          </th>
+                          </th> -->
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             VM Status
                           </th>
@@ -587,7 +587,7 @@
                               {{ deliveryProductMappingVend.vend.name }}
                             </span>
                           </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          <!-- <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             <ul
                               class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
                               v-if="deliveryProductMappingVend.deliveryProductMappingVendChannels"
@@ -606,7 +606,7 @@
                                   </span>
                                   </li>
                               </ul>
-                          </td>
+                          </td> -->
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             <span class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 1">
                               Operating
