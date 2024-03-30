@@ -103,7 +103,7 @@ return [
         'pending' => 20,
         'completed' => 20,
         'recent_failed' => 30,
-        'failed' => 30,
+        'failed' => 720,
         'monitored' => 30,
     ],
 
