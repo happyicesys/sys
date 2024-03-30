@@ -121,20 +121,20 @@
                 </Button>
                 <Button
                     class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                    @click.prevent="restartAPK(vend.id)"
-                  >
-                    <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
-                    <span>
-                      Restart APK
-                    </span>
-                </Button>
-                <Button
-                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
                     @click.prevent="restartVMC(vend.id)"
                   >
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                     <span>
                       Restart VMC
+                    </span>
+                </Button>
+                <Button
+                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                    @click.prevent="restartAPK(vend.id)"
+                  >
+                    <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                    <span>
+                      Restart APK
                     </span>
                 </Button>
               </span>
