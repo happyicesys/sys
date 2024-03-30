@@ -8,7 +8,6 @@ use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\Vend;
 use Carbon\Carbon;
-use Goutte\Client;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Image;

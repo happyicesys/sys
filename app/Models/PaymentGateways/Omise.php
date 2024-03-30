@@ -4,7 +4,6 @@ namespace App\Models\PaymentGateways;
 
 use App\Models\PaymentGateway;
 use App\Interfaces\PaymentGateway AS PaymentGatewayInterface;
-// use Goutte\Client;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
