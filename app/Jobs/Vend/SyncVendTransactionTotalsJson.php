@@ -70,9 +70,9 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
                     'vend_records_amount_average_day' => ($vend->lifetimeVendRecords->sum('total_amount') + $todayAmount)/ (Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?? Carbon::now())) ?: 1),
                     'vend_records_thirty_days_amount' => (int)$vend->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
                     'vend_records_thirty_days_amount_average' =>
-                        ($vend->daysVendRecords(29,0)->sum('total_amount') + $todayAmount)/
+                        ((int)$vend->daysVendRecords(29,0)->sum('total_amount') + $todayAmount)/
                         (
-                            Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) < 30 ?
+                            $vend->begin_date && Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) < 30 ?
                             (Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($vend->begin_date)->diffInDays(Carbon::now())) :
                             30
                         ),
@@ -102,9 +102,9 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
                     'vend_records_amount_average_day' => ($customer->lifetimeVendRecords->sum('total_amount') + $todayAmount)/ (Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?? Carbon::now())) ?: 1),
                     'vend_records_thirty_days_amount' => (int)$customer->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
                     'vend_records_thirty_days_amount_average' =>
-                        ($customer->daysVendRecords(29,0)->sum('total_amount') + $todayAmount)/
+                        ((int)$customer->daysVendRecords(29,0)->sum('total_amount') + $todayAmount)/
                         (
-                            Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) < 30 ?
+                            $customer->begin_date && Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) < 30 ?
                             (Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($customer->begin_date)->diffInDays(Carbon::now())) :
                             30
                         ),

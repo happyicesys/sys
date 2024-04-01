@@ -383,89 +383,92 @@
           <table class="min-w-full border-separate" style="border-spacing: 0">
               <thead class="bg-gray-100">
                   <tr class="divide-x divide-gray-200">
-                      <TableHead>
-                          #
-                      </TableHead>
-                      <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')">
-                          ID
-                      </TableHeadSort>
-                      <TableHead>
-                          Customer
-                      </TableHead>
-                      <TableHead>
-                          <SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
-                              T1&#8451;
-                          </SingleSortItem>
-                          <SingleSortItem modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2', true)">
-                              T2&#8451;
-                          </SingleSortItem>
-                          <SingleSortItem modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at', true)">
-                              Updated
-                          </SingleSortItem>
+                    <TableHead>
+                        #
+                    </TableHead>
+                    <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType !== 'customers'">
+                        ID
+                    </TableHeadSort>
+                    <TableHeadSort modelName="customers.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.name')">
+                        Customer
+                    </TableHeadSort>
+                    <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType === 'customers'">
+                        ID
+                    </TableHeadSort>
+                    <TableHead>
+                        <SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
+                            T1&#8451;
+                        </SingleSortItem>
+                        <SingleSortItem modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2', true)">
+                            T2&#8451;
+                        </SingleSortItem>
+                        <SingleSortItem modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at', true)">
+                            Updated
+                        </SingleSortItem>
 
-                          &Delta;T1-T2
+                        &Delta;T1-T2
 
-                      </TableHead>
-                      <TableHead>
-                          Inventory Status <br>
-                          (#Channel, Sold, Balance/Capacity)
-                      </TableHead>
-                      <TableHead>
-                          Errors
-                      </TableHead>
-                      <TableHeadSort modelName="balance_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('balance_percent')">
-                          Balance Stock
-                      </TableHeadSort>
-                      <TableHeadSort modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent')">
-                          Remaining SKU#
-                      </TableHeadSort>
-                      <TableHead>
-                          Sales(qty)
-                          <SingleSortItem modelName="totals_json->today_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->today_amount', true)">
-                              Today
-                          </SingleSortItem>
-                          <SingleSortItem modelName="totals_json->yesterday_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->yesterday_amount', true)">
-                              Y'day
-                          </SingleSortItem>
-                          <SingleSortItem modelName="totals_json->seven_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_amount', true)">
-                              Last7d
-                          </SingleSortItem>
-                          <SingleSortItem modelName="totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_amount', true)">
-                              Last30d
-                          </SingleSortItem>
-                      </TableHead>
-                      <TableHead>
-                          Status
-                      </TableHead>
-                      <TableHeadSort modelName="last_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_invoice_date')" v-if="indexType === 'customers'">
-                          Last Visited
-                      </TableHeadSort>
-                      <TableHeadSort modelName="next_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_invoice_date')" v-if="indexType === 'customers'">
-                          Next Planned Visit
-                      </TableHeadSort>
-                      <TableHeadSort modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
-                          Avg Per Day <br>
-                          (Last 30 days)
-                      </TableHeadSort>
-                      <TableHeadSort modelName="amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount_average_day', true)">
-                          Lifetime Sales,<br>
-                          Begin Date, <br>
-                          Avg Sales/ Day
-                      </TableHeadSort>
-                      <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')" v-if="indexType == 'customers'">
-                          Postcode
-                      </TableHeadSort>
-                      <TableHead>
-                          Firmware Ver
-                      </TableHead>
-                      <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')" v-if="indexType === 'customers'">
-                          Location
-                      </TableHeadSort>
-                      <TableHeadSort modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')" v-if="indexType === 'customers'">
-                          Acc Manager
-                      </TableHeadSort>
-                      <TableHead>
-                      </TableHead>
+                    </TableHead>
+                    <TableHead>
+                        Inventory Status <br>
+                        (#Channel, Sold, Balance/Capacity)
+                    </TableHead>
+                    <TableHead>
+                        Errors
+                    </TableHead>
+                    <TableHeadSort modelName="balance_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('balance_percent')">
+                        Balance Stock
+                    </TableHeadSort>
+                    <TableHeadSort modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent')">
+                        Remaining SKU#
+                    </TableHeadSort>
+                    <TableHead>
+                        Sales(qty)
+                        <SingleSortItem modelName="totals_json->today_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->today_amount', true)">
+                            Today
+                        </SingleSortItem>
+                        <SingleSortItem modelName="totals_json->yesterday_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->yesterday_amount', true)">
+                            Y'day
+                        </SingleSortItem>
+                        <SingleSortItem modelName="totals_json->seven_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_amount', true)">
+                            Last7d
+                        </SingleSortItem>
+                        <SingleSortItem modelName="totals_json->thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->thirty_days_amount', true)">
+                            Last30d
+                        </SingleSortItem>
+                    </TableHead>
+                    <TableHead>
+                        Status
+                    </TableHead>
+                    <TableHeadSort modelName="last_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_invoice_date')" v-if="indexType === 'customers'">
+                        Last Visited
+                    </TableHeadSort>
+                    <TableHeadSort modelName="next_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_invoice_date')" v-if="indexType === 'customers'">
+                        Next Planned Visit
+                    </TableHeadSort>
+                    <TableHeadSort modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
+                        Avg Per Day <br>
+                        (Last 30 days)
+                    </TableHeadSort>
+                    <TableHeadSort modelName="amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount_average_day', true)">
+                        Lifetime Sales,<br>
+                        Begin Date, <br>
+                        Avg Sales/ Day
+                    </TableHeadSort>
+                    <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')" v-if="indexType == 'customers'">
+                        Postcode
+                    </TableHeadSort>
+                    <TableHead>
+                        Firmware Ver
+                    </TableHead>
+                    <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')" v-if="indexType === 'customers'">
+                        Location
+                    </TableHeadSort>
+                    <TableHeadSort modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')" v-if="indexType === 'customers'">
+                        Acc Manager
+                    </TableHeadSort>
+                    <TableHead>
+                    </TableHead>
                   </tr>
               </thead>
               <tbody class="bg-white">
@@ -474,7 +477,7 @@
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           {{ vends.meta.from + vendIndex }}
                       </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">
                           <Link :href="'/settings/vend/' + vend.id + '/update'" :class="[vend.is_active ? 'text-blue-600' : 'text-gray-400']">
                           {{ vend.code }}
                           </Link>
@@ -506,6 +509,11 @@
                                   {{ vend.customer_name }}
                               </span>
                           </span>
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
+                          <Link :href="'/settings/vend/' + vend.id + '/update'" :class="[vend.is_active ? 'text-blue-600' : 'text-gray-400']">
+                          {{ vend.code }}
+                          </Link>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           <div class="flex flex-col items-center space-y-1">
