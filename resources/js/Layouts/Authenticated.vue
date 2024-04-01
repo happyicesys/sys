@@ -41,7 +41,7 @@ const navigation = [
         tagline: null,
         children: [
             {name: 'View By Customers', href: '/vends/customers'},
-            {name: 'View Bt Devices', href: '/vends'},
+            {name: 'View By Devices', href: '/vends'},
         ]
     },
     {

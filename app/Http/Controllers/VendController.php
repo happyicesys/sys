@@ -836,7 +836,7 @@ class VendController extends Controller
         return redirect()->back();
     }
 
-    public function unbindCustomer($vendID, $returnUrl)
+    public function unbindCustomer($vendID, $returnUrl = null)
     {
         $vend = Vend::findOrFail($vendID);
 

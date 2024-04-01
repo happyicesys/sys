@@ -187,6 +187,7 @@ class SettingController extends Controller
         }
 
         $vend = Vend::create($request->all());
+        $vend->operators()->attach(auth()->user()->operator_id);
 
         return redirect()->route('settings.edit', [$vend->id]);
     }

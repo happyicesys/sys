@@ -4,6 +4,9 @@
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
         Editing Customer
+        <span>
+          (Obj ID: {{ customer.id + 10000}})
+        </span>
       </h2>
     </template>
 
@@ -72,7 +75,7 @@
                 </div>
               </div> -->
 
-              <div class="sm:col-span-1" v-if="customer.id">
+              <!-- <div class="sm:col-span-1" v-if="customer.id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   ID
                 </label>
@@ -84,7 +87,7 @@
                     disabled
                   />
                 </div>
-              </div>
+              </div> -->
 
               <div class="sm:col-span-5" v-if="customer.id && customer.person_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
