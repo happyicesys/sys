@@ -17,6 +17,7 @@ class ProductMappingResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'is_active' => $this->is_active,
             'remarks' => $this->remarks,
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'operator' => OperatorResource::make($this->whenLoaded('operator')),

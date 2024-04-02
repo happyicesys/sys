@@ -23,6 +23,7 @@ class ProductMapping extends Model
     protected $fillable = [
         'name',
         'remarks',
+        'is_active',
         'operator_id',
         'product_mapping_items_json',
         'vends_json',
@@ -32,7 +33,7 @@ class ProductMapping extends Model
     // relationships
     public function attachments()
     {
-        return $this->morphMany(Attachment::class, 'modelable');
+        return $this->morphMany(Attachment::class, 'modelable')->oldest();
     }
 
     public function productMappingItems()

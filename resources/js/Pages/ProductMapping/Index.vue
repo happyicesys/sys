@@ -30,6 +30,22 @@
           <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code">
             Vend ID#
           </SearchInput>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Is Active?
+            </label>
+            <MultiSelect
+              v-model="filters.is_active"
+              :options="booleanOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -108,7 +124,21 @@
                         {{ productMappings.meta.from + productMappingIndex }}
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
-                        {{ productMapping.name }}
+                        <div class="flex flex-col space-y-1">
+                          <span>
+                            {{ productMapping.name }}
+                          </span>
+                          <div
+                              class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer"
+                              :class="productMapping.is_active ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'"
+                          >
+                              <div class="flex flex-col">
+                                  <span class="font-semibold grow-0">
+                                    {{ productMapping.is_active ? 'Active' : 'Inactive' }}
+                                  </span>
+                              </div>
+                          </div>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
                         <ul class="divide-y divide-gray-200">
@@ -141,7 +171,7 @@
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-center">
                         <div class="flex justify-center flex-col space-y-1" v-if="permissions.includes('update product-mappings')">
-                          <Button
+                          <!-- <Button
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                             @click="onEditClicked(productMapping)"
                           >
@@ -149,7 +179,17 @@
                             <span>
                                 Edit
                             </span>
-                          </Button>
+                          </Button> -->
+                          <Link :href="'/product-mappings/' + productMapping.id + '/edit'">
+                            <Button
+                              type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                            >
+                              <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                              <span>
+                                  Edit
+                              </span>
+                            </Button>
+                          </Link>
                           <Button
                             type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                             @click="onVendFormEditClicked(productMapping)"
@@ -228,7 +268,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   products: Object,
@@ -237,12 +277,14 @@ const props = defineProps({
 })
 
 const filters = ref({
+  is_active: '',
   name: '',
   vend_code: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 50,
 })
+const booleanOptions = ref([])
 const showModal = ref(false)
 const showVendFormModal = ref(false)
 const productMapping = ref()
@@ -252,6 +294,11 @@ const roles = usePage().props.auth.roles
 const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
+  booleanOptions.value = [
+    {id: 'all', value: 'All'},
+    {id: 'true', value: 'Yes'},
+    {id: 'false', value: 'No'},
+  ]
   numberPerPageOptions.value = [
     { id: 50, value: 50 },
     { id: 100, value: 100 },
@@ -259,6 +306,7 @@ onMounted(() => {
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
   ]
+  filters.value.is_active = booleanOptions.value[1]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
 
@@ -299,6 +347,7 @@ function onVendFormEditClicked(productMappingValue) {
 function onSearchFilterUpdated() {
   router.get('/product-mappings', {
       ...filters.value,
+      is_active: filters.value.is_active.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

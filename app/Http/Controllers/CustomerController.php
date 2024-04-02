@@ -29,6 +29,7 @@ use App\Models\Zone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class CustomerController extends Controller
@@ -165,6 +166,20 @@ class CustomerController extends Controller
                     ->get()
             ),
         ]);
+    }
+
+    public function bindVend(Request $request, $id)
+    {
+        $customer = Customer::find($id);
+        $vend = Vend::find($request->vendID);
+
+        if($customer and $vend) {
+            $vend->customer_id = $customer->id;
+            $vend->save();
+            SyncVendCustomerCms::dispatchSync($customer->person_id, $vend->id);
+        }
+
+        return redirect()->back();
     }
 
     public function create()
@@ -392,5 +407,24 @@ class CustomerController extends Controller
         }
 
         return redirect()->back();
+    }
+
+    public function uploadAttachment(Request $request, $id)
+    {
+        $customer = Customer::findOrFail($id);
+
+        if($request->hasFile('files')) {
+            $files = $request->file('files');
+            $dir = 'sys/customers';
+            $storedPath = $files->storePublicly($dir);
+            $fileName = basename($storedPath);
+            $url = Storage::url($storedPath);
+            $customer->attachments()->create([
+                'type' => 1,
+                'full_url' => $url,
+                'local_url' => $dir.'/'.$fileName,
+            ]);
+        }
+        return true;
     }
 }

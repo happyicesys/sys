@@ -1,0 +1,51 @@
+<template>
+  <div>
+    <FilePond
+      v-model="files"
+      name="files"
+      label-idle="Click to Browse or Drop files here..."
+      accepted-file-types="image/*, video/*, pdf"
+      credits="false"
+      allowMultiple="true"
+      maxFileSize="20MB"
+      @processfile="handleProcessFile"
+      ref="pond"
+    />
+  </div>
+</template>
+
+<script setup>
+import vueFilePond, { setOptions } from 'vue-filepond';
+import 'filepond/dist/filepond.min.css';
+import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
+import FilePondPluginFileValidateSize from 'filepond-plugin-file-validate-size';
+
+import { ref, onMounted } from 'vue';
+
+const FilePond = vueFilePond(FilePondPluginFileValidateType, FilePondPluginFileValidateSize);
+const files = ref([]);
+const pond = ref(null);
+const props = defineProps({
+  endpoint: String,
+});
+
+setOptions({
+  server: {
+    process: {
+      url: props.endpoint,
+      method: 'POST',
+      headers: {
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      },
+    },
+  },
+});
+
+function handleProcessFile() {
+  const allFilesProcessed = pond.value.getFiles().every(file => file.serverId !== null);
+
+  if (allFilesProcessed) {
+    location.reload(); // Refresh the page
+  }
+}
+</script>

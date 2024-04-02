@@ -12,6 +12,7 @@ use App\Models\ProductMappingItem;
 use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class ProductMappingController extends Controller
@@ -23,8 +24,11 @@ class ProductMappingController extends Controller
 
     public function index(Request $request)
     {
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
-        $sortBy = $request->sortBy ? $request->sortBy : false;
+        $request->merge([
+            'is_active' => $request->is_active ? $request->is_active : true,
+            'numberPerPage' => $request->numberPerPage,
+            'sortBy' => $request->sortBy,
+        ]);
 
         return Inertia::render('ProductMapping/Index', [
             'productMappings' => ProductMappingResource::collection(
@@ -44,10 +48,15 @@ class ProductMappingController extends Controller
                         $query->where('code', 'LIKE', "{$search}%");
                     });
                 })
+                ->when($request->is_active, function($query, $search) use ($request) {
+                    if($search != 'all') {
+                        $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+                    }
+                })
                 // ->when($sortKey, function($query, $search) use ($sortBy) {
                 //     $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                 // })
-                ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                 ->withQueryString()
 
             ),
@@ -93,10 +102,40 @@ class ProductMappingController extends Controller
         return redirect()->route('product-mappings');
     }
 
+    public function edit($id)
+    {
+        $productMapping = ProductMapping::with([
+            'attachments',
+            'productMappingItems',
+            'productMappingItems.product:id,code,name,is_active',
+            'productMappingItems.product.thumbnail',
+            'vends:id,code,name,product_mapping_id,customer_id',
+            'vends.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',
+        ])->findOrFail($id);
+
+        return Inertia::render('ProductMapping/Edit', [
+            'productMapping' => ProductMappingResource::make($productMapping),
+            'products' => ProductResource::collection(
+                Product::with([
+                    'thumbnail'
+                ])
+                ->where('is_inventory', true)
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get()
+            ),
+        ]);
+    }
+
     public function update(Request $request, $productMappingId)
     {
         $request->validate([
             'name' => 'required',
+
+        ]);
+
+        $request->merge([
+            'is_active' => filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN),
         ]);
 
         $productMapping = ProductMapping::findOrFail($productMappingId);
@@ -117,7 +156,26 @@ class ProductMappingController extends Controller
 
         $this->syncProductMappingChannels($productMapping);
 
-        return redirect()->route('product-mappings');
+        return redirect()->route('product-mappings.edit', ['id' => $productMapping->id]);
+    }
+
+    public function uploadAttachment(Request $request, $id)
+    {
+        $productMapping = ProductMapping::findOrFail($id);
+
+        if($request->hasFile('files')) {
+            $files = $request->file('files');
+            $dir = 'sys/product-mappings';
+            $storedPath = $files->storePublicly('sys/product-mappings');
+            $fileName = basename($storedPath);
+            $url = Storage::url($storedPath);
+            $productMapping->attachments()->create([
+                'type' => 1,
+                'full_url' => $url,
+                'local_url' => $dir.'/'.$fileName,
+            ]);
+        }
+        return true;
     }
 
     public function delete($productMappingId)
@@ -133,7 +191,7 @@ class ProductMappingController extends Controller
     {
         $productMapping = ProductMapping::findOrFail($request->id);
         $replicated = $productMapping->replicate()->fill([
-            'name' => $productMapping->name.'-replicated-'.Carbon::now()->toDateTimeString()
+            'name' => $productMapping->name.'-replicated',
         ]);
         $replicated->save();
 
@@ -147,7 +205,7 @@ class ProductMappingController extends Controller
             }
         }
 
-        return redirect()->route('product-mappings');
+        return redirect()->route('product-mappings.edit', ['id' => $replicated->id]);
     }
 
     public function bindVends(Request $request, $productMappingId)

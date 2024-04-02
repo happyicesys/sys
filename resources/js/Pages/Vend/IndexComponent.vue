@@ -387,13 +387,13 @@
                         #
                     </TableHead>
                     <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType !== 'customers'">
-                        ID
+                        Vend ID
                     </TableHeadSort>
                     <TableHeadSort modelName="customers.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.name')">
                         Customer
                     </TableHeadSort>
                     <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType === 'customers'">
-                        ID
+                        Vend ID
                     </TableHeadSort>
                     <TableHead>
                         <SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
@@ -1026,6 +1026,7 @@ const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
 const doorOptions = ref([])
 const enableOptions = ref([])
+const isActiveFactoryOptions = ref([])
 const loading = ref(false)
 const loadingSyncNextDeliveryDate = ref(false)
 const locationTypeOptions = ref([])
@@ -1083,6 +1084,12 @@ onMounted(() => {
       {id: 'all', value: 'All'},
       {id: 'open', value: 'Open'},
       {id: 'close', value: 'Close'},
+  ]
+  isActiveFactoryOptions.value = [
+      {id: 'all', value: 'All'},
+      {id: '1', value: 'Factory'},
+      {id: '2', value: 'Active'},
+      {id: '3', value: 'Not Active'},
   ]
   locationTypeOptions.value = [
       {id: 'all', value: 'All'},

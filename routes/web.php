@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\VendDataController;
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\CashlessProviderController;
 use App\Http\Controllers\CashlessTerminalController;
 use App\Http\Controllers\CategoryController;
@@ -74,6 +75,13 @@ Route::get('/', function () {
 Route::post('/SetPara2', [VendDataController::class, 'create']);
 
 Route::middleware(['auth', 'cors'])->group(function() {
+
+    Route::prefix('attachments')->group(function() {
+        Route::get('/', [AttachmentController::class, 'index'])->name('attachments');
+        Route::post('/create', [AttachmentController::class, 'create']);
+        Route::post('/{id}/update', [AttachmentController::class, 'update']);
+        Route::delete('/{id}', [AttachmentController::class, 'delete']);
+    });
 
     Route::prefix('cashless-providers')->group(function() {
         Route::get('/', [CashlessProviderController::class, 'index'])->name('cashless-providers');
@@ -188,6 +196,8 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/toggle-activation', [CustomerController::class, 'toggleActivation']);
         Route::delete('/{id}', [CustomerController::class, 'delete']);
         Route::get('/sync-next-delivery-date', [CustomerController::class, 'syncNextDeliveryDate']);
+        Route::post('/{id}/upload-attachments', [CustomerController::class, 'uploadAttachment']);
+        Route::post('/{id}/bind-vend', [CustomerController::class, 'bindVend']);
     });
 
     Route::prefix('holidays')->group(function() {
@@ -283,8 +293,10 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('product-mappings')->group(function() {
         Route::get('/', [ProductMappingController::class, 'index'])->name('product-mappings');
         Route::post('/create', [ProductMappingController::class, 'create']);
+        Route::get('/{id}/edit', [ProductMappingController::class, 'edit'])->name('product-mappings.edit');
         Route::post('/{id}/update', [ProductMappingController::class, 'update']);
         Route::post('/{id}/update/vends', [ProductMappingController::class, 'bindVends']);
+        Route::post('/{id}/upload-attachments', [ProductMappingController::class, 'uploadAttachment']);
         Route::delete('/{id}', [ProductMappingController::class, 'delete']);
         Route::post('/replicate', [ProductMappingController::class, 'replicate']);
     });

@@ -841,7 +841,7 @@ class VendController extends Controller
         $vend = Vend::findOrFail($vendID);
 
         $vend->customer->update([
-            'is_active' => false,
+            // 'is_active' => false,
             'termination_date' => Carbon::now()->toDateString(),
             'snap_parameter_json' => $vend->parameter_json,
             'snap_vend_channels_json' => $vend->vend_channels_json,

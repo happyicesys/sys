@@ -139,8 +139,8 @@
                   class="mt-1"
                 >
                 </MultiSelect>
-                <div class="text-sm text-red-600" v-if="form.errors['customer.is_testing']">
-                  {{ form.errors['customer.is_testing'] }}
+                <div class="text-sm text-red-600" v-if="form.errors['customer.is_active']">
+                  {{ form.errors['customer.is_active'] }}
                 </div>
               </div>
               <div class="sm:col-span-2">
@@ -204,7 +204,7 @@
               </FormInput>
             </div>
 
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+            <div class="sm:col-span-6 pt-2 mt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
                   <div class="w-full border-t border-gray-300"></div>
@@ -273,7 +273,7 @@
             </div>
             </div>
 
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+            <div class="sm:col-span-6 pt-2 mt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
                   <div class="w-full border-t border-gray-300"></div>
@@ -307,7 +307,46 @@
               </div>
             </div>
 
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+            <div class="sm:col-span-6 mt-3">
+              <span class="flex justify-between">
+                <span class="flex space-x-1">
+                  <Button
+                    type="button"
+                    class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
+                    v-if="permissions.includes('update customers')"
+                    @click.prevent="saveCustomer(form.id)"
+                  >
+                    <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                    <span>
+                      Save Customer
+                    </span>
+                  </Button>
+                  <Link :href="'/customers'">
+                    <Button
+                      class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                    >
+                      <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                      <span>
+                        Back
+                      </span>
+                    </Button>
+                  </Link>
+                </span>
+                <Button
+                  type="button"
+                  class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                  v-if="!customer.vend && permissions.includes('update customers')"
+                  @click.prevent="deleteCustomer(customer.id)"
+                >
+                  <XCircleIcon class="w-4 h-4"></XCircleIcon>
+                  <span>
+                    Delete Customer
+                  </span>
+                </Button>
+              </span>
+            </div>
+
+            <div class="sm:col-span-6 mt-2 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
                   <div class="w-full border-t border-gray-300"></div>
@@ -349,56 +388,62 @@
             </div>
 
             <div class="sm:col-span-6 mt-3">
-                <span class="flex justify-between">
-                  <span class="flex space-x-1">
-                    <Button
-                      type="button"
-                      class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
-                      v-if="permissions.includes('update customers')"
-                      @click.prevent="saveCustomer(form.id)"
-                    >
-                      <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                      <span>
-                        Save Customer
-                      </span>
-                    </Button>
-                    <Link :href="'/customers'">
-                      <Button
-                        class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
-                      >
-                        <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                        <span>
-                          Back
-                        </span>
-                      </Button>
-                    </Link>
+              <span class="flex justify-between">
+                <Button
+                  type="button"
+                  class="text-white flex space-x-1"
+                  :class="!form.vend_id ? 'cursor-not-allowed bg-gray-400' : 'cursor-pointer bg-green-500 hover:bg-green-600'"
+                  :disabled="!form.vend_id"
+                  v-if="!customer.vend && permissions.includes('update customers')"
+                  @click.prevent="saveCustomer(form.id)"
+                >
+                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                  <span>
+                    Bind
                   </span>
-                  <Button
-                    type="button"
-                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                    v-if="customer.vend && permissions.includes('update customers')"
-                    @click.prevent="unbindCustomer(customer.vend.id)"
-                  >
-                    <XCircleIcon class="w-4 h-4"></XCircleIcon>
-                    <span>
-                      Unbind VM & Customer
-                    </span>
-                  </Button>
-                  <Button
-                    type="button"
-                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                    v-if="!customer.vend && permissions.includes('update customers')"
-                    @click.prevent="deleteCustomer(customer.id)"
-                  >
-                    <XCircleIcon class="w-4 h-4"></XCircleIcon>
-                    <span>
-                      Delete Customer
-                    </span>
-                  </Button>
-                </span>
+                </Button>
+                <Button
+                  type="button"
+                  class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                  v-if="customer.vend && permissions.includes('update customers')"
+                  @click.prevent="unbindCustomer(customer.vend.id)"
+                >
+                  <XCircleIcon class="w-4 h-4"></XCircleIcon>
+                  <span>
+                    Unbind
+                  </span>
+                </Button>
+              </span>
+            </div>
+
+            <div class="sm:col-span-6 mt-5 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center ">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Attachment(s) </span>
+                </div>
               </div>
+            </div>
+
+            <div class="sm:col-span-6">
+              <AttachmentList
+                :items="customer.attachments"
+              >
+            </AttachmentList>
+            </div>
+
+            <div class="sm:col-span-6">
+              <UploadFileInput
+                :endpoint="'/customers/' + customer.id + '/upload-attachments'"
+              >
+              </UploadFileInput>
+            </div>
+
+
           </div>
-          <!-- </div> -->
+
           </form>
         </div>
       </div>
@@ -409,11 +454,13 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import AttachmentList from '@/Components/AttachmentList.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
+import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
@@ -624,9 +671,24 @@ function onAddressSelected(address) {
   // searchAddressForm.value = null
 }
 
+function bindVend(customerID) {
+  form.value.clearErrors()
+
+  form.value
+    .post('/customers/' + customerID + '/bind-vend', {
+      vendID: form.value.vend_id.id
+    }, {
+    onSuccess: () => {
+    },
+    preserveState: true,
+    replace: true,
+  })
+
+}
+
 function unbindCustomer(vendID) {
   form.value
-    .post('/vends/' + vendID + '/unbind-customer', {
+    .post('/vends/' + vendID + '/unbind-customer', {}, {
       onSuccess: () => {
       },
       preserveState: true,
