@@ -195,7 +195,7 @@ trait HasFilter {
           }
       })
       ->when($request->is_active, function($query, $search) use ($request) {
-        $columnName =  $request->type ? $request->type . '.is_active' : 'vends.is_active';
+        $columnName =  $request->indexType ? $request->indexType . '.is_active' : 'vends.is_active';
         if($search != 'all') {
             $query->where($columnName, filter_var($search, FILTER_VALIDATE_BOOLEAN));
         }

@@ -488,26 +488,26 @@
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                           <span v-if="vend.person_id">
                               <span v-if="permissions.includes('admin-access vends')">
-                                  <a :class="[vend.person_id ? 'text-blue-700' : 'text-gray-500']" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'">
+                                  <a :class="[vend.person_id && vend.customer_is_active ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'">
                                       {{ vend.virtual_customer_code }} ({{ vend.virtual_customer_prefix }})
                                       <br>
                                       {{ vend.customer_name }}
                                   </a>
                               </span>
-                              <span v-else>
+                              <span v-else :class="[vend.customer_is_active ? 'text-gray-800' : 'text-gray-400']">
                                   {{ vend.virtual_customer_code }} ({{ vend.virtual_customer_prefix }})
                                   <br>
                                   {{ vend.customer_name }}
                               </span>
                           </span>
                           <span v-else-if="!vend.person_id">
-                              <span v-if="permissions.includes('admin-access vends')">
+                              <span v-if="permissions.includes('admin-access vends')" :class="[vend.customer_is_active ? 'text-gray-800' : 'text-gray-400']">
                                   <!-- <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'"> -->
                                       {{ vend.customer_code }} <br>
                                       {{ vend.customer_name }}
                                   <!-- </a> -->
                               </span>
-                              <span v-else>
+                              <span v-else :class="[vend.customer_is_active ? 'text-gray-800' : 'text-gray-400']">
                                   {{ vend.customer_code }} <br>
                                   {{ vend.customer_name }}
                               </span>
