@@ -105,22 +105,6 @@
             >
             </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vends')">
-            <label for="text" class="block text-sm font-medium text-gray-700">
-                Operator
-            </label>
-            <MultiSelect
-                v-model="filters.operator"
-                :options="operatorOptions"
-                trackBy="id"
-                valueProp="id"
-                label="full_name"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-            >
-            </MultiSelect>
-          </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Location Type
@@ -131,6 +115,22 @@
                 trackBy="id"
                 valueProp="id"
                 label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div v-if="permissions.includes('admin-access vends')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Operator
+            </label>
+            <MultiSelect
+                v-model="filters.operator"
+                :options="operatorOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
@@ -202,9 +202,9 @@
                     <TableHead>
                       Customer
                     </TableHead>
-                    <TableHead>
-                      Cust Operator
-                    </TableHead>
+                    <TableHeadSort modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
+                      Operator
+                    </TableHeadSort>
                     <TableHead>
                       Status
                     </TableHead>
@@ -263,7 +263,7 @@
                         </span> -->
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                          {{ vend.customer && vend.customer.operator ? vend.customer.operator.full_name : '' }}
+                        {{ vend.operator_code }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <div class="flex flex-col space-y-1">
@@ -285,6 +285,7 @@
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.termination_date_short }}
                       </TableData>
+
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
                           <Link :href="'/settings/vend/' + vend.id + '/update'">

@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+
 use App\Models\DeliveryPlatforms\Grab;
+use App\Models\Scopes\OperatorDeliveryPlatformOrderFilterScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +13,11 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 class DeliveryPlatformOrder extends Model
 {
     use HasFactory;
+
+    protected static function booted()
+    {
+        static::addGlobalScope(new OperatorDeliveryPlatformOrderFilterScope);
+    }
 
     const ORDER_EXPIRED_HOURS = 48;
 
@@ -102,14 +109,14 @@ class DeliveryPlatformOrder extends Model
     protected function promoAmount(): Attribute
     {
         return Attribute::make(
-            get: fn (string $value) => $value/ ($this->deliveryProductMappingVend->deliveryProductMapping && $this->deliveryProductMappingVend->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100),
+            get: fn (string $value) => $value/ ($this->deliveryProductMappingVend && $this->deliveryProductMappingVend->deliveryProductMapping && $this->deliveryProductMappingVend->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100),
         );
     }
 
     protected function subtotalAmount(): Attribute
     {
         return Attribute::make(
-            get: fn (string $value) => $value/ ($this->deliveryProductMappingVend->deliveryProductMapping && $this->deliveryProductMappingVend->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100),
+            get: fn (string $value) => $value/ ($this->deliveryProductMappingVend && $this->deliveryProductMappingVend->deliveryProductMapping && $this->deliveryProductMappingVend->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMappingVend->deliveryProductMapping->operator->country->currency_exponent) : 100),
         );
     }
 

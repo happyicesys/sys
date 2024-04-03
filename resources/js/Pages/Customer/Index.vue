@@ -164,6 +164,22 @@
               >
               </MultiSelect>
           </div>
+          <div v-if="permissions.includes('admin-access vends')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Operator
+            </label>
+            <MultiSelect
+                v-model="filters.operator"
+                :options="operatorOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -256,6 +272,9 @@
                     <TableHead>
                       Status
                     </TableHead>
+                    <TableHeadSort modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
+                      Operator
+                    </TableHeadSort>
                     <TableHeadSort modelName="created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('created_at')">
                       Created At
                     </TableHeadSort>
@@ -338,6 +357,9 @@
                         </div>
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
+                        {{ customer.operator_code }}
+                      </TableData>
+                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         {{ customer.created_at }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
@@ -390,12 +412,13 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   customers: Object,
   categories: Object,
   categoryGroups: Object,
+  operatorOptions: Object,
   priceTemplates: Object,
   profiles: Object,
   statuses: Object,
@@ -419,6 +442,8 @@ const booleanOptions = ref([])
 const customer = ref()
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
+const operatorOptions = ref([])
+const permissions = usePage().props.auth.permissions
 const priceTemplateOptions = ref([])
 const profileOptions = ref([])
 const statusOptions = ref([])
@@ -443,6 +468,10 @@ onMounted(() => {
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
   categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
+  operatorOptions.value = [
+        {id: 'all', full_name: 'All'},
+        ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+    ]
   priceTemplateOptions.value = props.priceTemplates.data.map((data) => {return {id: data.id, name: data.name}})
   profileOptions.value = props.profiles.data.map((data) => {return {id: data.id, name: data.name}})
   // statusOptions.value = props.statuses.map((data) => {return {id: data.id, name: data.name}})
@@ -453,6 +482,7 @@ onMounted(() => {
   // filters.value.status = statusOptions.value[3]
   filters.value.is_active = booleanOptions.value[0]
   filters.value.is_cms = booleanOptions.value[0]
+  filters.value.operator = operatorOptions.value[0]
 })
 
 function onCreateClicked() {
@@ -474,6 +504,7 @@ function onSearchFilterUpdated() {
       is_active: filters.value.is_active.id,
       // status: filters.value.status.id,
       numberPerPage: filters.value.numberPerPage.id,
+      operator_id: filters.value.operator.id,
   }, {
       preserveState: true,
       replace: true,

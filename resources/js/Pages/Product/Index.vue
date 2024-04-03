@@ -203,10 +203,9 @@
                           </a>
                         </div>
                       </TableData>
-                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-left" v-if="permissions.includes('admin-access products')">
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center" v-if="permissions.includes('admin-access products')">
                         <span v-if="product.operator">
-                          {{ product.operator.code }} <br>
-                          {{ product.operator.name }}
+                          {{ product.operator.code }}
                         </span>
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-right" v-if="permissions.includes('admin-access products')">

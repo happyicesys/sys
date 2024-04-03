@@ -34,7 +34,10 @@ class DeliveryPlatformOrderItem extends Model
         //     get: fn (string $value) => $value/ ($this->deliveryProductMappingItem and $this->deliveryProductMappingItem->deliveryProductMapping and $this->deliveryProductMappingItem->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMappingItem->deliveryProductMapping->operator->country->currency_exponent) : 100),
         // );
         return Attribute::make(
-            get: fn (string $value) => $value/ ($this->deliveryProductMappingItem->deliveryProductMapping ? pow(10, $this->deliveryProductMappingItem->deliveryProductMapping->operator->country->currency_exponent) : 100) ,
+            get: fn (string $value) => $value/ (
+                $this->deliveryProductMappingItem && $this->deliveryProductMappingItem->deliveryProductMapping &&
+                $this->deliveryProductMappingItem->deliveryProductMapping->operator ?
+                pow(10, $this->deliveryProductMappingItem->deliveryProductMapping->operator->country->currency_exponent) : 100) ,
         );
     }
 

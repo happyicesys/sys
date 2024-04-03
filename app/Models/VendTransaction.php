@@ -296,10 +296,7 @@ class VendTransaction extends Model
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                // $query->whereHas('vend.operators', function($query) use ($search) {
-                //     $query->where('operators.id', $search);
-                // });
-                $query->where('operator_id', $search);
+                $query->where('operator_json->id', $search);
             }
         })
         ->when($request->product_code, function($query, $search) {
@@ -311,6 +308,15 @@ class VendTransaction extends Model
             $query->whereIn('product_id', function($query) use ($search) {
                 $query->select('id')->from('products')->where('name', 'LIKE', "%{$search}%");
             });
+        })
+        ->when($request->sortKey, function($query, $search) use ($request) {
+            if(strpos($search, '->')) {
+                $inputSearch = explode("->", $search);
+                $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
+                ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            }else {
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            }
         });
 
         return $query;
@@ -383,9 +389,6 @@ class VendTransaction extends Model
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                // $query->whereHas('vend.operators', function($query) use ($search) {
-                //     $query->where('operators.id', $search);
-                // });
                 $query->where('operator_id', $search);
             }
         })

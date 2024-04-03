@@ -28,6 +28,8 @@ class CustomerResource extends JsonResource
             'location_type_id' => $this->location_type_id,
             'operator_id' => $this->operator_id,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
+            'operator_code' => $this->operator_code,
+            'operator_name' => $this->operator_name,
             'person_id' => $this->person_id,
             'profile_id' => $this->profile_id,
             'status_id' => $this->status_id,

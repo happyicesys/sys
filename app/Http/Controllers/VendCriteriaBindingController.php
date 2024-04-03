@@ -50,7 +50,7 @@ class VendCriteriaBindingController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->select(
                 'customers.operator_id',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\OperatorDeliveryProductMappingVendFilterScope;
 use App\Traits\GetUserTimezone;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\Pivot;
@@ -11,6 +12,11 @@ class DeliveryProductMappingVend extends Model
 {
     use GetUserTimezone;
     // use HasFactory;
+
+    protected static function booted()
+    {
+        static::addGlobalScope(new OperatorDeliveryProductMappingVendFilterScope);
+    }
 
     protected $table = 'delivery_product_mapping_vend';
 

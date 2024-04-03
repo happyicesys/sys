@@ -2,6 +2,7 @@
 
 namespace App\Models\Scopes;
 
+use App\Models\Vend;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -24,17 +25,9 @@ class OperatorVendFilterScope implements Scope
           $operatorId = null;
         }
         if($operatorId) {
-          $builder = $builder->whereHas('operators', function($builder) use ($operatorId) {
-            $builder->where('operators.id', $operatorId);
-          });
+            $builder->where('operator_id', $operatorId);
         }
-        // dd(auth()->user()->vends()->exists());
-        // $vendIds = auth()->user()->vends()->exists() ? auth()->user()->vends->pluck('id')->toArray() : null;
-        // if($vendIds) {
-        //   $builder = $builder->whereHas('vends', function($builder) use ($vendIds) {
-        //     $builder->whereIn('vends.id', $vendIds);
-        //   });
-        // }
+
       }
     }
 }

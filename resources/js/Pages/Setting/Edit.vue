@@ -105,6 +105,31 @@
                 {{ form.errors['is_active'] }}
               </div>
             </div>
+            <div class="sm:col-span-4">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Operator
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.operator_id"
+                  :options="operatorOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="full_name"
+                  placeholder="Select"
+                  open-direction="top"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.operator_id">
+                  {{ form.errors.operator_id }}
+                </div>
+            </div>
+            <div class="sm:col-span-6 text-blue-600 text-xs">
+              ** If change Operator, the Binded Customer's Operator will be changed as well
+            </div>
 
             <div class="sm:col-span-6">
               <span class="flex space-x-1">
@@ -633,8 +658,8 @@ function getDefaultForm() {
     begin_date: '',
     code: '',
     customer_id: '',
+    operator_id: '',
     customer: {
-      operator_id: '',
       begin_date: '',
       termination_date: '',
       id: '',
@@ -667,14 +692,15 @@ onMounted(() => {
   // console.log(JSON.parse(JSON.stringify(props.vend)))
   countryOptions.value = props.countries.data
   operatorOptions.value = props.operatorOptions.data
+
   form.value = props.vend ? useForm({
     ...props.vend,
     is_active: props.vend.is_active == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
     is_testing: props.vend.is_testing == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
+    operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id === props.vend.operator_id) : null : null,
     customer: {
       ...JSON.parse(JSON.stringify(props.vend.customer)),
       code: props.vend.customer && props.vend.customer.person_id ? props.vend.customer.virtual_customer_code + ' (' + props.vend.customer.virtual_customer_prefix + ')' : (props.vend.customer ? props.vend.customer.code : null),
-      operator_id: props.vend.customer ? props.vend.customer.operator_id ? operatorOptions.value.find(operator => operator.id === props.vend.customer.operator_id) : null : null,
       contact: props.vend.customer ? {
         ...JSON.parse(JSON.stringify(props.vend.customer.contact))
       } : {
@@ -698,6 +724,7 @@ onMounted(() => {
       },
     },
   }) : useForm(getDefaultForm())
+
   adminCustomerOptions.value = props.adminCustomerOptions.data.map(customer => ({
     id: customer.id,
     full_name: customer.person_id ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name  : customer.code + ' - ' + customer.name,
@@ -770,6 +797,7 @@ function saveVend(vendID) {
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
       is_testing: data.is_testing.id,
       is_active: data.is_active.id,
+      operator_id: data.operator_id ? data.operator_id.id : null,
     }))
     .post('/vends/' + vendID + '/update', {
     onSuccess: () => {

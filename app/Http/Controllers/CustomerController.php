@@ -40,7 +40,8 @@ class CustomerController extends Controller
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
             'is_active' => $request->is_active ? $request->is_active : 'all',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
-            'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
+            'operator_id' => $request->operator_id ? $request->operator_id : 'all',
+            'sortKey' => $request->sortKey ? $request->sortKey : 'customers.created_at',
             'sortBy' => $request->sortBy ? $request->sortBy : false,
         ]);
         $className = get_class(new Customer());
@@ -56,62 +57,20 @@ class CustomerController extends Controller
                         'contact',
                         'deliveryAddress',
                         'firstTransaction',
+                        'operator',
                         'profile',
                         'status',
                         'tagBindings',
                         'vend',
                         'zone'
                     ])
-                    ->when($request->categories, function($query, $search) {
-                        $query->whereHas('categories', function($query) use ($search) {
-                            $query->whereIn('id', $search);
-                        });
-                    })
-                    ->when($request->categoryGroups, fn($query, $input) => $query->whereHas('category.categoryGroup', function($query) use ($input) {
-                        $query->whereIn('id', $input);
-                    }))
-                    ->when($request->code, fn($query, $input) => $query->where('code', 'LIKE', '%'.$input.'%'))
-                    ->when($request->created_in, fn($query, $input) => $query->whereDate('created_at', '>=', Carbon::createFromFormat('m-Y', $input)->startOfMonth())->whereDate('created_at', '<=', Carbon::createFromFormat('m-Y', $input)->endOfMonth()))
-                    ->when($request->customer, function($query, $search) {
-                        $query->where(function($query) use ($search) {
-                            $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
-                                    ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                                    ->orWhere('customers.name', 'LIKE', "%{$search}%");
-                            });
-                    })
-                    ->when($request->is_active, function($query, $search) use ($request) {
-                        if($search != 'all') {
-                            $query->where('customers.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
-                        }
-                    })
-                    ->when($request->is_cms, function($query, $search) {
-                        if($search != 'all') {
-                            $searchBoolean = filter_var($search, FILTER_VALIDATE_BOOLEAN);
-                            if($searchBoolean)
-                                $query->whereNotNull('person_id');
-                            else {
-                                $query->whereNull('person_id');
-                            }
-                        }
-                    })
-                    ->when($request->handled_by, fn($query, $input) => $query->where('handled_by', $input))
-                    // ->when($request->name, fn($query, $input) => $query->where('name', 'LIKE', '%'.$input.'%'))
-                    ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
-                    ->when($request->profile_id, fn($query, $input) => $query->where('profile_id', $input))
-                    ->when($request->ref_id, function($query, $search) {
-                        $query->where('id', 'LIKE', $search - 10000);
-                    })
-                    ->when($request->status, fn($query, $input) => $query->where('status_id', $input))
-                    ->when($request->vend_code, function($query, $search) {
-                        $query->whereIn('id',
-                            Vend::where('code', 'LIKE', '%'.$search.'%')
-                            ->pluck('customer_id')
-                        );
-                    })
-                    ->when($request->zone_id, fn($query, $input) => $query->where('zone_id', $input))
-                    ->when($request->sortKey, function($query, $search) use ($request) {
-                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-                    })
+                    ->leftJoin('operators', 'customers.operator_id', '=', 'operators.id')
+                    ->select(
+                        'customers.*',
+                        'operators.code as operator_code',
+                        'operators.name as operator_name'
+                        )
+                    ->filterIndex($request)
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
             ),
@@ -126,6 +85,9 @@ class CustomerController extends Controller
                     ->whereHas('categories', function($query) use ($className){
                         $query->where('classname', $className);
                     })->orderBy('name')->get()
+            ),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
             ),
             'priceTemplates' => PriceTemplateResource::collection(
                 PriceTemplate::query()
@@ -400,6 +362,12 @@ class CustomerController extends Controller
                 $vend->customer_id = $customer->id;
                 $vend->save();
             }
+        }
+
+        if($customer->vend) {
+            $customer->vend->update([
+                'operator_id' => $customer->operator_id,
+            ]);
         }
 
         if($customer and $customer->person_id and $vend) {

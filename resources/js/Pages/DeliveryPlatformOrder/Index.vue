@@ -256,7 +256,7 @@
                       </div>
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
-                      {{ deliveryPlatformOrder.deliveryProductMappingVend.vend.cust_full_name }}
+                      {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend ? deliveryPlatformOrder.deliveryProductMappingVend.vend.cust_full_name : '' }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                         {{ deliveryPlatformOrder.vend_transaction_order_id  }}
@@ -269,7 +269,7 @@
                               (#{{ deliveryPlatformOrderItem.orderItemVendChannels[0].vend_channel_code }})
                             </span>
                           </span>
-                          <span>
+                          <span v-if="deliveryPlatformOrderItem && deliveryPlatformOrderItem.deliveryProductMappingItem && deliveryPlatformOrderItem.deliveryProductMappingItem.product">
                             {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.code }} <br>
                             {{ deliveryPlatformOrderItem.deliveryProductMappingItem.product.name }}
                           </span>

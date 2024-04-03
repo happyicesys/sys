@@ -306,6 +306,9 @@
                             Customer
                         </TableHead>
                         <TableHead>
+                            Operator
+                        </TableHead>
+                        <TableHead>
                             Channel
                         </TableHead>
                         <TableHead>
@@ -353,6 +356,11 @@
                                     {{ vendTransaction.customer_json.code }} <br>
                                 </span>
                                 {{ vendTransaction.customer_json.name }}
+                            </span>
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            <span v-if="vendTransaction.operatorJson && 'code' in vendTransaction.operatorJson">
+                                {{ vendTransaction.operatorJson['code'] }}
                             </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">

@@ -52,7 +52,7 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw('DAY(vend_transactions.created_at) as day'),
                 DB::raw('MONTH(vend_transactions.created_at) as month'),
                 DB::raw('MONTHNAME(vend_transactions.created_at) AS month_name'),
-                'customers.operator_id',
+                'vends.operator_id',
                 'vend_id',
                 DB::raw('YEAR(vend_transactions.created_at) as year'),
                 DB::raw(
@@ -203,7 +203,7 @@ class StoreVendsRecord implements ShouldQueue
                 ->select(
                     'vends.id as id',
                     'vends.code as code',
-                    'customers.operator_id',
+                    'vends.operator_id',
                     'customers.id as customer_id'
                 )
                 ->where('customers.is_active', true)

@@ -168,7 +168,7 @@ class VendChannel extends Model
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereHas('vend.operators', function($query) use ($search) {
+                $query->whereHas('vend', function($query) use ($search) {
                     $query->where('operator_id', $search);
                 });
             }

@@ -233,8 +233,8 @@ class VendDataService
             break;
           case 'TIME':
             $operatorTimezone = 'Asia/Singapore';
-            if($vend->operators()->exists()) {
-              $operatorTimezone = $vend->operators()->first()->timezone;
+            if($vend->operator) {
+              $operatorTimezone = $vend->operator->timezone;
             }
             $response = isset($originalInput['f']) ?
             $originalInput['f'].','.strlen(base64_encode('TIME'.Carbon::now()->setTimezone($operatorTimezone)->format('Y-m-d H:i:s'))).','.base64_encode('TIME'.Carbon::now()->setTimezone($operatorTimezone)->format('Y-m-d H:i:s')) :

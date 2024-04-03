@@ -464,8 +464,11 @@
                     <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')" v-if="indexType === 'customers'">
                         Location
                     </TableHeadSort>
-                    <TableHeadSort modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')" v-if="indexType === 'customers'">
+                    <TableHeadSort modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('account_manager_name')" v-if="indexType === 'customers'">
                         Acc Manager
+                    </TableHeadSort>
+                    <TableHeadSort modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
+                        Operator
                     </TableHeadSort>
                     <TableHead>
                     </TableHead>
@@ -861,6 +864,11 @@
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
                           <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
                               {{ vend.account_manager_name }}
+                          </span>
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                          <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
+                              {{ vend.operator_code }}
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">

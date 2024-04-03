@@ -70,6 +70,7 @@ class Vend extends Model
         'last_updated_at',
         'mqtt_last_updated_at',
         'mqtt_updated_at',
+        'operator_id',
         'parameter_json',
         'private_key',
         'product_mapping_id',
@@ -151,9 +152,9 @@ class Vend extends Model
     }
 
     // deprecated, will use customer operator_id instead (keep now for cleanCustomerSeeder)
-    public function operators()
+    public function operator()
     {
-        return $this->belongsToMany(Operator::class);
+        return $this->belongsTo(Operator::class);
     }
 
     public function productMapping()
@@ -352,7 +353,7 @@ class Vend extends Model
         })
         ->when($request->is_active, function($query, $search) {
             if($search != 'all') {
-                $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+                $query->where('vends.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
             }
         })
         ->when($request->tempHigherThan, function($query, $search) {
@@ -389,9 +390,7 @@ class Vend extends Model
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereHas('operators', function($query) use ($search) {
-                    $query->where('operators.id', $search);
-                });
+                $query->where('operator_id', $search);
             }
         })
         ->when($isOnline, function($query, $search) {

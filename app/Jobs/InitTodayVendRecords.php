@@ -31,11 +31,10 @@ class InitTodayVendRecords implements ShouldQueue
     {
         $vends = Vend::query()
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
             ->select(
                 'vends.id as id',
                 'vends.code as code',
-                'operators.id as operator_id',
+                'vends.operator_id',
                 'customers.id as customer_id'
             )
             ->where('customers.is_active', true)

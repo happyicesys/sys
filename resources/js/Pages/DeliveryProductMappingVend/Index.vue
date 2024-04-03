@@ -173,7 +173,7 @@
                       {{ deliveryProductMappingVends.meta.from + deliveryProductMappingVendIndex }}
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
-                      {{ deliveryProductMappingVend.vend.code }}
+                      {{ deliveryProductMappingVend.vend ? deliveryProductMappingVend.vend.code : '' }}
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-left">
                       {{ deliveryProductMappingVend.platform_ref_id }}

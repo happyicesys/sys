@@ -1,6 +1,8 @@
 <?php
 
 namespace App\Traits;
+use App\Models\Vend;
+use App\Models\Customer;
 use App\Models\VendTemp;
 use Carbon\Carbon;
 use DB;
@@ -8,7 +10,9 @@ use Illuminate\Support\Facades\Http;
 
 trait HasFilter {
 
-    public function filterOperatorDB($query) {
+    public function filterOperatorDB($query, $model = 'vends') {
+        $columnName = $model . '.operator_id';
+
         if(auth()->check()) {
             $operatorId = auth()->user()->operator_id;
             $isHappyIce = $operatorId == 1 ? true : false;
@@ -16,11 +20,11 @@ trait HasFilter {
               $operatorId = null;
             }
             if($operatorId) {
-                $query = $query->where('operators.id', $operatorId);
+                $query = $query->where($columnName, $operatorId);
             }
 
-            $vendIds = auth()->user()->vends()->exists() ? auth()->user()->vends->pluck('id')->toArray() : null;
-            if($vendIds) {
+            $vendIds = auth()->user()->vends ? auth()->user()->vends->pluck('id')->toArray() : null;
+            if($vendIds = null) {
                 $query->whereIn('vends.id', $vendIds);
             }
         }
@@ -272,13 +276,7 @@ trait HasFilter {
       })
       ->when($request->operator_id, function($query, $search) {
           if($search != 'all') {
-            $query->whereIn('vends.id',
-                DB::table('vends')
-                    ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-                    ->select('vends.id')
-                    ->where('customers.operator_id', $search)
-                    ->pluck('vends.id')
-            );
+            $query->where('vends.operator_id', $search);
           }
       })
       ->when($request->is_online, function($query, $search) {
@@ -452,12 +450,7 @@ trait HasFilter {
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereIn('vends.id',
-                    DB::table('vends')
-                    ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
-                    ->select('vends.id')
-                    ->where('customers.operator_id', $search)
-                    ->pluck('vends.id'));
+                $query->where('vends.operator_id', $search);
             }
         })
         ->when($isOnline, function($query, $search) {
@@ -589,7 +582,7 @@ trait HasFilter {
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-              $query->where('operators.id', $search);
+              $query->where('operator_id', $search);
             }
         })
         ->when($request->date_from, function($query, $search) {

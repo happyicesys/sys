@@ -220,4 +220,63 @@ class Customer extends Model
                     ->where('date', '>=', Carbon::today()->subDays($from)->startOfDay())
                     ->where('date', '<=', Carbon::today()->subDays($to)->endOfDay());
     }
+
+    // scopes
+    public function scopeFilterIndex($query, $request)
+    {
+        return $query->when($request->categories, function($query, $search) {
+            $query->whereHas('categories', function($query) use ($search) {
+                $query->whereIn('id', $search);
+            });
+        })
+        ->when($request->categoryGroups, fn($query, $input) => $query->whereHas('category.categoryGroup', function($query) use ($input) {
+            $query->whereIn('id', $input);
+        }))
+        ->when($request->code, fn($query, $input) => $query->where('code', 'LIKE', '%'.$input.'%'))
+        ->when($request->created_in, fn($query, $input) => $query->whereDate('created_at', '>=', Carbon::createFromFormat('m-Y', $input)->startOfMonth())->whereDate('created_at', '<=', Carbon::createFromFormat('m-Y', $input)->endOfMonth()))
+        ->when($request->customer, function($query, $search) {
+            $query->where(function($query) use ($search) {
+                $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
+                        ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                        ->orWhere('customers.name', 'LIKE', "%{$search}%");
+                });
+        })
+        ->when($request->is_active, function($query, $search) use ($request) {
+            if($search != 'all') {
+                $query->where('customers.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            }
+        })
+        ->when($request->is_cms, function($query, $search) {
+            if($search != 'all') {
+                $searchBoolean = filter_var($search, FILTER_VALIDATE_BOOLEAN);
+                if($searchBoolean)
+                    $query->whereNotNull('person_id');
+                else {
+                    $query->whereNull('person_id');
+                }
+            }
+        })
+        ->when($request->handled_by, fn($query, $input) => $query->where('handled_by', $input))
+        ->when($request->operator_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('operator_id', $search);
+            }
+        })
+        ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
+        ->when($request->profile_id, fn($query, $input) => $query->where('profile_id', $input))
+        ->when($request->ref_id, function($query, $search) {
+            $query->where('id', 'LIKE', $search - 10000);
+        })
+        ->when($request->status, fn($query, $input) => $query->where('status_id', $input))
+        ->when($request->vend_code, function($query, $search) {
+            $query->whereIn('id',
+                Vend::where('code', 'LIKE', '%'.$search.'%')
+                ->pluck('customer_id')
+            );
+        })
+        ->when($request->zone_id, fn($query, $input) => $query->where('zone_id', $input))
+        ->when($request->sortKey, function($query, $search) use ($request) {
+            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+        });
+    }
 }

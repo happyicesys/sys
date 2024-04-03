@@ -10,8 +10,8 @@ class RunningNumberService
   public function getVendOrderID(Vend $vend)
   {
     $operatorTimezone = 'Asia/Singapore';
-    if($vend->operators()->exists()) {
-        $operatorTimezone = $vend->operators()->first()->timezone;
+    if($vend->operator) {
+        $operatorTimezone = $vend->operator->timezone;
     }
     return Carbon::now()->setTimeZone($operatorTimezone)->format('ymdhis').sprintf('%05d', $vend->code);
   }

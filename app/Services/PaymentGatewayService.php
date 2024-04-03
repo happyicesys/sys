@@ -223,9 +223,7 @@ class PaymentGatewayService
 
   private function getOperator(Vend $vend)
   {
-    if($vend->operators()->exists()) {
-      return $vend->operators()->first();
-    }
+    return $vend->operator;
   }
 
   private function getAppEnvironment()

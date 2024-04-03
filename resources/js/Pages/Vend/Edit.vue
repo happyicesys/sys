@@ -52,9 +52,19 @@
               </div>
             </div>
 
+            <div class="sm:col-span-6 text-blue-600 text-xs" v-if="vend.id">
+              ** Edit More Device data or Unbind This Customer
+              <span>
+                <a class="text-blue-700" target="_blank" :href="'/settings/vend/' + vend.id + '/update'">
+                  (Click Here)
+                </a>
+              </span>
+            </div>
+
             <div class="sm:col-span-2">
               <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
-              v-if="permissions.includes('update vends')">
+              v-if="permissions.includes('update vends')"
+              disabled=true>
                 Begin Date
               </DatePicker>
             </div>
@@ -455,7 +465,7 @@
                   </Button>
                 </Link>
               </span>
-              <Button
+              <!-- <Button
                 type="button"
                 class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
                 v-if="vend && vend.customer && permissions.includes('update vends')"
@@ -465,7 +475,7 @@
                 <span>
                   Unbind VM & Customer
                 </span>
-              </Button>
+              </Button> -->
             </span>
           </div>
 

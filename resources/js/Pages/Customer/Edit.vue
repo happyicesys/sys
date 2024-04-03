@@ -26,7 +26,7 @@
                   </div>
                 </div>
 
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2 mb-2">
               <div class="sm:col-span-6 flex space-x-1">
                 <div
                     class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
@@ -143,11 +143,37 @@
                   {{ form.errors['customer.is_active'] }}
                 </div>
               </div>
-              <div class="sm:col-span-2">
+              <div class="sm:col-span-3">
                 <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
                 v-if="permissions.includes('update customers')">
                   Begin Date
                 </DatePicker>
+              </div>
+
+              <div class="sm:col-span-4">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Operator
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.operator_id"
+                  :options="operatorOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="full_name"
+                  placeholder="Select"
+                  open-direction="top"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.operator_id">
+                  {{ form.errors.operator_id }}
+                </div>
+              </div>
+              <div class="sm:col-span-6 text-blue-600 text-xs">
+                ** If change Operator, the Binded Vending Machine's Operator will be changed as well
               </div>
             </div>
               <!-- <div class="sm:col-span-2">
@@ -204,7 +230,7 @@
               </FormInput>
             </div>
 
-            <div class="sm:col-span-6 pt-2 mt-2 pb-1 md:pt-5 md:pb-3">
+            <div class="sm:col-span-6 pt-2 mt-2 md:pt-5 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
                   <div class="w-full border-t border-gray-300"></div>
@@ -273,41 +299,7 @@
             </div>
             </div>
 
-            <div class="sm:col-span-6 pt-2 mt-2 pb-1 md:pt-5 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Operator </span>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-span-12 sm:col-span-6">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Operator
-                <span class="text-red-500">
-                   *
-                </span>
-              </label>
-              <MultiSelect
-                v-model="form.operator_id"
-                :options="operatorOptions"
-                trackBy="id"
-                valueProp="id"
-                label="full_name"
-                placeholder="Select"
-                open-direction="top"
-                class="mt-1"
-              >
-              </MultiSelect>
-              <div class="text-sm text-red-600" v-if="form.errors.operator_id">
-                {{ form.errors.operator_id }}
-              </div>
-            </div>
-
-            <div class="sm:col-span-6 mt-3">
+            <div class="sm:col-span-6 mt-3 pt-2">
               <span class="flex justify-between">
                 <span class="flex space-x-1">
                   <Button

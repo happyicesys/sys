@@ -57,9 +57,11 @@ class SettingController extends Controller
                 'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix,operator_id',
                 'customer.operator:id,code,name',
             ])
+            ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->filterIndex($request)
             ->select(
-                'id',
+                'operators.code AS operator_code',
+                'operators.name AS operator_name',
                 'vends.id',
                 'vends.begin_date',
                 'vends.code',
@@ -69,6 +71,7 @@ class SettingController extends Controller
                 'vends.is_active',
                 'vends.last_updated_at',
                 'vends.name',
+                'vends.operator_id',
                 'vends.termination_date',
                 'vends.firmware_ver',
                 'vends.last_updated_at',
@@ -111,15 +114,15 @@ class SettingController extends Controller
 
     public function edit($id)
     {
-        $vend = Vend::query()
+        $vend = Vend::withoutGlobalScopes()
         ->with([
             'customer',
             'customer.deliveryAddress',
             'customer.contact',
+            'operator'
         ])
         ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
         ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-        ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
         ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
         ->leftJoin('addresses', function($query) {
             $query->on('addresses.modelable_id', '=', 'customers.id')
@@ -137,6 +140,7 @@ class SettingController extends Controller
             'customers.person_id',
             'vends.begin_date',
             'vends.termination_date',
+            'vends.operator_id',
             DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
             DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
         )
@@ -187,7 +191,8 @@ class SettingController extends Controller
         }
 
         $vend = Vend::create($request->all());
-        $vend->operators()->attach(auth()->user()->operator_id);
+        $vend->operator_id = auth()->user()->operator_id;
+        $vend->save();
 
         return redirect()->route('settings.edit', [$vend->id]);
     }

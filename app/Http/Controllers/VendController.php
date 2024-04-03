@@ -117,7 +117,7 @@ class VendController extends Controller
             ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->select(
                 'vends.id AS id',
@@ -141,6 +141,7 @@ class VendController extends Controller
                 'vends.is_temp_error',
                 'vends.last_updated_at',
                 'vends.mqtt_last_updated_at',
+                'vends.operator_id',
                 'vends.out_of_stock_sku_percent',
                 'vends.parameter_json',
                 'vends.product_mapping_id',
@@ -163,10 +164,11 @@ class VendController extends Controller
                 'customers.virtual_customer_code',
                 'product_mappings.name AS product_mapping_name',
                 'product_mappings.remarks AS product_mapping_remarks',
+                'operators.code AS operator_code',
                 'operators.name AS operator_name',
             );
         $vends = $this->filterVendsDB($vends, $request);
-        $vends = $this->filterOperatorDB($vends);
+        $vends = $this->filterOperatorDB($vends, 'vends');
 
         $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
@@ -289,6 +291,7 @@ class VendController extends Controller
                 'customers.is_testing',
                 'customers.location_type_id',
                 'customers.name AS customer_name',
+                'customers.operator_id',
                 'customers.person_json',
                 'customers.person_id AS person_id',
                 'customers.termination_date',
@@ -297,11 +300,12 @@ class VendController extends Controller
                 'location_types.name AS location_type_name',
                 'product_mappings.name AS product_mapping_name',
                 'product_mappings.remarks AS product_mapping_remarks',
+                'operators.code AS operator_code',
                 'operators.name AS operator_name',
                 'addresses.postcode AS postcode',
             );
         $vends = $this->filterVendsDB($vends, $request);
-        $vends = $this->filterOperatorDB($vends);
+        $vends = $this->filterOperatorDB($vends, 'customers');
 
         $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
@@ -560,12 +564,18 @@ class VendController extends Controller
                 // 'product:id,code,name',
                 'vendChannelError:id,desc',
             ])
+            ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
             // ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
             // ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->filterTransactionIndex($request)
-            ->when($request->sortKey, function($query, $search) use ($request) {
-                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-            })
+            ->select(
+                'vend_transactions.*',
+                'operators.code AS operator_code',
+                'operators.name AS operator_name',
+            )
+            // ->when($request->sortKey, function($query, $search) use ($request) {
+            //     $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            // })
             ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 
@@ -789,10 +799,11 @@ class VendController extends Controller
         // }
 
         if($request->operator_id) {
-            $vend->operators()->sync([$request->operator_id]);
+            $vend->operator_id = $request->operator_id;
         }else {
-            $vend->operators()->sync([auth()->user()->operator_id]);
+            $vend->operator_id = auth()->user()->operator_id;
         }
+        $vend->save();
 
         return redirect()->route('settings');
     }
@@ -813,6 +824,18 @@ class VendController extends Controller
             'is_testing' => $request->is_testing,
             'termination_date' => $request->termination_date,
         ]);
+
+        if($request->operator_id != $vend->operator_id) {
+            $vend->update([
+                'operator_id' => $request->operator_id,
+            ]);
+
+            if($vend->customer) {
+                $vend->customer->update([
+                    'operator_id' => $request->operator_id,
+                ]);
+            }
+        }
 
         // if($request->customer_id) {
         //     SyncVendCustomerCms::dispatchSync($vend->id, $request->customer_id);
@@ -910,7 +933,7 @@ class VendController extends Controller
             )
             ->where('capacity', '>', 0);
         $vendChannels = $this->filterVendChannelsDB($vendChannels, $request);
-        $vendChannels = $this->filterOperatorDB($vendChannels);
+        $vendChannels = $this->filterOperatorDB($vendChannels, 'customers');
         $vendChannels = $vendChannels->get();
 
         // dd($vendChannels);
@@ -947,7 +970,7 @@ class VendController extends Controller
                 ])
                 ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
                 ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-                ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+                ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
                 ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
                 ->leftJoin('addresses', function($query) {
                     $query->on('addresses.modelable_id', '=', 'customers.id')
