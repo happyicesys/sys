@@ -269,7 +269,7 @@ class Customer extends Model
         })
         ->when($request->status, fn($query, $input) => $query->where('status_id', $input))
         ->when($request->vend_code, function($query, $search) {
-            $query->whereIn('id',
+            $query->whereIn('customers.id',
                 Vend::where('code', 'LIKE', '%'.$search.'%')
                 ->pluck('customer_id')
             );

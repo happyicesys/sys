@@ -311,7 +311,7 @@ class DeliveryPlatformService
             'currency' => $this->getGrabMenuCurrency($deliveryProductMappingVendObj),
             'sellingTimes' => [$this->getGrabMenuSellingTimes()],
             'categories' => [[
-              ...$this->getGrabMenuCategories($deliveryProductMappingVendObj),
+              ...$this->getGrabMenuCategoriesDefault($deliveryProductMappingVendObj),
               'subCategories' => $this->getGrabMenuSubCategoriesItems($deliveryProductMappingVendObj->deliveryProductMappingVendChannels()->pluck('id'))
             ]],
           ];
@@ -657,7 +657,7 @@ class DeliveryPlatformService
 
   // grab parameter getter
   // menu
-  private function getGrabMenuCategories($model)
+  private function getGrabMenuCategoriesDefault($model)
   {
     return [
       'id' => $model->deliveryProductMapping->platform_category_id,
