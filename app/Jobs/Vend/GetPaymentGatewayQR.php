@@ -72,6 +72,7 @@ class GetPaymentGatewayQR
                             $vend->customer->virtual_customer_prefix.'-'.$vend->customer->virtual_customer_code . ' ' . $vend->customer->name : null,
                 ],
             ]);
+            dd($response);
 
             if($response['errorMsg']) {
                 $this->mqttService->publish('CM'.$vend->code, $errorMsg);
