@@ -44,6 +44,7 @@ class ProductController extends Controller
                         ->orderBy('name')
                         ->get()
             ),
+            'languageOptions' => config('language'),
             'measurementUnitOptions' => Product::MEASUREMENT_UNIT_MAPPINGS,
             'operatorOptions' => OperatorResource::collection(
                 Operator::all()
@@ -157,6 +158,12 @@ class ProductController extends Controller
                     }
                 }
             }
+        }
+
+        if($request->has('language') and $request->has('translated_name')) {
+            $product->update([
+                'translated_names_json->' . $request->language => $request->translated_name
+            ]);
         }
 
         return redirect()->route('products');

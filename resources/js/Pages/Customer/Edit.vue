@@ -5,7 +5,7 @@
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
         Editing Customer
         <span>
-          (Obj ID: {{ customer.id + 10000}})
+          (Obj ID: {{ customer.id + 20000}})
         </span>
       </h2>
     </template>
@@ -75,20 +75,6 @@
                 </div>
               </div> -->
 
-              <!-- <div class="sm:col-span-1" v-if="customer.id">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  ID
-                </label>
-                <div class="mt-1">
-                  <input
-                    type="text"
-                    class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                    :value="customer.id + 10000"
-                    disabled
-                  />
-                </div>
-              </div> -->
-
               <div class="sm:col-span-5" v-if="customer.id && customer.person_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Customer
@@ -105,8 +91,8 @@
 
               <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
                 <div class="sm:col-span-2">
-                  <FormInput v-model="form.code" :error="form.errors.code" :disabled="form.person_id">
-                    Cust Code
+                  <FormInput v-model="form.refID" :error="form.errors.code" :disabled="form.person_id">
+                    Cust ID
                   </FormInput>
                 </div>
                 <div class="sm:col-span-3">

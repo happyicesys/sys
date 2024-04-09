@@ -11,6 +11,8 @@ class Customer extends Model
 {
     use HasFactory;
 
+    const RUNNING_NUMBER_INIT = 20000;
+
     const STATUS_NEW = 4;
     const STATUS_PENDING = 3;
     const STATUS_ACTIVE = 2;
@@ -79,9 +81,9 @@ class Customer extends Model
     ];
 
     // mutator
-    public function refID()
+    public function getRefIDAttribute()
     {
-        return $this->id + 10000;
+        return $this->id + self::RUNNING_NUMBER_INIT;
     }
 
     // relationships
@@ -265,7 +267,7 @@ class Customer extends Model
         ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
         ->when($request->profile_id, fn($query, $input) => $query->where('profile_id', $input))
         ->when($request->ref_id, function($query, $search) {
-            $query->where('id', 'LIKE', $search - 10000);
+            $query->where('id', 'LIKE', $search - 20000);
         })
         ->when($request->status, fn($query, $input) => $query->where('status_id', $input))
         ->when($request->vend_code, function($query, $search) {

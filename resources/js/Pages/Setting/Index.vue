@@ -227,7 +227,7 @@
                         {{ vend.code }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                        <a :class="[vend && vend.customer && vend.customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="vend.customer && vend.customer.person_id ? '//admin.happyice.com.sg/person/' + vend.customer.person_id + '/edit' : (vend.customer ? '/customers/' + vend.customer.id + '/edit' : '#' )">
+                        <a :class="[vend && vend.customer && vend.customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="vend.customer && vend.customer.person_id ? cmsEndpoint + '/person/' + vend.customer.person_id + '/edit' : (vend.customer ? '/customers/' + vend.customer.id + '/edit' : '#' )">
                           <span v-if="vend.customer && vend.customer.person_id && (vend.customer.virtual_customer_code || vend.customer.virtual_customer_prefix)">
                             <span v-if="vend.customer.virtual_customer_code">
                               {{ vend.customer.virtual_customer_code }}
@@ -350,6 +350,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 const props = defineProps({
     categories: Object,
     categoryGroups: Object,
+    cmsEndpoint: String,
     locationTypeOptions: Object,
     operatorOptions: Object,
     vends: Object,

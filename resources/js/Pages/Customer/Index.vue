@@ -296,7 +296,7 @@
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
                         <!-- <a :class="[customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="'//admin.happyice.com.sg/person/' + customer.person_id + '/edit'"> -->
-                        <a :class="[customer && customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="customer && customer.person_id ? '//admin.happyice.com.sg/person/' + customer.person_id + '/edit' : (customer ? '/customers/' + customer.id + '/edit' : '#' )">
+                        <a :class="[customer && customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="customer && customer.person_id ? cmsEndpoint + '/person/' + customer.person_id + '/edit' : (customer ? '/customers/' + customer.id + '/edit' : '#' )">
                           <span v-if="customer.person_id && (customer.virtual_customer_code || customer.virtual_customer_prefix)">
                             <span v-if="customer.virtual_customer_code">
                               {{ customer.virtual_customer_code }}
@@ -418,6 +418,7 @@ const props = defineProps({
   customers: Object,
   categories: Object,
   categoryGroups: Object,
+  cmsEndpoint: String,
   operatorOptions: Object,
   priceTemplates: Object,
   profiles: Object,

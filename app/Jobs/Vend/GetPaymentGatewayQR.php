@@ -66,9 +66,10 @@ class GetPaymentGatewayQR
                 'type' => isset($input['payment_gateway_slug']) ? $input['payment_gateway_slug'] : null,
                 'metadata' => [
                     'order_id' => $orderId,
-                    'vend_code' => $vend->code,
-                    'customer_code' => $vend->customer->exists() ?
-                        $vend->customer->code : null,
+                    'vend_id' => $vend->code,
+                    'cust_id' => $vend->customer ? $vend->customer->refID : null,
+                    'cust_name' => $vend->customer && $vend->customer->person_id ?
+                            $vend->customer->virtual_customer_prefix.'-'.$vend->customer->virtual_customer_code . ' ' . $vend->customer->name : null,
                 ],
             ]);
 

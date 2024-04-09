@@ -30,21 +30,26 @@ class Product extends Model
     }
 
     protected $fillable = [
+        'category_id',
+        'category_group_id',
         'cms_refer_id',
         'code',
-        'name',
-        'remarks',
         'desc',
         'is_active',
         'is_commission',
         'is_inventory',
         'is_supermarket_fee',
-        'category_id',
-        'category_group_id',
-        'operator_id',
         'measurement_count',
         'measurement_unit',
         'measurement_value',
+        'name',
+        'operator_id',
+        'remarks',
+        'translated_names_json',
+    ];
+
+    protected $casts = [
+        'translated_names_json' => 'json',
     ];
 
     // relationships

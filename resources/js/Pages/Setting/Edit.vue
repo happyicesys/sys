@@ -247,7 +247,7 @@
                   <input
                     type="text"
                     class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                    :value="'#'+(vend.customer.id + 10000) + ' - ' + vend.customer_code + ' - ' + vend.customer_name"
+                    :value="'#'+(vend.customer.id + 20000) + ' - ' + vend.customer_code + ' - ' + vend.customer_name"
                     disabled
                   />
                 </div>
@@ -260,7 +260,7 @@
                   <input
                     type="text"
                     class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                    :value="'#'+(vend.customer.id + 10000) + ' - ' + (vend.customer.code ? vend.customer.code : '')  + ' - ' + vend.customer_name"
+                    :value="'#'+(vend.customer.id + 20000) + ' - ' + (vend.customer.code ? vend.customer.code : '')  + ' - ' + vend.customer_name"
                     disabled
                   />
                 </div>

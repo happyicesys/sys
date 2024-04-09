@@ -257,6 +257,7 @@
       :uoms = "uoms"
       :type="type"
       :showModal="showModal"
+      :languageOptions="props.languageOptions"
       :measurementUnitOptions="measurementUnitOptions"
       :operatorOptions="operatorOptions"
       :permissions="permissions"
@@ -284,6 +285,7 @@ import { router } from '@inertiajs/vue3';
 const props = defineProps({
   categories: Object,
   categoryGroups: Object,
+  languageOptions: [Array, Object],
   measurementUnitOptions: Object,
   operatorOptions: Object,
   products: Object,
@@ -303,6 +305,7 @@ const filters = ref({
 })
 const booleanOptions = ref([])
 const commSfOptions = ref([])
+const languageOptions = ref([])
 const showModal = ref(false)
 const roles = usePage().props.auth.roles
 const permissions = usePage().props.auth.permissions
@@ -313,6 +316,7 @@ const type = ref('')
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
+  // console.log(JSON.parse(JSON.stringify(props.languageOptions)))
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },

@@ -17,7 +17,7 @@ class CustomerResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'ref_id' => $this->id + 10000,
+            'ref_id' => $this->id + 20000,
             'category_id' => CategoryResource::make($this->whenLoaded('category')),
             'code' => $this->code,
             'created_at' => Carbon::parse($this->created_at)->toDateString(),

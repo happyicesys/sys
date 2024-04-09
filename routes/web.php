@@ -380,6 +380,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('users')->group(function() {
         Route::get('/', [UserController::class, 'index'])->name('users');
         Route::post('/create', [UserController::class, 'create']);
+        Route::get('/{id}/edit', [UserController::class, 'edit'])->name('users.edit');
         Route::post('/{id}/update', [UserController::class, 'update']);
         Route::delete('/{id}', [UserController::class, 'delete']);
         Route::post('/bind-vend', [UserController::class, 'bindVend']);

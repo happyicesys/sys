@@ -108,6 +108,40 @@ class UserController extends Controller
         ]);
     }
 
+    public function edit($id)
+    {
+        $user = User::with([
+            'roles',
+            'vends:id,code,name,customer_id',
+            'vends.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
+        ])
+        ->findOrFail($id);
+
+        return Inertia::render('User/Edit', [
+            'user' => UserResource::make(
+                $user
+            ),
+            'operators' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'roles' => RoleResource::collection(Role::orderBy('name')->get()),
+            'type' => 'update',
+            'unbindedVends' => fn () =>
+                VendResource::collection(
+                    Vend::with([
+                        'customer:id,code,name'
+                    ])
+                    ->where('operator_id', $user->operator_id)
+                    ->whereHas('customer', function($query) use ($user) {
+                        $query->where('is_active', true);
+                    })
+                    ->orderBy('code')
+                    ->select('id', 'code', 'name', 'customer_id')
+                    ->get()
+            )
+        ]);
+    }
+
     public function selfUpdate(Request $request, $id)
     {
         $request->validate([
@@ -160,7 +194,7 @@ class UserController extends Controller
         $originalVends = collect($request->vends)->transform(function($vend) {
             return $vend['id'];
         });
-        $editedVends = collect($request->user['vends'])->transform(function($vend) {
+        $editedVends = collect($request->user['data']['vends'])->transform(function($vend) {
             return $vend['id'];
         });
 
@@ -178,7 +212,8 @@ class UserController extends Controller
             }
         }
 
-        return redirect()->route('users');
+        // return redirect()->route('users');
+        return redirect()->route('users.edit', [$userId]);
     }
 
     public function delete($userId)

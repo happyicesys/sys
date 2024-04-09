@@ -20,7 +20,7 @@ import 'filepond/dist/filepond.min.css';
 import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
 import FilePondPluginFileValidateSize from 'filepond-plugin-file-validate-size';
 
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 
 const FilePond = vueFilePond(FilePondPluginFileValidateType, FilePondPluginFileValidateSize);
 const files = ref([]);

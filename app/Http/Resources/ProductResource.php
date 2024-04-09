@@ -48,6 +48,7 @@ class ProductResource extends JsonResource
             'this_month_revenue' => $this->this_month_revenue/100,
             'this_month_gross_profit' => $this->this_month_gross_profit/100,
             'this_month_gross_profit_margin' => $this->this_month_gross_profit_margin,
+            'translated_names_json' => $this->translated_names_json,
             'last_month_count' => $this->last_month_count,
             'last_month_revenue' => $this->last_month_revenue/100,
             'last_month_gross_profit' => $this->last_month_gross_profit/100,

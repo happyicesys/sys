@@ -77,6 +77,7 @@ class SettingController extends Controller
                 'vends.last_updated_at',
                 'vends.private_key'
             );
+        $vends = $this->filterOperator($vends);
 
         $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
@@ -89,6 +90,7 @@ class SettingController extends Controller
             'categoryGroups' => CategoryGroupResource::collection(
                 CategoryGroup::where('classname', $className)->orderBy('name')->get()
             ),
+            'cmsEndpoint' => env('CMS_URL'),
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),

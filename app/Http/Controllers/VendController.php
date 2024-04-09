@@ -194,6 +194,7 @@ class VendController extends Controller
             'categoryGroups' => CategoryGroupResource::collection(
                 CategoryGroup::where('classname', $className)->orderBy('name')->get()
             ),
+            'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
             'indexType' => $request->indexType,
             'locationTypeOptions' => LocationTypeResource::collection(
@@ -332,6 +333,7 @@ class VendController extends Controller
             'categoryGroups' => CategoryGroupResource::collection(
                 CategoryGroup::where('classname', $className)->orderBy('name')->get()
             ),
+            'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
             'indexType' => $request->indexType,
             'locationTypeOptions' => LocationTypeResource::collection(

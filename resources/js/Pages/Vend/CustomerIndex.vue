@@ -12,6 +12,7 @@
         <IndexComponent
             :categories="categories"
             :categoryGroups="categoryGroups"
+            :cmsEndpoint="cmsEndpoint"
             :constTempError="constTempError"
             :locationTypeOptions="locationTypeOptions"
             :operatorOptions="operatorOptions"
@@ -33,6 +34,7 @@
   const props = defineProps({
     categories: Object,
     categoryGroups: Object,
+    cmsEndpoint: String,
     constTempError: Number,
     indexType: String,
     locationTypeOptions: Object,

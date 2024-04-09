@@ -273,6 +273,9 @@
                                   Items
                                 </TableHead>
                                 <TableHead>
+                                  Created At
+                                </TableHead>
+                                <TableHead>
                                   Action
                                 </TableHead>
                               </tr>
@@ -320,6 +323,9 @@
                                   <div v-if="!deliveryPlatformCampaignItem.items_json">
                                     NA
                                   </div>
+                                </TableData>
+                                <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
+                                  {{ deliveryPlatformCampaignItem.created_at }}
                                 </TableData>
                                 <TableData :currentIndex="deliveryPlatformCampaignItemIndex" :totalLength="deliveryPlatformCampaign.deliveryPlatformCampaignItems.length" inputClass="text-center">
                                     <Button

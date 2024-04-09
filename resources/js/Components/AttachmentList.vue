@@ -24,6 +24,9 @@
           </a>
         </p>
       </div>
+      <span class="text-xs pt-3">
+        {{ item.name }}
+      </span>
       <div class="flex space-x-2">
         <div class="flex shrink-0 items-center gap-x-4">
           <button type="button" class="rounded-full bg-gray-600 p-1.5 text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600"
@@ -67,6 +70,10 @@ const items = ref(props.items)
 function saveAttachment(itemIndex) {
   router.post('/attachments/' + items.value[itemIndex].id + '/update', {
     name: items.value[itemIndex].name
+  }, {
+    preserveState: false,
+    preserveScroll: true,
+    replace: true,
   })
   items.value[itemIndex].show = false
 }

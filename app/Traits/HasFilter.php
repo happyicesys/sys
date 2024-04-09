@@ -10,7 +10,30 @@ use Illuminate\Support\Facades\Http;
 
 trait HasFilter {
 
-    public function filterOperatorDB($query, $model = 'vends') {
+    public function filterOperator($query)
+    {
+        if(auth()->check()) {
+            $operatorId = auth()->user()->operator_id;
+            $isHappyIce = $operatorId == 1 ? true : false;
+            if($isHappyIce) {
+              $operatorId = null;
+            }
+            if($operatorId) {
+                $query = $query->whereHas('operator', function($query) use ($operatorId) {
+                    $query->where('id', $operatorId);
+                });
+            }
+
+            $vendIds = auth()->user()->vends ? auth()->user()->vends->pluck('id')->toArray() : null;
+            if($vendIds != null) {
+                $query->whereIn('vends.id', $vendIds);
+            }
+        }
+        return $query;
+    }
+
+    public function filterOperatorDB($query, $model = 'vends')
+    {
         $columnName = $model . '.operator_id';
 
         if(auth()->check()) {
@@ -24,7 +47,7 @@ trait HasFilter {
             }
 
             $vendIds = auth()->user()->vends ? auth()->user()->vends->pluck('id')->toArray() : null;
-            if($vendIds = null) {
+            if($vendIds != null) {
                 $query->whereIn('vends.id', $vendIds);
             }
         }

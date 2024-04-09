@@ -147,16 +147,17 @@
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
                               <div class="flex justify-center space-x-1">
-                                  <Button
-                                      type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-                                      @click="onEditClicked(user)"
-                                      v-if="permissions.includes('update users')"
-                                  >
-                                      <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                                      <span>
-                                          Edit
-                                      </span>
-                                  </Button>
+                                <Link :href="'/users/' + user.id + '/edit'">
+                                    <Button
+                                        type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                                        v-if="permissions.includes('update users')"
+                                    >
+                                    <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                                    <span>
+                                        Edit
+                                    </span>
+                                    </Button>
+                                </Link>
                                   <Button
                                       type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
                                       @click="onDeleteClicked(user)"
@@ -208,9 +209,8 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
-import { router } from '@inertiajs/vue3';router
 
 const props = defineProps({
   users: Object,

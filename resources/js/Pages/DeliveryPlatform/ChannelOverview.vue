@@ -199,7 +199,7 @@ function togglePauseDeliveryProductMappingVendChannel(channel) {
   if (!approval) {
       return;
   }
-  router.post('/delivery-product-mappings/channels/' + channel.id + '/toggle-pause', {
+  router.post('/delivery-product-mappings/channels/' + channel.id + '/toggle-pause', {}, {
       preserveState: false,
       preserveScroll: true,
       replace: true,

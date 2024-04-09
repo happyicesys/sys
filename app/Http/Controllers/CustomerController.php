@@ -26,6 +26,7 @@ use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendData;
 use App\Models\Zone;
+use App\Traits\HasFilter;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -34,6 +35,8 @@ use Inertia\Inertia;
 
 class CustomerController extends Controller
 {
+    use HasFilter;
+
     public function index(Request $request)
     {
         $request->merge([
@@ -46,33 +49,38 @@ class CustomerController extends Controller
         ]);
         $className = get_class(new Customer());
 
-        // dd($request->all());
+        $customers = Customer::with([
+            'attachments',
+            'billingAddress',
+            'category',
+            'category.categoryGroup',
+            'contact',
+            'deliveryAddress',
+            'firstTransaction',
+            'operator',
+            'profile',
+            'status',
+            'tagBindings',
+            'vend',
+            'zone'
+        ])
+        ->leftJoin('operators', 'customers.operator_id', '=', 'operators.id')
+        ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+        ->select(
+            'customers.*',
+            'operators.code as operator_code',
+            'operators.name as operator_name'
+        )
+        ->filterIndex($request);
+
+        $customers = $this->filterOperator($customers);
+
+        $customers = $customers->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
+        ->withQueryString();
+
         return Inertia::render('Customer/Index', [
             'customers' => CustomerResource::collection(
-                Customer::with([
-                        'attachments',
-                        'billingAddress',
-                        'category',
-                        'category.categoryGroup',
-                        'contact',
-                        'deliveryAddress',
-                        'firstTransaction',
-                        'operator',
-                        'profile',
-                        'status',
-                        'tagBindings',
-                        'vend',
-                        'zone'
-                    ])
-                    ->leftJoin('operators', 'customers.operator_id', '=', 'operators.id')
-                    ->select(
-                        'customers.*',
-                        'operators.code as operator_code',
-                        'operators.name as operator_name'
-                        )
-                    ->filterIndex($request)
-                    ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
-                    ->withQueryString()
+                $customers
             ),
             'categories' => CategoryResource::collection(
                 Category::query()
@@ -86,6 +94,7 @@ class CustomerController extends Controller
                         $query->where('classname', $className);
                     })->orderBy('name')->get()
             ),
+            'cmsEndpoint' => env('CMS_URL'),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
