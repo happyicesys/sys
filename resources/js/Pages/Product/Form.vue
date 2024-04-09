@@ -649,7 +649,7 @@ function onUomModalClose() {
 }
 
 function addUnitCost() {
-  form.value.unshift({
+  unitCosts.value.unshift({
     cost: form.value.unit_cost,
     date_from: form.value.date_from ? form.value.date_from : moment().format('YYYY-MM-DD'),
   })
