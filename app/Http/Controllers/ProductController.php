@@ -160,9 +160,9 @@ class ProductController extends Controller
             }
         }
 
-        if($request->has('language') and $request->has('translated_name')) {
+        if($request->has('languages')) {
             $product->update([
-                'translated_names_json->' . $request->language => $request->translated_name
+                'translated_names_json' => $request->languages
             ]);
         }
 

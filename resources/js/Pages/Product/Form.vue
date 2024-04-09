@@ -321,7 +321,7 @@
                           <td class="whitespace-nowrap py-4 text-sm text-center">
                           <Button
                             class="bg-red-400 hover:bg-red-500 text-white"
-                            @click="removeUnitCost(unitCost)"
+                            @click.prevent="removeUnitCost(unitCost)"
                             v-if="!unitCost.id"
                           >
                             <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
@@ -415,12 +415,12 @@
                         </tr>
                       </thead>
                       <tbody class="bg-white">
-                        <tr v-for="(language, languageIndex) in form.translated_names_json" :key="name" :class="languageIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <tr v-for="(language, key, index) in languages" :key="index" :class="index % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            {{ languageIndex + 1 }}
+                            {{ index + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ languageIndex ? languageOptions.find(language => language.id === languageIndex) : '' }}
+                            {{ key ? languageOptions.find(language => language.id === key).name : '' }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ language }}
@@ -428,13 +428,13 @@
                           <td class="whitespace-nowrap py-4 text-sm text-center">
                           <Button
                             class="bg-red-400 hover:bg-red-500 text-white"
-                            @click="removeLanguage(language)"
+                            @click.prevent="removeLanguage(key)"
                           >
                             <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                           </Button>
                         </td>
                         </tr>
-                        <tr v-if="!form.translated_names_json">
+                        <tr v-if="!languages || Object.keys(languages).length === 0">
                           <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
                             No Results Found
                           </td>
@@ -537,6 +537,7 @@ const unitCosts = ref([])
 const form = ref(
   useForm(getDefaultForm())
 )
+const languages = ref({})
 const languageOptions = ref([])
 const operatorOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
@@ -546,12 +547,12 @@ onMounted(() => {
   categoryOptions.value = props.categories.data.map((category) => {return {id: category.id, name: category.name}})
   categoryGroupOptions.value = props.categoryGroups.data.map((categoryGroup) => {return {id: categoryGroup.id, name: categoryGroup.name}})
   languageOptions.value = Object.entries(props.languageOptions).map(([id, name]) => ({ id, name }))
-  console.log(JSON.parse(JSON.stringify(languageOptions.value)))
   // languageOptions.value = Object.keys(props.languageOptions).map((index, language) => {return {id: index, name: language}})
   measurementUnitOptions.value = Object.keys(props.measurementUnitOptions).map((measurementUnit, index) => {return {id: measurementUnit, name: measurementUnit}})
   uomOptions.value = props.uoms.data.map((uom) => {return {id: uom.id, name: uom.name}})
   operatorOptions.value = props.operatorOptions.slice(1)
   unitCosts.value = props.product ? props.product.unitCosts : null
+  languages.value = props.product ? (props.product.translated_names_json ? props.product.translated_names_json : {}) : {}
 })
 
 function getDefaultForm() {
@@ -603,6 +604,7 @@ function submit() {
         measurement_unit: data.measurement_unit.id,
         operator_id: data.operator_id.id,
         unitCosts: unitCosts.value,
+        languages: languages.value,
         // category_id: data.category_id.id,
         // category_group_id: data.category_group_id.id,
       }))
@@ -658,11 +660,13 @@ function removeUnitCost(unitCost) {
 }
 
 function addLanguage() {
-  console.log(JSON.parse(JSON.stringify(form.value.translated_names_json)))
-  let keyName = form.value.language
-  form.value.translated_names_json.unshift({
-    keyName: form.value.unit_cost,
-  })
+  languages.value[form.value.language.id] = form.value.translated_name
+  form.value.language = ''
+  form.value.translated_name = ''
+}
+
+function removeLanguage(key) {
+  delete languages.value[key]
 }
 
 
