@@ -113,7 +113,10 @@ class DeliveryPlatformCampaignController extends Controller
                             $query->where('datetime_to', '>=', Carbon::now())
                                 ->orWhereNull('datetime_to');
                         })
-                        ->where('is_active', true);
+                        ->where('is_active', true)
+                        ->whereHas('deliveryProductMappingVend', function($query) {
+                            $query->where('is_active', true);
+                        });
                 },
                 'deliveryPlatformOperator.deliveryPlatform',
                 'deliveryProductMapping:id,category_json,name',
