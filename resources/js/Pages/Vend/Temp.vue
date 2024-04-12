@@ -196,6 +196,7 @@
   import { ref, onBeforeMount, watch } from 'vue';
   import { Head, router, usePage } from '@inertiajs/vue3';
   import moment from 'moment';
+import { layouts } from 'chart.js';
 
   const props = defineProps({
     duration: [Number, String],
@@ -213,7 +214,7 @@
   });
 
   const hourDurationFilters = ref([6])
-  const durationFilters = ref([1, 3, 7, 14])
+  const durationFilters = ref([1, 2, 5, 7, 14])
   const filters = ref({
     datetime_from: props.startDate ? props.startDate : moment().format('YYYY-MM-DD HH:mm:ss'),
     datetime_to: props.endDate ? props.endDate : moment().format('YYYY-MM-DD HH:mm:ss'),
@@ -274,8 +275,17 @@
                     return label;
                 }
             }
-        }
-    }
+        },
+        legend: {
+            labels: {
+                padding: 10, // Add padding for dataset labels
+                color: '#333',
+                font: {
+                    size: 14,
+                }
+            },
+        },
+    },
   })
   const forceRerender = () => {
   componentKey.value += 1;
@@ -377,6 +387,8 @@
     let vendTempsArr = []
     let vendFansArr = []
     let lastTempValue = []
+    let lowest = []
+    let highest = []
 
     if(types.value.length > 0 || fans.value.length > 0) {
         types.value.forEach((type, typeIndex) => {
@@ -385,10 +397,15 @@
             })
 
             if(vendTempsDataByType.length > 0) {
-
                 vendTempsArr[type] = vendTempsDataByType
                 let processList = []
                 for(let i = 0; i < vendTempsArr[type].length; i++) {
+                    if(lowest[type] == undefined || lowest[type] > vendTempsArr[type][i].value) {
+                        lowest[type] = vendTempsArr[type][i].value
+                    }
+                    if(highest[type] == undefined || highest[type] < vendTempsArr[type][i].value) {
+                        highest[type] = vendTempsArr[type][i].value
+                    }
                     if(i > 0 && Math.abs(moment(vendTempsArr[type][i].created_at).diff(moment(vendTempsArr[type][i-1].created_at), 'minutes')) > 5) {
                         processList.push({
                             past: vendTempsArr[type][i-1],
@@ -555,7 +572,7 @@
             datasets.value = []
             vendTemps.value.forEach((vendTemp, vendTempIndex) => {
                  datasets.value.push({
-                    label: 'T' + vendTempIndex + (lastTempValue[vendTempIndex] ? (' (' + lastTempValue[vendTempIndex] + "\u2103" + ')' ) : ''),
+                    label: 'T' + vendTempIndex + (lastTempValue[vendTempIndex] ? (' (' + lastTempValue[vendTempIndex] + "\u2103" + ')' ) : '') + ' [ ' + ('H:' + highest[vendTempIndex] + "\u2103" + ' L:' + lowest[vendTempIndex] + "\u2103") + ' ]',
                     data: vendTemp.map((temp) => {return {x: temp.created_at, y: temp.value}}),
                     borderColor: colors[vendTempIndex - 1],
                     backgroundColor: colors[vendTempIndex -1],

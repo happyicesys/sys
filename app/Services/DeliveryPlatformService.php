@@ -266,6 +266,19 @@ class DeliveryPlatformService
 
     switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
+        if($this->deliveryPlatformOperator->externalOauthToken()->exists()) {
+          $scope = $this->deliveryPlatformOperator->externalOauthToken->scopes;
+          dd($scope);
+        }
+
+        if($scope === 'mart.partner_api') {
+
+        }
+
+        if($scope === 'food.partner_api') {
+
+        }
+
         $deliveryProductMappingVendObj = DeliveryProductMappingVend::query()
           ->with([
             'deliveryProductMapping' => function($query) {
@@ -346,21 +359,33 @@ class DeliveryPlatformService
     $this->deliveryPlatformOperator = $deliveryPlatformOperator;
     $this->setDeliveryPlatformOperator($deliveryPlatformOperator);
 
-    $response = $this->model->listMartCategories();
-
-    if($response['success']) {
-      switch($deliveryPlatformOperator->deliveryPlatform->slug) {
-        case 'grab':
-          return $response['data'];
-          break;
-      }
-    }else {
-      if($response['code'] === 401) {
-        SyncDeliveryPlatformOauthByOperator::dispatch($deliveryPlatformOperator);
-        $this->getCategories($deliveryPlatformOperator);
-      }else {
-        throw new \Exception('Get Categories Failed, Other than 401');
-      }
+    switch($deliveryPlatformOperator->deliveryPlatform->slug) {
+      case 'grab':
+        $scope = $deliveryPlatformOperator->externalOauthToken->scopes;
+        if($scope === 'mart.partner_api') {
+          $response = $this->model->listMartCategories();
+          if($response['success']) {
+            return $response['data'];
+          }else {
+            if($response['code'] === 401) {
+              SyncDeliveryPlatformOauthByOperator::dispatch($deliveryPlatformOperator);
+              $this->getCategories($deliveryPlatformOperator);
+            }else {
+              throw new \Exception('Get Categories Failed, Other than 401');
+            }
+          }
+        } else if ($scope === 'food.partner_api') {
+          if($this->deliveryPlatformOperator->deliveryProductMappings()->exists()) {
+            $deliveryProductMappings = $this->deliveryPlatformOperator->deliveryProductMappings()->get();
+            $data = [];
+            foreach($deliveryProductMappings as $deliveryProductMapping) {
+              $data[] = $deliveryProductMapping->category_json;
+            }
+            return $data;
+          }
+          return;
+        }
+        break;
     }
   }
 

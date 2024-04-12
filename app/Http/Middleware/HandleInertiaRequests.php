@@ -58,6 +58,8 @@ class HandleInertiaRequests extends Middleware
                     'location' => $request->url(),
                 ]);
             },
+            'logoUrl' => env('APP_LOGO_URL'),
+            'smallLogoUrl' => env('APP_SMALL_LOGO_URL'),
         ]);
     }
 }

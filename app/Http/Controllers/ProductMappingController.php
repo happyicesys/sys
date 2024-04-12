@@ -24,6 +24,7 @@ class ProductMappingController extends Controller
 
     public function index(Request $request)
     {
+        // dd($request->all());
         $request->merge([
             'is_active' => $request->is_active ? $request->is_active : true,
             'numberPerPage' => $request->numberPerPage,
@@ -49,9 +50,8 @@ class ProductMappingController extends Controller
                     });
                 })
                 ->when($request->is_active, function($query, $search) use ($request) {
-                    if($search != 'all') {
-                        $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
-                    }
+                    // dd($search);
+                    $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
                 })
                 // ->when($sortKey, function($query, $search) use ($sortBy) {
                 //     $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
@@ -225,6 +225,15 @@ class ProductMappingController extends Controller
         $productMapping->save();
 
         $this->syncProductMappingChannels($productMapping);
+
+        return redirect()->route('product-mappings');
+    }
+
+    public function toggleActivateDeactivate($productMappingID)
+    {
+        $productMapping = ProductMapping::findOrFail($productMappingID);
+        $productMapping->is_active = !$productMapping->is_active;
+        $productMapping->save();
 
         return redirect()->route('product-mappings');
     }

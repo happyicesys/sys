@@ -16,13 +16,15 @@ class VendRecord extends Model
     }
 
     protected $fillable = [
+        'all_total_count',
         'customer_id',
         'customer_json',
         'date',
         'day',
-        'failure_amount',
-        'failure_count',
-        'gross_profit',
+        'error_count',
+        'failure_amount', //this failure amount is for failure transaction, other than [0, 6]
+        'failure_count', //this failure count is for failure transaction, other than [0, 6]
+        'gross_profit', //this gp is for success transaction
         'month',
         'monthname',
         'online_failure_amount',
@@ -30,9 +32,9 @@ class VendRecord extends Model
         'online_success_amount',
         'online_success_count',
         'operator_id',
-        'revenue',
-        'total_amount',
-        'total_count',
+        'revenue', //this revenue is for success transaction
+        'total_amount', //this total amount is for success transaction
+        'total_count', //this total count is for success transaction
         'vend_code',
         'vend_id',
         'year',

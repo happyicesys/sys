@@ -294,6 +294,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/', [ProductMappingController::class, 'index'])->name('product-mappings');
         Route::post('/create', [ProductMappingController::class, 'create']);
         Route::get('/{id}/edit', [ProductMappingController::class, 'edit'])->name('product-mappings.edit');
+        Route::post('/{id}/toggle-activate-deactivate', [ProductMappingController::class, 'toggleActivateDeactivate']);
         Route::post('/{id}/update', [ProductMappingController::class, 'update']);
         Route::post('/{id}/update/vends', [ProductMappingController::class, 'bindVends']);
         Route::post('/{id}/upload-attachments', [ProductMappingController::class, 'uploadAttachment']);

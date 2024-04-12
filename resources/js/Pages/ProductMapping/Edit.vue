@@ -36,7 +36,7 @@
                 Name
               </FormInput>
             </div>
-            <div class="sm:col-span-5">
+            <!-- <div class="sm:col-span-5">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Is Active?
                 </label>
@@ -54,7 +54,7 @@
                 <div class="text-sm text-red-600" v-if="form.errors['customer.is_active']">
                   {{ form.errors['customer.is_active'] }}
                 </div>
-              </div>
+              </div> -->
             <div class="sm:col-span-6">
               <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
                 Remarks
@@ -205,30 +205,53 @@
           </div>
 
 
-          <div class="sm:col-span-6">
-            <div class="flex space-x-1 mt-5 justify-end">
-              <Link :href="'/product-mappings'">
-                <Button
-                  type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
-                >
-                  <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+          <div class="sm:col-span-6 mt-5 ">
+            <div class="flex justify-between">
+              <div class="flex space-x-1 justify-start">
+                <Button type="button" class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1" v-if="form.id" @click="replicateProductMapping()">
+                  <DocumentDuplicateIcon class="w-4 h-4"></DocumentDuplicateIcon>
                   <span>
-                    Back
+                    Replicate
                   </span>
                 </Button>
-              </Link>
-              <Button type="button" class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1" v-if="form.id" @click="replicateProductMapping()">
-                <DocumentDuplicateIcon class="w-4 h-4"></DocumentDuplicateIcon>
-                <span>
-                  Replicate
-                </span>
-              </Button>
-              <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
-                <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                <span>
-                  Save
-                </span>
-              </Button>
+
+                <Button type="button" v-if="form.id" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
+                  <div>
+                    <span class="flex space-x-1 items-center" v-if="form.is_active">
+                      <FolderMinusIcon class="w-4 h-4"></FolderMinusIcon>
+                      <span>
+                        Deactivate
+                      </span>
+                    </span>
+                    <span class="flex space-x-1 items-center" v-else>
+                      <FolderPlusIcon class="w-4 h-4"></FolderPlusIcon>
+                      <span>
+                        Activate
+                      </span>
+                    </span>
+                  </div>
+                </Button>
+              </div>
+
+              <div class="flex space-x-1 justify-end">
+                <Link :href="'/product-mappings'">
+                  <Button
+                    type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                  >
+                    <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                    <span>
+                      Back
+                    </span>
+                  </Button>
+                </Link>
+
+                <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
+                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                  <span>
+                    Save
+                  </span>
+                </Button>
+              </div>
             </div>
           </div>
         </form>
@@ -248,7 +271,7 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 
@@ -273,7 +296,7 @@ const productMappingItems = ref([])
 onMounted(() => {
   form.value = props.productMapping ? useForm({
     ...props.productMapping.data,
-    is_active: props.productMapping && props.productMapping.data ? props.productMapping.data.is_active ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false') : booleanStrictOptions.value.find(option => option.id === 'true'),
+    // is_active: props.productMapping && props.productMapping.data ? props.productMapping.data.is_active ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false') : booleanStrictOptions.value.find(option => option.id === 'true'),
   }) : useForm(getDefaultForm())
   productOptions.value = props.products.data
   productMappingItems.value = props.productMapping ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems)) : useForm()
@@ -313,6 +336,16 @@ function bindProductMappingItem() {
     productMappingItems.value.push({product: form.value.product_id, channel_code: form.value.channel_code})
     productMappingItems.value.sort((a, b) => a.channel_code - b.channel_code)
   }
+}
+
+function toggleActivateDeactivate() {
+  form.value.post('/product-mappings/' + form.value.id + '/toggle-activate-deactivate', {
+    onSuccess: () => {
+      emit('modalClose')
+    },
+      preserveState: true,
+      replace: true,
+  })
 }
 
 function unbindProductMappingItem(productMappingItem) {

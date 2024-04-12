@@ -154,7 +154,7 @@
               </div>
               <div v-if="form.id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Platform SubCategory
+                  SubCategory
                 </label>
                 <MultiSelect
                   v-model="form.sub_category_json"
@@ -210,7 +210,7 @@
                             Price
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Platform SubCategory
+                            SubCategory
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Action

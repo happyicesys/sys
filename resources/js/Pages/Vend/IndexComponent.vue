@@ -18,8 +18,11 @@
           <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Serial Num" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
               Serial Num
           </SearchInput>
-          <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @keyup.enter="onSearchFilterUpdated()">
+          <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @keyup.enter="onSearchFilterUpdated()" class="md:block" :class="[showAllFilters ? 'block' : 'hidden']">
               T1 &gt;&gt;
+          </SearchInput>
+          <SearchInput placeholderStr="Number" v-model="filters.t2HigherThan" @keyup.enter="onSearchFilterUpdated()" class="md:block" :class="[showAllFilters ? 'block' : 'hidden']">
+              T2 &gt;&gt;
           </SearchInput>
           <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Number" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()">
               T1-T2 Delta &gt;&gt;
@@ -413,8 +416,17 @@
                         Inventory Status <br>
                         (#Channel, Sold, Balance/Capacity)
                     </TableHead>
-                    <TableHead>
+                    <TableHeadSort modelName="vend_channel_error_logs_json" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_error_logs_json')">
                         Errors
+                    </TableHeadSort>
+                    <TableHead>
+                        Error Rate
+                        <SingleSortItem modelName="totals_json->three_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->three_days_error_rate', true)">
+                            3d
+                        </SingleSortItem>
+                        <SingleSortItem modelName="totals_json->seven_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_error_rate', true)">
+                            7d
+                        </SingleSortItem>
                     </TableHead>
                     <TableHeadSort modelName="balance_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('balance_percent')">
                         Balance Stock
@@ -636,6 +648,27 @@
                                   </div>
                               </div>
                           </span>
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        <span
+                          v-if="vend.vendTransactionTotalsJson && 'three_days_error_rate' in vend.vendTransactionTotalsJson"
+                          :class="[
+                              vend.is_active ?
+                              (vend.vendTransactionTotalsJson['three_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
+                              'text-gray-400'
+                          ]">
+                            {{vend.vendTransactionTotalsJson['three_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}% ({{vend.vendTransactionTotalsJson['three_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['three_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
+                        </span>
+                        <span
+                          v-if="vend.vendTransactionTotalsJson && 'seven_days_error_rate' in vend.vendTransactionTotalsJson"
+                          :class="[
+                              vend.is_active ?
+                              (vend.vendTransactionTotalsJson['seven_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
+                              'text-gray-400'
+                          ]">
+                            <br>
+                            {{vend.vendTransactionTotalsJson['seven_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}% ({{vend.vendTransactionTotalsJson['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['seven_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
+                        </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           <span
@@ -1007,6 +1040,7 @@ const filters = ref({
   is_active: true,
   is_binded_customer: '',
   tempHigherThan: '',
+  t2HigherThan: '',
   tempDeltaHigherThan: '',
   vend_channel_error_id: '',
   lastVisitedGreaterThan: '',
@@ -1189,7 +1223,8 @@ onMounted(() => {
         numberPerPage: filters.value.numberPerPage.id,
     }, {
         preserveState: true,
-        replace: true,
+        preserveScroll: true,
+        // replace: true,
         onFinish: visit => {
             now.value = moment().format('HH:mm:ss')
         },

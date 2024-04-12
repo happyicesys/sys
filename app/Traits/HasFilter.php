@@ -257,6 +257,11 @@ trait HasFilter {
               $query->where('temp', '>=', $search * 10);
           }
       })
+      ->when($request->t2HigherThan, function($query, $search) {
+        if(is_numeric($search)) {
+            $query->where('parameter_json->t2', '>=', $search * 10);
+        }
+    })
       ->when($request->tempDeltaHigherThan, function($query, $search) {
           if(is_numeric($search)) {
               $query
@@ -347,8 +352,13 @@ trait HasFilter {
 
           if(strpos($search, '->')) {
               $inputSearch = explode("->", $search);
-              $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'))
-              ->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+              if($search === 'totals_json->three_days_error_rate' or $search === 'totals_json->seven_days_error_rate') {
+                $query->orderByRaw('(CAST(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+              }else {
+                $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+              }
+
+              $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
           }else {
             if($search == 'balance_percent' or $search == 'out_of_stock_sku_percent') {
                 $query->orderByRaw('ISNULL('.$search.'), '.$search.' '.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));

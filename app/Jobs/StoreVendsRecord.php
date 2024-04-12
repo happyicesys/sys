@@ -67,15 +67,27 @@ class StoreVendsRecord implements ShouldQueue
                     ),0) as total_amount'
                 ),
                 DB::raw(
+                    'COUNT(vend_transactions.id) as all_total_count'
+                ),
+                DB::raw(
                     'COUNT(
                         CASE
                             WHEN error_code_normalized IS NULL THEN vend_transactions.id
                             WHEN error_code_normalized = 0 THEN vend_transactions.id
                             WHEN error_code_normalized = 6 THEN vend_transactions.id
-                            WHEN is_multiple = 1 THEN amount
+                            WHEN is_multiple = 1 THEN vend_transactions.id
                             ELSE NULL
                         END
                     ) as total_count'
+                ),
+                DB::raw(
+                    'COUNT(
+                        CASE
+                            WHEN error_code_normalized IS NULL THEN NULL
+                            WHEN error_code_normalized = 0 THEN NULL
+                            ELSE 1
+                        END
+                    ) as error_count'
                 ),
                 DB::raw(
                     'COALESCE(SUM(
@@ -173,9 +185,11 @@ class StoreVendsRecord implements ShouldQueue
                 'vend_id' => $vend->vend_id,
                 'date' => $vend->date,
             ], [
+                'all_total_count' => $vend->all_total_count,
                 'customer_id' => isset($vend->customer_id) ? $vend->customer_id : null,
                 'customer_json' => isset($vend->customer_id) ? $vend->customer : ['name' => $vend->name],
                 'day' => $vend->day,
+                'error_count' => $vend->error_count,
                 'failure_amount' => $vend->failure_amount,
                 'failure_count' => $vend->failure_count,
                 'gross_profit' => $vend->gross_profit,

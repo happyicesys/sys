@@ -126,6 +126,7 @@
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
                         <div class="flex flex-col space-y-1">
                           <span>
+                            <!-- {{ productMapping }} -->
                             {{ productMapping.name }}
                           </span>
                           <div
@@ -295,9 +296,8 @@ const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
   booleanOptions.value = [
-    {id: 'all', value: 'All'},
-    {id: 'true', value: 'Yes'},
-    {id: 'false', value: 'No'},
+    {id: 1, value: 'Yes'},
+    {id: 0, value: 'No'},
   ]
   numberPerPageOptions.value = [
     { id: 50, value: 50 },
@@ -306,7 +306,7 @@ onMounted(() => {
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
   ]
-  filters.value.is_active = booleanOptions.value[1]
+  filters.value.is_active = booleanOptions.value[0]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
 
@@ -347,7 +347,7 @@ function onVendFormEditClicked(productMappingValue) {
 function onSearchFilterUpdated() {
   router.get('/product-mappings', {
       ...filters.value,
-      is_active: filters.value.is_active.id,
+      // is_active: filters.value.is_active.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

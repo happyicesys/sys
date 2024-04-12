@@ -137,8 +137,9 @@ class Product extends Model
     public function scopeFilterIndex($query, $request)
     {
         // dd($request->all());
-        $isActive = isset($request->is_active) ? $request->is_active : 1;
-        $isInventory = isset($request->is_inventory) ? $request->is_inventory : 1;
+        $request->merge([
+            'is_active' => $request->is_active ? $request->is_active : true,
+        ]);
 
         return $query->when($request->has('visited'), function($query, $search) use ($request) {
             if($request->visited == 'true') {
@@ -219,20 +220,16 @@ class Product extends Model
         ->when($request->name, function($query, $search) {
             $query->where('name', 'LIKE', "%{$search}%");
         })
-        ->when($isActive, function($query, $search) {
-            $query->where('is_active', $search);
-        }, function($query, $search) {
-            if($search !== '') {
-                $query->where('is_active', $search);
-            }
+        ->when($request->is_active, function($query, $search) {
+            $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
         })
-        ->when($isInventory, function($query, $search) {
-            $query->where('is_inventory', $search);
-        }, function($query, $search) {
-            if($search !== '') {
-                $query->where('is_inventory', $search);
-            }
-        })
+        // ->when($isInventory, function($query, $search) {
+        //     $query->where('is_inventory', $search);
+        // }, function($query, $search) {
+        //     if($search !== '') {
+        //         $query->where('is_inventory', $search);
+        //     }
+        // })
         ->when($request->is_comm_or_sf, function($query, $search) {
             switch($search) {
                 case 'comm':

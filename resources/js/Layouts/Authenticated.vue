@@ -217,8 +217,11 @@ const navigation = [
 ]
 
 const showingNavigationDropdown = ref(false);
-const roles = usePage().props.auth.roles
+const logoUrl = usePage().props.logoUrl
 const permissions = usePage().props.auth.permissions
+const roles = usePage().props.auth.roles
+const smallLogoUrl = usePage().props.smallLogoUrl
+
 
 </script>
 
@@ -231,7 +234,7 @@ const permissions = usePage().props.auth.permissions
                 <div class="flex items-center justify-center flex-shrink-0 px-1 object-scale-down">
                     <Link href="/">
                         <div class="h-fit w-fit">
-                            <img class="object-cover h-24 w-36" src="/img/logo.png" alt="Company Logo">
+                            <img class="object-cover h-24 w-36" :src="logoUrl" alt="Company Logo">
                         </div>
                     </Link>
                 </div>
@@ -295,6 +298,15 @@ const permissions = usePage().props.auth.permissions
             <div class="md:w-5/6 xl:w-10/12">
                 <!-- Page Heading -->
                 <header class="bg-white shadow flex justify-between" v-if="$slots.header">
+                    <span class="md:hidden">
+                        <div class="flex items-center justify-center flex-shrink-0 px-1 object-scale-down">
+                            <Link href="/">
+                                <div class="h-fit w-fit py-2 px-1">
+                                    <img class="h-14 w-16" :src="smallLogoUrl" alt="Company Logo">
+                                </div>
+                            </Link>
+                        </div>
+                    </span>
                     <div class="max-w-7xl  my-auto py-4 px-4 lg:px-8">
                         <slot name="header" />
                     </div>

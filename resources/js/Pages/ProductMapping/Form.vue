@@ -207,7 +207,7 @@ const productMappingItems = ref([])
 onMounted(() => {
   form.value = props.productMapping ? useForm(props.productMapping) : useForm(getDefaultForm())
   productOptions.value = props.products.data
-  productMappingItems.value = props.productMapping ? JSON.parse(JSON.stringify(props.productMapping.productMappingItems)) : useForm()
+  productMappingItems.value = props.productMapping && props.productMapping.id ? JSON.parse(JSON.stringify(props.productMapping.productMappingItems)) : form.value
 })
 
 function getDefaultForm() {

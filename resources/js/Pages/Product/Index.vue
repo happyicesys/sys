@@ -61,7 +61,7 @@
               class="mt-1"
             >
             </MultiSelect>
-          </div>
+          </div> -->
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Is Active?
@@ -77,7 +77,7 @@
               class="mt-1"
             >
             </MultiSelect>
-          </div> -->
+          </div>
           <!-- <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Is Comm or SF?
@@ -194,7 +194,19 @@
                         {{ product.code }}
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-left">
-                        {{ product.name }}
+                        <div class="flex flex-col space-y-1">
+                          {{ product.name }}
+                          <div
+                            class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer"
+                            :class="product.is_active ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'"
+                          >
+                            <div class="flex flex-col">
+                                <span class="font-semibold grow-0">
+                                  {{ product.is_active ? 'Active' : 'Inactive' }}
+                                </span>
+                            </div>
+                          </div>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         <div class="flex justify-center">
@@ -296,7 +308,7 @@ const filters = ref({
   code: '',
   name: '',
   operator: '',
-  // is_active: '',
+  is_active: '',
   // is_comm_or_sf: '',
   // is_inventory: '',
   sortKey: '',
@@ -343,7 +355,7 @@ onMounted(() => {
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   filters.value.operator = operatorOptions.value[0]
-  // filters.value.is_comm_or_sf = commSfOptions.value[0]
+  filters.value.is_active = booleanOptions.value[0]
   // console.log(JSON.parse(JSON.stringify(props.uoms)))
 })
 

@@ -17,13 +17,16 @@
           <form @submit.prevent="submit" id="submit">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-2">
               <div class="sm:col-span-6">
-                <FormInput v-model="form.name" :error="form.errors.name">
+                <FormInput v-model="form.name" :error="form.errors.name" required="true">
                   Name
                 </FormInput>
               </div>
               <div class="sm:col-span-6">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Operator
+                  <span class="text-red-500">
+                   *
+                  </span>
                 </label>
                 <MultiSelect
                   v-model="form.operator_id"
@@ -41,6 +44,9 @@
               <div class="sm:col-span-6" v-if="form.operator_id && deliveryPlatformOperatorOptions.length">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Delivery Platform
+                  <span class="text-red-500">
+                   *
+                  </span>
                 </label>
                 <MultiSelect
                   v-model="form.delivery_platform_operator_id"
@@ -55,9 +61,13 @@
                 >
                 </MultiSelect>
               </div>
-              <div class="sm:col-span-6" v-if="form.delivery_platform_operator_id">
+              <!-- {{ categoryApiOptions }} -->
+              <div class="sm:col-span-6" v-if="form.delivery_platform_operator_id && categoryApiOptions.length">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Platform Category
+                  <span class="text-red-500">
+                   *
+                  </span>
                 </label>
                 <MultiSelect
                   v-model="form.category_json"
@@ -72,9 +82,17 @@
                 >
                 </MultiSelect>
               </div>
+              <div class="sm:col-span-6" v-if="form.delivery_platform_operator_id && !categoryApiOptions.length">
+                <FormInput v-model="form.category" required="true">
+                  Category Name
+                </FormInput>
+              </div>
               <div class="sm:col-span-6" v-if="form.delivery_platform_operator_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Refer to Product Mapping
+                  <span class="text-red-500">
+                   *
+                  </span>
                 </label>
                 <MultiSelect
                   v-model="form.product_mapping_id"
@@ -146,9 +164,9 @@
                   Price
                 </FormInput>
               </div>
-              <div v-if="form.product_mapping_id">
+              <div v-if="form.product_mapping_id && categoryApiOptions.length">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Platform SubCategory
+                  SubCategory
                 </label>
                 <MultiSelect
                   v-model="form.sub_category_json"
@@ -161,6 +179,11 @@
                   class="mt-1"
                 >
                 </MultiSelect>
+              </div>
+              <div v-if="form.product_mapping_id && !categoryApiOptions.length">
+                <FormInput v-model="form.sub_category" :error="form.errors.sub_category" placeholderStr="Subcategory Name">
+                  Subcategory Name
+                </FormInput>
               </div>
 
               <div class="sm:col-span-1" v-if="form.product_mapping_id">
@@ -201,7 +224,7 @@
                             Price
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Platform SubCategory
+                            SubCategory
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Action
@@ -237,20 +260,26 @@
                             </FormInput>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            <MultiSelect
-                              v-model="productMappingItem.delivery_platform_sub_category_json"
-                              :options="subCategoryOptions"
-                              trackBy="id"
-                              valueProp="id"
-                              label="name"
-                              placeholder="Select"
-                              open-direction="bottom"
-                              class="mt-1"
-                            >
-                            </MultiSelect>
-                            <div class="text-sm text-red-600" v-if="form.errors['productMappingItems.' + productMappingItemIndex + '.delivery_platform_sub_category_json']">
-                              {{ form.errors['productMappingItems.' + productMappingItemIndex + '.delivery_platform_sub_category_json'] }}
-                            </div>
+                            <span v-if="form.product_mapping_id && categoryApiOptions.length">
+                              <MultiSelect
+                                v-model="productMappingItem.delivery_platform_sub_category_json"
+                                :options="subCategoryOptions"
+                                trackBy="id"
+                                valueProp="id"
+                                label="name"
+                                placeholder="Select"
+                                open-direction="bottom"
+                                class="mt-1"
+                              >
+                              </MultiSelect>
+                              <div class="text-sm text-red-600" v-if="form.errors['productMappingItems.' + productMappingItemIndex + '.delivery_platform_sub_category_json']">
+                                {{ form.errors['productMappingItems.' + productMappingItemIndex + '.delivery_platform_sub_category_json'] }}
+                              </div>
+                            </span>
+                            <span v-if="form.product_mapping_id && !categoryApiOptions.length">
+                              <FormInput v-model="productMappingItem.sub_category" :error="form.errors['productMappingItems.' + productMappingItemIndex + '.sub_category']" placeholderStr="Subcategory Name">
+                              </FormInput>
+                            </span>
                           </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button
@@ -357,6 +386,7 @@ onMounted(() => {
 function getDefaultForm() {
   return {
     id: '',
+    category: '',
     category_json: '',
     delivery_platform_operator_id: '',
     name: '',
@@ -364,6 +394,7 @@ function getDefaultForm() {
     product_mapping_id: '',
     reserved_percent: 0,
     reserved_qty: 0,
+    sub_category: '',
     sub_category_json: '',
   }
 }
@@ -397,7 +428,7 @@ function onDeliveryPlatformOperatorIdSelected() {
     replace: true,
     preserveState: true,
     onSuccess: page => {
-      categoryApiOptions.value = props.categoryApiOptions[0].categories.map((data) => {return {id: data.id, name: data.name, subCategories: data.subCategories}})
+      categoryApiOptions.value = props.categoryApiOptions && props.categoryApiOptions[0] ? props.categoryApiOptions[0].categories.map((data) => {return {id: data.id, name: data.name, subCategories: data.subCategories}}) : []
       productMappingOptions.value = [
         ...props.productMappingOptions[0].data.map((data) => {return {id: data.id, name: data.name}})
       ]

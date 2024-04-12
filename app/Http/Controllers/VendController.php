@@ -405,7 +405,7 @@ class VendController extends Controller
 
     public function temp(Request $request, $vendId, $type)
     {
-        $duration = 3;
+        $duration = 2;
         if($request->duration) {
             $duration = $request->duration;
         }

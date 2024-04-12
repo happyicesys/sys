@@ -49,19 +49,29 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
 
         if($vend) {
 
-            $todayAmount = (int)$vend->daysVendTransactions(0,0)->sum('amount');
-            $todayCount = $vend->daysVendTransactions(0,0)->count();
-            $todayRevenue = (int)$vend->daysVendTransactions(0,0)->sum('revenue');
-            $todayGrossProfit = (int)$vend->daysVendTransactions(0,0)->sum('gross_profit');
+            $todayAmount = (int)$vend->daysVendTransactions(0,0)->isSuccessful()->sum('amount');
+            $todayCount = $vend->daysVendTransactions(0,0)->isSuccessful()->count();
+            $todayAllCount = $vend->daysVendTransactions(0,0)->count();
+            $todayErrorCount = $vend->daysVendTransactions(0,0)->isError()->count();
+            $todayRevenue = (int)$vend->daysVendTransactions(0,0)->isSuccessful()->sum('revenue');
+            $todayGrossProfit = (int)$vend->daysVendTransactions(0,0)->isSuccessful()->sum('gross_profit');
 
             $vend->update([
                 'vend_transaction_totals_json' => [
-                    'today_amount' => $vend->daysVendTransactions(0,0)->sum('amount'),
-                    'today_count' => $vend->daysVendTransactions(0,0)->count(),
+                    'today_amount' => $todayAmount,
+                    'today_count' => $todayCount,
                     'yesterday_amount' => (int)$vend->daysVendRecords(1,1)->sum('total_amount'),
                     'yesterday_count' => (int)$vend->daysVendRecords(1,1)->sum('total_count'),
+                    'three_days_amount' => (int)$vend->daysVendRecords(2,0)->sum('total_amount') + $todayAmount,
+                    'three_days_count' => (int)$vend->daysVendRecords(2,0)->sum('total_count') + $todayCount,
+                    'three_days_all_count' => (int)$vend->daysVendRecords(2,0)->sum('all_total_count') + $todayAllCount,
+                    'three_days_error_count' => (int)$vend->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount,
+                    'three_days_error_rate' => ($vend->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount) > 0 ? (($vend->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount) / ($vend->daysVendRecords(2,0)->sum('all_total_count') + $todayAllCount)) * 100 : 0,
                     'seven_days_amount' => (int)$vend->daysVendRecords(6,0)->sum('total_amount') + $todayAmount,
                     'seven_days_count' => (int)$vend->daysVendRecords(6,0)->sum('total_count') + $todayCount,
+                    'seven_days_all_count' => (int)$vend->daysVendRecords(6,0)->sum('all_total_count') + $todayAllCount,
+                    'seven_days_error_count' => (int)$vend->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount,
+                    'seven_days_error_rate' => ($vend->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount) > 0 ? (($vend->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount) / ($vend->daysVendRecords(6,0)->sum('all_total_count') + $todayAllCount)) * 100 : 0,
                     'thirty_days_amount' => (int)$vend->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
                     'thirty_days_count' => (int)$vend->daysVendRecords(29,0)->sum('total_count') + $todayCount,
                     'thirty_days_revenue' => (int)$vend->daysVendRecords(29,0)->sum('revenue') + $todayRevenue,
@@ -81,19 +91,29 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
         }
 
         if($customer) {
-            $todayAmount = (int)$customer->daysVendTransactions(0,0)->sum('amount');
-            $todayCount = $customer->daysVendTransactions(0,0)->count();
-            $todayRevenue = (int)$customer->daysVendTransactions(0,0)->sum('revenue');
-            $todayGrossProfit = (int)$customer->daysVendTransactions(0,0)->sum('gross_profit');
+            $todayAmount = (int)$customer->daysVendTransactions(0,0)->isSuccessful()->sum('amount');
+            $todayCount = $customer->daysVendTransactions(0,0)->isSuccessful()->count();
+            $todayAllCount = $customer->daysVendTransactions(0,0)->count();
+            $todayErrorCount = $customer->daysVendTransactions(0,0)->isError()->count();
+            $todayRevenue = (int)$customer->daysVendTransactions(0,0)->isSuccessful()->sum('revenue');
+            $todayGrossProfit = (int)$customer->daysVendTransactions(0,0)->isSuccessful()->sum('gross_profit');
 
             $customer->update([
                 'totals_json' => [
-                    'today_amount' => (int)$customer->daysVendTransactions(0,0)->sum('amount'),
-                    'today_count' => $customer->daysVendTransactions(0,0)->count(),
+                    'today_amount' => $todayAmount,
+                    'today_count' => $todayCount,
                     'yesterday_amount' => (int)$customer->daysVendRecords(1,1)->sum('total_amount'),
                     'yesterday_count' => (int)$customer->daysVendRecords(1,1)->sum('total_count'),
+                    'three_days_amount' => (int)$customer->daysVendRecords(2,0)->sum('total_amount') + $todayAmount,
+                    'three_days_count' => (int)$customer->daysVendRecords(2,0)->sum('total_count') + $todayCount,
+                    'three_days_all_count' => (int)$customer->daysVendRecords(2,0)->sum('all_total_count') + $todayAllCount,
+                    'three_days_error_count' => (int)$customer->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount,
+                    'three_days_error_rate' => ($customer->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount) > 0 ? (($customer->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount) / ($customer->daysVendRecords(2,0)->sum('all_total_count') + $todayAllCount)) * 100 : 0,
                     'seven_days_amount' => (int)$customer->daysVendRecords(6,0)->sum('total_amount') + $todayAmount,
                     'seven_days_count' => (int)$customer->daysVendRecords(6,0)->sum('total_count') + $todayCount,
+                    'seven_days_all_count' => (int)$customer->daysVendRecords(6,0)->sum('all_total_count') + $todayAllCount,
+                    'seven_days_error_count' => (int)$customer->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount,
+                    'seven_days_error_rate' => ($customer->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount) > 0 ? (($customer->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount) / ($customer->daysVendRecords(6,0)->sum('all_total_count') + $todayAllCount)) * 100 : 0,
                     'thirty_days_amount' => (int)$customer->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
                     'thirty_days_count' => (int)$customer->daysVendRecords(29,0)->sum('total_count') + $todayCount,
                     'thirty_days_revenue' => (int)$customer->daysVendRecords(29,0)->sum('revenue') + $todayRevenue,
