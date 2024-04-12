@@ -200,7 +200,7 @@ class Vend extends Model
     public function daysVendTransactions($from = 0, $to = 0)
     {
         return $this->vendTransactions()
-                    ->isSuccessful()
+                    // ->isSuccessful()
                     ->where('transaction_datetime', '>=', Carbon::today()->subDays($from)->startOfDay())
                     ->where('transaction_datetime', '<=', Carbon::today()->subDays($to)->endOfDay());
     }

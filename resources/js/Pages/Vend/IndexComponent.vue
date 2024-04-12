@@ -650,25 +650,28 @@
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        <span
-                          v-if="vend.vendTransactionTotalsJson && 'three_days_error_rate' in vend.vendTransactionTotalsJson"
-                          :class="[
-                              vend.is_active ?
-                              (vend.vendTransactionTotalsJson['three_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
-                              'text-gray-400'
-                          ]">
-                            {{vend.vendTransactionTotalsJson['three_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}% ({{vend.vendTransactionTotalsJson['three_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['three_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
-                        </span>
-                        <span
-                          v-if="vend.vendTransactionTotalsJson && 'seven_days_error_rate' in vend.vendTransactionTotalsJson"
-                          :class="[
-                              vend.is_active ?
-                              (vend.vendTransactionTotalsJson['seven_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
-                              'text-gray-400'
-                          ]">
-                            <br>
-                            {{vend.vendTransactionTotalsJson['seven_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}% ({{vend.vendTransactionTotalsJson['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['seven_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
-                        </span>
+                        <div class="flex flex-col space-y-3 w-full">
+                            <span
+                            v-if="vend.vendTransactionTotalsJson && 'three_days_error_rate' in vend.vendTransactionTotalsJson"
+                            :class="[
+                                vend.is_active ?
+                                (vend.vendTransactionTotalsJson['three_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
+                                'text-gray-400'
+                            ]">
+                                {{vend.vendTransactionTotalsJson['three_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['three_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}
+                                ({{vend.vendTransactionTotalsJson['three_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}%)
+                            </span>
+                            <span
+                            v-if="vend.vendTransactionTotalsJson && 'seven_days_error_rate' in vend.vendTransactionTotalsJson"
+                            :class="[
+                                vend.is_active ?
+                                (vend.vendTransactionTotalsJson['seven_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
+                                'text-gray-400'
+                            ]">
+                                {{vend.vendTransactionTotalsJson['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['seven_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}
+                                ({{vend.vendTransactionTotalsJson['seven_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}%)
+                            </span>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           <span
