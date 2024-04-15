@@ -27,11 +27,12 @@ class ProductMappingController extends Controller
         // dd($request->all());
         $request->merge([
             'is_active' => $request->is_active ? $request->is_active : true,
-            'numberPerPage' => $request->numberPerPage,
+            'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'sortBy' => $request->sortBy,
         ]);
 
         return Inertia::render('ProductMapping/Index', [
+            'cmsEndpoint' => env('CMS_URL'),
             'productMappings' => ProductMappingResource::collection(
                 ProductMapping::with([
                     // 'attachments',
@@ -39,10 +40,18 @@ class ProductMappingController extends Controller
                     'productMappingItems.product:id,code,name,is_active',
                     'productMappingItems.product.thumbnail',
                     'vends:id,code,name,product_mapping_id,customer_id',
-                    'vends.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',
+                    'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
                 ])
                 ->when($request->name, function($query, $search) {
                     $query->where('name', 'LIKE', "%{$search}%");
+                })
+                ->when($request->product, function($query, $search) {
+                    $query->where(function($query) use ($search) {
+                        $query->whereHas('productMappingItems.product', function($query) use ($search) {
+                            $query->where('code', 'LIKE', "%{$search}%")
+                                ->orWhere('name', 'LIKE', "%{$search}%");
+                        });
+                    });
                 })
                 ->when($request->vend_code, function($query, $search) {
                     $query->whereHas('vends', function($query) use ($search) {
@@ -50,12 +59,8 @@ class ProductMappingController extends Controller
                     });
                 })
                 ->when($request->is_active, function($query, $search) use ($request) {
-                    // dd($search);
                     $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
                 })
-                // ->when($sortKey, function($query, $search) use ($sortBy) {
-                //     $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-                // })
                 ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                 ->withQueryString()
 

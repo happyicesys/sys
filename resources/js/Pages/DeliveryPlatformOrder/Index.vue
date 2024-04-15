@@ -257,6 +257,36 @@
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-left">
                       {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend ? deliveryPlatformOrder.deliveryProductMappingVend.vend.cust_full_name : '' }}
+                      <span class="text-blue-700 text-md pr-2" v-if="deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend">
+                        {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.code }}
+                      </span>
+
+                      <span v-if="deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend && deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer && deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.person_id">
+                          <span v-if="permissions.includes('admin-access vends')">
+                              <a :class="[deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer && deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.person_id && deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.is_active ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="cmsEndpoint ? cmsEndpoint + '/person/' + deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.person_id + '/edit' : ''">
+                                  {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.virtual_customer_code }} ({{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.virtual_customer_prefix }})
+                                  <br>
+                                  {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.name }}
+                              </a>
+                          </span>
+                          <span v-else>
+                              {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.virtual_customer_code }} ({{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.virtual_customer_prefix }})
+                              <br>
+                              {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.name }}
+                          </span>
+                      </span>
+                      <span v-else-if="deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend && deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer && !deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.person_id">
+                          <span v-if="permissions.includes('admin-access vends')" :class="[deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
+                              <!-- <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'"> -->
+                                  {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.code }} <br>
+                                  {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.name }}
+                              <!-- </a> -->
+                          </span>
+                          <span v-else :class="[deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
+                              {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.code }} <br>
+                              {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.name }}
+                          </span>
+                      </span>
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                         {{ deliveryPlatformOrder.vend_transaction_order_id  }}

@@ -30,6 +30,9 @@
           <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code">
             Vend ID#
           </SearchInput>
+          <SearchInput placeholderStr="Product" v-model="filters.product">
+            Product
+          </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Is Active?
@@ -143,7 +146,10 @@
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
                         <ul class="divide-y divide-gray-200">
-                          <li class="flex py-1 px-3 space-x-2" v-for="productMappingItem in productMapping.productMappingItemsJson">
+                          <li class="flex py-1 px-3 space-x-2" v-for="(productMappingItem, productMappingItemIndex) in productMapping.productMappingItemsJson">
+                            <span>
+                              {{ productMappingItemIndex + 1 }}.
+                            </span>
                             <span class="text-blue-700 text-md pr-2">
                               {{ productMappingItem['channel_code'] }}
                             </span>
@@ -159,13 +165,39 @@
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
                         <ul class="divide-y divide-gray-200">
-                          <li class="flex py-1 px-3 space-x-2" v-for="vend in productMapping.vends">
+                          <li class="flex py-1 px-3 space-x-2" v-for="(vend, vendIndex) in productMapping.vends">
+                            <span>
+                              {{ vendIndex + 1 }}.
+                            </span>
                             <span class="text-blue-700 text-md pr-2">
                               {{ vend.code }}
                             </span>
 
-                            <span v-if="vend.cust_full_name">
-                              {{ vend.cust_full_name }}
+                            <span v-if="vend.customer && vend.customer.person_id">
+                                <span v-if="permissions.includes('admin-access vends')">
+                                    <a :class="[vend.customer && vend.customer.person_id && vend.customer.is_active ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="cmsEndpoint ? cmsEndpoint + '/person/' + vend.customer.person_id + '/edit' : ''">
+                                        {{ vend.customer.virtual_customer_code }} ({{ vend.customer.virtual_customer_prefix }})
+                                        <br>
+                                        {{ vend.customer.name }}
+                                    </a>
+                                </span>
+                                <span v-else>
+                                    {{ vend.customer.virtual_customer_code }} ({{ vend.customer.virtual_customer_prefix }})
+                                    <br>
+                                    {{ vend.customer.name }}
+                                </span>
+                            </span>
+                            <span v-else-if="vend.customer && !vend.customer.person_id">
+                                <span v-if="permissions.includes('admin-access vends')" :class="[vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
+                                    <!-- <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'"> -->
+                                        {{ vend.customer.code }} <br>
+                                        {{ vend.customer.name }}
+                                    <!-- </a> -->
+                                </span>
+                                <span v-else :class="[vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
+                                    {{ vend.customer.code }} <br>
+                                    {{ vend.customer.name }}
+                                </span>
                             </span>
                           </li>
                         </ul>
@@ -272,18 +304,20 @@ import { ref, onMounted } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
+  cmsEndpoint: String,
   products: Object,
   productMappings: Object,
   unbindedVends: Object,
 })
 
 const filters = ref({
-  is_active: '',
+  is_active: true,
   name: '',
+  product: '',
   vend_code: '',
   sortKey: '',
   sortBy: true,
-  numberPerPage: 50,
+  numberPerPage: 100,
 })
 const booleanOptions = ref([])
 const showModal = ref(false)
@@ -296,11 +330,10 @@ const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
   booleanOptions.value = [
-    {id: 1, value: 'Yes'},
-    {id: 0, value: 'No'},
+    {id: 'true', value: 'Yes'},
+    {id: 'false', value: 'No'},
   ]
   numberPerPageOptions.value = [
-    { id: 50, value: 50 },
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
@@ -347,7 +380,7 @@ function onVendFormEditClicked(productMappingValue) {
 function onSearchFilterUpdated() {
   router.get('/product-mappings', {
       ...filters.value,
-      // is_active: filters.value.is_active.id,
+      is_active: filters.value.is_active.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

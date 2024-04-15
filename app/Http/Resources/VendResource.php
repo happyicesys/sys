@@ -106,6 +106,7 @@ class VendResource extends JsonResource
             'mqtt_updated_at' => isset($this->mqtt_updated_at) ? Carbon::parse($this->mqtt_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'name' => isset($this->name) ? $this->name : null,
             'cms_invoice_history' => isset($this->cms_invoice_history) ? $this->cms_invoice_history : null,
+            'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'customer_code' => isset($this->customer_code) ? $this->customer_code : null,
             'customer_id' => isset($this->customer_id) ? $this->customer_id : null,
             'customer_json' => isset($this->customer_json) ? $this->customer_json : null,

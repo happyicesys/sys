@@ -35,7 +35,7 @@
               Operator
             </label>
             <MultiSelect
-              v-model="filters.operator"
+              v-model="filters.operator_id"
               :options="operatorOptions"
               trackBy="id"
               valueProp="id"
@@ -307,14 +307,15 @@ const props = defineProps({
 const filters = ref({
   code: '',
   name: '',
-  operator: '',
-  is_active: '',
+  operator_id: '',
+  is_active: true,
   // is_comm_or_sf: '',
   // is_inventory: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
 })
+const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
 const commSfOptions = ref([])
 const languageOptions = ref([])
@@ -336,8 +337,8 @@ onMounted(() => {
     { id: 'All', value: 'All' },
   ]
   booleanOptions.value = [
-    {id: 1, value: 'Yes'},
-    {id: 0, value: 'No'},
+    {id: 'true', value: 'Yes'},
+    {id: 'false', value: 'No'},
   ]
   // filters.value.is_active = booleanOptions.value[0]
   // filters.value.is_inventory = booleanOptions.value[0]
@@ -354,7 +355,7 @@ onMounted(() => {
     ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
-  filters.value.operator = operatorOptions.value[0]
+  filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
   filters.value.is_active = booleanOptions.value[0]
   // console.log(JSON.parse(JSON.stringify(props.uoms)))
 })
@@ -388,8 +389,8 @@ function onSearchFilterUpdated() {
   router.get('/products', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
-      operator_id: filters.value.operator.id,
-      // is_active: filters.value.is_active.id,
+      operator_id: filters.value.operator_id.id,
+      is_active: filters.value.is_active.id,
       // is_inventory: filters.value.is_inventory.id,
       // is_comm_or_sf: filters.value.is_comm_or_sf.id,
   }, {

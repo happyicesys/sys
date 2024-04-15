@@ -136,9 +136,10 @@ class Product extends Model
     // scopes
     public function scopeFilterIndex($query, $request)
     {
-        // dd($request->all());
         $request->merge([
             'is_active' => $request->is_active ? $request->is_active : true,
+            'is_inventory' => $request->is_inventory ? $request->is_inventory : true,
+            'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
         ]);
 
         return $query->when($request->has('visited'), function($query, $search) use ($request) {
@@ -223,13 +224,9 @@ class Product extends Model
         ->when($request->is_active, function($query, $search) {
             $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
         })
-        // ->when($isInventory, function($query, $search) {
-        //     $query->where('is_inventory', $search);
-        // }, function($query, $search) {
-        //     if($search !== '') {
-        //         $query->where('is_inventory', $search);
-        //     }
-        // })
+        ->when($request->is_inventory, function($query, $search) {
+            $query->where('is_inventory', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+        })
         ->when($request->is_comm_or_sf, function($query, $search) {
             switch($search) {
                 case 'comm':
