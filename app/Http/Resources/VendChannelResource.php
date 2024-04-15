@@ -18,6 +18,8 @@ class VendChannelResource extends JsonResource
         return [
             'id' => $this->id,
             'code' => $this->code,
+            'discount_group' => $this->discount_group,
+            'error_rate_json' => $this->error_rate_json,
             'qty' => $this->qty,
             'qty_sold_at' => $this->qty_sold_at,
             'qty_restocked_at' => $this->qty_restocked_at,
@@ -25,9 +27,13 @@ class VendChannelResource extends JsonResource
             'locked_qty' => $this->locked_qty,
             'capacity' => $this->capacity,
             'amount' => $this->amount,
+            'amount2' => $this->amount2,
             'is_active' => $this->is_active ? true : false,
-            'vendChannelErrorLogs' => VendChannelErrorLogResource::collection($this->whenLoaded('vendChannelErrorLogs')),
             'product' => ProductResource::make($this->whenLoaded('product')),
+            'vendChannelErrorLogs' => VendChannelErrorLogResource::collection($this->whenLoaded('vendChannelErrorLogs')),
+            'vendTransactions' => VendTransactionResource::collection($this->whenLoaded('vendTransactions')),
+            'vendThreeDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendThreeDaysErrorTransactions')),
+            'vendSevenDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendSevenDaysErrorTransactions')),
         ];
     }
 }

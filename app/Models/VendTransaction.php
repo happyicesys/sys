@@ -132,6 +132,11 @@ class VendTransaction extends Model
         return $this->belongsTo(VendChannelError::class);
     }
 
+    public function vendChannelErrorLogs()
+    {
+        return $this->hasMany(VendChannelErrorLog::class)->latest();
+    }
+
     public function vendTransactionItems()
     {
         return $this->hasMany(VendTransactionItem::class);

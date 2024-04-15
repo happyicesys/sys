@@ -214,7 +214,7 @@
               APK Ver
           </SearchInput>
           <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
-              Avg/Day Sales (30 Days) &lt;&lt;
+              Avg/Day Sales (30d) &lt;&lt;
           </SearchInput>
           <div>
               <label for="text" class="block text-sm font-medium text-gray-700">
@@ -460,7 +460,7 @@
                     </TableHeadSort>
                     <TableHeadSort modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
                         Avg Per Day <br>
-                        (Last 30 days)
+                        (Last 30d)
                     </TableHeadSort>
                     <TableHeadSort modelName="amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount_average_day', true)">
                         Lifetime Sales,<br>
@@ -493,7 +493,7 @@
                           {{ vends.meta.from + vendIndex }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">
-                          <Link :href="'/settings/vend/' + vend.id + '/update'" :class="[vend.is_active ? 'text-blue-600' : 'text-gray-400']">
+                          <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active ? 'text-blue-600' : 'text-gray-400']">
                           {{ vend.code }}
                           </Link>
                       </TableData>
@@ -526,13 +526,13 @@
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
-                          <Link :href="'/settings/vend/' + vend.id + '/update'" :class="[vend.is_active ? 'text-blue-600' : 'text-gray-400']">
+                          <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active ? 'text-blue-600' : 'text-gray-400']">
                           {{ vend.code }}
                           </Link>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           <div class="flex flex-col items-center space-y-1">
-                              <a :href="'/vends/' + vend.id + '/temp/' + 1 " target="_blank" class="w-full">
+                              <a :href="'/vends/' + vend.vend_id + '/temp/' + 1 " target="_blank" class="w-full">
                                   <button
                                   type="button"
                                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
@@ -551,7 +551,7 @@
                               >
                                   {{ vend.is_temp_error ? 'Error' : vend.temp }}
                               </button> -->
-                              <a :href="'/vends/' + vend.id + '/temp/' + 2 " target="_blank" class="w-full">
+                              <a :href="'/vends/' + vend.vend_id + '/temp/' + 2 " target="_blank" class="w-full">
                                   <button
                                       type="button"
                                       class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
@@ -562,7 +562,7 @@
                                       {{ vend.parameterJson['t2'] == constTempError ? 'Error' : vend.parameterJson['t2']/10 }}(t2)
                                   </button>
                               </a>
-                              <a :href="'/vends/' + vend.id + '/temp/' + 3 " target="_blank" class="w-full">
+                              <a :href="'/vends/' + vend.vend_id + '/temp/' + 3 " target="_blank" class="w-full">
                                   <button
                                       type="button"
                                       class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
@@ -572,7 +572,7 @@
                                       {{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)
                                   </button>
                               </a>
-                              <a :href="'/vends/' + vend.id + '/temp/' + 4 " target="_blank" class="w-full">
+                              <a :href="'/vends/' + vend.vend_id + '/temp/' + 4 " target="_blank" class="w-full">
                                   <button
                                       type="button"
                                       class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
@@ -597,14 +597,14 @@
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                           <ul
                           class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
-                          v-if="vend.vendChannelsJson"
+                          v-if="vend.vendChannels"
                           @click="onChannelOverviewClicked(vend)"
                           >
-                              <li v-for="(channel, channelIndex) in vend.vendChannelsJson"
+                              <li v-for="(channel, channelIndex) in vend.vendChannels"
                                   class="quick-look"
-                                  :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
+                                  :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
                               >
-                              <span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
+                              <span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
                                   <span :class="[vend.is_active ? 'text-black' : 'text-gray-600']">
                                       #{{channel['code']}},
                                   </span>
@@ -658,8 +658,8 @@
                                 (vend.vendTransactionTotalsJson['three_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
                                 'text-gray-400'
                             ]">
-                                {{vend.vendTransactionTotalsJson['three_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['three_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}
-                                ({{vend.vendTransactionTotalsJson['three_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}%)
+                                {{vend.vendTransactionTotalsJson['three_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
+                                ({{vend.vendTransactionTotalsJson['three_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['three_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                             </span>
                             <span
                             v-if="vend.vendTransactionTotalsJson && 'seven_days_error_rate' in vend.vendTransactionTotalsJson"
@@ -668,8 +668,8 @@
                                 (vend.vendTransactionTotalsJson['seven_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
                                 'text-gray-400'
                             ]">
-                                {{vend.vendTransactionTotalsJson['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['seven_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}
-                                ({{vend.vendTransactionTotalsJson['seven_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}%)
+                                {{vend.vendTransactionTotalsJson['seven_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
+                                ({{vend.vendTransactionTotalsJson['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{vend.vendTransactionTotalsJson['seven_days_all_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
                             </span>
                         </div>
                       </TableData>
@@ -909,7 +909,7 @@
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           <div class="flex justify-center space-x-1">
-                              <Link :href="'/vends/' + vend.id + '/edit'">
+                              <Link :href="'/vends/' + vend.vend_id + '/edit'">
                                   <Button
                                   type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                                   >
@@ -957,7 +957,6 @@
       :permissions="permissions"
       :type="type"
       @modalClose="onCreateModalClose"
-
   >
   </Create>
 </template>
@@ -997,7 +996,6 @@
 </style>
 
 <script setup>
-import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import ChannelOverview from '@/Pages/Vend/ChannelOverview.vue';
 import Create from '@/Pages/Vend/Create.vue';
@@ -1005,7 +1003,7 @@ import Form from '@/Pages/Vend/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, MagnifyingGlassIcon, BackspaceIcon, PlusCircleIcon, PencilSquareIcon} from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon} from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -1084,6 +1082,8 @@ const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const type = ref('')
 const vend = ref()
+
+const vends = ref(getVendsField())
 const vendChannelErrorsOptions = ref([])
 //   const vendOptions = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
@@ -1160,6 +1160,16 @@ onMounted(() => {
   // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
 })
 
+function getVendsField() {
+    return {
+        ...props.vends,
+        data: props.vends.data.map((data) => {return {
+            ...data,
+            vendChannels: props.indexType === 'customers' ? data.vend.vendChannels : data.vendChannels,
+        }})
+    }
+}
+
   function getVendRecordsAmountAverageDayClass(amount) {
       if(amount >= 3000) {
           return 'text-green-700'
@@ -1229,6 +1239,7 @@ onMounted(() => {
         preserveScroll: true,
         // replace: true,
         onFinish: visit => {
+            vends.value = getVendsField()
             now.value = moment().format('HH:mm:ss')
         },
     })

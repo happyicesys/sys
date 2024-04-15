@@ -572,7 +572,7 @@ import { layouts } from 'chart.js';
             datasets.value = []
             vendTemps.value.forEach((vendTemp, vendTempIndex) => {
                  datasets.value.push({
-                    label: 'T' + vendTempIndex + (lastTempValue[vendTempIndex] ? (' (' + lastTempValue[vendTempIndex] + "\u2103" + ')' ) : '') + ' [ ' + ('H:' + highest[vendTempIndex] + "\u2103" + ' L:' + lowest[vendTempIndex] + "\u2103") + ' ]',
+                    label: 'T' + vendTempIndex + (lastTempValue[vendTempIndex] ? (' (' + lastTempValue[vendTempIndex] + "\u2103" + ')' ) : '') + ' [ ' + ('H: ' + highest[vendTempIndex] + "\u2103" + ' L: ' + lowest[vendTempIndex] + "\u2103") + ' ]',
                     data: vendTemp.map((temp) => {return {x: temp.created_at, y: temp.value}}),
                     borderColor: colors[vendTempIndex - 1],
                     backgroundColor: colors[vendTempIndex -1],

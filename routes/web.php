@@ -400,6 +400,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/transactions/excel', [VendController::class, 'exportTransactionExcel']);
         Route::get('/vend-snapshots/excel/{vendSnapshotId}', [VendController::class, 'exportVendSnapshotExcel']);
         Route::get('/channel-error-logs-email', [VendController::class, 'channelErrorLogsEmail']);
+        Route::post('/{id}/channels-error-rate', [VendController::class, 'getChannelsErrorRate']);
         Route::post('/{id}/update', [VendController::class, 'update']);
         Route::post('/{id}/unbind/{returnUrl?}', [VendController::class, 'unbindCustomer']);
         Route::post('/{id}/edit-products', [VendController::class, 'editProducts']);

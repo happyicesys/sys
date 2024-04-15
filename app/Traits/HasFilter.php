@@ -157,121 +157,112 @@ trait HasFilter {
             'is_testing' => $request->is_testing != null ? $request->is_testing : 'false',
         ]);
 
-      return $query->when($request->has('visited'), function($query, $search) use ($request) {
-          if($request->visited == 'true') {
-              $query->whereRaw('1 = 1');
-          }else {
-              $query->whereRaw('1 = 0');
-          }
-      })
-      ->when($request->account_manager_name, function($query, $search) {
-        $query->where('customers.account_manager_json->name', 'LIKE', "{$search}%");
-      })
-      ->when($request->codes, function($query, $search) {
+        return $query->when($request->has('visited'), function($query, $search) use ($request) {
+            if($request->visited == 'true') {
+                $query->whereRaw('1 = 1');
+            }else {
+                $query->whereRaw('1 = 0');
+            }
+        })
+        ->when($request->account_manager_name, function($query, $search) {
+            $query->where('customers.account_manager_json->name', 'LIKE', "{$search}%");
+        })
+        ->when($request->codes, function($query, $search) {
         if(strpos($search, ',') !== false) {
             $search = explode(',', $search);
             $query->whereIn('vends.code', $search);
         }else {
-            $query->where('vends.code', 'LIKE', "%{$search}%");
+            $query->where('vends.code', 'LIKE', "{$search}%");
         }
-      })
-      ->when($request->channel_codes, function($query, $search) {
-          if(strpos($search, ',') !== false) {
-              $search = explode(',', $search);
-          }else {
-              $search = [$search];
-          }
+        })
+        ->when($request->channel_codes, function($query, $search) {
+            if(strpos($search, ',') !== false) {
+                $search = explode(',', $search);
+            }else {
+                $search = [$search];
+            }
 
-          $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->where('vend_channels.is_active', true)->pluck('vend_id'));
-      })
-      ->when($request->serialNum, function($query, $search) {
-          $query->where('serial_num', 'LIKE', "%{$search}%");
-      })
-    ->when($request->customer, function($query, $search) {
-        if(strpos($search, "-")) {
-            $searchArray = explode("-", $search);
-            $query->where('customers.virtual_customer_prefix', $searchArray[0])
-                ->where('customers.virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
-        }else {
-            $query->where(function($query) use ($search) {
-                $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
-                      ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                      ->orWhere('customers.name', 'LIKE', "%{$search}%");
-              });
-        }
-    })
-      ->when($request->product_code, function($query, $search) {
-        $query->where('products.code', 'LIKE', "%{$search}%");
-    })
-    ->when($request->product_name, function($query, $search) {
-        $query->where('products.name', 'LIKE', "%{$search}%");
-    })
-      ->when($request->categories, function($query, $search) {
-          $query->whereIn('categories.id', $search);
-      })
-      ->when($request->categoryGroups, function($query, $search) {
-          $query->whereIn('category_groups.id', $search);
-      })
-      ->when($request->fanSpeedLowerThan, function($query, $search) {
-          if(is_numeric($search)) {
-              $query->where('parameter_json->fan', '<=', $search)->where('parameter_json->fan', '>', 0);
-          }
-      })
-      ->when($request->is_active, function($query, $search) use ($request) {
+            $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->where('vend_channels.is_active', true)->pluck('vend_id'));
+        })
+        ->when($request->serialNum, function($query, $search) {
+            $query->where('serial_num', 'LIKE', "%{$search}%");
+        })
+        ->when($request->customer, function($query, $search) {
+            if(strpos($search, "-")) {
+                $searchArray = explode("-", $search);
+                $query->where('customers.virtual_customer_prefix', $searchArray[0])
+                    ->where('customers.virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
+            }else {
+                $query->where(function($query) use ($search) {
+                    $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
+                        ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                        ->orWhere('customers.name', 'LIKE', "%{$search}%");
+                });
+            }
+        })
+        ->when($request->product_code, function($query, $search) {
+            $query->where('products.code', 'LIKE', "%{$search}%");
+        })
+        ->when($request->product_name, function($query, $search) {
+            $query->where('products.name', 'LIKE', "%{$search}%");
+        })
+        ->when($request->categories, function($query, $search) {
+            $query->whereIn('categories.id', $search);
+        })
+        ->when($request->categoryGroups, function($query, $search) {
+            $query->whereIn('category_groups.id', $search);
+        })
+        ->when($request->fanSpeedLowerThan, function($query, $search) {
+            if(is_numeric($search)) {
+                $query->where('parameter_json->fan', '<=', $search)->where('parameter_json->fan', '>', 0);
+            }
+        })
+        ->when($request->is_active, function($query, $search) use ($request) {
         $columnName =  $request->indexType ? $request->indexType . '.is_active' : 'vends.is_active';
-        if($search != 'all') {
-            $query->where($columnName, filter_var($search, FILTER_VALIDATE_BOOLEAN));
-        }
-    })
-    ->when($request->is_testing, function($query, $search) {
-        if($search != 'all') {
-            $query->where('vends.is_testing', filter_var($search, FILTER_VALIDATE_BOOLEAN));
-        }
-    })
-    ->when($request->is_mqtt, function($query, $search) {
-        if($search != 'all') {
-            $query->where('vends.is_mqtt', filter_var($search, FILTER_VALIDATE_BOOLEAN));
-        }
-    })
-    ->when($request->is_mqtt_active, function($query, $search) {
-        if($search != 'all') {
-            $query->where('vends.is_mqtt', true)->where('vends.is_mqtt_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
-        }
-    })
-      ->when($request->is_door_open, function($query, $search) {
-          if($search != 'all') {
-              $query->where('parameter_json->door', '=', $search);
-          }
-      })
-    //   ->when($request->is_binded_customer, function($query, $search) {
-    //       if($search !== 'all') {
-    //           if($search == 'true') {
-    //             $query->whereNotNull('customer_id');
-    //           }else {
-    //             $query->whereNull('customer_id');
-    //           }
-    //       }
-    //   })
-      ->when($request->tempHigherThan, function($query, $search) {
-          if(is_numeric($search)) {
-              $query->where('temp', '>=', $search * 10);
-          }
-      })
-      ->when($request->t2HigherThan, function($query, $search) {
-        if(is_numeric($search)) {
-            $query->where('parameter_json->t2', '>=', $search * 10);
-        }
-    })
-      ->when($request->tempDeltaHigherThan, function($query, $search) {
-          if(is_numeric($search)) {
-              $query
-                  ->whereNotNull('parameter_json->t2')
-                  ->where('parameter_json->t2', '!=', VendTemp::TEMPERATURE_ERROR)
-                  ->whereRaw('temp - json_extract(parameter_json, "$.t2") > ?', [$search * 10]);
-          }
-      })
-      ->when($request->errors, function($query, $search) {
-          if(in_array('errors_only', $search)) {
+            if($search != 'all') {
+                $query->where($columnName, filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            }
+        })
+        ->when($request->is_testing, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.is_testing', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            }
+        })
+        ->when($request->is_mqtt, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.is_mqtt', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            }
+        })
+        ->when($request->is_mqtt_active, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.is_mqtt', true)->where('vends.is_mqtt_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            }
+        })
+        ->when($request->is_door_open, function($query, $search) {
+            if($search != 'all') {
+                $query->where('parameter_json->door', '=', $search);
+            }
+        })
+        ->when($request->tempHigherThan, function($query, $search) {
+            if(is_numeric($search)) {
+                $query->where('temp', '>=', $search * 10);
+            }
+        })
+        ->when($request->t2HigherThan, function($query, $search) {
+            if(is_numeric($search)) {
+                $query->where('parameter_json->t2', '>=', $search * 10);
+            }
+        })
+        ->when($request->tempDeltaHigherThan, function($query, $search) {
+            if(is_numeric($search)) {
+                $query
+                    ->whereNotNull('parameter_json->t2')
+                    ->where('parameter_json->t2', '!=', VendTemp::TEMPERATURE_ERROR)
+                    ->whereRaw('temp - json_extract(parameter_json, "$.t2") > ?', [$search * 10]);
+            }
+        })
+        ->when($request->errors, function($query, $search) {
+            if(in_array('errors_only', $search)) {
             $query->whereIn('vends.id',
                 DB::table('vend_channels')
                 ->select('vend_id')
@@ -282,7 +273,7 @@ trait HasFilter {
                     ->pluck('vend_channel_id'))
                 ->pluck('vend_id')
             );
-          }else {
+            }else {
             $query->whereIn('vends.id',
                 DB::table('vend_channels')
                 ->select('vend_id')
@@ -295,46 +286,46 @@ trait HasFilter {
                     ->pluck('vend_channel_id'))
                 ->pluck('vend_id')
             );
-          }
-      })
-      ->when($request->location_type_id, function($query, $search) {
-          if($search != 'all') {
+            }
+        })
+        ->when($request->location_type_id, function($query, $search) {
+            if($search != 'all') {
             $query->where('location_type_id', $search);
-          }
-      })
-      ->when($request->operator_id, function($query, $search) {
-          if($search != 'all') {
+            }
+        })
+        ->when($request->operator_id, function($query, $search) {
+            if($search != 'all') {
             $query->where('vends.operator_id', $search);
-          }
-      })
-      ->when($request->is_online, function($query, $search) {
-          if($search != 'all') {
-              if($search == 'true') {
-                  $search = true;
-              }else {
-                  $search = false;
-              }
-              $query->where('is_online', $search);
-          }
-      })
-      ->when($request->is_sensor, function($query, $search) {
-          if($search != 'all') {
-              if($search == 'true') {
-                  $query->whereIn('parameter_json->Sensor', ['1', '3', '5', '7', '9']);
-              }else {
-                  $query->whereIn('parameter_json->Sensor', ['0', '2', '4', '6', '8', '10']);
-              }
-          }
-      })
-      ->when($request->lastVisitedGreaterThan, function($query, $search) {
-          $query->whereDate('customers.last_invoice_date', '<=', Carbon::now()->subDays($search)->toDateString());
-      })
-      ->when($request->balanceStockLessThan, function($query, $search) {
-          $query->where('balance_percent', '<=', $search);
-      })
-      ->when($request->remainingSkuLessThan, function($query, $search) {
-          $query->where('out_of_stock_sku_percent', '>=', (100 - $search));
-      })
+            }
+        })
+        ->when($request->is_online, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $search = true;
+                }else {
+                    $search = false;
+                }
+                $query->where('is_online', $search);
+            }
+        })
+        ->when($request->is_sensor, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->whereIn('parameter_json->Sensor', ['1', '3', '5', '7', '9']);
+                }else {
+                    $query->whereIn('parameter_json->Sensor', ['0', '2', '4', '6', '8', '10']);
+                }
+            }
+        })
+        ->when($request->lastVisitedGreaterThan, function($query, $search) {
+            $query->whereDate('customers.last_invoice_date', '<=', Carbon::now()->subDays($search)->toDateString());
+        })
+        ->when($request->balanceStockLessThan, function($query, $search) {
+            $query->where('balance_percent', '<=', $search);
+        })
+        ->when($request->remainingSkuLessThan, function($query, $search) {
+            $query->where('out_of_stock_sku_percent', '>=', (100 - $search));
+        })
         ->when($request->apk_ver, function($query, $search) {
             $query->where('apk_ver_json->apkver', 'LIKE', "{$search}%");
         })
@@ -345,32 +336,28 @@ trait HasFilter {
         ->when($request->vendRecordsThirtyDaysAmountAverageLessThan, function($query, $search) {
             $query->where('virtual_vend_records_thirty_days_amount_average', '<=', $search*100);
         })
-      ->when($request->sortKey, function($query, $search) use ($request) {
-            // if($search === 'balance_percent') {
-            //     $query->orderBy('is_online', 'desc');
-            // }
-
-          if(strpos($search, '->')) {
-              $inputSearch = explode("->", $search);
-              if($search === 'totals_json->three_days_error_rate' or $search === 'totals_json->seven_days_error_rate') {
+        ->when($request->sortKey, function($query, $search) use ($request) {
+            if(strpos($search, '->')) {
+                $inputSearch = explode("->", $search);
+                if($search === 'totals_json->three_days_error_rate' or $search === 'totals_json->seven_days_error_rate') {
                 $query->orderByRaw('(CAST(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
-              }else {
+                }else {
                 $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
-              }
+                }
 
-              $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-          }else {
-            if($search == 'balance_percent' or $search == 'out_of_stock_sku_percent') {
-                $query->orderByRaw('ISNULL('.$search.'), '.$search.' '.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
-            }else {
                 $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            }else {
+                if($search == 'balance_percent' or $search == 'out_of_stock_sku_percent') {
+                    $query->orderByRaw('ISNULL('.$search.'), '.$search.' '.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                }else {
+                    $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                }
             }
-          }
 
-          if($search === 'vends.is_online') {
+            if($search === 'vends.is_online') {
             $query->orderBy('vends.code', 'asc');
-          }
-      });
+            }
+        });
 
       return $query;
     }

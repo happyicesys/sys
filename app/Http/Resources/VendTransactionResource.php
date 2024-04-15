@@ -27,8 +27,8 @@ class VendTransactionResource extends JsonResource
             'locationTypeJson' => $this->location_type_json,
             'order_id' => $this->order_id,
             'operatorJson' => $this->operator_json,
-            'paymentMethod' => PaymentMethodResource::make($this->paymentMethod),
-            'product' => ProductResource::make($this->product),
+            'paymentMethod' => PaymentMethodResource::make($this->whenLoaded('paymentMethod')),
+            'product' => ProductResource::make($this->whenLoaded('product')),
             'productJson' => $this->product_json,
             'transaction_datetime' => $this->transaction_datetime ? Carbon::parse($this->transaction_datetime)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null,
             // 'grossProfit' => $this->when($this->relationLoaded('product'), function(){
@@ -37,10 +37,10 @@ class VendTransactionResource extends JsonResource
             // 'unitCost' => $this->when($this->relationLoaded('unitCost'), function(){
             //     number_format($this->getUnitCost()/ 100, 2, '.', ',');
             // }),
-            'vend' => VendResource::make($this->vend),
-            // 'vendChannel' => VendChannelResource::make($this->vendChannel),
+            'vend' => VendResource::make($this->whenLoaded('vend')),
+            'vendChannel' => VendChannelResource::make($this->whenLoaded('vendChannel')),
             'vend_channel_code' => $this->vend_channel_code,
-            'vendChannelError' => VendChannelErrorResource::make($this->vendChannelError),
+            'vendChannelError' => VendChannelErrorResource::make($this->whenLoaded('vendChannelError')),
             'vendJson' => $this->vend_json,
             'vendTransactionJson' => $this->vend_transaction_json,
             'vendTransactionItemsJson' => $this->vend_transaction_items_json,

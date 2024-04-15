@@ -47,6 +47,23 @@ class Customer extends Model
         'termination_date' => 'datetime',
         'totals_json' => 'json',
 
+        // json declaration for vend
+        'acb_vmc_pa_json' => 'json',
+        'acb_status_json' => 'json',
+        'apk_ver_json' => 'json',
+        'begin_date' => 'datetime',
+        'last_updated_at' => 'datetime',
+        'mqtt_last_updated_at' => 'datetime',
+        'parameter_json' => 'json',
+        'statistics1_json' => 'json',
+        'temp_updated_at' => 'datetime',
+        'termination_date' => 'datetime',
+        'vend_channel_error_logs_json' => 'json',
+        'vend_channels_json' => 'json',
+        'vend_channel_totals_json' => 'json',
+        'vend_criteria_score_json' => 'json',
+        'vend_criteria_weightage_json' => 'json',
+        'vend_transaction_totals_json' => 'json',
     ];
 
     protected $fillable = [

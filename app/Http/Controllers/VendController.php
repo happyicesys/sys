@@ -15,6 +15,7 @@ use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendResource;
+use App\Http\Resources\VendChannelResource;
 use App\Http\Resources\VendChannelErrorResource;
 use App\Http\Resources\VendFanResource;
 use App\Http\Resources\VendTransactionDBResource;
@@ -113,7 +114,15 @@ class VendController extends Controller
         ]);
         $className = get_class(new Customer());
 
-        $vends = DB::table('vends')
+        $vends = Vend::query()
+            ->with([
+                'vendChannels',
+                'vendChannels.product.thumbnail',
+                'vendChannels.vendChannelErrorLogs' => function($query) {
+                    $query->where('created_at', '>=', Carbon::today()->subDays(6));
+                },
+                'vendChannels.vendChannelErrorLogs.vendChannelError',
+            ])
             ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
@@ -121,6 +130,7 @@ class VendController extends Controller
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->select(
                 'vends.id AS id',
+                'vends.id AS vend_id',
                 'vends.amount_average_day',
                 'vends.begin_date',
                 'vends.code',
@@ -147,8 +157,7 @@ class VendController extends Controller
                 'vends.product_mapping_id',
                 'vends.private_key',
                 'vends.termination_date',
-                'vends.vend_channels_json',
-                'vends.vend_channels_json',
+                // 'vends.vend_channels_json',
                 'vends.vend_channel_totals_json',
                 'vends.vend_channel_error_logs_json',
                 'vends.vend_transaction_totals_json',
@@ -170,20 +179,29 @@ class VendController extends Controller
             );
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends, 'vends');
-
         $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
 
         $totals = [
+            // 'thirtyDays' => collect((clone $vends)
+            //                 ->items())
+            //                 ->sum(function($vend) {
+            //                     return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->thirty_days_amount : 0;
+            //                 })/100,
+            // 'thirthyDaysAvg' => collect((clone $vends)
+            //                 ->items())
+            //                 ->sum(function($vend) {
+            //                     return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->vend_records_thirty_days_amount_average : 0;
+            //                 })/100,
             'thirtyDays' => collect((clone $vends)
                             ->items())
                             ->sum(function($vend) {
-                                return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->thirty_days_amount : 0;
+                                return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
                             })/100,
             'thirthyDaysAvg' => collect((clone $vends)
                             ->items())
                             ->sum(function($vend) {
-                                return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->vend_records_thirty_days_amount_average : 0;
+                                return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['vend_records_thirty_days_amount_average'] : 0;
                             })/100,
         ];
 
@@ -212,7 +230,7 @@ class VendController extends Controller
                     ->get()
             ),
             'totals' => $totals,
-            'vends' => VendDBResource::collection($vends),
+            'vends' => VendResource::collection($vends),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
         ]);
     }
@@ -240,7 +258,15 @@ class VendController extends Controller
         ]);
         $className = get_class(new Customer());
 
-        $vends = DB::table('customers')
+        $vends = Customer::query()
+            ->with([
+                'vend.vendChannels',
+                'vend.vendChannels.product.thumbnail',
+                'vend.vendChannels.vendChannelErrorLogs' => function($query) {
+                    $query->where('created_at', '>=', Carbon::today()->subDays(6));
+                },
+                'vend.vendChannels.vendChannelErrorLogs.vendChannelError',
+            ])
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
@@ -254,7 +280,8 @@ class VendController extends Controller
                         ->limit(1);
             })
             ->select(
-                'vends.id AS id',
+                'customers.id AS id',
+                'vends.id AS vend_id',
                 'vends.amount_average_day',
                 'vends.code',
                 'vends.apk_ver_json',
@@ -278,8 +305,7 @@ class VendController extends Controller
                 DB::raw('CASE WHEN customers.is_active THEN vends.parameter_json ELSE customers.snap_parameter_json END AS parameter_json'),
                 'vends.product_mapping_id',
                 'vends.private_key',
-                'vends.vend_channels_json',
-                DB::raw('CASE WHEN customers.is_active THEN vends.vend_channels_json ELSE customers.snap_vend_channels_json END AS vend_channels_json'),
+                // DB::raw('CASE WHEN customers.is_active THEN vends.vend_channels_json ELSE customers.snap_vend_channels_json END AS vend_channels_json'),
                 'vends.vend_channel_totals_json',
                 DB::raw('CASE WHEN customers.is_active THEN vends.vend_channel_error_logs_json ELSE customers.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
                 'customers.totals_json AS vend_transaction_totals_json',
@@ -313,16 +339,17 @@ class VendController extends Controller
         $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
 
+
         $totals = [
             'thirtyDays' => collect((clone $vends)
                             ->items())
                             ->sum(function($vend) {
-                                return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->thirty_days_amount : 0;
+                                return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['thirty_days_amount'] : 0;
                             })/100,
             'thirthyDaysAvg' => collect((clone $vends)
                             ->items())
                             ->sum(function($vend) {
-                                return $vend->vend_transaction_totals_json ? json_decode($vend->vend_transaction_totals_json)->vend_records_thirty_days_amount_average : 0;
+                                return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['vend_records_thirty_days_amount_average'] : 0;
                             })/100,
         ];
 
@@ -351,7 +378,7 @@ class VendController extends Controller
                     ->get()
             ),
             'totals' => $totals,
-            'vends' => VendDBResource::collection($vends),
+            'vends' => VendResource::collection($vends),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
         ]);
     }
@@ -419,8 +446,10 @@ class VendController extends Controller
             $endDate = Carbon::parse($request->datetime_to)->setTimezone($this->getUserTimezone());
         }
 
-        $request->types = empty($request->types) ? [1] : $request->types;
+        $request->merge(['types' => empty($request->types) ? [1] : $request->types]);
+        // $request->types = empty($request->types) ? [1, 2] : $request->types;
 
+        // dd($request->types);
         $typeName = 'Temp '.$type;
 
         $vend = DB::table('vends')
@@ -548,6 +577,43 @@ class VendController extends Controller
         });
     }
 
+    public function getChannelsErrorRate($id)
+    {
+        $vendChannels = VendChannel::query()
+            ->with([
+                'vendTransactions' => function($query) {
+                    $query
+                        ->where('transaction_datetime', '>=', Carbon::today()->subDays(6))
+                        ->groupBy('vend_channel_id')
+                        ->select(
+                            'id',
+                            'vend_channel_id',
+                            DB::raw(
+                                'COUNT(id) as seven_days_total_count'
+                            ),
+                            DB::raw(
+                                'COUNT(
+                                    CASE
+                                        WHEN error_code_normalized IS NULL THEN NULL
+                                        WHEN error_code_normalized = 0 THEN NULL
+                                        ELSE 1
+                                    END
+                                ) as seven_days_error_count'
+                            )
+                        )
+                        ->selectRaw('COUNT(CASE WHEN transaction_datetime >= ? THEN id ELSE NULL END) as three_days_total_count', [Carbon::today()->subDays(2)])
+                        ->selectRaw('COUNT(CASE WHEN transaction_datetime >= ? AND error_code_normalized IS NOT NULL AND error_code_normalized != 0 THEN 1 END) as three_days_error_count', [Carbon::today()->subDays(2)]);
+                },
+            ])
+            ->where('vend_id', $id)
+            ->where('is_active', true)
+            ->select(
+                'id'
+            )
+            ->get();
+        return $vendChannels;
+    }
+
     public function transactionIndex(Request $request)
     {
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'transaction_datetime']);
@@ -566,6 +632,7 @@ class VendController extends Controller
                 // 'operator:id,code,name',
                 'paymentMethod:id,code,name',
                 // 'product:id,code,name',
+                'vendChannel:id,amount,amount2',
                 'vendChannelError:id,desc',
             ])
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')

@@ -318,6 +318,9 @@
                             Product Name
                         </TableHead>
                         <TableHead>
+                            Price Type
+                        </TableHead>
+                        <TableHead>
                             Amount
                         </TableHead>
                         <TableHead>
@@ -385,6 +388,25 @@
                                 {{ vendTransaction.product_name }}
                             </span>
                             <span v-else></span>
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            <div
+                                class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer"
+                                :class="[vendTransaction.amount === vendTransaction.vendChannel.amount ? 'bg-indigo-100 text-indigo-800 border-indigo-300' : (vendTransaction.amount === vendTransaction.vendChannel.amount2 ? 'bg-purple-100 text-purple-800 border-purple-300' : '')]"
+                                v-if="vendTransaction.amount === vendTransaction.vendChannel.amount || vendTransaction.amount === vendTransaction.vendChannel.amount2"
+                            >
+                                <div class="flex flex-col">
+                                    <span class="font-semibold grow-0" v-if="vendTransaction.amount === vendTransaction.vendChannel.amount && vendTransaction.amount === vendTransaction.vendChannel.amount2">
+                                        P1
+                                    </span>
+                                    <span class="font-semibold grow-0" v-else-if="vendTransaction.amount === vendTransaction.vendChannel.amount">
+                                        P1
+                                    </span>
+                                    <span class="font-semibold grow-0" v-else-if="vendTransaction.amount === vendTransaction.vendChannel.amount2">
+                                        P2
+                                    </span>
+                                </div>
+                            </div>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-right">
                             {{ vendTransaction.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}

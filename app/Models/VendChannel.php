@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Events\VendChannelSaved;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -16,6 +17,7 @@ class VendChannel extends Model
         'capacity',
         'code',
         'discount_group',
+        'error_rate_json',
         'is_active',
         'locked_qty',
         'product_id',
@@ -28,6 +30,7 @@ class VendChannel extends Model
     ];
 
     protected $casts = [
+        'error_rate_json' => 'json',
         'last_inactive_at' => 'datetime',
         'last_active_at' => 'datetime',
     ];
@@ -56,6 +59,30 @@ class VendChannel extends Model
     public function vendChannelLatestError()
     {
         return $this->hasOne(VendChannelErrorLog::class)->orderByDesc('created_at');
+    }
+
+    public function vendTransactions()
+    {
+        return $this->hasMany(VendTransaction::class);
+    }
+
+    // custom functions
+    public function daysVendTransactions($from = 0, $to = 0)
+    {
+        return $this->vendTransactions()
+                    // ->isSuccessful()
+                    ->where('transaction_datetime', '>=', Carbon::today()->subDays($from)->startOfDay())
+                    ->where('transaction_datetime', '<=', Carbon::today()->subDays($to)->endOfDay());
+    }
+
+    public function vendThreeDaysErrorTransactions()
+    {
+        return $this->daysVendTransactions(2,0)->isError()->latest();
+    }
+
+    public function vendSevenDaysErrorTransactions()
+    {
+        return $this->daysVendTransactions(6,0)->isError()->latest();
     }
 
     // scopes

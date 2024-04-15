@@ -60,6 +60,13 @@
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Error
                       </th>
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        Error Rate
+                        <br>
+                        3d
+                        <br>
+                        7d
+                      </th>
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
                         Product
                       </th>
@@ -148,6 +155,31 @@
                               </div>
                             </div>
                         </span>
+                      </td>
+                      <td class="py-1 pl-1 pr-1 text-xs font-medium sm:pl-1 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
+                        <div class="flex flex-col space-y-3 w-full hover:cursor-pointer" @click="onChannelErrorClicked(channel)">
+                            <span
+                            v-if="channel.error_rate_json && 'three_days_error_rate' in channel.error_rate_json"
+                            :class="[
+                                channel.is_active ?
+                                (channel.error_rate_json['three_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
+                                'text-gray-400'
+                            ]">
+                              {{channel.error_rate_json['three_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
+                              ({{channel.error_rate_json['three_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{channel.error_rate_json['three_days_total_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
+                            </span>
+                            <span
+                            v-if="channel.error_rate_json && 'seven_days_error_rate' in channel.error_rate_json"
+                            :class="[
+                                channel.is_active ?
+                                (channel.error_rate_json['seven_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
+                                'text-gray-400'
+                            ]">
+                                {{channel.error_rate_json['seven_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
+                                ({{channel.error_rate_json['seven_days_error_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}}/{{channel.error_rate_json['seven_days_total_count'].toLocaleString(undefined, {minimumFractionDigits: 0})}})
+
+                            </span>
+                        </div>
                       </td>
                       <td class="py-4 text-sm font-semibold text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']" v-if="vend.product_mapping_name">
                         <span v-if="!editable">
@@ -243,6 +275,15 @@
       </template>
     </Modal>
   </Teleport>
+
+  <ErrorList
+      v-if="showErrorListModal"
+      :channel="channel"
+      :vend="vend"
+      :showErrorListModal="showErrorListModal"
+      @errorListModalClose="onErrorListModalClosed"
+  >
+  </ErrorList>
 </template>
 
 <script setup>
@@ -250,6 +291,7 @@ import { ChevronDoubleDownIcon, ChevronDoubleUpIcon, CheckCircleIcon, PencilSqua
 import Button from '@/Components/Button.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import ErrorList from '@/Pages/Vend/ErrorList.vue';
 import { onMounted, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 
@@ -259,17 +301,20 @@ const props = defineProps({
   showModal: Boolean,
 })
 
+const channel = ref()
 const channels = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
 const permissions = usePage().props.auth.permissions
 const productOptions = ref([])
 const showFilters = ref(false)
+const showErrorListModal = ref(false)
 
 
 onMounted(() => {
+  // loadChannelsErrorRate()
   productOptions.value = props.productOptions.data.map((data) => {return {id: data.id, full_name: data.full_name + (data.desc ?  ' ' + data.desc  : '')}})
 
-  channels.value = props.vend.vendChannelsJson.map((channel) => {
+  channels.value = props.vend.vendChannels.map((channel) => {
     return {
       ...channel,
       product: channel.product ? {
@@ -285,6 +330,18 @@ onMounted(() => {
 const profile = usePage().props.auth.profile
 const editable = ref(false)
 const emit = defineEmits(['modalClose'])
+
+// function loadChannelsErrorRate() {
+//   axios({
+//       method: 'post',
+//       url: '/vends/' + props.vend.id + '/channels-error-rate',
+//   },
+//   {}
+//   ).then(response => {
+//     vendChannelErrors.value = response.data
+//   }).catch(error => {
+//   })
+// }
 
 function onDispenseClicked(channel) {
   router.post('/vends/' + props.vend.id + '/dispense-product', {
@@ -318,6 +375,15 @@ function onEditClicked() {
   }else {
     editable.value = true
   }
+}
+
+function onChannelErrorClicked(channelData) {
+  channel.value = channelData
+  showErrorListModal.value = true
+}
+
+function onErrorListModalClosed() {
+  showErrorListModal.value = false
 }
 
 function formatDatetime(value) {
