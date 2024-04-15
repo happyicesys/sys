@@ -2786,18 +2786,6 @@
     "file": "assets/Edit.8b3a4ee5.css",
     "src": "resources/js/Pages/DeliveryPlatform/Edit.css"
   },
-  "resources/js/Pages/Report/IndexStockCount.css": {
-    "file": "assets/IndexStockCount.8b3a4ee5.css",
-    "src": "resources/js/Pages/Report/IndexStockCount.css"
-  },
-  "resources/js/Pages/DeliveryProductMappingVend/Index.css": {
-    "file": "assets/Index.8b3a4ee5.css",
-    "src": "resources/js/Pages/DeliveryProductMappingVend/Index.css"
-  },
-  "MultiSelect.css": {
-    "file": "assets/MultiSelect.d6bfc34a.css",
-    "src": "MultiSelect.css"
-  },
   "main.css": {
     "file": "assets/main.768eba40.css",
     "src": "main.css"
@@ -2806,12 +2794,24 @@
     "file": "assets/UploadFileInput.d34a28df.css",
     "src": "UploadFileInput.css"
   },
-  "resources/js/Pages/Vend/IndexComponent.css": {
-    "file": "assets/IndexComponent.8b3a4ee5.css",
-    "src": "resources/js/Pages/Vend/IndexComponent.css"
+  "resources/js/Pages/DeliveryProductMappingVend/Index.css": {
+    "file": "assets/Index.8b3a4ee5.css",
+    "src": "resources/js/Pages/DeliveryProductMappingVend/Index.css"
+  },
+  "resources/js/Pages/Report/IndexStockCount.css": {
+    "file": "assets/IndexStockCount.8b3a4ee5.css",
+    "src": "resources/js/Pages/Report/IndexStockCount.css"
+  },
+  "MultiSelect.css": {
+    "file": "assets/MultiSelect.d6bfc34a.css",
+    "src": "MultiSelect.css"
   },
   "resources/js/app.css": {
     "file": "assets/app.484a772c.css",
     "src": "resources/js/app.css"
+  },
+  "resources/js/Pages/Vend/IndexComponent.css": {
+    "file": "assets/IndexComponent.8b3a4ee5.css",
+    "src": "resources/js/Pages/Vend/IndexComponent.css"
   }
 }
