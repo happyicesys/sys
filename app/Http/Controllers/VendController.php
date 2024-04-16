@@ -131,7 +131,7 @@ class VendController extends Controller
         //                 30
         //             ),
         //         ];
-        // dd($totals, Carbon::today()->subDays(29)->startOfDay()->toDatetimeString());
+        // dd($totals, $todayErrorCount, $todayAllCount, (int)$vend->daysVendRecords(6,0)->sum('error_count'), Carbon::today()->subDays(29)->startOfDay()->toDatetimeString());
 
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         if(!isset($request->is_active)) {
