@@ -147,9 +147,14 @@
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformCampaignIndex" :totalLength="deliveryPlatformCampaigns.length" inputClass="text-left">
                       <ul class="divide-y divide-gray-200">
-                        <li class="flex flex-col py-1 px-3 space-x-2" v-for="deliveryPlatformCampaignItem in deliveryPlatformCampaign.deliveryPlatformCampaignItems">
-                          <span class="text-blue-700">
-                            {{ deliveryPlatformCampaignItem.settings_label }}
+                        <li class="flex flex-col py-1 px-3 space-x-2" v-for="(deliveryPlatformCampaignItem, deliveryPlatformCampaignItemIndex) in deliveryPlatformCampaign.deliveryPlatformCampaignItems">
+                          <span class="text-blue-700 flex space-x-2">
+                            <span>
+                              {{ deliveryPlatformCampaignItemIndex + 1 }}.
+                            </span>
+                            <span>
+                              {{ deliveryPlatformCampaignItem.settings_label }}
+                            </span>
                           </span>
                           <ul class="divide-y divide-gray-200 pl-3">
                             <li class="flex py-1 px-3 space-x-2" v-for="item in deliveryPlatformCampaignItem.items_json">
