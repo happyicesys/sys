@@ -320,13 +320,15 @@ class Vend extends Model
         ->when($request->customer, function($query, $search) {
             if(strpos($search, "-")) {
                 $searchArray = explode("-", $search);
-                $query->where('customers.virtual_customer_prefix', $searchArray[0])
-                    ->where('customers.virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
+                $query->whereHas('customer', function($query) use ($searchArray) {
+                    $query->where('virtual_customer_prefix', $searchArray[0])
+                        ->where('virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
+                });
             }else {
-                $query->where(function($query) use ($search) {
-                    $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
-                        ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                        ->orWhere('customers.name', 'LIKE', "%{$search}%");
+                $query->whereHas('customer', function($query) use ($search) {
+                    $query->where('virtual_customer_prefix', 'LIKE', "{$search}%")
+                        ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
+                        ->orWhere('name', 'LIKE', "%{$search}%");
                 });
             }
         })

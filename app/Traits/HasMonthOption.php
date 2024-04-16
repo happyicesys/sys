@@ -24,7 +24,7 @@ trait HasMonthOption{
 
     $today = Carbon::today();
     $past = Carbon::today()->subYears(2);
-    $diffInMonths = $today->copy()->diffInMonths($past);
+    $diffInMonths = $past->copy()->diffInMonths($today);
     $monthOption = [];
     for($i = 0; $i <= $diffInMonths; $i++) {
       $monthOption [] = [

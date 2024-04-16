@@ -43,7 +43,7 @@ class CustomerController extends Controller
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
             'is_active' => $request->is_active ? $request->is_active : 'all',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
-            'operator_id' => $request->operator_id ? $request->operator_id : 'all',
+            'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
             'sortKey' => $request->sortKey ? $request->sortKey : 'customers.created_at',
             'sortBy' => $request->sortBy ? $request->sortBy : false,
         ]);
@@ -68,6 +68,7 @@ class CustomerController extends Controller
         ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
         ->select(
             'customers.*',
+            'customers.operator_id',
             'operators.code as operator_code',
             'operators.name as operator_name'
         )

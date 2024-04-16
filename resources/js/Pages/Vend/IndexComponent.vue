@@ -1063,6 +1063,7 @@ const filters = ref({
   visited: true,
 })
 
+const authOperator = usePage().props.auth.operator
 const baseUrl = ref(props.indexType === 'customers' ? '/vends/customers' : '/vends')
 const booleanOptions = ref([])
 const booleanStrictOptions = ref([])
@@ -1156,7 +1157,8 @@ onMounted(() => {
   // console.log(initBinded, roles[0])
   filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]
   filters.value.locationType = locationTypeOptions.value[0]
-  filters.value.operator = operatorOptions.value[0]
+//   filters.value.operator = operatorOptions.value[0]
+  filters.value.operator = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
   // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
 })
 

@@ -278,7 +278,7 @@ class Customer extends Model
         ->when($request->handled_by, fn($query, $input) => $query->where('handled_by', $input))
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                $query->where('operator_id', $search);
+                $query->where('customers.operator_id', $search);
             }
         })
         ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))

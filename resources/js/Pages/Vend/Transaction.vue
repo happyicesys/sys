@@ -503,6 +503,7 @@ const props = defineProps({
     totals: [Object, Array],
     vendChannelErrors: Object,
 })
+const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
 const successfulOptions = ref([])
 const categoryOptions = ref([])
@@ -552,7 +553,8 @@ onMounted(() => {
         {id: 'false', value: 'Unsuccessful'},
     ]
     filters.value.location_type_id = locationTypeOptions.value[0]
-    filters.value.operator_id = operatorOptions.value[0]
+    // filters.value.operator_id = operatorOptions.value[0]
+    filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
     filters.value.is_binded_customer = booleanOptions.value[0]
     filters.value.is_payment_received = booleanOptions.value[0]
 })

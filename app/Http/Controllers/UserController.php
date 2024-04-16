@@ -25,12 +25,13 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
-        $sortKey = $request->sortKey ? $request->sortKey : 'name';
-        $sortBy = $request->sortBy ? $request->sortBy : true;
-        $operatorId = auth()->user()->operator_id == 1 ? $request->operator_id : auth()->user()->operator_id;
+        $request->merge([
+            'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
+            'sortKey' => $request->sortKey ? $request->sortKey : 'name',
+            'sortBy' => $request->sortBy ? $request->sortBy : true,
+            'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
+        ]);
 
-        // dd($operatorId);
         return Inertia::render('User/Index', [
             'users' => UserResource::collection(
                 User::with([
@@ -45,13 +46,13 @@ class UserController extends Controller
                 ->when($request->email, function($query, $search) {
                     $query->where('email', 'LIKE', "%{$search}%");
                 })
-                ->when($operatorId, function($query, $search) {
+                ->when($request->operator_id, function($query, $search) {
                     $query->where('operator_id', $search);
                 })
-                ->when($sortKey, function($query, $search) use ($sortBy) {
-                    $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                ->when($request->sortKey, function($query, $search) use ($request) {
+                    $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                 })
-                ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                 ->withQueryString()
             ),
             'operators' => OperatorResource::collection(

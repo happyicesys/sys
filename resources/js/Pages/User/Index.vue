@@ -228,6 +228,7 @@ const filters = ref({
   sortBy: true,
   numberPerPage: 100,
 })
+const authOperator = usePage().props.auth.operator
 const operatorOptions = ref([])
 const showFormModal = ref(false)
 const user = ref()
@@ -246,7 +247,8 @@ onMounted(() => {
   operatorOptions.value = [
     {id: 'all', full_name: 'All'},
     ...props.operators.data.map((data) => {return {id: data.id, full_name: data.full_name}})
-]
+    ]
+    filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
 })
 
 function onCreateClicked() {

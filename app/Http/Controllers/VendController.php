@@ -107,8 +107,9 @@ class VendController extends Controller
             }
         }
         $request->merge([
-            'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
             'indexType' => 'vends',
+            'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
+            'operator_id' => isset($request->operator_id) ? $request->operator_id : auth()->user()->operator_id,
             'sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent',
             'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
         ]);
@@ -251,8 +252,9 @@ class VendController extends Controller
             }
         }
         $request->merge([
-            'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
             'indexType' => 'customers',
+            'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
+            'operator_id' => isset($request->operator_id) ? $request->operator_id : auth()->user()->operator_id,
             'sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent',
             'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
         ]);
@@ -616,13 +618,20 @@ class VendController extends Controller
 
     public function transactionIndex(Request $request)
     {
-        $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'transaction_datetime']);
-        $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
-        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
-        $request->merge(['is_binded_customer' => isset($request->is_binded_customer) ? $request->is_binded_customer : 'all']);
-        $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
-        $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
+        $request->merge([
+            'date_from' => $request->date_from ? $request->date_from : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay()->toDateTimeString(),
+            'date_to' => $request->date_to ? $request->date_to : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay()->toDateTimeString(),
+            'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 50,
+            'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
+            'sortKey' => $request->sortKey ? $request->sortKey : 'transaction_datetime',
+            'sortBy' => $request->sortBy ? $request->sortBy : false,
+            'visited' => isset($request->visited) ? $request->visited : true,
+            'is_binded_customer' => isset($request->is_binded_customer) ? $request->is_binded_customer : 'all',
+        ]);
+
+        // $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
+        // $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
+        // $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $className = get_class(new Customer());
 
         $vendTransactions = VendTransaction::query()
@@ -647,7 +656,7 @@ class VendController extends Controller
             // ->when($request->sortKey, function($query, $search) use ($request) {
             //     $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             // })
-            ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+            ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
 
         // $totals = VendTransaction::query()

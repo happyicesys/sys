@@ -371,6 +371,7 @@ const filters = ref({
     numberPerPage: '',
     visited: true,
   })
+  const authOperator = usePage().props.auth.operator
   const booleanOptions = ref([])
   const categoryOptions = ref([])
   const categoryGroupOptions = ref([])
@@ -413,7 +414,7 @@ onMounted(() => {
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
     filters.value.locationType = locationTypeOptions.value[0]
-    filters.value.operator = operatorOptions.value[0]
+    filters.value.operator = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
 
     filters.value.is_active = booleanOptions.value[1]
     filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]

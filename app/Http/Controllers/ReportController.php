@@ -44,8 +44,11 @@ class ReportController extends Controller
 
     public function indexSales(Request $request, $type)
     {
-        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
-        $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
+        $request->merge([
+            'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
+            'visited' => isset($request->visited) ? $request->visited : true,
+            'is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true'),
+        ]);
 
         if($request->currentFilterDate) {
             if($request->currentFilterDate != '-1') {
@@ -115,6 +118,7 @@ class ReportController extends Controller
 
     public function indexGpVm(Request $request)
     {
+        $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
@@ -149,6 +153,7 @@ class ReportController extends Controller
 
     public function indexGpProduct(Request $request)
     {
+        $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
@@ -182,6 +187,7 @@ class ReportController extends Controller
 
     public function indexGpCategory(Request $request)
     {
+        $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
@@ -214,6 +220,7 @@ class ReportController extends Controller
 
     public function indexGpLocationType(Request $request)
     {
+        $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';

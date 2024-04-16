@@ -438,6 +438,7 @@ const filters = ref({
   sortBy: true,
   numberPerPage: 100,
 })
+const authOperator = usePage().props.auth.operator
 const showModal = ref(false)
 const booleanOptions = ref([])
 const customer = ref()
@@ -483,7 +484,7 @@ onMounted(() => {
   // filters.value.status = statusOptions.value[3]
   filters.value.is_active = booleanOptions.value[0]
   filters.value.is_cms = booleanOptions.value[0]
-  filters.value.operator = operatorOptions.value[0]
+  filters.value.operator = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
 })
 
 function onCreateClicked() {

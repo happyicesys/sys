@@ -395,6 +395,7 @@ const filters = ref({
   numberPerPage: 100,
   visited: false,
 })
+const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
@@ -436,7 +437,7 @@ onMounted(() => {
     {id: 'all', full_name: 'All'},
     ...props.operators.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
-  filters.value.operator_id = operatorOptions.value[0]
+  filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
 })
 
 function onSearchFilterUpdated() {
