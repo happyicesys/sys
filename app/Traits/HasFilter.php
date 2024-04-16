@@ -293,9 +293,13 @@ trait HasFilter {
             $query->where('location_type_id', $search);
             }
         })
-        ->when($request->operator_id, function($query, $search) {
+        ->when($request->operator_id, function($query, $search) use ($request) {
             if($search != 'all') {
-            $query->where('vends.operator_id', $search);
+                if($request->indexType) {
+                    $query->where($request->indexType . '.operator_id', $search);
+                }else {
+                    $query->where('vends.operator_id', $search);
+                }
             }
         })
         ->when($request->is_online, function($query, $search) {

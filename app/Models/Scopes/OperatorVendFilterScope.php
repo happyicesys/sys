@@ -26,7 +26,7 @@ class OperatorVendFilterScope implements Scope
           $operatorId = null;
         }
         if($operatorId) {
-            $builder->where('operator_id', $operatorId);
+            $builder->where('vends.operator_id', $operatorId);
         }
 
       }
