@@ -112,8 +112,24 @@ class VendResource extends JsonResource
             'customer_json' => isset($this->customer_json) ? $this->customer_json : null,
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,
             'person_id' => isset($this->person_id) ? $this->person_id : null,
-            'full_name' => isset($this->customer_code) ? $this->customer_code . ' - ' . $this->customer_name : null,
-            'cust_full_name' => isset($this->customer_code) ? $this->customer_code . ' - ' . $this->customer_name : null,
+            'full_name' => $this->when($this->relationLoaded('customer'), function() {
+                if($this->customer && $this->customer->person_id) {
+                    return $this->customer->virtual_customer_prefix . ' - ' . $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
+                }else if($this->customer && !$this->customer->person_id) {
+                    return $this->customer->code . ' - ' . $this->customer->name;
+                }else {
+                    return null;
+                }
+            }),
+            'cust_full_name' => $this->when($this->relationLoaded('customer'), function() {
+                if($this->customer && $this->customer->person_id) {
+                    return $this->customer->virtual_customer_prefix . ' - ' . $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
+                }else if($this->customer && !$this->customer->person_id) {
+                    return $this->customer->code . ' - ' . $this->customer->name;
+                }else {
+                    return null;
+                }
+            }),
             'temp' => isset($this->temp) ? ((int)$this->temp)/ 10 : null,
             'temp_updated_at' => isset($this->temp_updated_at) ? Carbon::parse($this->temp_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'termination_date' => isset($this->termination_date) ? Carbon::parse($this->termination_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,

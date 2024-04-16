@@ -4,7 +4,7 @@
       <template #header >
         <div class="flex flex-col md:flex-row md:space-x-4 text-black">
           <span class="text-gray-500">
-            Error List (7days)
+            Error List
           </span>
           <span>
             Vend# {{ vend.code }}

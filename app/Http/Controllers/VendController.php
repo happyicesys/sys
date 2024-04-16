@@ -93,6 +93,46 @@ class VendController extends Controller
 
     public function index(Request $request)
     {
+        $vend = Vend::where('code', 2301)->first();
+        $todayAmount = (int)$vend->daysVendTransactions(0,0)->isSuccessful()->sum('amount');
+        $todayCount = $vend->daysVendTransactions(0,0)->isSuccessful()->count();
+        $todayAllCount = $vend->daysVendTransactions(0,0)->count();
+        $todayErrorCount = $vend->daysVendTransactions(0,0)->isError()->count();
+        $todayRevenue = (int)$vend->daysVendTransactions(0,0)->isSuccessful()->sum('revenue');
+        $todayGrossProfit = (int)$vend->daysVendTransactions(0,0)->isSuccessful()->sum('gross_profit');
+
+            $totals = [
+                'today_amount' => $todayAmount,
+                'today_count' => $todayCount,
+                'yesterday_amount' => (int)$vend->daysVendRecords(1,1)->sum('total_amount'),
+                'yesterday_count' => (int)$vend->daysVendRecords(1,1)->sum('total_count'),
+                'three_days_amount' => (int)$vend->daysVendRecords(2,0)->sum('total_amount') + $todayAmount,
+                'three_days_count' => (int)$vend->daysVendRecords(2,0)->sum('total_count') + $todayCount,
+                'three_days_all_count' => (int)$vend->daysVendRecords(2,0)->sum('all_total_count') + $todayAllCount,
+                'three_days_error_count' => (int)$vend->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount,
+                'three_days_error_rate' => ($vend->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount) > 0 ? (($vend->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount) / ($vend->daysVendRecords(2,0)->sum('all_total_count') + $todayAllCount)) * 100 : 0,
+                'seven_days_amount' => (int)$vend->daysVendRecords(6,0)->sum('total_amount') + $todayAmount,
+                'seven_days_count' => (int)$vend->daysVendRecords(6,0)->sum('total_count') + $todayCount,
+                'seven_days_all_count' => (int)$vend->daysVendRecords(6,0)->sum('all_total_count') + $todayAllCount,
+                'seven_days_error_count' => (int)$vend->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount,
+                'seven_days_error_rate' => ($vend->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount) > 0 ? (($vend->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount) / ($vend->daysVendRecords(6,0)->sum('all_total_count') + $todayAllCount)) * 100 : 0,
+                'thirty_days_amount' => (int)$vend->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
+                'thirty_days_count' => (int)$vend->daysVendRecords(29,0)->sum('total_count') + $todayCount,
+                'thirty_days_revenue' => (int)$vend->daysVendRecords(29,0)->sum('revenue') + $todayRevenue,
+                'thirty_days_gross_profit' => (int)$vend->daysVendRecords(29,0)->sum('gross_profit') + $todayGrossProfit,
+                'vend_records_amount_latest' => (int)$vend->lifetimeVendRecords->sum('total_amount') + $todayAmount,
+                'vend_records_amount_average_day' => ((int)$vend->lifetimeVendRecords->sum('total_amount') + $todayAmount)/ ($vend->begin_date && Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?? Carbon::now())) ?: 1),
+                'vend_records_thirty_days_amount' => (int)$vend->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
+                'vend_records_thirty_days_amount_average' =>
+                    ((int)$vend->daysVendRecords(29,0)->sum('total_amount') + $todayAmount)/
+                    (
+                        $vend->begin_date && Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) < 30 ?
+                        (Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($vend->begin_date)->diffInDays(Carbon::now())) :
+                        30
+                    ),
+                ];
+        dd($totals, Carbon::today()->subDays(29)->startOfDay()->toDatetimeString());
+
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         if(!isset($request->is_active)) {
             if(
@@ -120,7 +160,7 @@ class VendController extends Controller
                 'vendChannels',
                 'vendChannels.product.thumbnail',
                 'vendChannels.vendChannelErrorLogs' => function($query) {
-                    $query->where('created_at', '>=', Carbon::today()->subDays(6));
+                    $query->where('created_at', '>=', Carbon::today()->subDays(29));
                 },
                 'vendChannels.vendChannelErrorLogs.vendChannelError',
             ])
@@ -265,7 +305,7 @@ class VendController extends Controller
                 'vend.vendChannels',
                 'vend.vendChannels.product.thumbnail',
                 'vend.vendChannels.vendChannelErrorLogs' => function($query) {
-                    $query->where('created_at', '>=', Carbon::today()->subDays(6));
+                    $query->where('created_at', '>=', Carbon::today()->subDays(29));
                 },
                 'vend.vendChannels.vendChannelErrorLogs.vendChannelError',
             ])
