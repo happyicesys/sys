@@ -266,20 +266,14 @@ class DeliveryPlatformService
 
     switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
+        $response = [];
+
         if($this->deliveryPlatformOperator->externalOauthToken()->exists()) {
           $scope = $this->deliveryPlatformOperator->externalOauthToken->scopes;
-          // dd($scope);
         }
 
         if($scope === 'mart.partner_api') {
-
-        }
-
-        if($scope === 'food.partner_api') {
-
-        }
-
-        $deliveryProductMappingVendObj = DeliveryProductMappingVend::query()
+          $deliveryProductMappingVendObj = DeliveryProductMappingVend::query()
           ->with([
             'deliveryProductMapping' => function($query) {
               $query->select(
@@ -328,10 +322,66 @@ class DeliveryPlatformService
               'subCategories' => $this->getGrabMenuSubCategoriesItems($deliveryProductMappingVendObj->deliveryProductMappingVendChannels()->pluck('id'))
             ]],
           ];
+        }
 
+        if($scope === 'food.partner_api') {
+          $deliveryProductMappingVendObj = DeliveryProductMappingVend::query()
+          ->with([
+            'deliveryProductMapping' => function($query) {
+              $query->select(
+                'id',
+                DB::raw('json_unquote(json_extract(category_json, "$.id")) AS platform_category_id'),
+                DB::raw('json_unquote(json_extract(category_json, "$.name")) AS platform_category_name'),
+                'delivery_platform_operator_id',
+                'is_active',
+                'name',
+                'operator_id'
+              );
+            },
+            'deliveryProductMapping.operator:id,name,country_id',
+            'deliveryProductMapping.operator.country:id,name,code,currency_name,currency_symbol,currency_exponent',
+            'deliveryProductMappingVendChannels' => function($query) {
+              $query->select(
+                'id',
+                'amount',
+                'delivery_product_mapping_item_id',
+                'delivery_product_mapping_vend_id',
+                'order_qty',
+                'is_active',
+                'vend_channel_code',
+                'vend_channel_id'
+              );
+            },
+            'deliveryProductMappingVendChannels.deliveryProductMappingVend:id',
+          ])
+          ->where('id', $deliveryProductMappingVend->id)
+          ->select(
+            'id',
+            'delivery_product_mapping_id',
+            'platform_ref_id',
+            'vend_id',
+            'vend_code'
+          )
+          ->first();
+          // dd($deliveryProductMappingVendObj->toArray());
+
+          $response = [
+            'merchantID' => (string)$deliveryProductMappingVendObj->platform_ref_id,
+            'partnerMerchantID' => (string)$deliveryProductMappingVendObj->vend_code,
+            'currency' => $this->getGrabMenuCurrency($deliveryProductMappingVendObj),
+            'sellingTimes' => [$this->getGrabMenuSellingTimes()],
+            'categories' => [
+              // ...$this->getGrabMenuCategoriesDefault($deliveryProductMappingVendObj),
+              $this->getGrabMenuSubCategoriesItems($deliveryProductMappingVendObj->deliveryProductMappingVendChannels()->pluck('id'))
+            ],
+          ];
+        }
+
+        if($response) {
           $deliveryProductMappingVend->update([
             'last_menu_json' => $response,
           ]);
+        }
 
         return $response;
       break;
@@ -375,15 +425,7 @@ class DeliveryPlatformService
             }
           }
         } else if ($scope === 'food.partner_api') {
-          if($this->deliveryPlatformOperator->deliveryProductMappings()->exists()) {
-            $deliveryProductMappings = $this->deliveryPlatformOperator->deliveryProductMappings()->get();
-            $data = [];
-            foreach($deliveryProductMappings as $deliveryProductMapping) {
-              $data[] = $deliveryProductMapping->category_json;
-            }
-            return $data;
-          }
-          return;
+          return $this->model->getDefaultCategories();
         }
         break;
     }
@@ -658,6 +700,7 @@ class DeliveryPlatformService
           'available_qty' => Grab::STATUS_MAPPING[$deliveryProductMappingVendChannel->is_active] === Grab::STATUS_AVAILABLE ? $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel)['available_qty'] : 0,
         ]);
       }
+      $dataArr = [];
       foreach($data as $index => $item) {
         $dataArr[] = $item;
       }

@@ -62,7 +62,7 @@
                 </MultiSelect>
               </div>
               <!-- {{ categoryApiOptions }} -->
-              <div class="sm:col-span-6" v-if="form.delivery_platform_operator_id && categoryApiOptions.length">
+              <div class="sm:col-span-6" v-if="form.delivery_platform_operator_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Platform Category
                   <span class="text-red-500">
@@ -81,11 +81,6 @@
                   @selected="onCategoryJsonSelected"
                 >
                 </MultiSelect>
-              </div>
-              <div class="sm:col-span-6" v-if="form.delivery_platform_operator_id && !categoryApiOptions.length">
-                <FormInput v-model="form.category" required="true">
-                  Category Name
-                </FormInput>
               </div>
               <div class="sm:col-span-6" v-if="form.delivery_platform_operator_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -164,7 +159,7 @@
                   Price
                 </FormInput>
               </div>
-              <div v-if="form.product_mapping_id && categoryApiOptions.length">
+              <div v-if="form.product_mapping_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   SubCategory
                 </label>
@@ -179,11 +174,6 @@
                   class="mt-1"
                 >
                 </MultiSelect>
-              </div>
-              <div v-if="form.product_mapping_id && !categoryApiOptions.length">
-                <FormInput v-model="form.sub_category" :error="form.errors.sub_category" placeholderStr="Subcategory Name">
-                  Subcategory Name
-                </FormInput>
               </div>
 
               <div class="sm:col-span-1" v-if="form.product_mapping_id">

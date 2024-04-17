@@ -422,6 +422,125 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         ],
     ];
 
+    const DEFAULT_CATEGORIES = [
+        "categories" => [
+            [
+                "id" => "SGITEDP20200707065055013739",
+                "name" => "Ice Cream & Dessert",
+                "subCategories" => [
+                    [
+                        "id" => "SGITEDP20200707065104013951",
+                        "name" => "Ice Cream Pints"
+                    ],
+                    [
+                        "id" => "SGITEDP20220505051119018481",
+                        "name" => "Frozen Desserts"
+                    ],
+                    [
+                        "id" => "SGITEDP20200707065112014691",
+                        "name" => "Ice Cream Sticks"
+                    ],
+                    [
+                        "id" => "SGITEDP20200717085806012030",
+                        "name" => "Puffs"
+                    ],
+                    [
+                        "id" => "SGITEDP20200717094052016939",
+                        "name" => "Jelly & Pudding"
+                    ],
+                    [
+                        "id" => "SGITEDP20200707065119015075",
+                        "name" => "Frozen Yoghurt"
+                    ],
+                    [
+                        "id" => "SGITEDP20200707065124017190",
+                        "name" => "Asian Dessert"
+                    ],
+                    [
+                        "id" => "SGITEDP20200707062332016541",
+                        "name" => "Desserts (Others)"
+                    ],
+                    [
+                        "id" => "SGITEDP20200717085757018518",
+                        "name" => "Ice Cream"
+                    ],
+                    [
+                        "id" => "SGITEDP20230228090646016005",
+                        "name" => "Chilled Desserts"
+                    ],
+                    [
+                        "id" => "SGITEDP20230228090706018087",
+                        "name" => "Ice Cream Bundles"
+                    ],
+                    [
+                        "id" => "SGITEDP20230228090718019047",
+                        "name" => "B&J Pints Selection"
+                    ],
+                    [
+                        "id" => "SGITEDP20230228090729011304",
+                        "name" => "Magnum Selection"
+                    ],
+                    [
+                        "id" => "SGITEDP20230228090740016500",
+                        "name" => "Cornetto Selection"
+                    ],
+                    [
+                        "id" => "SGITEDP20230518072748019786",
+                        "name" => "Ice Cream Cake"
+                    ],
+                    [
+                        "id" => "SGITEDP20230623055805016330",
+                        "name" => "Scoops"
+                    ],
+                    [
+                        "id" => "SGITEDP20230705011657012553",
+                        "name" => "Premium Collection (Ice Cream & Dessert)"
+                    ],
+                    [
+                        "id" => "SGITEDP20230705011729015795",
+                        "name" => "Classic Collection (Ice Cream & Dessert)"
+                    ],
+                    [
+                        "id" => "SGITEDP20230810063658010418",
+                        "name" => "Signatures (Ice Cream)"
+                    ],
+                    [
+                        "id" => "SGITEDP20230810063723018198",
+                        "name" => "Signatures (Dessert)"
+                    ],
+                    [
+                        "id" => "SGITEDP20230817031819018092",
+                        "name" => "Soft Serve & Sundae"
+                    ],
+                    [
+                        "id" => "SGITEDP20230913063042011476",
+                        "name" => "Halal Flavours"
+                    ],
+                    [
+                        "id" => "SGITEDP20230913063055017798",
+                        "name" => "Sorbet"
+                    ],
+                    [
+                        "id" => "SGITEDP20230914032002015735",
+                        "name" => "Bundles (Ice Cream & Dessert)"
+                    ],
+                    [
+                        "id" => "SGITEDP20230914032013018920",
+                        "name" => "Ice Cream Pies"
+                    ],
+                    [
+                        "id" => "SGITEDP20230915043005016934",
+                        "name" => "Seasonal Collection (Ice Cream & Dessert)"
+                    ],
+                    [
+                        "id" => "SGITEDP20230915043117014032",
+                        "name" => "Mini Ice Cream Cups"
+                    ]
+                ]
+            ]
+        ]
+    ];
+
     const START_TIME = '00:00';
     const END_TIME = '23:59';
     const MAX_END_DATETIME = '9999-12-31 23:59:59';
@@ -462,6 +581,11 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     public function __construct(DeliveryPlatformOperator $deliveryPlatformOperator)
     {
         $this->deliveryPlatformOperator = $deliveryPlatformOperator;
+    }
+
+    public function getDefaultCategories()
+    {
+        return self::DEFAULT_CATEGORIES;
     }
 
     // retrieve and fill in oauth params from delivery platform
