@@ -370,10 +370,7 @@ class DeliveryPlatformService
             'partnerMerchantID' => (string)$deliveryProductMappingVendObj->vend_code,
             'currency' => $this->getGrabMenuCurrency($deliveryProductMappingVendObj),
             'sellingTimes' => [$this->getGrabMenuSellingTimes()],
-            'categories' => [
-              // ...$this->getGrabMenuCategoriesDefault($deliveryProductMappingVendObj),
-              $this->getGrabMenuSubCategoriesItems($deliveryProductMappingVendObj->deliveryProductMappingVendChannels()->pluck('id'))
-            ],
+            'categories' => $this->getGrabMenuSubCategoriesItems($deliveryProductMappingVendObj->deliveryProductMappingVendChannels()->pluck('id')),
           ];
         }
 
