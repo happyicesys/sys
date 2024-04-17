@@ -183,7 +183,6 @@ class VendTransaction extends Model
             });
         })
         ->when($request->errors, function($query, $search) {
-            // dd($search);
             if(in_array('errors_only', $search)) {
                 $query->has('vendChannelError');
             }else if(in_array('1', $search)) {
@@ -222,16 +221,6 @@ class VendTransaction extends Model
         ->when($request->paymentMethod, function($query, $search) {
             $query->where('payment_method_id', $search);
         })
-        // ->when($request->categories, function($query, $search) {
-        //     $query->whereHas('vend.customer.category', function($query) use ($search) {
-        //         $query->whereIn('id', $search);
-        //     });
-        // })
-        // ->when($request->categoryGroups, function($query, $search) {
-        //     $query->whereHas('vend.customer.category.categoryGroup', function($query) use ($search) {
-        //         $query->whereIn('id', $search);
-        //     });
-        // })
         ->when($request->categories, function($query, $search) {
             $query->whereIn('customer_id', function($query) use ($search) {
                 $query->select('id')->from('customers')->whereIn('category_id', $search);
@@ -244,46 +233,15 @@ class VendTransaction extends Model
                 });
             });
         })
-        ->when($request->customer_code, function($query, $search) {
-            $query->whereIn('customer_id', function($query) use ($search) {
-                $query->select('id')->from('customers')->where('code', 'LIKE', "%{$search}%");
-            });
-        })
-        ->when($request->customer_name, function($query, $search) {
-            $query->where(function($query) use ($search) {
-                $query->whereIn('customer_id', function($query) use ($search) {
-                    $query->select('id')->from('customers')->where('name', 'LIKE', "{$search}%");
-                });
-                $query->orWhereIn('vend_id', function($query) use ($search) {
-                    $query->select('id')->from('vends')->where('name', 'LIKE', "{$search}%");
-                });
-            });
-        })
         ->when($request->customer, function($query, $search) {
             if(strpos($search, "-")) {
                 $searchArray = explode("-", $search);
-                    // $query->where('customers.virtual_customer_prefix', $searchArray[0])
-                    // ->where('customers.virtual_customer_code', $searchArray[1]);
                     $query->where('vend_transactions.customer_json->prefix', $searchArray[0])
                         ->where('vend_transactions.customer_json->code', $searchArray[1]);
             }else {
-                // $query->where(function($query) use ($search) {
-                //     $query->whereIn('customer_id', function($query) use ($search) {
-                //         $query
-                //             ->select('id')
-                //             ->from('customers')
-                //             ->where('virtual_customer_prefix', 'LIKE', "{$search}%")
-                //             ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
-                //             ->orWhere('name', 'LIKE', "{$search}%");
-                //     })->orWhereIn('vend_id', function($query) use ($search) {
-                //         $query->select('id')->from('vends')->where('name', 'LIKE', "{$search}%");
-                //         $query->orWhere('vends.name', 'LIKE', "{$search}%");
-                //     });
-                // });
                 $query->where(function($query) use ($search) {
                     $query->where('vend_transactions.customer_json->virtual_customer_prefix', 'LIKE', "{$search}%")
                         ->orWhere('vend_transactions.customer_json->virtual_customer_code', 'LIKE', "{$search}%")
-                        // ->orWhere('vend_transactions.customer_json->name', 'LIKE', "%{$search}%")
                         ->orWhere(DB::raw("lower(json_unquote(json_extract(vend_transactions.customer_json, '$.name')))"), 'LIKE', '%'.strtolower( $search ).'%')
                         ->orWhere(DB::raw("lower(json_unquote(json_extract(vend_transactions.vend_json, '$.name')))"), 'LIKE', '%'.strtolower( $search ).'%');
                 });
@@ -294,9 +252,6 @@ class VendTransaction extends Model
                 $query->whereIn('customer_id', function($query) use ($search) {
                     $query->select('id')->from('customers')->where('location_type_id', $search);
                 });
-                // $query->whereHas('vend.customer', function($query) use ($search) {
-                //     $query->where('location_type_id', $search);
-                // });
             }
         })
         ->when($request->operator_id, function($query, $search) {
