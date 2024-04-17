@@ -268,7 +268,7 @@ class DeliveryPlatformService
       case 'grab':
         if($this->deliveryPlatformOperator->externalOauthToken()->exists()) {
           $scope = $this->deliveryPlatformOperator->externalOauthToken->scopes;
-          dd($scope);
+          // dd($scope);
         }
 
         if($scope === 'mart.partner_api') {
