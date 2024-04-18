@@ -81,8 +81,8 @@
               <div class="text-sm text-red-600" v-if="form.errors.measurement_unit">
                 {{ form.errors.measurement_unit }}
               </div>
-            </div>
-            <div class="col-span-12 sm:col-span-6">
+            <!-- </div> -->
+            <!-- <div class="col-span-12 sm:col-span-6"> -->
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Operator
                 <span class="text-red-500">
@@ -411,24 +411,25 @@
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Translated Name
                           </th>
-                          <th></th>
+                          <th>
+                          </th>
                         </tr>
                       </thead>
                       <tbody class="bg-white">
-                        <tr v-for="(language, key, index) in languages" :key="index" :class="index % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <tr v-for="(language, languageIndex) in languages" :key="languageIndex" :class="languageIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            {{ index + 1 }}
+                            {{ languageIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ key ? languageOptions.find(language => language.id === key).name : '' }}
+                            {{ language ? language.language : '' }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ language }}
+                            {{ language.name }}
                           </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
                           <Button
                             class="bg-red-400 hover:bg-red-500 text-white"
-                            @click.prevent="removeLanguage(key)"
+                            @click.prevent="removeLanguage(languageIndex)"
                           >
                             <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                           </Button>
@@ -537,7 +538,7 @@ const unitCosts = ref([])
 const form = ref(
   useForm(getDefaultForm())
 )
-const languages = ref({})
+const languages = ref([])
 const languageOptions = ref([])
 const operatorOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
@@ -552,7 +553,7 @@ onMounted(() => {
   uomOptions.value = props.uoms.data.map((uom) => {return {id: uom.id, name: uom.name}})
   operatorOptions.value = props.operatorOptions.slice(1)
   unitCosts.value = props.product ? props.product.unitCosts : null
-  languages.value = props.product ? (props.product.translated_names_json ? props.product.translated_names_json : {}) : {}
+  languages.value = props.product ? (props.product.translated_names_json ? props.product.translated_names_json : []) : []
 })
 
 function getDefaultForm() {
@@ -660,13 +661,17 @@ function removeUnitCost(unitCost) {
 }
 
 function addLanguage() {
-  languages.value[form.value.language.id] = form.value.translated_name
+  languages.value.push({
+    id: form.value.language.id,
+    language: form.value.language.name,
+    name: form.value.translated_name,
+  })
   form.value.language = ''
   form.value.translated_name = ''
 }
 
 function removeLanguage(key) {
-  delete languages.value[key]
+  languages.value.splice(key, 1)
 }
 
 

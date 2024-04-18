@@ -696,7 +696,7 @@ class DeliveryPlatformService
         $this->getGrabMenuItems([
           'item_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->id,
           'item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->name,
-          // 'translated_item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json,
+          'translated_item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json,
           'desc' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->desc,
           'amount' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->amount,
           'image_url' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->thumbnail->full_url,
@@ -837,7 +837,7 @@ class DeliveryPlatformService
     return [
       'id' => (string)$params['item_id'],
       'name' => $params['item_name'],
-      // 'nameTranslation' => isset($params['translated_item_name']) ? $params['translated_item_name'] : '',
+      'nameTranslation' => isset($params['translated_item_name']) ? $params['translated_item_name'] : '',
       'description' => $params['desc'],
       'price' =>  round($params['amount'] * 100),
       'availableStatus' => isset($params['is_active']) ? $params['is_active'] : self::STATUS_AVAILABLE,
