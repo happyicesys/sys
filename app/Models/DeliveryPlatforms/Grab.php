@@ -657,6 +657,8 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         $response = Http::withHeaders($this->getHeaders())
         ->post($this->getPartnerEndpoint() . '/partner/v1/merchant/menu/notification', $merchantIdParam);
 
+        dd($$this->getPartnerEndpoint() . '/partner/v1/merchant/menu/notification', $merchantIdParam, $response->body());
+
         return $this->getResponse($response, 'notifyUpdatedMenu');
 
         throw new \Exception('Notify Updated Menu Failed: ' . $response->body());

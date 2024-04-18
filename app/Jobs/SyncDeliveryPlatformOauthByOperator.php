@@ -42,7 +42,6 @@ class SyncDeliveryPlatformOauthByOperator
         if(!$this->deliveryPlatformService->getDeliveryPlatformOperator()->externalOauthToken()->exists()) {
             throw new \Exception('Please set init Oauth Client ID and Client Secret');
         }
-        dd($this->deliveryPlatformService->getDeliveryPlatformOperator()->externalOauthToken->access_token, $response);
         $this->deliveryPlatformService->getDeliveryPlatformOperator()->externalOauthToken()->update($response);
     }
 }
