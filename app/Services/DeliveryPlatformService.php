@@ -439,7 +439,7 @@ class DeliveryPlatformService
             'merchantID' => $deliveryProductMappingVend->platform_ref_id,
           ]);
           if($response['code'] === 401) {
-            SyncDeliveryPlatformOauthByOperator::dispatch($this->deliveryPlatformOperator);
+            SyncDeliveryPlatformOauthByOperator::dispatchSync($this->deliveryPlatformOperator);
             $this->notifyUpdatedMenu($deliveryProductMappingVend);
           }
           if($response['success']) {
