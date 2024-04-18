@@ -831,7 +831,7 @@ class DeliveryPlatformService
     return [
       'id' => (string)$params['item_id'],
       'name' => $params['item_name'],
-      'nameTranslation' => isset($params['translated_item_name']) ? $params['translated_item_name'] : null,
+      'nameTranslation' => isset($params['translated_item_name']) ? $params['translated_item_name'] : '',
       'description' => $params['desc'],
       'price' =>  round($params['amount'] * 100),
       'availableStatus' => isset($params['is_active']) ? $params['is_active'] : self::STATUS_AVAILABLE,
