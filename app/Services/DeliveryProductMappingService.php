@@ -30,7 +30,7 @@ class DeliveryProductMappingService
         if(count($deliveryProductMappingVends) > 0) {
           foreach($deliveryProductMappingVends as $deliveryProductMappingVend) {
             SyncDeliveryProductMappingVendChannels::dispatch($deliveryProductMappingVend)->onQueue('high');
-            NotifyDeliveryPlatformUpdateMenu::dispatch($deliveryProductMappingVend)->onQueue('high');
+            NotifyDeliveryPlatformUpdateMenu::dispatchSync($deliveryProductMappingVend)->onQueue('high');
           }
           return true;
         }

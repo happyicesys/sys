@@ -439,11 +439,19 @@ class DeliveryPlatformService
             'merchantID' => $deliveryProductMappingVend->platform_ref_id,
           ]);
           if($response['code'] === 401) {
+            dd($response, 401);
             SyncDeliveryPlatformOauthByOperator::dispatchSync($this->deliveryPlatformOperator);
-            $this->notifyUpdatedMenu($deliveryProductMappingVend);
+
+            $response = $this->model->notifyUpdatedMenu([
+              'merchantID' => $deliveryProductMappingVend->platform_ref_id,
+            ]);
+            // $this->notifyUpdatedMenu($deliveryProductMappingVend);
           }
           if($response['success']) {
+            dd($response, 200);
             return $response['data'];
+          }else {
+            throw new \Exception('Notify Updated Menu Failed');
           }
           break;
       }
