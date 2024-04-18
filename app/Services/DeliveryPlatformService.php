@@ -696,7 +696,11 @@ class DeliveryPlatformService
         $this->getGrabMenuItems([
           'item_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->id,
           'item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->name,
-          'translated_item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json,
+          'translated_item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json ? collect($deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json)->map(function($item) {
+            return [
+                $item['id'] => $item['name']
+            ];
+          }) : '',
           'desc' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->desc,
           'amount' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->amount,
           'image_url' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->thumbnail->full_url,
