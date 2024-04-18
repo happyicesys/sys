@@ -570,11 +570,10 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     ];
 
     public static $main_endpoint = 'https://api.grab.com';
-    public static $partner_endpoint = 'https://partner-api.grab.com/grabmart';
-    public static $partner_sandbox_endpoint = 'https://partner-api.grab.com/grabmart-sandbox';
-
-    public static $sandbox_scope = 'sandbox.mart.partner_api';
-    public static $production_scope = 'mart.partner_api';
+    public static $mart_partner_endpoint = 'https://partner-api.grab.com/grabmart';
+    public static $mart_partner_sandbox_endpoint = 'https://partner-api.grab.com/grabmart-sandbox';
+    public static $food_partner_endpoint = 'https://partner-api.grab.com/grabfood';
+    public static $food_partner_sandbox_endpoint = 'https://partner-api.grab.com/grabfood-sandbox';
 
     protected $deliveryPlatformOperator;
 
@@ -956,10 +955,18 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 
     private function getPartnerEndpoint()
     {
-        if($this->deliveryPlatformOperator->type === 'sandbox') {
-            $endpoint = self::$partner_sandbox_endpoint;
-        }else {
-            $endpoint = self::$partner_endpoint;
+        if($this->deliveryPlatformOperator->externalOauthToken->scopes === 'mart.partner_api') {
+            if($this->deliveryPlatformOperator->type === 'sandbox') {
+                $endpoint = self::$mart_partner_sandbox_endpoint;
+            }else {
+                $endpoint = self::$mart_partner_endpoint;
+            }
+        }else if($this->deliveryPlatformOperator->externalOauthToken->scopes === 'food.partner_api') {
+            if($this->deliveryPlatformOperator->type === 'sandbox') {
+                $endpoint = self::$food_partner_sandbox_endpoint;
+            }else {
+                $endpoint = self::$food_partner_endpoint;
+            }
         }
 
         return $endpoint;
@@ -1008,18 +1015,6 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         ];
 
         return $finalResponse;
-    }
-
-    // return oauth scope for grab
-    private function getScope()
-    {
-        $scope = self::$production_scope;
-
-        // if(config('app.env') === 'local') {
-        //     $scope = self::$production_scope;
-        // }
-
-        return $scope;
     }
 
     private function verifyOauthAccessToken()
