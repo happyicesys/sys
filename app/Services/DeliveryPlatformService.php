@@ -855,7 +855,7 @@ class DeliveryPlatformService
       'soldByWeight' => false,
     ];
 
-    if($data['nameTranslation'] === null) {
+    if(empty($data['nameTranslation'])) {
       unset($data['nameTranslation']);
     }
 
