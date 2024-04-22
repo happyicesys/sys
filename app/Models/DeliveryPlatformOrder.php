@@ -133,7 +133,7 @@ class DeliveryPlatformOrder extends Model
 
     public function deliveryPlatformOrderComplaint()
     {
-        return $this->hasOne(DeliveryPlatformOrderComplaint::class);
+        return $this->hasOne(DeliveryPlatformOrderComplaint::class)->latest();
     }
 
     public function deliveryPlatformOrderItems()
