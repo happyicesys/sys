@@ -210,7 +210,7 @@
                 <div class="mt-3">
                     <div class="flex space-x-1">
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                        @click="onSearchFilterUpdated()"
+                        @click.prevent="onSearchFilterUpdated()"
                         >
                             <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
                             <span>
@@ -218,7 +218,7 @@
                             </span>
                         </Button>
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                        @click="resetFilters()"
+                        @click.prevent="resetFilters()"
                         >
                             <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
                             <span>
@@ -226,7 +226,7 @@
                             </span>
                         </Button>
                         <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
-                            @click="onExportExcelClicked()"
+                            @click.prevent="onExportExcelClicked()"
                             v-if="permissions.includes('export excel')">
                             <div class="flex space-x-1">
                                 <div>
@@ -392,17 +392,17 @@
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <div
                                 class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer"
-                                :class="[vendTransaction.amount === vendTransaction.vendChannel.amount ? 'bg-indigo-100 text-indigo-800 border-indigo-300' : (vendTransaction.amount === vendTransaction.vendChannel.amount2 ? 'bg-purple-100 text-purple-800 border-purple-300' : '')]"
-                                v-if="vendTransaction.amount === vendTransaction.vendChannel.amount || vendTransaction.amount === vendTransaction.vendChannel.amount2"
+                                :class="[vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount ? 'bg-indigo-100 text-indigo-800 border-indigo-300' : (vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount2 ? 'bg-purple-100 text-purple-800 border-purple-300' : '')]"
+                                v-if="(vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount) || (vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount2)"
                             >
                                 <div class="flex flex-col">
-                                    <span class="font-semibold grow-0" v-if="vendTransaction.amount === vendTransaction.vendChannel.amount && vendTransaction.amount === vendTransaction.vendChannel.amount2">
+                                    <span class="font-semibold grow-0" v-if="vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount && vendTransaction.amount === vendTransaction.vendChannel.amount2">
                                         P1
                                     </span>
-                                    <span class="font-semibold grow-0" v-else-if="vendTransaction.amount === vendTransaction.vendChannel.amount">
+                                    <span class="font-semibold grow-0" v-else-if="vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount">
                                         P1
                                     </span>
-                                    <span class="font-semibold grow-0" v-else-if="vendTransaction.amount === vendTransaction.vendChannel.amount2">
+                                    <span class="font-semibold grow-0" v-else-if="vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount2">
                                         P2
                                     </span>
                                 </div>
@@ -429,7 +429,7 @@
                       <tr v-if="vendTransaction.vendTransactionItemsJson" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItemsJson">
                         <!-- <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center" colspan="5"> -->
                         <!-- </TableData> -->
-                        <td v-if="vendTransactionItemIndex == 0" class="border-b border-gray-200" colspan="5" :rowspan="vendTransaction.vendTransactionItemsJson.length"></td>
+                        <td v-if="vendTransactionItemIndex == 0" class="border-b border-gray-200" colspan="6" :rowspan="vendTransaction.vendTransactionItemsJson.length"></td>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
                             {{ vendTransactionItem.vend_channel_code ? vendTransactionItem.vend_channel_code : null }}
                         </TableData>

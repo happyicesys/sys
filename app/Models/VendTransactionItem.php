@@ -23,6 +23,7 @@ class VendTransactionItem extends Model
     ];
 
     protected $casts = [
+        'product_json' => 'json',
         'vend_channel_error_json' => 'json',
     ];
 

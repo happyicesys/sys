@@ -838,10 +838,10 @@ class DeliveryPlatformService
 
   private function getGrabMenuItems($params = [])
   {
-    return [
+    $data = [
       'id' => (string)$params['item_id'],
       'name' => $params['item_name'],
-      'nameTranslation' => isset($params['translated_item_name']) ? $params['translated_item_name'] : '',
+      'nameTranslation' => isset($params['translated_item_name']) ? $params['translated_item_name'] : null,
       'description' => $params['desc'],
       'price' =>  round($params['amount'] * 100),
       'availableStatus' => isset($params['is_active']) ? $params['is_active'] : self::STATUS_AVAILABLE,
@@ -854,6 +854,12 @@ class DeliveryPlatformService
       'maxCount' => $params['available_qty'],
       'soldByWeight' => false,
     ];
+
+    if($data['nameTranslation'] === null) {
+      unset($data['nameTranslation']);
+    }
+
+    return $data;
   }
 
   // order

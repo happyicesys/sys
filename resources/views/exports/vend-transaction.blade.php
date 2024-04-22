@@ -7,13 +7,19 @@
       <th>Vend ID</th>
       <th>Customer Name</th>
       <th>Channel</th>
-      <th>Product</th>
+      <th>Product ID</th>
+      <th>Product Name</th>
+      <th>Price Type</th>
       <th>Amount</th>
+      <th>Sales (before GST)</th>
+      <th>Unit Cost</th>
       <th>Payment Method</th>
       <th>Error</th>
+      <th>Location Type</th>
   </tr>
   </thead>
   <tbody>
+    {{-- @dd($vendTransactions->toArray()); --}}
   @foreach($vendTransactions as $index => $vendTransaction)
       <tr>
           <td>
@@ -30,26 +36,78 @@
             {{ $vendTransaction->vend->code }}
           </td>
           <td>
-            {{ $vendTransaction->vend ? $vendTransaction->vend->customer->code :
-            $vendTransaction->vend->name }}<br>
-            {{ $vendTransaction->vend ? $vendTransaction->vend->customer->name : '' }}
+            {{$vendTransaction->customer_json && isset($vendTransaction->customer_json['person_id']) && $vendTransaction->customer_json['person_id'] ? $vendTransaction->customer_json['virtual_customer_prefix'] . '-' . $vendTransaction->customer_json['virtual_customer_code'] : ''}}
+            <br>
+            {{$vendTransaction->customer_json ? $vendTransaction->customer_json['name'] : ''}}
+
           </td>
           <td>
-            {{ $vendTransaction->vendChannel->code }}
+            {{ $vendTransaction->vend_channel_code }}
           </td>
           <td>
-            {{ $vendTransaction->product ? $vendTransaction->product->code.' - '.$vendTransaction->product->name : '' }}
+            {{
+                $vendTransaction->product_json ?
+                $vendTransaction->product_json['code'] :
+                ($vendTransaction->product ? $vendTransaction->product->code : '')
+            }}
           </td>
           <td>
-            {{ $vendTransaction->amount/ 100 }}
+            {{
+                $vendTransaction->product_json ?
+                $vendTransaction->product_json['name'] :
+                ($vendTransaction->product ? $vendTransaction->product->name : '')
+            }}
+          </td>
+          <td>
+            {{ $vendTransaction->vendChannel && $vendTransaction->vendChannel->amount === $vendTransaction->amount ? 'P1' : ($vendTransaction->vendChannel && $vendTransaction->vendChannel->amount2 === $vendTransaction->amount ? 'P2' : '') }}
+          </td>
+          <td>
+            {{ isset($vendTransaction->amount) ? $vendTransaction->amount/ 100 : 0 }}
+          </td>
+          <td>
+            {{ isset($vendTransaction->revenue) ? $vendTransaction->revenue/ 100 : 0 }}
+          </td>
+          <td>
+            {{ isset($vendTransaction->unit_cost) ? $vendTransaction->unit_cost/ 100 : 0 }}
           </td>
           <td>
             {{ $vendTransaction->paymentMethod->name }}
           </td>
           <td>
-            {{ $vendTransaction->vendChannelError ? $vendTransaction->vendChannelError->code : '' }}
+            {{ $vendTransaction->vend_transaction_json &&
+                  isset($vendTransaction->vend_transaction_json['SErr']) ?
+                  $vendTransaction->vend_transaction_json['SErr'] :
+                  $vendTransaction->vend_channel_error_code }}
+          </td>
+          <td>
+            {{ $vendTransaction->location_type_json ?
+                $vendTransaction->location_type_json['name'] :
+                '' }}
           </td>
       </tr>
+
+      @if($vendTransaction->vendTransactionItems)
+        @foreach($vendTransaction->vendTransactionItems as $vendTransactionItem)
+        <tr>
+          <td colspan="5"></td>
+          <td>
+            {{ $vendTransactionItem->vend_channel_code }}
+          </td>
+          <td>
+            {{
+                $vendTransactionItem->product_json ?
+                $vendTransactionItem->product_json['code'] : ''
+            }}
+          </td>
+          <td>
+            {{
+                $vendTransactionItem->product_json ?
+                $vendTransactionItem->product_json['name'] : ''
+            }}
+          </td>
+        </tr>
+        @endforeach
+      @endif
   @endforeach
   </tbody>
 </table>

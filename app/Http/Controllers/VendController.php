@@ -3,8 +3,7 @@
 namespace App\Http\Controllers;
 
 // use App\Exports\VendTempExport;
-// use App\Exports\VendTransactionExport;
-use Rap2hpoutre\FastExcel\FastExcel;
+use App\Exports\VendTransactionExport;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CountryResource;
@@ -43,6 +42,7 @@ use App\Models\VendSnapshot;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
 use App\Models\PaymentGateways\Midtrans;
+use App\Models\PaymentGateways\Omise;
 use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use App\Services\RunningNumberService;
@@ -57,8 +57,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
+use Rap2hpoutre\FastExcel\FastExcel;
 use Spatie\Permission\Models\Role;
-use App\Models\PaymentGateways\Omise;
 
 
 // use PhpMqtt\Client\Facades\MQTT;
@@ -800,55 +801,51 @@ class VendController extends Controller
         $vendTransactions = VendTransaction::query()
         ->with([
             'vend:id,code,name',
-            'customer:id,code,name',
+            'vendChannel:id,code,amount,amount2',
+            'vendTransactionItems',
             'operator:id,code,name',
             'paymentMethod:id,code,name',
             'product:id,code,name',
-            'vendChannelError:id,desc',
         ])
         ->filterTransactionIndex($request)
         ->get();
 
-        // dd($vendTransactions->toArray());
-        return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
-            return [
-                'Order ID' => $vendTransaction->order_id,
-                'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
-                'Vend ID' => $vendTransaction->vend->code,
-                'Customer Name' => $vendTransaction->customer_json && isset($vendTransaction->customer_json['code']) ?
-                                        $vendTransaction->customer_json['code'].' '.$vendTransaction->customer_json['name'] : (
-                                        $vendTransaction->vend_json && isset($vendTransaction->vend_json['latest_vend_binding']) ?
-                                        $vendTransaction->vend_json['latest_vend_binding']['customer']['code'].' '.$vendTransaction->vend_json['latest_vend_binding']['customer']['name'] :
-                                        $vendTransaction->vend_name
-                                    ),
-                'Channel' => $vendTransaction->vend_channel_code,
-                // 'Product Code' => $vendTransaction->product ?
-                //                 $vendTransaction->product->code :
-                //                 '',
-                'Product Code' => $vendTransaction->product_json ?
-                                $vendTransaction->product_json['code'] :
-                                ($vendTransaction->product ? $vendTransaction->product->code : ''),
-                // 'Product Name' => $vendTransaction->product ?
-                //                 $vendTransaction->product->name :
-                //                 '',
-                'Product Name' => $vendTransaction->product_json ?
-                                $vendTransaction->product_json['name'] :
-                                ($vendTransaction->product ? $vendTransaction->product->name : ''),
-                'Amount' => $vendTransaction->amount/ 100,
-                'Sales (before GST)' => $vendTransaction->revenue/ 100,
-                'Unit Cost' => $vendTransaction->unit_cost ?
-                                $vendTransaction->unit_cost/ 100 :
-                                '',
-                'Payment Method' => $vendTransaction->paymentMethod ? $vendTransaction->paymentMethod->name : '',
-                'Error Code' => $vendTransaction->vend_transaction_json &&
-                            isset($vendTransaction->vend_transaction_json['SErr']) ?
-                            $vendTransaction->vend_transaction_json['SErr'] :
-                            $vendTransaction->vend_channel_error_code,
-                'Location Type' => $vendTransaction->location_type_json ?
-                                $vendTransaction->location_type_json['name'] :
-                                '',
-            ];
-        });
+
+        return Excel::download(new VendTransactionExport($vendTransactions), 'VendTransactions_'.Carbon::now()->toDateTimeString().'.xlsx');
+
+        // return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
+        //     return [
+        //         'Order ID' => $vendTransaction->order_id,
+        //         'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
+        //         'Vend ID' => $vendTransaction->vend->code,
+        //         'Customer Name' => $vendTransaction->customer_json && isset($vendTransaction->customer_json['code']) ?
+        //                                 $vendTransaction->customer_json['code'].' '.$vendTransaction->customer_json['name'] : (
+        //                                 $vendTransaction->vend_json && isset($vendTransaction->vend_json['latest_vend_binding']) ?
+        //                                 $vendTransaction->vend_json['latest_vend_binding']['customer']['code'].' '.$vendTransaction->vend_json['latest_vend_binding']['customer']['name'] :
+        //                                 $vendTransaction->vend_name
+        //                             ),
+        //         'Channel' => $vendTransaction->vend_channel_code,
+        //         'Product Code' => $vendTransaction->product_json ?
+        //                         $vendTransaction->product_json['code'] :
+        //                         ($vendTransaction->product ? $vendTransaction->product->code : ''),
+        //         'Product Name' => $vendTransaction->product_json ?
+        //                         $vendTransaction->product_json['name'] :
+        //                         ($vendTransaction->product ? $vendTransaction->product->name : ''),
+        //         'Amount' => $vendTransaction->amount/ 100,
+        //         'Sales (before GST)' => $vendTransaction->revenue/ 100,
+        //         'Unit Cost' => $vendTransaction->unit_cost ?
+        //                         $vendTransaction->unit_cost/ 100 :
+        //                         '',
+        //         'Payment Method' => $vendTransaction->paymentMethod ? $vendTransaction->paymentMethod->name : '',
+        //         'Error Code' => $vendTransaction->vend_transaction_json &&
+        //                     isset($vendTransaction->vend_transaction_json['SErr']) ?
+        //                     $vendTransaction->vend_transaction_json['SErr'] :
+        //                     $vendTransaction->vend_channel_error_code,
+        //         'Location Type' => $vendTransaction->location_type_json ?
+        //                         $vendTransaction->location_type_json['name'] :
+        //                         '',
+        //     ];
+        // });
     }
 
     public function exportVendSnapshotExcel($vendSnapshotId)
