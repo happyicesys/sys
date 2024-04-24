@@ -338,7 +338,8 @@ class DeliveryProductMappingController extends Controller
                 ->whereNotIn('id', function($query) use ($deliveryProductMapping) {
                     $query->select('vend_id')
                         ->from('delivery_product_mapping_vend')
-                        ->where('delivery_product_mapping_id', $deliveryProductMapping->id);
+                        ->where('delivery_product_mapping_id', $deliveryProductMapping->id)
+                        ->where('is_active', true);
                 })
                 ->when($deliveryProductMapping->deliveryPlatformOperator->type == '', function($query, $search) use ($request) {
                     $query->where('vends.code', 'LIKE', "{$request->vend_code}%");

@@ -486,7 +486,7 @@
                                 <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.data.length" inputClass="text-left">
                                   {{ deliveryProductMappingVend.vend.code }}
                                   <br>
-                                  {{ deliveryProductMappingVend.vend.cust_full_name }}
+                                  {{ deliveryProductMappingVend.vend.full_name }}
                                 </TableData>
                                 <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.data.length" inputClass="text-center">
                                   <div class="flex flex-col space-y-1 max-w-fit">
@@ -599,7 +599,7 @@ onMounted(() => {
     }})
     deliveryProductMappingVendOptions.value = props.deliveryProductMappingVends.data.map((data) => {return {
       id: data.id,
-      name: data.vend.cust_full_name,
+      name: data.vend.full_name,
       code: data.vend.code,
     }})
     deliveryPlatformCampaignItems.value = props.deliveryPlatformCampaign.data.deliveryPlatformCampaignItems.map((data) => {return {

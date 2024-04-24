@@ -31,6 +31,7 @@ class PaymentGatewayLog extends Model
         'status',
         'vend_channel_code',
         'vend_channel_id',
+        'vend_channels_json',
         'vend_code',
         'vend_id',
     ];
@@ -41,6 +42,7 @@ class PaymentGatewayLog extends Model
         'request' => 'json',
         'request_history_json' => 'json',
         'response' => 'json',
+        'vend_channels_json' => 'json',
     ];
 
     public function operatorPaymentGateway()

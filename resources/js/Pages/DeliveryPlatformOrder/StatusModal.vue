@@ -7,7 +7,7 @@
             Delivery Order {{ deliveryPlatformOrder.short_order_id }} Status
           </span>
           <span v-if="deliveryPlatformOrder.vend_code">
-            {{ deliveryPlatformOrder.deliveryProductMappingVend.vend.cust_full_name }}
+            {{ deliveryPlatformOrder.deliveryProductMappingVend.vend.full_name }}
           </span>
         </div>
       </template>

@@ -172,6 +172,7 @@ class PaymentGatewayService
           'status' => PaymentGatewayLog::STATUS_PENDING,
           'vend_channel_code' => $params['request']['SId'],
           'vend_channel_id' => $vendChannel ? $vendChannel->id : null,
+          'vend_channels_json' => isset($params['request']['slotIdList']) ? $params['request']['slotIdList'] : null,
           'vend_code' => $vend->code,
           'vend_id' => $vend->id,
       ]);

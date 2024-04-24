@@ -787,7 +787,7 @@ onMounted(() => {
       useForm(getDefaultForm())
 
     unbindedVendOptions.value = [
-      ...props.unbindedVendOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+      ...props.unbindedVendOptions.data.map((data) => {return {id: data.id, full_name: data.cust_full_name}})
     ]
 })
 
