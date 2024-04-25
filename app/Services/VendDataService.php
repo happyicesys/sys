@@ -188,7 +188,6 @@ class VendDataService
     $requiredMd5 = false;
 
     if(isset($originalInput['m'])) {
-
       $vend = Vend::with('customer')->where('code', $originalInput['m'])->first();
 
       if(!$vend) {
@@ -198,6 +197,7 @@ class VendDataService
       if($vend->customer && !$vend->customer->totals_json) {
         SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
       }
+
       if(isset($processedInput['Type'])) {
         switch($processedInput['Type']) {
           case 'ACBVMCPA':
@@ -226,7 +226,8 @@ class VendDataService
           case 'REFILL':
             break;
           case 'REQQR':
-            GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
+            // GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
+            GetPaymentGatewayQR::dispatchSync($originalInput, $processedInput, $vend);
             break;
           case 'STATIS1':
             UpdateVendStatistics::dispatch($processedInput, $vend)->onQueue('default');

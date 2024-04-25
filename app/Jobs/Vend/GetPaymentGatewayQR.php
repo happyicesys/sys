@@ -58,7 +58,6 @@ class GetPaymentGatewayQR
         // $vendChannel = $vend->vendChannels()->where('code', $input['SId'])->first();
         // if($vendChannel) {
             $orderId = $this->runningNumberService->getVendOrderID($vend);
-
             $response = $this->paymentGatewayService->createPaymentQrText($vend, [
                 'request' => $this->input,
                 'amount' => $input['PRICE'],

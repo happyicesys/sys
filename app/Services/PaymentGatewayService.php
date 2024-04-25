@@ -158,23 +158,43 @@ class PaymentGatewayService
     }
 
     if($isCreateInput) {
-      $vendChannel = $vend->vendChannels()->where('code', $params['request']['SId'])->first();
+      // $vendChannel = $vend->vendChannels()->where('code', $params['request']['SId'])->first();
+      $vendChannelCodesArr = [];
+      if(isset($params['request']['slotIdList'])) {
+        $vendChannelCodesArr = $params['request']['slotIdList'];
+      }else {
+        $vendChannelCodesArr[] = $params['request']['SId'];
+      }
+
+      if(!$vendChannelCodesArr) {
+        throw new \Exception('Vend channel(s) is not detect upon request QR code');
+      }
+
+      $vendChannelsCollections = collect();
+      foreach($vendChannelCodesArr as $vendChannelCode) {
+        $vendChannel = $vend
+            ->vendChannels()
+            ->with(['product:id,code,name'])
+            ->where('code', $vendChannelCode)->first(['id', 'code', 'product_id']);
+        $vendChannelsCollections->push($vendChannel);
+      }
+
       $paymentGatewayLog = PaymentGatewayLog::create([
-          'request' => $params['request'],
-          'response' => $response,
-          'history_json' => $response,
-          'order_id' => $params['metadata']['order_id'],
-          'amount' => $params['amount'],
-          'qr_url' => $qrCodeUrl,
-          'qr_text' => $qrCodeText,
-          'operator_payment_gateway_id' => $operatorPaymentGateway->id,
-          'payment_gateway_id' => $operatorPaymentGateway->paymentGateway->id,
-          'status' => PaymentGatewayLog::STATUS_PENDING,
-          'vend_channel_code' => $params['request']['SId'],
-          'vend_channel_id' => $vendChannel ? $vendChannel->id : null,
-          'vend_channels_json' => isset($params['request']['slotIdList']) ? $params['request']['slotIdList'] : null,
-          'vend_code' => $vend->code,
-          'vend_id' => $vend->id,
+        'request' => $params['request'],
+        'response' => $response,
+        'history_json' => $response,
+        'order_id' => $params['metadata']['order_id'],
+        'amount' => $params['amount'],
+        'qr_url' => $qrCodeUrl,
+        'qr_text' => $qrCodeText,
+        'operator_payment_gateway_id' => $operatorPaymentGateway->id,
+        'payment_gateway_id' => $operatorPaymentGateway->paymentGateway->id,
+        'status' => PaymentGatewayLog::STATUS_PENDING,
+        'vend_channel_code' => isset($params['request']['SId']) ? $params['request']['SId'] : null,
+        'vend_channel_id' => isset($params['request']['SId']) && $vend->vendChannels()->where('code', $params['request']['SId'])->first() ? $vend->vendChannels()->where('code', $params['request']['SId'])->first()->id : null,
+        'vend_channels_json' => $vendChannelsCollections,
+        'vend_code' => $vend->code,
+        'vend_id' => $vend->id,
       ]);
 
       return [
