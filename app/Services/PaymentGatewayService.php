@@ -162,10 +162,19 @@ class PaymentGatewayService
 
             $vendChannelsCollections = collect();
             foreach ($vendChannelCodesArr as $vendChannelCode) {
-                $vendChannel = $vend
+                $vendChannel =
+                    $vend
+                    ->vendChannels()
+                    ->where('code', $vendChannelCode)
+                    ->first() ?
+                    $vend
                     ->vendChannels()
                     ->with(['product:id,code,name'])
-                    ->where('code', $vendChannelCode)->first(['id', 'code', 'product_id']);
+                    ->where('code', $vendChannelCode)->first(['id', 'code', 'product_id']) :
+                    [
+                        'code' => $vendChannelCode,
+                        'product' => null,
+                    ];
                 $vendChannelsCollections->push($vendChannel);
             }
 
