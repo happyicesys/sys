@@ -19,10 +19,6 @@ use Zxing\QrReader;
 
 class PaymentGatewayService
 {
-    /**
-     * @throws \ImagickException
-     * @throws Exception
-     */
     public function createPaymentQrText(Vend $vend, $params): array
     {
         $qrCodeText = '';
@@ -91,33 +87,6 @@ class PaymentGatewayService
                 }
             }
             $url = Storage::url('/qr-code/' . $params['metadata']['order_id'] . '.png');
-
-            // newly added for precision
-            // $width = imagesx($url);
-            // $height = imagesy($url);
-
-            // for($zoom = 100; $zoom >= 10; $zoom -= 10) {
-            //   $new_width = $width * $zoom / 100;
-            //   $new_height = $height * $zoom / 100;
-            //   $zoomResource = imagecreate(800, 350);
-
-            //   imagecopyresampled(
-            //       $zoomResource,
-            //       $imageResource,
-            //       0,
-            //       0,
-            //       0,
-            //       0,
-            //       $new_width,
-            //       $new_height,
-            //       $width,
-            //       $height
-            //   );
-
-            //   imagepng($zoomResource, $pathTempPng, 0, PNG_NO_FILTER);
-            //   imagedestroy($zoomResource);
-            // }
-
             $qrCodeReader = new QrReader($url);
             $qrCodeText = $qrCodeReader->text([
                 'POSSIBLE_FORMATS' => 'QR_CODE',
@@ -128,7 +97,6 @@ class PaymentGatewayService
             switch ($operatorPaymentGateway->paymentGateway->name) {
                 case 'omise':
                     if (isset($params['type']) and $params['type'] == 'shopeepay') {
-                        // use crawler programmatically crawl for qr code text
                         $browser = new HttpBrowser(HttpClient::create());
                         $crawler = $browser->request('GET', $qrCodeUrl);
                         $form = $crawler->filter('form')->form();
@@ -163,6 +131,7 @@ class PaymentGatewayService
             $vendChannelsCollections = collect();
             foreach ($vendChannelCodesArr as $vendChannelCode) {
                 $vendChannel = $vend->vendChannels()->where('code', $vendChannelCode)->first();
+
                 $vendChannel =
                     $vendChannel && $vendChannel->product ?
                     $vend
@@ -216,16 +185,23 @@ class PaymentGatewayService
     {
         $paymentGateway = $this->getOperatorPaymentGateway($vend);
         $operatorPaymentGateway = $paymentGateway->getOperatorPaymentGateway();
+        if(!$params['amount']) {
+            throw new Exception('Amount is not set');
+        }
+        if(!$params['metadata']) {
+            throw new Exception('OrderID is not set within metadata');
+        }
+
         $processedParams = [
-            'amount' => $params['amount'] ?? throw new Exception('Amount is not set'),
+            'amount' => $params['amount'] ? $params['amount'] : 0,
             'currency' => $params['currency'] ?? $operatorPaymentGateway->paymentGateway->country->currency_name,
             'expiry_seconds' => $params['expiry_seconds'] ?? 150,
-            'metadata' => $params['metadata'] ?? throw new Exception('OrderID is not set within metadata'),
+            'metadata' => $params['metadata'] ?? [],
             'timezone' => $params['timezone'] ?? $operatorPaymentGateway->paymentGateway->country->timezone,
             'type' => (isset($params['type']) && $params['type']) ? $params['type'] :
                 ($operatorPaymentGateway->paymentGateway->defaultPaymentMethod->exists() ?
                     $operatorPaymentGateway->paymentGateway->defaultPaymentMethod->type_name :
-                    throw new Exception('Payment Method is not set')
+                    ''
                 ),
             'return_uri' => $params['return_uri'] ?? env('APP_URL'),
         ];
@@ -261,7 +237,7 @@ class PaymentGatewayService
                             return $obj;
                             break;
                     }
-                    throw new InvalidArgumentException('Invalid payment gateway specified.');
+                    throw new Exception('Invalid payment gateway specified.');
                 } else {
                     throw new Exception('Api key environment not match with current environment');
                 }
