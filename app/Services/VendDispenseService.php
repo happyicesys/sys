@@ -58,6 +58,7 @@ class VendDispenseService
     $data = [];
     if(count($channels) > 0) {
       foreach($channels as $channel) {
+        dd($channel);
         $data[] = [
           'port_type' => 0,
           'goods_id' => isset($channel['product']['id']) ? (int)$channel['product']['id'] : 0,
