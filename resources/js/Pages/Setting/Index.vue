@@ -105,6 +105,22 @@
             >
             </MultiSelect>
           </div>
+          <div v-if="permissions.includes('admin-access vends')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Is Factory?
+            </label>
+            <MultiSelect
+                v-model="filters.is_testing"
+                :options="booleanOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Location Type
@@ -366,6 +382,7 @@ const filters = ref({
     operator: '',
     is_active: '',
     is_binded_customer: '',
+    is_testing: '',
     sortKey: '',
     sortBy: true,
     numberPerPage: '',
@@ -418,6 +435,7 @@ onMounted(() => {
 
     filters.value.is_active = booleanOptions.value[1]
     filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]
+    filters.value.is_testing = booleanOptions.value[2]
 })
 
 function onCreateClicked() {
@@ -443,6 +461,7 @@ function onSearchFilterUpdated() {
       operator_id: filters.value.operator.id,
       is_active: filters.value.is_active.id,
       is_binded_customer: filters.value.is_binded_customer.id,
+      is_testing: filters.value.is_testing.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

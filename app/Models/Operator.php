@@ -78,6 +78,6 @@ class Operator extends Model
 
     public function vends()
     {
-        return $this->belongsToMany(Vend::class)->orderBy('code');
+        return $this->hasMany(Vend::class)->orderBy('code');
     }
 }

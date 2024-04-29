@@ -427,7 +427,7 @@ class Vend extends Model
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-            $query->where('vends.operator_id', $search);
+                $query->where('vends.operator_id', $search);
             }
         })
         ->when($request->is_online, function($query, $search) {

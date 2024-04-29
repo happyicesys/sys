@@ -47,7 +47,9 @@ class UserController extends Controller
                     $query->where('email', 'LIKE', "%{$search}%");
                 })
                 ->when($request->operator_id, function($query, $search) {
-                    $query->where('operator_id', $search);
+                    if($search != 'all') {
+                        $query->where('operator_id', $search);
+                    }
                 })
                 ->when($request->sortKey, function($query, $search) use ($request) {
                     $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );

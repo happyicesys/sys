@@ -46,8 +46,8 @@ class OperatorController extends Controller
                     'address:id,postcode',
                     // 'deliveryPlatformOperators.deliveryPlatform',
                     'country:id,name,code,currency_name,currency_symbol',
-                    'customers:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
-                    'customers.vends:id,code,name',
+                    'vends:id,code,customer_id,is_active',
+                    'vends.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
                     ])
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
@@ -141,7 +141,19 @@ class OperatorController extends Controller
                 'address',
                 'address.country',
                 'country',
-                'customers' => function($query) use ($request) {
+                'vends' => function($query) use ($request) {
+                    $query
+                    ->when($request->is_active_vend, function($query, $search) {
+                        if($search != 'all') {
+                            $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+                        }
+                    })
+                    ->when($request->vend_code, function($query, $search) {
+                        $query->where('code', 'LIKE', '%'.$search.'%');
+                    });
+                    $query->select('id', 'code', 'name', 'customer_id', 'operator_id');
+                },
+                'vends.customer' => function($query) use ($request) {
                     $query
                     ->when($request->prefix_code, function($query, $search) {
                         $query->where(function($query) use ($search) {
@@ -151,29 +163,8 @@ class OperatorController extends Controller
                     })
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', '%'.$search.'%');
-                    })
-                    ->when($request->vend_code, function($query, $search) {
-                        $query->whereHas('vend', function($query) use ($search) {
-                            $query->where('code', 'LIKE', '%'.$search.'%');
-                        });
-                    })
-                    ->when($request->is_active_vend, function($query, $search) {
-                        if($search != 'all') {
-                            $query->whereHas('vend', function($query) use ($search) {
-                                $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
-                            });
-                        }
                     });
-                    $query->select('id', 'code', 'name', 'virtual_customer_code', 'virtual_customer_prefix', 'operator_id', 'person_id');
-                },
-                'customers.vend' => function($query) use ($request) {
-                    $query
-                    ->when($request->is_active_vend, function($query, $search) {
-                        if($search != 'all') {
-                            $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
-                        }
-                    });
-                    $query->select('id', 'code', 'name', 'customer_id');
+                    $query->select('id', 'code', 'name', 'virtual_customer_code', 'virtual_customer_prefix', 'operator_id', 'person_id', 'is_active');
                 },
                 'deliveryPlatformOperators.deliveryPlatform',
                 'operatorPaymentGateways.paymentGateway',

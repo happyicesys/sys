@@ -476,11 +476,11 @@
               </div>
 
               <div class="sm:col-span-5" v-if="form.id">
-                <SearchCustomerWithOperatorInput v-model="form.customer_id" @selected="onCustomerSelected" required="true" :error="form.errors.customer_id">
+                <SearchCustomerWithOperatorInput v-model="form.vend_id" @selected="onCustomerSelected" required="true" :error="form.errors.vend_id">
                   Device to Bind
                 </SearchCustomerWithOperatorInput>
-                <div class="text-sm text-red-600" v-if="form.errors.customer_id">
-                  {{ form.errors.customer_id }}
+                <div class="text-sm text-red-600" v-if="form.errors.vend_id">
+                  {{ form.errors.vend_id }}
                 </div>
               </div>
 
@@ -489,8 +489,8 @@
                 type="button"
                 @click="bindOperatorCustomer()"
                 class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
-                :class="[!form.customer_id ? 'opacity-50 cursor-not-allowed' : '']"
-                :disabled="!form.customer_id && !permissions.includes('update operators')"
+                :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="!form.vend_id && !permissions.includes('update operators')"
                 >
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                   <span>
@@ -534,14 +534,6 @@
                                 >
                                 </MultiSelect>
                             </div>
-                              <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-400 px-2 py-3 md:px-5 text-sm font-medium leading-4 text-gray-900 shadow-sm hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 h-fit mt-2"
-                              @click="resetFilters()"
-                              >
-                                  <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
-                                  <span>
-                                      Reset
-                                  </span>
-                              </Button> -->
                             </span>
                           </th>
                         </tr>
@@ -550,10 +542,10 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Customer
+                            Vend ID
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Vend ID
+                            Customer
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Action
@@ -562,37 +554,37 @@
 
                       </thead>
                       <tbody class="bg-white">
-                        <tr v-for="(customer, customerIndex) in customers" :key="customer.id" :class="customerIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <tr v-for="(vend, vendIndex) in vends" :key="vend.id" :class="vendIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            {{ customerIndex + 1 }}
-                          </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                            <span v-if="customer && customer.person_id">
-                                {{ customer.virtual_customer_code }} ({{ customer.virtual_customer_prefix }})
-                                <br>
-                                {{ customer.name }}
-                            </span>
-                            <span v-else>
-                              <span v-if="customer.code">
-                                {{ customer.code }} <br>
-                              </span>
-                              {{ customer.name }}
-                            </span>
+                            {{ vendIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-left">
-                            {{ customer.vend ? customer.vend.code : null }}
+                            {{ vend ? vend.code : null }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                            <span v-if="vend.customer && vend.customer.person_id">
+                                {{ vend.customer.virtual_customer_code }} ({{ vend.customer.virtual_customer_prefix }})
+                                <br>
+                                {{ vend.customer.name }}
+                            </span>
+                            <span v-else>
+                              <span v-if="vend.customer && vend.customer.code">
+                                {{ vend.customer.code }} <br>
+                              </span>
+                              {{ vend.customer && vend.customer.name ? vend.customer.name : ''}}
+                            </span>
                           </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button
                               class="bg-red-400 hover:bg-red-500 text-white"
-                              @click.prevent="deleteOperatorCustomer(customer)"
+                              @click.prevent="deleteOperatorCustomer(vend)"
                               v-if="permissions.includes('update operators')"
                             >
                               <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                             </Button>
                           </td>
                         </tr>
-                        <tr v-if="!customers.length">
+                        <tr v-if="!vends.length">
                           <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
                             No Result Found
                           </td>
@@ -643,7 +635,7 @@ const props = defineProps({
   const countryOptions = ref([])
   const countryDeliveryPlatformOptions = ref([])
   const countryPaymentGatewayOptions = ref([])
-  const customers = ref([])
+  // const customers = ref([])
   const deliveryPlatformOperators = ref([])
   const deliveryPlatformOperatorTypes = ref([])
   const form = ref(
@@ -680,7 +672,8 @@ onMounted(() => {
     operatorPaymentGatewayTypes.value = props.operatorPaymentGatewayTypes
     operatorPaymentGateways.value = props.operator ? props.operator.data.operatorPaymentGateways : null
     vends.value = props.operator ? props.operator.data.vends : null
-    customers.value = props.operator ? props.operator.data.customers : null
+    console.log(JSON.parse(JSON.stringify(props.operator.data)))
+    // customers.value = props.operator ? props.operator.data.customers : null
 
 })
 
@@ -809,7 +802,8 @@ function onSearchFilterUpdated() {
     replace: true,
     preserveState: true,
     onSuccess: page => {
-      customers.value = props.operator ? props.operator.data.customers : null
+      // customers.value = props.operator ? props.operator.data.customers : null
+      vends.value = props.operator ? props.operator.data.vends : null
     }
   })
 
@@ -832,7 +826,8 @@ function onCustomerSelected(obj) {
 function resetFilters() {
   router.get('/operators/' + form.value.id + '/edit', filters.value, {
     onSuccess: page => {
-      customers.value = props.operator ? props.operator.data.customers : null
+      // customers.value = props.operator ? props.operator.data.customers : null
+      vends.value = props.operator ? props.operator.data.vends : null
     }
   })
 }
