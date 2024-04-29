@@ -10,13 +10,13 @@ use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
-use Image;
 use Zxing\QrReader;
 use Symfony\Component\BrowserKit\HttpBrowser;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpClient\HttpClient;
 use Imagick;
 use ImagickPixel;
+use Intervention\Image\Laravel\Facades\Image;
 
 class PaymentGatewayService
 {
@@ -74,11 +74,11 @@ class PaymentGatewayService
         $img = false;
         if($isRequiredDecode) {
           if($isResizeImage) {
-              $image = Image::make($qrCodeUrl)->resize(150, 150);
-              $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $image->stream()->__toString(), 'public');
+              $image = Image::read($qrCodeUrl)->resize(150, 150);
+              $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $image->toPng()->toFilePointer(), 'public');
           }else {
             if(isset($params['type']) and $params['type'] == 'alipayplus_mpm') {
-              $imagick = new Imagick();
+              $imagick = Imagick::imagick();
               $imagick->setBackgroundColor(new ImagickPixel('transparent'));
               $imagick->readImageBlob(file_get_contents($qrCodeUrl));
               $imagick->setImageFormat('png24');

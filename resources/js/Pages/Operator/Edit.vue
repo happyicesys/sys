@@ -470,14 +470,14 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Access Customer(s) </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Device(s) </span>
                   </div>
                 </div>
               </div>
 
               <div class="sm:col-span-5" v-if="form.id">
                 <SearchCustomerWithOperatorInput v-model="form.customer_id" @selected="onCustomerSelected" required="true" :error="form.errors.customer_id">
-                  Customer to Bind
+                  Device to Bind
                 </SearchCustomerWithOperatorInput>
                 <div class="text-sm text-red-600" v-if="form.errors.customer_id">
                   {{ form.errors.customer_id }}
@@ -593,8 +593,8 @@
                           </td>
                         </tr>
                         <tr v-if="!customers.length">
-                          <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-red-600 text-center">
-                            No Binding = Access to All Customers
+                          <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
+                            No Result Found
                           </td>
                         </tr>
                       </tbody>
@@ -662,7 +662,7 @@ const props = defineProps({
   const permissions = usePage().props.auth.permissions
   const timezoneOptions = ref([])
   const typeName = ref('')
-  // const vends = ref([])
+  const vends = ref([])
 
 onMounted(() => {
     if(props.type == 'create') {
@@ -679,7 +679,7 @@ onMounted(() => {
     timezoneOptions.value = props.timezones.map((timezone, index) => {return {id: index, name: timezone}})
     operatorPaymentGatewayTypes.value = props.operatorPaymentGatewayTypes
     operatorPaymentGateways.value = props.operator ? props.operator.data.operatorPaymentGateways : null
-    // vends.value = props.operator ? props.operator.data.vends : null
+    vends.value = props.operator ? props.operator.data.vends : null
     customers.value = props.operator ? props.operator.data.customers : null
 
 })

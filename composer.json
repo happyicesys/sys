@@ -10,7 +10,7 @@
         "dsiddharth2/php-zxing": "^1.0",
         "guzzlehttp/guzzle": "^7.2",
         "inertiajs/inertia-laravel": "^1.0",
-        "intervention/image": "^2.7",
+        "intervention/image-laravel": "^1.2",
         "itsgoingd/clockwork": "^5.1",
         "khanamiryan/qrcode-detector-decoder": "^2.0",
         "laravel/framework": "^11.0",
@@ -25,6 +25,8 @@
         "psr/simple-cache": "^2.0",
         "rap2hpoutre/fast-excel": "^5.0",
         "spatie/laravel-permission": "^6.0",
+        "symfony/browser-kit": "^7.0",
+        "symfony/http-client": "^7.0",
         "tightenco/ziggy": "^1.0"
     },
     "require-dev": {
