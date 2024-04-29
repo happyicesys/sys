@@ -1,21 +1,22 @@
 <?php
 
 namespace App\Services;
-
+use App\Models\OperatorPaymentGateway;
+use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
-use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
+use App\Models\PaymentGateways\Midtrans;
 use App\Models\Vend;
-use Exception;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Image;
-use Imagick;
-use ImagickPixel;
+use Zxing\QrReader;
 use Symfony\Component\BrowserKit\HttpBrowser;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpClient\HttpClient;
-use Zxing\QrReader;
+use Imagick;
+use ImagickPixel;
 
 class PaymentGatewayService
 {
@@ -71,47 +72,75 @@ class PaymentGatewayService
                 break;
         }
         $img = false;
-        if ($isRequiredDecode) {
-            if ($isResizeImage) {
-                $image = Image::make($qrCodeUrl)->resize(150, 150);
-                $img = Storage::put('/qr-code/' . $params['metadata']['order_id'] . '.png', $image->stream()->__toString(), 'public');
-            } else {
-                if (isset($params['type']) and $params['type'] == 'alipayplus_mpm') {
-                    $imagick = new Imagick();
-                    $imagick->setBackgroundColor(new ImagickPixel('transparent'));
-                    $imagick->readImageBlob(file_get_contents($qrCodeUrl));
-                    $imagick->setImageFormat('png24');
-                    $img = Storage::put('/qr-code/' . $params['metadata']['order_id'] . '.png', $imagick->getImageBlob(), 'public');
-                } else {
-                    $img = Storage::put('/qr-code/' . $params['metadata']['order_id'] . '.png', file_get_contents($qrCodeUrl), 'public');
-                }
+        if($isRequiredDecode) {
+          if($isResizeImage) {
+              $image = Image::make($qrCodeUrl)->resize(150, 150);
+              $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $image->stream()->__toString(), 'public');
+          }else {
+            if(isset($params['type']) and $params['type'] == 'alipayplus_mpm') {
+              $imagick = new Imagick();
+              $imagick->setBackgroundColor(new ImagickPixel('transparent'));
+              $imagick->readImageBlob(file_get_contents($qrCodeUrl));
+              $imagick->setImageFormat('png24');
+              $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $imagick->getImageBlob(), 'public');
+            }else {
+              $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', file_get_contents($qrCodeUrl), 'public');
             }
-            $url = Storage::url('/qr-code/' . $params['metadata']['order_id'] . '.png');
-            $qrCodeReader = new QrReader($url);
-            $qrCodeText = $qrCodeReader->text([
-                'POSSIBLE_FORMATS' => 'QR_CODE',
-                'TRY_HARDER' => true,
-            ]);
-            Storage::disk('public')->delete('/qr-code/' . $params['metadata']['order_id'] . '.png');
-        } else {
-            switch ($operatorPaymentGateway->paymentGateway->name) {
-                case 'omise':
-                    if (isset($params['type']) and $params['type'] == 'shopeepay') {
-                        $browser = new HttpBrowser(HttpClient::create());
-                        $crawler = $browser->request('GET', $qrCodeUrl);
-                        $form = $crawler->filter('form')->form();
-                        $firstResponse = $browser->submit($form);
-                        $htmlString = $firstResponse->html();
-                    } else {
-                        $htmlString = Http::get($qrCodeUrl)->body();
-                    }
+          }
+          $url = Storage::url('/qr-code/'.$params['metadata']['order_id'].'.png');
 
-                    $doc = new \DOMDocument;
-                    $doc->loadHTML($htmlString);
-                    $xpath = new \DOMXpath($doc);
-                    $val = $xpath->query('//input[@type="hidden" and @id = "qr_string"]/@value');
-                    $qrCodeText = isset($val[0]) ? $val[0]->nodeValue : null;
-                    break;
+          // newly added for precision
+          // $width = imagesx($url);
+          // $height = imagesy($url);
+
+          // for($zoom = 100; $zoom >= 10; $zoom -= 10) {
+          //   $new_width = $width * $zoom / 100;
+          //   $new_height = $height * $zoom / 100;
+          //   $zoomResource = imagecreate(800, 350);
+
+          //   imagecopyresampled(
+          //       $zoomResource,
+          //       $imageResource,
+          //       0,
+          //       0,
+          //       0,
+          //       0,
+          //       $new_width,
+          //       $new_height,
+          //       $width,
+          //       $height
+          //   );
+
+          //   imagepng($zoomResource, $pathTempPng, 0, PNG_NO_FILTER);
+          //   imagedestroy($zoomResource);
+          // }
+
+          $qrCodeReader = new QrReader($url);
+          $qrCodeText = $qrCodeReader->text([
+              'POSSIBLE_FORMATS' => 'QR_CODE',
+              'TRY_HARDER' => true,
+          ]);
+          Storage::disk('public')->delete('/qr-code/'.$params['metadata']['order_id'].'.png');
+        }else {
+            switch($operatorPaymentGateway->paymentGateway->name) {
+                case 'omise':
+                  if(isset($params['type']) and $params['type'] == 'shopeepay') {
+                    // use crawler programmatically crawl for qr code text
+                    $browser = new HttpBrowser(HttpClient::create());
+                    $crawler = $browser->request('GET', $qrCodeUrl);
+                    $form = $crawler->filter('form')->form();
+                    $firstResponse = $browser->submit($form);
+                    $htmlString = $firstResponse->html();
+                  }else {
+                    $htmlString = Http::get($qrCodeUrl)->body();
+                  }
+
+                  $doc = new \DOMDocument;
+                  $doc->loadHTML($htmlString);
+                  $xpath = new \DOMXpath($doc);
+                  $val= $xpath->query('//input[@type="hidden" and @id = "qr_string"]/@value');
+                  $qrCodeText = isset($val[0]) ? $val[0]->nodeValue : null;
+                  break;
             }
         }
 
@@ -125,7 +154,7 @@ class PaymentGatewayService
             }
 
             if (!$vendChannelCodesArr) {
-                throw new Exception('Vend channel(s) is not detect upon request QR code');
+                throw new \Exception('Vend channel(s) is not detect upon request QR code');
             }
 
             $vendChannelsCollections = collect();
@@ -186,10 +215,10 @@ class PaymentGatewayService
         $paymentGateway = $this->getOperatorPaymentGateway($vend);
         $operatorPaymentGateway = $paymentGateway->getOperatorPaymentGateway();
         if(!$params['amount']) {
-            throw new Exception('Amount is not set');
+            throw new \Exception('Amount is not set');
         }
         if(!$params['metadata']) {
-            throw new Exception('OrderID is not set within metadata');
+            throw new \Exception('OrderID is not set within metadata');
         }
 
         $processedParams = [
@@ -237,16 +266,16 @@ class PaymentGatewayService
                             return $obj;
                             break;
                     }
-                    throw new Exception('Invalid payment gateway specified.');
+                    throw new \Exception('Invalid payment gateway specified.');
                 } else {
-                    throw new Exception('Api key environment not match with current environment');
+                    throw new \Exception('Api key environment not match with current environment');
                 }
 
             } else {
-                throw new Exception('Payment Gateway is not set within operator');
+                throw new \Exception('Payment Gateway is not set within operator');
             }
         } else {
-            throw new Exception('Vend is not set to any operator');
+            throw new \Exception('Vend is not set to any operator');
         }
     }
 
