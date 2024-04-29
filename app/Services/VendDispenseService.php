@@ -58,11 +58,10 @@ class VendDispenseService
     $data = [];
     if(count($channels) > 0) {
       foreach($channels as $channel) {
-        dd($channel);
         $data[] = [
           'port_type' => 0,
-          'goods_id' => isset($channel['product']['id']) ? (int)$channel['product']['id'] : 0,
-          'goods_name' => isset($channel['product']['name']) ? $channel['product']['name'] : null,
+          'goods_id' => isset($channel['product']) && isset($channel['product']['id']) ? (int)$channel['product']['id'] : 0,
+          'goods_name' => isset($channel['product']) && isset($channel['product']['name']) ? $channel['product']['name'] : null,
           'goodroadid' => isset($channel['code']) ? (int)$channel['code'] : null,
           'num' => $channel['qty'],
           'uselift' => 0,
