@@ -1,18 +1,18 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Jobs\SyncVendCustomerCms;
-use App\Http\Resources\CategoryResource;
+
 use App\Http\Resources\CategoryGroupResource;
+use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CountryResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PriceTemplateResource;
 use App\Http\Resources\ProfileResource;
-use App\Http\Resources\StatusResource;
 use App\Http\Resources\TagResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\ZoneResource;
+use App\Jobs\SyncVendCustomerCms;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Country;
@@ -20,14 +20,11 @@ use App\Models\Customer;
 use App\Models\Operator;
 use App\Models\PriceTemplate;
 use App\Models\Profile;
-use App\Models\Status;
 use App\Models\Tag;
 use App\Models\User;
 use App\Models\Vend;
-use App\Models\VendData;
 use App\Models\Zone;
 use App\Traits\HasFilter;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -64,20 +61,25 @@ class CustomerController extends Controller
             'vend',
             'zone'
         ])
-        ->leftJoin('operators', 'customers.operator_id', '=', 'operators.id')
-        ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
-        ->select(
-            'customers.*',
-            'customers.operator_id',
-            'operators.code as operator_code',
-            'operators.name as operator_name'
-        )
-        ->filterIndex($request);
+            ->leftJoin('operators', 'customers.operator_id', '=', 'operators.id')
+            ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+            ->select(
+                'customers.*',
+                'customers.operator_id',
+                'operators.code as operator_code',
+                'operators.name as operator_name'
+            )
+            ->filterIndex($request);
 
         $customers = $this->filterOperator($customers);
 
-        $customers = $customers->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
-        ->withQueryString();
+        $customers = $customers
+            ->paginate(
+                $request->numberPerPage === 'All' ?
+                    10000 :
+                    $request->numberPerPage
+            )
+            ->withQueryString();
 
         return Inertia::render('Customer/Index', [
             'customers' => CustomerResource::collection(
@@ -91,7 +93,7 @@ class CustomerController extends Controller
             ),
             'categoryGroups' => CategoryGroupResource::collection(
                 CategoryGroup::query()
-                    ->whereHas('categories', function($query) use ($className){
+                    ->whereHas('categories', function ($query) use ($className) {
                         $query->where('classname', $className);
                     })->orderBy('name')->get()
             ),
@@ -114,7 +116,7 @@ class CustomerController extends Controller
                     'id' => 'all',
                     'name' => 'All',
                 ],
-                ...collect(Customer::STATUSES_MAPPING)->map(function($status, $index) {
+                ...collect(Customer::STATUSES_MAPPING)->map(function ($status, $index) {
                     return [
                         'id' => $index,
                         'name' => $status,
@@ -145,7 +147,7 @@ class CustomerController extends Controller
         $customer = Customer::find($id);
         $vend = Vend::find($request->vendID);
 
-        if($customer and $vend) {
+        if ($customer and $vend) {
             $vend->customer_id = $customer->id;
             $vend->save();
             SyncVendCustomerCms::dispatchSync($customer->person_id, $vend->id);
@@ -158,7 +160,9 @@ class CustomerController extends Controller
     {
 
         return Inertia::render('Customer/Create', [
-            'cmsCustomerOptions' => Http::get(env('CMS_URL') . '/api/vends/unbind')->collect() ? Http::get(env('CMS_URL') . '/api/vends/unbind')->collect()->whereNotIn('id', Customer::select('person_id')->pluck('person_id'))->all() : [],
+            'cmsCustomerOptions' => Http::get(env('CMS_URL') . '/api/vends/unbind')->collect() ?
+                Http::get(env('CMS_URL') . '/api/vends/unbind')->collect()->whereNotIn('id', Customer::select('person_id')->pluck('person_id'))->all() :
+                [],
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
             'customer' => new Customer(),
             'operatorOptions' => OperatorResource::collection(
@@ -184,21 +188,21 @@ class CustomerController extends Controller
     public function edit(Request $request, $id)
     {
         $customer = Customer::query()
-        ->with([
-            'attachments',
-            'billingAddress',
-            'category',
-            'category.categoryGroup',
-            'contact',
-            'deliveryAddress',
-            'firstTransaction',
-            'profile',
-            'status',
-            'tagBindings',
-            'vend',
-            'zone'
-        ])
-        ->find($id);
+            ->with([
+                'attachments',
+                'billingAddress',
+                'category',
+                'category.categoryGroup',
+                'contact',
+                'deliveryAddress',
+                'firstTransaction',
+                'profile',
+                'status',
+                'tagBindings',
+                'vend',
+                'zone'
+            ])
+            ->find($id);
 
         return Inertia::render('Customer/Edit', [
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
@@ -241,12 +245,12 @@ class CustomerController extends Controller
                 'vend:id,code,customer_id'
             ])
             ->has('vend')
-            ->where(function($query) use ($search) {
-                $query->where('name', 'LIKE', '%'.$search.'%')
-                    ->orWhere('virtual_customer_code', 'LIKE', '%'.$search.'%')
-                    ->orWhere('virtual_customer_prefix', 'LIKE', '%'.$search.'%')
-                    ->orWhereHas('vend', function($query) use ($search){
-                        $query->where('code', 'LIKE', '%'.$search.'%');
+            ->where(function ($query) use ($search) {
+                $query->where('name', 'LIKE', '%' . $search . '%')
+                    ->orWhere('virtual_customer_code', 'LIKE', '%' . $search . '%')
+                    ->orWhere('virtual_customer_prefix', 'LIKE', '%' . $search . '%')
+                    ->orWhereHas('vend', function ($query) use ($search) {
+                        $query->where('code', 'LIKE', '%' . $search . '%');
                     });
             })
             ->whereNull('operator_id')
@@ -262,7 +266,7 @@ class CustomerController extends Controller
         ]);
 
         // dd($request->all(), $request->customer, $request->contact, $request->address);
-        if($request->is_existing) {
+        if ($request->is_existing) {
             $request->validate([
                 'cms_customer_id' => 'required',
             ]);
@@ -275,11 +279,11 @@ class CustomerController extends Controller
             ]);
             $customer = Customer::create($request->all());
 
-            if($request->contact and isset($request->contact['name']) and $request->contact['name']) {
+            if ($request->contact and isset($request->contact['name']) and $request->contact['name']) {
                 $customer->contact()->updateOrCreate($request->contact);
             }
 
-            if($request->address and isset($request->address['postcode']) and $request->address['postcode']){
+            if ($request->address and isset($request->address['postcode']) and $request->address['postcode']) {
                 $customer->deliveryAddress()->updateOrCreate([
                     'type' => Customer::ADDRESS_TYPE_DELIVERY,
                 ], $request->address);
@@ -294,11 +298,11 @@ class CustomerController extends Controller
         $response = Http::get(env('CMS_URL') . '/api/people/last-invoice-date');
         $people = $response->collect();
 
-        if($people) {
-            foreach($people as $person) {
+        if ($people) {
+            foreach ($people as $person) {
                 $customer = Customer::where('person_id', $person['id'])->first();
 
-                if($customer) {
+                if ($customer) {
                     $customer->update([
                         'cms_invoice_history' => $person,
                         'last_invoice_date' => $person['last_delivery_date'],
@@ -317,7 +321,7 @@ class CustomerController extends Controller
         $vend = Vend::find($request->id);
 
         $requestCustomerArr = $request->customer;
-        if(isset($requestCustomerArr['is_active']) and $requestCustomerArr['is_active'] === 'true') {
+        if (isset($requestCustomerArr['is_active']) and $requestCustomerArr['is_active'] === 'true') {
             $requestCustomerArr['is_active'] = true;
         } else {
             $requestCustomerArr['is_active'] = false;
@@ -327,8 +331,8 @@ class CustomerController extends Controller
         ]);
         // dd($request->all());
 
-        if(!$customer) {
-            if($request->is_existing) {
+        if (!$customer) {
+            if ($request->is_existing) {
                 $request->validate([
                     'customer_id' => 'required',
                 ]);
@@ -341,11 +345,11 @@ class CustomerController extends Controller
 
                 $customer = Customer::create($request->customer);
                 // dd($request->customer['contact'], $request->customer['address']);
-                if($request->customer['contact'] && isset($request->customer['contact']['name']) && $request->customer['contact']['name']) {
+                if ($request->customer['contact'] && isset($request->customer['contact']['name']) && $request->customer['contact']['name']) {
                     $customer->contact()->updateOrCreate($request->customer['contact']);
                 }
 
-                if($request->customer['address'] && isset($request->customer['address']['postcode']) && $request->customer['address']['postcode']) {
+                if ($request->customer['address'] && isset($request->customer['address']['postcode']) && $request->customer['address']['postcode']) {
                     $customer->deliveryAddress()->updateOrCreate([
                         'type' => Customer::ADDRESS_TYPE_DELIVERY,
                     ], $request->customer['address']);
@@ -353,34 +357,34 @@ class CustomerController extends Controller
             }
             $vend->customer_id = $customer->id;
             $vend->save();
-        }else {
+        } else {
             // dd('here1111', $request->all());
             $customer->update($request->customer);
 
-            if($request->customer['contact'] && isset($request->customer['contact']['name']) && $request->customer['contact']['name']) {
+            if ($request->customer['contact'] && isset($request->customer['contact']['name']) && $request->customer['contact']['name']) {
                 $customer->contact()->updateOrCreate($request->customer['contact']);
             }
 
-            if($request->customer['address'] && isset($request->customer['address']['postcode']) && $request->customer['address']['postcode']) {
+            if ($request->customer['address'] && isset($request->customer['address']['postcode']) && $request->customer['address']['postcode']) {
                 $customer->deliveryAddress()->updateOrCreate([
                     'type' => Customer::ADDRESS_TYPE_DELIVERY,
                 ], $request->customer['address']);
             }
 
-            if($request->customer and isset($request->customer['vend_id']) and $request->customer['vend_id']){
+            if ($request->customer and isset($request->customer['vend_id']) and $request->customer['vend_id']) {
                 $vend = Vend::find($request->customer['vend_id']);
                 $vend->customer_id = $customer->id;
                 $vend->save();
             }
         }
 
-        if($customer->vend) {
+        if ($customer->vend) {
             $customer->vend->update([
                 'operator_id' => $customer->operator_id,
             ]);
         }
 
-        if($customer and $customer->person_id and $vend) {
+        if ($customer and $customer->person_id and $vend) {
             SyncVendCustomerCms::dispatchSync($customer->person_id, $vend->id);
         }
 
@@ -391,7 +395,7 @@ class CustomerController extends Controller
     {
         $customer = Customer::findOrFail($id);
 
-        if($request->hasFile('files')) {
+        if ($request->hasFile('files')) {
             $files = $request->file('files');
             $dir = 'sys/customers';
             $storedPath = $files->storePublicly($dir);
@@ -400,7 +404,7 @@ class CustomerController extends Controller
             $customer->attachments()->create([
                 'type' => 1,
                 'full_url' => $url,
-                'local_url' => $dir.'/'.$fileName,
+                'local_url' => $dir . '/' . $fileName,
             ]);
         }
         return true;

@@ -187,16 +187,26 @@ class PaymentController extends Controller
           break;
       }
 
-      $result = $this->vendDispenseService->getSingleParam([
-        'orderId' => $paymentGatewayLog->order_id,
-        'amount' => $paymentGatewayLog->request['PRICE'],
-        'vendCode' => $paymentGatewayLog->vend_code,
-        'productCode' =>  $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->code : null,
-        'productID' => $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->id : null,
-        'productName' => $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->name : null,
-        'channelCode' =>  $paymentGatewayLog->vendChannel ? $paymentGatewayLog->vend_channel_code : null,
-        'paymentMethod' => $paymentMethod,
-      ]);
+      if($paymentGatewayLog->vend_channels_json) {
+        $result = $this->vendDispenseService->getMultipleParam([
+          'orderId' => $paymentGatewayLog->order_id,
+          'amount' => $paymentGatewayLog->request['PRICE'],
+          'vendCode' => $paymentGatewayLog->vend_code,
+          'channels' => $paymentGatewayLog->vend_channels_json,
+          'paymentMethod' => $paymentMethod,
+        ]);
+      }else {
+        $result = $this->vendDispenseService->getSingleParam([
+          'orderId' => $paymentGatewayLog->order_id,
+          'amount' => $paymentGatewayLog->request['PRICE'],
+          'vendCode' => $paymentGatewayLog->vend_code,
+          'productCode' =>  $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->code : null,
+          'productID' => $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->id : null,
+          'productName' => $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->name : null,
+          'channelCode' =>  $paymentGatewayLog->vendChannel ? $paymentGatewayLog->vend_channel_code : null,
+          'paymentMethod' => $paymentMethod,
+        ]);
+      }
 
       $fid = $paymentGatewayLog->id;
       $content = base64_encode(json_encode($result));

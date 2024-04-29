@@ -73,7 +73,7 @@ class GetPaymentGatewayQR
             ]);
 
             if($response['errorMsg']) {
-                $this->mqttService->publish('CM'.$vend->code, $errorMsg);
+                $this->mqttService->publish('CM'.$vend->code, $response['errorMsg']);
             }
 
             if($response['paymentGatewayLog']) {
