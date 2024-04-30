@@ -476,9 +476,9 @@
               </div>
 
               <div class="sm:col-span-5" v-if="form.id">
-                <SearchCustomerWithOperatorInput v-model="form.vend_id" @selected="onCustomerSelected" required="true" :error="form.errors.vend_id">
+                <SearchVendCodeWithOperatorInput v-model="form.vend_id" @selected="selected" required="true" :error="form.errors.vend_id">
                   Device to Bind
-                </SearchCustomerWithOperatorInput>
+                </SearchVendCodeWithOperatorInput>
                 <div class="text-sm text-red-600" v-if="form.errors.vend_id">
                   {{ form.errors.vend_id }}
                 </div>
@@ -487,7 +487,7 @@
               <div class="sm:col-span-1" v-if="form.id">
                 <Button
                 type="button"
-                @click="bindOperatorCustomer()"
+                @click="bindOperatorVend()"
                 class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
                 :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
                 :disabled="!form.vend_id && !permissions.includes('update operators')"
@@ -577,7 +577,7 @@
                           <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button
                               class="bg-red-400 hover:bg-red-500 text-white"
-                              @click.prevent="deleteOperatorCustomer(vend)"
+                              @click.prevent="deleteOperatorVend(vend)"
                               v-if="permissions.includes('update operators')"
                             >
                               <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
@@ -610,7 +610,7 @@ import FormInput from '@/Components/FormInput.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import SearchCustomerWithOperatorInput from '@/Components/SearchCustomerWithOperatorInput.vue';
+import SearchVendCodeWithOperatorInput from '@/Components/SearchVendCodeWithOperatorInput.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PauseCircleIcon, PlusCircleIcon, PlayIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
@@ -672,7 +672,6 @@ onMounted(() => {
     operatorPaymentGatewayTypes.value = props.operatorPaymentGatewayTypes
     operatorPaymentGateways.value = props.operator ? props.operator.data.operatorPaymentGateways : null
     vends.value = props.operator ? props.operator.data.vends : null
-    console.log(JSON.parse(JSON.stringify(props.operator.data)))
     // customers.value = props.operator ? props.operator.data.customers : null
 
 })
@@ -700,8 +699,8 @@ function getDefaultForm() {
     payment_gateway_key3: '',
     timezone: '',
     remarks: '',
-    customer_id: '',
-    customer_id_value: '',
+    vend_id: '',
+    vend_id_value: '',
   }
 }
 
@@ -729,13 +728,13 @@ function deleteOperatorPaymentGateway(model) {
   })
 }
 
-function deleteOperatorCustomer(model) {
+function deleteOperatorVend(model) {
   const approval = confirm('Are you sure to delete this entry?');
   if (!approval) {
       return;
   }
-  router.post('/operators/unbind-customer', {
-    customer_id: model.id,
+  router.post('/operators/unbind-vend', {
+    vend_id: model.id,
     operator_id: form.value.id,
   },{
       preserveState: false,
@@ -779,10 +778,10 @@ function storeOperatorPaymentGateway() {
   )
 }
 
-function bindOperatorCustomer() {
+function bindOperatorVend() {
   router.post(
-    '/operators/bind-customer', {
-      customer_id: form.value.customer_id_value,
+    '/operators/bind-vend', {
+      vend_id: form.value.vend_id_value,
       operator_id: form.value.id,
     }, {
       preserveState: false,
@@ -818,9 +817,9 @@ function onSearchFilterUpdated() {
   // })
 }
 
-function onCustomerSelected(obj) {
-  form.value.customer_id = obj.vend.code + ' - ' + obj.virtual_customer_code + ' (' + obj.virtual_customer_prefix + ') ' + obj.name
-  form.value.customer_id_value = obj.id
+function selected(obj) {
+  form.value.vend_id = obj.code + ' - ' + obj.customer.virtual_customer_code + ' (' + obj.customer.virtual_customer_prefix + ') ' + obj.customer.name
+  form.value.vend_id_value = obj.id
 }
 
 function resetFilters() {

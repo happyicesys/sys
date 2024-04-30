@@ -386,6 +386,7 @@ class VendController extends Controller
     public function searchVendCode($vendCode)
     {
         $vends = Vend::query()
+            ->with(['operator', 'customer'])
             ->where('vends.code', 'LIKE', "{$vendCode}%")
             ->get();
 

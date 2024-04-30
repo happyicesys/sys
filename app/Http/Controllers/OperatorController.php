@@ -307,11 +307,14 @@ class OperatorController extends Controller
 
     public function bindVend(Request $request)
     {
-        $operator = Operator::findOrFail($request->operator_id);
-        $vend = Vend::where('code', $request->code)->firstOrFail();
-        $operator->vends()->attach($vend->id);
+        $vend = Vend::findOrFail($request->vend_id);
+        $vend->update(['operator_id' => $request->operator_id]);
 
-        return redirect()->route('operators.edit', [$operator->id]);
+        if($vend->customer) {
+            $vend->customer()->update(['operator_id' => $request->operator_id]);
+        }
+
+        return redirect()->route('operators.edit', [$request->operator_id]);
     }
 
     public function unbindCustomer(Request $request)
@@ -326,9 +329,10 @@ class OperatorController extends Controller
     public function unbindVend(Request $request)
     {
         $operator = Operator::findOrFail($request->operator_id);
-        $operator->vends()->detach($request->vend_id);
+        $vend = Vend::findOrFail($request->vend_id);
+        $vend->update(['operator_id' => null]);
 
-        return redirect()->route('operators.edit', [$operator->id]);
+        return redirect()->route('operators.edit', [$request->operator_id]);
     }
 
     public function bindDeliveryPlatform(Request $request, $id)
