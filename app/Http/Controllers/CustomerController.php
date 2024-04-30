@@ -24,6 +24,7 @@ use App\Models\Tag;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\Zone;
+use App\Services\HistoryService;
 use App\Traits\HasFilter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -33,6 +34,15 @@ use Inertia\Inertia;
 class CustomerController extends Controller
 {
     use HasFilter;
+
+    protected $historyService;
+
+    public function __construct(
+        HistoryService $historyService,
+    )
+    {
+        $this->historyService = $historyService;
+    }
 
     public function index(Request $request)
     {
@@ -329,7 +339,6 @@ class CustomerController extends Controller
         $request->merge([
             'customer' => $requestCustomerArr,
         ]);
-        // dd($request->all());
 
         if (!$customer) {
             if ($request->is_existing) {
@@ -355,8 +364,16 @@ class CustomerController extends Controller
                     ], $request->customer['address']);
                 }
             }
+            $isMovement = false;
+            if(!$vend->customer_id && $customer->id) {
+                $isMovement = true;
+            }
             $vend->customer_id = $customer->id;
             $vend->save();
+
+            if($isMovement) {
+                $this->historyService->syncVendCustomerMovement($vend, $customer, true);
+            }
         } else {
             // dd('here1111', $request->all());
             $customer->update($request->customer);
@@ -373,8 +390,17 @@ class CustomerController extends Controller
 
             if ($request->customer and isset($request->customer['vend_id']) and $request->customer['vend_id']) {
                 $vend = Vend::find($request->customer['vend_id']);
+
+                $isMovement = false;
+                if(!$vend->customer_id && $customer->id) {
+                    $isMovement = true;
+                }
                 $vend->customer_id = $customer->id;
                 $vend->save();
+
+                if($isMovement) {
+                    $this->historyService->syncVendCustomerMovement($vend, $customer, true);
+                }
             }
         }
 

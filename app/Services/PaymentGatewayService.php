@@ -78,7 +78,7 @@ class PaymentGatewayService
               $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $image->toPng()->toFilePointer(), 'public');
           }else {
             if(isset($params['type']) and $params['type'] == 'alipayplus_mpm') {
-              $imagick = Imagick::imagick();
+              $imagick = new Imagick();
               $imagick->setBackgroundColor(new ImagickPixel('transparent'));
               $imagick->readImageBlob(file_get_contents($qrCodeUrl));
               $imagick->setImageFormat('png24');

@@ -43,6 +43,7 @@ use App\Models\VendTemp;
 use App\Models\VendTransaction;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
+use App\Services\HistoryService;
 use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use App\Services\RunningNumberService;
@@ -65,6 +66,7 @@ class VendController extends Controller
 {
     use GetUserTimezone, HasFilter;
 
+    protected $historyService;
     protected $mqttService;
     protected $paymentGatewayService;
     protected $runningNumberService;
@@ -73,6 +75,7 @@ class VendController extends Controller
 
 
     public function __construct(
+        HistoryService $historyService,
         MqttService $mqttService,
         PaymentGatewayService $paymentGatewayService,
         RunningNumberService $runningNumberService,
@@ -82,6 +85,7 @@ class VendController extends Controller
     {
         $this->middleware(['permission:read vends'])->only(['index', 'indexCustomer']);
         $this->middleware(['permission:read transactions'])->only('transactionIndex');
+        $this->historyService = $historyService;
         $this->mqttService = $mqttService;
         $this->paymentGatewayService = $paymentGatewayService;
         $this->runningNumberService = $runningNumberService;
@@ -961,6 +965,8 @@ class VendController extends Controller
                 'account_manager_name' => $vend->customer->account_manager_json && isset($vend->customer->account_manager_json['name']) ? $vend->customer->account_manager_json['name'] : null,
             ]
         ]);
+
+        $this->historyService->syncVendCustomerMovement($vend, $vend->customer, false);
 
         // callback to cms to unbind vendcode
         if($vend->customer && $vend->customer->person_id) {

@@ -61,7 +61,7 @@
               </span>
             </div>
 
-            <div class="sm:col-span-2">
+            <!-- <div class="sm:col-span-2">
               <DatePicker v-model="form.begin_date" :error="form.errors.begin_date" @input="onDateFromChanged()"
               v-if="permissions.includes('update vends')"
               disabled=true>
@@ -78,7 +78,6 @@
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Is Factory?
               </label>
-              <!-- {{ form.customer }} -->
               <MultiSelect
                 v-model="form.is_testing"
                 :options="booleanStrictOptions"
@@ -98,7 +97,7 @@
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Is Active? (Vending Machine)
               </label>
-              <!-- {{ form.customer }} -->
+
               <MultiSelect
                 v-model="form.is_active"
                 :options="booleanStrictOptions"
@@ -113,11 +112,11 @@
               <div class="text-sm text-red-600" v-if="form.errors['is_active']">
                 {{ form.errors['is_active'] }}
               </div>
-            </div>
+            </div> -->
 
             <div class="sm:col-span-6">
               <span class="flex space-x-1">
-                <Button
+                <!-- <Button
                   type="button"
                   class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
                   v-if="permissions.includes('update vends')"
@@ -127,7 +126,7 @@
                   <span>
                     Save Vending Machine
                   </span>
-                </Button>
+                </Button> -->
                 <Button
                     class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
                     @click.prevent="restartVMC(vend.id)"
