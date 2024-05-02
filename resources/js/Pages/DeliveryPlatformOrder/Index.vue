@@ -201,7 +201,7 @@
                     <TableHead>
                       (Channel) Item x Qty
                     </TableHead>
-                    <TableHeadSort modelName="subtotal_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('subtotal_amount')">
+                    <TableHeadSort modelName="subtotal_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('subtotal_amount', true)">
                       Subtotal
                     </TableHeadSort>
                     <TableHead>
@@ -536,9 +536,12 @@ function resetFilters() {
   router.get('/delivery-platform-orders')
 }
 
-function sortTable(sortKey) {
-  filters.value.sortKey = sortKey
+function sortTable(sortKey, inverse = false) {
   filters.value.sortBy = !filters.value.sortBy
+  if(inverse && filters.value.sortKey != sortKey) {
+      filters.value.sortBy = !filters.value.sortBy
+  }
+  filters.value.sortKey = sortKey
   onSearchFilterUpdated()
 }
 

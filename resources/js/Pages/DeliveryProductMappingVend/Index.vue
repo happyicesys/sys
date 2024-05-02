@@ -128,6 +128,20 @@
               </MultiSelect>
           </div>
         </div>
+        <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
+            <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <dt class="truncate text-sm font-medium text-gray-500">Total Amount (Delivered)</dt>
+                <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                    {{(totals.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                </dd>
+            </div>
+            <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <dt class="truncate text-sm font-medium text-gray-500">Total Count (Delivered)</dt>
+                <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                    {{totals.count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                </dd>
+            </div>
+        </dl>
       </div>
 
       <div class="mt-6 flex flex-col">
@@ -139,9 +153,9 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHead>
+                    <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
                       Vend ID
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHead>
                       Platform ID
                     </TableHead>
@@ -157,12 +171,12 @@
                     <TableHead>
                       VM Status
                     </TableHead>
-                    <TableHead>
+                    <TableHeadSort modelName="delivery_platform_orders_sum_subtotal_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_platform_orders_sum_subtotal_amount', true)">
                       Amount
-                    </TableHead>
-                    <TableHead>
+                    </TableHeadSort>
+                    <TableHeadSort modelName="delivery_platform_orders_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_platform_orders_count', true)">
                       Count
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHead>
                     </TableHead>
                   </tr>
@@ -334,6 +348,7 @@ import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { BackspaceIcon, MagnifyingGlassIcon, MagnifyingGlassCircleIcon, PauseCircleIcon, PlayCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
+import TableHeadSort from '@/Components/TableHeadSort.vue';
 import TableData from '@/Components/TableData.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
@@ -342,6 +357,7 @@ const props = defineProps({
   deliveryProductMappingVends: Object,
   deliveryPlatformOperatorOptions: Object,
   deliveryProductMappingOptions: Object,
+  totals: Object,
 })
 
 const filters = ref({
@@ -424,9 +440,12 @@ function resetFilters() {
   router.get('/delivery-product-mapping-vends')
 }
 
-function sortTable(sortKey) {
-  filters.value.sortKey = sortKey
+function sortTable(sortKey, inverse = false) {
   filters.value.sortBy = !filters.value.sortBy
+  if(inverse && filters.value.sortKey != sortKey) {
+      filters.value.sortBy = !filters.value.sortBy
+  }
+  filters.value.sortKey = sortKey
   onSearchFilterUpdated()
 }
 

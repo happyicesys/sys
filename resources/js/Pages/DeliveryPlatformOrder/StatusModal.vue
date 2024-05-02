@@ -120,8 +120,12 @@ function statusClass(status) {
       break;
     case 'Assigned':
     case 'Arrived':
+      statusClass = 'bg-yellow-400 text-gray-800'
+      break;
     case 'Requested':
     case 'Dispensed':
+      statusClass = 'bg-purple-400 text-white'
+      break;
     case 'Collected':
       statusClass = 'bg-yellow-400 text-gray-800'
       break;

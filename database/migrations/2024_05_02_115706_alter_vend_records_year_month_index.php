@@ -23,7 +23,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('vend_records', function (Blueprint $table) {
-            //
+            $table->integer('year')->change();
+            $table->integer('month')->change();
         });
     }
 };

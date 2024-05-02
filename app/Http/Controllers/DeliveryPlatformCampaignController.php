@@ -273,6 +273,12 @@ class DeliveryPlatformCampaignController extends Controller
         if($deliveryPlatformCampaignItem->deliveryPlatformCampaignItemVends()->exists()) {
             foreach($deliveryPlatformCampaignItem->deliveryPlatformCampaignItemVends as $deliveryPlatformCampaignItemVend) {
                 $deliveryPlatformCampaignItemVend->delete();
+                // if($deliveryPlatformCampaignItemVend->is_active) {
+                //     $deliveryPlatformCampaignItemVend->update([
+                //         'datetime_to' => Carbon::now(),
+                //         'is_active' => false,
+                //     ]);
+                // }
             }
         }
         $deliveryPlatformCampaignItem->delete();

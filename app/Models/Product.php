@@ -88,6 +88,11 @@ class Product extends Model
         return $this->hasMany(ProductUom::class, 'product_id')->orderBy('value');
     }
 
+    public function sellingPrices()
+    {
+        return $this->hasMany(SellingPrice::class);
+    }
+
     public function thumbnail()
     {
         return $this->morphOne(Attachment::class, 'modelable')->ofMany('type', 'min');

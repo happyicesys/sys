@@ -8,6 +8,7 @@ use App\Http\Resources\DeliveryProductMappingResource;
 use App\Http\Resources\DeliveryProductMappingVendResource;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryPlatformOperator;
+use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryProductMapping;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
@@ -48,20 +49,22 @@ class DeliveryProductMappingVendController extends Controller
         ])
         ->withSum(['deliveryPlatformOrders' => function($query) use ($request) {
             $query
+                ->filterIndex($request)
                 ->when($request->date_from, function($query, $search) {
-                    $query->where('created_at', '>=', Carbon::parse($search)->startOfDay());
+                    $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
                 })
                 ->when($request->date_to, function($query, $search) {
-                    $query->where('created_at', '<=', Carbon::parse($search)->endOfDay());
+                    $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
                 });
         }], 'subtotal_amount')
         ->withCount(['deliveryPlatformOrders' => function($query) use ($request) {
             $query
+                ->filterIndex($request)
                 ->when($request->date_from, function($query, $search) {
-                    $query->where('created_at', '>=', Carbon::parse($search)->startOfDay());
+                    $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
                 })
                 ->when($request->date_to, function($query, $search) {
-                    $query->where('created_at', '<=', Carbon::parse($search)->endOfDay());
+                    $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
                 });
         }])
         ->filterIndex($request)
@@ -71,6 +74,23 @@ class DeliveryProductMappingVendController extends Controller
         ->addSelect(DB::raw('(SELECT COUNT(*) FROM delivery_product_mapping_vend y WHERE delivery_product_mapping_vend.platform_ref_id = y.platform_ref_id) AS binded_times'))
         ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
         ->withQueryString();
+
+        $totals = DeliveryPlatformOrder::query()
+            ->filterIndex($request)
+            ->whereHas('deliveryProductMappingVend', function($query) use ($request) {
+                $query->filterIndex($request);
+            })
+            ->when($request->date_from, function($query, $search) {
+                $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
+            })
+            ->when($request->date_to, function($query, $search) {
+                $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
+            })
+            ->select(
+                DB::raw('CAST(COALESCE(SUM(subtotal_amount), 0) AS UNSIGNED) as amount'),
+                DB::raw('COUNT(*) as count')
+            )
+            ->first();
 
         return Inertia::render('DeliveryProductMappingVend/Index', [
             'deliveryProductMappingVends' => DeliveryProductMappingVendResource::collection(
@@ -82,6 +102,7 @@ class DeliveryProductMappingVendController extends Controller
             'deliveryProductMappingOptions' => DeliveryProductMappingResource::collection(
                 DeliveryProductMapping::all()
             ),
+            'totals' => $totals,
         ]);
     }
 }

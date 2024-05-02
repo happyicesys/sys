@@ -50,4 +50,9 @@ class ProductMapping extends Model
     {
         return $this->hasMany(Vend::class)->orderBy('code');
     }
+
+    public function vendPrefixes()
+    {
+        return $this->belongsToMany(VendPrefix::class, 'product_mapping_vend_prefix', 'product_mapping_id', 'vend_prefix_id');
+    }
 }
