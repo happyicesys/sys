@@ -71,11 +71,13 @@ class PaymentGatewayService
                 }
                 break;
         }
+        // dd($qrCodeUrl, $isCreateInput, $isRequiredDecode, $isResizeImage);
         $img = false;
         if($isRequiredDecode) {
           if($isResizeImage) {
-              $image = Image::read($qrCodeUrl)->resize(150, 150);
-              $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $image->toPng()->toFilePointer(), 'public');
+            $imagick = new Imagick($qrCodeUrl);
+            $imagick->resizeImage(150, 150, Imagick::FILTER_LANCZOS, 1);
+            $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $imagick->getImageBlob(), 'public');
           }else {
             if(isset($params['type']) and $params['type'] == 'alipayplus_mpm') {
               $imagick = new Imagick();
