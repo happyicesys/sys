@@ -62,7 +62,7 @@ class VendDispenseService
         $data[] = [
           'port_type' => 0,
           'goods_id' => $isArray && isset($channel['product']) && isset($channel['product']['id']) ? (int)$channel['product']['id'] : 0,
-          'goods_name' => $isArray && isset($channel['product']) && isset($channel['product']['name']) ? $channel['product']['name'] : null,
+          'goods_name' => $isArray && isset($channel['product']) && isset($channel['product']['name']) ? $channel['product']['name'] : '',
           'goodroadid' => $isArray && isset($channel['code']) ? (int)$channel['code'] : (!$isArray ? (int)$channel : null),
           'num' => 1,
           'uselift' => 0,

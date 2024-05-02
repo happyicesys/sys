@@ -33,7 +33,7 @@ const navigation = [
     //     tagline: 'Device',
     // },
     {
-        name: 'Vending Machines',
+        name: 'Machines',
         icon: CommandLineIcon,
         current: false,
         href: 'vends',
@@ -53,21 +53,63 @@ const navigation = [
         tagline: null,
     },
     {
+        name: 'Machine Management',
+        icon: Cog8ToothIcon,
+        current: false,
+        href: 'settings',
+        permission: 'admin-access vends',
+        tagline: null,
+    },
+    {
+        name: 'Customer Management',
+        icon: IdentificationIcon,
+        current: false,
+        href: 'customers',
+        permission: 'read customers',
+        tagline: null,
+    },
+    {
         name: 'Products',
         icon: RectangleStackIcon,
         current: false,
         href: 'products',
         permission: 'read products',
         tagline: null,
+        children: [
+            {name: 'Products', href: '/products'},
+            {name: 'Product Mappings', href: '/product-mappings'},
+        ]
     },
     {
-        name: 'Product Mapping',
-        icon: LinkIcon,
+        name: 'Delivery Platform',
+        icon: TruckIcon,
         current: false,
-        href: 'product-mappings',
-        permission: 'read product-mappings',
+        href: 'delivery-product-mappings',
+        permission: 'admin-access vends',
         tagline: null,
+        children: [
+            {name: 'Machines', href: '/delivery-product-mapping-vends'},
+            {name: 'Orders', href: '/delivery-platform-orders'},
+            {name: 'Product Mapping', href: '/delivery-product-mappings'},
+            {name: 'Campaign', href: '/delivery-platform-campaigns'}
+        ]
     },
+    // {
+    //     name: 'Products',
+    //     icon: RectangleStackIcon,
+    //     current: false,
+    //     href: 'products',
+    //     permission: 'read products',
+    //     tagline: null,
+    // },
+    // {
+    //     name: 'Product Mapping',
+    //     icon: LinkIcon,
+    //     current: false,
+    //     href: 'product-mappings',
+    //     permission: 'read product-mappings',
+    //     tagline: null,
+    // },
     {
         name: 'Report',
         icon: DocumentTextIcon,
@@ -87,82 +129,65 @@ const navigation = [
         ]
     },
     // {
-    //     name: 'Customers',
-    //     icon: UserGroupIcon,
-    //     current: false,
-    //     href: 'customers'
-    // },
-    // {
-    //     name: 'Products',
-    //     icon: RectangleStackIcon,
-    //     current: false,
-    //     children: [
-    //         {name: 'List', href: '/products'},
-    //         {name: 'Unit Cost', href: '/products/unit-costs'},
-    //     ]
-    // },
-    // {
     //     name: 'Profiles',
     //     icon: BuildingOfficeIcon,
     //     current: false,
     //     href: 'profiles',
     //     permission: 'read vends',
     // },
+    // {
+    //     name: 'Operators',
+    //     icon: UserGroupIcon,
+    //     current: false,
+    //     href: 'operators',
+    //     permission: 'read operators',
+    //     tagline: null,
+    // },
+    // {
+    //     name: 'Resource Center',
+    //     icon: CircleStackIcon,
+    //     current: false,
+    //     href: 'resource-centers',
+    //     permission: 'read resource-centers',
+    //     tagline: null,
+    // },
+    // {
+    //     name: 'Users',
+    //     icon: UserCircleIcon,
+    //     current: false,
+    //     href: 'users',
+    //     permission: 'read users',
+    //     tagline: null,
+    // },
     {
-        name: 'Operators',
-        icon: UserGroupIcon,
-        current: false,
-        href: 'operators',
-        permission: 'read operators',
-        tagline: null,
-    },
-    {
-        name: 'Resource Center',
-        icon: CircleStackIcon,
-        current: false,
-        href: 'resource-centers',
-        permission: 'read resource-centers',
-        tagline: null,
-    },
-    {
-        name: 'Users',
+        name: 'Admin',
         icon: UserCircleIcon,
         current: false,
         href: 'users',
-        permission: 'read users',
-        tagline: null,
-    },
-    {
-        name: 'Operations',
-        icon: ArrowsPointingInIcon,
-        current: false,
-        href: 'holidays',
         permission: 'admin-access vends',
         tagline: null,
         children: [
-            {name: 'Vend & Criteria Bindings', href: '/vend-criteria-bindings'},
-            {name: 'Criteria', href: '/vend-criterias'},
-            {name: 'Weightage (Location Type)', href: '/location-types'},
-            {name: 'Weightage (Error Code)', href: '/vend-channel-errors'},
-            {name: 'Holidays', href: '/holidays'},
+            {name: 'Operators', href: '/operators'},
+            {name: 'Users', href: '/users'},
+            {name: 'Resource Center (Tutorial)', href: '/resource-centers'},
         ]
     },
-    {
-        name: 'Device Management',
-        icon: Cog8ToothIcon,
-        current: false,
-        href: 'settings',
-        permission: 'admin-access vends',
-        tagline: null,
-    },
-    {
-        name: 'Customer Management',
-        icon: IdentificationIcon,
-        current: false,
-        href: 'customers',
-        permission: 'read customers',
-        tagline: null,
-    },
+    // {
+    //     name: 'Operations',
+    //     icon: ArrowsPointingInIcon,
+    //     current: false,
+    //     href: 'holidays',
+    //     permission: 'admin-access vends',
+    //     tagline: null,
+    //     children: [
+    //         {name: 'Vend & Criteria Bindings', href: '/vend-criteria-bindings'},
+    //         {name: 'Criteria', href: '/vend-criterias'},
+    //         {name: 'Weightage (Location Type)', href: '/location-types'},
+    //         {name: 'Weightage (Error Code)', href: '/vend-channel-errors'},
+    //         {name: 'Holidays', href: '/holidays'},
+    //     ]
+    // },
+
     // {
     //     name: 'OAuth & API',
     //     icon: CodeBracketSquareIcon,
@@ -170,20 +195,6 @@ const navigation = [
     //     href: 'oauth-clients',
     //     permission: 'admin-access vends',
     // },
-    {
-        name: 'Delivery Platform',
-        icon: TruckIcon,
-        current: false,
-        href: 'delivery-product-mappings',
-        permission: 'admin-access vends',
-        tagline: null,
-        children: [
-            {name: 'Machines', href: '/delivery-product-mapping-vends'},
-            {name: 'Orders', href: '/delivery-platform-orders'},
-            {name: 'Product Mapping', href: '/delivery-product-mappings'},
-            {name: 'Campaign', href: '/delivery-platform-campaigns'}
-        ]
-    },
     // {
     //     name: 'Map',
     //     icon: MapIcon,

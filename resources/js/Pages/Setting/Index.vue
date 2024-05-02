@@ -5,7 +5,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Device Management
+        Machine Management
       </h2>
     </template>
 
