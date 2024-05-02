@@ -259,7 +259,7 @@
                                 label="name"
                                 placeholder="Select"
                                 open-direction="bottom"
-                                class="mt-1"
+                                class="mt-1 min-w-28"
                               >
                               </MultiSelect>
                               <div class="text-sm text-red-600" v-if="form.errors['productMappingItems.' + productMappingItemIndex + '.delivery_platform_sub_category_json']">
