@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('selling_prices', function (Blueprint $table) {
             $table->id();
-            $table->interger('amount');
+            $table->integer('amount')->default(0);
             $table->bigInteger('product_id')->unsigned();
             $table->integer('type')->default(1);
             $table->timestamps();
