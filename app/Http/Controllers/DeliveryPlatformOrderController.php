@@ -34,7 +34,7 @@ class DeliveryPlatformOrderController extends Controller
         $request->merge([
             'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay(),
             'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay(),
-            'delivery_platform_operator_id' => $request->delivery_platform_operator_id ? $request->delivery_platform_operator_id : 'all',
+            'delivery_platform_operator_id' => $request->delivery_platform_operator_id ? $request->delivery_platform_operator_id : 15,
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : '100',
             'status' => $request->status ? $request->status : 'all',
             'sortBy' => $request->sortBy ? $request->sortBy : false,
