@@ -442,6 +442,7 @@ class DeliveryPlatformService
           $response = $this->model->notifyUpdatedMenu([
             'merchantID' => $deliveryProductMappingVend->platform_ref_id,
           ]);
+          // dd($response, $deliveryProductMappingVend->platform_ref_id);
           if($response['code'] === 401) {
             SyncDeliveryPlatformOauthByOperator::dispatchSync($this->deliveryPlatformOperator);
 

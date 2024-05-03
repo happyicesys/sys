@@ -160,6 +160,7 @@ class DeliveryPlatformOrder extends Model
     public function scopeFilterIndex($query, $request)
     {
 
+        // dd($request->all());
         $query = $query
         ->when($request->delivery_platform_operator_id, function($query, $search) {
             if($search != 'all') {
