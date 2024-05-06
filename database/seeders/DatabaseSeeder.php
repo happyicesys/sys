@@ -76,13 +76,13 @@ class DatabaseSeeder extends Seeder
             // PaymentMerchantSeeder::class,
             // ConvertTempVendTransactionDatetime::class,
             // SyncTempVendTransaction::class,
-            CustomerPermissionSeeder::class,
+            // CustomerPermissionSeeder::class,
             // SyncCurrentCustomerSeeder::class,
             // CustomerOperatorRunningNumberSeeder::class,
-
-
             // CleanCustomerSeeder::class,
             // SyncCurrentCustomerSeeder::class,
+
+            VendPrefixSeeder::class,
         ]);
     }
 }

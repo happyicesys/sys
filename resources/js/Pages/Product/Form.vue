@@ -241,6 +241,8 @@
               </div>
             </div> -->
 
+            <!-- unit costs start -->
+
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
                 <div class="relative">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -342,6 +344,119 @@
                 </div>
               </div>
               </div>
+
+              <!-- unit cost end -->
+
+              <!-- sellin price start -->
+
+              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Selling Price(s)</span>
+                  </div>
+                </div>
+              </div>
+
+
+              <div class="sm:col-span-3" v-if="form.id">
+                <FormInput v-model="form.selling_price_amount" :error="form.errors.unit_cost" placeholder="Number" required="true">
+                  Amount
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-3" v-if="form.id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Type
+                </label>
+                <MultiSelect
+                  v-model="form.selling_price_type"
+                  :options="priceTypeOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+              </div>
+
+
+              <div class="sm:col-span-6 flex justify-start" v-if="form.id">
+                <Button
+                type="button"
+                @click="addSellingPrice()"
+                class="bg-green-500 hover:bg-green-600 text-white"
+                :class="[
+                  !form.selling_price_amount || isNaN(form.selling_price_amount) || !form.selling_price_type ?
+                  'opacity-50 cursor-not-allowed' : ''
+                  ]"
+                :disabled="!form.selling_price_amount || isNaN(form.selling_price_amount) || !form.selling_price_type"
+                >
+                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                  <span>
+                    Add
+                  </span>
+                </Button>
+              </div>
+
+              <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+              <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+                <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                  <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            #
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Amount
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Type
+                          </th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white">
+                        <tr v-for="(sellingPrice, sellingPriceIndex) in sellingPrices" :key="sellingPrice.id" :class="sellingPriceIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            {{ sellingPriceIndex + 1 }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ sellingPrice.amount }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ sellingPrice.type }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 text-sm text-center">
+                          <Button
+                            class="bg-red-400 hover:bg-red-500 text-white"
+                            @click.prevent="removeSellingPrice(sellingPrice)"
+                          >
+                            <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                          </Button>
+                        </td>
+                        </tr>
+                        <tr v-if="!sellingPrices || !sellingPrices.length">
+                          <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
+                            No Results Found
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              </div>
+
+              <!-- selling price end -->
+
+              <!-- translate name start -->
 
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
                 <div class="relative">
@@ -446,8 +561,6 @@
                 </div>
               </div>
               </div>
-
-
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 pt-5 justify-end">
@@ -518,6 +631,7 @@ const props = defineProps({
   categoryGroups: Object,
   languageOptions:[Array, Object],
   measurementUnitOptions: Object,
+  priceTypeOptions: Object,
   product: Object,
   uoms: Object,
   type: String,
@@ -542,17 +656,22 @@ const languages = ref([])
 const languageOptions = ref([])
 const operatorOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
+const priceTypeOptions = ref([])
+const sellingPrices = ref([])
 
 onMounted(() => {
   form.value = props.product ? useForm(props.product) : useForm(getDefaultForm())
   categoryOptions.value = props.categories.data.map((category) => {return {id: category.id, name: category.name}})
   categoryGroupOptions.value = props.categoryGroups.data.map((categoryGroup) => {return {id: categoryGroup.id, name: categoryGroup.name}})
   languageOptions.value = Object.entries(props.languageOptions).map(([id, name]) => ({ id, name }))
-  // languageOptions.value = Object.keys(props.languageOptions).map((index, language) => {return {id: index, name: language}})
   measurementUnitOptions.value = Object.keys(props.measurementUnitOptions).map((measurementUnit, index) => {return {id: measurementUnit, name: measurementUnit}})
+  priceTypeOptions.value = Object.entries(props.priceTypeOptions).map(([id, name]) => ({id: id, name: name}))
   uomOptions.value = props.uoms.data.map((uom) => {return {id: uom.id, name: uom.name}})
   operatorOptions.value = props.operatorOptions.slice(1)
-  unitCosts.value = props.product ? props.product.unitCosts : null
+  sellingPrices.value = props.product ? props.product.sellingPrices : []
+  unitCosts.value = props.product ?
+  {...props.product.unitCosts,
+  } : null
   languages.value = props.product ? (props.product.translated_names_json ? props.product.translated_names_json : []) : []
 })
 
@@ -572,6 +691,8 @@ function getDefaultForm() {
     measurement_value: '',
     measurement_unit: '',
     operator_id: '',
+    selling_price_amount: '',
+    selling_price_type: '',
     unit_cost: '',
     date_from: '',
   }
@@ -606,6 +727,7 @@ function submit() {
         operator_id: data.operator_id.id,
         unitCosts: unitCosts.value,
         languages: languages.value,
+        sellingPrices: sellingPrices.value,
         // category_id: data.category_id.id,
         // category_group_id: data.category_group_id.id,
       }))
@@ -672,6 +794,30 @@ function addLanguage() {
 
 function removeLanguage(key) {
   languages.value.splice(key, 1)
+}
+
+function addSellingPrice() {
+  sellingPrices.value.push({
+    amount: form.value.selling_price_amount,
+    type: form.value.selling_price_type.id,
+  })
+  form.value.selling_price_amount = ''
+  form.value.selling_price_type = ''
+}
+
+function removeSellingPrice(sellingPrice) {
+  if(sellingPrice.id) {
+    form.value.delete('/products/selling-prices/' + sellingPrice.id, {
+      onSuccess: () => {
+        emit('modalClose')
+      },
+      preserveState: true,
+      resetOnSuccess: true,
+      replace: true,
+    })
+  }else {
+    sellingPrices.value.splice(sellingPrices.value.indexOf(sellingPrice), 1)
+  }
 }
 
 

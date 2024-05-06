@@ -273,6 +273,7 @@
       :measurementUnitOptions="measurementUnitOptions"
       :operatorOptions="operatorOptions"
       :permissions="permissions"
+      :priceTypeOptions="priceTypeOptions"
       @modalClose="onModalClose"
   >
   </Form>
@@ -300,6 +301,7 @@ const props = defineProps({
   languageOptions: [Array, Object],
   measurementUnitOptions: Object,
   operatorOptions: Object,
+  priceTypeOptions: Object,
   products: Object,
   uoms: Object,
 })

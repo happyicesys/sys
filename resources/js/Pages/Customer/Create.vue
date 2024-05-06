@@ -98,12 +98,12 @@
             </div>
 
               <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
-                <div class="sm:col-span-2">
+                <!-- <div class="sm:col-span-2">
                   <FormInput v-model="form.code" :error="form.errors.code" :disabled="form.person_id">
                     Cust Code
                   </FormInput>
-                </div>
-                <div class="sm:col-span-3">
+                </div> -->
+                <div class="sm:col-span-5">
                   <FormInput v-model="form.name" :error="form.errors.name" required="true" :disabled="form.person_id">
                     Cust Name
                   </FormInput>

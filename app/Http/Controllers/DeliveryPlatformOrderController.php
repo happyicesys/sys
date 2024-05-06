@@ -62,6 +62,7 @@ class DeliveryPlatformOrderController extends Controller
         $query = $this->getDeliveryPlatformOrderQuery($request);
 
         return Inertia::render('DeliveryPlatformOrder/Index', [
+            'cmsEndpoint' => env('CMS_URL'),
             'deliveryPlatformOperatorOptions' => DeliveryPlatformOperatorResource::collection(
                 DeliveryPlatformOperator::with('deliveryPlatform')->get()
             ),

@@ -12,6 +12,7 @@ class VendPrefix extends Model
     protected $fillable = [
         'desc',
         'name',
+        'vend_config_id',
     ];
 
     // relationships

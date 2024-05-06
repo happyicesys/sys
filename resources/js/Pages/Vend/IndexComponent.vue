@@ -843,6 +843,9 @@
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
+                            <span v-if="vend.cms_invoice_history && 'next_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
+                              {{ vend.cms_invoice_history['next_delivery_driver'] }} <br>
+                          </span>
                           <span  :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                               {{ vend.next_invoice_date }} <br>
                               {{ vend.next_invoice_diff }}

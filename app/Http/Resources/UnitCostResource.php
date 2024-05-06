@@ -17,7 +17,7 @@ class UnitCostResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'cost' => $this->cost/ 100,
+            'cost' => $this->cost,
             'product' => $this->whenLoaded('product'),
             'profile' => $this->whenLoaded('profile'),
             'date_from' => $this->date_from ? Carbon::parse($this->date_from)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,

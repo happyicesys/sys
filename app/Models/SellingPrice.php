@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -14,7 +15,7 @@ class SellingPrice extends Model
     const TYPE_3 = 3;
     const TYPE_4 = 4;
 
-    const TYPE_MAPPING = [
+    const TYPE_MAPPINGS = [
         self::TYPE_1 => 'SP 1',
         self::TYPE_2 => 'SP 2',
         self::TYPE_3 => 'SP 3',
@@ -30,6 +31,15 @@ class SellingPrice extends Model
     protected $with = [
         'product.operator',
     ];
+
+    // mutators and accessors
+    protected function amount(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value/ 100,
+            set: fn ($value) => $value * 100,
+        );
+    }
 
     // relationships
     public function product()

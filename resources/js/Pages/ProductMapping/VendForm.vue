@@ -79,7 +79,7 @@
                 :options="unbindedVendOptions"
                 trackBy="id"
                 valueProp="id"
-                label="full_name"
+                label="cust_full_name"
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"

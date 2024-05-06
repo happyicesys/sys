@@ -44,6 +44,7 @@ class ProductResource extends JsonResource
             'productUoms' => ProductUomResource::collection($this->whenLoaded('productUoms')),
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'operator_id' => OperatorResource::make($this->whenLoaded('operator')),
+            'sellingPrices' => SellingPriceResource::collection($this->whenLoaded('sellingPrices')),
             'this_month_count' => $this->this_month_count,
             'this_month_revenue' => $this->this_month_revenue/100,
             'this_month_gross_profit' => $this->this_month_gross_profit/100,

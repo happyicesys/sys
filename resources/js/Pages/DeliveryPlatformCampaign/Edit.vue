@@ -625,8 +625,6 @@ onMounted(() => {
       useForm(getDefaultForm())
 
     form.value.datetime_from = datetimeFrom.value
-
-    console.log(form.value.delivery_platform_campaign_item)
 })
 
 const datetimeFrom = computed(function() {

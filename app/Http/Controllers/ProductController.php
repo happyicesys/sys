@@ -12,6 +12,7 @@ use App\Models\CategoryGroup;
 use App\Models\Operator;
 use App\Models\Product;
 use App\Models\ProductUom;
+use App\Models\SellingPrice;
 use App\Models\Uom;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
@@ -49,6 +50,7 @@ class ProductController extends Controller
             'operatorOptions' => OperatorResource::collection(
                 Operator::all()
             ),
+            'priceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'products' => ProductResource::collection(
                 Product::with([
                         'attachments',
@@ -57,6 +59,7 @@ class ProductController extends Controller
                         'latestUnitCost',
                         'operator',
                         'productUoms.uom',
+                        'sellingPrices',
                         'thumbnail',
                         'unitCosts' => function($query) {
                             $query->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
@@ -135,8 +138,27 @@ class ProductController extends Controller
                 'local_url' => $url,
             ]);
         }
-        // $currentUnitCost = $product->unitCosts()->whereDate('date_from', '<=', Carbon::today()->setTimezone($this->getUserTimezone())->toDateString())->latest('date_from')->latest('created_at')->get();
-        // dd($currentUnitCost->toArray());
+
+        if($request->has('languages')) {
+            $product->update([
+                'translated_names_json' => $request->languages
+            ]);
+        }
+
+        if($request->has('sellingPrices')) {
+            $sellingPrices = $request->sellingPrices;
+            if($sellingPrices) {
+                foreach($sellingPrices as $sellingPrice) {
+                    if(!isset($sellingPrice['id'])) {
+                        $product->sellingPrices()->create([
+                            'amount' => $sellingPrice['amount'],
+                            'type' => $sellingPrice['type'],
+                        ]);
+                    }
+                }
+            }
+        }
+
         if($request->has('unitCosts')) {
             $unitCosts = $request->unitCosts;
             if($unitCosts) {
@@ -148,7 +170,7 @@ class ProductController extends Controller
                             ]);
                         }
                         $product->unitCosts()->create([
-                            'cost' => $unitCost['cost'] * 100,
+                            'cost' => $unitCost['cost'],
                             'date_from' => $unitCost['date_from'],
                         ]);
 
@@ -158,12 +180,6 @@ class ProductController extends Controller
                     }
                 }
             }
-        }
-
-        if($request->has('languages')) {
-            $product->update([
-                'translated_names_json' => $request->languages
-            ]);
         }
 
         return redirect()->route('products');
@@ -225,6 +241,14 @@ class ProductController extends Controller
         }
 
         $productUom->delete();
+
+        return redirect()->route('products');
+    }
+
+    public function deleteSellingPrice($sellingPriceId)
+    {
+        $sellingPrice = SellingPrice::findOrFail($sellingPriceId);
+        $sellingPrice->delete();
 
         return redirect()->route('products');
     }
