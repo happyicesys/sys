@@ -5,7 +5,7 @@ import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { ArrowsPointingInIcon, BuildingOfficeIcon, ClipboardDocumentListIcon, CodeBracketSquareIcon, Cog8ToothIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, IdentificationIcon, LinkIcon, MapPinIcon, RectangleStackIcon, TruckIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
+import { ArrowsPointingInIcon, BuildingOfficeIcon, ClipboardDocumentListIcon, CodeBracketSquareIcon, Cog8ToothIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, FolderIcon, IdentificationIcon, LinkIcon, MapPinIcon, RectangleStackIcon, TruckIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
 
 const navigation = [
     {
@@ -52,6 +52,14 @@ const navigation = [
         permission: 'read transactions',
         tagline: null,
     },
+    // {
+    //     name: 'Machine Management',
+    //     icon: Cog8ToothIcon,
+    //     current: false,
+    //     href: 'settings',
+    //     permission: 'admin-access vends',
+    //     tagline: null,
+    // },
     {
         name: 'Machine Management',
         icon: Cog8ToothIcon,
@@ -59,6 +67,12 @@ const navigation = [
         href: 'settings',
         permission: 'admin-access vends',
         tagline: null,
+        children: [
+            {name: 'Machines', href: '/settings'},
+            // {name: 'Menu Prefix', href: '/menu-prefixes'},
+            {name: 'Cashless Terminals', href: '/cashless-terminals'},
+            {name: 'Simcard', href: '/simcards'},
+        ]
     },
     {
         name: 'Customer Management',
@@ -67,6 +81,31 @@ const navigation = [
         href: 'customers',
         permission: 'read customers',
         tagline: null,
+    },
+    {
+        name: 'Data Management',
+        icon: FolderIcon,
+        current: false,
+        href: 'data-management',
+        permission: 'admin-access vends',
+        children: [
+            {name: 'Cashless Providers', href: '/cashless-providers'},
+            // {name: 'Cashless Terminals', href: '/cashless-terminals'},
+            // {name: 'Country & Currency', href: '/countries'},
+            // {name: 'Cust Categories', href: '/categories?classname=App\\Models\\Customer'},
+            // {name: 'Cust Category Groups', href: '/category-groups'},
+            // {name: 'Payment Methods', href: '/payment-methods'},
+            // {name: 'Payment Terms', href: '/payment-terms'},
+            // {name: 'Permission', href: '/permissions'},
+            // {name: 'Role', href: '/roles'},
+            // {name: 'Simcard', href: '/simcards'},
+            // {name: 'Status', href: '/statuses'},
+            // {name: 'Tags', href: '/tags'},
+            {name: 'Telco', href: '/telcos'},
+            // {name: 'Tax', href: '/taxes'},
+            // {name: 'UOM', href: '/uoms'},
+            // {name: 'Zone', href: '/zones'},
+        ],
     },
     {
         name: 'Products',
@@ -201,29 +240,6 @@ const navigation = [
     //     current: false,
     //     href: 'maps',
     //     permission: 'read vends',
-    // },
-    // {
-    //     name: 'Data Settings',
-    //     icon: FolderIcon,
-    //     current: false,
-    //     children: [
-    //         // {name: 'Cashless Providers', href: '/cashless-providers'},
-    //         // {name: 'Cashless Terminals', href: '/cashless-terminals'},
-    //         {name: 'Country & Currency', href: '/countries'},
-    //         {name: 'Cust Categories', href: '/categories?classname=App\\Models\\Customer'},
-    //         {name: 'Cust Category Groups', href: '/category-groups'},
-    //         {name: 'Payment Methods', href: '/payment-methods'},
-    //         // {name: 'Payment Terms', href: '/payment-terms'},
-    //         {name: 'Permission', href: '/permissions'},
-    //         {name: 'Role', href: '/roles'},
-    //         // {name: 'Simcard', href: '/simcards'},
-    //         {name: 'Status', href: '/statuses'},
-    //         // {name: 'Tags', href: '/tags'},
-    //         // {name: 'Telco', href: '/telcos'},
-    //         // {name: 'Tax', href: '/taxes'},
-    //         {name: 'UOM', href: '/uoms'},
-    //         // {name: 'Zone', href: '/zones'},
-    //     ],
     // },
 ]
 

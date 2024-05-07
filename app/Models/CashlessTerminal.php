@@ -15,6 +15,7 @@ class CashlessTerminal extends Model
         'code',
         'created_by',
         'is_active',
+        'operator_id',
         'termination_date',
         'updated_by',
     ];
@@ -23,5 +24,10 @@ class CashlessTerminal extends Model
     public function cashlessProvider()
     {
         return $this->belongsTo(CashlessProvider::class);
+    }
+
+    public function operator()
+    {
+        return $this->belongsTo(Operator::class);
     }
 }

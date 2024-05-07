@@ -19,6 +19,8 @@ class VendPrefixSeeder extends Seeder
         foreach($customers as $customer) {
             VendPrefix::updateOrCreate([
                 'name' => $customer->virtual_customer_prefix,
+            ], [
+                'operator_id' => $customer->operator_id,
             ]);
         }
     }

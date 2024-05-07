@@ -59,6 +59,7 @@ Route::prefix('customers')->group(function() {
 Route::prefix('vends')->group(function() {
     Route::get('/search/{code?}', [VendController::class, 'searchVendCode']);
     Route::get('/search/operator/{code?}', [VendController::class, 'searchVendCodeWithOperator']);
+    Route::get('/{vendCode}/vend-channels/{vendChanelCode}/thumbnail', [VendController::class, 'getVendChannelThumnail']);
 });
 
 

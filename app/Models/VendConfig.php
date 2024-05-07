@@ -12,12 +12,18 @@ class VendConfig extends Model
     protected $fillable = [
         'desc',
         'name',
+        'operator_id'
     ];
 
     // relationships
     public function attachments()
     {
         return $this->morphMany(Attachment::class, 'modelable')->oldest();
+    }
+
+    public function operator()
+    {
+        return $this->belongsTo(Operator::class);
     }
 
     public function vendPrefixes()

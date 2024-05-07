@@ -12,10 +12,16 @@ class VendPrefix extends Model
     protected $fillable = [
         'desc',
         'name',
+        'operator_id',
         'vend_config_id',
     ];
 
     // relationships
+    public function operator()
+    {
+        return $this->belongsTo(Operator::class);
+    }
+
     public function productMappings()
     {
         return $this->belongsToMany(ProductMapping::class, 'product_mapping_vend_prefix', 'vend_prefix_id', 'product_mapping_id');

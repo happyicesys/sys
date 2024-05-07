@@ -619,6 +619,31 @@ class VendController extends Controller
         return $vendChannels;
     }
 
+    public function getVendChannelThumnail($vendCode, $vendChannelCode)
+    {
+        $vendChannel = VendChannel::query()
+            ->with('product.thumbnail')
+            ->whereHas('vend', function($query) use ($vendCode) {
+                $query->where('code', $vendCode);
+            })
+            ->where('code', $vendChannelCode)
+            ->first();
+
+        if($vendChannel) {
+            if($vendChannel->product && $vendChannel->product->thumbnail) {
+                return response()->json([
+                    'message' => 'success',
+                    'thumbnail' => $vendChannel->product->thumbnail->full_url,
+                ], 200);
+            }
+        }
+
+        return response()->json([
+            'message' => 'error',
+            'thumbnail' => null,
+        ], 400);
+    }
+
     public function transactionIndex(Request $request)
     {
         $request->merge(['operator_id' => isset($request->operator_id) ? $request->operator_id : auth()->user()->operator_id]);

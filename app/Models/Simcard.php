@@ -14,6 +14,7 @@ class Simcard extends Model
         'code',
         'created_by',
         'is_active',
+        'operator_id',
         'phone_number',
         'telco_id',
         'termination_date',
@@ -24,6 +25,11 @@ class Simcard extends Model
     public function createdBy()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function operator()
+    {
+        return $this->belongsTo(Operator::class);
     }
 
     public function telco()

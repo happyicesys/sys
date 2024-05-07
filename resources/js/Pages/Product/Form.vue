@@ -315,7 +315,7 @@
                             {{ unitCostIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ unitCost.cost }}
+                            {{ unitCost.cost ? unitCost.cost.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : 0 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ unitCost.date_from }}
@@ -428,7 +428,7 @@
                             {{ sellingPriceIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ sellingPrice.amount }}
+                            {{ sellingPrice.amount ? sellingPrice.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : 0 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ sellingPrice.type }}
@@ -654,6 +654,7 @@ const form = ref(
 )
 const languages = ref([])
 const languageOptions = ref([])
+const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
 const priceTypeOptions = ref([])

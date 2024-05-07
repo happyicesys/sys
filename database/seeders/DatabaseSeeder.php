@@ -83,6 +83,7 @@ class DatabaseSeeder extends Seeder
             // SyncCurrentCustomerSeeder::class,
 
             VendPrefixSeeder::class,
+            CashlessTerminalSimcardOperatorIdSeeder::class,
         ]);
     }
 }

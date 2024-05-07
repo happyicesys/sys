@@ -5,7 +5,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Settings (Telco)
+        Data Management (Telco)
       </h2>
     </template>
 

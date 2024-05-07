@@ -221,7 +221,7 @@
                         </span>
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-right" v-if="permissions.includes('admin-access products')">
-                        {{ product.latestUnitCost ? product.latestUnitCost.cost : null }}
+                        {{ product.latestUnitCost ? (product.latestUnitCost.cost).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
                       </TableData>
                       <!-- <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         {{ product.category_id ? product.category_id.name : null }}
@@ -324,6 +324,7 @@ const languageOptions = ref([])
 const showModal = ref(false)
 const roles = usePage().props.auth.roles
 const permissions = usePage().props.auth.permissions
+const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
 const product = ref()

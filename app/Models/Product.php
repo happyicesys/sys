@@ -90,7 +90,7 @@ class Product extends Model
 
     public function sellingPrices()
     {
-        return $this->hasMany(SellingPrice::class);
+        return $this->hasMany(SellingPrice::class)->orderBy('type', 'asc');
     }
 
     public function thumbnail()
