@@ -136,6 +136,7 @@
   </div>
   <Form
       v-if="showModal"
+      :operatorOptions="operatorOptions"
       :vendPrefix="vendPrefix"
       :type="type"
       :showModal="showModal"

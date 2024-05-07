@@ -631,10 +631,11 @@ class VendController extends Controller
 
         if($vendChannel) {
             if($vendChannel->product && $vendChannel->product->thumbnail) {
-                // return response()->json([
-                //     'url' => $vendChannel->product->thumbnail->full_url,
-                // ], 200);
-                return $vendChannel->product->thumbnail->full_url;
+
+                $thumbnail = Storage::disk('public')->get($vendChannel->product->thumbnail->full_url);
+                return response($thumbnail, 200)
+                    ->header('Content-Type', 'image/*');
+                // return $vendChannel->product->thumbnail->full_url;
             }
         }
 
