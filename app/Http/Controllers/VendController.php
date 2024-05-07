@@ -634,18 +634,14 @@ class VendController extends Controller
                 // return response()->json([
                 //     'url' => $vendChannel->product->thumbnail->full_url,
                 // ], 200);
-                return [
-                    'url' => $vendChannel->product->thumbnail->full_url,
-                ];
+                return $vendChannel->product->thumbnail->full_url;
             }
         }
 
         // return response()->json([
         //     'url' => null,
         // ], 400);
-        return [
-            'url' => null,
-        ];
+        return false;
     }
 
     public function transactionIndex(Request $request)
