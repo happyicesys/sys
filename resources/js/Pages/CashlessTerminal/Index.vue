@@ -5,7 +5,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Settings (Cashless Terminal)
+        Cashless Terminal
       </h2>
     </template>
 

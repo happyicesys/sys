@@ -631,15 +631,21 @@ class VendController extends Controller
 
         if($vendChannel) {
             if($vendChannel->product && $vendChannel->product->thumbnail) {
-                return response()->json([
+                // return response()->json([
+                //     'url' => $vendChannel->product->thumbnail->full_url,
+                // ], 200);
+                return [
                     'url' => $vendChannel->product->thumbnail->full_url,
-                ], 200);
+                ];
             }
         }
 
-        return response()->json([
+        // return response()->json([
+        //     'url' => null,
+        // ], 400);
+        return [
             'url' => null,
-        ], 400);
+        ];
     }
 
     public function transactionIndex(Request $request)
