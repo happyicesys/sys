@@ -69,7 +69,7 @@ const navigation = [
         tagline: null,
         children: [
             {name: 'Machines', href: '/settings'},
-            // {name: 'Menu Prefix', href: '/menu-prefixes'},
+            {name: 'Menu Prefix', href: '/vend-prefixes'},
             {name: 'Cashless Terminals', href: '/cashless-terminals'},
             {name: 'Simcard', href: '/simcards'},
         ]

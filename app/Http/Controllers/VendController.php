@@ -632,15 +632,13 @@ class VendController extends Controller
         if($vendChannel) {
             if($vendChannel->product && $vendChannel->product->thumbnail) {
                 return response()->json([
-                    'message' => 'success',
-                    'thumbnail' => $vendChannel->product->thumbnail->full_url,
+                    'url' => $vendChannel->product->thumbnail->full_url,
                 ], 200);
             }
         }
 
         return response()->json([
-            'message' => 'error',
-            'thumbnail' => null,
+            'url' => null,
         ], 400);
     }
 

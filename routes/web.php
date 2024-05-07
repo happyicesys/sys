@@ -39,6 +39,7 @@ use App\Http\Controllers\VendController;
 use App\Http\Controllers\VendChannelErrorController;
 use App\Http\Controllers\VendCriteriaController;
 use App\Http\Controllers\VendCriteriaBindingController;
+use App\Http\Controllers\VendPrefixController;
 use App\Http\Controllers\ZoneController;
 use Carbon\Carbon;
 use Illuminate\Foundation\Application;
@@ -416,6 +417,13 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/create', [VendChannelErrorController::class, 'create']);
         Route::post('/{id}/update', [VendChannelErrorController::class, 'update']);
         Route::delete('/{id}', [VendChannelErrorController::class, 'delete']);
+    });
+
+    Route::prefix('vend-prefixes')->group(function() {
+        Route::get('/', [VendPrefixController::class, 'index'])->name('vend-prefixes');
+        Route::post('/create', [VendPrefixController::class, 'create']);
+        Route::post('/{id}/update', [VendPrefixController::class, 'update']);
+        Route::delete('/{id}', [VendPrefixController::class, 'delete']);
     });
 
     Route::prefix('zones')->group(function() {
