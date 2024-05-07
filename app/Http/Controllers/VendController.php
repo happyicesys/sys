@@ -633,7 +633,7 @@ class VendController extends Controller
         if($vendChannel) {
             if($vendChannel->product && $vendChannel->product->thumbnail) {
 
-                $thumbnail = Storage::disk('public')->get($vendChannel->product->thumbnail->full_url);
+                $thumbnail = file_get_contents($vendChannel->product->thumbnail->full_url);
                 return response($thumbnail, 200)
                     ->header('Content-Type', 'image/*');
                 // return $vendChannel->product->thumbnail->full_url;
