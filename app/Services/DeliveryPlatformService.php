@@ -677,7 +677,7 @@ class DeliveryPlatformService
             DB::raw('json_unquote(json_extract(sub_category_json, "$.name")) AS platform_sub_category_name'),
           );
         },
-        'deliveryProductMappingItem.product:id,code,name,desc,barcode,measurement_value,measurement_unit,measurement_count',
+        'deliveryProductMappingItem.product:id,code,name,desc,barcode,measurement_value,measurement_unit,measurement_count,translated_names_json',
         'deliveryProductMappingItem.product.thumbnail:id,full_url,attachments.modelable_type,attachments.modelable_id',
         'deliveryProductMappingVend:id'
       ])
@@ -706,11 +706,15 @@ class DeliveryPlatformService
         $this->getGrabMenuItems([
           'item_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->id,
           'item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->name,
-          'translated_item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json ? collect($deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json)->map(function($item) {
-            return [
-                $item['id'] => $item['name']
-            ];
-          }) : '',
+          // 'translated_item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json ? collect($deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json)->map(function($item) {
+          //   return [
+          //       $item['id'] => $item['name']
+          //   ];
+          // }) : '',
+          'translated_item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json ? array_reduce($deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json, function($carry, $item) {
+            $carry[$item['id']] = $item['name'];
+            return $carry;
+          }, []) : null,
           'desc' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->desc,
           'amount' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->amount,
           'image_url' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->thumbnail->full_url,
