@@ -302,6 +302,7 @@ class DeliveryProductMappingController extends Controller
             )
             ->findOrFail($id);
 
+            // dd($deliveryProductMapping->toArray());
             // dd($this->deliveryProductMappingService->getBundleSalesOptions($deliveryProductMapping));
 
         return Inertia::render('DeliveryPlatform/Edit', [
@@ -315,11 +316,11 @@ class DeliveryProductMappingController extends Controller
                 ])
                 ->where('is_inventory', true)
                 ->where('is_active', true)
-                ->whereNotIn('id', function($query) use ($deliveryProductMapping) {
-                    $query->select('product_id')
-                        ->from('delivery_product_mapping_items')
-                        ->where('delivery_product_mapping_id', $deliveryProductMapping->id);
-                })
+                // ->whereNotIn('id', function($query) use ($deliveryProductMapping) {
+                //     $query->select('product_id')
+                //         ->from('delivery_product_mapping_items')
+                //         ->where('delivery_product_mapping_id', $deliveryProductMapping->id);
+                // })
                 ->orderBy('code')
                 ->get()
             ),

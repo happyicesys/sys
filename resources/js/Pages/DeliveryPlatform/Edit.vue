@@ -659,6 +659,7 @@
       </div>
     </div>
   </div>
+<!--
   <ChannelOverview
     v-if="showChannelOverviewModal"
     :vend="vend"
@@ -666,7 +667,7 @@
     :showModal="showChannelOverviewModal"
     @modalClose="onChannelOverviewClosed"
   >
-  </ChannelOverview>
+  </ChannelOverview> -->
   <EditItem
     v-if="showItemEditModal"
     :deliveryProductMapping="props.deliveryProductMapping.data"
@@ -677,7 +678,7 @@
   </EditItem>
   </BreezeAuthenticatedLayout>
 </template>
-
+<!--
 <style setup>
 	.quick-look
 	{
@@ -710,7 +711,7 @@
 		/* width:170px; */
 		font-size:13px;
 	}
-</style>
+</style> -->
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
@@ -785,6 +786,12 @@ onMounted(() => {
     form.value = deliveryProductMapping.value ?
       useForm(deliveryProductMapping.value) :
       useForm(getDefaultForm())
+
+    productOptions.value = [
+      ...props.productOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+    ]
+
+    subCategoryOptions.value = props.deliveryProductMapping.data.category_json.subCategories
 
     unbindedVendOptions.value = [
       ...props.unbindedVendOptions.data.map((data) => {return {id: data.id, full_name: data.cust_full_name}})
