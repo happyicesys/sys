@@ -199,6 +199,9 @@
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-left">
                         <div class="flex flex-col space-y-1">
                           {{ product.name }}
+                          <div v-for="productName in product.translated_names_json" class="text-indigo-600">
+                            {{ productName.name }}
+                          </div>
                           <div
                             class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer"
                             :class="product.is_active ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'"
