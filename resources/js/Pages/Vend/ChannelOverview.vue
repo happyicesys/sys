@@ -55,6 +55,9 @@
                         </span>
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        Selling Prices
+                      </th>
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Group
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
@@ -120,15 +123,35 @@
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                         {{ channel.capacity }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="checkVMPriceWithSellingPrice(channel, 1)">
                         {{ (channel.amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                       </td>
                       <td
                         class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center"
-                        :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']"
+                        :class="checkVMPriceWithSellingPrice(channel, 2)"
                         v-if="channels.some(channel => 'amount2' in channel)"
                       >
                         {{ (channel.amount2).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                      </td>
+                      <td
+                        class="whitespace-nowrap py-4 pl-4 pr-3 text-xs font-normal sm:pl-6 text-center text-gray-900"
+                      >
+                        <div class="flex flex-col space-y-1 justify-self-end">
+                          <div
+                              class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer bg-indigo-100 text-indigo-800 border-indigo-300"
+                              v-if="channel.product && channel.product.sellingPrices"
+                              v-for="(sellingPrice, sellingPriceIndex) in channel.product.sellingPrices"
+                          >
+                              <div class="flex space-x-1">
+                                  <span class="font-medium grow-0">
+                                    {{ sellingPrice.type ? sellingPrice.type_name : null }}:
+                                  </span>
+                                  <span>
+                                    {{ sellingPrice.amount ? (sellingPrice.amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
+                                  </span>
+                              </div>
+                          </div>
+                        </div>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                         {{ channel.discount_group }}
@@ -342,6 +365,16 @@ const emit = defineEmits(['modalClose'])
 //   }).catch(error => {
 //   })
 // }
+
+function checkVMPriceWithSellingPrice(channel, type) {
+  if(channel.product && channel.product.sellingPrices) {
+    let sellingPrice = channel.product.sellingPrices.find(sellingPrice => sellingPrice.type == type)
+    if(sellingPrice) {
+      return sellingPrice.amount != channel.amount ? 'text-red-500' : 'text-gray-800'
+    }
+  }
+  return 'text-gray-800'
+}
 
 function onDispenseClicked(channel) {
   router.post('/vends/' + props.vend.id + '/dispense-product', {

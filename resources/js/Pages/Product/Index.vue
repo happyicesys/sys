@@ -169,6 +169,9 @@
                     <TableHead v-if="permissions.includes('admin-access products')">
                       Unit Cost
                     </TableHead>
+                    <TableHead v-if="permissions.includes('admin-access products')">
+                      Selling Price
+                    </TableHead>
                     <!-- <TableHead>
                       Category
                     </TableHead>
@@ -222,6 +225,23 @@
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-right" v-if="permissions.includes('admin-access products')">
                         {{ product.latestUnitCost ? (product.latestUnitCost.cost).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
+                      </TableData>
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-right" v-if="permissions.includes('admin-access products')">
+                        <div class="flex flex-col space-y-1 justify-self-end">
+                          <div
+                              class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer bg-indigo-100 text-indigo-800 border-indigo-300"
+                              v-for="(sellingPrice, sellingPriceIndex) in product.sellingPrices"
+                          >
+                              <div class="flex space-x-1">
+                                  <span class="font-semibold grow-0">
+                                    {{ sellingPrice.type ? sellingPrice.type_name : null }}:
+                                  </span>
+                                  <span>
+                                    {{ sellingPrice.amount ? (sellingPrice.amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
+                                  </span>
+                              </div>
+                          </div>
+                        </div>
                       </TableData>
                       <!-- <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         {{ product.category_id ? product.category_id.name : null }}

@@ -122,6 +122,7 @@ class VendController extends Controller
             ->with([
                 'vendChannels',
                 'vendChannels.product.thumbnail',
+                'vendChannels.product.sellingPrices',
                 'vendChannels.vendChannelErrorLogs' => function($query) {
                     $query->where('created_at', '>=', Carbon::today()->subDays(29));
                 },
@@ -267,6 +268,7 @@ class VendController extends Controller
             ->with([
                 'vend.vendChannels',
                 'vend.vendChannels.product.thumbnail',
+                'vend.vendChannels.product.sellingPrices',
                 'vend.vendChannels.vendChannelErrorLogs' => function($query) {
                     $query->where('created_at', '>=', Carbon::today()->subDays(29));
                 },

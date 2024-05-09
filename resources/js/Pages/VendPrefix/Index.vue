@@ -161,6 +161,7 @@ import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 
 const props = defineProps({
+  operatorOptions: [Array, Object],
   vendPrefixes: Object,
 })
 

@@ -75,12 +75,15 @@
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
+import MultiSelect from '@/Components/MultiSelect.vue'
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 
+const authOperator = usePage().props.auth.operator
+
 const props = defineProps({
-  operatorOptions: Array,
+  operatorOptions: [Array, Object],
   vendPrefix: Object,
   type: String,
   showModal: Boolean,
@@ -91,9 +94,14 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const operatorOptions = ref([])
 
 onMounted(() => {
   form.value = props.vendPrefix ? useForm(props.vendPrefix) : useForm(getDefaultForm())
+  operatorOptions.value = [
+    ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+  ]
+  form.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
 })
 
 function getDefaultForm() {
