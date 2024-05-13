@@ -21,6 +21,7 @@ class UserResource extends JsonResource
             'username' => $this->username,
             'operator_id' => $this->operator_id,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
+            'phoneCountry' => CountryResource::make($this->whenLoaded('phoneCountry')),
             'phone_country_id' => CountryResource::make($this->whenLoaded('phoneCountry')),
             'phone_number' => $this->phone_number,
             'roles' => $this->whenLoaded('roles'),

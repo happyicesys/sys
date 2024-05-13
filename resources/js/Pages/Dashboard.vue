@@ -513,18 +513,19 @@
                 display: true,
                 text: 'Past 7 Days - 10 Best Sellers'
             },
+            tooltip: {
+                callbacks: {
+                    label: function(tooltipItem, chartData) {
+                        // console.log(tooltipItem, JSON.parse(JSON.stringify(productGraphDatasets.value)))
+                        const label = tooltipItem.label;
+                        const value = tooltipItem.parsed;
+                        const total = productGraphDatasets.value[0].data.reduce((acc, val) => acc + val, 0);
+                        const percentage = Math.round((value / total) * 100);
+                        return `${label}: ${value} (${percentage}%)`;
+                    }
+                }
+            }
         },
-        // tooltips: {
-        //   callbacks: {
-        //     label: function(tooltipItem, data) {
-        //       var dataset = data.datasets[tooltipItem.datasetIndex];
-        //       var total = dataset.data.reduce((previousValue, currentValue) => previousValue + currentValue);
-        //       var currentValue = dataset.data[tooltipItem.index];
-        //       var percentage = Math.floor(((currentValue / total) * 100) + 0.5);
-        //       return percentage + "%";
-        //     }
-        //   }
-        // }
     })
 
     const performerGraphData = ref([])

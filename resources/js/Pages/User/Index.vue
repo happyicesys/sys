@@ -115,6 +115,9 @@
                               Username
                           </TableHead>
                           <TableHead>
+                              Phone Number
+                          </TableHead>
+                          <TableHead>
                               Role
                           </TableHead>
                           <TableHeadSort modelName="operator_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_id')">
@@ -138,6 +141,9 @@
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
                               {{ user.username }}
+                          </TableData>
+                          <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
+                              {{ user.phoneCountry ? user.phoneCountry.code : null }} {{ user.phone_number }}
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
                               {{ user.roles[0] ? user.roles[0].name : null }}

@@ -38,6 +38,7 @@ class UserController extends Controller
             'users' => UserResource::collection(
                 User::with([
                     'operator',
+                    'phoneCountry',
                     'roles',
                     'vends:id,code,name',
                     'vends.customer:id,code,name',
