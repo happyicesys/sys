@@ -96,7 +96,7 @@ class VendTempService
       ]);
 
       if($dataArr['is_alert_action']) {
-        SendVendTempAlert::dispatchSync($this->vend, $dataArr);
+        // SendVendTempAlert::dispatchSync($this->vend, $dataArr);
       }
     }
   }

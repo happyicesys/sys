@@ -245,8 +245,8 @@ class VendDataService
             CreateVendTransaction::dispatch($processedInput, $vend, true)->onQueue('default');
             break;
           case 'VENDER':
-            // SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
-            SyncVendParameter::dispatchSync($processedInput, $vend);
+            SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
+            // SyncVendParameter::dispatchSync($processedInput, $vend);
             break;
           default:
             $saveVendData = false;
