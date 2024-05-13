@@ -25,7 +25,7 @@
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="ID" v-model="filters.ref_id">
-            Obj ID
+            Customer ID
           </SearchInput>
           <SearchInput placeholderStr="ID" v-model="filters.vend_code">
             Vend ID
@@ -240,7 +240,7 @@
                       #
                     </TableHead>
                     <TableHead>
-                      Obj ID
+                      Customer ID
                     </TableHead>
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
                       Vend ID

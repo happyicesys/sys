@@ -914,11 +914,11 @@
                           <div class="flex justify-center space-x-1">
                               <Link :href="'/vends/' + vend.vend_id + '/edit'">
                                   <Button
-                                  type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                                  type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                                   >
-                                  <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                                  <EllipsisHorizontalCircleIcon class="w-4 h-4"></EllipsisHorizontalCircleIcon>
                                   <span>
-                                      Edit
+                                      more
                                   </span>
                                   </Button>
                               </Link>
@@ -1006,7 +1006,7 @@ import Form from '@/Pages/Vend/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon} from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon} from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';

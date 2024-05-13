@@ -98,7 +98,9 @@ class SyncVendParameter implements ShouldQueue
                     $vend->temp = $temp;
                     $vend->is_temp_error = false;
 
-                    // $this->vendTempService->runVendTempAlert();
+                    if(isset($input['t2'])) {
+                        $this->vendTempService->runVendTempAlert($temp, $input['t2']);
+                    }
                 }
             }
             $vend->temp_updated_at = Carbon::now();

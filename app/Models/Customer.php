@@ -284,7 +284,8 @@ class Customer extends Model
         ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
         ->when($request->profile_id, fn($query, $input) => $query->where('profile_id', $input))
         ->when($request->ref_id, function($query, $search) {
-            $query->where('id', 'LIKE', $search - 20000);
+            // dd($search);
+            $query->where('customers.id', 'LIKE', '%' . ($search - 20000) . '%');
         })
         ->when($request->status, fn($query, $input) => $query->where('status_id', $input))
         ->when($request->vend_code, function($query, $search) {

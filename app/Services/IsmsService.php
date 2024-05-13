@@ -52,8 +52,6 @@ class IsmsService
         'agreedterm' => 'YES'
     ]);
 
-    dd($response->body());
-
     return $response->json();
   }
 }

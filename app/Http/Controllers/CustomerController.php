@@ -75,6 +75,7 @@ class CustomerController extends Controller
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->select(
                 'customers.*',
+                'customers.id',
                 'customers.operator_id',
                 'operators.code as operator_code',
                 'operators.name as operator_name'

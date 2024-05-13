@@ -46,37 +46,40 @@ class VendTempService
             ->first();
   }
 
-  public function getTypeVariance($type1, $type2)
+  public function getTypeVariance($t1, $t2)
   {
-    $temp1 = $this->getLatestVendTemp($type1);
+    // $temp1 = $this->getLatestVendTemp($type1);
 
-    $temp2 = $this->getLatestVendTemp($type2);
+    // $temp2 = $this->getLatestVendTemp($type2);
 
-    return ($temp1->value - $temp2->value)/ 10;
+    return ($t1 - $t2)/ 10;
   }
 
   public function initVendTempAlertData()
   {
-    $this->vend->vend_temp_alert_json = $this->vend->vend_temp_alert_json ?? VendTemp::DEFAULT_ALERTS;
-    $this->vend->save();
+    if($this->vend->vend_temp_alert_json == null) {
+      Vend::where('id', $this->vend->id)->update([
+        'vend_temp_alert_json' => VendTemp::DEFAULT_ALERTS
+      ]);
+    }
   }
 
-  public function runVendTempAlert()
+  public function runVendTempAlert($t1, $t2)
   {
     $this->initVendTempAlertData();
 
-    $variance = $this->getTypeVariance(VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR);
+    $variance = $this->getTypeVariance($t1, $t2);
 
     foreach(VendTemp::DEFAULT_ALERTS as $name => $valueArr) {
       $dataArr = [
-        'column_name' => 'vend_temp_alert_json->'.$name.'->is_triggered',
+        'column_name' => 'vend_temp_alert_json->'.$name,
         'current_is_triggered' => false,
         'desc' => $valueArr['desc'],
         'is_alert_action' => false,
         'name' => $name,
         'previous_is_triggered' => $this->vend->vend_temp_alert_json[$name]['is_triggered'],
-        't1' => $this->getLatestVendTemp(VendTemp::TYPE_CHAMBER)->value/ 10,
-        't2' => $this->getLatestVendTemp(VendTemp::TYPE_EVAPORATOR)->value/ 10,
+        't1' => $t1/ 10,
+        't2' => $t2/ 10,
         'value' => $valueArr['value'],
         'variance' => $variance,
       ];
@@ -92,11 +95,15 @@ class VendTempService
       }
 
       Vend::where('id', $this->vend->id)->update([
-        'vend_temp_alert_json->TEMP_TYPE_VARIANCE_TIER_ONE->is_triggered' => $dataArr['current_is_triggered']
+        $dataArr['column_name'] . '->is_triggered' => $dataArr['current_is_triggered'],
+        $dataArr['column_name'] . '->current_t1' => $dataArr['t1'],
+        $dataArr['column_name'] . '->current_t2' => $dataArr['t2'],
+        $dataArr['column_name'] . '->current_variance' => $dataArr['variance'],
       ]);
 
       if($dataArr['is_alert_action']) {
-        SendVendTempAlert::dispatchSync($this->vend, $dataArr);
+        // SendVendTempAlert::dispatchSync($this->vend, $dataArr);
+        // SendVendTempAlert::dispatch($this->vend, $dataArr)->onQueue('default');
       }
     }
   }
