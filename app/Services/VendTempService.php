@@ -71,13 +71,15 @@ class VendTempService
     $variance = $this->getTypeVariance($t1, $t2);
 
     foreach(VendTemp::DEFAULT_ALERTS as $name => $valueArr) {
+      $vend = Vend::where('id', $this->vend->id)->first();
+
       $dataArr = [
         'column_name' => 'vend_temp_alert_json->'.$name,
         'current_is_triggered' => false,
         'desc' => $valueArr['desc'],
         'is_alert_action' => false,
         'name' => $name,
-        'previous_is_triggered' => $this->vend->vend_temp_alert_json[$name]['is_triggered'],
+        'previous_is_triggered' => $vend->vend_temp_alert_json[$name]['is_triggered'],
         't1' => $t1/ 10,
         't2' => $t2/ 10,
         'value' => $valueArr['value'],
