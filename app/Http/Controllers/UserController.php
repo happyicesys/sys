@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CountryResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\RoleResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendResource;
+use App\Models\Country;
 use App\Models\Operator;
 use App\Models\User;
 use App\Models\Vend;
@@ -114,6 +116,7 @@ class UserController extends Controller
     public function edit($id)
     {
         $user = User::with([
+            'phoneCountry',
             'roles',
             'vends:id,code,name,customer_id',
             'vends.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
@@ -121,6 +124,12 @@ class UserController extends Controller
         ->findOrFail($id);
 
         return Inertia::render('User/Edit', [
+            'countries' => CountryResource::collection(
+                Country::query()
+                    ->orderBy('sequence')
+                    ->orderBy('name')
+                    ->get()
+            ),
             'user' => UserResource::make(
                 $user
             ),
@@ -172,14 +181,15 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'nullable|email|max:255|required_without:username|unique:users,email,'.$userId,
+            'phone_number' => 'nullable|numeric',
             'username' => 'nullable|required_without:email|unique:users,username,'.$userId,
             'password' => 'nullable',
         ]);
 
         if($request->password) {
-            $validated = $request->only('name', 'email', 'username', 'password', 'operator_id');
+            $validated = $request->only('name', 'email', 'username', 'password', 'operator_id', 'phone_country_id', 'phone_number');
         }else {
-            $validated = $request->only('name', 'email', 'username', 'operator_id');
+            $validated = $request->only('name', 'email', 'username', 'operator_id', 'phone_country_id', 'phone_number');
         }
 
         $user = User::findOrFail($userId);

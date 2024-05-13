@@ -21,6 +21,8 @@ class UserResource extends JsonResource
             'username' => $this->username,
             'operator_id' => $this->operator_id,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
+            'phone_country_id' => CountryResource::make($this->whenLoaded('phoneCountry')),
+            'phone_number' => $this->phone_number,
             'roles' => $this->whenLoaded('roles'),
             'role_id' =>  $this->when($this->relationLoaded('roles'), function() {
                 return $this->roles()->first();

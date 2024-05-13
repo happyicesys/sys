@@ -453,13 +453,6 @@ class DeliveryPlatformService
           }
           if($response['success']) {
             return $response['data'];
-          }else {
-            VendData::create([
-              'connection' => 'GRAB-MENU-NOTIFY',
-              'value' => $response,
-              'processed' => $response,
-            ]);
-            // throw new \Exception('Notify Updated Menu Failed');
           }
           break;
       }

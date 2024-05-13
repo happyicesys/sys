@@ -38,6 +38,7 @@ class Vend extends Model
         'vend_channel_totals_json' => 'json',
         'vend_criteria_score_json' => 'json',
         'vend_criteria_weightage_json' => 'json',
+        'vend_temp_alert_json' => 'json',
         'vend_transaction_totals_json' => 'json',
 
     ];
@@ -84,6 +85,7 @@ class Vend extends Model
         'vend_channel_totals_json',
         'vend_criteria_score_json',
         'vend_criteria_weightage_json',
+        'vend_temp_alert_json',
         'vend_transaction_totals_json',
         'vend_type_id',
         'virtual_firmware_ver',

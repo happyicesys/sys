@@ -37,6 +37,30 @@
                 Password {{type == 'update' ? '(Override)' : ''}}
               </FormInput>
             </div>
+            <div class="sm:col-span-3">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Phone Code
+              </label>
+              <MultiSelect
+                v-model="form.phone_country_id"
+                :options="countryOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.phone_country_id">
+                {{ form.errors.phone_country_id }}
+              </div>
+            </div>
+            <div class="sm:col-span-3">
+              <FormInput v-model="form.phone_number" :error="form.errors.phone_number">
+                Phone Number
+              </FormInput>
+            </div>
             <div class="col-span-12 sm:col-span-6" v-if="!operatorRole">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Role
@@ -229,6 +253,7 @@ const props = defineProps({
 
 const emit = defineEmits(['modalClose'])
 
+const countryOptions = ref([])
 const form = ref(
   useForm(getDefaultForm())
 )
@@ -239,6 +264,7 @@ const unbindedVendOptions = ref([])
 
 onMounted(() => {
   form.value = props.user ? useForm({...getDefaultForm(), ...props.user}) : useForm(getDefaultForm())
+  countryOptions.value = props.countries.data
   operatorOptions.value = props.operators.data
   roleOptions.value = props.roles.data
   if(!props.permissions.includes('admin-access operators')) {

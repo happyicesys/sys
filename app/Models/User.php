@@ -28,6 +28,8 @@ class User extends Authenticatable
         'operator_id',
         'password',
         'password_confirmation',
+        'phone_country_id',
+        'phone_number',
         'profile_id',
         'username',
     ];
@@ -107,6 +109,11 @@ class User extends Authenticatable
     public function operator()
     {
         return $this->belongsTo(Operator::class);
+    }
+
+    public function phoneCountry()
+    {
+        return $this->belongsTo(Country::class);
     }
 
     public function profile()

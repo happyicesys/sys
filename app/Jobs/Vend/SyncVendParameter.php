@@ -5,6 +5,7 @@ namespace App\Jobs\Vend;
 use App\Models\Vend;
 use App\Models\VendFan;
 use App\Models\VendTemp;
+use App\Services\VendTempService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -19,6 +20,7 @@ class SyncVendParameter implements ShouldQueue
 
     protected $input;
     protected $vend;
+    protected $vendTempService;
     /**
      * Create a new job instance.
      *
@@ -28,6 +30,7 @@ class SyncVendParameter implements ShouldQueue
     {
         $this->input = $input;
         $this->vend = $vend;
+        $this->vendTempService = new VendTempService($vend);
     }
 
     /**
@@ -94,11 +97,12 @@ class SyncVendParameter implements ShouldQueue
 
                     $vend->temp = $temp;
                     $vend->is_temp_error = false;
+
+                    $this->vendTempService->runVendTempAlert();
                 }
             }
             $vend->temp_updated_at = Carbon::now();
             $vend->save();
-        // }
     }
 
     private function saveParameter($input, Vend $vend)

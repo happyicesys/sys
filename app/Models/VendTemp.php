@@ -9,7 +9,23 @@ class VendTemp extends Model
 {
     use HasFactory;
 
+    const DEFAULT_ALERTS = [
+        'TEMP_TYPE_VARIANCE_TIER_ONE' =>
+        [
+            'desc' => 'T1-T2 >= 5°C',
+            'value' => 5,
+            'is_triggered' => false,
+        ],
+        'TEMP_TYPE_VARIANCE_TIER_TWO' =>
+        [
+            'desc' => 'T1-T2 >= 10°C',
+            'value' => 10,
+            'is_triggered' => false,
+        ],
+    ];
+
     const TEMPERATURE_ERROR = 32767;
+
     const TYPE_CHAMBER = 1;
     const TYPE_EVAPORATOR = 2;
     const TYPE_THREE = 3;

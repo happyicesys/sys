@@ -37,6 +37,30 @@
                   Password {{type == 'update' ? '(Override)' : ''}}
                 </FormInput>
               </div>
+              <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Phone Code
+                </label>
+                <MultiSelect
+                  v-model="form.phone_country_id"
+                  :options="countryOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="country_name_phone_code"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.phone_country_id">
+                  {{ form.errors.phone_country_id }}
+                </div>
+              </div>
+              <div class="sm:col-span-3">
+                <FormInput v-model="form.phone_number" :error="form.errors.phone_number">
+                  Phone Number
+                </FormInput>
+              </div>
               <div class="col-span-12 sm:col-span-6" v-if="!operatorRole">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Role
@@ -232,6 +256,7 @@ const props = defineProps({
 
 const emit = defineEmits(['modalClose'])
 
+const countryOptions = ref([])
 const form = ref(
   useForm(getDefaultForm())
 )
@@ -243,6 +268,7 @@ const unbindedVendOptions = ref([])
 const user = ref()
 
 onMounted(() => {
+  countryOptions.value = props.countries.data
   user.value = props.user.data
   operatorOptions.value = props.operators.data.map(operator => ({
     id: operator.id,
@@ -252,6 +278,7 @@ onMounted(() => {
   unbindedVendOptions.value = props.unbindedVends.data
   form.value = props.user ? useForm({
     ...getDefaultForm(),
+    phone_country_id: props.user ? countryOptions.value.find(country => country.id == user.value.phone_country_id) : '',
     ...props.user.data,
     operator_id: props.user ? operatorOptions.value.find(operator => operator.id == user.value.operator_id) : '',
   }) : useForm(getDefaultForm())
@@ -283,6 +310,8 @@ function getDefaultForm() {
     email: '',
     username: '',
     password: '',
+    phone_country_id: '',
+    phone_number: '',
     operator_id: '',
     role_id: '',
   }
@@ -295,6 +324,7 @@ function submit() {
     form.value
       .transform((data) => ({
         ...data,
+        phone_country_id: data.phone_country_id.id,
         operator_id: data.operator_id.id,
         role_id: data.role_id.id,
         user: props.user,

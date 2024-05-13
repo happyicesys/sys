@@ -2,24 +2,24 @@
 
 namespace App\Services;
 
+use App\Models\Vend;
 use App\Models\VendTemp;
+use App\Jobs\SendVendTempAlert;
 use Carbon\Carbon;
 
 class VendTempService
 {
 
-  protected $vendTemp;
+  protected $vend;
 
-  public function __construct(VendTemp $vendTemp)
+  public function __construct(Vend $vend)
   {
-    $this->vendTemp = $vendTemp;
+    $this->vend = $vend;
   }
 
   public function compareLast($type)
   {
     $tempArr = $this
-                ->vendTemp
-                ->vend
                 ->vendTemps()
                 ->where('vend_type', $type)
                 ->latest()
@@ -29,15 +29,75 @@ class VendTempService
     if ($tempArr->count() == 2) {
       $diff = $tempArr[0]->value - $tempArr[1]->value;
       if ($diff > 0) {
-        dd($diff);
+        // dd($diff);
         return true;
       }
     }
     return false;
   }
 
-  public function logicProcessing()
+  public function getLatestVendTemp($type)
   {
+    return $this
+            ->vend
+            ->vendTemps()
+            ->where('type', $type)
+            ->latest()
+            ->first();
+  }
 
+  public function getTypeVariance($type1, $type2)
+  {
+    $temp1 = $this->getLatestVendTemp($type1);
+
+    $temp2 = $this->getLatestVendTemp($type2);
+
+    return ($temp1->value - $temp2->value)/ 10;
+  }
+
+  public function initVendTempAlertData()
+  {
+    $this->vend->vend_temp_alert_json = $this->vend->vend_temp_alert_json ?? VendTemp::DEFAULT_ALERTS;
+    $this->vend->save();
+  }
+
+  public function runVendTempAlert()
+  {
+    $this->initVendTempAlertData();
+
+    $variance = $this->getTypeVariance(VendTemp::TYPE_CHAMBER, VendTemp::TYPE_EVAPORATOR);
+
+    foreach(VendTemp::DEFAULT_ALERTS as $name => $valueArr) {
+      $dataArr = [
+        'column_name' => 'vend_temp_alert_json->'.$name.'->is_triggered',
+        'current_is_triggered' => false,
+        'desc' => $valueArr['desc'],
+        'is_alert_action' => false,
+        'name' => $name,
+        'previous_is_triggered' => $this->vend->vend_temp_alert_json[$name]['is_triggered'],
+        't1' => $this->getLatestVendTemp(VendTemp::TYPE_CHAMBER)->value/ 10,
+        't2' => $this->getLatestVendTemp(VendTemp::TYPE_EVAPORATOR)->value/ 10,
+        'value' => $valueArr['value'],
+        'variance' => $variance,
+      ];
+
+      if($dataArr['variance'] >= $dataArr['value'] && !$dataArr['previous_is_triggered']) {
+        $dataArr['current_is_triggered'] = true;
+        $dataArr['is_alert_action'] = true;
+      }else {
+        if($dataArr['variance'] < $dataArr['value']) {
+          $dataArr['current_is_triggered'] = false;
+          $dataArr['is_alert_action'] = false;
+        }
+      }
+
+      Vend::where('id', $this->vend->id)->update([
+        'vend_temp_alert_json->TEMP_TYPE_VARIANCE_TIER_ONE->is_triggered' => $dataArr['current_is_triggered']
+      ]);
+
+      if($dataArr['is_alert_action']) {
+        SendVendTempAlert::dispatchSync($this->vend, $dataArr);
+      }
+    }
   }
 }
