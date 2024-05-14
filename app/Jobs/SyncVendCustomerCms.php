@@ -135,6 +135,32 @@ class SyncVendCustomerCms implements ShouldQueue
                                 ]);
                                 $baseCurrencyCountryId = $baseCurrencyCountry->id;
                                 break;
+                            case 'IDR':
+                                $baseCurrencyCountry = Country::updateOrCreate([
+                                    'currency_name' => $baseCurrencyCountryData['currency_name'],
+                                ], [
+                                    'name' => 'Indonesia',
+                                    'code' => 'IDR',
+                                    'currency_symbol' => 'Rp',
+                                    'phone_code' => '62',
+                                    'is_state' => false,
+                                    'sequence' => 4,
+                                ]);
+                                $baseCurrencyCountryId = $baseCurrencyCountry->id;
+                                break;
+                            case 'IDR':
+                                $baseCurrencyCountry = Country::updateOrCreate([
+                                    'currency_name' => $baseCurrencyCountryData['currency_name'],
+                                ], [
+                                    'name' => 'Thailand',
+                                    'code' => 'THB',
+                                    'currency_symbol' => '฿',
+                                    'phone_code' => '66',
+                                    'is_state' => false,
+                                    'sequence' => 5,
+                                ]);
+                                $baseCurrencyCountryId = $baseCurrencyCountry->id;
+                                break;
                         }
                     }
 
