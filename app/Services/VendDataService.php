@@ -257,7 +257,7 @@ class VendDataService
 
         // $this->mqttService->publish('CM'.$vend->code, $response, 0);
         // if($vend->code == '2007') {
-          PublishMqtt::dispatch('CM'.$vend->code, $response, 0)->onQueue('default');
+          // PublishMqtt::dispatch('CM'.$vend->code, $response, 0)->onQueue('default');
         // }
       }
     }
