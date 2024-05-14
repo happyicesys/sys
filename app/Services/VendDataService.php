@@ -3,6 +3,7 @@
 namespace App\Services;
 use App\Models\Vend;
 use App\Models\VendData;
+use App\Jobs\PublishMqtt;
 use App\Jobs\SyncAcbVmcPa;
 use App\Jobs\SyncAcbStatus;
 use App\Jobs\SyncDeliveryPlatformMenu;
@@ -18,19 +19,11 @@ use App\Jobs\Vend\UpdateApkVersion;
 use App\Jobs\Vend\UpdateMqttLastUpdated;
 use App\Jobs\Vend\UpdateVendLastUpdated;
 use App\Jobs\Vend\UpdateVendStatistics;
-use App\Services\MqttService;
 use Carbon\Carbon;
 use PhpMqtt\Client\Facades\MQTT;
 
 class VendDataService
 {
-  protected $mqttService;
-
-  public function __construct()
-  {
-    $this->mqttService = new MqttService();
-  }
-
   public function standardizedVendData($input, $connectionType)
   {
     $input = collect($input);
@@ -261,7 +254,9 @@ class VendDataService
 
       if($connectionType == 'mqtt') {
         UpdateMqttLastUpdated::dispatch($vend)->onQueue('default');
-        $this->mqttService->publish('CM'.$vend->code, $response, 0);
+
+        // $this->mqttService->publish('CM'.$vend->code, $response, 0);
+        PublishMqtt::dispatch('CM'.$vend->code, $response, 0)->onQueue('default');
       }
     }
 

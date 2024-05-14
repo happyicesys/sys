@@ -22,12 +22,12 @@ class MqttService
     $mqtt->publish($topic, $message, $qos);
 
     // compare start time with now in every mqtt loop, if it is more than 30 seconds, interrupt the loop
-    $mqtt->registerLoopEventHandler(function ($mqtt, float $elapsedTime) {
-        if (Carbon::now()->diffInSeconds($startTime) >= 20) {
-            $mqtt->interrupt();
-        }
-    });
-    $mqtt->loop();
+    // $mqtt->registerLoopEventHandler(function ($mqtt, float $elapsedTime) {
+    //     if (Carbon::now()->diffInSeconds($startTime) >= 20) {
+    //         $mqtt->interrupt();
+    //     }
+    // });
+    $mqtt->loop(true, true);
     // $mqtt->disconnect();
   }
 
