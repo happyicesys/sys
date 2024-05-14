@@ -15,6 +15,7 @@ use App\Jobs\Vend\SyncVendChannels;
 use App\Jobs\Vend\SyncVendParameter;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Jobs\Vend\UpdateApkVersion;
+use App\Jobs\Vend\UpdateMqttLastUpdated;
 use App\Jobs\Vend\UpdateVendLastUpdated;
 use App\Jobs\Vend\UpdateVendStatistics;
 use Carbon\Carbon;
@@ -215,10 +216,6 @@ class VendDataService
               GetPurchaseConfirm::dispatch($processedInput['orderid'], $vend)->onQueue('high');
             }
             break;
-          case 'P':
-            UpdateVendLastUpdated::dispatch($vend, $connectionType)->onQueue('default');
-            $saveVendData = false;
-            break;
           case 'PWRON':
             UpdateApkVersion::dispatch($processedInput, $vend)->onQueue('default');
             // SyncIsMqttVend::dispatch($vend)->onQueue('default');
@@ -250,19 +247,12 @@ class VendDataService
             break;
           default:
             $saveVendData = false;
-            // VendData::create([
-            //   'connection' => $connectionType,
-            //   'ip_address' => $ipAddress,
-            //   'processed' => $processedInput,
-            //   'type' => isset($processedInput['Type']) ? $processedInput['Type'] : 'error',
-            //   'value' => $originalInput,
-            //   'vend_code' => isset($originalInput['m']) ? $originalInput['m'] : null,
-            // ]);
-            // throw new \Exception('Type is not set or please check the parameters');
         }
-      }else {
-        UpdateVendLastUpdated::dispatch($vend, $connectionType)->onQueue('default');
-        $saveVendData = false;
+      }
+      UpdateVendLastUpdated::dispatch($vend)->onQueue('default');
+
+      if($connectionType == 'mqtt') {
+        UpdateMqttLastUpdated::dispatch($vend)->onQueue('default');
       }
     }
 
