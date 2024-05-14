@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Http\Controllers\VendDataController;
-use App\Services\MqttService;
+use App\Services\SubscribeMqttService;
 use Illuminate\Console\Command;
 // use PhpMqtt\Client\Facades\MQTT;
 use App\Models\VendData;
@@ -29,16 +29,16 @@ class SubscribeMqtt extends Command
      *
      * @return int
      */
-    protected $mqttService;
+    protected $subscribeMqttService;
 
     public function __construct()
     {
         parent::__construct();
-        $this->mqttService = new MqttService();
+        $this->subscribeMqttService = new SubscribeMqttService();
     }
 
     public function handle()
     {
-        $this->mqttService->subscribe();
+        $this->subscribeMqttService->subscribe();
     }
 }
