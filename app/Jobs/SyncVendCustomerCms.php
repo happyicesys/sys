@@ -94,53 +94,56 @@ class SyncVendCustomerCms implements ShouldQueue
                     $profileData = $customerCollection['profile'];
                     $baseCurrencyCountryData = $profileData['currency'];
                     $baseCurrencyCountry = null;
-                    switch($baseCurrencyCountryData['currency_name']) {
-                        case 'SGD':
-                            $baseCurrencyCountry = Country::updateOrCreate([
-                                'currency_name' => $baseCurrencyCountryData['currency_name'],
-                            ], [
-                                'name' => 'Singapore',
-                                'code' => 'SG',
-                                'currency_symbol' => 'S$',
-                                'phone_code' => '65',
-                                'is_state' => false,
-                                'sequence' => 1,
-                            ]);
-                            $baseCurrencyCountryId = $baseCurrencyCountry->id;
-                            break;
-                        case 'MYR':
-                            $baseCurrencyCountry = Country::updateOrCreate([
-                                'currency_name' => $baseCurrencyCountryData['currency_name'],
-                            ], [
-                                'name' => 'Malaysia',
-                                'code' => 'MY',
-                                'currency_symbol' => 'RM',
-                                'phone_code' => '60',
-                                'is_state' => true,
-                                'sequence' => 2,
-                            ]);
-                            $baseCurrencyCountryId = $baseCurrencyCountry->id;
-                            break;
-                        case 'RMB':
-                            $baseCurrencyCountry = Country::updateOrCreate([
-                                'currency_name' => $baseCurrencyCountryData['currency_name'],
-                            ], [
-                                'name' => 'China',
-                                'code' => 'CN',
-                                'currency_symbol' => '¥',
-                                'phone_code' => '86',
-                                'is_state' => true,
-                                'sequence' => 3,
-                            ]);
-                            $baseCurrencyCountryId = $baseCurrencyCountry->id;
-                            break;
+                    if(isset($baseCurrencyCountryData['currency_name'])) {
+                        switch($baseCurrencyCountryData['currency_name']) {
+                            case 'SGD':
+                                $baseCurrencyCountry = Country::updateOrCreate([
+                                    'currency_name' => $baseCurrencyCountryData['currency_name'],
+                                ], [
+                                    'name' => 'Singapore',
+                                    'code' => 'SG',
+                                    'currency_symbol' => 'S$',
+                                    'phone_code' => '65',
+                                    'is_state' => false,
+                                    'sequence' => 1,
+                                ]);
+                                $baseCurrencyCountryId = $baseCurrencyCountry->id;
+                                break;
+                            case 'MYR':
+                                $baseCurrencyCountry = Country::updateOrCreate([
+                                    'currency_name' => $baseCurrencyCountryData['currency_name'],
+                                ], [
+                                    'name' => 'Malaysia',
+                                    'code' => 'MY',
+                                    'currency_symbol' => 'RM',
+                                    'phone_code' => '60',
+                                    'is_state' => true,
+                                    'sequence' => 2,
+                                ]);
+                                $baseCurrencyCountryId = $baseCurrencyCountry->id;
+                                break;
+                            case 'RMB':
+                                $baseCurrencyCountry = Country::updateOrCreate([
+                                    'currency_name' => $baseCurrencyCountryData['currency_name'],
+                                ], [
+                                    'name' => 'China',
+                                    'code' => 'CN',
+                                    'currency_symbol' => '¥',
+                                    'phone_code' => '86',
+                                    'is_state' => true,
+                                    'sequence' => 3,
+                                ]);
+                                $baseCurrencyCountryId = $baseCurrencyCountry->id;
+                                break;
+                        }
                     }
+
                     $profile = Profile::updateOrCreate([
                         'name' => $profileData['name']
                     ], [
                         'alias' => $profileData['acronym'],
                         'uen' => $profileData['roc_no'],
-                        'base_currency_id' => $baseCurrencyCountryId,
+                        'base_currency_id' => isset($baseCurrencyCountryId) ? $baseCurrencyCountryId : null,
                     ]);
                     $profileId = $profile->id;
                 }
