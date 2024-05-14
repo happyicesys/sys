@@ -14,13 +14,12 @@ class MqttService
   const CONNECTION_TYPE = 'mqtt';
   const SUBSCRIBED_TOPIC = '#';
 
-  public function publish($topic, $message)
+  public function publish($topic, $message, $qos = MqttClient::QOS_AT_LEAST_ONCE)
   {
     $startTime = Carbon::now();
     $mqtt = MQTT::connection();
 
-    // set as QOS 1
-    $mqtt->publish($topic, $message, MqttClient::QOS_AT_LEAST_ONCE);
+    $mqtt->publish($topic, $message, $qos);
 
     // compare start time with now in every mqtt loop, if it is more than 30 seconds, interrupt the loop
     $mqtt->registerLoopEventHandler(function ($mqtt, float $elapsedTime) {
