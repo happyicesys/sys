@@ -187,6 +187,11 @@ trait HasFilter {
         ->when($request->serialNum, function($query, $search) {
             $query->where('serial_num', 'LIKE', "%{$search}%");
         })
+        ->when($request->coinLessThan, function($query, $search) {
+            if(is_numeric($search)) {
+                $query->where('parameter_json->CoinCnt', '<=', $search)->where('parameter_json->CoinCnt', '>', 0);
+            }
+        })
         ->when($request->customer, function($query, $search) {
             if(strpos($search, "-")) {
                 $searchArray = explode("-", $search);

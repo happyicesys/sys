@@ -14,12 +14,14 @@ class SellingPrice extends Model
     const TYPE_2 = 2;
     const TYPE_3 = 3;
     const TYPE_4 = 4;
+    const TYPE_5 = 5;
 
     const TYPE_MAPPINGS = [
         self::TYPE_1 => 'SP1',
         self::TYPE_2 => 'SP2',
         self::TYPE_3 => 'SP3',
         self::TYPE_4 => 'SP4',
+        self::TYPE_5 => 'SP5',
     ];
 
     protected $fillable = [

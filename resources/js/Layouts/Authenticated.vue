@@ -33,7 +33,7 @@ const navigation = [
     //     tagline: 'Device',
     // },
     {
-        name: 'Machines',
+        name: 'Vending Machines',
         icon: CommandLineIcon,
         current: false,
         href: 'vends',
@@ -41,7 +41,7 @@ const navigation = [
         tagline: null,
         children: [
             {name: 'View By Customers', href: '/vends/customers'},
-            {name: 'View By Devices', href: '/vends'},
+            {name: 'View By Machines', href: '/vends'},
         ]
     },
     {
@@ -83,6 +83,18 @@ const navigation = [
         tagline: null,
     },
     {
+        name: 'Product Management',
+        icon: RectangleStackIcon,
+        current: false,
+        href: 'products',
+        permission: 'read products',
+        tagline: null,
+        children: [
+            {name: 'Products', href: '/products'},
+            {name: 'Product Mappings', href: '/product-mappings'},
+        ]
+    },
+    {
         name: 'Data Management',
         icon: FolderIcon,
         current: false,
@@ -106,18 +118,6 @@ const navigation = [
             // {name: 'UOM', href: '/uoms'},
             // {name: 'Zone', href: '/zones'},
         ],
-    },
-    {
-        name: 'Products',
-        icon: RectangleStackIcon,
-        current: false,
-        href: 'products',
-        permission: 'read products',
-        tagline: null,
-        children: [
-            {name: 'Products', href: '/products'},
-            {name: 'Product Mappings', href: '/product-mappings'},
-        ]
     },
     {
         name: 'Delivery Platform',

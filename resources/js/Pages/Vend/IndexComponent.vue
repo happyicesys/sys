@@ -251,6 +251,9 @@
           <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Account Manager" v-model="filters.account_manager_name" v-if="permissions.includes('admin-access vends') && indexType === 'customers'" @keyup.enter="onSearchFilterUpdated()">
               Account Manager
           </SearchInput>
+          <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Number" v-model="filters.coinLessThan" @keyup.enter="onSearchFilterUpdated()">
+              Coin Amount &lt;&lt;
+          </SearchInput>
       </div>
 
       <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -1033,6 +1036,7 @@ const props = defineProps({
 const filters = ref({
   account_manager_name: '',
   codes: '',
+  coinLessThan: '',
   channel_codes: '',
   serialNum: '',
   customer: '',
