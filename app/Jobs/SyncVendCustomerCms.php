@@ -94,6 +94,7 @@ class SyncVendCustomerCms implements ShouldQueue
                     $profileData = $customerCollection['profile'];
                     $baseCurrencyCountryData = $profileData['currency'];
                     $baseCurrencyCountry = null;
+                    // dd($profileData);
                     if(isset($baseCurrencyCountryData['currency_name'])) {
                         switch($baseCurrencyCountryData['currency_name']) {
                             case 'SGD':

@@ -422,7 +422,7 @@ class DeliveryPlatformService
               SyncDeliveryPlatformOauthByOperator::dispatch($deliveryPlatformOperator);
               $this->getCategories($deliveryPlatformOperator);
             }else {
-              throw new \Exception('Get Categories Failed, Other than 401');
+              throw new \Exception('Get Categories Failed, Other than 401, '.$response['code']);
             }
           }
         } else if ($scope === 'food.partner_api') {
