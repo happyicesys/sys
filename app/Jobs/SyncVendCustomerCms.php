@@ -148,7 +148,7 @@ class SyncVendCustomerCms implements ShouldQueue
                                 ]);
                                 $baseCurrencyCountryId = $baseCurrencyCountry->id;
                                 break;
-                            case 'IDR':
+                            case 'THB':
                                 $baseCurrencyCountry = Country::updateOrCreate([
                                     'currency_name' => $baseCurrencyCountryData['currency_name'],
                                 ], [
