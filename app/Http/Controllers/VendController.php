@@ -169,6 +169,7 @@ class VendController extends Controller
                 'vends.vend_type_id',
                 'vends.virtual_vend_records_thirty_days_amount_average',
                 'vends.is_active AS is_active',
+                'customers.id AS customer_id',
                 'customers.code AS customer_code',
                 'customers.is_active AS customer_is_active',
                 'customers.is_testing',
@@ -219,6 +220,7 @@ class VendController extends Controller
             ),
             'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
+            'deviceTypes' => Vend::DEVICE_TYPE_MAPPINGS,
             'indexType' => $request->indexType,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
@@ -318,6 +320,7 @@ class VendController extends Controller
                 'customers.totals_json AS vend_transaction_totals_json',
                 'vends.vend_type_id',
                 'vends.virtual_vend_records_thirty_days_amount_average',
+                'customers.id AS customer_id',
                 DB::raw("customers.account_manager_json->>'$.name' AS account_manager_name"),
                 'customers.begin_date',
                 'customers.cms_invoice_history',
@@ -369,6 +372,7 @@ class VendController extends Controller
             ),
             'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
+            'deviceTypes' => Vend::DEVICE_TYPE_MAPPINGS,
             'indexType' => $request->indexType,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
@@ -425,6 +429,25 @@ class VendController extends Controller
         $fid = 1;
         $content = base64_encode(json_encode([
             'Type' => 'RESET',
+            'time' => Carbon::now()->timestamp,
+            'action' => '',
+            'mid' => $vend->code,
+        ]));
+        $contentLength = strlen($content);
+        $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+        $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+
+        return true;
+    }
+
+    public function triggerLogUpload($id)
+    {
+        $vend = Vend::findOrFail($id);
+        $fid = 1;
+        $content = base64_encode(json_encode([
+            'Type' => 'UPDATELOG',
             'time' => Carbon::now()->timestamp,
             'action' => '',
             'mid' => $vend->code,

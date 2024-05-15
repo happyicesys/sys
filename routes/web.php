@@ -409,6 +409,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/dispense-product', [VendController::class, 'dispenseProduct']);
         Route::post('/{id}/restart-apk', [VendController::class, 'restartAPK']);
         Route::post('/{id}/restart-vmc', [VendController::class, 'restartVMC']);
+        Route::post('/{id}/trigger-log-upload', [VendController::class, 'triggerLogUpload']);
         Route::post('/{id}/unbind-customer/{returnUrl?}', [VendController::class, 'unbindCustomer']);
     });
 

@@ -29,6 +29,9 @@
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
                         Image
                       </th>
+                      <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
+                        Product
+                      </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Sold
                       </th>
@@ -70,9 +73,6 @@
                         <br>
                         7d
                       </th>
-                      <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
-                        Product
-                      </th>
                       <th
                         scope="col"
                         class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"
@@ -113,7 +113,30 @@
                           <img class="h-16 w-16 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
                         </div>
                       </td>
-
+                      <td class="py-4 text-sm font-semibold text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']" v-if="vend.product_mapping_name">
+                        <span v-if="!editable">
+                          <span v-if="channel.product && channel.product.code">
+                            {{ channel.product.code }}
+                          </span>
+                          <span class="break-normal text-xs" v-if="channel.product && channel.product.name">
+                            <br> {{ channel.product.name }}
+                          </span>
+                        </span>
+                        <span class="font-normal text-xs text-gray-700" v-else>
+                          <!-- {{ channel.option_data }} -->
+                          <MultiSelect
+                            v-model="channel.product.option_data"
+                            :options="productOptions"
+                            trackBy="id"
+                            valueProp="id"
+                            label="full_name"
+                            placeholder="Select"
+                            open-direction="bottom"
+                            class="mt-1"
+                          >
+                          </MultiSelect>
+                        </span>
+                      </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-blue-600' : 'text-gray-400']">
                         {{ channel.capacity - channel.qty }}
                       </td>
@@ -203,30 +226,6 @@
 
                             </span>
                         </div>
-                      </td>
-                      <td class="py-4 text-sm font-semibold text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']" v-if="vend.product_mapping_name">
-                        <span v-if="!editable">
-                          <span v-if="channel.product && channel.product.code">
-                            {{ channel.product.code }}
-                          </span>
-                          <span class="break-normal text-xs" v-if="channel.product && channel.product.name">
-                            <br> {{ channel.product.name }}
-                          </span>
-                        </span>
-                        <span class="font-normal text-xs text-gray-700" v-else>
-                          <!-- {{ channel.option_data }} -->
-                          <MultiSelect
-                            v-model="channel.product.option_data"
-                            :options="productOptions"
-                            trackBy="id"
-                            valueProp="id"
-                            label="full_name"
-                            placeholder="Select"
-                            open-direction="bottom"
-                            class="mt-1"
-                          >
-                          </MultiSelect>
-                        </span>
                       </td>
                       <td
                         class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center"

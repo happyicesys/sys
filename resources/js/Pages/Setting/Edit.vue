@@ -503,6 +503,19 @@
                 </div>
               </div>
             </div>
+            <div class="sm:col-span-6 flex justify-between">
+              <div class="flex space-x-1 mt-5 justify-start">
+                <Button
+                  class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1"
+                  @click.prevent="triggerLogUpload(vend.id)"
+                >
+                  <ArrowUpTrayIcon class="w-4 h-4"></ArrowUpTrayIcon>
+                  <span>
+                    Trigger Log Upload
+                  </span>
+                </Button>
+              </div>
+            </div>
             <div class="sm:col-span-6 flex flex-col mt-3">
             <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
               <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
@@ -623,7 +636,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
-import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
@@ -813,6 +826,17 @@ function submit() {
 
   form.value
     .post('/vends/' + form.value.id + '/update', {
+    onSuccess: () => {
+      emit('modalClose')
+    },
+    preserveState: true,
+    replace: true,
+  })
+}
+
+function triggerLogUpload() {
+  form.value
+    .post('/vends/' + form.value.id + '/trigger-log-upload', {
     onSuccess: () => {
       emit('modalClose')
     },

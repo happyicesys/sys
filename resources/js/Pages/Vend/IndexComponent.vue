@@ -213,6 +213,22 @@
           <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="APK Ver" v-model="filters.apk_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
               APK Ver
           </SearchInput>
+          <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']">
+              <label for="text" class="block text-sm font-medium text-gray-700">
+                  Device Type
+              </label>
+              <MultiSelect
+                  v-model="filters.deviceType"
+                  :options="deviceTypeOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+              >
+              </MultiSelect>
+          </div>
           <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
               Avg/Day Sales (30d) &lt;&lt;
           </SearchInput>
@@ -501,9 +517,9 @@
                           </Link>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                          <span v-if="vend.person_id">
+                          <span v-if="vend.person_id" class="flex flex-col space-y-1">
                               <span v-if="permissions.includes('admin-access vends')">
-                                  <a :class="[vend.person_id && vend.customer_is_active ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="cmsEndpoint ? cmsEndpoint + '/person/' + vend.person_id + '/edit' : ''">
+                                  <a :class="[vend.person_id && vend.customer_is_active ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
                                       {{ vend.virtual_customer_code }} ({{ vend.virtual_customer_prefix }})
                                       <br>
                                       {{ vend.customer_name }}
@@ -514,17 +530,27 @@
                                   <br>
                                   {{ vend.customer_name }}
                               </span>
+
+                                <a target="_blank" :href="cmsEndpoint + '/person/' + vend.person_id + '/edit'" class="">
+                                    <div
+                                        class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
+                                    >
+                                        CMS
+                                    </div>
+                                </a>
                           </span>
                           <span v-else-if="!vend.person_id">
                               <span v-if="permissions.includes('admin-access vends')" :class="[vend.customer_is_active ? 'text-gray-800' : 'text-gray-400']">
-                                  <!-- <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'"> -->
+                                  <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
                                       {{ vend.customer_code }} <br>
                                       {{ vend.customer_name }}
-                                  <!-- </a> -->
+                                  </a>
                               </span>
                               <span v-else :class="[vend.customer_is_active ? 'text-gray-800' : 'text-gray-400']">
+                                <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
                                   {{ vend.customer_code }} <br>
                                   {{ vend.customer_name }}
+                                </a>
                               </span>
                           </span>
                       </TableData>
@@ -888,8 +914,12 @@
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                            <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'" v-if="vend.apkVerJson && 'deviceType' in vend.apkVerJson">
+                                {{ vend.apkVerJson['deviceType'] }}
+                            </span>
                           <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
-                              {{ vend.parameterJson && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
+                            <br>
+                            {{ vend.parameterJson && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
                           </span>
                           <span class="text-blue-600" :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
                               <br>Apk: {{ vend.apkVerJson['apkver'] }}
@@ -1024,6 +1054,7 @@ const props = defineProps({
   categoryGroups: Object,
   cmsEndpoint: String,
   constTempError: Number,
+    deviceTypes: [Array, Object],
   locationTypeOptions: Object,
   operatorOptions: Object,
   productOptions: Object,
@@ -1042,6 +1073,7 @@ const filters = ref({
   customer: '',
   categories: [],
   categoryGroups: [],
+    deviceType: '',
   errors: [],
   locationType: '',
   operator: '',
@@ -1076,6 +1108,7 @@ const booleanOptions = ref([])
 const booleanStrictOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
+const deviceTypeOptions = ref([])
 const doorOptions = ref([])
 const enableOptions = ref([])
 const isActiveFactoryOptions = ref([])
@@ -1120,6 +1153,11 @@ onMounted(() => {
 
   categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
   categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
+    deviceTypeOptions.value =
+    [
+        {id: 'all', value: 'All'},
+        ...Object.entries(props.deviceTypes).map(([id, name]) => ({id: id, value: name}))
+    ]
   booleanOptions.value = [
       {id: 'all', value: 'All'},
       {id: 'true', value: 'Yes'},
@@ -1155,6 +1193,7 @@ onMounted(() => {
   ]
 
   filters.value.is_active = booleanOptions.value[1]
+  filters.value.deviceType = deviceTypeOptions.value[0]
   filters.value.is_door_open = doorOptions.value[0]
   filters.value.is_mqtt = booleanOptions.value[0]
   filters.value.is_mqtt_active = booleanOptions.value[0]

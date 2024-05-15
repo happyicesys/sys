@@ -5,7 +5,7 @@
     <BreezeAuthenticatedLayout>
         <template #header>
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Vending Machines (Customers)
+                Vending Machines (Customers View)
             </h2>
         </template>
 
@@ -14,6 +14,7 @@
             :categoryGroups="categoryGroups"
             :cmsEndpoint="cmsEndpoint"
             :constTempError="constTempError"
+            :deviceTypes="deviceTypes"
             :locationTypeOptions="locationTypeOptions"
             :operatorOptions="operatorOptions"
             :productOptions="productOptions"
@@ -36,6 +37,7 @@
     categoryGroups: Object,
     cmsEndpoint: String,
     constTempError: Number,
+    deviceTypes: [Array, Object],
     indexType: String,
     locationTypeOptions: Object,
     operatorOptions: Object,

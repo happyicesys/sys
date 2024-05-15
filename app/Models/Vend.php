@@ -16,6 +16,18 @@ class Vend extends Model
     const ATTACHMENT_TYPE_LOG = 1;
     const ATTACHMENT_TYPE_MEDIA_CONTENT = 2;
 
+    const DEVICE_TYPE_ANDROID = 'ANDROID';
+    const DEVICE_TYPE_ZC83A = 'ZC-83A';
+    const DEVICE_TYPE_ZC328 = 'ZC-328';
+    const DEVICE_TYPE_INPAD3101 = 'INPAD3101';
+
+    const DEVICE_TYPE_MAPPINGS = [
+        self::DEVICE_TYPE_ANDROID => 'Android',
+        self::DEVICE_TYPE_ZC83A => 'ZC-83A',
+        self::DEVICE_TYPE_ZC328 => 'ZC-328',
+        self::DEVICE_TYPE_INPAD3101 => 'INPAD3101',
+    ];
+
     protected static function booted()
     {
         static::addGlobalScope(new OperatorVendFilterScope);
