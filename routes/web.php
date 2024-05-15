@@ -36,6 +36,7 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UomController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendController;
+use App\Http\Controllers\VendConfigController;
 use App\Http\Controllers\VendChannelErrorController;
 use App\Http\Controllers\VendCriteriaController;
 use App\Http\Controllers\VendCriteriaBindingController;
@@ -418,6 +419,13 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/create', [VendChannelErrorController::class, 'create']);
         Route::post('/{id}/update', [VendChannelErrorController::class, 'update']);
         Route::delete('/{id}', [VendChannelErrorController::class, 'delete']);
+    });
+
+    Route::prefix('vend-configs')->group(function() {
+        Route::get('/', [VendConfigController::class, 'index'])->name('vend-configs');
+        Route::post('/create', [VendConfigController::class, 'create']);
+        Route::post('/{id}/update', [VendConfigController::class, 'update']);
+        Route::delete('/{id}', [VendConfigController::class, 'delete']);
     });
 
     Route::prefix('vend-prefixes')->group(function() {

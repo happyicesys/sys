@@ -70,6 +70,7 @@ const navigation = [
         children: [
             {name: 'Machines', href: '/settings'},
             {name: 'Menu Prefix', href: '/vend-prefixes'},
+            // {name: 'Setting Charts', href: '/vend-configs'},
             {name: 'Cashless Terminals', href: '/cashless-terminals'},
             {name: 'Simcard', href: '/simcards'},
         ]
@@ -158,9 +159,7 @@ const navigation = [
         tagline: null,
         children: [
             {name: 'Month End Stock Count', href: '/reports/stock-count'},
-
             {name: 'Sales Report', href: '/reports/sales/operator'},
-
             {name: 'GP by VM', href: '/reports/gp/vend'},
             {name: 'GP by Product', href: '/reports/gp/product'},
             {name: 'GP by Category', href: '/reports/gp/category'},
