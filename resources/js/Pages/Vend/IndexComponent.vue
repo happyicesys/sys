@@ -215,7 +215,7 @@
           </SearchInput>
           <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']">
               <label for="text" class="block text-sm font-medium text-gray-700">
-                  Device Type
+                  Android Device Type
               </label>
               <MultiSelect
                   v-model="filters.deviceType"

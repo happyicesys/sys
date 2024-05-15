@@ -141,7 +141,7 @@ class SyncVendCustomerCms implements ShouldQueue
                                     'currency_name' => $baseCurrencyCountryData['currency_name'],
                                 ], [
                                     'name' => 'Indonesia',
-                                    'code' => 'IDR',
+                                    'code' => 'ID',
                                     'currency_symbol' => 'Rp',
                                     'phone_code' => '62',
                                     'is_state' => false,
@@ -154,7 +154,7 @@ class SyncVendCustomerCms implements ShouldQueue
                                     'currency_name' => $baseCurrencyCountryData['currency_name'],
                                 ], [
                                     'name' => 'Thailand',
-                                    'code' => 'THB',
+                                    'code' => 'TH',
                                     'currency_symbol' => '฿',
                                     'phone_code' => '66',
                                     'is_state' => false,
