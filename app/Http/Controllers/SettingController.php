@@ -122,6 +122,7 @@ class SettingController extends Controller
             'customer',
             'customer.deliveryAddress',
             'customer.contact',
+            'logs',
             'operator'
         ])
         ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')

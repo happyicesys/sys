@@ -540,7 +540,7 @@
                           {{ logIndex + 1 }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                          {{ log.created_at }}
+                          {{ formatDatetime(log.created_at) }}
                         </td>
                         <td class="whitespace-nowrap py-4 text-sm text-center">
                           <div class="flex w-0 space-x-2 items-center">
@@ -702,7 +702,6 @@ function getDefaultForm() {
 }
 
 onMounted(() => {
-  // console.log(JSON.parse(JSON.stringify(props.vend)))
   countryOptions.value = props.countries.data
   operatorOptions.value = props.operatorOptions.data
 
@@ -745,6 +744,10 @@ onMounted(() => {
 
   // console.log(JSON.parse(JSON.stringify(form.value)))
 })
+
+function formatDatetime(datetime) {
+  return datetime ? moment(datetime).format('YYYY-MM-DD hh:mm a') : ''
+}
 
 function restartAPK(vendID) {
   router.post('/vends/' + vendID + '/restart-apk', {}, {

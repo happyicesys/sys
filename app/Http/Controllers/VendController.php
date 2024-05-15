@@ -420,7 +420,7 @@ class VendController extends Controller
 
         $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
-        return true;
+        return redirect()->back();
     }
 
     public function restartVMC($id)
@@ -439,7 +439,7 @@ class VendController extends Controller
 
         $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
-        return true;
+        return redirect()->back();
     }
 
     public function triggerLogUpload($id)
@@ -458,7 +458,7 @@ class VendController extends Controller
 
         $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
-        return true;
+        return redirect()->back();
     }
 
     public function temp(Request $request, $vendId, $type)
