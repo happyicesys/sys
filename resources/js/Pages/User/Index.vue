@@ -191,6 +191,7 @@
   </div>
   <Form
       v-if="showFormModal"
+      :countries="countries"
       :user="user"
       :operators="operators"
       :roles="roles"

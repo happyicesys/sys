@@ -35,6 +35,12 @@ class UserController extends Controller
         ]);
 
         return Inertia::render('User/Index', [
+            'countries' => CountryResource::collection(
+                Country::query()
+                    ->orderBy('sequence')
+                    ->orderBy('name')
+                    ->get()
+            ),
             'users' => UserResource::collection(
                 User::with([
                     'operator',
