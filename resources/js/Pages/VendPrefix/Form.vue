@@ -23,6 +23,11 @@
               </FormInput>
             </div>
             <div class="sm:col-span-6">
+                <FormTextarea v-model="form.desc" :error="form.errors.desc">
+                  Desc
+                </FormTextarea>
+              </div>
+            <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Operator
                 <span class="text-red-500">
@@ -74,6 +79,7 @@
 <script setup>
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
+import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue'
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
@@ -107,6 +113,7 @@ onMounted(() => {
 function getDefaultForm() {
   return {
     name: '',
+    desc: '',
     operator_id: '',
   }
 }

@@ -72,7 +72,7 @@
                 </div>
               </div> -->
 
-              <div class="sm:col-span-5" v-if="customer.id">
+              <div class="sm:col-span-3" v-if="customer.id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Customer ID#
                 </label>
@@ -81,6 +81,19 @@
                     type="text"
                     class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
                     :value="customer ? customer.id + 20000 : ''"
+                    disabled
+                  />
+                </div>
+              </div>
+              <div class="sm:col-span-3" v-if="customer.id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Created At
+                </label>
+                <div class="mt-1">
+                  <input
+                    type="text"
+                    class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
+                    :value="formatDatetime(customer.created_at)"
                     disabled
                   />
                 </div>
@@ -567,6 +580,10 @@ function deleteCustomer(customerID) {
     preserveState: true,
     replace: true,
   })
+}
+
+function formatDatetime(datetime) {
+  return datetime ? moment(datetime).format('YYYY-MM-DD hh:mm a') : ''
 }
 
 function toggleActivationCustomer(customerID) {

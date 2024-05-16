@@ -50,12 +50,14 @@ class VendPrefixController extends Controller
 
     public function update(Request $request, $id)
     {
+
         $request->validate([
             'name' => 'required',
         ]);
 
-        $telco = VendPrefix::findOrFail($id);
-        $telco->update($request->all());
+        $model = VendPrefix::findOrFail($id);
+
+        $model->update($request->all());
 
         return redirect()->route('vend-prefixes');
     }

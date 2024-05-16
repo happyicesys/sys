@@ -17,7 +17,9 @@ class VendPrefixResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'desc' => $this->desc,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
+            'operator_id' => $this->operator_id,
         ];
     }
 }
