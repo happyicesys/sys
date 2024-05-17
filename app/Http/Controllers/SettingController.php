@@ -40,18 +40,24 @@ class SettingController extends Controller
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'code']);
         $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : true]);
         $className = get_class(new Customer());
-        if(!isset($request->is_active)) {
+        if(!isset($request->status)) {
             if(
                 auth()->user()->hasRole('superadmin') or
                 auth()->user()->hasRole('admin') or
                 auth()->user()->hasRole('supervisor') or
                 auth()->user()->hasRole('driver')
             ) {
-                $request->merge(['is_active' => 'true']);
+                $request->merge([
+                    'status' => 'active',
+                ]);
+
             }else {
-                $request->merge(['is_active' => 'all']);
+                $request->merge([
+                    'status' => 'all'
+                ]);
             }
         }
+        // dd($request->all());
 
         $vends = Vend::query()
             ->with([
@@ -70,6 +76,7 @@ class SettingController extends Controller
                 'vends.apk_ver_json',
                 'vends.serial_num',
                 'vends.is_active',
+                'vends.is_testing',
                 'vends.last_updated_at',
                 'vends.name',
                 'vends.operator_id',

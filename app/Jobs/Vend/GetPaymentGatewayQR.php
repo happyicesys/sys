@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Vend;
 
+use App\Jobs\PublishMqtt;
 use App\Models\Vend;
 use App\Models\PaymentGatewayLog;
 use App\Models\VendData;
@@ -73,12 +74,14 @@ class GetPaymentGatewayQR
             ]);
 
             if($response['errorMsg']) {
-                $this->mqttService->publish('CM'.$vend->code, $response['errorMsg']);
+                PublishMqtt::dispatch('CM'.$vend->code, $response['errorMsg'])->onQueue('high');
+                // $this->mqttService->publish('CM'.$vend->code, $response['errorMsg']);
             }
 
             if($response['paymentGatewayLog']) {
                 $encodeMsg = base64_encode('QRCODE'.$response['paymentGatewayLog']->qr_text.','.$orderId);
-                $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
+                PublishMqtt::dispatch('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg)->onQueue('high');
+                // $this->mqttService->publish('CM'.$vend->code, $originalInput['f'].','.strlen($encodeMsg).','.$encodeMsg);
             }
 
         // }else {

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\PublishMqtt;
 use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformMenuRecord;
@@ -180,11 +181,18 @@ class DeliveryPlatformService
     $this->deliveryProductMappingService->syncVendChannelOrderQtyByDeliveryOrder($deliveryPlatformOrder, false);
 
     // send dispense request to vend
-    $this->mqttService->publishVend(
+    // $this->mqttService->publishVend(
+    //   $deliveryPlatformOrder->deliveryProductMappingVend->vend,
+    //   $orderID,
+    //   $dispenseDataset
+    // );
+
+    $this->syncMqtt(
       $deliveryPlatformOrder->deliveryProductMappingVend->vend,
       $orderID,
       $dispenseDataset
     );
+
   }
 
   public function markOrderReady(DeliveryPlatformOrder $deliveryPlatformOrder)
@@ -208,6 +216,18 @@ class DeliveryPlatformService
         break;
     }
     return false;
+  }
+
+  public function syncMqtt($vend, $fid, $input)
+  {
+    $fid = $fid;
+    $content = base64_encode(json_encode($input));
+    $contentLength = strlen($content);
+    $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+    $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+    PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+    // $this->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
   }
 
   public function updateOrder($platformRefId = null, $orderId = null , $input)

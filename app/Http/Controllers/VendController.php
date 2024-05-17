@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 // use App\Exports\VendTempExport;
 use App\Exports\VendTransactionExport;
+use App\Jobs\PublishMqtt;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CountryResource;
@@ -418,7 +419,8 @@ class VendController extends Controller
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
         $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-        $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+        // $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
         return redirect()->back();
     }
@@ -437,7 +439,8 @@ class VendController extends Controller
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
         $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-        $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+        // $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
         return redirect()->back();
     }
@@ -456,7 +459,8 @@ class VendController extends Controller
         $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
         $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-        $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+        // $this->mqttService->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
         return redirect()->back();
     }
@@ -935,13 +939,34 @@ class VendController extends Controller
 
     public function update(Request $request, $vendID)
     {
-        $request->merge([
-            'is_active' => $request->is_active == 'true' ? true : false,
-            'is_testing' => $request->is_testing == 'true' ? true : false,
-        ]);
+        // status assignment
+        if($request->status) {
+            $status = $request->status;
+            switch($status) {
+                case 'factory':
+                    $request->merge([
+                        'is_active' => false,
+                        'is_testing' => true,
+                    ]);
+                    break;
+                case 'active':
+                    $request->merge([
+                        'is_active' => true,
+                        'is_testing' => false,
+                    ]);
+                    break;
+                case 'inactive':
+                    $request->merge([
+                        'is_active' => false,
+                        'is_testing' => false,
+                    ]);
+                    break;
+            }
+        }
 
         $vend = Vend::findOrFail($vendID);
 
+        // dd($request->all());
         $vend->update([
             'name' => $request->name,
             'begin_date' => $request->begin_date,
@@ -962,25 +987,6 @@ class VendController extends Controller
             }
         }
 
-        // if($request->customer_id) {
-        //     SyncVendCustomerCms::dispatchSync($vend->id, $request->customer_id);
-        // }else {
-        //     if($vend->customer->exists()) {
-        //         $vend->customer->update([
-        //             'is_active' => false,
-        //             'termination_date' => Carbon::now()->toDateString(),
-        //         ]);
-        //         $vend->update([
-        //             'customer_id' => null,
-        //         ]);
-        //     }
-        // }
-
-        // if($request->operator_id) {
-        //     $vend->operators()->sync([$request->operator_id]);
-        // }
-
-        // return redirect()->route('vends.edit', [$vendID]);
         return redirect()->back();
     }
 
@@ -1198,7 +1204,8 @@ class VendController extends Controller
           $key = $vendChannel->vend && $vendChannel->vend->private_key ? $vendChannel->vend->private_key : '123456789110138A';
           $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-          $this->mqttService->publish('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+          PublishMqtt::dispatch('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+        //   $this->mqttService->publish('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
           return true;
     }

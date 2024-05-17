@@ -300,7 +300,7 @@ class Vend extends Model
             'is_door_open' => $request->is_door_open != null ? $request->is_door_open : 'all',
             'is_online' => $request->is_online != null ? $request->is_online : 'all',
             'is_sensor' => $request->is_sensor != null ? $request->is_sensor : 'all',
-            'is_testing' => $request->is_testing != null ? $request->is_testing : 'false',
+            'is_testing' => $request->is_testing != null ? $request->is_testing : 'all',
         ]);
 
         return $query->when($request->has('visited'), function($query, $search) use ($request) {
@@ -375,6 +375,24 @@ class Vend extends Model
             if($search != 'all') {
                 $query->where('vends.is_testing', filter_var($search, FILTER_VALIDATE_BOOLEAN));
             }
+        })
+        ->when($request->status, function($query, $search) use ($request) {
+            // dd('here', $search, $request->all(), $query->toSql());
+            if($search != 'all') {
+                switch($search) {
+                    case 'factory':
+                        $query->where('vends.is_testing', true)->where('vends.is_active', false);
+                        break;
+                    case 'active':
+                        $query->where('vends.is_active', true)->where('vends.is_testing', false);
+                        break;
+                    case 'inactive':
+                        $query->where('vends.is_active', false)->where('vends.is_testing', false);
+                        break;
+                }
+            }
+
+            // dd($query->toSql());
         })
         ->when($request->is_mqtt, function($query, $search) {
             if($search != 'all') {
@@ -503,7 +521,7 @@ class Vend extends Model
             }
 
             if($search === 'vends.is_online') {
-            $query->orderBy('vends.code', 'asc');
+                $query->orderBy('vends.code', 'asc');
             }
         });
     }

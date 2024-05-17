@@ -89,7 +89,7 @@
             >
             </MultiSelect>
           </div> -->
-          <div v-if="permissions.includes('admin-access vends')">
+          <!-- <div v-if="permissions.includes('admin-access vends')">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Is Active?
             </label>
@@ -112,6 +112,22 @@
             <MultiSelect
                 v-model="filters.is_testing"
                 :options="booleanOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div> -->
+          <div v-if="permissions.includes('admin-access vends')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Status
+            </label>
+            <MultiSelect
+                v-model="filters.status"
+                :options="statusOptions"
                 trackBy="id"
                 valueProp="id"
                 label="value"
@@ -285,11 +301,11 @@
                         <div class="flex flex-col space-y-1">
                           <div
                             class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                            :class="[vend.is_active ? 'bg-green-200' : 'bg-red-200']"
+                            :class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-green-200' : 'bg-red-200')]"
                           >
                             <div class="flex flex-col">
                               <span class="font-bold">
-                                {{vend.is_active ? 'Active' : 'Not Active'}}
+                                {{vend.is_testing ? 'Factory' : (vend.is_active ? 'Active' : 'Not Active')}}
                               </span>
                             </div>
                           </div>
@@ -380,11 +396,12 @@ const filters = ref({
     categoryGroups: [],
     locationType: '',
     operator: '',
-    is_active: '',
+    // is_active: '',
     is_binded_customer: '',
-    is_testing: '',
+    // is_testing: '',
     sortKey: '',
     sortBy: true,
+    status: '',
     numberPerPage: '',
     visited: true,
   })
@@ -404,10 +421,15 @@ const filters = ref({
   const permissions = usePage().props.auth.permissions
   const roles = usePage().props.auth.roles
   const now = ref(moment().format('HH:mm:ss'))
+  const statusOptions = ref([
+    {id: 'all', value: 'All'},
+    {id: 'factory', value: 'Factory'},
+    {id: 'active', value: 'Active'},
+    {id: 'inactive', value: 'Inactive'},
+])
 
 onMounted(() => {
     numberPerPageOptions.value = [
-        { id: 50, value: 50 },
         { id: 100, value: 100 },
         { id: 200, value: 200 },
         { id: 500, value: 500 },
@@ -433,9 +455,10 @@ onMounted(() => {
     filters.value.locationType = locationTypeOptions.value[0]
     filters.value.operator = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
 
-    filters.value.is_active = booleanOptions.value[1]
+    // filters.value.is_active = booleanOptions.value[1]
     filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]
-    filters.value.is_testing = booleanOptions.value[2]
+    // filters.value.is_testing = booleanOptions.value[2]
+    filters.value.status = statusOptions.value[2]
 })
 
 function onCreateClicked() {
@@ -459,9 +482,10 @@ function onSearchFilterUpdated() {
       categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
       location_type_id: filters.value.locationType.id,
       operator_id: filters.value.operator.id,
-      is_active: filters.value.is_active.id,
+      // is_active: filters.value.is_active.id,
       is_binded_customer: filters.value.is_binded_customer.id,
-      is_testing: filters.value.is_testing.id,
+      // is_testing: filters.value.is_testing.id,
+      status: filters.value.status.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

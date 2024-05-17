@@ -11,7 +11,7 @@ use Illuminate\Queue\SerializesModels;
 
 class PublishMqtt implements ShouldQueue
 {
-    public $timeout = 1;
+    public $timeout = 5;
     public $tries = 1;
 
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;

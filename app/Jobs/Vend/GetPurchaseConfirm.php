@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Vend;
 
+use App\Jobs\PublishMqtt;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\PaymentGatewayLog;
 use App\Services\MqttService;
@@ -58,10 +59,12 @@ class GetPurchaseConfirm
           $key = $this->vend && $this->vend->private_key ? $this->vend->private_key : '123456789110138A';
           $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-          $this->mqttService->publish('CM'.$this->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+          PublishMqtt::dispatch('CM'.$this->vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+          // $this->mqttService->publish('CM'.$this->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
         }else {
-            $this->mqttService->publish('CM'.$this->vend->code, 'This order id not found or QR is expired');
-            throw new \Exception('This order id not found or QR is expired', 404);
+          PublishMqtt::dispatch('CM'.$this->vend->code, 'This order id not found or QR is expired')->onQueue('high');
+          // $this->mqttService->publish('CM'.$this->vend->code, 'This order id not found or QR is expired');
+          throw new \Exception('This order id not found or QR is expired', 404);
         }
     }
 }
