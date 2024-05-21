@@ -20,6 +20,7 @@ use App\Models\Customer;
 use App\Models\Operator;
 use App\Models\PriceTemplate;
 use App\Models\Profile;
+use App\Models\SellingPrice;
 use App\Models\Tag;
 use App\Models\User;
 use App\Models\Vend;
@@ -198,6 +199,10 @@ class CustomerController extends Controller
 
     public function edit(Request $request, $id)
     {
+        $request->merge([
+            'selling_price_type' => $request->selling_price_type ? $request->selling_price_type : SellingPrice::TYPE_1,
+        ]);
+
         $customer = Customer::query()
             ->with([
                 'attachments',
@@ -215,11 +220,23 @@ class CustomerController extends Controller
             ])
             ->find($id);
 
+            $type = $customer->selling_price_type == $request->selling_price_type ? $customer->selling_price_type : $request->selling_price_type;
+            $customer->load([
+                'vend:id,code,customer_id,product_mapping_id',
+                'vend.vendChannels:id,amount,amount2,code,vend_id,product_id',
+                'vend.vendChannels.product:id,name,code,desc',
+                'vend.vendChannels.product.sellingPrices' => function ($query) use ($type) {
+                    $query->where('type', $type);
+                },
+                'vend.vendChannels.product.thumbnail'
+            ]);
+
         return Inertia::render('Customer/Edit', [
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
+            'sellingPriceTypeOptions' => collect(SellingPrice::TYPE_MAPPINGS),
             'vendOptions' => Vend::query()
                 ->select('id', 'code', 'customer_id')
                 ->where('customer_id', null)

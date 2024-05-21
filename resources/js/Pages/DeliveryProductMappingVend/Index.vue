@@ -132,7 +132,7 @@
             <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                 <dt class="truncate text-sm font-medium text-gray-500">Total Amount (Delivered)</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                    {{(totals.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                    {{(totals.subtotal_amount - totals.promo_amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                 </dd>
             </div>
             <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
@@ -234,7 +234,7 @@
                       </span>
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-right">
-                      {{ deliveryProductMappingVend.delivery_platform_orders_sum_subtotal_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                      {{ (deliveryProductMappingVend.delivery_platform_orders_sum_subtotal_amount - deliveryProductMappingVend.delivery_platform_orders_sum_promo_amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-right">
                       {{ deliveryProductMappingVend.delivery_platform_orders_count }}

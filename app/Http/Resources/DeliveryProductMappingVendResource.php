@@ -19,6 +19,7 @@ class DeliveryProductMappingVendResource extends JsonResource
             'id' => $this->id,
             'binded_times' => isset($this->binded_times) ? $this->binded_times : null,
             'delivery_platform_orders_sum_subtotal_amount' => $this->delivery_platform_orders_sum_subtotal_amount ? intval($this->delivery_platform_orders_sum_subtotal_amount)/ 100 : 0,
+            'delivery_platform_orders_sum_promo_amount' => $this->delivery_platform_orders_sum_promo_amount ? intval($this->delivery_platform_orders_sum_promo_amount)/ 100 : 0,
             'delivery_platform_orders_count' => $this->delivery_platform_orders_count,
             'delivery_product_mapping_id' => $this->delivery_product_mapping_id,
             'is_active' => $this->is_active,

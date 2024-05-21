@@ -17,11 +17,11 @@ class SellingPrice extends Model
     const TYPE_5 = 5;
 
     const TYPE_MAPPINGS = [
-        self::TYPE_1 => 'SP1',
-        self::TYPE_2 => 'SP2',
-        self::TYPE_3 => 'SP3',
-        self::TYPE_4 => 'SP4',
-        self::TYPE_5 => 'SP5',
+        self::TYPE_1 => 'RP1',
+        self::TYPE_2 => 'RP2',
+        self::TYPE_3 => 'RP3',
+        self::TYPE_4 => 'RP4',
+        self::TYPE_5 => 'RP5',
     ];
 
     protected $fillable = [
@@ -38,7 +38,7 @@ class SellingPrice extends Model
     protected function amount(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value/ 100,
+            // get: fn ($value) => $value/ 100,
             set: fn ($value) => $value * 100,
         );
     }

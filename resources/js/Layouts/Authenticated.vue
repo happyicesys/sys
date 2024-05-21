@@ -70,7 +70,7 @@ const navigation = [
         children: [
             {name: 'Machines', href: '/settings'},
             {name: 'Vend Prefix', href: '/vend-prefixes'},
-            // {name: 'Setting Charts', href: '/vend-configs'},
+            {name: 'Setting Charts', href: '/vend-configs'},
             {name: 'Cashless Terminals', href: '/cashless-terminals'},
             {name: 'Simcard', href: '/simcards'},
         ]

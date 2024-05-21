@@ -36,7 +36,7 @@
             {{ $vendTransaction->vend->code }}
           </td>
           <td>
-            {{$vendTransaction->customer_json && isset($vendTransaction->customer_json['person_id']) && $vendTransaction->customer_json['person_id'] ? $vendTransaction->customer_json['virtual_customer_prefix'] . '-' . $vendTransaction->customer_json['virtual_customer_code'] : ''}}
+            {{$vendTransaction->customer_json && isset($vendTransaction->customer_json['person_id']) && $vendTransaction->customer_json['person_id'] ? (isset($vendTransaction->customer_json['virtual_customer_prefix']) ? $vendTransaction->customer_json['virtual_customer_prefix'] . '-' . $vendTransaction->customer_json['virtual_customer_code'] : $vendTransaction->customer_json['name']) : ''}}
             <br>
             {{$vendTransaction->customer_json ? $vendTransaction->customer_json['name'] : ''}}
 

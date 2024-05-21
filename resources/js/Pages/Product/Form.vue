@@ -369,7 +369,7 @@
 
               <div class="sm:col-span-3" v-if="form.id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Type
+                  Ref Price Type
                 </label>
                 <MultiSelect
                   v-model="form.selling_price_type"
@@ -417,7 +417,7 @@
                             Amount
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Type
+                            Ref Price Type
                           </th>
                           <th></th>
                         </tr>
@@ -428,7 +428,7 @@
                             {{ sellingPriceIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ sellingPrice.amount ? sellingPrice.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : 0 }}
+                            {{ sellingPrice.amount ? (sellingPrice.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : 0 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ sellingPrice.type }}
@@ -674,6 +674,11 @@ onMounted(() => {
   {...props.product.unitCosts,
   } : null
   languages.value = props.product ? (props.product.translated_names_json ? props.product.translated_names_json : []) : []
+
+  // pricetypeOptions get value which is not in sellingPrices.value type
+  priceTypeOptions.value = priceTypeOptions.value.filter((priceTypeOption) => {
+    return !sellingPrices.value.some((sellingPrice) => sellingPrice.type == priceTypeOption.id)
+  })
 })
 
 function getDefaultForm() {
@@ -804,6 +809,9 @@ function addSellingPrice() {
   })
   form.value.selling_price_amount = ''
   form.value.selling_price_type = ''
+  priceTypeOptions.value = priceTypeOptions.value.filter((priceTypeOption) => {
+    return !sellingPrices.value.some((sellingPrice) => sellingPrice.type == priceTypeOption.id)
+  })
 }
 
 function removeSellingPrice(sellingPrice) {
@@ -818,6 +826,9 @@ function removeSellingPrice(sellingPrice) {
     })
   }else {
     sellingPrices.value.splice(sellingPrices.value.indexOf(sellingPrice), 1)
+    priceTypeOptions.value = priceTypeOptions.value.filter((priceTypeOption) => {
+      return !sellingPrices.value.some((sellingPrice) => sellingPrice.type == priceTypeOption.id)
+    })
   }
 }
 

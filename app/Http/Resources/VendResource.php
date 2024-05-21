@@ -164,6 +164,7 @@ class VendResource extends JsonResource
             'product_mapping_name' => isset($this->product_mapping_name) ? $this->product_mapping_name : null,
             'product_mapping_remarks' => isset($this->product_mapping_remarks) ? $this->product_mapping_remarks : null,
             'private_key' => isset($this->private_key) ? $this->private_key : null,
+            'selling_price_type' => isset($this->selling_price_type) ? $this->selling_price_type : null,
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'vendChannels' => VendChannelResource::collection($this->whenLoaded('vendChannels')),
             'vendChannelsJson' => isset($this->vend_channels_json) ? $this->vend_channels_json : null,

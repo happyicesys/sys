@@ -200,6 +200,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/sync-next-delivery-date', [CustomerController::class, 'syncNextDeliveryDate']);
         Route::post('/{id}/upload-attachments', [CustomerController::class, 'uploadAttachment']);
         Route::post('/{id}/bind-vend', [CustomerController::class, 'bindVend']);
+        Route::get('/{id}/selling-prices/type/{type}', [CustomerController::class, 'getProductSellingPrices']);
     });
 
     Route::prefix('holidays')->group(function() {

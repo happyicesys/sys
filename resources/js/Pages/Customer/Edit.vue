@@ -133,7 +133,7 @@
                   </a>
                 </span>
               </div>
-              <div class="sm:col-span-5">
+              <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Is Active? (Customer)
                 </label>
@@ -158,6 +158,112 @@
                 v-if="permissions.includes('update customers')">
                   Begin Date
                 </DatePicker>
+              </div>
+
+              <div class="sm:col-span-5">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Reference Price Type
+                </label>
+                <MultiSelect
+                  v-model="form.selling_price_type"
+                  :options="sellingPriceTypeOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  @selected="onSellingPriceTypeSelected"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors['customer.selling_price_type']">
+                  {{ form.errors['customer.selling_price_type'] }}
+                </div>
+              </div>
+
+              <div class="flex flex-col sm:col-span-5">
+                <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+                  <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                    <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                      <table class="table-fixed min-w-full divide-y divide-gray-300">
+                        <thead class="bg-gray-50">
+                          <tr>
+                            <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                              #
+                            </th>
+                            <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="customer.vend && customer.vend.product_mapping_id">
+                              Image
+                            </th>
+                            <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="customer.vend && customer.vend.product_mapping_id">
+                              Product
+                            </th>
+                            <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                              P1
+                              <span v-if="profile && profile.base_currency">
+                                ({{ profile.base_currency.currency_symbol }})
+                              </span>
+                            </th>
+                            <th
+                              scope="col"
+                              class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"
+                              v-if="vendChannels.some(channel => 'amount2' in channel)"
+                            >
+                              P2
+                              <span v-if="profile && profile.base_currency">
+                                ({{ profile.base_currency.currency_symbol }})
+                              </span>
+                            </th>
+                            <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                              Ref Price
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                          <tr v-for="(channel, channelIndex) in vendChannels" :key="channel.id" :class="channelIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-900">
+                              {{ channel.code }}
+                            </td>
+                            <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center" v-if="customer.vend && customer.vend.product_mapping_id">
+                              <div class="flex justify-center items-center" >
+                                <img class="h-16 w-16 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
+                              </div>
+                            </td>
+                            <td class="py-4 text-sm font-semibold text-center text-gray-900" v-if="customer.vend && customer.vend.product_mapping_id">
+                                <span v-if="channel.product && channel.product.code">
+                                  {{ channel.product.code }}
+                                </span>
+                                <span class="break-normal text-xs" v-if="channel.product && channel.product.name">
+                                  <br> {{ channel.product.name }}
+                                </span>
+                            </td>
+                            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="compareSellingPrice(channel)">
+                              {{ (channel.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            </td>
+                            <td
+                              class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800"
+                              v-if="vendChannels.some(channel => 'amount2' in channel)"
+                            >
+                              {{ (channel.amount2/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            </td>
+                            <td
+                              class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800"
+                            >
+                              {{ channel.product && channel.product.selling_prices[0] ? (channel.product.selling_prices[0].amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td
+                              class="whitespace-nowrap py-4 pl-4 pr-3 text-xs font-normal sm:pl-6 text-center text-gray-900"
+                              colspan="6"
+                            >
+                              No Results Found
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div class="sm:col-span-4">
@@ -372,7 +478,10 @@
                 />
               </div>
             </div>
-            <div class="sm:col-span-6" v-if="!customer.vend">
+            <span v-if="!customer.vend" class="text-gray-600">
+              No Binding Detected, please bind in Machine Management Page
+            </span>
+            <!-- <div class="sm:col-span-6" v-if="!customer.vend">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Vend ID#
               </label>
@@ -387,8 +496,8 @@
                 class="mt-1"
               >
               </MultiSelect>
-            </div>
-
+            </div> -->
+<!--
             <div class="sm:col-span-6 mt-3">
               <span class="flex justify-between">
                 <Button
@@ -416,7 +525,7 @@
                   </span>
                 </Button>
               </span>
-            </div>
+            </div> -->
 
             <div class="sm:col-span-6 mt-5 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
@@ -473,6 +582,7 @@ const props = defineProps({
     countries: Object,
     operatorOptions: Object,
     customer: Object,
+    sellingPriceTypeOptions: [Array, Object],
     type: String,
   })
 
@@ -489,8 +599,11 @@ const booleanStrictOptions = ref([
 
 const countryOptions = ref([])
 const isExisting = ref(1)
+const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
+const vendChannels = ref([])
+const sellingPriceTypeOptions = ref([])
 const vendOptions = ref([])
 
 function getDefaultForm() {
@@ -500,6 +613,7 @@ function getDefaultForm() {
     person_id: '',
     operator_id: '',
     begin_date: '',
+    selling_price_type: '',
     termination_date: '',
     code: '',
     name: '',
@@ -527,6 +641,12 @@ function getDefaultForm() {
 onMounted(() => {
   countryOptions.value = props.countries.data
   operatorOptions.value = props.operatorOptions.data
+  sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, value]) => {
+    return {
+      id: id,
+      value: value,
+    }
+  })
   form.value = props.customer ? useForm({
     ...JSON.parse(JSON.stringify(props.customer)),
     code: props.customer && props.customer.person_id ? props.customer.virtual_customer_code + ' (' + props.customer.virtual_customer_prefix + ')' : (props.customer ? props.customer.code : null),
@@ -555,9 +675,11 @@ onMounted(() => {
       unit_num: '',
     },
     is_active: props.customer ? props.customer.is_active ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false') : booleanStrictOptions.value.find(option => option.id === 'true'),
+    selling_price_type: props.customer && props.customer.selling_price_type ? sellingPriceTypeOptions.value.find(option => option.id == props.customer.selling_price_type) : null,
   }) : useForm(getDefaultForm())
 
-  // console.log(JSON.parse(JSON.stringify(props.vendOptions)))
+  vendChannels.value = props.customer && props.customer.vend ? props.customer.vend.vend_channels : []
+
   vendOptions.value = props.vendOptions.map(vend => ({
     id: vend.id,
     full_name: vend.code,
@@ -568,6 +690,15 @@ onMounted(() => {
   //   full_name: customer.person_id ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name  : customer.code + ' - ' + customer.name,
   // }))
 })
+
+function compareSellingPrice(channel) {
+  if(channel.product && channel.product.selling_prices[0] && channel.product.selling_prices[0].amount) {
+    if(channel.amount != channel.product.selling_prices[0].amount) {
+      return 'text-red-500'
+    }
+  }
+  return 'text-gray-800'
+}
 
 function deleteCustomer(customerID) {
   form.value.clearErrors()
@@ -602,7 +733,6 @@ function toggleActivationCustomer(customerID) {
 function saveCustomer(customerID) {
   form.value.clearErrors()
 
-  // console.log(JSON.parse(JSON.stringify(form.value.vend_id)))
   form.value
     .transform((data) => ({
       id: data.vend_id ? data.vend_id.id : null,
@@ -620,6 +750,7 @@ function saveCustomer(customerID) {
           country_id: data.address.country_id ? data.address.country_id.id : null,
         },
         is_active: data.is_active.id,
+        selling_price_type: data.selling_price_type ? data.selling_price_type.id : null,
         vend_id: data.vend_id ? data.vend_id.id : null,
       }
     }))
@@ -674,7 +805,21 @@ function onAddressSelected(address) {
     street_name: address.ROAD_NAME,
     unit_num: '',
   }
-  // searchAddressForm.value = null
+}
+
+function onSellingPriceTypeSelected() {
+  router.reload({
+    only: ['customer'],
+    data: {
+      id: form.value.id,
+      selling_price_type: form.value.selling_price_type.id,
+    },
+    replace: true,
+    preserveState: true,
+    onSuccess: page => {
+      vendChannels.value = props.customer.vend.vend_channels
+    }
+  })
 }
 
 function bindVend(customerID) {

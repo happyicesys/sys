@@ -32,6 +32,7 @@ class CustomerResource extends JsonResource
             'operator_name' => $this->operator_name,
             'person_id' => $this->person_id,
             'profile_id' => $this->profile_id,
+            'selling_price_type' => $this->selling_price_type,
             'status_id' => $this->status_id,
             'updated_at' => Carbon::parse($this->updated_at)->toDateString(),
             'virtual_customer_code' => $this->virtual_customer_code,

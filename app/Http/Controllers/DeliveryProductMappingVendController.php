@@ -22,8 +22,8 @@ class DeliveryProductMappingVendController extends Controller
     public function index(Request $request)
     {
         $request->merge([
-            'date_from' => $request->date_from ? $request->date_from : Carbon::now()->setTimezone($this->getUserTimezone())->startOfWeek()->format('Y-m-d'),
-            'date_to' => $request->date_to ? $request->date_to : Carbon::now()->setTimezone($this->getUserTimezone())->format('Y-m-d'),
+            'date_from' => $request->date_from ? $request->date_from : Carbon::now()->setTimezone($this->getUserTimezone())->startOfWeek(),
+            'date_to' => $request->date_to ? $request->date_to : Carbon::now()->setTimezone($this->getUserTimezone()),
             'delivery_product_mapping_id' => $request->delivery_product_mapping_id ? $request->delivery_product_mapping_id : 'all',
             'delivery_platform_operator_id' => $request->delivery_platform_operator_id ? $request->delivery_platform_operator_id : '15',
             'is_active' => $request->is_active ? $request->is_active : 'true',
@@ -32,7 +32,7 @@ class DeliveryProductMappingVendController extends Controller
             'sortBy' => $request->sortBy ? $request->sortBy : false,
             'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
         ]);
-
+// dd($request->all());
         // dd($request->date_from);
 
         $deliveryProductMappingVends = DeliveryProductMappingVend::query()
@@ -51,20 +51,30 @@ class DeliveryProductMappingVendController extends Controller
             $query
                 ->filterIndex($request)
                 ->when($request->date_from, function($query, $search) {
-                    $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
+                    $query->where('order_created_at', '>=', $search);
                 })
                 ->when($request->date_to, function($query, $search) {
-                    $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
+                    $query->where('order_created_at', '<=', $search);
                 });
         }], 'subtotal_amount')
+        ->withSum(['deliveryPlatformOrders' => function($query) use ($request) {
+            $query
+                ->filterIndex($request)
+                ->when($request->date_from, function($query, $search) {
+                    $query->where('order_created_at', '>=', $search);
+                })
+                ->when($request->date_to, function($query, $search) {
+                    $query->where('order_created_at', '<=', $search);
+                });
+        }], 'promo_amount')
         ->withCount(['deliveryPlatformOrders' => function($query) use ($request) {
             $query
                 ->filterIndex($request)
                 ->when($request->date_from, function($query, $search) {
-                    $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
+                    $query->where('order_created_at', '>=', $search);
                 })
                 ->when($request->date_to, function($query, $search) {
-                    $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
+                    $query->where('order_created_at', '<=', $search);
                 });
         }])
         ->filterIndex($request)
@@ -81,13 +91,14 @@ class DeliveryProductMappingVendController extends Controller
                 $query->filterIndex($request);
             })
             ->when($request->date_from, function($query, $search) {
-                $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
+                $query->where('order_created_at', '>=', Carbon::parse($search)->setTimezone($this->getUserTimezone())->startOfDay());
             })
             ->when($request->date_to, function($query, $search) {
-                $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
+                $query->where('order_created_at', '<=', Carbon::parse($search)->setTimezone($this->getUserTimezone())->endOfDay());
             })
             ->select(
-                DB::raw('CAST(COALESCE(SUM(subtotal_amount), 0) AS UNSIGNED) as amount'),
+                DB::raw('CAST(COALESCE(SUM(subtotal_amount), 0) AS UNSIGNED) as subtotal_amount'),
+                DB::raw('CAST(COALESCE(SUM(promo_amount), 0) AS UNSIGNED) as promo_amount'),
                 DB::raw('COUNT(*) as count')
             )
             ->first();

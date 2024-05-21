@@ -77,7 +77,6 @@ class Customer extends Model
         'first_transaction_id',
         'name',
         'is_active',
-        'is_testing',
         'last_invoice_date',
         'location_type_id',
         'next_invoice_date',
@@ -85,6 +84,7 @@ class Customer extends Model
         // for cms person id
         'person_id',
         'profile_id',
+        'selling_price_type',
         'snap_parameter_json',
         'snap_vend_channels_json',
         'snap_vend_channel_error_logs_json',

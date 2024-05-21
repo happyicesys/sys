@@ -170,7 +170,7 @@
                       Unit Cost
                     </TableHead>
                     <TableHead v-if="permissions.includes('admin-access products')">
-                      Selling Price
+                      Reference Price
                     </TableHead>
                     <!-- <TableHead>
                       Category
@@ -240,7 +240,7 @@
                                     {{ sellingPrice.type ? sellingPrice.type_name : null }}:
                                   </span>
                                   <span>
-                                    {{ sellingPrice.amount ? (sellingPrice.amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
+                                    {{ sellingPrice.amount ? (sellingPrice.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
                                   </span>
                               </div>
                           </div>

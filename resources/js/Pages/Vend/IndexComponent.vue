@@ -4,7 +4,7 @@
   <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
       <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="4 to 5 Digits Number" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-              Vend ID
+              Machine ID
               <span class="text-[9px]">
                   ("," for multiple)
               </span>
@@ -99,9 +99,9 @@
               >
               </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vends')">
+          <div v-if="permissions.includes('admin-access vends') && indexType === 'customers'">
               <label for="text" class="block text-sm font-medium text-gray-700">
-                  Is Active?
+                  Customer Active?
               </label>
               <MultiSelect
                   v-model="filters.is_active"
@@ -115,6 +115,7 @@
               >
               </MultiSelect>
           </div>
+          <!--
           <div v-if="permissions.includes('admin-access vends')">
               <label for="text" class="block text-sm font-medium text-gray-700">
                   Is Factory?
@@ -122,6 +123,22 @@
               <MultiSelect
                   v-model="filters.is_testing"
                   :options="booleanOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+              >
+              </MultiSelect>
+          </div> -->
+          <div v-if="permissions.includes('admin-access vends')">
+              <label for="text" class="block text-sm font-medium text-gray-700">
+                  Machine Status
+              </label>
+              <MultiSelect
+                  v-model="filters.status"
+                  :options="statusOptions"
                   trackBy="id"
                   valueProp="id"
                   label="value"
@@ -512,20 +529,20 @@
                           {{ vends.meta.from + vendIndex }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">
-                          <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active ? 'text-blue-600' : 'text-gray-400']">
+                          <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
                           {{ vend.code }}
                           </Link>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                           <span v-if="vend.person_id" class="flex flex-col space-y-1">
                               <span v-if="permissions.includes('admin-access vends')">
-                                  <a :class="[vend.person_id && vend.customer_is_active ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
+                                  <a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
                                       {{ vend.virtual_customer_code }} ({{ vend.virtual_customer_prefix }})
                                       <br>
                                       {{ vend.customer_name }}
                                   </a>
                               </span>
-                              <span v-else :class="[vend.customer_is_active ? 'text-gray-800' : 'text-gray-400']">
+                              <span v-else :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
                                   {{ vend.virtual_customer_code }} ({{ vend.virtual_customer_prefix }})
                                   <br>
                                   {{ vend.customer_name }}
@@ -540,13 +557,13 @@
                                 </a>
                           </span>
                           <span v-else-if="!vend.person_id">
-                              <span v-if="permissions.includes('admin-access vends')" :class="[vend.customer_is_active ? 'text-gray-800' : 'text-gray-400']">
+                              <span v-if="permissions.includes('admin-access vends')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
                                   <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
                                       {{ vend.customer_code }} <br>
                                       {{ vend.customer_name }}
                                   </a>
                               </span>
-                              <span v-else :class="[vend.customer_is_active ? 'text-gray-800' : 'text-gray-400']">
+                              <span v-else :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
                                 <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
                                   {{ vend.customer_code }} <br>
                                   {{ vend.customer_name }}
@@ -555,7 +572,7 @@
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
-                          <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active ? 'text-blue-600' : 'text-gray-400']">
+                          <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
                           {{ vend.code }}
                           </Link>
                       </TableData>
@@ -565,7 +582,7 @@
                                   <button
                                   type="button"
                                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                  :class="[vend.is_online ? (vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                  :class="[vend.is_online || vend.is_testing ? (vend.temp > -15 ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
                                   v-if="vend.temp_updated_at"
                                   >
                                       {{ vend.is_temp_error ? 'Error' : vend.temp }}
@@ -584,7 +601,7 @@
                                   <button
                                       type="button"
                                       class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                      :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                      :class="[vend.is_online || vend.is_testing ? (vend.temp > -15 || vend.parameterJson['t2'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
                                       v-if="vend.parameterJson && 't2' in vend.parameterJson"
                                   >
                                   <!-- @click="onVendTempClicked(vend.id, 2)" -->
@@ -595,7 +612,7 @@
                                   <button
                                       type="button"
                                       class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                      :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t3'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                      :class="[vend.is_online || vend.is_testing ? (vend.temp > -15 || vend.parameterJson['t3'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
                                       v-if="vend.parameterJson && vend.parameterJson['t3'] && vend.parameterJson['t3'] != constTempError"
                                   >
                                       {{ vend.parameterJson['t3'] == constTempError ? 'Error' : vend.parameterJson['t3']/10 }}(t3)
@@ -605,7 +622,7 @@
                                   <button
                                       type="button"
                                       class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs tracking-wide focus:outline-none disabled:opacity-25 transition ease-in-out duration-150 text-black w-4/5 text-right justify-center"
-                                      :class="[vend.is_online ? (vend.temp > -15 || vend.parameterJson['t4'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
+                                      :class="[vend.is_online || vend.is_testing ? (vend.temp > -15 || vend.parameterJson['t4'] == constTempError ? 'bg-red-400 active:bg-red-500 hover:bg-red-600' : 'bg-green-400 active:bg-green-500 hover:bg-green-600') : 'bg-gray-300 active:bg-gray-500 hover:bg-gray-600']"
                                       v-if="vend.parameterJson && vend.parameterJson['t4'] && vend.parameterJson['t4'] != constTempError"
                                   >
                                       {{ vend.parameterJson['t4'] == constTempError ? 'Error' : vend.parameterJson['t4']/10 }}(t4)
@@ -616,7 +633,7 @@
                               </span>
                               <span
                                   class="mt-1"
-                                  :class="[vend.is_active ? ((vend.temp - vend.parameterJson['t2']/10).toFixed(1) >= 4 ? 'text-red-700' : 'text-green-700') : 'text-gray-400' ]"
+                                  :class="[vend.is_active || vend.is_testing ? ((vend.temp - vend.parameterJson['t2']/10).toFixed(1) >= 4 ? 'text-red-700' : 'text-green-700') : 'text-gray-400' ]"
                                   v-if="vend.parameterJson && vend.parameterJson['t2'] && vend.parameterJson['t2'] != constTempError && !vend.is_temp_error"
                               >
                                   {{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
@@ -634,13 +651,13 @@
                                   :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
                               >
                               <span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
-                                  <span :class="[vend.is_active ? 'text-black' : 'text-gray-600']">
+                                  <span :class="[vend.is_active || vend.is_testing ? 'text-black' : 'text-gray-600']">
                                       #{{channel['code']}},
                                   </span>
-                                  <span :class="[vend.is_active ? 'text-blue-600' : 'text-gray-500']">
+                                  <span :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-500']">
                                       {{channel['capacity'] - channel['qty']}},
                                   </span>
-                                  <span :class="[vend.is_active ? (channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700') : 'text-gray-400']">
+                                  <span :class="[vend.is_active || vend.is_testing ? (channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700') : 'text-gray-400']">
                                       {{channel['qty']}}/{{channel['capacity']}}
                                   </span>
                               </span>
@@ -683,7 +700,7 @@
                             <span
                             v-if="vend.vendTransactionTotalsJson && 'three_days_error_rate' in vend.vendTransactionTotalsJson"
                             :class="[
-                                vend.is_active ?
+                                vend.is_active || vend.is_testing ?
                                 (vend.vendTransactionTotalsJson['three_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
                                 'text-gray-400'
                             ]">
@@ -693,7 +710,7 @@
                             <span
                             v-if="vend.vendTransactionTotalsJson && 'seven_days_error_rate' in vend.vendTransactionTotalsJson"
                             :class="[
-                                vend.is_active ?
+                                vend.is_active || vend.is_testing ?
                                 (vend.vendTransactionTotalsJson['seven_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
                                 'text-gray-400'
                             ]">
@@ -705,7 +722,7 @@
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           <span
                               v-if="vend.vendChannelTotalsJson"
-                              :class="[vend.is_active ? (vend.balance_percent <= 20 ? 'text-red-700' : (vend.balance_percent > 50 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
+                              :class="[vend.is_active || vend.is_testing ? (vend.balance_percent <= 20 ? 'text-red-700' : (vend.balance_percent > 50 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
                           >
                               {{ vend.vendChannelTotalsJson['qty'] }}/ {{ vend.vendChannelTotalsJson['capacity'] }} <br>
                               ({{ vend.balance_percent }}%)
@@ -714,7 +731,7 @@
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           <span
                               v-if="vend.vendChannelTotalsJson"
-                              :class="[vend.is_active ? (100 - vend.out_of_stock_sku_percent <= 40 ? 'text-red-700' : (100 - vend.out_of_stock_sku_percent > 70 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
+                              :class="[vend.is_active || vend.is_testing ? (100 - vend.out_of_stock_sku_percent <= 40 ? 'text-red-700' : (100 - vend.out_of_stock_sku_percent > 70 ? 'text-green-700' : 'text-blue-700')) : 'text-gray-400']"
                           >
                               {{ vend.vendChannelTotalsJson['count'] - vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
                               ({{ 100 - vend.out_of_stock_sku_percent }}%)
@@ -724,7 +741,7 @@
                           <span
                           v-if="vend.vendTransactionTotalsJson && 'today_amount' in vend.vendTransactionTotalsJson"
                           :class="[
-                              vend.is_active ?
+                              vend.is_active || vend.is_testing ?
                               ((vend.vendTransactionTotalsJson['today_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) >= 30 ? 'text-green-700' : 'text-red-700') :
                               'text-gray-400'
                           ]">
@@ -734,7 +751,7 @@
                           <span
                           v-if="vend.vendTransactionTotalsJson && 'yesterday_amount' in vend.vendTransactionTotalsJson"
                           :class="[
-                              vend.is_active ?
+                              vend.is_active || vend.is_testing ?
                               ((vend.vendTransactionTotalsJson['yesterday_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) >= 30 ? 'text-green-700' : 'text-red-700') :
                               'text-gray-400'
                           ]">
@@ -745,7 +762,7 @@
                           <span
                           v-if="vend.vendTransactionTotalsJson && 'seven_days_amount' in vend.vendTransactionTotalsJson"
                           :class="[
-                              vend.is_active ?
+                              vend.is_active || vend.is_testing ?
                               ((vend.vendTransactionTotalsJson['seven_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) > 200 ? 'text-green-700' : 'text-red-700') :
                               'text-gray-400'
                           ]">
@@ -755,7 +772,7 @@
                           <span
                           v-if="vend.vendTransactionTotalsJson && 'thirty_days_amount' in vend.vendTransactionTotalsJson"
                           :class="[
-                              vend.is_active ?
+                              vend.is_active || vend.is_testing ?
                               ((vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) > 1000 ? 'text-green-700' : 'text-red-700') :
                               'text-gray-400'
                           ]">
@@ -767,18 +784,18 @@
                           <div class="flex flex-col space-y-1">
                               <div
                                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                  :class="[vend.is_active ? 'bg-green-200' : 'bg-red-200']"
+                                  :class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-green-200' : 'bg-red-200')]"
                               >
                                   <div class="flex flex-col">
                                       <span class="font-bold">
-                                          {{vend.is_active ? 'Active' : 'Not Active'}}
+                                          {{vend.is_testing ? 'Factory' : (vend.is_active ? 'Active' : 'Not Active')}}
                                       </span>
                                   </div>
 
                               </div>
                               <div
                                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                  :class="[vend.is_active ? (vend.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
+                                  :class="[vend.is_active || vend.is_testing ? (vend.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
                               >
                                   <div class="flex flex-col">
                                       <span class="font-bold">
@@ -792,7 +809,7 @@
                               </div>
                               <div
                                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                  :class="[vend.is_active ? (vend.parameterJson['Sensor'] % 2 == 0 ? 'bg-red-200' : 'bg-green-200') : 'bg-gray-200 text-gray-400']"
+                                  :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['Sensor'] % 2 == 0 ? 'bg-red-200' : 'bg-green-200') : 'bg-gray-200 text-gray-400']"
                                   v-if="vend.parameterJson"
                               >
                                   <div class="flex flex-col">
@@ -806,7 +823,7 @@
                               </div>
                               <div
                                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                  :class="[vend.is_active ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
+                                  :class="[vend.is_active || vend.is_testing ? 'bg-green-200' : 'bg-gray-200 text-gray-400']"
                                   v-if="vend.parameterJson && 'fan' in vend.parameterJson"
                               >
                                   <div class="flex flex-col">
@@ -820,7 +837,7 @@
                               </div>
                               <div
                                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                  :class="[vend.is_active ? (vend.parameterJson['door'] == 'close' ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
+                                  :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['door'] == 'close' ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
                                   v-if="vend.parameterJson && vend.parameterJson['door']"
                               >
                                   <div class="flex flex-col">
@@ -834,7 +851,7 @@
                               </div>
                               <div
                                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                  :class="[vend.is_active ? (vend.parameterJson['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
+                                  :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
                                   v-if="vend.parameterJson && vend.parameterJson['CoinCnt']"
                               >
                                   <div class="flex flex-col">
@@ -848,7 +865,7 @@
                               </div>
                               <div
                                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                  :class="[vend.is_active ? (vend.is_mqtt_active ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                                  :class="[vend.is_active || vend.is_testing ? (vend.is_mqtt_active ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
                                   v-if="vend.is_mqtt"
                               >
                                   <div class="flex flex-col">
@@ -863,38 +880,38 @@
                           </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
-                          <span v-if="vend.cms_invoice_history && 'last_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
+                          <span v-if="vend.cms_invoice_history && 'last_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
                               {{ vend.cms_invoice_history['last_delivery_driver'] }} <br>
                           </span>
-                          <span :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
+                          <span :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
                               {{ vend.last_invoice_date }} <br>
                               {{ vend.last_invoice_diff }}
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
-                            <span v-if="vend.cms_invoice_history && 'next_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
+                            <span v-if="vend.cms_invoice_history && 'next_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
                               {{ vend.cms_invoice_history['next_delivery_driver'] }} <br>
                           </span>
-                          <span  :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
+                          <span  :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
                               {{ vend.next_invoice_date }} <br>
                               {{ vend.next_invoice_diff }}
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                          <span :class="[vend.is_active && vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson ? (vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
+                          <span :class="[(vend.is_active || vend.is_testing) && vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson ? (vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
                               {{ operatorCountry.currency_symbol }}{{ vend.virtual_vend_records_thirty_days_amount_average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           <span
                           v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_latest' in vend.vendTransactionTotalsJson"
-                          :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'"
+                          :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'"
                           >
                               {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_latest'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                           </span>
                           <span
                               v-if="vend.begin_date"
-                              :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'"
+                              :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'"
                           >
                               <br>
                               {{ vend.begin_date_short }}
@@ -902,26 +919,26 @@
                           <br>
                           <span
                           v-if="vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson"
-                          :class="[ vend.is_active ? getVendRecordsAmountAverageDayClass(vend.vendTransactionTotalsJson['vend_records_amount_average_day']) : 'text-gray-400']"
+                          :class="[ vend.is_active || vend.is_testing ? getVendRecordsAmountAverageDayClass(vend.vendTransactionTotalsJson['vend_records_amount_average_day']) : 'text-gray-400']"
                           >
                               {{ operatorCountry.currency_symbol }}{{(vend.vendTransactionTotalsJson['vend_records_amount_average_day'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                           </span>
                       </TableData>
 
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
-                          <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
+                          <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
                               {{ vend.postcode }}
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                            <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'" v-if="vend.apkVerJson && 'deviceType' in vend.apkVerJson">
+                            <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'" v-if="vend.apkVerJson && 'deviceType' in vend.apkVerJson">
                                 {{ vend.apkVerJson['deviceType'] }}
                             </span>
-                          <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
+                          <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
                             <br>
                             {{ vend.parameterJson && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
                           </span>
-                          <span class="text-blue-600" :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
+                          <span class="text-blue-600" :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
                               <br>Apk: {{ vend.apkVerJson['apkver'] }}
                               <span v-if="vend.apkVerJson && 'buildtime' in vend.apkVerJson">
                                   {{ moment(new Date(vend.apkVerJson['buildtime'])).format('YYMMDD HH:mm:ss')  }}
@@ -929,17 +946,17 @@
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
-                          <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
+                          <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
                               {{ vend.location_type_name }}
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
-                          <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
+                          <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
                               {{ vend.account_manager_name }}
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                          <span :class="vend.is_active ? 'text-gray-900' : 'text-gray-400'">
+                          <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
                               {{ vend.operator_code }}
                           </span>
                       </TableData>
@@ -1066,6 +1083,7 @@ const props = defineProps({
 
 const filters = ref({
   account_manager_name: '',
+  apk_ver: '',
   codes: '',
   coinLessThan: '',
   channel_codes: '',
@@ -1075,6 +1093,7 @@ const filters = ref({
   categoryGroups: [],
     deviceType: '',
   errors: [],
+  firmware_ver: '',
   locationType: '',
   operator: '',
   is_active: true,
@@ -1088,15 +1107,14 @@ const filters = ref({
   is_mqtt_active: '',
   is_online: '',
   is_sensor: '',
-  is_testing: '',
+//   is_testing: '',
   is_door_open: '',
   fanSpeedLowerThan: '',
   balanceStockLessThan: '',
   remainingSkuLessThan: '',
-  apk_ver: '',
-  firmware_ver: '',
-  vendRecordsThirtyDaysAmountAverageLessThan: '',
+  status: '',
   sortKey: '',
+  vendRecordsThirtyDaysAmountAverageLessThan: '',
   sortBy: true,
   numberPerPage: '',
   visited: true,
@@ -1121,6 +1139,7 @@ const showAllFilters = ref(false)
 const showChannelOverviewModal = ref(false)
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
+const statusOptions = ref([])
 const type = ref('')
 const vend = ref()
 
@@ -1191,6 +1210,12 @@ onMounted(() => {
       {id: 'all', full_name: 'All'},
       ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
+    statusOptions.value = [
+        {id: 'all', value: 'All'},
+        {id: 'factory', value: 'Factory'},
+        {id: 'active', value: 'Active'},
+        {id: 'inactive', value: 'Not Active'},
+    ]
 
   filters.value.is_active = booleanOptions.value[1]
   filters.value.deviceType = deviceTypeOptions.value[0]
@@ -1205,6 +1230,7 @@ onMounted(() => {
   filters.value.locationType = locationTypeOptions.value[0]
 //   filters.value.operator = operatorOptions.value[0]
   filters.value.operator = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+  filters.value.status = statusOptions.value[2]
   // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
 })
 
@@ -1281,7 +1307,8 @@ function getVendsField() {
         is_mqtt_active: filters.value.is_mqtt_active.id,
         is_online: filters.value.is_online.id,
         is_sensor: filters.value.is_sensor.id,
-        is_testing: filters.value.is_testing.id,
+        // is_testing: filters.value.is_testing.id,
+        status: filters.value.status.id,
         numberPerPage: filters.value.numberPerPage.id,
     }, {
         preserveState: true,
@@ -1348,6 +1375,7 @@ function onExportChannelExcelClicked() {
           is_online: filters.value.is_online.id,
           is_sensor: filters.value.is_sensor.id,
           is_testing: filters.value.is_testing.id,
+          status: filters.value.status.id,
       },
       responseType: 'blob',
   }).then(response => {
