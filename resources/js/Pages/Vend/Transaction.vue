@@ -288,8 +288,8 @@
        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
               <table class="table-auto min-w-full border-separate" style="border-spacing: 0">
-                  <thead class="bg-gray-100">
-                      <tr class="divide-y divide-x divide-gray-200 border border-gray-200">
+                  <thead class="">
+                      <tr class="divide-x bg-gray-400">
                         <TableHead>
                             #
                         </TableHead>
@@ -320,9 +320,9 @@
                         <TableHead>
                             Price Type
                         </TableHead>
-                        <TableHead>
+                        <TableHeadSort modelName="amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount', true)">
                             Amount
-                        </TableHead>
+                        </TableHeadSort>
                         <TableHead>
                             Payment Method
                         </TableHead>
@@ -336,7 +336,7 @@
                   </thead>
                   <tbody class="bg-white">
                     <template v-for="(vendTransaction, vendTransactionIndex) in vendTransactions.data" :key="vendTransaction.id">
-                      <tr class="divide-x divide-gray-200" :class="vendTransaction.is_multiple ? 'bg-gray-100' : ''">
+                      <tr class="divide-x" :class="vendTransaction.is_multiple ? 'divide-x bg-gray-100' : ''">
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransactions.meta.from + vendTransactionIndex }}
                         </TableData>
@@ -409,7 +409,7 @@
                             </span>
                         </TableData>
                       </tr>
-                      <tr v-if="vendTransaction.vendTransactionItemsJson" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItemsJson">
+                      <tr v-if="vendTransaction.vendTransactionItemsJson" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItemsJson" class="divide-x">
                         <td v-if="vendTransactionItemIndex == 0" class="border-b border-gray-200" colspan="6" :rowspan="vendTransaction.vendTransactionItemsJson.length"></td>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
                             {{ vendTransactionItem.vend_channel_code ? vendTransactionItem.vend_channel_code : null }}
@@ -426,18 +426,18 @@
                             </span>
                             <span v-else></span>
                         </TableData>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100" colspan="2">
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100" colspan="3">
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
                             {{ vendTransactionItem.vend_channel_error ? vendTransactionItem.vend_channel_error.desc : null }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
-                            <!-- <span v-if="!vendTransactionItem.vend_channel_error || (vendTransactionItem.vend_channel_error && vendTransactionItem.vend_channel_error.code == 0) || (vendTransactionItem.vend_channel_error && vendTransactionItem.vend_channel_error.code == 6)">
+                            <span v-if="!vendTransactionItem.vend_channel_error || (vendTransactionItem.vend_channel_error && vendTransactionItem.vend_channel_error.code == 0) || (vendTransactionItem.vend_channel_error && vendTransactionItem.vend_channel_error.code == 6)">
                                 Successful
                             </span>
                             <span v-else>
                                 Unsuccessful
-                            </span> -->
+                            </span>
                         </TableData>
                       </tr>
                       <tr v-if="!vendTransactions.data.length">
@@ -650,9 +650,12 @@ function resetFilters() {
     router.get('/vends/transactions')
 }
 
-function sortTable(sortKey) {
-    filters.value.sortKey = sortKey
-    filters.value.sortBy = !filters.value.sortBy
-    onSearchFilterUpdated()
+function sortTable(sortKey, inverse = false) {
+  filters.value.sortBy = !filters.value.sortBy
+  if(inverse && filters.value.sortKey != sortKey) {
+      filters.value.sortBy = !filters.value.sortBy
+  }
+  filters.value.sortKey = sortKey
+  onSearchFilterUpdated()
 }
 </script>
