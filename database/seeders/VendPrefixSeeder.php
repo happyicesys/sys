@@ -17,6 +17,10 @@ class VendPrefixSeeder extends Seeder
         $customers = Customer::whereNotNull('person_id')->get();
 
         foreach($customers as $customer) {
+            if($customer->virtual_customer_prefix === null) {
+                continue;
+            }
+
             VendPrefix::updateOrCreate([
                 'name' => $customer->virtual_customer_prefix,
             ], [

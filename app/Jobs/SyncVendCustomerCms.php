@@ -188,7 +188,6 @@ class SyncVendCustomerCms implements ShouldQueue
                     'status_id' => Customer::STATUS_ACTIVE,
                     'category_id' => $categoryId,
                     'location_type_id' => isset($locationTypeId) ? $locationTypeId : null,
-                    'created_at' => $customerCollection['created_at'],
                 ]);
                 // dd($customerCollection['delivery_country'], $customerCollection['del_postcode'], $customerCollection);
                 if(isset($customerCollection['delivery_country']) and isset($customerCollection['del_postcode'])) {

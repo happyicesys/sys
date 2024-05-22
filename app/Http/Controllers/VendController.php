@@ -683,36 +683,60 @@ class VendController extends Controller
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'transaction_datetime']);
         $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
-        $request->merge(['is_binded_customer' => isset($request->is_binded_customer) ? $request->is_binded_customer : 'all']);
+        // $request->merge(['is_binded_customer' => isset($request->is_binded_customer) ? $request->is_binded_customer : 'all']);
         $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
         $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $className = get_class(new Customer());
 
         $vendTransactions = VendTransaction::query()
-            ->with([
+            ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+            ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+            ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+            ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
+            ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
+            ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+            // ->with([
                 // 'vend:id,code,name',
                 // 'customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                 // 'operator:id,code,name',
-                'paymentMethod:id,code,name',
+            // 'paymentMethod:id,code,name',
                 // 'product:id,code,name',
-                'vendChannel:id,amount,amount2',
-                'vendChannelError:id,desc',
-            ])
-            ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+            // 'vendChannel:id,amount,amount2',
+            // 'vendChannelError:id,desc',
+            // ])
+
             // ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
             // ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->filterTransactionIndex($request)
             ->select(
-                'vend_transactions.*',
+                'vend_transactions.id',
+                'vend_transactions.order_id',
+                'vend_transactions.transaction_datetime',
+                'vends.code AS vend_code',
+                'customers.code AS customer_code',
+                'customers.name AS customer_name',
+                'customers.person_id',
+                'customers.virtual_customer_prefix',
+                'customers.virtual_customer_code',
                 'operators.code AS operator_code',
-                'operators.name AS operator_name',
-            )
-            // ->when($request->sortKey, function($query, $search) use ($request) {
-            //     $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-            // })
-            ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                'vend_transactions.vend_channel_code',
+                'products.code AS product_code',
+                'products.name AS product_name',
+                'vend_channels.amount AS vend_channel_amount',
+                'vend_channels.amount2 AS vend_channel_amount2',
+                'vend_transactions.amount',
+                'payment_methods.name AS payment_method_name',
+                'vend_channel_errors.desc AS vend_channel_error_desc',
+                'vend_channel_errors.code AS vend_channel_error_code',
+                'vend_transactions.is_multiple',
+                'vend_transaction_items_json',
+                'vend_transactions.is_payment_received',
+                'vend_transactions.items_json',
+            )->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
+
 
         // $totals = VendTransaction::query()
         //     ->filterTransactionIndex($request)
@@ -724,42 +748,57 @@ class VendController extends Controller
         //     )
         //     ->first();
 
-        $totals = [
-            'amount' => VendTransaction::query()
-                // ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
-                // ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-                ->filterTransactionIndex($request)
-                ->whereNotIn('vend_id', function($query) {
-                    $query->select('id')
-                        ->from('vends')
-                        ->where('is_testing', true);
+        // $totals = [
+        //     'amount' => VendTransaction::query()
+        //         ->filterTransactionIndex($request)
+        //         ->whereNotIn('vend_id', function($query) {
+        //             $query->select('id')
+        //                 ->from('vends')
+        //                 ->where('is_testing', true);
+        //         })
+        //         ->where(function($query) {
+        //             $query
+        //                 ->where('error_code_normalized', 0)
+        //                 ->orWhere('error_code_normalized', 6)
+        //                 ->orWhere('error_code_normalized', null)
+        //                 ->orWhere('is_multiple', true);
+        //         })
+        //         ->sum('vend_transactions.amount'),
+        //     'count' => VendTransaction::query()
+        //         ->filterTransactionIndex($request)
+        //         ->whereNotIn('vend_id', function($query) {
+        //             $query->select('id')
+        //                 ->from('vends')
+        //                 ->where('is_testing', true);
+        //         })
+        //         ->where(function($query) {
+        //             $query->where('error_code_normalized', 0)
+        //                 ->orWhere('error_code_normalized', 6)
+        //                 ->orWhere('error_code_normalized', null)
+        //                 ->orWhere('is_multiple', true);
+        //         })
+        //         ->count()
+        // ];
+        $totals = VendTransaction::query()
+            ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->filterTransactionIndex($request)
+            ->whereNotIn('vend_id', function($query) {
+                $query->select('id')
+                    ->from('vends')
+                    ->where('is_testing', true);
+            })
+            ->where(function($query) {
+                $query
+                    ->where('vend_channel_errors.code', 0)
+                    ->orWhere('vend_channel_errors.code', 6)
+                    ->orWhere('vend_channel_errors.code', null)
+                    ->orWhere('is_multiple', true);
                 })
-                ->where(function($query) {
-                    $query
-                        ->where('error_code_normalized', 0)
-                        ->orWhere('error_code_normalized', 6)
-                        ->orWhere('error_code_normalized', null)
-                        ->orWhere('is_multiple', true);
-                })
-                ->sum('vend_transactions.amount'),
-            'count' => VendTransaction::query()
-                // ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
-                // ->leftJoin('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-                ->filterTransactionIndex($request)
-                ->whereNotIn('vend_id', function($query) {
-                    $query->select('id')
-                        ->from('vends')
-                        ->where('is_testing', true);
-                })
-                // ->whereIn('error_code_normalized', [0, 6])
-                ->where(function($query) {
-                    $query->where('error_code_normalized', 0)
-                        ->orWhere('error_code_normalized', 6)
-                        ->orWhere('error_code_normalized', null)
-                        ->orWhere('is_multiple', true);
-                })
-                ->count()
-        ];
+            ->select(
+                DB::raw('ROUND(COALESCE(SUM(vend_transactions.amount), 0), 2) AS amount'),
+                DB::raw('COUNT(*) AS count')
+            )
+            ->first();
 
         return Inertia::render('Vend/Transaction', [
             'categories' => CategoryResource::collection(
@@ -814,24 +853,63 @@ class VendController extends Controller
     {
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'transaction_datetime']);
         $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
-        $request->merge(['is_binded_customer' => isset($request->is_binded_customer) ? $request->is_binded_customer : 'all']);
+        // $request->merge(['is_binded_customer' => isset($request->is_binded_customer) ? $request->is_binded_customer : 'all']);
         $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
         $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
 
+        // $vendTransactions = VendTransaction::query()
+        // ->with([
+        //     'vend:id,code,name',
+        //     'vendChannel:id,code,amount,amount2',
+        //     'vendTransactionItems',
+        //     'operator:id,code,name',
+        //     'paymentMethod:id,code,name',
+        //     'product:id,code,name',
+        // ])
+        // ->filterTransactionIndex($request)
+        // ->get();
         $vendTransactions = VendTransaction::query()
-        ->with([
-            'vend:id,code,name',
-            'vendChannel:id,code,amount,amount2',
-            'vendTransactionItems',
-            'operator:id,code,name',
-            'paymentMethod:id,code,name',
-            'product:id,code,name',
-        ])
+        ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+        ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+        ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+        ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+        ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
+        ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
+        ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+        ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
         ->filterTransactionIndex($request)
+        ->select(
+            'vend_transactions.id',
+            'vend_transactions.order_id',
+            'vend_transactions.transaction_datetime',
+            'vends.code AS vend_code',
+            'vends.name AS vend_name',
+            'customers.code AS customer_code',
+            'customers.name AS customer_name',
+            'customers.person_id',
+            'customers.virtual_customer_prefix',
+            'customers.virtual_customer_code',
+            'operators.code AS operator_code',
+            'vend_transactions.vend_channel_code',
+            'products.code AS product_code',
+            'products.name AS product_name',
+            'vend_channels.amount AS vend_channel_amount',
+            'vend_channels.amount2 AS vend_channel_amount2',
+            'vend_transactions.amount',
+            'payment_methods.name AS payment_method_name',
+            'vend_channel_errors.desc AS vend_channel_error_desc',
+            'vend_channel_errors.code AS vend_channel_error_code',
+            'vend_transactions.is_multiple',
+            'vend_transactions.vend_transaction_items_json',
+            'vend_transactions.revenue',
+            'vend_transactions.unit_cost',
+            'vend_transactions.is_payment_received',
+            'vend_transactions.items_json',
+            'location_types.name AS location_type_name',
+        )
         ->get();
 
-
-        return Excel::download(new VendTransactionExport($vendTransactions), 'VendTransactions_'.Carbon::now()->toDateTimeString().'.xlsx');
+        // return Excel::download(new VendTransactionExport($vendTransactions), 'VendTransactions_'.Carbon::now()->toDateTimeString().'.xlsx');
 
         // return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
         //     return [
@@ -866,6 +944,35 @@ class VendController extends Controller
         //                         '',
         //     ];
         // });
+        return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
+            return [
+                'Order ID' => $vendTransaction->order_id,
+                'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
+                'Vend ID' => $vendTransaction->vend_code ? $vendTransaction->vend_code : '',
+                'Customer Prefix' => $vendTransaction->person_id ?
+                                    $vendTransaction->virtual_customer_prefix :
+                                    '',
+                'Customer Code' => $vendTransaction->person_id ?
+                                    $vendTransaction->virtual_customer_code :
+                                    '',
+                'Customer Name' => $vendTransaction->customer_name,
+                'Channel' => $vendTransaction->vend_channel_code,
+                'Product Code' => $vendTransaction->product_code,
+                'Product Name' => $vendTransaction->product_name,
+                'Price Type' => $vendTransaction->vend_channel_amount ==  $vendTransaction->amount ?
+                                'P1' :
+                                ($vendTransaction->vend_channel_amount2 ==  $vendTransaction->amount ? 'P2' : '' ),
+                'Amount' => $vendTransaction->amount/ 100,
+                'Sales (before GST)' => $vendTransaction->revenue/ 100,
+                'Unit Cost' => $vendTransaction->unit_cost ?
+                                $vendTransaction->unit_cost/ 100 :
+                                '',
+                'Payment Method' => $vendTransaction->payment_method_name,
+                'Error Code' => $vendTransaction->vend_channel_error_code,
+                'Location Type' => $vendTransaction->location_type_name,
+                'Operator' => $vendTransaction->operator_code,
+            ];
+        });
     }
 
     public function exportVendSnapshotExcel($vendSnapshotId)

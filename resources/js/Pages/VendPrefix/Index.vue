@@ -203,7 +203,7 @@ function onDeleteClicked(vendPrefix) {
   if (!approval) {
       return;
   }
-  router.delete('/vendPrefixes/' + vendPrefix.id)
+  router.delete('/vend-prefixes/' + vendPrefix.id)
 }
 
 function onEditClicked(telcoValue) {
@@ -213,7 +213,7 @@ function onEditClicked(telcoValue) {
 }
 
 function onSearchFilterUpdated() {
-  router.get('/vendPrefixes', {
+  router.get('/vend-prefixes', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -223,7 +223,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  router.get('/vendPrefixes')
+  router.get('/vend-prefixes')
 }
 
 function sortTable(sortKey) {

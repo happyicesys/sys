@@ -152,8 +152,10 @@ class VendTransaction extends Model
         })
         ->when($request->date_to, function($query, $search) {
             $query->where('vend_transactions.transaction_datetime', '<=', $search);
-        })
-        ->when($request->has('visited'), function($query, $search) use ($request) {
+        });
+        // dd($request->all(), $query->toSql(), $query->getBindings());
+
+        $query->when($request->has('visited'), function($query, $search) use ($request) {
             if($request->visited == 'true') {
                 $query->whereRaw('1 = 1');
             }else {
@@ -256,7 +258,7 @@ class VendTransaction extends Model
         })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
-                $query->where('operator_json->id', $search);
+                $query->where('vend_transactions.operator_id', $search);
             }
         })
         ->when($request->product_code, function($query, $search) {
@@ -304,21 +306,11 @@ class VendTransaction extends Model
             }
         })
         ->when($request->customer_code, function($query, $search) {
-            // $query->whereHas('customer', function($query) use ($search) {
-            //     $query->where('code', 'LIKE', "{$search}%");
-            // });
             $query->whereIn('customer_id', function($query) use ($search) {
                 $query->select('id')->from('customers')->where('code', 'LIKE', "%{$search}%");
             });
         })
         ->when($request->customer_name, function($query, $search) {
-            // $query
-            //     ->whereHas('customer', function($query) use ($search) {
-            //         $query->where('name', 'LIKE', "{$search}%");
-            //     })
-            //     ->orWhereHas('vend', function($query) use ($search) {
-            //         $query->where('name', 'LIKE', "{$search}%");
-            //     });
             $query->where(function($query) use ($search) {
                 $query->whereIn('customer_id', function($query) use ($search) {
                     $query->select('id')->from('customers')->where('name', 'LIKE', "{$search}%");

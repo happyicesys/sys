@@ -347,24 +347,19 @@
                             {{ vendTransaction.transaction_datetime }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vendJson.code }}
+                            {{ vendTransaction.vend_code }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
-                            <span v-if="vendTransaction.customer_json && vendTransaction.customer_json.virtual_customer_prefix && vendTransaction.customer_json.virtual_customer_code">
-                                {{ vendTransaction.customer_json.virtual_customer_prefix }}-{{ vendTransaction.customer_json.virtual_customer_code }} <br>
-                                {{ vendTransaction.customer_json.name }}
+                            <span v-if="vendTransaction.person_id">
+                                {{ vendTransaction.virtual_customer_prefix }}-{{ vendTransaction.virtual_customer_code }} <br>
+                                {{ vendTransaction.customer_name }}
                             </span>
-                            <span v-else-if="vendTransaction.customer_json && !vendTransaction.customer_json.virtual_customer_prefix && !vendTransaction.customer_json.virtual_customer_code && vendTransaction.customer_json.name">
-                                <span v-if="vendTransaction.customer_json.code">
-                                    {{ vendTransaction.customer_json.code }} <br>
-                                </span>
-                                {{ vendTransaction.customer_json.name }}
+                            <span v-else-if="!vendTransaction.person_id">
+                                {{ vendTransaction.customer_name }}
                             </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            <span v-if="vendTransaction.operatorJson && 'code' in vendTransaction.operatorJson">
-                                {{ vendTransaction.operatorJson['code'] }}
-                            </span>
+                            {{ vendTransaction.operator_code }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="!vendTransaction.is_multiple">
@@ -372,37 +367,25 @@
                             </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            <span v-if="vendTransaction.productJson && 'code' in vendTransaction.productJson">
-                                {{ vendTransaction.productJson['code'] }}
-                            </span>
-                            <span v-else-if="!vendTransaction.productJson && vendTransaction.product_code">
-                                {{ vendTransaction.product_code }}
-                            </span>
-                            <span v-else></span>
+                            {{ vendTransaction.product_code }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
-                            <span v-if="vendTransaction.productJson && 'name' in vendTransaction.productJson">
-                                {{ vendTransaction.productJson['name'] }}
-                            </span>
-                            <span v-else-if="!vendTransaction.productJson && vendTransaction.product_name">
-                                {{ vendTransaction.product_name }}
-                            </span>
-                            <span v-else></span>
+                            {{ vendTransaction.product_name }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <div
                                 class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer"
-                                :class="[vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount ? 'bg-indigo-100 text-indigo-800 border-indigo-300' : (vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount2 ? 'bg-purple-100 text-purple-800 border-purple-300' : '')]"
-                                v-if="(vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount) || (vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount2)"
+                                :class="[vendTransaction.amount === vendTransaction.vend_channel_amount ? 'bg-indigo-100 text-indigo-800 border-indigo-300' : (vendTransaction.amount === vendTransaction.vend_channel_amount2 ? 'bg-purple-100 text-purple-800 border-purple-300' : '')]"
+                                v-if="(vendTransaction.amount === vendTransaction.vend_channel_amount) || (vendTransaction.amount === vendTransaction.vend_channel_amount2)"
                             >
                                 <div class="flex flex-col">
-                                    <span class="font-semibold grow-0" v-if="vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount && vendTransaction.amount === vendTransaction.vendChannel.amount2">
+                                    <span class="font-semibold grow-0" v-if="vendTransaction.amount === vendTransaction.vend_channel_amount && vendTransaction.amount === vendTransaction.vend_channel_amount2">
                                         P1
                                     </span>
-                                    <span class="font-semibold grow-0" v-else-if="vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount">
+                                    <span class="font-semibold grow-0" v-else-if="vendTransaction.amount === vendTransaction.vend_channel_amount">
                                         P1
                                     </span>
-                                    <span class="font-semibold grow-0" v-else-if="vendTransaction.vendChannel && vendTransaction.amount === vendTransaction.vendChannel.amount2">
+                                    <span class="font-semibold grow-0" v-else-if="vendTransaction.amount === vendTransaction.vend_channel_amount2">
                                         P2
                                     </span>
                                 </div>
@@ -412,23 +395,21 @@
                             {{ vendTransaction.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.paymentMethod ? vendTransaction.paymentMethod.name : null }}
+                            {{ vendTransaction.payment_method_name }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vendChannelError ? vendTransaction.vendChannelError.desc : null }}
+                            {{ vendTransaction.vend_channel_error_desc }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.is_payment_received">
                                 {{ vendTransaction.is_payment_received ? 'Successful' : 'Unsuccessful' }}
                             </span>
                             <span v-else>
-                                {{ vendTransaction.vendTransactionJson ? (vendTransaction.vendTransactionJson['SErr'] == 0 || vendTransaction.vendTransactionJson['SErr'] == 6 ? 'Successful' : "Unsuccessful") : '' }}
+                                {{ vendTransaction.vend_channel_error_code ? (vendTransaction.vend_channel_error_code == 0 || vendTransaction.vend_channel_error_code == 6 ? 'Successful' : "Unsuccessful") : 'Successful' }}
                             </span>
                         </TableData>
                       </tr>
                       <tr v-if="vendTransaction.vendTransactionItemsJson" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItemsJson">
-                        <!-- <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center" colspan="5"> -->
-                        <!-- </TableData> -->
                         <td v-if="vendTransactionItemIndex == 0" class="border-b border-gray-200" colspan="6" :rowspan="vendTransaction.vendTransactionItemsJson.length"></td>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
                             {{ vendTransactionItem.vend_channel_code ? vendTransactionItem.vend_channel_code : null }}
