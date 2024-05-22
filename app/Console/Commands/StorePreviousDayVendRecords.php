@@ -30,6 +30,6 @@ class StorePreviousDayVendRecords extends Command
     {
         // store yesterday sales into vend records table
         $yesterday = Carbon::yesterday();
-        StoreVendsRecord::dispatch($yesterday->toDateString(), $yesterday->toDateString());
+        StoreVendsRecord::dispatch($yesterday->toDateString(), $yesterday->toDateString(), true);
     }
 }

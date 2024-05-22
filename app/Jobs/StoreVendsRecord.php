@@ -22,11 +22,13 @@ class StoreVendsRecord implements ShouldQueue
      */
     protected $from;
     protected $to;
+    protected $seedActive;
 
-    public function __construct($from, $to)
+    public function __construct($from, $to, $seedActive = false)
     {
         $this->from = $from;
         $this->to = $to;
+        $this->seedActive = $seedActive;
     }
 
     public function handle(): void
@@ -34,33 +36,34 @@ class StoreVendsRecord implements ShouldQueue
 
         $vends = VendTransaction::query()
             ->with([
-                'vend:id,code,name',
-                'customer',
+                'vend:id,code,name,operator_id,customer_id',
+                'customer:id,name,is_active,code,operator_id',
             ])
             ->leftJoin('delivery_platform_orders', 'vend_transactions.id', '=', 'delivery_platform_orders.vend_transaction_id')
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'vend_transactions.customer_id', '=', 'customers.id')
-            ->where('vend_transactions.created_at', '>=', Carbon::parse($this->from)->startOfDay())
-            ->where('vend_transactions.created_at', '<=', Carbon::parse($this->to)->endOfDay())
+            ->leftJoin('vend_channel_errors', 'vend_transactions.vend_channel_error_id', '=', 'vend_channel_errors.id')
+            ->where('vend_transactions.transaction_datetime', '>', Carbon::parse($this->from)->setTimezone('Asia/Singapore')->startOfDay())
+            ->where('vend_transactions.transaction_datetime', '<', Carbon::parse($this->to)->setTimezone('Asia/Singapore')->endOfDay())
             ->groupBy('date', 'vends.id')
             ->select(
                 'vends.id AS vend_id',
                 'vends.code',
                 'vend_transactions.id',
                 'customers.id AS customer_id',
-                DB::raw('DATE(vend_transactions.created_at) as date'),
-                DB::raw('DAY(vend_transactions.created_at) as day'),
-                DB::raw('MONTH(vend_transactions.created_at) as month'),
-                DB::raw('MONTHNAME(vend_transactions.created_at) AS month_name'),
-                'vends.operator_id',
+                DB::raw('DATE(vend_transactions.transaction_datetime) as date'),
+                DB::raw('DAY(vend_transactions.transaction_datetime) as day'),
+                DB::raw('MONTH(vend_transactions.transaction_datetime) as month'),
+                DB::raw('MONTHNAME(vend_transactions.transaction_datetime) AS month_name'),
+                'vend_transactions.operator_id',
                 'vend_id',
-                DB::raw('YEAR(vend_transactions.created_at) as year'),
+                DB::raw('YEAR(vend_transactions.transaction_datetime) as year'),
                 DB::raw(
                     'COALESCE(SUM(
                         CASE
-                            WHEN error_code_normalized IS NULL THEN amount
-                            WHEN error_code_normalized = 0 THEN amount
-                            WHEN error_code_normalized = 6 THEN amount
+                            WHEN vend_channel_error_id IS NULL THEN amount
+                            WHEN vend_channel_errors.code = 0 THEN amount
+                            WHEN vend_channel_errors.code = 6 THEN amount
                             WHEN is_multiple = 1 THEN amount
                             ELSE 0
                         END
@@ -72,9 +75,9 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COUNT(
                         CASE
-                            WHEN error_code_normalized IS NULL THEN vend_transactions.id
-                            WHEN error_code_normalized = 0 THEN vend_transactions.id
-                            WHEN error_code_normalized = 6 THEN vend_transactions.id
+                            WHEN vend_channel_error_id IS NULL THEN vend_transactions.id
+                            WHEN vend_channel_errors.code = 0 THEN vend_transactions.id
+                            WHEN vend_channel_errors.code = 6 THEN vend_transactions.id
                             WHEN is_multiple = 1 THEN vend_transactions.id
                             ELSE NULL
                         END
@@ -91,9 +94,9 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COALESCE(SUM(
                         CASE
-                            WHEN error_code_normalized IS NULL THEN revenue
-                            WHEN error_code_normalized = 0 THEN revenue
-                            WHEN error_code_normalized = 6 THEN revenue
+                            WHEN vend_channel_error_id IS NULL THEN revenue
+                            WHEN vend_channel_errors.code = 0 THEN revenue
+                            WHEN vend_channel_errors.code = 6 THEN revenue
                             WHEN is_multiple = 1 THEN revenue
                             ELSE 0
                         END
@@ -102,9 +105,9 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COALESCE(SUM(
                         CASE
-                            WHEN error_code_normalized IS NULL THEN gross_profit
-                            WHEN error_code_normalized = 0 THEN gross_profit
-                            WHEN error_code_normalized = 6 THEN gross_profit
+                            WHEN vend_channel_error_id IS NULL THEN gross_profit
+                            WHEN vend_channel_errors.code = 0 THEN gross_profit
+                            WHEN vend_channel_errors.code = 6 THEN gross_profit
                             WHEN is_multiple = 1 THEN gross_profit
                             ELSE 0
                         END
@@ -113,9 +116,9 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COALESCE(SUM(
                         CASE
-                            WHEN error_code_normalized IS NULL THEN 0
-                            WHEN error_code_normalized = 0 THEN 0
-                            WHEN error_code_normalized = 6 THEN 0
+                            WHEN vend_channel_error_id IS NULL THEN 0
+                            WHEN vend_channel_errors.code = 0 THEN 0
+                            WHEN vend_channel_errors.code = 6 THEN 0
                             ELSE amount
                         END
                     ),0) as failure_amount'
@@ -123,9 +126,9 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COUNT(
                         CASE
-                            WHEN error_code_normalized IS NULL THEN NULL
-                            WHEN error_code_normalized = 0 THEN NULL
-                            WHEN error_code_normalized = 6 THEN NULL
+                            WHEN vend_channel_error_id IS NULL THEN NULL
+                            WHEN vend_channel_errors.code = 0 THEN NULL
+                            WHEN vend_channel_errors.code = 6 THEN NULL
                             ELSE 1
                         END
                     ) as failure_count'
@@ -133,9 +136,9 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COALESCE(SUM(
                         CASE
-                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized IS NULL THEN amount
-                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN amount
-                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 6 THEN amount
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_error_id IS NULL THEN amount
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_errors.code = 0 THEN amount
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_errors.code = 6 THEN amount
                             WHEN delivery_platform_orders.id IS NULL THEN 0
                             ELSE 0
                         END
@@ -144,9 +147,9 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COUNT(
                         CASE
-                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized IS NULL THEN vend_transactions.id
-                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN vend_transactions.id
-                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 6 THEN vend_transactions.id
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_error_id IS NULL THEN vend_transactions.id
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_errors.code = 0 THEN vend_transactions.id
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_errors.code = 6 THEN vend_transactions.id
                             WHEN delivery_platform_orders.id IS NULL THEN NULL
                             ELSE NULL
                         END
@@ -155,9 +158,9 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COALESCE(SUM(
                         CASE
-                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized IS NULL THEN 0
-                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN 0
-                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 6 THEN 0
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_error_id IS NULL THEN 0
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_errors.code = 0 THEN 0
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_errors.code = 6 THEN 0
                             WHEN delivery_platform_orders.id IS NULL THEN NULL
                             ELSE amount
                         END
@@ -166,9 +169,9 @@ class StoreVendsRecord implements ShouldQueue
                 DB::raw(
                     'COUNT(
                         CASE
-                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized IS NULL THEN NULL
-                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 0 THEN NULL
-                            WHEN delivery_platform_orders.id IS NOT NULL AND error_code_normalized = 6 THEN NULL
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_error_id IS NULL THEN NULL
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_errors.code = 0 THEN NULL
+                            WHEN delivery_platform_orders.id IS NOT NULL AND vend_channel_errors.code = 6 THEN NULL
                             WHEN delivery_platform_orders.id IS NULL THEN NULL
                             ELSE 1
                         END
@@ -180,9 +183,12 @@ class StoreVendsRecord implements ShouldQueue
         $vendWithTransactions = [];
         foreach($vends as $vend) {
             $vendWithTransactions[$vend->date][] = $vend->id;
+            if($vend->id == 0 or $vend->code == null) {
+                continue;
+            }
             VendRecord::updateOrCreate([
-                'vend_id' => $vend->vend_id,
                 'date' => $vend->date,
+                'vend_id' => $vend->vend_id,
             ], [
                 'all_total_count' => $vend->all_total_count,
                 'customer_id' => isset($vend->customer_id) ? $vend->customer_id : null,
@@ -208,9 +214,8 @@ class StoreVendsRecord implements ShouldQueue
         }
 
         // also init the vends without transactions
-        if($vendWithTransactions) {
+        if($vendWithTransactions and $this->seedActive) {
             foreach($vendWithTransactions as $date => $vendIDs) {
-
                 $vendWithoutTransactions = Vend::query()
                 ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
                 ->select(
@@ -221,6 +226,8 @@ class StoreVendsRecord implements ShouldQueue
                 )
                 ->where('customers.is_active', true)
                 ->whereNotIn('vends.id', $vendIDs)
+                ->where('vends.id', '!=', 0)
+                ->where('vends.code', '!=', null)
                 ->get();
 
                 foreach($vendWithoutTransactions as $vend) {
