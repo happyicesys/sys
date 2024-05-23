@@ -174,6 +174,7 @@ class StoreVendsRecord implements ShouldQueue
                     ) as online_failure_count'
                 ),
             )
+            ->where('vend_transactions.vend_id', '!=', 0)
             ->get();
 
         $vendWithTransactions = [];
