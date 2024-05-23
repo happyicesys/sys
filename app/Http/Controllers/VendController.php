@@ -781,6 +781,7 @@ class VendController extends Controller
         // ];
         $totals = VendTransaction::query()
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->filterTransactionIndex($request)
             ->whereNotIn('vend_id', function($query) {
                 $query->select('id')
@@ -793,7 +794,7 @@ class VendController extends Controller
                     ->orWhere('vend_channel_errors.code', 6)
                     ->orWhere('vend_channel_errors.code', null)
                     ->orWhere('is_multiple', true);
-                })
+            })
             ->select(
                 DB::raw('ROUND(COALESCE(SUM(vend_transactions.amount), 0), 2) AS amount'),
                 DB::raw('COUNT(*) AS count')
@@ -909,41 +910,6 @@ class VendController extends Controller
         )
         ->get();
 
-        // return Excel::download(new VendTransactionExport($vendTransactions), 'VendTransactions_'.Carbon::now()->toDateTimeString().'.xlsx');
-
-        // return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
-        //     return [
-        //         'Order ID' => $vendTransaction->order_id,
-        //         'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
-        //         'Vend ID' => $vendTransaction->vend->code,
-        //         'Customer Name' => $vendTransaction->customer_json && isset($vendTransaction->customer_json['code']) ?
-        //                                 $vendTransaction->customer_json['code'].' '.$vendTransaction->customer_json['name'] : (
-        //                                 $vendTransaction->vend_json && isset($vendTransaction->vend_json['latest_vend_binding']) ?
-        //                                 $vendTransaction->vend_json['latest_vend_binding']['customer']['code'].' '.$vendTransaction->vend_json['latest_vend_binding']['customer']['name'] :
-        //                                 $vendTransaction->vend_name
-        //                             ),
-        //         'Channel' => $vendTransaction->vend_channel_code,
-        //         'Product Code' => $vendTransaction->product_json ?
-        //                         $vendTransaction->product_json['code'] :
-        //                         ($vendTransaction->product ? $vendTransaction->product->code : ''),
-        //         'Product Name' => $vendTransaction->product_json ?
-        //                         $vendTransaction->product_json['name'] :
-        //                         ($vendTransaction->product ? $vendTransaction->product->name : ''),
-        //         'Amount' => $vendTransaction->amount/ 100,
-        //         'Sales (before GST)' => $vendTransaction->revenue/ 100,
-        //         'Unit Cost' => $vendTransaction->unit_cost ?
-        //                         $vendTransaction->unit_cost/ 100 :
-        //                         '',
-        //         'Payment Method' => $vendTransaction->paymentMethod ? $vendTransaction->paymentMethod->name : '',
-        //         'Error Code' => $vendTransaction->vend_transaction_json &&
-        //                     isset($vendTransaction->vend_transaction_json['SErr']) ?
-        //                     $vendTransaction->vend_transaction_json['SErr'] :
-        //                     $vendTransaction->vend_channel_error_code,
-        //         'Location Type' => $vendTransaction->location_type_json ?
-        //                         $vendTransaction->location_type_json['name'] :
-        //                         '',
-        //     ];
-        // });
         return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
             return [
                 'Order ID' => $vendTransaction->order_id,

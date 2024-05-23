@@ -88,6 +88,9 @@
                       Name
                     </TableHeadSort>
                     <TableHead>
+                      Desc
+                    </TableHead>
+                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -99,17 +102,21 @@
                       <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left">
                         {{ vendConfig.name }}
                       </TableData>
+                      <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left">
+                        {{ vendConfig.desc }}
+                      </TableData>
                       <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
-                          <Button
-                            type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-                            @click="onEditClicked(vendConfig)"
-                          >
-                            <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                            <span>
-                                Edit
-                            </span>
-                          </Button>
+                          <Link :href="'/vend-configs/' + vendConfig.id + '/edit'">
+                            <Button
+                              type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                            >
+                              <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                              <span>
+                                  Edit
+                              </span>
+                            </Button>
+                          </Link>
                           <Button
                             type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
                             @click="onDeleteClicked(vendConfig)"
@@ -134,7 +141,7 @@
       </div>
     </div>
   </div>
-  <!-- <Form
+  <Form
       v-if="showModal"
       :operatorOptions="operatorOptions"
       :vendConfig="vendConfig"
@@ -142,14 +149,14 @@
       :showModal="showModal"
       @modalClose="onModalClose"
   >
-  </Form> -->
+  </Form>
   </BreezeAuthenticatedLayout>
 </template>
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-// import Form from '@/Pages/VendConfig/Form.vue';
+import Form from '@/Pages/VendConfig/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -158,7 +165,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   operatorOptions: [Array, Object],

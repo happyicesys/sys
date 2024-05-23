@@ -42,9 +42,9 @@ class VendConfigController extends Controller
             'name' => 'required',
         ]);
 
-        VendConfig::create($request->all());
+        $vendConfig = VendConfig::create($request->all());
 
-        return redirect()->route('vend-configs');
+        return redirect()->route('vend-configs.edit', [$vendConfig->id]);
     }
 
     public function edit($id)

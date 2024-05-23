@@ -425,6 +425,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('vend-configs')->group(function() {
         Route::get('/', [VendConfigController::class, 'index'])->name('vend-configs');
         Route::post('/create', [VendConfigController::class, 'create']);
+        Route::get('/{id}/edit', [VendConfigController::class, 'edit'])->name('vend-configs.edit');
         Route::post('/{id}/update', [VendConfigController::class, 'update']);
         Route::delete('/{id}', [VendConfigController::class, 'delete']);
     });

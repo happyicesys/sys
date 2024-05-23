@@ -35,12 +35,8 @@ class StoreVendsRecord implements ShouldQueue
     {
 
         $vends = VendTransaction::query()
-            ->with([
-                'vend:id,code,name,operator_id,customer_id',
-                'customer:id,name,is_active,code,operator_id',
-            ])
+            ->join('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->leftJoin('delivery_platform_orders', 'vend_transactions.id', '=', 'delivery_platform_orders.vend_transaction_id')
-            ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'vend_transactions.customer_id', '=', 'customers.id')
             ->leftJoin('vend_channel_errors', 'vend_transactions.vend_channel_error_id', '=', 'vend_channel_errors.id')
             ->where('vend_transactions.transaction_datetime', '>', Carbon::parse($this->from)->setTimezone('Asia/Singapore')->startOfDay())
@@ -183,7 +179,7 @@ class StoreVendsRecord implements ShouldQueue
         $vendWithTransactions = [];
         foreach($vends as $vend) {
             $vendWithTransactions[$vend->date][] = $vend->id;
-            if($vend->id == 0 or $vend->code == null) {
+            if($vend->id == 0) {
                 continue;
             }
             VendRecord::updateOrCreate([
