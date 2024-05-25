@@ -169,14 +169,14 @@
                       From CMS
                     </div>
                 </div>
-                <div
+                <!-- <div
                     class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit bg-gray-300"
                     v-if="!form.customer || !form.customer.id"
                 >
                     <div class="flex flex-col">
                       No Customer Binding
                     </div>
-                </div>
+                </div> -->
               </div>
               <!-- {{ Boolean((form.customer.id && !form.customer.person_id) || !form.customer.id) }} <br>
               {{ Boolean(form.customer.id && !form.customer.person_id) }}

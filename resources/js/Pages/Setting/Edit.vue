@@ -206,14 +206,14 @@
                       From CMS
                     </div>
                 </div>
-                <div
+                <!-- <div
                     class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit bg-gray-300"
                     v-if="!vend.customer || !vend.customer.id"
                 >
                     <div class="flex flex-col">
                       No Customer Binding
                     </div>
-                </div>
+                </div> -->
               </div>
               <!-- {{ Boolean((form.customer.id && !form.customer.person_id) || !form.customer.id) }} <br>
               {{ Boolean(form.customer.id && !form.customer.person_id) }}
@@ -765,10 +765,8 @@ onMounted(() => {
 
   adminCustomerOptions.value = props.adminCustomerOptions.data.map(customer => ({
     id: customer.id,
-    full_name: customer.person_id ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name  : customer.code + ' - ' + customer.name,
+    full_name: customer.person_id && customer.virtual_customer_code ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name + ' [cms]'  : customer.name,
   }))
-
-  // console.log(JSON.parse(JSON.stringify(form.value)))
 })
 
 function formatDatetime(datetime) {

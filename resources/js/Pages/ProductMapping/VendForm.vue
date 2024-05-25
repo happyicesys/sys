@@ -260,6 +260,7 @@ function bindProductMappingItem() {
     productMappingVends.value.sort((a, b) => a.code - b.code)
     unbindedVendOptions.value.splice(unbindedVendOptions.value.indexOf(form.value.vend_id), 1)
     unbindedVendOptions.value.sort((a, b) => a.code - b.code)
+    form.value.vend_id = ''
   }
 }
 

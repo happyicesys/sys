@@ -44,14 +44,14 @@
                       From CMS
                     </div>
                 </div>
-                <div
+                <!-- <div
                     class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit bg-gray-300"
                     v-if="!customer.vend"
                 >
                     <div class="flex flex-col">
                       No Customer Binding
                     </div>
-                </div>
+                </div> -->
               </div>
               <!-- <div class="sm:col-span-6" v-if="!form.id && isExisting == 1">
                 <div class="sm:col-span-6">

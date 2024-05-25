@@ -45,19 +45,19 @@
                       From CMS
                     </div>
                 </div>
-                <div
+                <!-- <div
                     class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit bg-gray-300"
                     v-if="customer.id && !customer.vend"
                 >
                     <div class="flex flex-col">
                       No Customer Binding
                     </div>
-                </div>
+                </div> -->
               </div>
 
               <fieldset class="sm:col-span-6" v-if="!customer.id">
                 <legend class="sr-only">Plan</legend>
-                <div class="space-y-5">
+                <div class="flex space-x-5">
                   <div class="relative flex items-start">
                     <div class="flex h-6 items-center">
                       <input id="isExisting" aria-describedby="is-existing-description" name="isExisting" type="radio" v-model="isExisting" value="1" class="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-600" />
