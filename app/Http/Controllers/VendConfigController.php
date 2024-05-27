@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\VendConfigResource;
+use App\Http\Resources\VendPrefixResource;
 use App\Models\Operator;
 use App\Models\VendConfig;
+use App\Models\VendPrefix;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class VendConfigController extends Controller
@@ -24,6 +27,9 @@ class VendConfigController extends Controller
             ),
             'vendConfigs' => VendConfigResource::collection(
                 VendConfig::query()
+                    ->with([
+                        'vendPrefixes'
+                    ])
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
@@ -53,10 +59,16 @@ class VendConfigController extends Controller
             'attachments',
             'operator',
             'vendPrefixes',
-        ])->findOrFail($id);
+        ])
+        ->findOrFail($id);
 
         return Inertia::render('VendConfig/Edit', [
             'vendConfig' => VendConfigResource::make($model),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::query()
+                    ->orderBy('name')
+                    ->get()
+            ),
         ]);
     }
 
@@ -67,9 +79,21 @@ class VendConfigController extends Controller
         ]);
 
         $model = VendConfig::findOrFail($id);
-        $model->update($request->all());
+        $model->fill($request->all());
 
-        return redirect()->route('vend-configs');
+        $model->vendPrefixes()->update(['vend_config_id' => null]);
+        if($request->vendPrefixes) {
+            foreach($request->vendPrefixes as $vendPrefix) {
+                $vendPrefix = VendPrefix::findOrFail($vendPrefix['id']);
+                 $vendPrefix->update([
+                    'vend_config_id' => $model->id
+                ]);
+            }
+        }
+
+        $model->save();
+
+        return redirect()->route('vend-configs.edit', [$id]);
     }
 
     public function delete($id)
@@ -78,5 +102,24 @@ class VendConfigController extends Controller
         $model->delete();
 
         return redirect()->route('vend-configs');
+    }
+
+    public function uploadAttachment(Request $request, $id)
+    {
+        $customer = VendConfig::findOrFail($id);
+
+        if ($request->hasFile('files')) {
+            $files = $request->file('files');
+            $dir = 'sys/vend-configs';
+            $storedPath = $files->storePublicly($dir);
+            $fileName = basename($storedPath);
+            $url = Storage::url($storedPath);
+            $customer->attachments()->create([
+                'type' => 1,
+                'full_url' => $url,
+                'local_url' => $dir . '/' . $fileName,
+            ]);
+        }
+        return true;
     }
 }

@@ -1045,9 +1045,12 @@ class VendController extends Controller
         $vend->update([
             'name' => $request->name,
             'begin_date' => $request->begin_date,
+            'cashless_terminal_id' => $request->cashless_terminal_id,
             'is_active' => $request->is_active,
             'is_testing' => $request->is_testing,
+            'simcard_id' => $request->simcard_id,
             'termination_date' => $request->termination_date,
+            'vend_prefix_id' => $request->vend_prefix_id,
         ]);
 
         if($request->operator_id != $vend->operator_id) {

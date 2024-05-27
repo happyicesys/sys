@@ -151,6 +151,73 @@
               ** If change Operator, the Binded Customer's Operator will be changed as well
             </div>
 
+            <hr class="sm:col-span-6">
+
+            <div class="sm:col-span-4">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Machine Prefix
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.vend_prefix_id"
+                  :options="vendPrefixOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="top"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.vend_prefix_id">
+                  {{ form.errors.vend_prefix_id }}
+                </div>
+            </div>
+
+            <div class="sm:col-span-4">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Simcard
+                </label>
+                <MultiSelect
+                  v-model="form.simcard_id"
+                  :options="simcardOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="top"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.simcard_id">
+                  {{ form.errors.simcard_id }}
+                </div>
+            </div>
+
+            <div class="sm:col-span-4">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Cashless Terminal
+                </label>
+                <MultiSelect
+                  v-model="form.cashless_terminal_id"
+                  :options="cashlessTerminalOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="top"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.cashless_terminal_id">
+                  {{ form.errors.cashless_terminal_id }}
+                </div>
+            </div>
+
+            <hr class="sm:col-span-6">
+
             <div class="sm:col-span-6">
               <span class="flex space-x-1">
                 <Button
@@ -663,9 +730,12 @@ import { fromPairs } from 'lodash';
 
 const props = defineProps({
     adminCustomerOptions: Object,
+    cashlessTerminalOptions: Object,
     countries: Object,
     operatorOptions: Object,
+    simcardOptions: Object,
     vend: Object,
+    vendPrefixOptions: Object,
     type: String,
   })
 
@@ -685,15 +755,19 @@ const statusOptions = ref([
     {id: 'inactive', value: 'Inactive'},
 ])
 
+const cashlessTerminalOptions = ref([])
 const countryOptions = ref([])
 const isExisting = ref(1)
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
+const simcardOptions = ref([])
+const vendPrefixOptions = ref([])
 
 function getDefaultForm() {
   return {
     id: '',
     begin_date: '',
+    cashless_terminal_id: '',
     code: '',
     customer_id: '',
     operator_id: '',
@@ -720,22 +794,31 @@ function getDefaultForm() {
         phone_num: '',
       },
     },
+    simcard_id: '',
+    status: '',
     termination_date: '',
     is_testing: '',
     is_active: '',
+    vend_prefix_id: '',
   }
 }
 
 onMounted(() => {
+  cashlessTerminalOptions.value = props.cashlessTerminalOptions.data
   countryOptions.value = props.countries.data
   operatorOptions.value = props.operatorOptions.data
+  simcardOptions.value = props.simcardOptions.data
+  vendPrefixOptions.value = props.vendPrefixOptions.data
 
   form.value = props.vend ? useForm({
     ...props.vend,
     // is_active: props.vend.is_active == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
     // is_testing: props.vend.is_testing == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
-    status: statusOptions.value.find(status => status.id === props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive'),
+    cashless_terminal_id: props.vend.cashless_terminal_id ? props.vend.cashless_terminal_id : null,
+    simcard_id: props.vend.simcard_id ? props.vend.simcard_id : null,
+    status: statusOptions.value.find(status => status.id === (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id === props.vend.operator_id) : null : null,
+    vend_prefix_id: props.vend ? props.vend.vend_prefix_id ? vendPrefixOptions.value.find(vendPrefix => vendPrefix.id === props.vend.vend_prefix_id) : null : null,
     customer: {
       ...JSON.parse(JSON.stringify(props.vend.customer)),
       code: props.vend.customer && props.vend.customer.person_id ? props.vend.customer.virtual_customer_code + ' (' + props.vend.customer.virtual_customer_prefix + ')' : (props.vend.customer ? props.vend.customer.code : null),
@@ -833,12 +916,15 @@ function saveVend(vendID) {
   form.value
     .transform((data) => ({
       ...data,
+      cashless_terminal_id: data.cashless_terminal_id ? data.cashless_terminal_id.id : null,
       begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
+      simcard_id: data.simcard_id ? data.simcard_id.id : null,
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
       // is_testing: data.is_testing.id,
       // is_active: data.is_active.id,
       operator_id: data.operator_id ? data.operator_id.id : null,
       status: data.status.id,
+      vend_prefix_id: data.vend_prefix_id ? data.vend_prefix_id.id : null,
     }))
     .post('/vends/' + vendID + '/update', {
     onSuccess: () => {

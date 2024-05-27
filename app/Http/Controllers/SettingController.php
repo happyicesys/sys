@@ -2,21 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\CashlessTerminalResource;
 use App\Http\Resources\CountryResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\SimcardResource;
+use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendDBResource;
+use App\Models\CashlessTerminal;
 use App\Models\Category;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CategoryGroup;
 use App\Models\LocationType;
 use App\Models\Operator;
+use App\Models\Simcard;
 use App\Models\Vend;
+use App\Models\VendPrefix;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
 use DB;
@@ -61,8 +67,11 @@ class SettingController extends Controller
 
         $vends = Vend::query()
             ->with([
+                'cashlessTerminal',
                 'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix,operator_id',
                 'customer.operator:id,code,name',
+                'simcard',
+                'vendPrefix'
             ])
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->filterIndex($request)
@@ -71,6 +80,7 @@ class SettingController extends Controller
                 'operators.name AS operator_name',
                 'vends.id',
                 'vends.begin_date',
+                'vends.cashless_terminal_id',
                 'vends.code',
                 'vends.customer_id',
                 'vends.apk_ver_json',
@@ -83,7 +93,9 @@ class SettingController extends Controller
                 'vends.termination_date',
                 'vends.firmware_ver',
                 'vends.last_updated_at',
-                'vends.private_key'
+                'vends.private_key',
+                'vends.simcard_id',
+                'vends.vend_prefix_id',
             );
         $vends = $this->filterOperator($vends);
 
@@ -92,6 +104,9 @@ class SettingController extends Controller
 
             // dd($request->all());
         return Inertia::render('Setting/Index', [
+            'cashlessTerminalOptions' => CashlessTerminalResource::collection(
+                CashlessTerminal::orderBy('code')->get()
+            ),
             'categories' => CategoryResource::collection(
                 Category::where('classname', $className)->orderBy('name')->get()
             ),
@@ -105,8 +120,14 @@ class SettingController extends Controller
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
+            'simcardOptions' => SimcardResource::collection(
+                Simcard::orderBy('code')->get()
+            ),
             'vends' => VendResource::collection(
                 $vends
+            ),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
             ),
         ]);
     }
@@ -126,11 +147,14 @@ class SettingController extends Controller
     {
         $vend = Vend::withoutGlobalScopes()
         ->with([
+            'cashlessTerminal',
             'customer',
             'customer.deliveryAddress',
             'customer.contact',
             'logs',
-            'operator'
+            'operator',
+            'simcard',
+            'vendPrefix',
         ])
         ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
         ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
@@ -149,9 +173,12 @@ class SettingController extends Controller
             DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (",customers.virtual_customer_prefix,")") ELSE customers.code END AS customer_code'),
             'customers.name AS customer_name',
             'customers.person_id',
+            'vends.cashless_terminal_id',
             'vends.begin_date',
+            'vends.simcard_id',
             'vends.termination_date',
             'vends.operator_id',
+            'vends.vend_prefix_id',
             DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
             DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
         )
@@ -174,6 +201,9 @@ class SettingController extends Controller
             ->get();
 
         return Inertia::render('Setting/Edit', [
+            'cashlessTerminalOptions' => CashlessTerminalResource::collection(
+                CashlessTerminal::orderBy('code')->get()
+            ),
             'countries' => CountryResource::collection(
                 Country::query()
                     ->orderBy('sequence')
@@ -183,10 +213,16 @@ class SettingController extends Controller
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
+            'simcardOptions' => SimcardResource::collection(
+                Simcard::orderBy('code')->get()
+            ),
             'adminCustomerOptions' => CustomerResource::collection(
                 $customers
             ),
             'vend' => $vend,
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
             'type' => 'update',
         ]);
     }

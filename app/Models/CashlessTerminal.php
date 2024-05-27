@@ -30,4 +30,9 @@ class CashlessTerminal extends Model
     {
         return $this->belongsTo(Operator::class);
     }
+
+    public function vends()
+    {
+        return $this->hasMany(Vend::class);
+    }
 }

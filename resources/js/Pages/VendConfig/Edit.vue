@@ -53,6 +53,99 @@
               </UploadFileInput>
             </div>
 
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Machine Prefix Binding </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sm:col-span-5" v-if="form.id">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Machine Prefix
+              </label>
+              <MultiSelect
+                v-model="form.vend_prefix_id"
+                :options="vendPrefixOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.vend_prefix_id">
+                {{ form.errors.vend_prefix_id }}
+              </div>
+            </div>
+
+            <div class="sm:col-span-1" v-if="form.id">
+              <Button
+              type="button"
+              @click="bindVendPrefix()"
+              class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
+              :class="[!form.vend_prefix_id ? 'opacity-50 cursor-not-allowed' : '']"
+              :disabled="!form.vend_prefix_id"
+              >
+                <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                <span>
+                  Add
+                </span>
+              </Button>
+            </div>
+
+            <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+            <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+              <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                  <table class="min-w-full divide-y divide-gray-300">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          #
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Machine Prefix
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                      <tr v-for="(vendPrefix, vendPrefixIndex) in vendPrefixes" :key="vendPrefix.id" :class="vendPrefixIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                          {{ vendPrefixIndex + 1 }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          {{ vendPrefix.name }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 text-sm text-center">
+                          <Button
+                            class="bg-red-400 hover:bg-red-500 text-white"
+                            @click="unbindVendPrefix(vendPrefix)"
+                          >
+                            <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                          </Button>
+                        </td>
+                      </tr>
+                      <tr v-if="!vendPrefixes.length">
+                        <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
+                          No Records Found
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
 
             <div class="sm:col-span-6 mt-5 ">
               <div class="flex justify-end">
@@ -128,6 +221,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 const props = defineProps({
   products: Object,
   vendConfig: Object,
+  vendPrefixOptions: Object,
 })
 
 const booleanStrictOptions = ref([
@@ -141,11 +235,32 @@ const form = ref(
   useForm(getDefaultForm())
 )
 
+const vendPrefixes = ref([])
+const vendPrefixOptions = ref([])
+
 onMounted(() => {
   form.value = props.vendConfig ? useForm({
     ...props.vendConfig.data,
   }) : useForm(getDefaultForm())
+  vendPrefixOptions.value = props.vendPrefixOptions.data
+  vendPrefixes.value = JSON.parse(JSON.stringify(props.vendConfig.data.vendPrefixes))
 })
+
+function bindVendPrefix() {
+  if(vendPrefixes.value.indexOf(form.value.vend_prefix_id) < 0) {
+    vendPrefixes.value.push(form.value.vend_prefix_id)
+    vendPrefixes.value.sort((a, b) => a.name - b.name)
+    vendPrefixOptions.value.splice(vendPrefixOptions.value.indexOf(form.value.vend_prefix_id), 1)
+    vendPrefixOptions.value.sort((a, b) => a.name - b.name)
+    form.value.vend_prefix_id = ''
+  }
+}
+
+function unbindVendPrefix(vendPrefix) {
+  vendPrefixes.value.splice(vendPrefixes.value.indexOf(vendPrefix), 1)
+  vendPrefixOptions.value.push(vendPrefix)
+  vendPrefixOptions.value.sort((a, b) => a.name - b.name)
+}
 
 function getDefaultForm() {
   return {
@@ -153,6 +268,7 @@ function getDefaultForm() {
     name: '',
     // is_active: '',
     desc: '',
+    vend_prefix_id: '',
     // channel_code: '',
     // product_id: '',
   }
@@ -163,6 +279,7 @@ function submit() {
     form.value
       .transform((data) => ({
         ...data,
+        vendPrefixes: vendPrefixes.value,
       }))
       .post('/vend-configs/' + form.value.id + '/update', {
       onSuccess: () => {

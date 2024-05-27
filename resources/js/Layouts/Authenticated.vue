@@ -71,8 +71,8 @@ const navigation = [
             {name: 'Machines', href: '/settings'},
             {name: 'Machine Prefix', href: '/vend-prefixes'},
             {name: 'Setting Charts', href: '/vend-configs'},
-            {name: 'Cashless Terminals', href: '/cashless-terminals'},
             {name: 'Simcard', href: '/simcards'},
+            {name: 'Cashless Terminals', href: '/cashless-terminals'},
         ]
     },
     {

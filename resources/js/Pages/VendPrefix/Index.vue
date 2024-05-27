@@ -91,6 +91,9 @@
                       Desc
                     </TableHead>
                     <TableHead>
+                      Setting Chart
+                    </TableHead>
+                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -104,6 +107,9 @@
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-left">
                         {{ vendPrefix.desc }}
+                      </TableData>
+                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
+                        {{ vendPrefix.vendConfig ? vendPrefix.vendConfig.name : '' }}
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
@@ -143,6 +149,7 @@
   <Form
       v-if="showModal"
       :operatorOptions="operatorOptions"
+      :vendConfigOptions="vendConfigOptions"
       :vendPrefix="vendPrefix"
       :type="type"
       :showModal="showModal"
@@ -168,6 +175,7 @@ import { Head, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   operatorOptions: [Array, Object],
+  vendConfigOptions: [Array, Object],
   vendPrefixes: Object,
 })
 

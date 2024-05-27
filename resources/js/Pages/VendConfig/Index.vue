@@ -5,7 +5,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Menu Config
+        Setting Charts
       </h2>
     </template>
 
@@ -117,13 +117,22 @@
                               </span>
                             </Button>
                           </Link>
+
                           <Button
-                            type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
+                            type="button"
+                            class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1"
+                            :class="[vendConfig.vendPrefixes && vendConfig.vendPrefixes.length > 0 ? 'opacity-50 cursor-not-allowed' : '']"
                             @click="onDeleteClicked(vendConfig)"
+                            :disabled="vendConfig.vendPrefixes && vendConfig.vendPrefixes.length > 0"
                           >
-                            <TrashIcon class="w-4 h-4"></TrashIcon>
-                            <span>
-                                Delete
+                            <span class="flex space-x-1 items-center">
+                              <TrashIcon class="w-4 h-4"></TrashIcon>
+                              <span>
+                                  Delete
+                              </span>
+                            </span>
+                            <span v-if="vendConfig.vendPrefixes && vendConfig.vendPrefixes.length > 0">
+                              (Binded)
                             </span>
                           </Button>
                         </div>

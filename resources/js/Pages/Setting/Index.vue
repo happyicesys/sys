@@ -169,6 +169,54 @@
             >
             </MultiSelect>
           </div>
+          <div v-if="permissions.includes('admin-access vends')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Cashless Terminal
+            </label>
+            <MultiSelect
+                v-model="filters.cashless_terminal_id"
+                :options="cashlessTerminalOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div v-if="permissions.includes('admin-access vends')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Simcard
+            </label>
+            <MultiSelect
+                v-model="filters.simcard_id"
+                :options="simcardOptionsOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div v-if="permissions.includes('admin-access vends')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Machine Prefix
+            </label>
+            <MultiSelect
+                v-model="filters.vend_prefix_id"
+                :options="vendPrefixOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -239,6 +287,15 @@
                     </TableHeadSort>
                     <TableHead>
                       Status
+                    </TableHead>
+                    <TableHead>
+                      Machine Prefix
+                    </TableHead>
+                    <TableHead>
+                      Simcard
+                    </TableHead>
+                    <TableHead>
+                      Cashless Terminal
                     </TableHead>
                     <TableHead>
                       Deploy Date
@@ -312,6 +369,15 @@
                         </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        {{ vend.vendPrefix ? vend.vendPrefix.name : '' }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        {{ vend.simcard ? vend.simcard.code : '' }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        {{ vend.cashlessTerminal ? vend.cashlessTerminal.code : '' }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.begin_date_short }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -380,15 +446,19 @@ import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
+    cashlessTerminalOptions: Object,
     categories: Object,
     categoryGroups: Object,
     cmsEndpoint: String,
     locationTypeOptions: Object,
     operatorOptions: Object,
+    simcardOptions: Object,
     vends: Object,
+    vendPrefixOptions: Object,
   })
 
 const filters = ref({
+    cashless_terminal_id: '',
     codes: '',
     customer_code: '',
     customer_name: '',
@@ -396,9 +466,11 @@ const filters = ref({
     categoryGroups: [],
     locationType: '',
     operator: '',
+    simcard_id: '',
     // is_active: '',
     is_binded_customer: '',
     // is_testing: '',
+    vend_prefix_id: '',
     sortKey: '',
     sortBy: true,
     status: '',
@@ -409,6 +481,7 @@ const filters = ref({
   const booleanOptions = ref([])
   const categoryOptions = ref([])
   const categoryGroupOptions = ref([])
+  const cashlessTerminalOptions = ref([])
   const initBinded = usePage().props.initBinded
   const loading = ref(false)
   const locationTypeOptions = ref([])
@@ -418,8 +491,10 @@ const filters = ref({
   const vend = ref()
   const operatorCountry = usePage().props.auth.operatorCountry
   const operatorRole = usePage().props.auth.operatorRole
+  const simcardOptions = ref([])
   const permissions = usePage().props.auth.permissions
   const roles = usePage().props.auth.roles
+  const vendPrefixOptions = ref([])
   const now = ref(moment().format('HH:mm:ss'))
   const statusOptions = ref([
     {id: 'all', value: 'All'},
@@ -437,6 +512,10 @@ onMounted(() => {
     ]
     filters.value.numberPerPage = numberPerPageOptions.value[0]
 
+    cashlessTerminalOptions.value = [
+        {id: 'all', value: 'All'},
+        ...props.cashlessTerminalOptions.data.map((data) => {return {id: data.id, value: data.code}})
+    ]
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
     booleanOptions.value = [
@@ -452,6 +531,14 @@ onMounted(() => {
         {id: 'all', full_name: 'All'},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
+    simcardOptions.value = [
+        {id: 'all', value: 'All'},
+        ...props.simcardOptions.data.map((data) => {return {id: data.id, value: data.code}})
+    ]
+    vendPrefixOptions.value = [
+        {id: 'all', value: 'All'},
+        ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    ]
     filters.value.locationType = locationTypeOptions.value[0]
     filters.value.operator = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
 
@@ -459,6 +546,9 @@ onMounted(() => {
     filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]
     // filters.value.is_testing = booleanOptions.value[2]
     filters.value.status = statusOptions.value[2]
+    filters.value.cashless_terminal_id = cashlessTerminalOptions.value[0]
+    filters.value.simcard_id = simcardOptions.value[0]
+    filters.value.vend_prefix_id = vendPrefixOptions.value[0]
 })
 
 function onCreateClicked() {
@@ -480,12 +570,15 @@ function onSearchFilterUpdated() {
       ...filters.value,
       categories: filters.value.categories.map((category) => { return category.id }),
       categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
+      cashless_terminal_id: filters.value.cashless_terminal_id.id,
       location_type_id: filters.value.locationType.id,
       operator_id: filters.value.operator.id,
       // is_active: filters.value.is_active.id,
       is_binded_customer: filters.value.is_binded_customer.id,
       // is_testing: filters.value.is_testing.id,
+      simcard_id: filters.value.simcard_id.id,
       status: filters.value.status.id,
+      vend_prefix_id: filters.value.vend_prefix_id.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

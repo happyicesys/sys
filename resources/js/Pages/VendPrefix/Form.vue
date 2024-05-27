@@ -49,6 +49,25 @@
                 {{ form.errors.operator_id }}
               </div>
             </div>
+            <div class="sm:col-span-6">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Setting Chart
+              </label>
+              <MultiSelect
+                v-model="form.vend_config_id"
+                :options="vendConfigOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="top"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.vend_config_id">
+                {{ form.errors.vend_config_id }}
+              </div>
+            </div>
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">
@@ -90,6 +109,7 @@ const authOperator = usePage().props.auth.operator
 
 const props = defineProps({
   operatorOptions: [Array, Object],
+  vendConfigOptions: [Array, Object],
   vendPrefix: Object,
   type: String,
   showModal: Boolean,
@@ -101,13 +121,21 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const operatorOptions = ref([])
+const vendConfigOptions = ref([])
 
 onMounted(() => {
-  form.value = props.vendPrefix ? useForm(props.vendPrefix) : useForm(getDefaultForm())
   operatorOptions.value = [
     ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
-  form.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+  vendConfigOptions.value = [
+    ...props.vendConfigOptions.data.map((data) => {return {id: data.id, name: data.name}})
+  ]
+  form.value = props.vendPrefix ? useForm(
+  {
+    ...props.vendPrefix,
+    operator_id: form.value.operator_id ? operatorOptions.value.find(operator => operator.id === props.vendPrefix.operator_id) : operatorOptions.value.find(operator => operator.id === authOperator.id),
+    vend_config_id: vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vendPrefix.vend_config_id),
+  }) : useForm(getDefaultForm())
 })
 
 function getDefaultForm() {
@@ -115,6 +143,7 @@ function getDefaultForm() {
     name: '',
     desc: '',
     operator_id: '',
+    vend_config_id: '',
   }
 }
 
@@ -127,6 +156,7 @@ function submit() {
       return {
         ...data,
         operator_id: data.operator_id.id,
+        vend_config_id: data.vend_config_id.id,
       }
     })
     .post('/vend-prefixes/create', {
@@ -144,6 +174,7 @@ function submit() {
         return {
           ...data,
           operator_id: data.operator_id.id,
+          vend_config_id: data.vend_config_id.id,
         }
       })
       .post('/vend-prefixes/' + form.value.id + '/update', {

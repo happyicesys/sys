@@ -61,6 +61,7 @@ class Vend extends Model
         'amount_average_day',
         'apk_ver_json',
         'begin_date',
+        'cashless_terminal_id',
         'code',
         'customer_id',
         'customer_movement_history_json',
@@ -89,6 +90,7 @@ class Vend extends Model
         'parameter_json',
         'private_key',
         'product_mapping_id',
+        'simcard_id',
         'statistics1_json',
         'termination_date',
         'keylock_number',
@@ -97,6 +99,7 @@ class Vend extends Model
         'vend_channel_totals_json',
         'vend_criteria_score_json',
         'vend_criteria_weightage_json',
+        'vend_prefix_id',
         'vend_temp_alert_json',
         'vend_transaction_totals_json',
         'vend_type_id',
@@ -107,6 +110,11 @@ class Vend extends Model
     public function category()
     {
         return $this->morphOne(Category::class, 'modelable');
+    }
+
+    public function cashlessTerminal()
+    {
+        return $this->belongsTo(CashlessTerminal::class);
     }
 
     public function customer()
@@ -130,6 +138,11 @@ class Vend extends Model
         return $this->hasOne(VendBinding::class)->where('is_active', true)->latest('begin_date');
     }
 
+    public function simcard()
+    {
+        return $this->belongsTo(Simcard::class);
+    }
+
     public function users()
     {
         return $this->belongsToMany(User::class);
@@ -151,6 +164,11 @@ class Vend extends Model
     // {
     //     return $this->belongsToMany(VendCriteria::class)->using(VendCriteriaBinding::class);
     // }
+
+    public function vendPrefix()
+    {
+        return $this->belongsTo(VendPrefix::class);
+    }
 
     public function vendSnapshots()
     {
@@ -310,6 +328,11 @@ class Vend extends Model
                 $query->whereRaw('1 = 0');
             }
         })
+        ->when($request->cashless_terminal_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.cashless_terminal_id', $search);
+            }
+        })
         ->when($request->account_manager_name, function($query, $search) {
         $query->where('customers.account_manager_json->name', 'LIKE', "{$search}%");
         })
@@ -409,6 +432,11 @@ class Vend extends Model
                 $query->where('parameter_json->door', '=', $search);
             }
         })
+        ->when($request->simcard_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.simcard_id', $search);
+            }
+        })
         ->when($request->tempHigherThan, function($query, $search) {
             if(is_numeric($search)) {
                 $query->where('temp', '>=', $search * 10);
@@ -498,6 +526,11 @@ class Vend extends Model
         ->when($request->firmware_ver, function($query, $search) {
             $search = hexdec($search);
             $query->where('parameter_json->Ver', 'LIKE', "{$search}%");
+        })
+        ->when($request->vend_prefix_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.vend_prefix_id', $search);
+            }
         })
         ->when($request->vendRecordsThirtyDaysAmountAverageLessThan, function($query, $search) {
             $query->where('virtual_vend_records_thirty_days_amount_average', '<=', $search*100);

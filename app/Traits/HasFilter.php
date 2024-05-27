@@ -168,13 +168,18 @@ trait HasFilter {
         ->when($request->account_manager_name, function($query, $search) {
             $query->where('customers.account_manager_json->name', 'LIKE', "{$search}%");
         })
+        ->when($request->cashless_terminal_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.cashless_terminal_id', $search);
+            }
+        })
         ->when($request->codes, function($query, $search) {
-        if(strpos($search, ',') !== false) {
-            $search = explode(',', $search);
-            $query->whereIn('vends.code', $search);
-        }else {
-            $query->where('vends.code', 'LIKE', "{$search}%");
-        }
+            if(strpos($search, ',') !== false) {
+                $search = explode(',', $search);
+                $query->whereIn('vends.code', $search);
+            }else {
+                $query->where('vends.code', 'LIKE', "{$search}%");
+            }
         })
         ->when($request->channel_codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
@@ -226,6 +231,11 @@ trait HasFilter {
         ->when($request->fanSpeedLowerThan, function($query, $search) {
             if(is_numeric($search)) {
                 $query->where('parameter_json->fan', '<=', $search)->where('parameter_json->fan', '>', 0);
+            }
+        })
+        ->when($request->simcard_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.simcard_id', $search);
             }
         })
         ->when($request->status, function($query, $search) {
@@ -363,6 +373,11 @@ trait HasFilter {
         })
         ->when($request->vendRecordsThirtyDaysAmountAverageLessThan, function($query, $search) {
             $query->where('virtual_vend_records_thirty_days_amount_average', '<=', $search*100);
+        })
+        ->when($request->vend_prefix_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.vend_prefix_id', $search);
+            }
         })
         ->when($request->sortKey, function($query, $search) use ($request) {
             if(strpos($search, '->')) {

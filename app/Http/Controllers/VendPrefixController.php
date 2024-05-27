@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\TelcoResource;
+use App\Http\Resources\VendConfigResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Models\Operator;
+use App\Models\VendConfig;
 use App\Models\VendPrefix;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -23,8 +25,17 @@ class VendPrefixController extends Controller
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
+            'vendConfigOptions' => VendConfigResource::collection(
+                VendConfig::query()
+                    ->orderBy('name')
+                    ->get()
+            ),
             'vendPrefixes' => VendPrefixResource::collection(
                 VendPrefix::query()
+                    ->with([
+                        'operator',
+                        'vendConfig',
+                    ])
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
@@ -50,7 +61,7 @@ class VendPrefixController extends Controller
 
     public function update(Request $request, $id)
     {
-
+        // dd($request->all());
         $request->validate([
             'name' => 'required',
         ]);

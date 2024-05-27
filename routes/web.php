@@ -428,6 +428,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/{id}/edit', [VendConfigController::class, 'edit'])->name('vend-configs.edit');
         Route::post('/{id}/update', [VendConfigController::class, 'update']);
         Route::delete('/{id}', [VendConfigController::class, 'delete']);
+        Route::post('/{id}/upload-attachments', [VendConfigController::class, 'uploadAttachment']);
     });
 
     Route::prefix('vend-prefixes')->group(function() {

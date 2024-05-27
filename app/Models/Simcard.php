@@ -37,9 +37,9 @@ class Simcard extends Model
         return $this->belongsTo(Telco::class);
     }
 
-    public function vend()
+    public function vends()
     {
-        return $this->hasOne(Vend::class);
+        return $this->hasMany(Vend::class);
     }
 
     public function updatedBy()

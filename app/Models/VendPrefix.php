@@ -33,7 +33,7 @@ class VendPrefix extends Model
         return $this->belongsToMany(ProductMapping::class, 'product_mapping_vend_prefix', 'vend_prefix_id', 'product_mapping_id');
     }
 
-    public function vend()
+    public function vends()
     {
         return $this->hasMany(Vend::class);
     }
