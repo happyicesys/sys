@@ -667,7 +667,6 @@ class VendController extends Controller
                 $thumbnail = file_get_contents($vendChannel->product->thumbnail->full_url);
                 return response($thumbnail, 200)
                     ->header('Content-Type', 'image/*');
-                // return $vendChannel->product->thumbnail->full_url;
             }
         }
 
@@ -1010,6 +1009,43 @@ class VendController extends Controller
         $vend->save();
 
         return redirect()->route('settings');
+    }
+
+    public function pickLists(Request $request)
+    {
+        $dataArr = [];
+        $input = collect($request->all());
+        $items = VendChannel::query()
+            ->with([
+                'product:id,code,name,desc',
+                'product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
+            ])
+            ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
+            ->where('vend_channels.is_active', true)
+            ->whereIn('vend_id', $input->pluck('vend_id')->toArray())
+            ->select(
+                'product_id',
+                DB::raw('CAST(SUM(capacity - qty) AS UNSIGNED) as topup_qty'),
+            )
+            ->groupBy('product_id')
+            ->orderBy('products.code')
+            ->having('topup_qty', '>', 0)
+            ->get();
+
+        $dataArr = [
+            'items' => $items->toArray(),
+            'vends' => $input->map(function ($item) {
+                return [
+                    'code' => $item['code'] ?? null,
+                    'customer_id' => $item['customer_id'] ?? null,
+                    'customer_code' => $item['customer_code'] ?? null,
+                    'customer_name' => $item['customer_name'] ?? null,
+                    'person_id' => $item['person_id'] ?? null,
+                ];
+            }),
+        ];
+
+        return $dataArr;
     }
 
     public function update(Request $request, $vendID)

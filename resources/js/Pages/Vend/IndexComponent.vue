@@ -324,44 +324,15 @@
                       </span>
                   </Button>
                   <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
-                  @click="onExportChannelExcelClicked()"
+                  @click="onIsShowOperationDivButtonClicked()"
                   v-if="permissions.includes('export excel')">
                       <div class="flex space-x-1">
                           <div>
-                              <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>
-                              <svg v-if="loading" aria-hidden="true" class="mr-2 w-4 h-4 text-gray-200 animate-spin dark:text-gray-400 fill-red-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
-                                  <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
-                              </svg>
+                              <ChevronDoubleDownIcon class="h-4 w-4" aria-hidden="true" v-if="!isShowOperationDiv"/>
+                            <ChevronDoubleUpIcon class="h-4 w-4" aria-hidden="true" v-if="isShowOperationDiv"/>
                           </div>
                           <span>
-                              Export Channels Excel
-                          </span>
-                      </div>
-                  </Button>
-                  <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                  @click="onCreateClicked()"
-                  v-if="permissions.includes('admin-access vends')"
-                  >
-                      <PlusCircleIcon class="h-4 w-4" aria-hidden="true"/>
-                      <span>
-                          New Machine
-                      </span>
-                  </Button> -->
-                  <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-blue-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                  @click="onSyncNextDeliveryDate()"
-                  v-if="permissions.includes('admin-access vends')"
-                  >
-                      <div class="flex space-x-1">
-                          <div>
-                              <ArrowPathIcon  v-if="!loadingSyncNextDeliveryDate" class="h-4 w-4" aria-hidden="true"/>
-                              <svg v-if="loadingSyncNextDeliveryDate" aria-hidden="true" class="mr-2 w-4 h-4 text-gray-200 animate-spin dark:text-gray-400 fill-red-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                  <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
-                                  <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
-                              </svg>
-                          </div>
-                          <span>
-                              Sync Next Delivery Date
+                              Operations
                           </span>
                       </div>
                   </Button>
@@ -394,6 +365,66 @@
               </MultiSelect>
           </div>
       </div>
+      <div v-if="isShowOperationDiv">
+        <!-- <hr class="mt-2"> -->
+        <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 space-x-1 mt-5">
+            <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
+            @click="onExportChannelExcelClicked()"
+            v-if="permissions.includes('export excel')">
+                <div class="flex space-x-1">
+                    <div>
+                        <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>
+                        <svg v-if="loading" aria-hidden="true" class="mr-2 w-4 h-4 text-gray-200 animate-spin dark:text-gray-400 fill-red-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+                            <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
+                        </svg>
+                    </div>
+                    <span>
+                        Export Channels Excel
+                    </span>
+                </div>
+            </Button>
+            <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            @click="onCreateClicked()"
+            v-if="permissions.includes('admin-access vends')"
+            >
+                <PlusCircleIcon class="h-4 w-4" aria-hidden="true"/>
+                <span>
+                    New Machine
+                </span>
+            </Button> -->
+            <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-blue-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            @click="onSyncNextDeliveryDate()"
+            v-if="permissions.includes('admin-access vends')"
+            >
+                <div class="flex space-x-1">
+                    <div>
+                        <ArrowPathIcon  v-if="!loadingSyncNextDeliveryDate" class="h-4 w-4" aria-hidden="true"/>
+                        <svg v-if="loadingSyncNextDeliveryDate" aria-hidden="true" class="mr-2 w-4 h-4 text-gray-200 animate-spin dark:text-gray-400 fill-red-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+                            <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
+                        </svg>
+                    </div>
+                    <span>
+                        Sync Next Delivery Date
+                    </span>
+                </div>
+            </Button>
+            <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            @click="onGeneratePickListClicked()"
+            >
+                <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
+                <span class="flex flex-col space-y-1">
+                    <span>
+                        Generate Pick List
+                    </span>
+                    <span class="text-xs leading-3">
+                        Please tick the list below
+                    </span>
+                </span>
+            </Button>
+        </div>
+      </div>
       <dl class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block" :class="[showAllFilters ? 'block' : 'hidden']">
               <dt class="truncate text-sm font-medium text-gray-500">Total Sales (Last 30 days)</dt>
@@ -422,6 +453,15 @@
           <table class="min-w-full border-separate" style="border-spacing: 0">
               <thead class="bg-gray-100">
                   <tr class="divide-x divide-gray-200">
+                    <TableHead v-if="isShowOperationDiv">
+                        <input
+                            id="isSelectedAll"
+                            type="checkbox"
+                            v-model="isSelectedAll"
+                            @change="toggleSelectAll"
+                            class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                        >
+                    </TableHead>
                     <TableHead>
                         #
                     </TableHead>
@@ -525,6 +565,9 @@
               <tbody class="bg-white">
                   <tr v-for="(vend, vendIndex) in vends.data" :key="vendIndex"
                       class="divide-x divide-gray-200">
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        <input type="checkbox" v-model="vend.is_selected" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" v-if="isShowOperationDiv">
+                      </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           {{ vends.meta.from + vendIndex }}
                       </TableData>
@@ -995,6 +1038,14 @@
       @modalClose="onChannelOverviewClosed"
   >
   </ChannelOverview>
+  <Create
+      v-if="showCreateModal"
+      :showModal="showCreateModal"
+      :permissions="permissions"
+      :type="type"
+      @modalClose="onCreateModalClose"
+  >
+  </Create>
   <Form
       v-if="showEditModal"
       :vend="vend"
@@ -1004,14 +1055,13 @@
       @modalClose="onModalClose"
   >
   </Form>
-  <Create
-      v-if="showCreateModal"
-      :showModal="showCreateModal"
-      :permissions="permissions"
-      :type="type"
-      @modalClose="onCreateModalClose"
+  <PickList
+      v-if="showPickListModal"
+      :pickLists="pickLists"
+      :showModal="showPickListModal"
+      @modalClose="onPickListModalClose"
   >
-  </Create>
+  </PickList>
 </template>
 
 <style setup>
@@ -1054,9 +1104,10 @@ import ChannelOverview from '@/Pages/Vend/ChannelOverview.vue';
 import Create from '@/Pages/Vend/Create.vue';
 import Form from '@/Pages/Vend/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
+import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon} from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon, ClipboardDocumentCheckIcon} from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -1130,15 +1181,19 @@ const deviceTypeOptions = ref([])
 const doorOptions = ref([])
 const enableOptions = ref([])
 const isActiveFactoryOptions = ref([])
+const isShowOperationDiv = ref(false)
+const isSelectedAll = ref(false)
 const loading = ref(false)
 const loadingSyncNextDeliveryDate = ref(false)
 const locationTypeOptions = ref([])
 const numberPerPageOptions = ref([])
 const operatorOptions = ref([])
+const pickLists = ref([])
 const showAllFilters = ref(false)
 const showChannelOverviewModal = ref(false)
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
+const showPickListModal = ref(false)
 const statusOptions = ref([])
 const type = ref('')
 const vend = ref()
@@ -1283,8 +1338,27 @@ function getVendsField() {
       showEditModal.value = true
   }
 
+  function onGeneratePickListClicked() {
+    if(vends.value.data.some(vend => vend.is_selected == true)) {
+        axios({
+            method: 'POST',
+            url: '/vends/pick-lists',
+            data: vends.value.data.filter((vend) => { return vend.is_selected == true }),
+        }).then(response => {
+            pickLists.value = response.data
+        }).catch(error => {
+        }).finally(() => {
+            showPickListModal.value = true
+        })
+    }
+  }
+
   function onModalClose() {
       showEditModal.value = false
+  }
+
+  function onPickListModalClose() {
+      showPickListModal.value = false
   }
 
   function onShowAllFiltersClicked() {
@@ -1341,6 +1415,10 @@ function getVendsField() {
       // router.get('/vends/' + vendId + '/temp/' + type)
   }
 
+  function onIsShowOperationDivButtonClicked() {
+        isShowOperationDiv.value = !isShowOperationDiv.value
+  }
+
   function resetFilters() {
       router.get(baseUrl.value)
   }
@@ -1352,6 +1430,18 @@ function sortTable(sortKey, inverse = false) {
   }
   filters.value.sortKey = sortKey
   onSearchFilterUpdated()
+}
+
+function toggleSelectAll() {
+    if(isSelectedAll.value) {
+        vends.value.data.forEach((vend) => {
+            vend.is_selected = true
+        })
+    } else {
+        vends.value.data.forEach((vend) => {
+            vend.is_selected = false
+        })
+    }
 }
 
 function onExportChannelExcelClicked() {
