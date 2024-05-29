@@ -565,8 +565,8 @@
               <tbody class="bg-white">
                   <tr v-for="(vend, vendIndex) in vends.data" :key="vendIndex"
                       class="divide-x divide-gray-200">
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        <input type="checkbox" v-model="vend.is_selected" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" v-if="isShowOperationDiv">
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="isShowOperationDiv">
+                        <input type="checkbox" v-model="vend.is_selected" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           {{ vends.meta.from + vendIndex }}
