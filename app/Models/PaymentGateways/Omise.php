@@ -55,12 +55,16 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
 
     public function createPayment($params = [])
     {
-        $sourceId = $this->createSource($params);
-        $response = $this->createCharge($params, $sourceId['id']);
-        $this->referenceId = isset($response['id']) ? $response['id'] : null;
-        $this->orderId = isset($response['metadata']) && isset($response['metadata']['order_id']) ? $response['metadata']['order_id'] : null;
+        $sourceResponse = $this->createSource($params);
+        $sourceResponseObj = $sourceResponse->json();
+        $chargeResponse = $this->createCharge($params, $sourceResponseObj['id']);
+        $chargeResponseObj = $chargeResponse->json();
+        // $sourceId = $this->createSource($params);
+        // $response = $this->createCharge($params, $sourceId['id']);
+        $this->referenceId = isset($chargeResponseObj['id']) ? $chargeResponseObj['id'] : null;
+        $this->orderId = isset($chargeResponseObj['metadata']) && isset($chargeResponseObj['metadata']['order_id']) ? $chargeResponseObj['metadata']['order_id'] : null;
 
-        return $response;
+        return $chargeResponse;
     }
 
     public function createSource($params = [])
@@ -72,11 +76,10 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
                 'amount' => (int)($params['amount'] * self::AMOUNT_MULTIPLIER),
                 'currency' => $params['currency'],
             ]);
-        // dd($response->json());
-        if ($response->successful()) {
-            return $response->json();
-        }
-        throw new \Exception('Source creation failed: ' . $response->body());
+        // if ($response->successful()) {
+            return $response;
+        // }
+        // throw new \Exception('Source creation failed: ' . $response->body());
     }
 
 
@@ -102,10 +105,10 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
     // dd($client->submit($form));
     // dd($crawler->filter('form[name="paymentForm"]')->form());
 
-        if($response->successful()) {
-            return $response->json();
-        }
-        throw new \Exception('Charge creation failed: ' . $response->body());
+        // if($response->successful()) {
+            return $response;
+        // }
+        // throw new \Exception('Charge creation failed: ' . $response->body());
     }
 
     public function getOperatorPaymentGateway()
@@ -131,10 +134,10 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
                 'metadata' => $params['metadata'],
             ]);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
-        throw new \Exception('Refund creation failed: ' . $response->body());
+        // if ($response->successful()) {
+            return $response;
+        // }
+        // throw new \Exception('Refund creation failed: ' . $response->body());
     }
 
     public function setOperatorPaymentGateway($operatorPaymentGateway)

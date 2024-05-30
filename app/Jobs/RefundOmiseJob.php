@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\PaymentGatewayLog;
 use App\Models\PaymentGateways\Omise;
+use App\Services\ErrorService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -15,12 +16,14 @@ class RefundOmiseJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    protected $errorService;
     protected $orderId;
     /**
      * Create a new job instance.
      */
     public function __construct($orderId)
     {
+        $this->errorService = new ErrorService();
         $this->orderId = $orderId;
     }
 
@@ -46,10 +49,14 @@ class RefundOmiseJob implements ShouldQueue
             'amount' => $paymentGatewayLog->amount,
         ], $paymentGatewayLog->response['data']['id']); // charge id
 
+        if($response->failed()) {
+            $this->errorService->throwErrorWithMqtt('Refund failed' . $response->body(), $paymentGatewayLog->vend);
+        }
+
         $paymentGatewayLog->update([
             'status' => PaymentGatewayLog::STATUS_REFUND,
-            'response' => $response,
-            'history_json' => $paymentGatewayLog->history_json ? array_merge($paymentGatewayLog->history_json, $response) : $response,
+            'response' => $response->json(),
+            'history_json' => $paymentGatewayLog->history_json ? array_merge($paymentGatewayLog->history_json, $response->json()) : $response->json(),
         ]);
     }
 }

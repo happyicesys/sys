@@ -7,6 +7,7 @@ use App\Models\PaymentGatewayLog;
 use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\Vend;
+use App\Services\ErrorService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -20,6 +21,13 @@ use Intervention\Image\Laravel\Facades\Image;
 
 class PaymentGatewayService
 {
+    protected $errorService;
+
+    public function __construct()
+    {
+        $this->errorService = new ErrorService();
+    }
+
     public function createPaymentQrText(Vend $vend, $params): array
     {
         $qrCodeText = '';
@@ -129,7 +137,7 @@ class PaymentGatewayService
             }
 
             if (!$vendChannelCodesArr) {
-                throw new \Exception('Vend channel(s) is not detect upon request QR code');
+                $this->errorService->throwErrorWithMqtt('Vend channel(s) is not detect upon request QR code', $vend);
             }
 
             $vendChannelsCollections = collect();
@@ -190,10 +198,10 @@ class PaymentGatewayService
         $paymentGateway = $this->getOperatorPaymentGateway($vend);
         $operatorPaymentGateway = $paymentGateway->getOperatorPaymentGateway();
         if(!$params['amount']) {
-            throw new \Exception('Amount is not set');
+            $this->errorService->throwErrorWithMqtt('Amount is not set', $vend);
         }
         if(!$params['metadata']) {
-            throw new \Exception('OrderID is not set within metadata');
+            $this->errorService->throwErrorWithMqtt('OrderID is not set within metadata', $vend);
         }
 
         $processedParams = [
@@ -212,8 +220,12 @@ class PaymentGatewayService
 
         $response = $paymentGateway->createPayment($processedParams);
 
+        if($response->failed()) {
+            $this->errorService->throwErrorWithMqtt('Payment creation failed: ' . $response->body(), $vend);
+        }
+
         return [
-            'response' => $response,
+            'response' => $response->json(),
             'operatorPaymentGateway' => $operatorPaymentGateway,
         ];
     }
@@ -241,16 +253,16 @@ class PaymentGatewayService
                             return $obj;
                             break;
                     }
-                    throw new \Exception('Invalid payment gateway specified.');
+                    $this->errorService->throwErrorWithMqtt('Invalid payment gateway specified.', $vend);
                 } else {
-                    throw new \Exception('Api key environment not match with current environment');
+                    $this->errorService->throwErrorWithMqtt('Api key environment not match with current environment', $vend);
                 }
 
             } else {
-                throw new \Exception('Payment Gateway is not set within operator');
+                $this->errorService->throwErrorWithMqtt('Payment Gateway is not set within operator', $vend);
             }
         } else {
-            throw new \Exception('Vend is not set to any operator');
+            $this->errorService->throwErrorWithMqtt('Vend is not set to any operator', $vend);
         }
     }
 

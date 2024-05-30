@@ -70,11 +70,11 @@ class Midtrans extends PaymentGateway implements PaymentGatewayInterface
                   ]
             ]);
 
-        if ($response->successful()) {
-            return $response->json();
-        }
+        // if ($response->successful()) {
+            return $response;
+        // }
 
-        throw new \Exception('Charge creation failed: ' . $response->body());
+        // throw new \Exception('Charge creation failed: ' . $response->body());
     }
 
     private function getEndpoint()

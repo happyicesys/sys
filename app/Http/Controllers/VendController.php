@@ -59,10 +59,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Imagick;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 use Rap2hpoutre\FastExcel\FastExcel;
 use Spatie\Permission\Models\Role;
+
 
 class VendController extends Controller
 {
@@ -664,9 +666,16 @@ class VendController extends Controller
         if($vendChannel) {
             if($vendChannel->product && $vendChannel->product->thumbnail) {
 
-                $thumbnail = file_get_contents($vendChannel->product->thumbnail->full_url);
-                return response($thumbnail, 200)
-                    ->header('Content-Type', 'image/*');
+                // dd($vendChannel->product->thumbnail->full_url);
+                $thumbnail = new Imagick();
+                $thumbnail->readImageBlob(file_get_contents($vendChannel->product->thumbnail->full_url));
+                $thumbnail->resizeImage(500, 500, Imagick::FILTER_LANCZOS, 1);
+
+                return response($thumbnail->getImageBlob(), 200)
+                    ->header('Content-Type', 'image/png');
+                // $thumbnail = file_get_contents($vendChannel->product->thumbnail->full_url);
+                // return response($thumbnail, 200)
+                //     ->header('Content-Type', 'image/*');
             }
         }
 
