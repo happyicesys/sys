@@ -670,9 +670,9 @@ class VendController extends Controller
                 $thumbnail = new Imagick();
                 $thumbnail->readImageBlob(file_get_contents($vendChannel->product->thumbnail->full_url));
                 $thumbnail->resizeImage(500, 500, Imagick::FILTER_LANCZOS, 1);
+                return response($thumbnail, 200)
+                    ->header('Content-Type', 'image/*');
 
-                return response($thumbnail->getImageBlob(), 200)
-                    ->header('Content-Type', 'image/png');
                 // $thumbnail = file_get_contents($vendChannel->product->thumbnail->full_url);
                 // return response($thumbnail, 200)
                 //     ->header('Content-Type', 'image/*');
