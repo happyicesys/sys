@@ -98,6 +98,7 @@ class VendResource extends JsonResource
             'cashlessTerminal' => CashlessTerminalResource::make($this->whenLoaded('cashlessTerminal')),
             'cashless_terminal_id' => isset($this->cashless_terminal_id) ? $this->cashless_terminal_id : null,
             'code' => $this->code,
+            'acbVmcPaJson' => isset($this->acb_vmc_pa_json) ? $this->acb_vmc_pa_json : null,
             'amount_average_day' => isset($this->amount_average_day) ? $this->amount_average_day/100 : null,
             'apkVerJson' => isset($this->apk_ver_json) ? $this->apk_ver_json : null,
             'begin_date' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,

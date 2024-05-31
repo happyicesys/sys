@@ -549,6 +549,9 @@
                     <TableHead>
                         Firmware Ver
                     </TableHead>
+                    <TableHead>
+                        Payment Device
+                    </TableHead>
                     <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')" v-if="indexType === 'customers'">
                         Location
                     </TableHeadSort>
@@ -987,6 +990,52 @@
                                   {{ moment(new Date(vend.apkVerJson['buildtime'])).format('YYMMDD HH:mm:ss')  }}
                               </span>
                           </span>
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                            <div class="flex flex-col space-y-1">
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                    :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['QRCode'] == 1 ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                                    v-if="vend.acbVmcPaJson && 'QRCode' in vend.acbVmcPaJson"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold">
+                                            QR Code
+                                        </span>
+                                        <span>
+                                            {{vend.acbVmcPaJson['QRCode'] == 1 ? 'Active' : 'NA'}}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                    :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['BILLStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['BILLStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
+                                    v-if="vend.parameterJson && 'BILLStat' in vend.parameterJson"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold">
+                                            Bill Acceptor
+                                        </span>
+                                        <span>
+                                            {{vend.parameterJson['BILLStat'] == 3 ? 'Active' : (vend.parameterJson['BILLStat'] == 1 ? 'Inactive' : 'NA') }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                    :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CHGEStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CHGEStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
+                                    v-if="vend.parameterJson && 'CHGEStat' in vend.parameterJson"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold">
+                                            Coin Recycler
+                                        </span>
+                                        <span>
+                                            {{vend.parameterJson['CHGEStat'] == 3 ? 'Active' : (vend.parameterJson['CHGEStat'] == 1 ? 'Inactive' : 'NA') }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
                           <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
