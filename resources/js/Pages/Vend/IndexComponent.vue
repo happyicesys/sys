@@ -897,20 +897,6 @@
                               </div>
                               <div
                                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                  :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
-                                  v-if="vend.parameterJson && vend.parameterJson['CoinCnt']"
-                              >
-                                  <div class="flex flex-col">
-                                      <span class="font-bold">
-                                          Coin
-                                      </span>
-                                      <span>
-                                          {{(vend.parameterJson['CoinCnt']/ (Math.pow(10, operatorCountry.currency_exponent))).toFixed(2)}}
-                                      </span>
-                                  </div>
-                              </div>
-                              <div
-                                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                                   :class="[vend.is_active || vend.is_testing ? (vend.is_mqtt_active ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
                                   v-if="vend.is_mqtt"
                               >
@@ -1028,10 +1014,24 @@
                                 >
                                     <div class="flex flex-col">
                                         <span class="font-bold">
-                                            Coin Recycler
+                                            Coin Acceptor
                                         </span>
                                         <span>
                                             {{vend.parameterJson['CHGEStat'] == 3 ? 'Active' : (vend.parameterJson['CHGEStat'] == 1 ? 'Inactive' : 'NA') }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div
+                                  class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                  :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
+                                  v-if="vend.parameterJson && vend.parameterJson['CoinCnt']"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold">
+                                            Coin
+                                        </span>
+                                        <span>
+                                            {{(vend.parameterJson['CoinCnt']/ (Math.pow(10, operatorCountry.currency_exponent))).toFixed(2)}}
                                         </span>
                                     </div>
                                 </div>

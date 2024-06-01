@@ -108,7 +108,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
       }
 
     // Update menu record
-    public function submitCatalog($singleProductParam = [])
+    public function submitCatalog($merchantIdParam = [])
     {
         $this->verifyOauthAccessToken();
 
@@ -117,53 +117,11 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         }
 
         $response = Http::withHeaders($this->getHeaders())
-        ->put($this->getPartnerEndpoint() . '/v2/chains/', $singleProductParam);
+        ->put($this->getPartnerEndpoint() . '/v2/chains/' . $merchantIdParam);
 
         return $this->getResponse($response, 'updateMenuRecord');
 
         throw new \Exception('Update Single Menu Failed: ' . $response->body());
-    }
-
-
-    // Batch Update Menu
-    public function batchUpdateMenu()
-    {
-        $this->verifyOauthAccessToken();
-
-        $response = Http::withHeaders($this->getHeaders())
-        ->put($this->getPartnerEndpoint() . '/partner/v1/batch/menu', [
-            'merchantID' => $this->merchantId,
-            'field' => 'ITEM',
-            'menuEntities' => [
-                [
-                    'id' => 'item_id',
-                    'name' => 'item_name',
-                    'description' => 'item_description',
-                    'price' => [
-                        'amount' => 100,
-                        'currency' => 'SGD',
-                    ],
-                    'availableStatus' => 'AVAILABLE',
-                    'categories' => [
-                        [
-                            'id' => 'category_id',
-                            'name' => 'category_name',
-                            'availableStatus' => 'AVAILABLE',
-                        ],
-                    ],
-                    'images' => [
-                        [
-                            'url' => 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png',
-                            'type' => 'PRIMARY',
-                        ],
-                    ],
-                ],
-            ],
-        ]);
-
-        return $this->getResponse($response, 'batchUpdateMenu');
-
-        throw new \Exception('Batch Update Menu Failed: ' . $response->body());
     }
 
     // Manually accept/reject orders
@@ -394,7 +352,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 
     private function getMainEndpoint()
     {
-        return self::$main_endpoint;
+        return self::$endpoint;
     }
 
     private function getPartnerEndpoint()
