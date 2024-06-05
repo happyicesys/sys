@@ -255,10 +255,9 @@ class VendDataService
       if($connectionType == 'mqtt') {
         UpdateMqttLastUpdated::dispatch($vend)->onQueue('default');
 
-        // $this->mqttService->publish('CM'.$vend->code, $response, 0);
-        // if($vend->code != '2007') {
-          // PublishMqtt::dispatch('CM'.$vend->code, $response, 0)->onQueue('default');
-        // }
+        if($vend->apk_ver_json && $vend->apk_ver_json['apkver'] && $vend->apk_ver_json['apkver'] >= 129) {
+          PublishMqtt::dispatch('CM'.$vend->code, $response, 0)->onQueue('default');
+        }
       }
     }
 
