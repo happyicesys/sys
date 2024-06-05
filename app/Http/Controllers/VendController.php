@@ -655,6 +655,50 @@ class VendController extends Controller
         return $vendChannels;
     }
 
+    public function getVendAllChannelThumnails($vendCode)
+    {
+        $vendChannels = VendChannel::query()
+        ->with('product.thumbnail')
+        ->whereHas('vend', function($query) use ($vendCode) {
+            $query->where('code', $vendCode);
+        })
+        ->where('is_active', true)
+        ->orderBy('code', 'asc')
+        ->get();
+
+        if($vendChannels) {
+            $dataArr = [];
+            foreach($vendChannels as $vendChannelIndex => $vendChannel) {
+                $dataArr[$vendChannelIndex] = [
+                    'vend_code' => $vendChannel->vend->code,
+                    'channel_code' => $vendChannel->code,
+                    'product_id' => null,
+                    'product_code' => null,
+                    'product_name' => null,
+                    'thumbnail' => null,
+                ];
+                if($vendChannel->product) {
+                    $dataArr[$vendChannelIndex] = [
+                        ...$dataArr[$vendChannelIndex],
+                        'product_id' => $vendChannel->product->id,
+                        'product_code' => $vendChannel->product->code,
+                        'product_name' => $vendChannel->product->name,
+                    ];
+                    if($vendChannel->product->thumbnail) {
+                        $dataArr[$vendChannelIndex] = [
+                            ...$dataArr[$vendChannelIndex],
+                            'thumbnail' => $vendChannel->product->thumbnail->full_url,
+                        ];
+                    }
+                }
+
+                return response()->json($dataArr, 200);
+            }
+        }
+
+        return false;
+    }
+
     public function getVendChannelThumnail($vendCode, $vendChannelCode)
     {
         $vendChannel = VendChannel::query()

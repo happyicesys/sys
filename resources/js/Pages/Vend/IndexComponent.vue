@@ -529,10 +529,12 @@
                         Status
                     </TableHead>
                     <TableHeadSort modelName="last_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_invoice_date')" v-if="indexType === 'customers'">
-                        Last Visited
+                        Last Visited <br>
+                        yymmdd
                     </TableHeadSort>
                     <TableHeadSort modelName="next_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_invoice_date')" v-if="indexType === 'customers'">
-                        Next Planned Visit
+                        Next Planned Visit <br>
+                        yymmdd
                     </TableHeadSort>
                     <TableHeadSort modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
                         Avg Per Day <br>
@@ -909,6 +911,20 @@
                                       </span>
                                   </div>
                               </div>
+                              <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                    :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['TempLimit'] == 1 ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                                    v-if="vend.acbVmcPaJson && 'TempLimit' in vend.acbVmcPaJson"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold">
+                                            Temp Limit
+                                        </span>
+                                        <span>
+                                            {{vend.acbVmcPaJson['TempLimit']}}
+                                        </span>
+                                    </div>
+                                </div>
                           </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
@@ -1032,6 +1048,20 @@
                                         </span>
                                         <span>
                                             {{(vend.parameterJson['CoinCnt']/ (Math.pow(10, operatorCountry.currency_exponent))).toFixed(2)}}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                    :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CoinLimit'] == 1 ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                                    v-if="vend.acbVmcPaJson && 'CoinLimit' in vend.acbVmcPaJson"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold">
+                                            Coin Limit
+                                        </span>
+                                        <span>
+                                            {{vend.acbVmcPaJson['CoinLimit']}}
                                         </span>
                                     </div>
                                 </div>
