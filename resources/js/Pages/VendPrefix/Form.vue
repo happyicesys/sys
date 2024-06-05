@@ -174,7 +174,7 @@ function submit() {
         return {
           ...data,
           operator_id: data.operator_id.id,
-          vend_config_id: data.vend_config_id.id,
+          vend_config_id: data.vend_config ? data.vend_config_id.id : null,
         }
       })
       .post('/vend-prefixes/' + form.value.id + '/update', {

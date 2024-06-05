@@ -44,4 +44,50 @@ class DeliveryPlatform extends Model
     {
         return $this->belongsTo(PaymentMethod::class);
     }
+
+    // shared method for delivery platforms
+    // response params
+    public function getResponse($response, $method)
+    {
+        $message = '';
+
+        switch($response->status()) {
+            case 200:
+                $message = 'OK';
+                break;
+            case 204:
+                $message = 'No Content';
+                break;
+            case 400:
+                $message = 'Bad Request';
+                break;
+            case 401:
+                $message = 'Unauthorized';
+                break;
+            case 403:
+                $message = 'Forbidden';
+                break;
+            case 404:
+                $message = 'Not Found';
+                break;
+            case 409:
+                $message = 'Conflict';
+                break;
+            case 500:
+                $message = 'Internal Server Error';
+                break;
+            case 503:
+                $message = 'Service Unavailable';
+                break;
+        }
+
+        $finalResponse =  [
+            'success' => $response->successful(),
+            'code' => $response->status(),
+            'message' => $method.' '.$message,
+            'data' => $response->json(),
+        ];
+
+        return $finalResponse;
+    }
 }

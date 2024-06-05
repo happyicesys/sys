@@ -15,29 +15,41 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 {
     use HasFactory;
 
-    const CAMPAIGN_TYPE_DOLLAR = 'net';
-    const CAMPAIGN_TYPE_PERCENT = 'percentage';
-    const CAMPAIGN_TYPE_BUNDLE_SAME_FIXED = 'bundleSameFixPrice';
-    const CAMPAIGN_TYPE_BUNDLE_DIFF_FIXED = 'bundleDiffFixPrice';
-    const CAMPAIGN_TYPE_BUNDLE_SAME_DOLLAR = 'bundleSameNet';
-    const CAMPAIGN_TYPE_BUNDLE_DIFF_DOLLAR = 'bundleDiffNet';
-    const CAMPAIGN_TYPE_BUNDLE_SAME_PERCENT = 'bundleSamePercentage';
-    const CAMPAIGN_TYPE_BUNDLE_DIFF_PERCENT = 'bundleDiffPercentage';
-    const CAMPAIGN_TYPE_DELIVERY = 'delivery';
-    const CAMPAIGN_TYPE_FREEITEM = 'freeItem';
-
-    const CAMPAIGN_SCOPE_ITEM = 'items';
-    const CAMPAIGN_SCOPE_CATEGORY = 'category';
-    const CAMPAIGN_SCOPE_ORDER = 'order';
-
     const START_TIME = '00:00';
     const END_TIME = '23:59';
     const MAX_END_DATETIME = '9999-12-31 23:59:59';
 
-    const PAYMENT_METHOD_GRABMART = 209;
+    const ORDER_ACCEPTED = 'order_accepted';
+    const ORDER_REJECTED = 'order_rejected';
 
-    const PAYMENT_TYPE_CASH = 'CASH';
-    const PAYMENT_TYPE_CASHLESS = 'CASHLESS';
+    const ORDER_REJECTED_REASONS = [
+        'ADDRESS_INCOMPLETE_MISSTATED' => 'Address Incomplete',
+        'BAD_WEATHER' => 'Bad Weather',
+        'BLACKLISTED' => 'Blacklisted',
+        'CARD_READER_NOT_AVAILABLE' => 'Card Reader Not Available',
+        'CLOSED' => 'Closed',
+        'CONTENT_WRONG_MISLEADING' => 'Content Misleading',
+        'FOOD_QUALITY_SPILLAGE' => 'Food Quality Spillage',
+        'FRAUD_PRANK' => 'Fraud Prank',
+        'ITEM_UNAVAILABLE' => 'Item Unavailable',
+        'LATE_DELIVERY' => 'Late Delivery',
+        'MENU_ACCOUNT_SETTINGS' => 'Menu Account Settings',
+        'MOV_NOT_REACHED' => 'MOV Not Reached',
+        'NO_COURIER' => 'No Courier',
+        'NO_PICKER' => 'No Picker',
+        'NO_RESPONSE' => 'No Response',
+        'OUTSIDE_DELIVERY_AREA' => 'Outside Delivery Area',
+        'TECHNICAL_PROBLEM' => 'Technical Problem',
+        'TEST_ORDER' => 'Test Order',
+        'TOO_BUSY' => 'Too Busy',
+        'UNABLE_TO_FIND' => 'Unable To Find',
+        'UNABLE_TO_PAY' => 'Unable To Pay',
+        'UNPROFESSIONAL_BEHAVIOUR' => 'Unprofessional Behaviour',
+        'WILL_NOT_WORK_WITH' => 'Will Not Work With',
+        'WRONG_ORDER_ITEMS_DELIVERED' => 'Wrong Order Items Delivered',
+    ];
+
+    const PAYMENT_METHOD_FOODPANDA = 211;
 
     const STATE_PENDING = 'PENDING';
     const STATE_ACCEPTED = 'ACCEPTED';
@@ -48,10 +60,9 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     const STATE_CANCELLED = 'CANCELLED';
     const STATE_FAILED = 'FAILED';
 
-    const STATUS_AVAILABLE = 'AVAILABLE';
-    const STATUS_UNAVAILABLE = 'UNAVAILABLE';
-    const STATUS_UNAVAILABLE_TODAY = 'UNAVAILABLETODAY';
-    const STATUS_HIDE = 'HIDE';
+    const STATUS_AVAILABLE = 'OPEN';
+    const STATUS_UNAVAILABLE = 'CLOSED';
+    const STATUS_UNAVAILABLE_TODAY = 'CLOSED_TODAY';
 
     const STATUS_MAPPING = [
         1 => 'AVAILABLE',
@@ -107,234 +118,98 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
         throw new \Exception('Get OAuthToken Failed: ' . $response->body());
       }
 
-    // Update menu record
+    // Update Order Status
+    public function updateOrderStatus($orderID, $isAccepted = true, $message = null)
+    {
+        $this->verifyOauthAccessToken();
+
+        $dataArr = [];
+        if($isAccepted) {
+            $dataArr = [
+                'acceptanceTime' => Carbon::now()->toIso8601String(),
+                'remoteOrderId' => $orderID,
+                'status' => self::ORDER_ACCEPTED,
+            ];
+        }else {
+            $dataArr = [
+                'status' => self::ORDER_REJECTED,
+                'message' => $message,
+                'reason' => self::ORDER_REJECTED_REASONS[ITEM_UNAVAILABLE],
+            ];
+        }
+
+        $response = Http::withHeaders($this->getHeaders())->put($this->getMainEndpoint() . '/v2/order/status/' . $orderID, $dataArr);
+
+        return $this->getResponse($response, 'updateOrderStatus');
+
+        throw new \Exception('Update Order Status Failed: ' . $response->body());
+    }
+
+    // Mark an order as prepared
+    public function markOrderPrepared($orderID)
+    {
+        $this->verifyOauthAccessToken();
+
+        $response = Http::withHeaders($this->getHeaders())
+        ->post($this->getMainEndpoint() . '/v2/orders/' . $orderID . '/preparation-completed');
+
+        return $this->getResponse($response, 'markOrderPrepared');
+
+        throw new \Exception('Mark Order Prepared Failed: ' . $response->body());
+    }
+
+    // Get availability status
+    public function getAvailabilityStatus($chainCode, $posVendorID)
+    {
+        $this->verifyOauthAccessToken();
+
+        $response = Http::withHeaders($this->getHeaders())
+        ->get($this->getMainEndpoint() . '/v2/chains/' . $chainCode . '/remoteVendors/' . $posVendorID . '/availability');
+
+        return $this->getResponse($response, 'getAvailabilityStatus');
+
+        throw new \Exception('Get Availability Status Failed: ' . $response->body());
+    }
+
+    // Update availability status
+    public function updateAvailabilityStatus($chainCode, $posVendorID, $isAvailable = true)
+    {
+        $this->verifyOauthAccessToken();
+
+        $existingStoreResponse = $this->getAvailabilityStatus($chainCode, $posVendorID);
+
+        if(!$existingStoreResponse['successful']) {
+            throw new \Exception('Existing Store Not Found');
+        }
+        $response = Http::withHeaders($this->getHeaders())
+        ->put($this->getMainEndpoint() . '/v2/chains/' . $chainCode . '/remoteVendors/' . $posVendorID . '/availability', [
+            'availabilityState' => $isAvailable ? self::STATUS_AVAILABLE : self::STATUS_UNAVAILABLE,
+            'platformKey' => $existingStoreResponse['data']['platformKey'],
+            'platformRestaurantId' => $existingStoreResponse['data']['platformRestaurantId'],
+        ]);
+
+        return $this->getResponse($response, 'updateAvailabilityStatus');
+
+        throw new \Exception('Update Availability Status Failed: ' . $response->body());
+    }
+
+    //   Submit a catalog
     public function submitCatalog($merchantIdParam = [])
     {
         $this->verifyOauthAccessToken();
 
-        if(!$singleProductParam) {
-            throw new \Exception('No Single Product Param for Update Menu Record ');
+        if(!$merchantIdParam) {
+            throw new \Exception('The Submit Catalog Param is Empty');
         }
 
         $response = Http::withHeaders($this->getHeaders())
-        ->put($this->getPartnerEndpoint() . '/v2/chains/' . $merchantIdParam);
+        ->put($this->getMainEndpoint() . '/v2/chains/' . $merchantIdParam);
 
-        return $this->getResponse($response, 'updateMenuRecord');
+        return $this->getResponse($response, 'submitCatalog');
 
-        throw new \Exception('Update Single Menu Failed: ' . $response->body());
+        throw new \Exception('Submit Catalog Failed: ' . $response->body());
     }
 
-    // Manually accept/reject orders
-    public function manuallyAcceptRejectOrder($orderId, $isAccept = true)
-    {
-        $this->verifyOauthAccessToken();
-
-        $response = Http::withHeaders($this->getHeaders())
-        ->post($this->getPartnerEndpoint() . '/partner/v1/order/prepare', [
-            'orderID' => $orderId,
-            'toState' => $isAccept ? 'ACCEPTED' : 'REJECTED',
-        ]);
-
-        return $this->getResponse($response, 'manuallyAcceptRejectOrder');
-
-        throw new \Exception('Manualy Accept Reject Order Failed: ' . $response->body());
-    }
-
-    // List orders
-    public function listOrders($date, $pageNumber = 1, $filters)
-    {
-        $this->verifyOauthAccessToken();
-
-        $response = Http::withHeaders($this->getHeaders([
-            'merchantID' => $this->merchantId,
-            'date' => $date ? $date : Carbon::today()->toDateString(),
-            'page' => $pageNumber,
-        ]))
-        ->post($this->getPartnerEndpoint() . '/partner/v1/order/prepare', $filters);
-
-        return $this->getResponse($response, 'listOrders');
-
-        throw new \Exception('List Orders Failed: ' . $response->body());
-    }
-
-    // Edit order
-    public function editOrder($orderId, $items = [])
-    {
-        $this->verifyOauthAccessToken();
-
-        if(!$items) {
-            throw new \Exception('Items Arr Not Found for Edit Order ');
-        }
-
-        $response = Http::withHeaders($this->getHeaders())
-        ->put($this->getPartnerEndpoint() . '/partner/v1/order/prepare/'. $orderId, [
-            'orderID' => $orderId,
-            'items' => $items,
-            'onlyRecalculate' => config('app.env') === 'local' ? true : false,
-        ]);
-
-        return $this->getResponse($response, 'editOrder');
-
-        throw new \Exception('Edit Order Failed: ' . $response->body());
-    }
-
-    // Mark order as ready
-    public function markOrderReady($orderId)
-    {
-        $this->verifyOauthAccessToken();
-
-        $response = Http::withHeaders($this->getHeaders())
-        ->post($this->getPartnerEndpoint() . '/partner/v1/orders/mark', [
-            'orderID' => $orderId,
-            'markStatus' => 1
-        ]);
-
-        return $this->getResponse($response, 'markOrderReady');
-
-        throw new \Exception('Mark Order Ready Failed: ' . $response->body());
-    }
-
-    // Update delivery state
-    public function updateDeliveryState($orderId, $fromState, $toState)
-    {
-        $this->verifyOauthAccessToken();
-
-        if(!$state) {
-            throw new \Exception('State Not Found for Update Delivery State ');
-        }
-
-        $response = Http::withHeaders($this->getHeaders())
-        ->post($this->getPartnerEndpoint() . '/partner/v1/order/delivery', [
-            'orderID' => $orderId,
-            'fromState' => $fromState,
-            'toState' => $toState,
-        ]);
-
-        return $this->getResponse($response, 'updateDeliveryState');
-
-        throw new \Exception('Update Delivery State Failed: ' . $response->body());
-    }
-
-    // Update order ready time
-    public function updateOrderReadyTime($orderId, $newOrderReadyTime)
-    {
-        $this->verifyOauthAccessToken();
-
-        $response = Http::withHeaders($this->getHeaders())
-        ->put($this->getPartnerEndpoint() . '/partner/v1/order/readytime', [
-            'orderID' => $orderId,
-            'newOrderReadyTime' => $newOrderReadyTime ? $newOrderReadyTime : Carbon::now()->toDateTimeString(),
-        ]);
-
-        return $this->getResponse($response, 'updateOrderReadyTime');
-
-        throw new \Exception('Update Order Ready Time Failed: ' . $response->body());
-    }
-
-    // Check order cancelable
-    public function checkOrderCancelable($orderId, $merchantID)
-    {
-        $this->verifyOauthAccessToken();
-
-        $response = Http::withHeaders($this->getHeaders())
-        ->get($this->getPartnerEndpoint() . '/partner/v1/order/cancelable', [
-            'orderID' => $orderId,
-            'merchantID' => $merchantID,
-        ]);
-
-        return $this->getResponse($response, 'checkOrderCancelable');
-
-        throw new \Exception('Check Order Cancelable Failed: ' . $response->body());
-    }
-
-    // Cancel an order
-    public function cancelOrder($orderID, $merchantID, $cancelCode)
-    {
-        $this->verifyOauthAccessToken();
-
-        $response = Http::withHeaders($this->getHeaders())
-        ->put($this->getPartnerEndpoint() . '/partner/v1/order/cancel', [
-            'orderID' => $orderID,
-            'merchantID' => $merchantID,
-            'cancelCode' => $cancelCode,
-        ]);
-
-        return $this->getResponse($response, 'cancelOrder');
-
-        throw new \Exception('Cancel Order Failed: ' . $response->body());
-    }
-
-    // Pause store
-    public function pauseStore($merchantID, $isPause = true, $duration = '24h')
-    {
-        $this->verifyOauthAccessToken();
-
-        $response = Http::withHeaders($this->getHeaders())
-        ->put($this->getPartnerEndpoint() . '/partner/v1/merchant/pause', [
-            'merchantID' => $merchantID,
-            'isPause' => $isPause,
-            'duration' => $duration,
-        ]);
-
-        return $this->getResponse($response, 'pauseOrder');
-
-        throw new \Exception('Pause Order Failed: ' . $response->body());
-    }
-
-    // create campaign
-    public function createCampaign($campaignParams = [])
-    {
-        $this->verifyOauthAccessToken();
-
-        if(!$campaignParams) {
-            throw new \Exception('Campaign Param Not Found for Create Campaign ');
-        }
-
-        $response = Http::withHeaders($this->getHeaders())
-        ->post($this->getPartnerEndpoint() . '/partner/v1/campaigns', $campaignParams);
-
-        return $this->getResponse($response, 'createCampaign');
-
-        throw new \Exception('Create Campaign Failed: ' . $response->body());
-    }
-
-    // create campaign
-    public function deleteCampaign($platformRefID)
-    {
-        $this->verifyOauthAccessToken();
-
-        if(!$platformRefID) {
-            throw new \Exception('Campaign ID Not Found for Delete Campaign ');
-        }
-
-        $response = Http::withHeaders($this->getHeaders([
-            'campaignId' => $platformRefID,
-        ]))
-        ->delete($this->getPartnerEndpoint() . '/partner/v1/campaigns/'. $platformRefID);
-
-        return $this->getResponse($response, 'deleteCampaign');
-
-        throw new \Exception('Delete Campaign Failed: ' . $response->body());
-    }
-
-    // update campaign
-    public function updateCampaign($platformRefID, $campaignParams = [])
-    {
-        $this->verifyOauthAccessToken();
-
-        if(!$platformRefID) {
-            throw new \Exception('Campaign ID Not Found for Update Campaign ');
-        }
-
-        $response = Http::withHeaders($this->getHeaders([
-            'campaignId' => $platformRefID,
-        ]))
-        ->put($this->getPartnerEndpoint() . '/partner/v1/campaigns/'. $platformRefID, $campaignParams);
-
-        return $this->getResponse($response, 'updateCampaign');
-
-        throw new \Exception('Update Campaign Failed: ' . $response->body());
-    }
 
     // init default headers for grab
     private function getHeaders($params = [])
@@ -352,71 +227,13 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
 
     private function getMainEndpoint()
     {
-        return self::$endpoint;
-    }
-
-    private function getPartnerEndpoint()
-    {
-        if($this->deliveryPlatformOperator->externalOauthToken->scopes === 'mart.partner_api') {
-            if($this->deliveryPlatformOperator->type === 'sandbox') {
-                $endpoint = self::$mart_partner_sandbox_endpoint;
-            }else {
-                $endpoint = self::$mart_partner_endpoint;
-            }
-        }else if($this->deliveryPlatformOperator->externalOauthToken->scopes === 'food.partner_api') {
-            if($this->deliveryPlatformOperator->type === 'sandbox') {
-                $endpoint = self::$food_partner_sandbox_endpoint;
-            }else {
-                $endpoint = self::$food_partner_endpoint;
-            }
+        if($this->deliveryPlatformOperator->type === 'sandbox') {
+            $endpoint = self::$sandbox_endpoint;
+        }else {
+            $endpoint = self::$endpoint;
         }
 
         return $endpoint;
-    }
-
-    // response params
-    private function getResponse($response, $method)
-    {
-        $message = '';
-
-        switch($response->status()) {
-            case 200:
-                $message = 'OK';
-                break;
-            case 204:
-                $message = 'No Content';
-                break;
-            case 400:
-                $message = 'Bad Request';
-                break;
-            case 401:
-                $message = 'Unauthorized';
-                break;
-            case 403:
-                $message = 'Forbidden';
-                break;
-            case 404:
-                $message = 'Not Found';
-                break;
-            case 409:
-                $message = 'Conflict';
-                break;
-            case 500:
-                $message = 'Internal Server Error';
-                break;
-            case 503:
-                $message = 'Service Unavailable';
-                break;
-        }
-
-        $finalResponse =  [
-            'success' => $response->successful(),
-            'code' => $response->status(),
-            'message' => $method.' '.$message,
-            'data' => $response->json(),
-        ];
-
-        return $finalResponse;
     }
 
     private function verifyOauthAccessToken()
