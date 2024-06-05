@@ -691,9 +691,8 @@ class VendController extends Controller
                         ];
                     }
                 }
-
-                return response()->json($dataArr, 200);
             }
+            return response()->json($dataArr, 200);
         }
 
         return false;
