@@ -912,8 +912,7 @@
                                   </div>
                               </div>
                               <div
-                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                    :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['TempLimit'] == 1 ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-green-200 text-gray-400"
                                     v-if="vend.acbVmcPaJson && 'TempLimit' in vend.acbVmcPaJson"
                                 >
                                     <div class="flex flex-col">
@@ -1052,8 +1051,7 @@
                                     </div>
                                 </div>
                                 <div
-                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                                    :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CoinLimit'] == 1 ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-green-200 text-gray-400"
                                     v-if="vend.acbVmcPaJson && 'CoinLimit' in vend.acbVmcPaJson"
                                 >
                                     <div class="flex flex-col">
