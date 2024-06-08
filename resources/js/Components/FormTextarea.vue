@@ -32,7 +32,7 @@
       default: false,
     },
     rows: {
-      type: Number,
+      type: [Number, String],
       default: 5
     }
   })

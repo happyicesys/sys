@@ -124,8 +124,9 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
                     'vend_records_amount_latest' => (int)$customer->lifetimeVendRecords->sum('total_amount') + $todayAmount,
                     'vend_records_amount_average_day' =>
                         ((int)$customer->lifetimeVendRecords->sum('total_amount') + $todayAmount)/
+                        ($customer->begin_date ?
                         (((int)($customer->begin_date ? Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?: Carbon::now())) : 1)) == 0 ?
-                        ((int)($customer->begin_date ? Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?: Carbon::now())) : 1)) : 1),
+                        ((int)($customer->begin_date ? Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?: Carbon::now())) : 1)) : 1) : 1),
                     'vend_records_thirty_days_amount' => (int)$customer->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
                     'vend_records_thirty_days_amount_average' =>
                         ((int)$customer->daysVendRecords(29,0)->sum('total_amount') + $todayAmount)/

@@ -102,14 +102,22 @@
                       <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left">
                         {{ vendConfig.name }}
                       </TableData>
-                      <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left">
+                      <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left whitespace-pre-line">
                         {{ vendConfig.desc }}
                       </TableData>
-                      <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-center">
-                        <div class="flex justify-center space-x-1">
+                      <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="">
+                        <div class="flex flex-col space-y-1 justify-items-center">
+                          <Button
+                          type="button" class="bg-sky-300 hover:bg-sky-400 px-3 py-2 text-xs text-sky-800 flex space-x-1 w-fit"
+                          @click="onAttachmentOverviewClicked(vendConfig)"
+                          v-if="vendConfig.attachments && vendConfig.attachments.length > 0"
+                          >
+                          <!-- {{ vendConfig.attachments }} -->
+                            <PhotoIcon class="h-4 w-4" aria-hidden="true"/>
+                          </Button>
                           <Link :href="'/vend-configs/' + vendConfig.id + '/edit'">
                             <Button
-                              type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                              type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1 w-fit"
                             >
                               <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                               <span>
@@ -120,7 +128,7 @@
 
                           <Button
                             type="button"
-                            class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1"
+                            class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1 w-fit"
                             :class="[vendConfig.vendPrefixes && vendConfig.vendPrefixes.length > 0 ? 'opacity-50 cursor-not-allowed' : '']"
                             @click="onDeleteClicked(vendConfig)"
                             :disabled="vendConfig.vendPrefixes && vendConfig.vendPrefixes.length > 0"
@@ -150,6 +158,15 @@
       </div>
     </div>
   </div>
+  <AttachmentOverview
+    v-if="showAttachmentOverviewModal"
+    :showModal="showAttachmentOverviewModal"
+    @modalClose="onAttachmentOverviewModalClose"
+    :model="vendConfig"
+    :items="attachments"
+  >
+  </AttachmentOverview>
+
   <Form
       v-if="showModal"
       :operatorOptions="operatorOptions"
@@ -166,10 +183,11 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/VendConfig/Form.vue';
+import AttachmentOverview from '@/Components/AttachmentOverview.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, MagnifyingGlassIcon, PhotoIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -187,6 +205,9 @@ const filters = ref({
   sortBy: true,
   numberPerPage: 100,
 })
+const attachments = ref([])
+const model = ref()
+const showAttachmentOverviewModal = ref(false)
 const showModal = ref(false)
 const vendConfig = ref()
 const type = ref('')
@@ -206,6 +227,11 @@ function onCreateClicked() {
   type.value = 'create'
   vendConfig.value = null
   showModal.value = true
+}
+
+function onAttachmentOverviewClicked(vendConfig) {
+  attachments.value = vendConfig.attachments
+  showAttachmentOverviewModal.value = true
 }
 
 function onDeleteClicked(vendConfig) {
@@ -244,5 +270,9 @@ function sortTable(sortKey) {
 
 function onModalClose() {
   showModal.value = false
+}
+
+function onAttachmentOverviewModalClose() {
+  showAttachmentOverviewModal.value = false
 }
 </script>

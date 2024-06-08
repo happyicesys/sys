@@ -109,7 +109,18 @@
                         {{ vendPrefix.desc }}
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
-                        {{ vendPrefix.vendConfig ? vendPrefix.vendConfig.name : '' }}
+                        <span v-if="vendPrefix.vendConfig" class="flex space-x-1 items-center justify-center">
+                          <Link :href="'/vend-configs/' + vendPrefix.vendConfig.id + '/edit'" class="text-blue-600" target="_blank">
+                            {{ vendPrefix.vendConfig.name }}
+                          </Link>
+                          <Button
+                          type="button" class="bg-sky-300 hover:bg-sky-400 px-2 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
+                          @click="onAttachmentOverviewClicked(vendPrefix.vendConfig)"
+                          v-if="vendPrefix.vendConfig && vendPrefix.vendConfig.attachments && vendPrefix.vendConfig.attachments.length > 0"
+                          >
+                            <PhotoIcon class="h-4 w-4" aria-hidden="true"/>
+                          </Button>
+                        </span>
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
@@ -146,6 +157,14 @@
       </div>
     </div>
   </div>
+  <AttachmentOverview
+    v-if="showAttachmentOverviewModal"
+    :showModal="showAttachmentOverviewModal"
+    @modalClose="onAttachmentOverviewModalClose"
+    :model="vendConfig"
+    :items="attachments"
+  >
+  </AttachmentOverview>
   <Form
       v-if="showModal"
       :operatorOptions="operatorOptions"
@@ -161,17 +180,18 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import AttachmentOverview from '@/Components/AttachmentOverview.vue';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/VendPrefix/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, MagnifyingGlassIcon, PhotoIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   operatorOptions: [Array, Object],
@@ -185,6 +205,8 @@ const filters = ref({
   sortBy: true,
   numberPerPage: 100,
 })
+const attachments = ref([])
+const showAttachmentOverviewModal = ref(false)
 const showModal = ref(false)
 const vendPrefix = ref()
 const type = ref('')
@@ -238,6 +260,15 @@ function sortTable(sortKey) {
   filters.value.sortKey = sortKey
   filters.value.sortBy = !filters.value.sortBy
   onSearchFilterUpdated()
+}
+
+function onAttachmentOverviewClicked(vendConfig) {
+  attachments.value = vendConfig.attachments
+  showAttachmentOverviewModal.value = true
+}
+
+function onAttachmentOverviewModalClose() {
+  showAttachmentOverviewModal.value = false
 }
 
 function onModalClose() {

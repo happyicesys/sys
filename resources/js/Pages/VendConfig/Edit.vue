@@ -23,7 +23,7 @@
               </FormInput>
             </div>
             <div class="sm:col-span-6">
-              <FormTextarea v-model="form.desc" :error="form.errors.desc">
+              <FormTextarea v-model="form.desc" :error="form.errors.desc" rows="10">
                 Desc
               </FormTextarea>
             </div>
@@ -44,6 +44,13 @@
                 :items="vendConfig.data.attachments"
               >
             </AttachmentList>
+            </div>
+
+            <div class="sm:col-span-6">
+              <AttachmentOverview
+                :items="vendConfig.data.attachments"
+              >
+            </AttachmentOverview>
             </div>
 
             <div class="sm:col-span-6">
@@ -209,6 +216,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import AttachmentList from '@/Components/AttachmentList.vue';
+import AttachmentOverview from '@/Components/AttachmentOverview.vue';
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';

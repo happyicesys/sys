@@ -23,7 +23,7 @@
               </FormInput>
             </div>
             <div class="sm:col-span-6">
-                <FormTextarea v-model="form.desc" :error="form.errors.desc">
+                <FormTextarea v-model="form.desc" :error="form.errors.desc" rows="10">
                   Desc
                 </FormTextarea>
               </div>

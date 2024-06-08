@@ -28,6 +28,7 @@ class VendConfigController extends Controller
             'vendConfigs' => VendConfigResource::collection(
                 VendConfig::query()
                     ->with([
+                        'attachments',
                         'vendPrefixes'
                     ])
                     ->when($request->name, function($query, $search) {

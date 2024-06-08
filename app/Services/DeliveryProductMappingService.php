@@ -61,10 +61,7 @@ class DeliveryProductMappingService
     }
 
         // sync delivery product mapping vend channel order qty by adding when order created and subtract when order retrieved or expired
-    public function syncVendChannelOrderQtyByDeliveryOrder(
-      DeliveryPlatformOrder $deliveryPlatformOrder,
-      $isAddition = true
-    )
+    public function syncVendChannelOrderQtyByDeliveryOrder(DeliveryPlatformOrder $deliveryPlatformOrder, $isAddition = true)
     {
       if($deliveryPlatformOrder->orderItemVendChannels()->exists()) {
         foreach($deliveryPlatformOrder->orderItemVendChannels as $orderItemVendChannel) {
@@ -91,8 +88,6 @@ class DeliveryProductMappingService
 
 
       if($isAddition) {
-
-
         $deliveryProductMappingVendChannel->order_qty = ($deliveryProductMappingVendChannel->order_qty + $orderQty) > 0 ? ($deliveryProductMappingVendChannel->order_qty + $orderQty) : 0;
       }else {
         $deliveryProductMappingVendChannel->order_qty = ($deliveryProductMappingVendChannel->order_qty - $orderQty) > 0 ? ($deliveryProductMappingVendChannel->order_qty - $orderQty) : 0;

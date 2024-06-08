@@ -260,6 +260,10 @@ class DeliveryPlatformService
         ]);
         $this->syncOrderQtyBasedOnStatus($deliveryPlatformOrder);
         $this->handleLastMileTimediff($deliveryPlatformOrder);
+
+        // if($input['state'] === 'ACCEPTED') {
+        //   $this->deliveryProductMappingService->syncVendChannelOrderQtyByDeliveryOrder($deliveryPlatformOrder, false);
+        // }
       break;
     }
 

@@ -34,7 +34,7 @@ class VendPrefixController extends Controller
                 VendPrefix::query()
                     ->with([
                         'operator',
-                        'vendConfig',
+                        'vendConfig.attachments',
                     ])
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
