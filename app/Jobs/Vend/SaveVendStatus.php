@@ -30,18 +30,19 @@ class SaveVendStatus implements ShouldQueue
      */
     public function handle(): void
     {
-        VendSnapshot::create([
-            'customer_id' => $this->vend && $this->vend->customer ? $this->vend->customer->id : null,
-            'customer_json' => $this->vend && $this->vend->customer ? $this->vend->customer  : [
-                'name' => $this->vend->name,
-            ],
-            'operator_id' => $this->vend->customer()->exists() && $this->vend->customer->operator()->exists() ? $this->vend->customer->operator->id : 1,
-            'parameter_json' => $this->vend->parameter_json,
-            'vend_channels_json' => $this->vend->vend_channels_json,
-            'vend_code' => $this->vend->code,
-            'vend_id' => $this->vend->id,
-        ]);
+        if($this->vend && $this->vend->customer) {
+            VendSnapshot::create([
+                'customer_id' => $this->vend->customer->id,
+                'customer_json' => $this->vend->customer,
+                'operator_id' => $this->vend->customer->operator()->exists() ? $this->vend->customer->operator->id : 1,
+                'parameter_json' => $this->vend->parameter_json,
+                'vend_channels_json' => $this->vend->vend_channels_json,
+                'vend_code' => $this->vend->code,
+                'vend_id' => $this->vend->id,
+            ]);
+        }
 
-        VendSnapshot::whereDate('created_at', '<', Carbon::today()->subYears(2))->delete();
+
+        // VendSnapshot::whereDate('created_at', '<', Carbon::today()->subYears(2))->delete();
     }
 }

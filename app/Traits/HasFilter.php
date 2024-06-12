@@ -371,6 +371,11 @@ trait HasFilter {
             $search = hexdec($search);
             $query->where('parameter_json->Ver', 'LIKE', "{$search}%");
         })
+        ->when($request->next_planned_driver, function($query, $search) {
+            if($search != 'all') {
+                $query->where('cms_invoice_history->next_delivery_driver', 'LIKE', $search);
+            }
+        })
         ->when($request->vendRecordsThirtyDaysAmountAverageLessThan, function($query, $search) {
             $query->where('virtual_vend_records_thirty_days_amount_average', '<=', $search*100);
         })

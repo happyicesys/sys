@@ -20,6 +20,7 @@ use App\Models\Customer;
 use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\Product;
+use App\Models\UnitCost;
 use App\Models\Vend;
 use App\Models\VendTransaction;
 use App\Traits\GetUserTimezone;
@@ -422,6 +423,7 @@ class ReportController extends Controller
                             'qty' => $channel->qty,
                             'capacity' => $channel->capacity,
                             'price' => $channel->amount/ 100,
+                            'unit_cost' => $channel->product ? (UnitCost::where('product_id', $channel->product->id)->first() ? UnitCost::where('product_id', $channel->product->id)->first()->cost : 0) : '',
                             'balance_percent' => $channel->capacity ? round($channel->qty/ $channel->capacity * 100) : '',
                         ]);
                     }
@@ -439,6 +441,7 @@ class ReportController extends Controller
                 'Qty' => $vendChannel['qty'],
                 'Capacity' => $vendChannel['capacity'],
                 'Price' => $vendChannel['price'],
+                'Unit Cost' => $vendChannel['unit_cost'],
                 'Balance Percent(%)' => $vendChannel['balance_percent'],
             ];
         });

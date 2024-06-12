@@ -35,6 +35,7 @@
         "chartjs-plugin-datalabels": "^2.2.0",
         "filepond": "^4.30.6",
         "js-file-download": "^0.4.12",
+        "puppeteer": "^22.10.1",
         "v-calendar": "^3.0.0-alpha.8",
         "v-select2-component": "^0.4.7",
         "vue-disable-autocomplete": "^0.0.4",

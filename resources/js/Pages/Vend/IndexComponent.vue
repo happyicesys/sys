@@ -287,6 +287,22 @@
           <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Number" v-model="filters.coinLessThan" @keyup.enter="onSearchFilterUpdated()">
               Coin Amount &lt;&lt;
           </SearchInput>
+          <div v-if="indexType === 'customers'">
+              <label for="text" class="block text-sm font-medium text-gray-700">
+                  Next Planned Driver
+              </label>
+              <MultiSelect
+                  v-model="filters.next_planned_driver"
+                  :options="nextDeliveryDriverOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+              >
+              </MultiSelect>
+          </div>
       </div>
 
       <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -1202,6 +1218,7 @@ const props = defineProps({
     deviceTypes: [Array, Object],
   locationTypeOptions: Object,
   operatorOptions: Object,
+  nextDeliveryDriverOptions: [Array, Object],
   productOptions: Object,
   totals: [Array, Object],
   indexType: String,
@@ -1263,6 +1280,7 @@ const isSelectedAll = ref(false)
 const loading = ref(false)
 const loadingSyncNextDeliveryDate = ref(false)
 const locationTypeOptions = ref([])
+const nextDeliveryDriverOptions = ref([])
 const numberPerPageOptions = ref([])
 const operatorOptions = ref([])
 const pickLists = ref([])
@@ -1337,6 +1355,10 @@ onMounted(() => {
   locationTypeOptions.value = [
       {id: 'all', value: 'All'},
       ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
+  ]
+  nextDeliveryDriverOptions.value = [
+      {id: 'all', value: 'All'},
+      ...props.nextDeliveryDriverOptions.map((data) => {return {id: data.name, value: data.name}})
   ]
   operatorOptions.value = [
       {id: 'all', full_name: 'All'},
@@ -1450,6 +1472,7 @@ function getVendsField() {
         deviceType: filters.value.deviceType.id,
         errors: filters.value.errors.map((error) => { return error.id }),
         location_type_id: filters.value.locationType.id,
+        next_planned_driver: filters.value.next_planned_driver.id,
         operator_id: filters.value.operator.id,
         is_active: filters.value.is_active.id,
         is_binded_customer: filters.value.is_binded_customer.id,

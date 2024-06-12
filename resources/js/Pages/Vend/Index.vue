@@ -16,6 +16,7 @@
           :constTempError="constTempError"
           :deviceTypes="deviceTypes"
           :locationTypeOptions="locationTypeOptions"
+          :nextDeliveryDriverOptions="nextDeliveryDriverOptions"
           :operatorOptions="operatorOptions"
           :productOptions="productOptions"
           :totals="totals"
@@ -40,6 +41,7 @@ const props = defineProps({
   deviceTypes: [Array, Object],
   indexType: String,
   locationTypeOptions: Object,
+  nextDeliveryDriverOptions: [Array, Object],
   operatorOptions: Object,
   productOptions: Object,
   totals: [Array, Object],
