@@ -663,6 +663,7 @@ class VendController extends Controller
             $query->where('code', $vendCode);
         })
         ->where('is_active', true)
+        ->where('capacity', '>', 0)
         ->orderBy('code', 'asc')
         ->get();
 
