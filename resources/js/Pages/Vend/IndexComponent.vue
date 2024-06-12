@@ -1248,6 +1248,7 @@ const filters = ref({
   tempDeltaHigherThan: '',
   vend_channel_error_id: '',
   lastVisitedGreaterThan: '',
+  next_planned_driver: '',
   is_mqtt: '',
   is_mqtt_active: '',
   is_online: '',
@@ -1382,6 +1383,7 @@ onMounted(() => {
   // console.log(initBinded, roles[0])
   filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]
   filters.value.locationType = locationTypeOptions.value[0]
+    filters.value.next_planned_driver = nextDeliveryDriverOptions.value[0]
 //   filters.value.operator = operatorOptions.value[0]
   filters.value.operator = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
   filters.value.status = statusOptions.value[2]
