@@ -78,9 +78,10 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
                     'thirty_days_gross_profit' => (int)$vend->daysVendRecords(29,0)->sum('gross_profit') + $todayGrossProfit,
                     'vend_records_amount_latest' => (int)$vend->lifetimeVendRecords->sum('total_amount') + $todayAmount,
                     'vend_records_amount_average_day' =>
-                    ((int)$vend->lifetimeVendRecords->sum('total_amount') + $todayAmount)/
-                    (((int)($vend->begin_date ? Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?: Carbon::now())) : 1)) == 0 ?
-                    ((int)($vend->begin_date ? Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?: Carbon::now())) : 1)) : 1),
+                    // ((int)$vend->lifetimeVendRecords->sum('total_amount') + $todayAmount)/
+                    // (((int)($vend->begin_date ? Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?: Carbon::now())) : 1)) == 0 ?
+                    // ((int)($vend->begin_date ? Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?: Carbon::now())) : 1)) : 1),
+                    ((int)$vend->lifetimeVendRecords->sum('total_amount') + $todayAmount) / (($days = (int)($vend->begin_date ? Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?: Carbon::now())) : 1)) == 0 ? 1 : $days),
                     'vend_records_thirty_days_amount' => (int)$vend->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
                     'vend_records_thirty_days_amount_average' =>
                         ((int)$vend->daysVendRecords(29,0)->sum('total_amount') + $todayAmount)/
@@ -123,10 +124,11 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
                     'thirty_days_gross_profit' => (int)$customer->daysVendRecords(29,0)->sum('gross_profit') + $todayGrossProfit,
                     'vend_records_amount_latest' => (int)$customer->lifetimeVendRecords->sum('total_amount') + $todayAmount,
                     'vend_records_amount_average_day' =>
-                        ((int)$customer->lifetimeVendRecords->sum('total_amount') + $todayAmount)/
-                        ($customer->begin_date ?
-                        (((int)($customer->begin_date ? Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?: Carbon::now())) : 1)) == 0 ?
-                        ((int)($customer->begin_date ? Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?: Carbon::now())) : 1)) : 1) : 1),
+                        // ((int)$customer->lifetimeVendRecords->sum('total_amount') + $todayAmount)/
+                        // ($customer->begin_date ?
+                        // (((int)($customer->begin_date ? Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?: Carbon::now())) : 1)) == 0 ?
+                        // ((int)($customer->begin_date ? Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?: Carbon::now())) : 1)) : 1) : 1),
+                        ((int)$customer->lifetimeVendRecords->sum('total_amount') + $todayAmount) / (($days = ($customer->begin_date ? Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?: Carbon::now())) : 1)) == 0 ? 1 : $days),
                     'vend_records_thirty_days_amount' => (int)$customer->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
                     'vend_records_thirty_days_amount_average' =>
                         ((int)$customer->daysVendRecords(29,0)->sum('total_amount') + $todayAmount)/
