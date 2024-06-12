@@ -254,11 +254,6 @@ class VendController extends Controller
 
     public function indexCustomer(Request $request)
     {
-        // dd(Customer::query()
-        // ->where('cms_invoice_history->next_delivery_driver', '!=', null)
-        // ->select('cms_invoice_history->next_delivery_driver AS name')
-        // ->distinct()
-        // ->get()->toArray());
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         if(!isset($request->is_active)) {
             if(

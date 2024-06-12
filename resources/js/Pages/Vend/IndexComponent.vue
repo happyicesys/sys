@@ -303,6 +303,13 @@
               >
               </MultiSelect>
           </div>
+          <div v-if="indexType === 'customers'">
+                <DatePicker
+                    v-model="filters.next_planned_date"
+                >
+                    Next Planned Date
+                </DatePicker>
+            </div>
       </div>
 
       <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -1195,6 +1202,7 @@
 import Button from '@/Components/Button.vue';
 import ChannelOverview from '@/Pages/Vend/ChannelOverview.vue';
 import Create from '@/Pages/Vend/Create.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import Form from '@/Pages/Vend/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import PickList from '@/Pages/Vend/PickList.vue';
@@ -1248,6 +1256,7 @@ const filters = ref({
   tempDeltaHigherThan: '',
   vend_channel_error_id: '',
   lastVisitedGreaterThan: '',
+  next_planned_date: '',
   next_planned_driver: '',
   is_mqtt: '',
   is_mqtt_active: '',
@@ -1474,6 +1483,7 @@ function getVendsField() {
         deviceType: filters.value.deviceType.id,
         errors: filters.value.errors.map((error) => { return error.id }),
         location_type_id: filters.value.locationType.id,
+        next_planned_date: filters.value.next_planned_date,
         next_planned_driver: filters.value.next_planned_driver.id,
         operator_id: filters.value.operator.id,
         is_active: filters.value.is_active.id,

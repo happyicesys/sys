@@ -376,6 +376,9 @@ trait HasFilter {
                 $query->where('cms_invoice_history->next_delivery_driver', 'LIKE', $search);
             }
         })
+        ->when($request->next_planned_date, function($query, $search) {
+            $query->whereDate('next_invoice_date', '=', $search);
+        })
         ->when($request->vendRecordsThirtyDaysAmountAverageLessThan, function($query, $search) {
             $query->where('virtual_vend_records_thirty_days_amount_average', '<=', $search*100);
         })

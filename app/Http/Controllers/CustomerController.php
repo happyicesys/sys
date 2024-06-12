@@ -334,7 +334,7 @@ class CustomerController extends Controller
                     $customer->update([
                         'cms_invoice_history' => $person,
                         'last_invoice_date' => $person['last_delivery_date'],
-                        'next_invoice_date' => $person['next_delivery_date']
+                        'next_invoice_date' => $person['next_delivery_date'],
                     ]);
                 }
             }
