@@ -112,10 +112,10 @@
                 {{ $deliveryPlatformOrderItem->product->name }}
               </td>
               <td>
-                {{ $deliveryPlatformOrderItem->orderItemVendChannels[0]->qty }}
+                {{ $deliveryPlatformOrderItem->orderItemVendChannels && isset($deliveryPlatformOrderItem->orderItemVendChannels[0]) ? $deliveryPlatformOrderItem->orderItemVendChannels[0]->qty : '' }}
               </td>
               <td>
-                {{ $deliveryPlatformOrderItem->orderItemVendChannels[0]->vend_channel_code }}
+                {{ $deliveryPlatformOrderItem->orderItemVendChannels && isset($deliveryPlatformOrderItem->orderItemVendChannels[0]) ? $deliveryPlatformOrderItem->orderItemVendChannels[0]->vend_channel_code : '' }}
               </td>
           </tr>
         @endforeach
