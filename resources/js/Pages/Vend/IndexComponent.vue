@@ -1086,6 +1086,48 @@
                                         </span>
                                     </div>
                                 </div>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                    :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['COIN_MFG'] == 3 ? 'bg-green-200' : (vend.acbVmcPaJson['COIN_MFG'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
+                                    v-if="vend.acbVmcPaJson && 'COIN_MFG' in vend.acbVmcPaJson"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold">
+                                            Coin Mfg
+                                        </span>
+                                        <span>
+                                            {{vend.acbVmcPaJson['COIN_MFG'] == 3 ? 'Active' : (vend.acbVmcPaJson['COIN_MFG'] == 1 ? 'Inactive' : 'NA') }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                    :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['COIN_MDL'] == 3 ? 'bg-green-200' : (vend.acbVmcPaJson['COIN_MDL'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
+                                    v-if="vend.acbVmcPaJson && 'COIN_MDL' in vend.acbVmcPaJson"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold">
+                                            Coin Model
+                                        </span>
+                                        <span>
+                                            {{vend.acbVmcPaJson['COIN_MDL'] == 3 ? 'Active' : (vend.acbVmcPaJson['COIN_MDL'] == 1 ? 'Inactive' : 'NA') }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                    :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CSHLSStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CSHLSStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
+                                    v-if="vend.parameterJson && 'CSHLSStat' in vend.parameterJson"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold">
+                                            Cashless Status
+                                        </span>
+                                        <span>
+                                            {{vend.parameterJson['CSHLSStat'] == 3 ? 'Active' : (vend.parameterJson['CSHLSStat'] == 1 ? 'Inactive' : 'NA') }}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
