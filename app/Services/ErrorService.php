@@ -11,7 +11,7 @@ class ErrorService
 {
   public function throwErrorWithMqtt($message, Vend $vend)
   {
-    PublishMqtt::dispatch('CV'.$vend->code, $errorMsg)->onQueue('high');
+    PublishMqtt::dispatch('CV'.$vend->code, $message)->onQueue('high');
     throw new \Exception($message);
   }
 
