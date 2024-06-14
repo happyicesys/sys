@@ -98,7 +98,8 @@ class VendDataService
             }
           }
 
-          if(!empty($byteData) && $byteData[1] == 83) {
+          // if(!empty($byteData) && $byteData[1] == 83) {
+          if(!empty($byteData)) {
             $byteSize = (sizeof($byteData) - 5)/ 11;
             if($byteSize == 60) {
               // INT16U id;
@@ -141,7 +142,11 @@ class VendDataService
               // INT16U lock_cnt;
               $byteSize = (sizeof($byteData) - 5)/ 19;
               $i = 2;
-              $i += 4;
+              if($processedDataArr['data']['label'] === 'S') {
+                $i += 4;
+              }else {
+                $i += 2;
+              }
               for($j = 0; $j < $byteSize; $j++) {
                 $channelArr = [];
                 $channelCode = $byteData[$i++];
