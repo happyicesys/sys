@@ -26,4 +26,15 @@ class RunningNumberService
 
     return $previousRunningNumber ? intval($previousRunningNumber) + 1 : 10001;
   }
+
+  public function getRunningCode($model, $operatorID = null)
+  {
+    if(!$operatorID) {
+      $operatorID = auth()->user()->operator_id;
+    }
+
+    $previousRunningNumber = $model->where('operator_id', $operatorID)->max('code');
+
+    return $previousRunningNumber ? intval($previousRunningNumber) + 1 : 10001;
+  }
 }

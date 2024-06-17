@@ -1,6 +1,6 @@
 <template>
 
-  <Head title="Operator" />
+  <Head title="Setting Chart" />
 
   <BreezeAuthenticatedLayout>
     <template #header>

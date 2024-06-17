@@ -19,6 +19,7 @@ use App\Http\Controllers\LocationTypeController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\OauthController;
 use App\Http\Controllers\OperatorController;
+use App\Http\Controllers\OpsJobController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductMappingController;
@@ -241,6 +242,18 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('operator-vends')->group(function() {
         Route::delete('/{id}', [OperatorController::class, 'deleteOperatorVend']);
         Route::post('/store', [OperatorController::class, 'bindVend']);
+    });
+
+    Route::prefix('ops-jobs')->group(function() {
+        Route::get('/', [OpsJobController::class, 'index'])->name('ops-jobs');
+        Route::get('/create', [OpsJobController::class, 'create']);
+        Route::get('/{id}/edit', [OpsJobController::class, 'edit'])->name('ops-jobs.edit');
+        Route::post('/store', [OpsJobController::class, 'store']);
+        Route::post('/{id}/update', [OpsJobController::class, 'update']);
+        Route::delete('/{id}', [OpsJobController::class, 'delete']);
+        Route::post('/{id}/complete', [OpsJobController::class, 'complete']);
+        Route::post('/{id}/pick', [OpsJobController::class, 'pick']);
+        Route::post('/{id}/deliver', [OpsJobController::class, 'deliver']);
     });
 
     Route::prefix('reports')->group(function() {

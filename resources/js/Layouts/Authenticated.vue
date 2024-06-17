@@ -52,6 +52,22 @@ const navigation = [
         permission: 'read transactions',
         tagline: null,
     },
+    {
+        name: 'Operations',
+        icon: ArrowsPointingInIcon,
+        current: false,
+        href: 'holidays',
+        permission: 'admin-access vends',
+        tagline: null,
+        children: [
+            {name: 'Jobs', href: '/ops-jobs'},
+            // {name: 'Vend & Criteria Bindings', href: '/vend-criteria-bindings'},
+            // {name: 'Criteria', href: '/vend-criterias'},
+            // {name: 'Weightage (Location Type)', href: '/location-types'},
+            // {name: 'Weightage (Error Code)', href: '/vend-channel-errors'},
+            // {name: 'Holidays', href: '/holidays'},
+        ]
+    },
     // {
     //     name: 'Machine Management',
     //     icon: Cog8ToothIcon,
@@ -210,21 +226,7 @@ const navigation = [
             {name: 'Resource Center (Tutorial)', href: '/resource-centers'},
         ]
     },
-    // {
-    //     name: 'Operations',
-    //     icon: ArrowsPointingInIcon,
-    //     current: false,
-    //     href: 'holidays',
-    //     permission: 'admin-access vends',
-    //     tagline: null,
-    //     children: [
-    //         {name: 'Vend & Criteria Bindings', href: '/vend-criteria-bindings'},
-    //         {name: 'Criteria', href: '/vend-criterias'},
-    //         {name: 'Weightage (Location Type)', href: '/location-types'},
-    //         {name: 'Weightage (Error Code)', href: '/vend-channel-errors'},
-    //         {name: 'Holidays', href: '/holidays'},
-    //     ]
-    // },
+
 
     // {
     //     name: 'OAuth & API',

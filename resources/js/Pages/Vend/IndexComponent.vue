@@ -1047,6 +1047,34 @@
                                 </div>
                                 <div
                                     class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                    :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['BILL_MFG'] == 3 ? 'bg-green-200' : (vend.acbVmcPaJson['BILL_MFG'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
+                                    v-if="vend.acbVmcPaJson && 'BILL_MFG' in vend.acbVmcPaJson"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold">
+                                            Bill Mfg
+                                        </span>
+                                        <span>
+                                            {{vend.acbVmcPaJson['BILL_MFG'] == 3 ? 'Active' : (vend.acbVmcPaJson['BILL_MFG'] == 1 ? 'Inactive' : 'NA') }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                    :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['BILL_MD'] == 3 ? 'bg-green-200' : (vend.acbVmcPaJson['BILL_MD'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
+                                    v-if="vend.acbVmcPaJson && 'BILL_MD' in vend.acbVmcPaJson"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold">
+                                            Bill Model
+                                        </span>
+                                        <span>
+                                            {{vend.acbVmcPaJson['BILL_MD'] == 3 ? 'Active' : (vend.acbVmcPaJson['BILL_MD'] == 1 ? 'Inactive' : 'NA') }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                                     :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CHGEStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CHGEStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
                                     v-if="vend.parameterJson && 'CHGEStat' in vend.parameterJson"
                                 >
