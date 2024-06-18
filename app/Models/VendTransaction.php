@@ -262,12 +262,12 @@ class VendTransaction extends Model
             }
         })
         ->when($request->product_code, function($query, $search) {
-            $query->whereIn('product_id', function($query) use ($search) {
+            $query->whereIn('vend_transactions.product_id', function($query) use ($search) {
                 $query->select('id')->from('products')->where('code', 'LIKE', "{$search}%");
             });
         })
         ->when($request->product_name, function($query, $search) {
-            $query->whereIn('product_id', function($query) use ($search) {
+            $query->whereIn('vend_transactions.product_id', function($query) use ($search) {
                 $query->select('id')->from('products')->where('name', 'LIKE', "%{$search}%");
             });
         })

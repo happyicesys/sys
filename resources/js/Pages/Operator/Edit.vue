@@ -470,14 +470,14 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Device(s) </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Machine(s) </span>
                   </div>
                 </div>
               </div>
 
               <div class="sm:col-span-5" v-if="form.id">
                 <SearchVendCodeWithOperatorInput v-model="form.vend_id" @selected="selected" required="true" :error="form.errors.vend_id">
-                  Device to Bind
+                  Machine to Bind
                 </SearchVendCodeWithOperatorInput>
                 <div class="text-sm text-red-600" v-if="form.errors.vend_id">
                   {{ form.errors.vend_id }}
@@ -594,7 +594,7 @@
                   </div>
                 </div>
               </div>
-            </div>
+              </div>
           </form>
         </div>
       </div>

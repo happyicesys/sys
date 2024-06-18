@@ -69,6 +69,16 @@ class OpsJobController extends Controller
         ]);
     }
 
+    public function edit(Request $request, $id)
+    {
+        return Inertia::render('OpsJob/Edit', [
+            'opsJob' => new OpsJobResource(
+                OpsJob::with(['createdBy', 'deliveredBy', 'operator', 'pickedBy', 'updatedBy'])
+                    ->findOrFail($id)
+            ),
+        ]);
+    }
+
     public function store(Request $request)
     {
         $request->validate([

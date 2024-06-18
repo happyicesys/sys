@@ -24,8 +24,8 @@
           </a>
         </p>
       </div>
-      <span class="text-xs pt-3">
-        {{ item.name }}
+      <span class="text-xs pt-3 text-gray-600">
+        {{ item.created_at_formatted }}
       </span>
       <div class="flex space-x-2">
         <div class="flex shrink-0 items-center gap-x-4">
