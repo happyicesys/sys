@@ -10,7 +10,7 @@
             {{ props.vendModel.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Telco
+            Create New Machine Model
           </span>
         </div>
       </template>

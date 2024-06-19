@@ -249,11 +249,11 @@ onMounted(() => {
     { id: 'All', value: 'All' },
   ]
   vendConfigOptions.value = [
-      {id: 'all', value: 'All'},
-      ...props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    {id: 'all', value: 'All'},
+    ...props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
-  filters.vend_config_id = vendConfigOptions.value[0]
+  filters.value.vend_config_id = vendConfigOptions.value[0]
 })
 
 function onCreateClicked() {

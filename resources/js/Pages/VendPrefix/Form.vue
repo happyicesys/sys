@@ -127,9 +127,7 @@ onMounted(() => {
   operatorOptions.value = [
     ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
-  vendConfigOptions.value = [
-    ...props.vendConfigOptions.data.map((data) => {return {id: data.id, name: data.name}})
-  ]
+  vendConfigOptions.value = props.vendConfigOptions
   form.value = props.vendPrefix ? useForm(
   {
     ...props.vendPrefix,
