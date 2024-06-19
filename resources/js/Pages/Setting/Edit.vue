@@ -125,7 +125,29 @@
                 {{ form.errors['customer.is_testing'] }}
               </div>
             </div>
-            <div class="sm:col-span-4">
+            <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Model
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.vend_model_id"
+                  :options="vendModelOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.simcard_id">
+                  {{ form.errors.simcard_id }}
+                </div>
+            </div>
+            <div class="sm:col-span-3">
               <FormInput v-model="form.serial_num" :error="form.errors.serial_num">
                 Serial Num
               </FormInput>
@@ -158,7 +180,7 @@
 
             <hr class="sm:col-span-6">
 
-            <div class="sm:col-span-4">
+            <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Setting Chart
                   <span class="text-red-500">
@@ -182,7 +204,7 @@
                 </div>
             </div>
 
-            <div class="sm:col-span-4" v-if="form.vend_config_id">
+            <div class="sm:col-span-3" v-if="form.vend_config_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Machine Prefix
                   <span class="text-red-500">
@@ -205,7 +227,7 @@
                 </div>
             </div>
 
-            <div class="sm:col-span-4">
+            <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Simcard
                 </label>
@@ -225,7 +247,7 @@
                 </div>
             </div>
 
-            <div class="sm:col-span-4">
+            <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Cashless Terminal
                 </label>
@@ -765,6 +787,7 @@ const props = defineProps({
     simcardOptions: Object,
     vend: Object,
     vendConfigOptions: Object,
+    vendModelOptions: Object,
     vendPrefixOptions: Object,
     type: String,
   })
@@ -792,6 +815,7 @@ const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const simcardOptions = ref([])
 const vendConfigOptions = ref([])
+const vendModelOptions = ref([])
 const vendPrefixOptions = ref([])
 
 function getDefaultForm() {
@@ -831,6 +855,7 @@ function getDefaultForm() {
     is_testing: '',
     is_active: '',
     vend_config_id: '',
+    vend_model_id: '',
     vend_prefix_id: '',
   }
 }
@@ -841,6 +866,7 @@ onMounted(() => {
   operatorOptions.value = props.operatorOptions.data
   simcardOptions.value = props.simcardOptions.data
   vendConfigOptions.value = props.vendConfigOptions.data
+  vendModelOptions.value = props.vendModelOptions.data
   vendPrefixOptions.value = props.vendPrefixOptions ? props.vendPrefixOptions.data : []
 
   form.value = props.vend ? useForm({
@@ -852,6 +878,7 @@ onMounted(() => {
     status: statusOptions.value.find(status => status.id === (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id === props.vend.operator_id) : null : null,
     vend_config_id: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vend.vend_config_id) : null : null,
+    vend_model_id: props.vend ? props.vend.vend_model_id ? vendModelOptions.value.find(vendModel => vendModel.id === props.vend.vend_model_id) : null : null,
     vend_prefix_id: props.vend ? props.vend.vend_prefix_id ? vendPrefixOptions.value.find(vendPrefix => vendPrefix.id === props.vend.vend_prefix_id) : null : null,
     customer: {
       ...JSON.parse(JSON.stringify(props.vend.customer)),
@@ -975,6 +1002,7 @@ function saveVend(vendID) {
       operator_id: data.operator_id ? data.operator_id.id : null,
       status: data.status.id,
       vend_config_id: data.vend_config_id ? data.vend_config_id.id : null,
+      vend_model_id: data.vend_model_id ? data.vend_model_id.id : null,
       vend_prefix_id: data.vend_prefix_id ? data.vend_prefix_id.id : null,
     }))
     .post('/vends/' + vendID + '/update', {

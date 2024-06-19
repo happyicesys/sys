@@ -11,6 +11,7 @@ use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\SimcardResource;
 use App\Http\Resources\VendConfigResource;
+use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendDBResource;
@@ -24,6 +25,7 @@ use App\Models\Operator;
 use App\Models\Simcard;
 use App\Models\Vend;
 use App\Models\VendConfig;
+use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
@@ -73,6 +75,7 @@ class SettingController extends Controller
                 'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix,operator_id',
                 'customer.operator:id,code,name',
                 'simcard',
+                'vendModel',
                 'vendPrefix',
                 'vendConfig',
             ])
@@ -101,6 +104,7 @@ class SettingController extends Controller
                 'vends.private_key',
                 'vends.simcard_id',
                 'vends.vend_config_id',
+                'vends.vend_model_id',
                 'vends.vend_prefix_id',
             );
         $vends = $this->filterOperator($vends);
@@ -135,6 +139,9 @@ class SettingController extends Controller
             'vendConfigOptions' => VendConfigResource::collection(
                 VendConfig::orderBy('name')->get()
             ),
+            'vendModelOptions' => VendModelResource::collection(
+                VendModel::orderBy('name')->get()
+            ),
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
             ),
@@ -163,6 +170,8 @@ class SettingController extends Controller
             'logs',
             'operator',
             'simcard',
+            'vendConfig',
+            'vendModel',
             'vendPrefix',
         ])
         ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
@@ -189,6 +198,7 @@ class SettingController extends Controller
             'vends.operator_id',
             'vends.serial_num',
             'vends.vend_config_id',
+            'vends.vend_model_id',
             'vends.vend_prefix_id',
             DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
             DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
@@ -234,6 +244,9 @@ class SettingController extends Controller
             'vend' => $vend,
             'vendConfigOptions' => VendConfigResource::collection(
                 VendConfig::orderBy('name')->get()
+            ),
+            'vendModelOptions' => VendModelResource::collection(
+                VendModel::orderBy('name')->get()
             ),
             'vendPrefixOptions' =>
                 VendPrefixResource::collection(

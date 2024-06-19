@@ -18,6 +18,7 @@ use App\Http\Resources\VendResource;
 use App\Http\Resources\VendChannelResource;
 use App\Http\Resources\VendChannelErrorResource;
 use App\Http\Resources\VendFanResource;
+use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendTransactionDBResource;
 use App\Http\Resources\VendTransactionResource;
 use App\Http\Resources\VendTempResource;
@@ -38,6 +39,7 @@ use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use App\Models\VendData;
+use App\Models\VendPrefix;
 use App\Models\VendRecord;
 use App\Models\VendSnapshot;
 use App\Models\VendTemp;
@@ -136,6 +138,7 @@ class VendController extends Controller
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->select(
                 'vends.id AS id',
                 'vends.id AS vend_id',
@@ -187,6 +190,7 @@ class VendController extends Controller
                 'product_mappings.remarks AS product_mapping_remarks',
                 'operators.code AS operator_code',
                 'operators.name AS operator_name',
+                'vend_prefixes.name AS vend_prefix_name',
             );
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends, 'vends');
@@ -249,6 +253,9 @@ class VendController extends Controller
             'totals' => $totals,
             'vends' => VendResource::collection($vends),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
         ]);
     }
 
@@ -287,6 +294,7 @@ class VendController extends Controller
                 'vend.vendChannels.vendChannelErrorLogs.vendChannelError',
             ])
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
@@ -354,6 +362,7 @@ class VendController extends Controller
                 'operators.code AS operator_code',
                 'operators.name AS operator_name',
                 'addresses.postcode AS postcode',
+                'vend_prefixes.name AS vend_prefix_name',
             );
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends, 'customers');
@@ -408,6 +417,9 @@ class VendController extends Controller
             'totals' => $totals,
             'vends' => VendResource::collection($vends),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
         ]);
     }
 
@@ -1172,6 +1184,7 @@ class VendController extends Controller
             'simcard_id' => $request->simcard_id,
             'termination_date' => $request->termination_date,
             'vend_config_id' => $request->vend_config_id,
+            'vend_model_id' => $request->vend_model_id,
             'vend_prefix_id' => $request->vend_prefix_id,
         ]);
 

@@ -25,6 +25,22 @@
           <SearchInput placeholderStr="Name" v-model="filters.name">
             Name
           </SearchInput>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Setting Chart
+            </label>
+            <MultiSelect
+                v-model="filters.vend_config_id"
+                :options="vendConfigOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -102,7 +118,7 @@
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
                         {{ vendPrefixes.meta.from + vendPrefixIndex }}
                       </TableData>
-                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-left">
+                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
                         {{ vendPrefix.name }}
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-left">
@@ -136,12 +152,20 @@
                             </span>
                           </Button>
                           <Button
-                            type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
-                            @click="onDeleteClicked(vendPrefix)"
+                            type="button"
+                            class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1 w-fit"
+                            :class="[(vendPrefix.vends && vendPrefix.vends.length > 0) || (vendPrefix.vendConfigs && vendPrefix.vendConfigs.length > 0) ? 'opacity-50 cursor-not-allowed' : '']"
+                            @click="onDeleteClicked(vendModel)"
+                            :disabled="(vendPrefix.vends && vendPrefix.vends.length > 0) || (vendPrefix.vendConfigs && vendPrefix.vendConfigs.length > 0)"
                           >
-                            <TrashIcon class="w-4 h-4"></TrashIcon>
-                            <span>
-                                Delete
+                            <span class="flex space-x-1 items-center">
+                              <TrashIcon class="w-4 h-4"></TrashIcon>
+                              <span>
+                                  Delete
+                              </span>
+                            </span>
+                            <span v-if="(vendPrefix.vends && vendPrefix.vends.length > 0) || (vendPrefix.vendConfigs && vendPrefix.vendConfigs.length > 0)">
+                              (Binded)
                             </span>
                           </Button>
                         </div>
@@ -194,6 +218,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import { filter } from 'lodash';
 
 const props = defineProps({
   operatorOptions: [Array, Object],
@@ -203,6 +228,7 @@ const props = defineProps({
 
 const filters = ref({
   name: '',
+  vend_config_id: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
@@ -213,6 +239,7 @@ const showModal = ref(false)
 const vendPrefix = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
+const vendConfigOptions = ref([])
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -221,7 +248,12 @@ onMounted(() => {
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
   ]
+  vendConfigOptions.value = [
+      {id: 'all', value: 'All'},
+      ...props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
+  ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
+  filters.vend_config_id = vendConfigOptions.value[0]
 })
 
 function onCreateClicked() {
@@ -247,6 +279,7 @@ function onEditClicked(telcoValue) {
 function onSearchFilterUpdated() {
   router.get('/vend-prefixes', {
       ...filters.value,
+      vend_config_id: filters.value.vend_config_id.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

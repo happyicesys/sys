@@ -23,6 +23,7 @@
             :indexType="indexType"
             :vends="vends"
             :vendChannelErrors="vendChannelErrors"
+            :vendPrefixOptions="vendPrefixOptions"
         >
         </IndexComponent>
     </BreezeAuthenticatedLayout>
@@ -47,6 +48,7 @@
     totals: [Array, Object],
     vends: Object,
     vendChannelErrors: Object,
+    vendPrefixOptions: Object,
   })
 
   </script>

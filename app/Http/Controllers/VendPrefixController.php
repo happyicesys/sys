@@ -17,9 +17,11 @@ class VendPrefixController extends Controller
 {
     public function index(Request $request)
     {
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
-        $sortKey = $request->sortKey ? $request->sortKey : 'name';
-        $sortBy = $request->sortBy ? $request->sortBy : true;
+        $request->merge([
+            'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
+            'sortKey' => $request->sortKey ? $request->sortKey : 'name',
+            'sortBy' => $request->sortBy ? $request->sortBy : true,
+        ]);
 
         return Inertia::render('VendPrefix/Index', [
             'operatorOptions' => OperatorResource::collection(
@@ -35,14 +37,20 @@ class VendPrefixController extends Controller
                     ->with([
                         'operator',
                         'vendConfigs.attachments',
+                        'vends',
                     ])
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($request->vend_config_id, function($query, $search) {
+                        if($search !== 'all') {
+                            $query->where('vend_config_id', $search);
+                        }
                     })
-                    ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                    ->when($request->sortKey, function($query, $search) use ($request) {
+                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    })
+                    ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
             ),
         ]);

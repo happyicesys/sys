@@ -310,6 +310,22 @@
                     Next Planned Date
                 </DatePicker>
             </div>
+            <div>
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Machine Prefix
+                </label>
+                <MultiSelect
+                    v-model="filters.vend_prefix_id"
+                    :options="vendPrefixOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
       </div>
 
       <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -497,6 +513,9 @@
                     <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType === 'customers'">
                         Vend ID
                     </TableHeadSort>
+                    <TableHeadSort modelName="vends.vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.vend_prefix_name')">
+                        Prefix
+                    </TableHeadSort>
                     <TableHead>
                         <SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
                             T1&#8451;
@@ -646,6 +665,9 @@
                           <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
                           {{ vend.code }}
                           </Link>
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                          {{ vend.vend_prefix_name }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           <div class="flex flex-col items-center space-y-1">
@@ -1302,6 +1324,7 @@ const props = defineProps({
   indexType: String,
   vends: Object,
   vendChannelErrors: Object,
+  vendPrefixOptions: Object,
 })
 
 const filters = ref({
@@ -1337,6 +1360,7 @@ const filters = ref({
   fanSpeedLowerThan: '',
   balanceStockLessThan: '',
   remainingSkuLessThan: '',
+  vend_prefix_id: '',
   status: '',
   sortKey: '',
   vendRecordsThirtyDaysAmountAverageLessThan: '',
@@ -1375,6 +1399,7 @@ const vend = ref()
 
 const vends = ref(getVendsField())
 const vendChannelErrorsOptions = ref([])
+const vendPrefixOptions = ref([])
 //   const vendOptions = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
 const operatorRole = usePage().props.auth.operatorRole
@@ -1451,6 +1476,11 @@ onMounted(() => {
         {id: 'inactive', value: 'Not Active'},
     ]
 
+    vendPrefixOptions.value = [
+        {id: 'all', value: 'All'},
+        ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    ]
+
   filters.value.is_active = booleanOptions.value[1]
   filters.value.deviceType = deviceTypeOptions.value[0]
   filters.value.is_door_open = doorOptions.value[0]
@@ -1466,6 +1496,7 @@ onMounted(() => {
 //   filters.value.operator = operatorOptions.value[0]
   filters.value.operator = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
   filters.value.status = statusOptions.value[2]
+    filters.value.vend_prefix_id = vendPrefixOptions.value[0]
   // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
 })
 
@@ -1565,6 +1596,7 @@ function getVendsField() {
         is_sensor: filters.value.is_sensor.id,
         // is_testing: filters.value.is_testing.id,
         status: filters.value.status.id,
+        vend_prefix_id: filters.value.vend_prefix_id.id,
         numberPerPage: filters.value.numberPerPage.id,
     }, {
         preserveState: true,
@@ -1648,6 +1680,7 @@ function onExportChannelExcelClicked() {
           is_sensor: filters.value.is_sensor.id,
           is_testing: filters.value.is_testing.id,
           status: filters.value.status.id,
+          vend_prefix_id: filters.value.vend_prefix_id.id,
       },
       responseType: 'blob',
   }).then(response => {

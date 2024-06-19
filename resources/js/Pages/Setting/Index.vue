@@ -217,6 +217,38 @@
             >
             </MultiSelect>
           </div>
+          <div v-if="permissions.includes('admin-access vends')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Setting Chart
+            </label>
+            <MultiSelect
+                v-model="filters.vend_config_id"
+                :options="vendConfigOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div v-if="permissions.includes('admin-access vends')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Machine Model
+            </label>
+            <MultiSelect
+                v-model="filters.vend_model_id"
+                :options="vendModelOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -299,6 +331,9 @@
                     </TableHead>
                     <TableHead>
                       Status
+                    </TableHead>
+                    <TableHead>
+                      Model
                     </TableHead>
                     <TableHeadSort modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
                       Operator
@@ -479,6 +514,9 @@
                         </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        {{ vend.vendModel ? vend.vendModel.name : '' }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.operator_code }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -568,7 +606,9 @@ const props = defineProps({
     operatorOptions: Object,
     simcardOptions: Object,
     vends: Object,
+    vendConfigOptions: Object,
     vendPrefixOptions: Object,
+    vendModelOptions: Object,
   })
 
 const filters = ref({
@@ -584,6 +624,8 @@ const filters = ref({
     // is_active: '',
     is_binded_customer: '',
     // is_testing: '',
+    vend_config_id: '',
+    vend_model_id: '',
     vend_prefix_id: '',
     sortKey: '',
     sortBy: true,
@@ -608,6 +650,8 @@ const filters = ref({
   const simcardOptions = ref([])
   const permissions = usePage().props.auth.permissions
   const roles = usePage().props.auth.roles
+  const vendConfigOptions = ref([])
+  const vendModelOptions = ref([])
   const vendPrefixOptions = ref([])
   const now = ref(moment().format('HH:mm:ss'))
   const statusOptions = ref([
@@ -649,10 +693,19 @@ onMounted(() => {
         {id: 'all', value: 'All'},
         ...props.simcardOptions.data.map((data) => {return {id: data.id, value: data.code}})
     ]
+    vendConfigOptions.value = [
+        {id: 'all', value: 'All'},
+        ...props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    ]
+    vendModelOptions.value = [
+        {id: 'all', value: 'All'},
+        ...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    ]
     vendPrefixOptions.value = [
         {id: 'all', value: 'All'},
         ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
+
     filters.value.locationType = locationTypeOptions.value[0]
     filters.value.operator = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
 
@@ -662,6 +715,8 @@ onMounted(() => {
     filters.value.status = statusOptions.value[2]
     filters.value.cashless_terminal_id = cashlessTerminalOptions.value[0]
     filters.value.simcard_id = simcardOptions.value[0]
+    filters.value.vend_config_id = vendConfigOptions.value[0]
+    filters.value.vend_model_id = vendModelOptions.value[0]
     filters.value.vend_prefix_id = vendPrefixOptions.value[0]
 })
 
@@ -692,6 +747,8 @@ function onSearchFilterUpdated() {
       // is_testing: filters.value.is_testing.id,
       simcard_id: filters.value.simcard_id.id,
       status: filters.value.status.id,
+      vend_config_id: filters.value.vend_config_id.id,
+      vend_model_id: filters.value.vend_model_id.id,
       vend_prefix_id: filters.value.vend_prefix_id.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {

@@ -100,6 +100,7 @@ class Vend extends Model
         'vend_config_id',
         'vend_criteria_score_json',
         'vend_criteria_weightage_json',
+        'vend_model_id',
         'vend_prefix_id',
         'vend_temp_alert_json',
         'vend_transaction_totals_json',
@@ -171,6 +172,11 @@ class Vend extends Model
         return $this->belongsTo(VendConfig::class);
     }
 
+    public function vendModel()
+    {
+        return $this->belongsTo(VendModel::class);
+    }
+
     public function vendPrefix()
     {
         return $this->belongsTo(VendPrefix::class);
@@ -215,11 +221,6 @@ class Vend extends Model
     public function vendFans()
     {
         return $this->hasMany(VendFan::class);
-    }
-
-    public function vendModel()
-    {
-        return $this->belongsTo(VendModel::class);
     }
 
     public function vendRecords()
@@ -537,6 +538,16 @@ class Vend extends Model
         ->when($request->firmware_ver, function($query, $search) {
             $search = hexdec($search);
             $query->where('parameter_json->Ver', 'LIKE', "{$search}%");
+        })
+        ->when($request->vend_config_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.vend_config_id', $search);
+            }
+        })
+        ->when($request->vend_model_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.vend_model_id', $search);
+            }
         })
         ->when($request->vend_prefix_id, function($query, $search) {
             if($search != 'all') {

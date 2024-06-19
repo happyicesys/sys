@@ -134,6 +134,7 @@ const navigation = [
             // {name: 'Tax', href: '/taxes'},
             // {name: 'UOM', href: '/uoms'},
             // {name: 'Zone', href: '/zones'},
+            {name: 'Machine Models', href: '/vend-models'},
         ],
     },
     {

@@ -91,9 +91,9 @@ class VendConfigController extends Controller
         $model = VendConfig::findOrFail($id);
         $model->fill($request->all());
 
-        if($request->vendPrefixes) {
+        // if($request->vendPrefixes) {
             $model->vendPrefixes()->sync(collect($request->vendPrefixes)->pluck('id'));
-        }
+        // }
 
         $model->save();
 

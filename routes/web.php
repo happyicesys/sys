@@ -41,6 +41,7 @@ use App\Http\Controllers\VendConfigController;
 use App\Http\Controllers\VendChannelErrorController;
 use App\Http\Controllers\VendCriteriaController;
 use App\Http\Controllers\VendCriteriaBindingController;
+use App\Http\Controllers\VendModelController;
 use App\Http\Controllers\VendPrefixController;
 use App\Http\Controllers\ZoneController;
 use Carbon\Carbon;
@@ -444,6 +445,13 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/update', [VendConfigController::class, 'update']);
         Route::delete('/{id}', [VendConfigController::class, 'delete']);
         Route::post('/{id}/upload-attachments', [VendConfigController::class, 'uploadAttachment']);
+    });
+
+    Route::prefix('vend-models')->group(function() {
+        Route::get('/', [VendModelController::class, 'index'])->name('vend-models');
+        Route::post('/store', [VendModelController::class, 'store']);
+        Route::post('/{id}/update', [VendModelController::class, 'update']);
+        Route::delete('/{id}', [VendModelController::class, 'delete']);
     });
 
     Route::prefix('vend-prefixes')->group(function() {

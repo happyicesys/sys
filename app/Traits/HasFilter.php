@@ -382,6 +382,16 @@ trait HasFilter {
         ->when($request->vendRecordsThirtyDaysAmountAverageLessThan, function($query, $search) {
             $query->where('virtual_vend_records_thirty_days_amount_average', '<=', $search*100);
         })
+        ->when($request->vend_config_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.vend_config_id', $search);
+            }
+        })
+        ->when($request->vend_model_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.vend_model_id', $search);
+            }
+        })
         ->when($request->vend_prefix_id, function($query, $search) {
             if($search != 'all') {
                 $query->where('vends.vend_prefix_id', $search);
