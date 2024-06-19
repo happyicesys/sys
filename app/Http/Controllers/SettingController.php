@@ -187,6 +187,7 @@ class SettingController extends Controller
             'vends.simcard_id',
             'vends.termination_date',
             'vends.operator_id',
+            'vends.serial_num',
             'vends.vend_config_id',
             'vends.vend_prefix_id',
             DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),

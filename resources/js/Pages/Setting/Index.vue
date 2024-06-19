@@ -485,7 +485,11 @@
                         {{ vend.serial_num }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.vendConfig ? vend.vendConfig.name : '' }}
+                        <span v-if="vend.vendConfig">
+                          <a :href="'/vend-configs/' + vend.vendConfig.id + '/edit'" target="_blank" class="text-blue-600">
+                            {{ vend.vendConfig.name }}
+                          </a>
+                        </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.begin_date_short }}

@@ -85,8 +85,8 @@ const navigation = [
         tagline: null,
         children: [
             {name: 'Machines', href: '/settings'},
-            {name: 'Machine Prefix', href: '/vend-prefixes'},
             {name: 'Setting Charts', href: '/vend-configs'},
+            {name: 'Machine Prefix', href: '/vend-prefixes'},
             {name: 'Simcard', href: '/simcards'},
             {name: 'Cashless Terminals', href: '/cashless-terminals'},
         ]

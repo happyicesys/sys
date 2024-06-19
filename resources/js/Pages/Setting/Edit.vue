@@ -126,6 +126,11 @@
               </div>
             </div>
             <div class="sm:col-span-4">
+              <FormInput v-model="form.serial_num" :error="form.errors.serial_num">
+                Serial Num
+              </FormInput>
+            </div>
+            <div class="sm:col-span-4">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Operator
                   <span class="text-red-500">
