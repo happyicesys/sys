@@ -20,8 +20,8 @@ class VendPrefixResource extends JsonResource
             'desc' => $this->desc,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'operator_id' => $this->operator_id,
-            'vendConfig' => VendConfigResource::make($this->whenLoaded('vendConfig')),
-            'vend_config_id' => $this->vend_config_id,
+            'vendConfigs' => VendConfigResource::collection($this->whenLoaded('vendConfigs')),
+            // 'vend_config_id' => $this->vend_config_id,
         ];
     }
 }

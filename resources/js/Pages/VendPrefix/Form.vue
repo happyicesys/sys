@@ -49,7 +49,7 @@
                 {{ form.errors.operator_id }}
               </div>
             </div>
-            <div class="sm:col-span-6">
+            <!-- <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Setting Chart
               </label>
@@ -67,7 +67,7 @@
               <div class="text-sm text-red-600" v-if="form.errors.vend_config_id">
                 {{ form.errors.vend_config_id }}
               </div>
-            </div>
+            </div> -->
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">

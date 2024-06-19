@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\CashlessProviderResource;
 use App\Http\Resources\CashlessTerminalResource;
+use App\Http\Resources\OperatorResource;
 use App\Models\CashlessProvider;
 use App\Models\CashlessTerminal;
+use App\Models\Operator;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,6 +23,10 @@ class CashlessTerminalController extends Controller
         return Inertia::render('CashlessTerminal/Index', [
             'cashlessTerminals' => CashlessTerminalResource::collection(
                 CashlessTerminal::query()
+                    ->with([
+                        'cashlessProvider',
+                        'operator',
+                    ])
                     ->when($request->code, function($query, $search) {
                         $query->where('code', 'LIKE', "%{$search}%");
                     })
@@ -33,14 +39,20 @@ class CashlessTerminalController extends Controller
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),
-            'cashlessProviders' => CashlessProviderResource::collection(CashlessProvider::orderBy('name')->get()),
+            'cashlessProviderOptions' => CashlessProviderResource::collection(
+                CashlessProvider::orderBy('name')->get()
+            ),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
         ]);
     }
 
-    public function create(Request $request)
+    public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required',
+            'code' => 'required',
+            'cashless_provider_id' => 'required',
         ]);
 
         CashlessTerminal::create($request->all());
@@ -51,7 +63,8 @@ class CashlessTerminalController extends Controller
     public function update(Request $request, $zoneId)
     {
         $request->validate([
-            'name' => 'required',
+            'code' => 'required',
+            'cashless_provider_id' => 'required',
         ]);
 
         $cashlessTerminal = CashlessTerminal::findOrFail($zoneId);

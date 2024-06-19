@@ -155,6 +155,30 @@
 
             <div class="sm:col-span-4">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Setting Chart
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.vend_config_id"
+                  :options="vendConfigOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  @selected="onVendConfigSelected"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.vend_config_id">
+                  {{ form.errors.vend_config_id }}
+                </div>
+            </div>
+
+            <div class="sm:col-span-4" v-if="form.vend_config_id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Machine Prefix
                   <span class="text-red-500">
                     *
@@ -167,7 +191,7 @@
                   valueProp="id"
                   label="name"
                   placeholder="Select"
-                  open-direction="top"
+                  open-direction="bottom"
                   class="mt-1"
                 >
                 </MultiSelect>
@@ -187,7 +211,7 @@
                   valueProp="id"
                   label="name"
                   placeholder="Select"
-                  open-direction="top"
+                  open-direction="bottom"
                   class="mt-1"
                 >
                 </MultiSelect>
@@ -207,7 +231,7 @@
                   valueProp="id"
                   label="name"
                   placeholder="Select"
-                  open-direction="top"
+                  open-direction="bottom"
                   class="mt-1"
                 >
                 </MultiSelect>
@@ -735,6 +759,7 @@ const props = defineProps({
     operatorOptions: Object,
     simcardOptions: Object,
     vend: Object,
+    vendConfigOptions: Object,
     vendPrefixOptions: Object,
     type: String,
   })
@@ -761,6 +786,7 @@ const isExisting = ref(1)
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const simcardOptions = ref([])
+const vendConfigOptions = ref([])
 const vendPrefixOptions = ref([])
 
 function getDefaultForm() {
@@ -799,6 +825,7 @@ function getDefaultForm() {
     termination_date: '',
     is_testing: '',
     is_active: '',
+    vend_config_id: '',
     vend_prefix_id: '',
   }
 }
@@ -808,7 +835,8 @@ onMounted(() => {
   countryOptions.value = props.countries.data
   operatorOptions.value = props.operatorOptions.data
   simcardOptions.value = props.simcardOptions.data
-  vendPrefixOptions.value = props.vendPrefixOptions.data
+  vendConfigOptions.value = props.vendConfigOptions.data
+  vendPrefixOptions.value = props.vendPrefixOptions ? props.vendPrefixOptions.data : []
 
   form.value = props.vend ? useForm({
     ...props.vend,
@@ -818,6 +846,7 @@ onMounted(() => {
     simcard_id: props.vend.simcard_id ? props.vend.simcard_id : null,
     status: statusOptions.value.find(status => status.id === (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id === props.vend.operator_id) : null : null,
+    vend_config_id: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vend.vend_config_id) : null : null,
     vend_prefix_id: props.vend ? props.vend.vend_prefix_id ? vendPrefixOptions.value.find(vendPrefix => vendPrefix.id === props.vend.vend_prefix_id) : null : null,
     customer: {
       ...JSON.parse(JSON.stringify(props.vend.customer)),
@@ -854,6 +883,22 @@ onMounted(() => {
 
 function formatDatetime(datetime) {
   return datetime ? moment(datetime).format('YYYY-MM-DD hh:mm a') : ''
+}
+
+function onVendConfigSelected() {
+  form.value.vend_prefix_id = null
+  vendPrefixOptions.value = []
+  router.reload({
+    only: ['vendPrefixOptions'],
+    data: {
+      vend_config_id: form.value.vend_config_id.id,
+    },
+    replace: true,
+    preserveState: true,
+    onSuccess: page => {
+      vendPrefixOptions.value = props.vendPrefixOptions.data
+    }
+  })
 }
 
 function restartAPK(vendID) {
@@ -924,6 +969,7 @@ function saveVend(vendID) {
       // is_active: data.is_active.id,
       operator_id: data.operator_id ? data.operator_id.id : null,
       status: data.status.id,
+      vend_config_id: data.vend_config_id ? data.vend_config_id.id : null,
       vend_prefix_id: data.vend_prefix_id ? data.vend_prefix_id.id : null,
     }))
     .post('/vends/' + vendID + '/update', {

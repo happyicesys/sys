@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class VendConfig extends Model
 {
@@ -11,6 +12,7 @@ class VendConfig extends Model
 
     protected $fillable = [
         'desc',
+        'is_active',
         'name',
         'operator_id'
     ];
@@ -18,7 +20,7 @@ class VendConfig extends Model
     // relationships
     public function attachments()
     {
-        return $this->morphMany(Attachment::class, 'modelable')->oldest();
+        return $this->morphMany(Attachment::class, 'modelable')->latest();
     }
 
     public function operator()
@@ -26,8 +28,13 @@ class VendConfig extends Model
         return $this->belongsTo(Operator::class);
     }
 
-    public function vendPrefixes()
+    // public function compatibleVendConfigs()
+    // {
+    //     return $this->belongsToMany(VendConfig::class);
+    // }
+
+    public function vendPrefixes() : BelongsToMany
     {
-        return $this->hasMany(VendPrefix::class);
+        return $this->belongsToMany(VendPrefix::class);
     }
 }

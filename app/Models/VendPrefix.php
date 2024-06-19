@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Scopes\OperatorIDFilterScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class VendPrefix extends Model
 {
@@ -38,8 +39,8 @@ class VendPrefix extends Model
         return $this->hasMany(Vend::class);
     }
 
-    public function vendConfig()
+    public function vendConfigs() : BelongsToMany
     {
-        return $this->belongsTo(VendConfig::class);
+        return $this->belongsToMany(VendConfig::class);
     }
 }

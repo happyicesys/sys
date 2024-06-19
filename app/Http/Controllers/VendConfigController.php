@@ -17,10 +17,15 @@ class VendConfigController extends Controller
 {
     public function index(Request $request)
     {
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
-        $sortKey = $request->sortKey ? $request->sortKey : 'name';
-        $sortBy = $request->sortBy ? $request->sortBy : true;
+        // dd($request->all());
+        $request->merge([
+            'is_active' => $request->is_active ? $request->is_active : 'true',
+            'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
+            'sortKey' => $request->sortKey ? $request->sortKey : 'name',
+            'sortBy' => $request->sortBy ? $request->sortBy : true,
+        ]);
 
+        // dd($request->all());
         return Inertia::render('VendConfig/Index', [
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
@@ -31,13 +36,17 @@ class VendConfigController extends Controller
                         'attachments',
                         'vendPrefixes'
                     ])
+                    ->when($request->is_active, function($query, $search) {
+                        // dd(filter_var($search, FILTER_VALIDATE_BOOLEAN));
+                        $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+                    })
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($request->sortKey, function($query, $search) use ($request) {
+                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                     })
-                    ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                    ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
             ),
         ]);
@@ -82,14 +91,8 @@ class VendConfigController extends Controller
         $model = VendConfig::findOrFail($id);
         $model->fill($request->all());
 
-        $model->vendPrefixes()->update(['vend_config_id' => null]);
         if($request->vendPrefixes) {
-            foreach($request->vendPrefixes as $vendPrefix) {
-                $vendPrefix = VendPrefix::findOrFail($vendPrefix['id']);
-                 $vendPrefix->update([
-                    'vend_config_id' => $model->id
-                ]);
-            }
+            $model->vendPrefixes()->sync(collect($request->vendPrefixes)->pluck('id'));
         }
 
         $model->save();

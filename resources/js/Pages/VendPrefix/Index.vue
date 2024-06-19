@@ -109,18 +109,20 @@
                         {{ vendPrefix.desc }}
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
-                        <span v-if="vendPrefix.vendConfig" class="flex space-x-1 items-center justify-center">
-                          <Link :href="'/vend-configs/' + vendPrefix.vendConfig.id + '/edit'" class="text-blue-600" target="_blank">
-                            {{ vendPrefix.vendConfig.name }}
-                          </Link>
-                          <Button
-                          type="button" class="bg-sky-300 hover:bg-sky-400 px-2 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
-                          @click="onAttachmentOverviewClicked(vendPrefix.vendConfig)"
-                          v-if="vendPrefix.vendConfig && vendPrefix.vendConfig.attachments && vendPrefix.vendConfig.attachments.length > 0"
-                          >
-                            <PhotoIcon class="h-4 w-4" aria-hidden="true"/>
-                          </Button>
-                        </span>
+                        <div v-if="vendPrefix.vendConfigs">
+                          <span v-for="vendConfig in vendPrefix.vendConfigs" class="flex space-y-1 items-center justify-between">
+                            <Link :href="'/vend-configs/' + vendConfig.id + '/edit'" class="text-blue-600" target="_blank">
+                              {{ vendConfig.name }}
+                            </Link>
+                            <Button
+                            type="button" class="bg-sky-300 hover:bg-sky-400 px-1 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
+                            @click="onAttachmentOverviewClicked(vendConfig)"
+                            v-if="vendConfig.attachments && vendConfig.attachments.length > 0"
+                            >
+                              <PhotoIcon class="h-3 w-3" aria-hidden="true"/>
+                            </Button>
+                          </span>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">

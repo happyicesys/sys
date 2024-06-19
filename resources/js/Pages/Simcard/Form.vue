@@ -42,8 +42,8 @@
               </div>
             </div>
             <div class="sm:col-span-6">
-              <FormInput v-model="form.code" :error="form.errors.code" required="true">
-                Simcard Number
+              <FormInput v-model="form.phone_number" :error="form.errors.phone_number">
+                Phone Number
               </FormInput>
             </div>
           </div>
@@ -77,6 +77,7 @@
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
+import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
@@ -96,8 +97,12 @@ const form = ref(
 const telcoOptions = ref([])
 
 onMounted(() => {
-  form.value = props.simcard ? useForm(props.simcard) : useForm(getDefaultForm())
   telcoOptions.value = props.telcos.data.map((data) => {return {id: data.id, name: data.name}})
+  form.value = props.simcard ? useForm({
+    ...props.simcard,
+    telco_id: telcoOptions.value.find((data) => data.id == props.simcard.telco_id)
+}) : useForm(getDefaultForm())
+
 })
 
 function getDefaultForm() {
@@ -113,7 +118,13 @@ function submit() {
 
   if(props.type === 'create') {
     form.value
-    .post('/simcards/create', {
+    .transform((data) => {
+      return {
+        ...data,
+        telco_id: data.telco_id.id,
+      }
+    })
+    .post('/simcards/store', {
       onSuccess: () => {
         emit('modalClose')
       },
@@ -124,6 +135,12 @@ function submit() {
 
   if(props.type === 'update') {
     form.value
+    .transform((data) => {
+      return {
+        ...data,
+        telco_id: data.telco_id.id,
+      }
+    })
       .post('/simcards/' + form.value.id + '/update', {
       onSuccess: () => {
         emit('modalClose')

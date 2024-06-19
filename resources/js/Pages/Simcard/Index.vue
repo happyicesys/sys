@@ -232,7 +232,7 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(simcard) {
-  const approval = confirm('Are you sure to delete ' + simcard.name + '?');
+  const approval = confirm('Are you sure to delete ' + simcard.code + '?');
   if (!approval) {
       return;
   }

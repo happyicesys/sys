@@ -21,6 +21,10 @@ class SimcardController extends Controller
         return Inertia::render('Simcard/Index', [
             'simcards' => SimcardResource::collection(
                 Simcard::query()
+                    ->with([
+                        'operator',
+                        'telco',
+                    ])
                     ->when($request->code, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
@@ -40,10 +44,11 @@ class SimcardController extends Controller
         ]);
     }
 
-    public function create(Request $request)
+    public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required',
+            'code' => 'required',
+            'telco_id' => 'required',
         ]);
 
         Simcard::create($request->all());
@@ -54,7 +59,8 @@ class SimcardController extends Controller
     public function update(Request $request, $zoneId)
     {
         $request->validate([
-            'name' => 'required',
+            'code' => 'required',
+            'telco_id' => 'required',
         ]);
 
         $simcard = Simcard::findOrFail($zoneId);

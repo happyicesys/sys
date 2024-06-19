@@ -116,10 +116,10 @@
                       <TableData :currentIndex="telcoIndex" :totalLength="cashlessTerminals.length" inputClass="text-center">
                         {{ cashlessTerminals.meta.from + telcoIndex }}
                       </TableData>
-                      <TableData :currentIndex="telcoIndex" :totalLength="cashlessTerminals.length" inputClass="text-left">
+                      <TableData :currentIndex="telcoIndex" :totalLength="cashlessTerminals.length" inputClass="text-center">
                         {{ cashlessTerminal.code }}
                       </TableData>
-                      <TableData :currentIndex="telcoIndex" :totalLength="cashlessTerminals.length" inputClass="text-left">
+                      <TableData :currentIndex="telcoIndex" :totalLength="cashlessTerminals.length" inputClass="text-center">
                         {{ cashlessTerminal.cashlessProvider.name }}
                       </TableData>
                       <TableData :currentIndex="telcoIndex" :totalLength="cashlessTerminals.length" inputClass="text-center">
@@ -160,7 +160,8 @@
   <Form
       v-if="showModal"
       :cashlessTerminal="cashlessTerminal"
-      :telcos="telcos"
+      :cashlessProviderOptions="cashlessProviderOptions"
+      :operatorOptions="operatorOptions"
       :type="type"
       :showModal="showModal"
       @modalClose="onModalClose"
@@ -172,7 +173,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-// import Form from '@/Components/CashlessTerminal/Form.vue';
+import Form from '@/Pages/CashlessTerminal/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -184,8 +185,9 @@ import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 
 const props = defineProps({
-  cashlessProviders: Object,
+  cashlessProviderOptions: Object,
   cashlessTerminals: Object,
+  operatorOptions: Object,
 })
 
 const filters = ref({
@@ -201,6 +203,7 @@ const cashlessTerminal = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
 const cashlessProviderOptions = ref([])
+const operatorOptions = ref([])
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -210,9 +213,13 @@ onMounted(() => {
     { id: 'All', value: 'All' },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
-  cashlessProviderOptions.value = props.cashlessProviders.data.map((data) => {return {
+  cashlessProviderOptions.value = props.cashlessProviderOptions.data.map((data) => {return {
     id: data.id,
     name: data.name,
+  }})
+  operatorOptions.value = props.operatorOptions.data.map((data) => {return {
+    id: data.id,
+    full_name: data.full_name,
   }})
 })
 
@@ -223,16 +230,16 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(cashlessTerminal) {
-  const approval = confirm('Are you sure to delete ' + cashlessTerminal.name + '?');
+  const approval = confirm('Are you sure to delete ' + cashlessTerminal.code + '?');
   if (!approval) {
       return;
   }
   router.delete('/cashless-terminals/' + cashlessTerminal.id)
 }
 
-function onEditClicked(telcoValue) {
+function onEditClicked(model) {
   type.value = 'update'
-  cashlessTerminal.value = telcoValue
+  cashlessTerminal.value = model
   showModal.value = true
 }
 

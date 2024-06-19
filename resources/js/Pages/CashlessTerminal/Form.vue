@@ -18,31 +18,76 @@
         <form @submit.prevent="submit" id="submit">
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
-              <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+              <FormInput v-model="form.code" :error="form.errors.code" required="true">
+                Code
               </FormInput>
             </div>
-          </div>
-          <div class="sm:col-span-6">
-            <div class="flex space-x-1 mt-5 justify-end">
-              <Button
-                class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
-                @click="$emit('modalClose')"
-                form="submit"
+            <div class="sm:col-span-6">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Cashless Provider
+                <span class="text-red-500">
+                    *
+                </span>
+              </label>
+              <MultiSelect
+                v-model="form.cashless_provider_id"
+                :options="cashlessProviderOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
               >
-                <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                <span>
-                  Back
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.cashless_provider_id">
+                {{ form.errors.cashless_provider_id }}
+              </div>
+            </div>
+            <div class="sm:col-span-6">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Operator
+                <span class="text-red-500">
+                    *
                 </span>
-              </Button>
-              <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
-                <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                <span>
-                  Save
-                </span>
-              </Button>
+              </label>
+              <MultiSelect
+                v-model="form.operator_id"
+                :options="operatorOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.operator_id">
+                {{ form.errors.operator_id }}
+              </div>
+            </div>
+            <div class="sm:col-span-6">
+              <div class="flex space-x-1 mt-5 justify-end">
+                <Button
+                  class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                  @click="$emit('modalClose')"
+                  form="submit"
+                >
+                  <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                  <span>
+                    Back
+                  </span>
+                </Button>
+                <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
+                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                  <span>
+                    Save
+                  </span>
+                </Button>
+              </div>
             </div>
           </div>
+
         </form>
       </template>
     </Modal>
@@ -53,14 +98,19 @@
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
+import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
+
+const authOperator = usePage().props.auth.operator
 
 const props = defineProps({
   cashlessTerminal: Object,
-  type: String,
+  cashlessProviderOptions: [Array, Object],
+  operatorOptions: [Array, Object],
   showModal: Boolean,
+  type: String,
 })
 
 const emit = defineEmits(['modalClose'])
@@ -68,14 +118,24 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const operatorOptions = ref([])
 
 onMounted(() => {
-  form.value = props.cashlessTerminal ? useForm(props.cashlessTerminal) : useForm(getDefaultForm())
+  operatorOptions.value = props.operatorOptions
+  form.value = props.cashlessTerminal ?
+  useForm({
+    ...props.cashlessTerminal,
+    cashless_provider_id: props.cashlessProviderOptions.find(cashlessProvider => cashlessProvider.id === props.cashlessTerminal.cashless_provider_id),
+  })
+   : useForm(getDefaultForm())
+  form.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
 })
 
 function getDefaultForm() {
   return {
-    name: '',
+    code: '',
+    cashless_provider_id: '',
+    operator_id: '',
   }
 }
 
@@ -84,7 +144,14 @@ function submit() {
 
   if(props.type === 'create') {
     form.value
-    .post('/cashless-teminals/create', {
+    .transform((data) => {
+      return {
+        ...data,
+        operator_id: data.operator_id.id,
+        cashless_provider_id: data.cashless_provider_id.id,
+      }
+    })
+    .post('/cashless-terminals/store', {
       onSuccess: () => {
         emit('modalClose')
       },
@@ -95,7 +162,14 @@ function submit() {
 
   if(props.type === 'update') {
     form.value
-      .post('/cashless-teminals/' + form.value.id + '/update', {
+    .transform((data) => {
+      return {
+        ...data,
+        operator_id: data.operator_id.id,
+        cashless_provider_id: data.cashless_provider_id.id,
+      }
+    })
+      .post('/cashless-terminals/' + form.value.id + '/update', {
       onSuccess: () => {
         emit('modalClose')
       },

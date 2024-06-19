@@ -18,6 +18,7 @@ class VendConfigResource extends JsonResource
             'id' => $this->id,
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'desc' => $this->desc,
+            'is_active' => $this->is_active ? true : false,
             'name' => $this->name,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'operator_id' => $this->operator_id,

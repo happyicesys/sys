@@ -25,6 +25,22 @@
           <SearchInput placeholderStr="Name" v-model="filters.name">
             Name
           </SearchInput>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Is Active?
+            </label>
+            <MultiSelect
+              v-model="filters.is_active"
+              :options="booleanOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -91,6 +107,15 @@
                       Desc
                     </TableHead>
                     <TableHead>
+                      Compatible
+                    </TableHead>
+                    <TableHead>
+                      Latest Attachment
+                    </TableHead>
+                    <TableHead>
+                      Machine Prefixes
+                    </TableHead>
+                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -100,10 +125,41 @@
                         {{ vendConfigs.meta.from + vendConfigIndex }}
                       </TableData>
                       <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left">
-                        {{ vendConfig.name }}
+                        <div class="flex flex-col space-y-1">
+                          {{ vendConfig.name }}
+                          <div
+                            class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer"
+                            :class="vendConfig.is_active ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'"
+                          >
+                            <div class="flex flex-col">
+                                <span class="font-semibold grow-0">
+                                  {{ vendConfig.is_active ? 'Active' : 'Inactive' }}
+                                </span>
+                            </div>
+                          </div>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left whitespace-pre-line">
                         {{ vendConfig.desc }}
+                      </TableData>
+                      <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left whitespace-pre-line">
+                        <!-- {{ vendConfig.desc }} -->
+                      </TableData>
+                      <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left">
+                        <span v-if="vendConfig.attachments && vendConfig.attachments.length > 0">
+                          <a :href="vendConfig.attachments[0].full_url" target="_blank">
+                            <img class="aspect-[3/2] rounded-2xl object-scale-down h-48 w-96" :src="vendConfig.attachments[0].full_url" alt="" />
+                          </a>
+                        </span>
+                      </TableData>
+                      <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-center">
+                        <div v-if="vendConfig.vendPrefixes">
+                          <ul class="list-none">
+                            <li v-for="vendPrefix in vendConfig.vendPrefixes" :key="vendPrefix.id">
+                                {{ vendPrefix.name }}
+                            </li>
+                          </ul>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="">
                         <div class="flex flex-col space-y-1 justify-items-center">
@@ -201,11 +257,16 @@ const props = defineProps({
 
 const filters = ref({
   name: '',
+  is_active: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
 })
 const attachments = ref([])
+const booleanOptions = ref([
+    {id: 'true', value: 'Yes'},
+    {id: 'false', value: 'No'},
+])
 const model = ref()
 const showAttachmentOverviewModal = ref(false)
 const showModal = ref(false)
@@ -220,6 +281,7 @@ onMounted(() => {
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
   ]
+  filters.value.is_active = booleanOptions.value[0]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
 
@@ -249,8 +311,10 @@ function onEditClicked(telcoValue) {
 }
 
 function onSearchFilterUpdated() {
+// console.log({...filters.value, is_active: filters.value.is_active ? filters.value.is_active.id : null, numberPerPage: filters.value.numberPerPage.id})
   router.get('/vend-configs', {
       ...filters.value,
+      is_active: filters.value.is_active ? filters.value.is_active.id : null,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

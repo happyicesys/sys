@@ -10,6 +10,7 @@ use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\SimcardResource;
+use App\Http\Resources\VendConfigResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendDBResource;
@@ -22,6 +23,7 @@ use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\Simcard;
 use App\Models\Vend;
+use App\Models\VendConfig;
 use App\Models\VendPrefix;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
@@ -71,7 +73,8 @@ class SettingController extends Controller
                 'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix,operator_id',
                 'customer.operator:id,code,name',
                 'simcard',
-                'vendPrefix'
+                'vendPrefix',
+                'vendConfig',
             ])
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->filterIndex($request)
@@ -97,6 +100,7 @@ class SettingController extends Controller
                 'vends.last_updated_at',
                 'vends.private_key',
                 'vends.simcard_id',
+                'vends.vend_config_id',
                 'vends.vend_prefix_id',
             );
         $vends = $this->filterOperator($vends);
@@ -128,6 +132,9 @@ class SettingController extends Controller
             'vends' => VendResource::collection(
                 $vends
             ),
+            'vendConfigOptions' => VendConfigResource::collection(
+                VendConfig::orderBy('name')->get()
+            ),
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
             ),
@@ -145,7 +152,7 @@ class SettingController extends Controller
     }
 
 
-    public function edit($id)
+    public function edit(Request $request, $id)
     {
         $vend = Vend::withoutGlobalScopes()
         ->with([
@@ -180,6 +187,7 @@ class SettingController extends Controller
             'vends.simcard_id',
             'vends.termination_date',
             'vends.operator_id',
+            'vends.vend_config_id',
             'vends.vend_prefix_id',
             DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
             DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
@@ -202,6 +210,7 @@ class SettingController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+
         return Inertia::render('Setting/Edit', [
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
                 CashlessTerminal::orderBy('code')->get()
@@ -222,8 +231,18 @@ class SettingController extends Controller
                 $customers
             ),
             'vend' => $vend,
-            'vendPrefixOptions' => VendPrefixResource::collection(
-                VendPrefix::orderBy('name')->get()
+            'vendConfigOptions' => VendConfigResource::collection(
+                VendConfig::orderBy('name')->get()
+            ),
+            'vendPrefixOptions' =>
+                VendPrefixResource::collection(
+                    VendPrefix::query()
+                        ->when($request->vend_config_id, function($query) use ($request) {
+                            $query->whereHas('vendConfigs', function($query) use ($request) {
+                                $query->where('vend_configs.id', $request->vend_config_id);
+                            });
+                        })
+                        ->get()
             ),
             'type' => 'update',
         ]);

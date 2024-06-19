@@ -14,7 +14,9 @@
           <div class="mx-auto max-w-7xl px-6 lg:px-8">
             <ul role="list" class="mx-auto mt-3 grid max-w-2xl max-h-3xl gap-x-8 gap-y-3 lg:mx-0 lg:max-w-none">
               <li v-for="(item, itemIndex) in items" :key="item.id" class="flex flex-col sm:justify-between space-y-2 sm:flex-col sm:space-x-2 sm:items-center">
-                <img class="aspect-[3/2] w-full h-full rounded-2xl" :src="item.full_url" alt="" />
+                <a :href="item.full_url" target="_blank">
+                  <img class="aspect-[3/2] w-full h-full rounded-2xl" :src="item.full_url" alt="" />
+                </a>
                 <span class="flex space-x-2">
                   <h4 class="text-lg font-normal leading-4 tracking-tight text-gray-800 flex justify-between">
                     <div class="w-full">
@@ -24,11 +26,9 @@
                               v-model="item.name"
                               v-if="item.show"
                         />
-                        <a :href="item.imageUrl" target="_blank">
-                          <span v-if="!item.show">
-                            {{ item.name }}
-                          </span>
-                        </a>
+                        <span v-if="!item.show">
+                          {{ item.name }}
+                        </span>
                       </p>
                     </div>
                   </h4>

@@ -191,7 +191,7 @@
             </label>
             <MultiSelect
                 v-model="filters.simcard_id"
-                :options="simcardOptionsOptions"
+                :options="simcardOptions"
                 trackBy="id"
                 valueProp="id"
                 label="value"
@@ -282,14 +282,8 @@
                     <TableHead>
                       Customer
                     </TableHead>
-                    <TableHeadSort modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
-                      Operator
-                    </TableHeadSort>
                     <TableHead>
-                      Status
-                    </TableHead>
-                    <TableHead>
-                      Machine Prefix
+                      Prefix
                     </TableHead>
                     <TableHead>
                       Simcard
@@ -302,6 +296,18 @@
                     </TableHead>
                     <TableHead>
                       Coin Acceptor
+                    </TableHead>
+                    <TableHead>
+                      Status
+                    </TableHead>
+                    <TableHeadSort modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
+                      Operator
+                    </TableHeadSort>
+                    <TableHead>
+                      Serial Num
+                    </TableHead>
+                    <TableHead>
+                      Setting Chart
                     </TableHead>
                     <TableHead>
                       Deploy Date
@@ -356,23 +362,6 @@
                         <span v-else>
                           {{ vend.name }}
                         </span> -->
-                      </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.operator_code }}
-                      </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        <div class="flex flex-col space-y-1">
-                          <div
-                            class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                            :class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-green-200' : 'bg-red-200')]"
-                          >
-                            <div class="flex flex-col">
-                              <span class="font-bold">
-                                {{vend.is_testing ? 'Factory' : (vend.is_active ? 'Active' : 'Not Active')}}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.vendPrefix ? vend.vendPrefix.name : '' }}
@@ -474,6 +463,29 @@
                               </div>
                           </div>
                         </div>
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        <div class="flex flex-col space-y-1">
+                          <div
+                            class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                            :class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-green-200' : 'bg-red-200')]"
+                          >
+                            <div class="flex flex-col">
+                              <span class="font-bold">
+                                {{vend.is_testing ? 'Factory' : (vend.is_active ? 'Active' : 'Not Active')}}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        {{ vend.operator_code }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        {{ vend.serial_num }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        {{ vend.vendConfig ? vend.vendConfig.name : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.begin_date_short }}

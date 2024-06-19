@@ -95,7 +95,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('cashless-terminals')->group(function() {
         Route::get('/', [CashlessTerminalController::class, 'index'])->name('cashless-terminals');
-        Route::post('/create', [CashlessTerminalController::class, 'create']);
+        Route::post('/store', [CashlessTerminalController::class, 'store']);
         Route::post('/{id}/update', [CashlessTerminalController::class, 'update']);
         Route::delete('/{id}', [CashlessTerminalController::class, 'delete']);
     });
@@ -343,7 +343,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('simcards')->group(function() {
         Route::get('/', [SimcardController::class, 'index'])->name('simcards');
-        Route::post('/create', [SimcardController::class, 'create']);
+        Route::post('/store', [SimcardController::class, 'store']);
         Route::post('/{id}/update', [SimcardController::class, 'update']);
         Route::delete('/{id}', [SimcardController::class, 'delete']);
     });
@@ -448,6 +448,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('vend-prefixes')->group(function() {
         Route::get('/', [VendPrefixController::class, 'index'])->name('vend-prefixes');
         Route::post('/create', [VendPrefixController::class, 'create']);
+        Route::get('/{id}/edit', [VendPrefixController::class, 'edit'])->name('vend-prefixes.edit');
         Route::post('/{id}/update', [VendPrefixController::class, 'update']);
         Route::delete('/{id}', [VendPrefixController::class, 'delete']);
     });

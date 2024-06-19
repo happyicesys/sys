@@ -175,6 +175,7 @@ class VendResource extends JsonResource
             'vendChannelsJson' => isset($this->vend_channels_json) ? $this->vend_channels_json : null,
             'vendChannelErrorLogsJson' => isset($this->vend_channel_error_logs_json) ? $this->vend_channel_error_logs_json : null,
             'vendChannelTotalsJson' => isset($this->vend_channel_totals_json) ? $this->vend_channel_totals_json : null,
+            'vendConfig' => VendConfigResource::make($this->whenLoaded('vendConfig')),
             'vendPrefix' => VendPrefixResource::make($this->whenLoaded('vendPrefix')),
             'vend_prefix_id' => isset($this->vend_prefix_id) ? $this->vend_prefix_id : null,
             'vendThreeDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendThreeDaysErrorTransactions')),
