@@ -145,6 +145,15 @@
                       Restart APK
                     </span>
                 </Button>
+                <Button
+                    class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1"
+                    @click.prevent="syncVendChannels(vend.id)"
+                  >
+                    <ArrowUpCircleIcon class="w-4 h-4"></ArrowUpCircleIcon>
+                    <span>
+                      Force Sync Channels
+                    </span>
+                </Button>
               </span>
             </div>
             </div>
@@ -622,7 +631,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
-import { ArrowPathIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, ArrowUpCircleIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
@@ -729,6 +738,16 @@ onMounted(() => {
   // console.log(JSON.parse(JSON.stringify(form.value)))
 })
 
+function syncVendChannels(vendID) {
+  router.post('/vends/' + vendID + '/sync-vend-channels', {}, {
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+    onSuccess: () => {
+    }
+  })
+}
+
 function formatDatetime(datetime) {
   return datetime ? moment(datetime).format('YYYY-MM-DD hh:mm a') : ''
 }
@@ -739,7 +758,6 @@ function restartAPK(vendID) {
     preserveState: true,
     replace: true,
     onSuccess: () => {
-      emit('modalClose')
     }
   })
 }
@@ -750,7 +768,6 @@ function restartVMC(vendID) {
     preserveState: true,
     replace: true,
     onSuccess: () => {
-      emit('modalClose')
     }
   })
 }

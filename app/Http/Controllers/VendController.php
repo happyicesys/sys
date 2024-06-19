@@ -461,6 +461,25 @@ class VendController extends Controller
         return redirect()->back();
     }
 
+    public function syncVendChannels($id)
+    {
+        $vend = Vend::findOrFail($id);
+        $fid = 1;
+        $content = base64_encode(json_encode([
+            'Type' => 'TYPESYNCAPICHANNELSLOTLIST',
+            'time' => Carbon::now()->timestamp,
+            'action' => '',
+            'mid' => $vend->code,
+        ]));
+        $contentLength = strlen($content);
+        $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+
+        return redirect()->back();
+    }
+
     public function triggerLogUpload($id)
     {
         $vend = Vend::findOrFail($id);

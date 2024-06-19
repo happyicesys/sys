@@ -217,6 +217,11 @@ class Vend extends Model
         return $this->hasMany(VendFan::class);
     }
 
+    public function vendModel()
+    {
+        return $this->belongsTo(VendModel::class);
+    }
+
     public function vendRecords()
     {
         return $this->hasMany(VendRecord::class);
