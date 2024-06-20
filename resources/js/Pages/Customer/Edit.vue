@@ -249,9 +249,10 @@
                               class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800"
                             >
                               {{ channel.product && channel.product.selling_prices[0] ? (channel.product.selling_prices[0].amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
+                              <!-- {{ getSellingPrice(channel) ? ((getSellingPrice(channel)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})) : null }} -->
                             </td>
                           </tr>
-                          <tr>
+                          <tr v-if="!vendChannels || !vendChannels.length">
                             <td
                               class="whitespace-nowrap py-4 pl-4 pr-3 text-xs font-normal sm:pl-6 text-center text-gray-900"
                               colspan="6"
@@ -573,9 +574,8 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { fromPairs } from 'lodash';
 
 const props = defineProps({
     vendOptions: Object,
@@ -602,6 +602,7 @@ const isExisting = ref(1)
 const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
+const profile = usePage().props.auth.profile
 const vendChannels = ref([])
 const sellingPriceTypeOptions = ref([])
 const vendOptions = ref([])
@@ -716,6 +717,18 @@ function deleteCustomer(customerID) {
 function formatDatetime(datetime) {
   return datetime ? moment(datetime).format('YYYY-MM-DD hh:mm a') : ''
 }
+
+// function getSellingPrice(channel) {
+//   let type = props.customer ? props.customer.selling_price_type : props.selling_price_type
+
+//   if(channel && channel.product && channel.product.selling_prices) {
+//     let sellingPrice = channel.product.selling_prices.find((sellingPrice) => sellingPrice.type == type)
+//     if(sellingPrice) {
+//       return sellingPrice.amount
+//     }
+//   }
+//   return null
+// }
 
 function toggleActivationCustomer(customerID) {
   form.value.clearErrors()

@@ -370,7 +370,7 @@ function compareSellingPrice(channel) {
   if(channel && channel.product && channel.product.sellingPrices) {
     let sellingPrice = channel.product.sellingPrices.find((sellingPrice) => sellingPrice.type == type)
     if(sellingPrice) {
-      if(channel.amount != sellingPrice.amount) {
+      if(channel.amount * 100 != sellingPrice.amount) {
         return 'text-red-500'
       }
     }

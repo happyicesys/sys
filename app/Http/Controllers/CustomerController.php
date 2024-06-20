@@ -199,10 +199,6 @@ class CustomerController extends Controller
 
     public function edit(Request $request, $id)
     {
-        $request->merge([
-            'selling_price_type' => $request->selling_price_type ? $request->selling_price_type : SellingPrice::TYPE_1,
-        ]);
-
         $customer = Customer::query()
             ->with([
                 'attachments',
@@ -220,12 +216,20 @@ class CustomerController extends Controller
             ])
             ->find($id);
 
-            $type = $customer->selling_price_type == $request->selling_price_type ? $customer->selling_price_type : $request->selling_price_type;
+            if($request->selling_price_type) {
+                $type = $request->selling_price_type;
+            }else {
+                $type = $customer->selling_price_type;
+            }
+
             $customer->load([
                 'vend:id,code,customer_id,product_mapping_id',
                 'vend.vendChannels:id,amount,amount2,code,vend_id,product_id',
                 'vend.vendChannels.product:id,name,code,desc',
                 'vend.vendChannels.product.sellingPrices' => function ($query) use ($type) {
+                    $query->when($type, function ($query, $type) {
+                        $query->where('type', $type);
+                    });
                     $query->where('type', $type);
                 },
                 'vend.vendChannels.product.thumbnail'
