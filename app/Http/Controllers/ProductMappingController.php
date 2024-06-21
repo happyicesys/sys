@@ -139,10 +139,9 @@ class ProductMappingController extends Controller
 
         ]);
 
-        $request->merge([
-            'is_active' => filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN),
-        ]);
-
+        // $request->merge([
+        //     'is_active' => filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN),
+        // ]);
         $productMapping = ProductMapping::findOrFail($productMappingId);
         $productMapping->fill($request->all());
 

@@ -304,15 +304,15 @@
             </div>
             </div>
             <div>
-                <!-- <h3 class="text-base font-semibold leading-6 text-gray-900 pb-3">Customer</h3> -->
-                <div class="relative mb-5">
-                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                    <div class="w-full border-t border-gray-300"></div>
-                  </div>
-                  <div class="relative flex justify-start">
-                    <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Customer </span>
-                  </div>
-                </div>
+
+            <div class="relative mb-5">
+              <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                <div class="w-full border-t border-gray-300"></div>
+              </div>
+              <div class="relative flex justify-start">
+                <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Customer </span>
+              </div>
+            </div>
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
               <div class="sm:col-span-6">
@@ -628,6 +628,15 @@
                 </span>
               </div>
           </div>
+          </div>
+
+          <div class="relative mb-5">
+            <div class="absolute inset-0 flex items-center" aria-hidden="true">
+              <div class="w-full border-t border-gray-300"></div>
+            </div>
+            <div class="relative flex justify-start">
+              <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Customer History </span>
+            </div>
           </div>
 
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
