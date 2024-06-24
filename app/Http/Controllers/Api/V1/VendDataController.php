@@ -57,7 +57,7 @@ class VendDataController extends Controller
     public function uploadLog(Request $request, $id)
     {
         $request->validate([
-            'file' => 'sometimes|max:10000',
+            'file' => 'sometimes|max:512000',
         ]);
         $vend = Vend::where('code', $id)->firstOrFail();
 

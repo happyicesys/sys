@@ -82,6 +82,7 @@ class Vend extends Model
         'is_sensor_normal',
         'is_temp_error',
         'is_testing',
+        'key_id',
         'last_ip_address',
         'last_updated_at',
         'mqtt_last_updated_at',
@@ -130,9 +131,14 @@ class Vend extends Model
     }
 
     // for the use of cleanCustomerSeeder before deprecate
-    public function vendBindings()
+    // public function vendBindings()
+    // {
+    //     return $this->hasMany(VendBinding::class);
+    // }
+
+    public function key()
     {
-        return $this->hasMany(VendBinding::class);
+        return $this->belongsTo(Key::class);
     }
 
     public function latestVendBinding()
@@ -349,12 +355,12 @@ class Vend extends Model
         $query->where('customers.account_manager_json->name', 'LIKE', "{$search}%");
         })
         ->when($request->codes, function($query, $search) {
-        if(strpos($search, ',') !== false) {
-            $search = explode(',', $search);
-            $query->whereIn('vends.code', $search);
-        }else {
-            $query->where('vends.code', 'LIKE', "%{$search}%");
-        }
+            if(strpos($search, ',') !== false) {
+                $search = explode(',', $search);
+                $query->whereIn('vends.code', $search);
+            }else {
+                $query->where('vends.code', 'LIKE', "%{$search}%");
+            }
         })
         ->when($request->channel_codes, function($query, $search) {
             if(strpos($search, ',') !== false) {

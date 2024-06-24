@@ -36,7 +36,7 @@
   const dataArr = ref([])
 
   const props = defineProps({
-    canClear: Boolean,
+    canClear: [Boolean, String],
     clear: Boolean,
     clearOnBlur: {
       type: [Boolean, String],

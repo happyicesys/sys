@@ -976,8 +976,16 @@
                               {{ vend.cms_invoice_history['last_delivery_driver'] }} <br>
                           </span>
                           <span :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
-                              {{ vend.last_invoice_date }} <br>
-                              {{ vend.last_invoice_diff }}
+                              {{ vend.last_invoice_date }}
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
+                                    :class="[(vend.last_invoice_diff_count >= 5 && vend.last_invoice_diff_count < 7) ? 'bg-yellow-200' : (vend.last_invoice_diff_count >= 7 ? 'bg-red-200' : '') ]"
+                                    v-if="vend.last_invoice_diff"
+                                >
+                                    <span>
+                                        {{ vend.last_invoice_diff }}
+                                    </span>
+                                </div>
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
@@ -986,7 +994,15 @@
                           </span>
                           <span  :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
                               {{ vend.next_invoice_date }} <br>
-                              {{ vend.next_invoice_diff }}
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
+                                    :class="[(vend.next_invoice_diff_count < 1 &&  vend.next_invoice_diff_count > 0) ? 'bg-green-200' : ((vend.next_invoice_diff_count >= -2 && vend.next_invoice_diff_count < -1) ? 'bg-yellow-200' : '') ]"
+                                    v-if="vend.next_invoice_diff"
+                                >
+                                    <span>
+                                        {{ vend.next_invoice_diff }}
+                                    </span>
+                                </div>
                           </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">

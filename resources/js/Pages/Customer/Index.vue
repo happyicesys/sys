@@ -275,8 +275,8 @@
                     <TableHeadSort modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
                       Operator
                     </TableHeadSort>
-                    <TableHeadSort modelName="created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('created_at')">
-                      Created At
+                    <TableHeadSort modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date')">
+                      Begin Date
                     </TableHeadSort>
                     <TableHead>
                       Action
@@ -360,7 +360,7 @@
                         {{ customer.operator_code }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.created_at }}
+                        {{ customer.begin_date }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">

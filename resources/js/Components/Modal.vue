@@ -15,7 +15,7 @@
                         leave-from="opacity-100 translate-y-0 sm:scale-100"
                         leave-to="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
                         <DialogPanel
-                            class="relative bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all my-2 md:my-8 max-w-3xl max-h-3xl w-full p-2 md:p-6 flex flex-col">
+                            class="relative bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all my-2 md:my-8 max-w-4xl max-h-4xl w-full p-2 md:p-6 flex flex-col">
                             <div class="mt-3 text-center sm:mt-0 sm:ml-2 sm:mr-2 sm:text-left">
                                 <div class="border-b border-gray-200 bg-white px-2 py-1 md:py-3">
                                     <DialogTitle as="h3" class="text-xl leading-6 font-medium text-gray-900 flex justify-between">

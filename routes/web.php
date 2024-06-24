@@ -15,6 +15,7 @@ use App\Http\Controllers\DeliveryPlatformOrderController;
 use App\Http\Controllers\DeliveryProductMappingController;
 use App\Http\Controllers\DeliveryProductMappingVendController;
 use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\KeyController;
 use App\Http\Controllers\LocationTypeController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\OauthController;
@@ -177,6 +178,13 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('delivery-platform-operators')->group(function() {
         Route::delete('/{id}', [OperatorController::class, 'deleteDeliveryPlatformOperator']);
         Route::post('/operator/{id}/store', [OperatorController::class, 'storeDeliveryPlatformOperator']);
+    });
+
+    Route::prefix('keys')->group(function() {
+        Route::get('/', [KeyController::class, 'index'])->name('keys');
+        Route::post('/store', [KeyController::class, 'store']);
+        Route::post('/{id}/update', [KeyController::class, 'update']);
+        Route::delete('/{id}', [KeyController::class, 'delete']);
     });
 
     Route::prefix('vend-criterias')->group(function() {

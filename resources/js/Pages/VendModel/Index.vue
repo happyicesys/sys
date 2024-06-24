@@ -1,6 +1,6 @@
 <template>
 
-  <Head title="Telco" />
+  <Head title="Machine Model" />
 
   <BreezeAuthenticatedLayout>
     <template #header>

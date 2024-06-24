@@ -144,7 +144,7 @@
                 >
                 </MultiSelect>
                 <div class="text-sm text-red-600" v-if="form.errors.simcard_id">
-                  {{ form.errors.simcard_id }}
+                  {{ form.errors.vend_model_id }}
                 </div>
             </div>
             <div class="sm:col-span-3">
@@ -870,13 +870,28 @@ function getDefaultForm() {
 }
 
 onMounted(() => {
-  cashlessTerminalOptions.value = props.cashlessTerminalOptions.data
+  cashlessTerminalOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...props.cashlessTerminalOptions.data,
+  ]
   countryOptions.value = props.countries.data
   operatorOptions.value = props.operatorOptions.data
-  simcardOptions.value = props.simcardOptions.data
-  vendConfigOptions.value = props.vendConfigOptions.data
-  vendModelOptions.value = props.vendModelOptions.data
-  vendPrefixOptions.value = props.vendPrefixOptions ? props.vendPrefixOptions.data : []
+  simcardOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...props.simcardOptions.data,
+  ]
+  vendConfigOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...props.vendConfigOptions.data,
+  ]
+  vendModelOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...props.vendModelOptions.data,
+  ]
+  vendPrefixOptions.value = props.vendPrefixOptions ? [
+    { id: '', name: '--- Clear ---'},
+    ...props.vendPrefixOptions.data,
+  ] : []
 
   form.value = props.vend ? useForm({
     ...props.vend,
@@ -999,6 +1014,7 @@ function saveCustomer(customerID) {
 function saveVend(vendID) {
   form.value.clearErrors()
 
+  console.log(form.value);
   form.value
     .transform((data) => ({
       ...data,

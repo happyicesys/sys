@@ -1188,6 +1188,8 @@ class VendController extends Controller
             'vend_prefix_id' => $request->vend_prefix_id,
         ]);
 
+
+
         if($request->operator_id != $vend->operator_id) {
             $vend->update([
                 'operator_id' => $request->operator_id,
