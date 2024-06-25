@@ -278,6 +278,7 @@
       v-if="showVendFormModal"
       :productMapping="productMapping"
       :type="type"
+      :productMappingOptions="productMappingOptions"
       :showModal="showVendFormModal"
       :unbindedVends="unbindedVends"
       @modalClose="onVendFormModalClose"
@@ -307,6 +308,7 @@ const props = defineProps({
   cmsEndpoint: String,
   products: Object,
   productMappings: Object,
+  productMappingOptions: Object,
   unbindedVends: Object,
 })
 

@@ -39,7 +39,7 @@
                 :options="productMappingOptions"
                 trackBy="id"
                 valueProp="id"
-                label="name"
+                label="value"
                 placeholder="Select"
                 open-direction="top"
                 class="mt-1"
@@ -151,9 +151,11 @@ onMounted(() => {
   operatorOptions.value = [
     ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
-  productMappingOptions.value = [
-    ...props.productMappingOptions.data.map((data) => {return {id: data.id, name: data.name}})
-  ]
+  productMappingOptions.value = props.productMappingOptions
+// console.log(productMappingOptions.value)
+  // productMappingOptions.value = [
+  //   ...props.productMappingOptions.data.map((data) => {return {id: data.id, name: data.name}})
+  // ]
   vendConfigOptions.value = props.vendConfigOptions
   form.value = props.vendPrefix ? useForm(
   {
