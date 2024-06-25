@@ -6,7 +6,7 @@
       </div>
         <div class="flex min-w-0 gap-x-4">
           <a :href="item.full_url" target="_blank">
-            <img class="h-12 w-12 flex-none rounded-md bg-gray-50" :src="item.full_url" alt="" />
+            <img class="h-48 w-52 flex-none rounded-md bg-gray-50" :src="item.full_url" alt="" />
           </a>
         </div>
 
@@ -24,7 +24,7 @@
           </a>
         </p>
       </div>
-      <span class="text-xs pt-3 text-gray-600">
+      <span class="text-xs pt-3 text-gray-600 self-center">
         {{ item.created_at_formatted }}
       </span>
       <div class="flex space-x-2">

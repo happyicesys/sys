@@ -287,6 +287,7 @@ class Customer extends Model
             // dd($search);
             $query->where('customers.id', 'LIKE', '%' . ($search - 20000) . '%');
         })
+        ->when($request->selling_price_type, fn($query, $input) => $query->where('selling_price_type', $input))
         ->when($request->status, fn($query, $input) => $query->where('status_id', $input))
         ->when($request->vend_code, function($query, $search) {
             $query->whereIn('customers.id',

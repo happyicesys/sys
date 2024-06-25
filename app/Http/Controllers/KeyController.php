@@ -44,23 +44,7 @@ class KeyController extends Controller
                     })
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
-            ),
-            'unbindedVendOptions' => fn () =>
-                VendResource::collection(
-                    Vend::with([
-                        'customer'
-                    ])
-                    ->has('customer')
-                    ->whereNull('key_id')
-                    ->select(
-                        'id',
-                        'code',
-                        'customer_id',
-                        'name',
-                    )
-                    ->orderBy('code')
-                    ->get()
-                ),
+            )
         ]);
     }
 

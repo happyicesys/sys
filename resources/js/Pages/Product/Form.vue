@@ -258,6 +258,9 @@
               <div class="sm:col-span-3" v-if="form.id">
                 <FormInput v-model="form.unit_cost" :error="form.errors.unit_cost" required="true">
                   Unit Cost
+                  <span class="text-xs text-gray-500">
+                    (before GST)
+                  </span>
                 </FormInput>
               </div>
 
@@ -301,7 +304,10 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Unit Cost
+                            Unit Cost <br>
+                            <span class="text-xs text-gray-500">
+                              (before GST)
+                            </span>
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Start Date

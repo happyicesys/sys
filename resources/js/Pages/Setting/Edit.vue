@@ -152,6 +152,25 @@
                 Serial Num
               </FormInput>
             </div>
+            <div class="sm:col-span-3">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Machine Key
+                </label>
+                <MultiSelect
+                  v-model="form.key_id"
+                  :options="keyOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.key_id">
+                  {{ form.errors.key_id }}
+                </div>
+            </div>
             <div class="sm:col-span-4">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Operator
@@ -431,163 +450,6 @@
                     </a>
                   </span>
                 </div>
-                <!-- <div class="sm:col-span-2">
-                  <DatePicker v-model="form.customer.begin_date" :error="form.errors['customer.begin_date']" @input="onDateFromChanged()"
-                  v-if="permissions.includes('update vends')">
-                    Begin Date
-                  </DatePicker>
-                </div> -->
-              <!-- </div> -->
-<!--
-            <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(form.customer.id && !form.customer.person_id) || (!form.customer.id && isExisting != 1)">
-              <div class="sm:col-span-6 pt-2 pb-1 md:pt-6 md:pb-3">
-                <div class="relative">
-                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                    <div class="w-full border-t border-gray-300"></div>
-                  </div>
-                  <div class="relative flex justify-start">
-                    <span class="px-4 bg-white text-lg font-medium text-gray-900 rounded"> Contact </span>
-                  </div>
-                </div>
-              </div>
-              <div class="sm:col-span-3">
-                <FormInput v-model="form.customer.contact.name" :error="form.errors['customer.contact.name']" :disabled="form.customer.person_id">
-                  Name
-                </FormInput>
-              </div>
-              <div class="sm:col-span-3">
-                <FormInput v-model="form.customer.contact.email" :error="form.errors['customer.contact.email']" :disabled="form.customer.person_id">
-                  Email
-                </FormInput>
-              </div>
-              <div class="sm:col-span-2">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Phone Code
-                </label>
-                <MultiSelect
-                  v-model="form.customer.contact.phone_country_id"
-                  :options="countryOptions"
-                  :disabled="form.customer.person_id"
-                  trackBy="id"
-                  valueProp="id"
-                  label="phone_code"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                >
-                </MultiSelect>
-                <div class="text-sm text-red-600" v-if="form.errors['customer.contact.phone_country_id']">
-                  {{ form.errors['customer.contact.phone_country_id'] }}
-                </div>
-              </div>
-              <div class="sm:col-span-4">
-                <FormInput v-model="form.customer.contact.phone_num" required="true" :error="form.errors['customer.contact.phone_num']" :disabled="form.customer.person_id">
-                  Phone Number
-                </FormInput>
-              </div>
-
-              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-                <div class="relative">
-                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                    <div class="w-full border-t border-gray-300"></div>
-                  </div>
-                  <div class="relative flex justify-start">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Address </span>
-                  </div>
-                </div>
-              </div>
-
-
-              <div class="sm:col-span-6">
-                <SearchAddressInput v-model="form.customer.address.postcode" @selected="onAddressSelected" required="true" :error="form.errors['customer.address.postcode']" :disabled="form.customer.person_id">
-                  Postcode
-                </SearchAddressInput>
-              </div>
-              <div class="sm:col-span-3">
-                <FormInput v-model="form.customer.address.unit_num" required="true" :error="form.errors['customer.address.unit_num']">
-                  Unit Num
-                </FormInput>
-              </div>
-              <div class="sm:col-span-3">
-                <FormInput v-model="form.customer.address.block_num" :error="form.errors['customer.address.block_num']" :disabled="form.customer.person_id">
-                  Block Num
-                </FormInput>
-              </div>
-              <div class="sm:col-span-3">
-                <FormInput v-model="form.customer.address.building" :error="form.errors['customer.address.building']" :disabled="form.customer.person_id">
-                  Building Name
-                </FormInput>
-              </div>
-              <div class="sm:col-span-3">
-                <FormInput v-model="form.customer.address.street_name" required="true" :error="form.errors['customer.address.street_name']" :disabled="form.customer.person_id">
-                  Street Name
-                </FormInput>
-              </div>
-              <div class="sm:col-span-3">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Country
-                </label>
-                <MultiSelect
-                  v-model="form.customer.address.country_id"
-                  :options="countryOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="name"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                  :disabled="form.customer.person_id"
-                >
-                </MultiSelect>
-                <div class="text-sm text-red-600" v-if="form.errors['customer.address.country_id']">
-                  {{ form.errors['customer.address.country_id'] }}
-                </div>
-              </div>
-              <div class="sm:col-span-3 hidden">
-                <FormInput v-model="form.customer.address.latitude">
-                  Latitude
-                </FormInput>
-              </div>
-              <div class="sm:col-span-3 hidden">
-                <FormInput v-model="form.customer.address.longitude">
-                  Longitude
-                </FormInput>
-              </div>
-            </div> -->
-<!--
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Operator </span>
-                </div>
-              </div>
-            </div>
-
-            <div class="sm:col-span-6">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Operator
-                <span class="text-red-500">
-                   *
-                </span>
-              </label>
-              <MultiSelect
-                v-model="form.customer.operator_id"
-                :options="operatorOptions"
-                trackBy="id"
-                valueProp="id"
-                label="full_name"
-                placeholder="Select"
-                open-direction="top"
-                class="mt-1"
-              >
-              </MultiSelect>
-              <div class="text-sm text-red-600" v-if="form.errors.operator_id">
-                {{ form.errors.operator_id }}
-              </div>
-            </div> -->
 
             <div class="sm:col-span-6 pt-3">
                 <span class="flex justify-between">
@@ -792,6 +654,7 @@ const props = defineProps({
     adminCustomerOptions: Object,
     cashlessTerminalOptions: Object,
     countries: Object,
+    keyOptions: Object,
     operatorOptions: Object,
     simcardOptions: Object,
     vend: Object,
@@ -819,6 +682,7 @@ const statusOptions = ref([
 
 const cashlessTerminalOptions = ref([])
 const countryOptions = ref([])
+const keyOptions = ref([])
 const isExisting = ref(1)
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
@@ -858,6 +722,7 @@ function getDefaultForm() {
         phone_num: '',
       },
     },
+    key_id: '',
     simcard_id: '',
     status: '',
     termination_date: '',
@@ -875,6 +740,10 @@ onMounted(() => {
     ...props.cashlessTerminalOptions.data,
   ]
   countryOptions.value = props.countries.data
+  keyOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...props.keyOptions.data,
+  ]
   operatorOptions.value = props.operatorOptions.data
   simcardOptions.value = [
     { id: '', name: '--- Clear ---'},
@@ -898,6 +767,7 @@ onMounted(() => {
     // is_active: props.vend.is_active == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
     // is_testing: props.vend.is_testing == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
     cashless_terminal_id: props.vend.cashless_terminal_id ? props.vend.cashless_terminal_id : null,
+    key_id: props.vend.key_id ? keyOptions.value.find(key => key.id === props.vend.key_id) : null,
     simcard_id: props.vend.simcard_id ? props.vend.simcard_id : null,
     status: statusOptions.value.find(status => status.id === (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id === props.vend.operator_id) : null : null,
@@ -1014,12 +884,12 @@ function saveCustomer(customerID) {
 function saveVend(vendID) {
   form.value.clearErrors()
 
-  console.log(form.value);
   form.value
     .transform((data) => ({
       ...data,
       cashless_terminal_id: data.cashless_terminal_id ? data.cashless_terminal_id.id : null,
       begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
+      key_id: data.key_id ? data.key_id.id : null,
       simcard_id: data.simcard_id ? data.simcard_id.id : null,
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
       // is_testing: data.is_testing.id,

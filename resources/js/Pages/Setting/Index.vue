@@ -121,7 +121,7 @@
             >
             </MultiSelect>
           </div> -->
-          <div v-if="permissions.includes('admin-access vends')">
+          <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Status
             </label>
@@ -153,7 +153,7 @@
             >
             </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vends')">
+          <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Operator
             </label>
@@ -169,7 +169,7 @@
             >
             </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vends')">
+          <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Cashless Terminal
             </label>
@@ -185,7 +185,7 @@
             >
             </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vends')">
+          <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Simcard
             </label>
@@ -201,7 +201,7 @@
             >
             </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vends')">
+          <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Machine Prefix
             </label>
@@ -217,7 +217,7 @@
             >
             </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vends')">
+          <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Setting Chart
             </label>
@@ -233,13 +233,45 @@
             >
             </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vends')">
+          <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Machine Model
             </label>
             <MultiSelect
                 v-model="filters.vend_model_id"
                 :options="vendModelOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Machine Key
+            </label>
+            <MultiSelect
+                v-model="filters.key_id"
+                :options="keyOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Ref Price Type
+            </label>
+            <MultiSelect
+                v-model="filters.selling_price_type"
+                :options="sellingPriceTypeOptions"
                 trackBy="id"
                 valueProp="id"
                 label="value"
@@ -316,6 +348,9 @@
                     </TableHead>
                     <TableHead>
                       Prefix
+                    </TableHead>
+                    <TableHead>
+                      RP
                     </TableHead>
                     <TableHead>
                       Simcard
@@ -400,6 +435,9 @@
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.vendPrefix ? vend.vendPrefix.name : '' }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        {{ vend.customer ? vend.customer.selling_price_type : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.simcard ? vend.simcard.code : '' }}
@@ -602,8 +640,10 @@ const props = defineProps({
     categories: Object,
     categoryGroups: Object,
     cmsEndpoint: String,
+    keyOptions: Object,
     locationTypeOptions: Object,
     operatorOptions: Object,
+    sellingPriceTypeOptions: [Array, Object],
     simcardOptions: Object,
     vends: Object,
     vendConfigOptions: Object,
@@ -618,8 +658,10 @@ const filters = ref({
     customer_name: '',
     categories: [],
     categoryGroups: [],
+    key_id: '',
     locationType: '',
     operator: '',
+    selling_price_type: '',
     simcard_id: '',
     // is_active: '',
     is_binded_customer: '',
@@ -639,6 +681,7 @@ const filters = ref({
   const categoryGroupOptions = ref([])
   const cashlessTerminalOptions = ref([])
   const initBinded = usePage().props.initBinded
+  const keyOptions = ref([])
   const loading = ref(false)
   const locationTypeOptions = ref([])
   const numberPerPageOptions = ref([])
@@ -647,6 +690,7 @@ const filters = ref({
   const vend = ref()
   const operatorCountry = usePage().props.auth.operatorCountry
   const operatorRole = usePage().props.auth.operatorRole
+  const sellingPriceTypeOptions = ref([])
   const simcardOptions = ref([])
   const permissions = usePage().props.auth.permissions
   const roles = usePage().props.auth.roles
@@ -681,6 +725,10 @@ onMounted(() => {
         {id: 'true', value: 'Yes'},
         {id: 'false', value: 'No'},
     ]
+    keyOptions.value = [
+        {id: 'all', value: 'All'},
+        ...props.keyOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    ]
     locationTypeOptions.value = [
         {id: 'all', value: 'All'},
         ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
@@ -689,6 +737,7 @@ onMounted(() => {
         {id: 'all', full_name: 'All'},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
+    sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
     simcardOptions.value = [
         {id: 'all', value: 'All'},
         ...props.simcardOptions.data.map((data) => {return {id: data.id, value: data.code}})
@@ -712,6 +761,7 @@ onMounted(() => {
     // filters.value.is_active = booleanOptions.value[1]
     filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]
     // filters.value.is_testing = booleanOptions.value[2]
+    filters.value.key_id = keyOptions.value[0]
     filters.value.status = statusOptions.value[2]
     filters.value.cashless_terminal_id = cashlessTerminalOptions.value[0]
     filters.value.simcard_id = simcardOptions.value[0]
@@ -744,7 +794,9 @@ function onSearchFilterUpdated() {
       operator_id: filters.value.operator.id,
       // is_active: filters.value.is_active.id,
       is_binded_customer: filters.value.is_binded_customer.id,
+      key_id: filters.value.key_id.id,
       // is_testing: filters.value.is_testing.id,
+      selling_price_type: filters.value.selling_price_type.id,
       simcard_id: filters.value.simcard_id.id,
       status: filters.value.status.id,
       vend_config_id: filters.value.vend_config_id.id,

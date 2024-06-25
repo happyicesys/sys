@@ -26,7 +26,29 @@
                 <FormTextarea v-model="form.desc" :error="form.errors.desc">
                   Desc
                 </FormTextarea>
+            </div>
+            <div class="sm:col-span-6">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Product Mapping
+                <span class="text-red-500">
+                   *
+                </span>
+              </label>
+              <MultiSelect
+                v-model="form.product_mapping_id"
+                :options="productMappingOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="top"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.operator_id">
+                {{ form.errors.operator_id }}
               </div>
+            </div>
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Operator
@@ -109,6 +131,7 @@ const authOperator = usePage().props.auth.operator
 
 const props = defineProps({
   operatorOptions: [Array, Object],
+  productMappingOptions: [Array, Object],
   vendConfigOptions: [Array, Object],
   vendPrefix: Object,
   type: String,
@@ -121,16 +144,21 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const operatorOptions = ref([])
+const productMappingOptions = ref([])
 const vendConfigOptions = ref([])
 
 onMounted(() => {
   operatorOptions.value = [
     ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
+  productMappingOptions.value = [
+    ...props.productMappingOptions.data.map((data) => {return {id: data.id, name: data.name}})
+  ]
   vendConfigOptions.value = props.vendConfigOptions
   form.value = props.vendPrefix ? useForm(
   {
     ...props.vendPrefix,
+    product_mapping_id: productMappingOptions.value.find(productMapping => productMapping.id === props.vendPrefix.product_mapping_id),
     operator_id: form.value.operator_id ? operatorOptions.value.find(operator => operator.id === props.vendPrefix.operator_id) : operatorOptions.value.find(operator => operator.id === authOperator.id),
     vend_config_id: vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vendPrefix.vend_config_id),
   }) : useForm(getDefaultForm())
@@ -141,6 +169,7 @@ function getDefaultForm() {
     name: '',
     desc: '',
     operator_id: '',
+    product_mapping_id: '',
     vend_config_id: '',
   }
 }
@@ -154,6 +183,7 @@ function submit() {
       return {
         ...data,
         operator_id: data.operator_id.id,
+        product_mapping_id: data.product_mapping_id.id,
         vend_config_id: data.vend_config_id.id,
       }
     })
@@ -172,6 +202,7 @@ function submit() {
         return {
           ...data,
           operator_id: data.operator_id.id,
+          product_mapping_id: data.product_mapping_id ? data.product_mapping_id.id : null,
           vend_config_id: data.vend_config ? data.vend_config_id.id : null,
         }
       })

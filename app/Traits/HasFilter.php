@@ -238,6 +238,11 @@ trait HasFilter {
                 $query->where('vends.simcard_id', $search);
             }
         })
+        ->when($request->selling_price_type, function($query, $search) {
+            if($search != 'all') {
+                $query->where('customers.selling_price_type', $search);
+            }
+        })
         ->when($request->status, function($query, $search) {
             if($search != 'all') {
                 switch($search) {

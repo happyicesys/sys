@@ -34,6 +34,7 @@ use App\Models\Operator;
 use App\Models\PaymentMethod;
 use App\Models\PaymentGatewayLog;
 use App\Models\Product;
+use App\Models\SellingPrice;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
@@ -250,6 +251,7 @@ class VendController extends Controller
                     ->orderBy('code')
                     ->get()
             ),
+            'sellingPriceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'totals' => $totals,
             'vends' => VendResource::collection($vends),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
@@ -414,6 +416,7 @@ class VendController extends Controller
                     ->orderBy('code')
                     ->get()
             ),
+            'sellingPriceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'totals' => $totals,
             'vends' => VendResource::collection($vends),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
@@ -1177,6 +1180,7 @@ class VendController extends Controller
         $vend->update([
             'name' => $request->name,
             'begin_date' => $request->begin_date,
+            'key_id' => $request->key_id,
             'cashless_terminal_id' => $request->cashless_terminal_id,
             'is_active' => $request->is_active,
             'is_testing' => $request->is_testing,

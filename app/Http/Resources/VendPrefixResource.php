@@ -20,6 +20,8 @@ class VendPrefixResource extends JsonResource
             'desc' => $this->desc,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'operator_id' => $this->operator_id,
+            'productMapping' => ProductMappingResource::make($this->whenLoaded('productMapping')),
+            'product_mapping_id' => $this->product_mapping_id,
             'vendConfigs' => VendConfigResource::collection($this->whenLoaded('vendConfigs')),
             // 'vend_config_id' => $this->vend_config_id,
         ];

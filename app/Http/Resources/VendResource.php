@@ -150,13 +150,31 @@ class VendResource extends JsonResource
             'is_sensor_normal' => isset($this->is_sensor_normal) && $this->is_sensor_normal ? 'Yes' : 'No',
             'is_temp_error' => isset($this->is_temp_error) && $this->is_temp_error ? true : false,
             'is_testing' => isset($this->is_testing) && $this->is_testing ? true : false,
+            'key' => KeyResource::make($this->whenLoaded('key')),
+            'key_id' => isset($this->key_id) ? $this->key_id : null,
             'last_invoice_date' => isset($this->last_invoice_date) ? Carbon::parse($this->last_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'last_invoice_diff' => isset($this->last_invoice_date) ? Carbon::parse($this->last_invoice_date)->setTimezone($this->getUserTimezone())->startOfDay()->diffForHumans(['options' => Carbon::ONE_DAY_WORDS]) : null,
             'last_invoice_diff_count' => isset($this->last_invoice_date) ? Carbon::parse($this->last_invoice_date)->setTimezone($this->getUserTimezone())->startOfDay()->diffInDays() : null,
             'out_of_stock_sku_percent' => isset($this->out_of_stock_sku_percent) ? $this->out_of_stock_sku_percent : null,
             'next_invoice_date' => isset($this->next_invoice_date) ? Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
-            'next_invoice_diff' => isset($this->next_invoice_date) ? Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->startOfDay()->diffForHumans(['options' => Carbon::ONE_DAY_WORDS]) : null,
-            'next_invoice_diff_count' => isset($this->next_invoice_date) ? Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->startOfDay()->diffInDays() : null,
+            'next_invoice_diff' => isset($this->next_invoice_date)
+            ? (
+                (
+                    Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() > 0
+                    && Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 1
+                )
+                ? 'today'
+                : (
+                    (
+                        Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() > -1
+                        && Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 0
+                    )
+                    ? 'tomorrow'
+                    : Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffForHumans(['options' => Carbon::ONE_DAY_WORDS])
+                )
+            )
+            : null,
+            'next_invoice_diff_count' => isset($this->next_invoice_date) ? Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() : null,
             'location_type_id' => isset($this->location_type_id) ? $this->location_type_id : null,
             'location_type_name' => isset($this->location_type_name) ? $this->location_type_name : null,
             'log_created_at' => isset($this->log_created_at) ? Carbon::parse($this->log_created_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,

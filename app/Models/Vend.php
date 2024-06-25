@@ -500,9 +500,14 @@ class Vend extends Model
             );
             }
         })
+        ->when($request->key_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('key_id', $search);
+            }
+        })
         ->when($request->location_type_id, function($query, $search) {
             if($search != 'all') {
-            $query->where('location_type_id', $search);
+                $query->where('location_type_id', $search);
             }
         })
         ->when($request->operator_id, function($query, $search) {
@@ -537,6 +542,11 @@ class Vend extends Model
         })
         ->when($request->remainingSkuLessThan, function($query, $search) {
             $query->where('out_of_stock_sku_percent', '>=', (100 - $search));
+        })
+        ->when($request->selling_price_type, function($query, $search) {
+            $query->whereHas('customer', function($query) use ($search) {
+                $query->where('selling_price_type', $search);
+            });
         })
         ->when($request->apk_ver, function($query, $search) {
             $query->where('apk_ver_json->apkver', 'LIKE', "{$search}%");

@@ -19,6 +19,7 @@
           :nextDeliveryDriverOptions="nextDeliveryDriverOptions"
           :operatorOptions="operatorOptions"
           :productOptions="productOptions"
+          :sellingPriceTypeOptions="sellingPriceTypeOptions"
           :totals="totals"
           :indexType="indexType"
           :vends="vends"
@@ -45,6 +46,7 @@ const props = defineProps({
   nextDeliveryDriverOptions: [Array, Object],
   operatorOptions: Object,
   productOptions: Object,
+  sellingPriceTypeOptions: [Array, Object],
   totals: [Array, Object],
   vends: Object,
   vendChannelErrors: Object,

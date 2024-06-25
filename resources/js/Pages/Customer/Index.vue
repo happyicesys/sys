@@ -180,6 +180,22 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Ref Price Type
+            </label>
+            <MultiSelect
+                v-model="filters.selling_price_type"
+                :options="sellingPriceTypeOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -242,12 +258,15 @@
                     <TableHead>
                       Customer ID
                     </TableHead>
-                    <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
+                    <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
                       Vend ID
                     </TableHeadSort>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
                       Customer
                     </TableHeadSort>
+                    <TableHead>
+                      RP
+                    </TableHead>
                     <TableHead>
                       Label
                     </TableHead>
@@ -313,6 +332,9 @@
                           </span>
                           {{ customer.name }}
                         </a>
+                      </TableData>
+                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
+                        {{ customer.selling_price_type }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         <div
@@ -422,6 +444,7 @@ const props = defineProps({
   operatorOptions: Object,
   priceTemplates: Object,
   profiles: Object,
+  sellingPriceTypeOptions: [Array, Object],
   statuses: Object,
   tags: Object,
   users: Object,
@@ -448,6 +471,7 @@ const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const priceTemplateOptions = ref([])
 const profileOptions = ref([])
+const sellingPriceTypeOptions = ref([])
 const statusOptions = ref([])
 const tagOptions = ref([])
 const userOptions = ref([])
@@ -476,6 +500,7 @@ onMounted(() => {
     ]
   priceTemplateOptions.value = props.priceTemplates.data.map((data) => {return {id: data.id, name: data.name}})
   profileOptions.value = props.profiles.data.map((data) => {return {id: data.id, name: data.name}})
+  sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
   // statusOptions.value = props.statuses.map((data) => {return {id: data.id, name: data.name}})
   userOptions.value = props.users.data.map((data) => {return {id: data.id, name: data.name}})
   zoneOptions.value = props.zones.data.map((data) => {return {id: data.id, name: data.name}})
@@ -504,6 +529,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       is_cms: filters.value.is_cms.id,
       is_active: filters.value.is_active.id,
+      selling_price_type: filters.value.selling_price_type.id,
       // status: filters.value.status.id,
       numberPerPage: filters.value.numberPerPage.id,
       operator_id: filters.value.operator.id,

@@ -77,9 +77,11 @@ class CustomerController extends Controller
             ->select(
                 'customers.*',
                 'customers.id',
+                'customers.begin_date as begin_date',
                 'customers.operator_id',
                 'operators.code as operator_code',
-                'operators.name as operator_name'
+                'operators.name as operator_name',
+                'vends.code as vend_code',
             )
             ->filterIndex($request);
 
@@ -123,6 +125,7 @@ class CustomerController extends Controller
                     ->orderBy('name')
                     ->get()
             ),
+            'sellingPriceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'statuses' => [
                 [
                     'id' => 'all',

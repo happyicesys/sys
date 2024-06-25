@@ -160,7 +160,6 @@
       :keyModel="keyModel"
       :type="type"
       :showModal="showModal"
-      :unbindedVendOptions="unbindedVendOptions"
       @modalClose="onModalClose"
   >
   </Form>
@@ -183,7 +182,6 @@ import { Head, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   keys: Object,
-  unbindedVendOptions: Array,
 })
 
 const filters = ref({

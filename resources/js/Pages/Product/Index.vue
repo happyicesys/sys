@@ -167,7 +167,10 @@
                       Operator
                     </TableHead>
                     <TableHead v-if="permissions.includes('admin-access products')">
-                      Unit Cost
+                      Unit Cost <br>
+                      <span class="text-xs text-gray-500">
+                        (before GST)
+                      </span>
                     </TableHead>
                     <TableHead v-if="permissions.includes('admin-access products')">
                       Reference Price

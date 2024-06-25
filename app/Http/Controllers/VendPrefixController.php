@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\TelcoResource;
 use App\Http\Resources\VendConfigResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Models\Operator;
+use App\Models\ProductMapping;
 use App\Models\VendConfig;
 use App\Models\VendPrefix;
 use Carbon\Carbon;
@@ -27,6 +29,9 @@ class VendPrefixController extends Controller
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
+            'productMappingOptions' => ProductMappingResource::collection(
+                ProductMapping::orderBy('name')->get()
+            ),
             'vendConfigOptions' => VendConfigResource::collection(
                 VendConfig::query()
                     ->orderBy('name')
@@ -36,11 +41,17 @@ class VendPrefixController extends Controller
                 VendPrefix::query()
                     ->with([
                         'operator',
+                        'productMapping',
                         'vendConfigs.attachments',
                         'vends',
                     ])
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
+                    })
+                    ->when($request->product_mapping_id, function($query, $search) {
+                        if($search !== 'all') {
+                            $query->where('product_mapping_id', $search);
+                        }
                     })
                     ->when($request->vend_config_id, function($query, $search) {
                         if($search !== 'all') {

@@ -19,27 +19,8 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6">
               <FormInput v-model="form.name" :error="form.errors.name" required="true">
-                Name
+                Code
               </FormInput>
-            </div>
-            <div class="sm:col-span-6">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Vending Machine
-              </label>
-              <MultiSelect
-                v-model="form.vend_id"
-                :options="unbindedVendOptions"
-                trackBy="id"
-                valueProp="id"
-                label="full_name"
-                placeholder="Select"
-                open-direction="top"
-                class="mt-1"
-              >
-              </MultiSelect>
-              <div class="text-sm text-red-600" v-if="form.errors.vend_id">
-                {{ form.errors.vend_id }}
-              </div>
             </div>
           </div>
           <div class="sm:col-span-6">
@@ -81,7 +62,6 @@ const props = defineProps({
   keyModel: Object,
   type: String,
   showModal: Boolean,
-  unbindedVendOptions: Array,
 })
 
 const emit = defineEmits(['modalClose'])
@@ -89,13 +69,9 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
-const unbindedVendOptions = ref([])
 
 onMounted(() => {
   form.value = props.keyModel ? useForm(props.keyModel) : useForm(getDefaultForm())
-  unbindedVendOptions.value = [
-    ...props.unbindedVendOptions.data.map((data) => {return {id: data.id, full_name: data.cust_full_name}})
-  ]
 })
 
 function getDefaultForm() {

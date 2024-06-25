@@ -7,8 +7,10 @@ use App\Http\Resources\CountryResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CustomerResource;
+use App\Http\Resources\KeyResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\SellingPriceResource;
 use App\Http\Resources\SimcardResource;
 use App\Http\Resources\VendConfigResource;
 use App\Http\Resources\VendModelResource;
@@ -20,8 +22,10 @@ use App\Models\Category;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CategoryGroup;
+use App\Models\Key;
 use App\Models\LocationType;
 use App\Models\Operator;
+use App\Models\SellingPrice;
 use App\Models\Simcard;
 use App\Models\Vend;
 use App\Models\VendConfig;
@@ -72,7 +76,7 @@ class SettingController extends Controller
         $vends = Vend::query()
             ->with([
                 'cashlessTerminal',
-                'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix,operator_id',
+                'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type',
                 'customer.operator:id,code,name',
                 'simcard',
                 'vendModel',
@@ -124,12 +128,16 @@ class SettingController extends Controller
                 CategoryGroup::where('classname', $className)->orderBy('name')->get()
             ),
             'cmsEndpoint' => env('CMS_URL'),
+            'keyOptions' => KeyResource::collection(
+                Key::orderBy('name')->get()
+            ),
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
+            'sellingPriceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'simcardOptions' => SimcardResource::collection(
                 Simcard::orderBy('code')->get()
             ),
@@ -167,6 +175,7 @@ class SettingController extends Controller
             'customer',
             'customer.deliveryAddress',
             'customer.contact',
+            'key',
             'logs',
             'operator',
             'simcard',
@@ -232,6 +241,9 @@ class SettingController extends Controller
                     ->orderBy('name')
                     ->get()
                 ),
+            'keyOptions' => KeyResource::collection(
+                Key::orderBy('name')->doesntHave('vend')->get()
+            ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),

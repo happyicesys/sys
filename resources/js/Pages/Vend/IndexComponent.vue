@@ -326,6 +326,22 @@
                 >
                 </MultiSelect>
             </div>
+            <div>
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Ref Price Type
+                </label>
+                <MultiSelect
+                    v-model="filters.selling_price_type"
+                    :options="sellingPriceTypeOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
       </div>
 
       <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -513,9 +529,14 @@
                     <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType === 'customers'">
                         Vend ID
                     </TableHeadSort>
-                    <TableHeadSort modelName="vends.vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.vend_prefix_name')">
-                        Prefix
-                    </TableHeadSort>
+                    <TableHead>
+                        <SingleSortItem modelName="vends.vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.vend_prefix_name', false)">
+                            Prefix
+                        </SingleSortItem>
+                        <SingleSortItem modelName="customers.selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.selling_price_type', false)">
+                            RP
+                        </SingleSortItem>
+                    </TableHead>
                     <TableHead>
                         <SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
                             T1&#8451;
@@ -667,7 +688,16 @@
                           </Link>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                          {{ vend.vend_prefix_name }}
+                            <div class="flex flex-col space-y-1 text-center justify-center items-center">
+                                <span>
+                                    {{ vend.vend_prefix_name }}
+                                </span>
+                                <div
+                                    class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer bg-indigo-100 text-indigo-800 border-indigo-300"
+                                >
+                                    RP{{ vend.selling_price_type }}
+                                </div>
+                            </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                           <div class="flex flex-col items-center space-y-1">
@@ -996,7 +1026,7 @@
                               {{ vend.next_invoice_date }} <br>
                                 <div
                                     class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
-                                    :class="[(vend.next_invoice_diff_count < 1 &&  vend.next_invoice_diff_count > 0) ? 'bg-green-200' : ((vend.next_invoice_diff_count >= -2 && vend.next_invoice_diff_count < -1) ? 'bg-yellow-200' : '') ]"
+                                    :class="[(vend.next_invoice_diff_count < 1 &&  vend.next_invoice_diff_count > 0) ? 'bg-green-200' : ((vend.next_invoice_diff_count > -1 && vend.next_invoice_diff_count < 0) ? 'bg-yellow-200' : '') ]"
                                     v-if="vend.next_invoice_diff"
                                 >
                                     <span>
@@ -1132,7 +1162,7 @@
                                 >
                                     <div class="flex flex-col">
                                         <span class="font-bold">
-                                            Coin
+                                            Coin Float
                                         </span>
                                         <span>
                                             {{(vend.parameterJson['CoinCnt']/ (Math.pow(10, operatorCountry.currency_exponent))).toFixed(2)}}
@@ -1191,6 +1221,34 @@
                                         </span>
                                         <span>
                                             {{vend.parameterJson['CSHLSStat'] == 3 ? 'Active' : (vend.parameterJson['CSHLSStat'] == 1 ? 'Inactive' : 'NA') }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                    :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                                    v-if="vend.acbVmcPaJson && 'CSHL_MFG' in vend.acbVmcPaJson"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold">
+                                            Cashless Mfg
+                                        </span>
+                                        <span>
+                                            {{vend.acbVmcPaJson['CSHL_MFG'] ? vend.acbVmcPaJson['CSHL_MFG'] : 'NA' }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                                    :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MDL'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                                    v-if="vend.acbVmcPaJson && 'CSHL_MDL' in vend.acbVmcPaJson"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-bold">
+                                            Cashless Model
+                                        </span>
+                                        <span>
+                                            {{vend.acbVmcPaJson['CSHL_MDL'] ? vend.acbVmcPaJson['CSHL_MDL'] : 'NA' }}
                                         </span>
                                     </div>
                                 </div>
@@ -1336,6 +1394,7 @@ const props = defineProps({
   operatorOptions: Object,
   nextDeliveryDriverOptions: [Array, Object],
   productOptions: Object,
+  sellingPriceTypeOptions: [Array, Object],
   totals: [Array, Object],
   indexType: String,
   vends: Object,
@@ -1377,6 +1436,7 @@ const filters = ref({
   balanceStockLessThan: '',
   remainingSkuLessThan: '',
   vend_prefix_id: '',
+  selling_price_type: '',
   status: '',
   sortKey: '',
   vendRecordsThirtyDaysAmountAverageLessThan: '',
@@ -1404,6 +1464,7 @@ const nextDeliveryDriverOptions = ref([])
 const numberPerPageOptions = ref([])
 const operatorOptions = ref([])
 const pickLists = ref([])
+const sellingPriceTypeOptions = ref([])
 const showAllFilters = ref(false)
 const showChannelOverviewModal = ref(false)
 const showCreateModal = ref(false)
@@ -1485,6 +1546,7 @@ onMounted(() => {
       {id: 'all', full_name: 'All'},
       ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
+    sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
     statusOptions.value = [
         {id: 'all', value: 'All'},
         {id: 'factory', value: 'Factory'},

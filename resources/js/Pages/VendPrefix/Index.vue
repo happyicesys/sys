@@ -41,6 +41,22 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Product Mapping
+            </label>
+            <MultiSelect
+                v-model="filters.product_mapping_id"
+                :options="productMappingOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -107,6 +123,9 @@
                       Desc
                     </TableHead>
                     <TableHead>
+                      Product Mapping
+                    </TableHead>
+                    <TableHead>
                       Setting Chart
                     </TableHead>
                     <TableHead>
@@ -123,6 +142,11 @@
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-left">
                         {{ vendPrefix.desc }}
+                      </TableData>
+                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
+                        <a :href="'/product-mappings/' + vendPrefix.  productMapping.id + '/edit'" v-if="vendPrefix.productMapping" class="text-blue-600" target="_blank">
+                          {{ vendPrefix.productMapping ? vendPrefix.productMapping.name : '' }}
+                        </a>
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
                         <div v-if="vendPrefix.vendConfigs">
@@ -194,6 +218,7 @@
   <Form
       v-if="showModal"
       :operatorOptions="operatorOptions"
+      :productMappingOptions="productMappingOptions"
       :vendConfigOptions="vendConfigOptions"
       :vendPrefix="vendPrefix"
       :type="type"
@@ -222,6 +247,7 @@ import { filter } from 'lodash';
 
 const props = defineProps({
   operatorOptions: [Array, Object],
+  productMappingOptions: [Array, Object],
   vendConfigOptions: [Array, Object],
   vendPrefixes: Object,
 })
@@ -239,6 +265,7 @@ const showModal = ref(false)
 const vendPrefix = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
+const productMappingOptions = ref([])
 const vendConfigOptions = ref([])
 
 onMounted(() => {
@@ -247,6 +274,10 @@ onMounted(() => {
     { id: 200, value: 200 },
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
+  ]
+  productMappingOptions.value = [
+    {id: 'all', value: 'All'},
+    ...props.productMappingOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   vendConfigOptions.value = [
     {id: 'all', value: 'All'},
