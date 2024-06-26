@@ -529,7 +529,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       is_cms: filters.value.is_cms.id,
       is_active: filters.value.is_active.id,
-      selling_price_type: filters.value.selling_price_type.id,
+      selling_price_type: filters.value.selling_price_type ? filters.value.selling_price_type.id : '',
       // status: filters.value.status.id,
       numberPerPage: filters.value.numberPerPage.id,
       operator_id: filters.value.operator.id,
