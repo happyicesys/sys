@@ -55,7 +55,9 @@ class VendPrefixController extends Controller
                     })
                     ->when($request->vend_config_id, function($query, $search) {
                         if($search !== 'all') {
-                            $query->where('vend_config_id', $search);
+                            $query->whereHas('vendConfigs', function($query) use ($search) {
+                                $query->where('vend_configs.id', $search);
+                            });
                         }
                     })
                     ->when($request->sortKey, function($query, $search) use ($request) {
