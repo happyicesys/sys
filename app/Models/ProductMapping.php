@@ -51,8 +51,8 @@ class ProductMapping extends Model
         return $this->hasMany(Vend::class)->orderBy('code');
     }
 
-    public function vendPrefix()
+    public function vendPrefixes()
     {
-        return $this->hasOne(VendPrefix::class);
+        return $this->hasMany(VendPrefix::class);
     }
 }

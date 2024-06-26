@@ -35,12 +35,13 @@ class ProductMappingController extends Controller
             'cmsEndpoint' => env('CMS_URL'),
             'productMappings' => ProductMappingResource::collection(
                 ProductMapping::with([
-                    // 'attachments',
+                    'attachments',
                     'productMappingItems',
                     'productMappingItems.product:id,code,name,is_active',
                     'productMappingItems.product.thumbnail',
                     'vends:id,code,name,product_mapping_id,customer_id',
                     'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
+                    'vendPrefixes'
                 ])
                 ->when($request->name, function($query, $search) {
                     $query->where('name', 'LIKE', "%{$search}%");

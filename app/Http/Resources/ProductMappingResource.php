@@ -25,6 +25,7 @@ class ProductMappingResource extends JsonResource
             'productMappingItemsJson' => $this->product_mapping_items_json,
             'vends' => VendResource::collection($this->whenLoaded('vends')),
             'vendsJson' => $this->vends_json,
+            'vendPrefixes' => VendPrefixResource::collection($this->whenLoaded('vendPrefixes')),
         ];
     }
 }

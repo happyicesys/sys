@@ -112,10 +112,16 @@
                       Name
                     </TableHead>
                     <TableHead>
+                      Binded Prefix
+                    </TableHead>
+                    <TableHead>
                       Channel - Product
                     </TableHead>
                     <TableHead>
                       Binded Vending Machines
+                    </TableHead>
+                    <TableHead>
+                      Menu
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -143,6 +149,18 @@
                               </div>
                           </div>
                         </div>
+                      </TableData>
+                      <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
+                        <ul class="divide-y divide-gray-200">
+                          <li class="flex py-1 px-3 space-x-2" v-for="(vendPrefix, vendPrefixIndex) in productMapping.vendPrefixes">
+                            <span>
+                              {{ vendPrefixIndex + 1 }}.
+                            </span>
+                            <span class="text-md pr-2">
+                              {{ vendPrefix.name }}
+                            </span>
+                          </li>
+                        </ul>
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
                         <ul class="divide-y divide-gray-200">
@@ -201,6 +219,13 @@
                             </span>
                           </li>
                         </ul>
+                      </TableData>
+                      <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
+                        <span v-if="productMapping.attachments && productMapping.attachments.length > 0">
+                          <a :href="productMapping.attachments[0].full_url" target="_blank">
+                            <img class="aspect-[3/2] rounded-2xl object-scale-down h-48 w-96" :src="productMapping.attachments[0].full_url" alt="" />
+                          </a>
+                        </span>
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-center">
                         <div class="flex justify-center flex-col space-y-1" v-if="permissions.includes('update product-mappings')">
