@@ -1030,8 +1030,7 @@
                                     v-if="vend.next_invoice_diff"
                                 >
                                     <span>
-                                        {{ vend.next_invoice_diff }} <br>
-                                        {{ vend.next_invoice_diff_count }}
+                                        {{ vend.next_invoice_diff }}
                                     </span>
                                 </div>
                           </span>
