@@ -673,7 +673,7 @@
                         {{ vend.operator_code }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.serial_num }}
+                        {{ vend.vendSerialNumber ? vend.vendSerialNumber.code : ''}}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <span v-if="vend.vendConfig">

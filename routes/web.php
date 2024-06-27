@@ -44,6 +44,7 @@ use App\Http\Controllers\VendCriteriaController;
 use App\Http\Controllers\VendCriteriaBindingController;
 use App\Http\Controllers\VendModelController;
 use App\Http\Controllers\VendPrefixController;
+use App\Http\Controllers\VendSerialNumberController;
 use App\Http\Controllers\ZoneController;
 use Carbon\Carbon;
 use Illuminate\Foundation\Application;
@@ -468,6 +469,13 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/{id}/edit', [VendPrefixController::class, 'edit'])->name('vend-prefixes.edit');
         Route::post('/{id}/update', [VendPrefixController::class, 'update']);
         Route::delete('/{id}', [VendPrefixController::class, 'delete']);
+    });
+
+    Route::prefix('vend-serial-numbers')->group(function() {
+        Route::get('/', [VendSerialNumberController::class, 'index'])->name('vend-serial-numbers');
+        Route::post('/store', [VendSerialNumberController::class, 'store']);
+        Route::post('/{id}/update', [VendSerialNumberController::class, 'update']);
+        Route::delete('/{id}', [VendSerialNumberController::class, 'delete']);
     });
 
     Route::prefix('zones')->group(function() {

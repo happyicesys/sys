@@ -148,9 +148,23 @@
                 </div>
             </div>
             <div class="sm:col-span-3">
-              <FormInput v-model="form.serial_num" :error="form.errors.serial_num">
-                Serial Num
-              </FormInput>
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Serial Number
+                </label>
+                <MultiSelect
+                  v-model="form.vend_serial_number_id"
+                  :options="vendSerialNumberOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.key_id">
+                  {{ form.errors.key_id }}
+                </div>
             </div>
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -566,6 +580,20 @@
               </li>
             </ol>
           </nav>
+          <template v-if="!vend.customer_movement_history_json || !vend.customer_movement_history_json.length">
+            <span class="group relative flex items-start">
+              <span class="flex h-9 items-center">
+                <span class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-red-600">
+                  <MinusCircleIcon class="h-5 w-5 text-white" aria-hidden="true"/>
+                </span>
+              </span>
+              <span class="ml-4 flex min-w-0 flex-col pt-2">
+                <span class="text-sm font-medium">
+                  No Records Found
+                </span>
+              </span>
+            </span>
+          </template>
 
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
@@ -711,7 +739,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
-import { ArrowPathIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
@@ -728,6 +756,7 @@ const props = defineProps({
     vendConfigOptions: Object,
     vendModelOptions: Object,
     vendPrefixOptions: Object,
+    vendSerialNumberOptions: Object,
     type: String,
   })
 
@@ -758,6 +787,7 @@ const simcardOptions = ref([])
 const vendConfigOptions = ref([])
 const vendModelOptions = ref([])
 const vendPrefixOptions = ref([])
+const vendSerialNumberOptions = ref([])
 
 function getDefaultForm() {
   return {
@@ -800,6 +830,7 @@ function getDefaultForm() {
     vend_config_id: '',
     vend_model_id: '',
     vend_prefix_id: '',
+    vend_serial_number_id: '',
   }
 }
 
@@ -835,12 +866,20 @@ onMounted(() => {
     ...props.vendPrefixOptions.data,
   ] : []
 
+  vendSerialNumberOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...props.vendSerialNumberOptions.data.map(vendSerialNumber => ({
+      id: vendSerialNumber.id,
+      name: vendSerialNumber.code,
+    }))
+  ]
+
   form.value = props.vend ? useForm({
     ...props.vend,
     // is_active: props.vend.is_active == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
     // is_testing: props.vend.is_testing == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
     cashless_terminal_id: props.vend.cashless_terminal_id ? props.vend.cashless_terminal_id : null,
-    key_id: props.vend.key_id ? keyOptions.value.find(key => key.id === props.vend.key_id) : null,
+    key_id: props.vend.key_id ? keyOptions.value.find(keyModel => keyModel.id === props.vend.key_id) : null,
     product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping => productMapping.id === props.vend.product_mapping_id) : null,
     simcard_id: props.vend.simcard_id ? props.vend.simcard_id : null,
     status: statusOptions.value.find(status => status.id === (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')),
@@ -848,6 +887,7 @@ onMounted(() => {
     vend_config_id: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vend.vend_config_id) : null : null,
     vend_model_id: props.vend ? props.vend.vend_model_id ? vendModelOptions.value.find(vendModel => vendModel.id === props.vend.vend_model_id) : null : null,
     vend_prefix_id: props.vend ? props.vend.vend_prefix_id ? vendPrefixOptions.value.find(vendPrefix => vendPrefix.id === props.vend.vend_prefix_id) : null : null,
+    vend_serial_number_id: props.vend ? props.vend.vend_serial_number_id ? vendSerialNumberOptions.value.find(vendSerialNumber => vendSerialNumber.id === props.vend.vend_serial_number_id) : null : null,
     customer: {
       ...JSON.parse(JSON.stringify(props.vend.customer)),
       code: props.vend.customer && props.vend.customer.person_id ? props.vend.customer.virtual_customer_code + ' (' + props.vend.customer.virtual_customer_prefix + ')' : (props.vend.customer ? props.vend.customer.code : null),
@@ -990,6 +1030,7 @@ function saveVend(vendID) {
       vend_config_id: data.vend_config_id ? data.vend_config_id.id : null,
       vend_model_id: data.vend_model_id ? data.vend_model_id.id : null,
       vend_prefix_id: data.vend_prefix_id ? data.vend_prefix_id.id : null,
+      vend_serial_number_id: data.vend_serial_number_id ? data.vend_serial_number_id.id : null,
     }))
     .post('/vends/' + vendID + '/update', {
     onSuccess: () => {

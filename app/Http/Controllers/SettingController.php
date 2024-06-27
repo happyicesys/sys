@@ -16,6 +16,7 @@ use App\Http\Resources\SimcardResource;
 use App\Http\Resources\VendConfigResource;
 use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendPrefixResource;
+use App\Http\Resources\VendSerialNumberResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendDBResource;
 use App\Models\CashlessTerminal;
@@ -33,6 +34,7 @@ use App\Models\Vend;
 use App\Models\VendConfig;
 use App\Models\VendModel;
 use App\Models\VendPrefix;
+use App\Models\VendSerialNumber;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
 use DB;
@@ -85,6 +87,7 @@ class SettingController extends Controller
                 'vendModel',
                 'vendPrefix',
                 'vendConfig',
+                'vendSerialNumber',
             ])
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->filterIndex($request)
@@ -114,6 +117,7 @@ class SettingController extends Controller
                 'vends.vend_config_id',
                 'vends.vend_model_id',
                 'vends.vend_prefix_id',
+                'vends.vend_serial_number_id',
             );
         $vends = $this->filterOperator($vends);
 
@@ -187,6 +191,7 @@ class SettingController extends Controller
             'vendConfig',
             'vendModel',
             'vendPrefix',
+            'vendSerialNumber',
         ])
         ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
         ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
@@ -212,10 +217,12 @@ class SettingController extends Controller
             'vends.termination_date',
             'vends.operator_id',
             'vends.product_mapping_id',
-            'vends.serial_num',
+            // 'vends.serial_num',
+            'vends.key_id',
             'vends.vend_config_id',
             'vends.vend_model_id',
             'vends.vend_prefix_id',
+            'vends.vend_serial_number_id',
             DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
             DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
         )
@@ -248,7 +255,7 @@ class SettingController extends Controller
                     ->get()
                 ),
             'keyOptions' => KeyResource::collection(
-                Key::orderBy('name')->doesntHave('vend')->get()
+                Key::orderBy('name')->get()
             ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
@@ -286,6 +293,11 @@ class SettingController extends Controller
                         })
                         ->orderBy('name')
                         ->get()
+            ),
+            'vendSerialNumberOptions' => VendSerialNumberResource::collection(
+                VendSerialNumber::query()
+                    ->orderBy('code')
+                    ->get()
             ),
             'type' => 'update',
         ]);

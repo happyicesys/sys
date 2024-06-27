@@ -84,7 +84,8 @@ class DatabaseSeeder extends Seeder
 
             // VendPrefixSeeder::class,
             // CashlessTerminalSimcardOperatorIdSeeder::class,
-            VendConfigPrefixManyToMany::class,
+            // VendConfigPrefixManyToMany::class,
+            VendSerialNumAndKeySeeder::class,
         ]);
     }
 }

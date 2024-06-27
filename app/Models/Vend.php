@@ -103,6 +103,7 @@ class Vend extends Model
         'vend_criteria_weightage_json',
         'vend_model_id',
         'vend_prefix_id',
+        'vend_serial_number_id',
         'vend_temp_alert_json',
         'vend_transaction_totals_json',
         'vend_type_id',
@@ -186,6 +187,11 @@ class Vend extends Model
     public function vendPrefix()
     {
         return $this->belongsTo(VendPrefix::class);
+    }
+
+    public function vendSerialNumber()
+    {
+        return $this->belongsTo(VendSerialNumber::class);
     }
 
     public function vendSnapshots()
