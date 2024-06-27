@@ -34,6 +34,7 @@ class VendConfigController extends Controller
                 VendConfig::query()
                     ->with([
                         'attachments',
+                        'vendConfigCompatibles',
                         'vendPrefixes'
                     ])
                     ->when($request->is_active, function($query, $search) {
@@ -68,12 +69,20 @@ class VendConfigController extends Controller
         $model = VendConfig::with([
             'attachments',
             'operator',
+            'vendConfigCompatibles',
+            'vendConfigCompatibleWith',
             'vendPrefixes',
         ])
         ->findOrFail($id);
 
         return Inertia::render('VendConfig/Edit', [
             'vendConfig' => VendConfigResource::make($model),
+            'vendConfigOptions' => VendConfigResource::collection(
+                VendConfig::query()
+                    ->where('id', '!=', $id)
+                    ->orderBy('name')
+                    ->get()
+            ),
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::query()
                     ->orderBy('name')
@@ -92,8 +101,9 @@ class VendConfigController extends Controller
         $model->fill($request->all());
 
         // if($request->vendPrefixes) {
-            $model->vendPrefixes()->sync(collect($request->vendPrefixes)->pluck('id'));
+        $model->vendPrefixes()->sync(collect($request->vendPrefixes)->pluck('id'));
         // }
+        $model->syncCompatibles($request->vendConfigCompatibles);
 
         $model->save();
 

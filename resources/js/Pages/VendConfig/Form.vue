@@ -41,7 +41,7 @@
                 valueProp="id"
                 label="full_name"
                 placeholder="Select"
-                open-direction="top"
+                open-direction="bottom"
                 class="mt-1"
               >
               </MultiSelect>

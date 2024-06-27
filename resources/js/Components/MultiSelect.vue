@@ -1,7 +1,8 @@
 <template>
   <div class="overflow-visible">
     <Multiselect
-      :modelValue="modelValue"
+      class="custom-multiselect"
+      :modelValue="internalValue"
       :canClear="canClear"
       :canDeselect="false"
       :disabled="disabled"
@@ -22,87 +23,92 @@
       :ref="ref"
       :max="max"
     />
-    <!-- @select="$emit('update:modelValue', $event)" -->
   </div>
 </template>
 
 <script setup>
-  import Multiselect from '@vueform/multiselect'
-  import { ref } from 'vue';
+import Multiselect from '@vueform/multiselect';
+import { ref, watch } from 'vue';
 
-  const emit = defineEmits(['update:modelValue', 'selected']);
+const emit = defineEmits(['update:modelValue', 'selected']);
 
-  // const modelValue = ref(props.mode == 'tags' ? [] : '')
-  const dataArr = ref([])
+const props = defineProps({
+  canClear: [Boolean, String],
+  clear: Boolean,
+  clearOnBlur: {
+    type: [Boolean, String],
+    default: true,
+  },
+  disabled: [Array, Boolean, Object, String, Number],
+  openDirection: {
+    type: String,
+    default: 'bottom',
+  },
+  label: String,
+  mode: String,
+  modelValue: [Array, Boolean, Object, String, Number],
+  options: [Array, Object, String],
+  placeholder: String,
+  refreshOptions: Boolean,
+  trackBy: String,
+  valueProp: String,
+  required: {
+    type: [Boolean, String],
+    default: false,
+  },
+  ref: {
+    type: String,
+    default: 'multiselect',
+  },
+  max: {
+    type: Number,
+    default: -1,
+  },
+});
 
-  const props = defineProps({
-    canClear: [Boolean, String],
-    clear: Boolean,
-    clearOnBlur: {
-      type: [Boolean, String],
-      default: true,
-    },
-    disabled: [Array, Boolean, Object, String, Number],
-    openDirection: {
-      type: String,
-      default: 'bottom',
-    },
-    label: String,
-    mode: String,
-    modelValue: [Array, Boolean, Object, String, Number],
-    options: [Array, Object, String],
-    placeholder: String,
-    refreshOptions: Boolean,
-    trackBy: String,
-    valueProp: String,
-    required: {
-      type: [Boolean, String],
-      default: false,
-    },
-    ref: {
-      type: String,
-      default: 'multiselect'
-    },
-    max: {
-      type: Number,
-      default: -1
+const internalValue = ref(Array.isArray(props.modelValue) ? [...props.modelValue] : props.modelValue);
+
+watch(() => props.modelValue, (newValue) => {
+  internalValue.value = Array.isArray(newValue) ? [...newValue] : newValue;
+});
+
+function onSelected(data) {
+  if (props.mode === 'tags') {
+    if (!internalValue.value.find(el => el.id === data.id)) {
+      internalValue.value.push(data);
+      emit('update:modelValue', internalValue.value);
     }
-  })
-
-  function onSelected(data) {
-    if(props.mode === 'tags') {
-      dataArr.value.push(data)
-      emit('update:modelValue', dataArr.value)
-    }else {
-      emit('update:modelValue', data)
-    }
-    emit('selected')
+  } else {
+    emit('update:modelValue', data);
   }
+  emit('selected', data);
+}
 
-  function onDeselected(data) {
-    if(props.mode === 'tags') {
-      dataArr.value = dataArr.value.filter(el => {
-        return el.id != data.id
-      })
-      emit('update:modelValue', dataArr.value)
-    }
+function onDeselected(data) {
+  if (props.mode === 'tags') {
+    internalValue.value = internalValue.value.filter(el => el.id !== data.id);
+    emit('update:modelValue', internalValue.value);
   }
+}
 </script>
 
 <style src="@vueform/multiselect/themes/default.css"></style>
 <style>
-  .multiselect {
-    width: 100% !important;
-    overflow: visible;
-  }
-  .multiselect-tags {
-    overflow-x: scroll;
-  }
-  .multiselect--active {
-    z-index: 20;
-  }
-  .multiselect__content-wrapper {
-    z-index: 20;
-    position: static;
-  }
+.multiselect {
+  width: 100% !important;
+  overflow: visible;
+}
+.multiselect-tags {
+  overflow-x: scroll;
+}
+.multiselect--active {
+  z-index: 20;
+}
+.multiselect__content-wrapper {
+  z-index: 20;
+  position: static;
+}
+.custom-multiselect .multiselect__content-wrapper {
+  z-index: 60; /* Ensure this is higher than the modal's z-index */
+}
 </style>

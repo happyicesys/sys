@@ -206,6 +206,7 @@ class SettingController extends Controller
             'customers.name AS customer_name',
             'customers.person_id',
             'vends.cashless_terminal_id',
+            'vends.customer_movement_history_json',
             'vends.begin_date',
             'vends.simcard_id',
             'vends.termination_date',

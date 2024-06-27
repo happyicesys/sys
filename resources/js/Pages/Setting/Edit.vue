@@ -523,6 +523,49 @@
               <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Customer History </span>
             </div>
           </div>
+          <nav aria-label="Progress">
+            <ol role="list" class="overflow-hidden">
+              <li v-for="(customer, customerIndex) in vend.customer_movement_history_json" :key="customer.id" :class="[customerIndex !== vend.customer_movement_history_json.length - 1 ? 'pb-3' : '', 'relative']">
+                <template v-if="customerIndex !== vend.customer_movement_history_json.length - 1">
+                  <span class="group relative flex items-start">
+                    <span class="flex h-9 items-center">
+                      <span class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full" :class="[customer.is_binding ? 'bg-green-600' : 'bg-red-600']">
+                        <LockClosedIcon class="h-5 w-5 text-white" aria-hidden="true" v-if="customer.is_binding"/>
+                        <LockOpenIcon class="h-5 w-5 text-white" aria-hidden="true" v-if="!customer.is_binding"/>
+                      </span>
+                    </span>
+                    <span class="ml-4 flex min-w-0 flex-col">
+                      <span class="text-sm font-medium">
+                        <span v-if="customer.virtual_customer_prefix">
+                          {{ customer.virtual_customer_prefix }}-{{ customer.virtual_customer_code }}
+                        </span>
+                        {{ customer.name }}
+                      </span>
+                      <span class="text-sm text-gray-500">{{ customer.created_at }}</span>
+                    </span>
+                  </span>
+                </template>
+                <template v-else-if="customerIndex === vend.customer_movement_history_json.length - 1">
+                  <a :href="'/customers/' + customer.id + '/edit'" class="group relative flex items-start" aria-current="step">
+                    <span class="flex h-9 items-center" aria-hidden="true">
+                      <span class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-indigo-600 bg-white">
+                        <span class="h-2.5 w-2.5 rounded-full bg-indigo-600" />
+                      </span>
+                    </span>
+                    <span class="ml-4 flex min-w-0 flex-col text-blue-600">
+                      <span class="text-sm font-medium">
+                        <span v-if="customer.virtual_customer_prefix">
+                          {{ customer.virtual_customer_prefix }}-{{ customer.virtual_customer_code }}
+                        </span>
+                        {{ customer.name }}
+                      </span>
+                      <span class="text-sm text-gray-500">{{ customer.created_at }}</span>
+                    </span>
+                  </a>
+                </template>
+              </li>
+            </ol>
+          </nav>
 
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
@@ -668,7 +711,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
-import { ArrowPathIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';

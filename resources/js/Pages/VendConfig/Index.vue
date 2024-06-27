@@ -143,7 +143,15 @@
                         {{ vendConfig.desc }}
                       </TableData>
                       <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left whitespace-pre-line">
-                        <!-- {{ vendConfig.desc }} -->
+                        <div v-if="vendConfig.vendConfigCompatibles">
+                          <ul class="list-none">
+                            <li v-for="vendConfigCompatible in vendConfig.vendConfigCompatibles" :key="vendConfigCompatible.id">
+                              <a :href="'/vend-configs/' + vendConfigCompatible.id + '/edit'" target="_blank" class="text-blue-600">
+                                {{ vendConfigCompatible.name }}
+                              </a>
+                            </li>
+                          </ul>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left">
                         <span v-if="vendConfig.attachments && vendConfig.attachments.length > 0">

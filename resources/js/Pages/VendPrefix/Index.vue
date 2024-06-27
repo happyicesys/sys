@@ -144,12 +144,13 @@
                         {{ vendPrefix.desc }}
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
-                        <span v-for="productMapping in vendPrefix.productMappings">
-                          <a :href="'/product-mappings/' + productMapping.id + '/edit'" class="text-blue-600" target="_blank">
-                            {{ productMapping.name }}
-                          </a>
-                        </span>
-
+                        <div class="flex flex-col space-y-1">
+                          <span v-for="productMapping in vendPrefix.productMappings">
+                            <a :href="'/product-mappings/' + productMapping.id + '/edit'" class="text-blue-600" target="_blank">
+                              {{ productMapping.name }}
+                            </a>
+                          </span>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
                         <div v-if="vendPrefix.vendConfigs">

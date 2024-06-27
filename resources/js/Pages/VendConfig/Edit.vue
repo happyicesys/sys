@@ -27,6 +27,26 @@
                 Desc
               </FormTextarea>
             </div>
+            <div class="sm:col-span-6">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Compatible Setting Chart(s)
+              </label>
+              <MultiSelect
+                v-model="form.vendConfigCompatibles"
+                :options="vendConfigOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                mode="tags"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.vendConfigCompatibles">
+                {{ form.errors.vendConfigCompatibles }}
+              </div>
+            </div>
 
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
@@ -229,6 +249,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 const props = defineProps({
   products: Object,
   vendConfig: Object,
+  vendConfigOptions: Object,
   vendPrefixOptions: Object,
 })
 
@@ -243,13 +264,16 @@ const form = ref(
   useForm(getDefaultForm())
 )
 
+const vendConfigOptions = ref([])
 const vendPrefixes = ref([])
 const vendPrefixOptions = ref([])
 
 onMounted(() => {
   form.value = props.vendConfig ? useForm({
     ...props.vendConfig.data,
+    vendConfigCompatibles: props.vendConfig.data.vendConfigCompatibles.map((vendConfigCompatible) => {return {id: vendConfigCompatible.id, value: vendConfigCompatible.name}}),
   }) : useForm(getDefaultForm())
+  vendConfigOptions.value = props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
   vendPrefixOptions.value = props.vendPrefixOptions.data
   vendPrefixes.value = JSON.parse(JSON.stringify(props.vendConfig.data.vendPrefixes))
 })
@@ -276,6 +300,7 @@ function getDefaultForm() {
     name: '',
     // is_active: '',
     desc: '',
+    vendConfigCompatibles: [],
     vend_prefix_id: '',
     // channel_code: '',
     // product_id: '',
@@ -285,10 +310,13 @@ function getDefaultForm() {
 function submit() {
   form.value.clearErrors()
     form.value
-      .transform((data) => ({
-        ...data,
-        vendPrefixes: vendPrefixes.value,
-      }))
+      .transform((data) => {
+        return {
+          ...data,
+          vendConfigCompatibles: data.vendConfigCompatibles.map(vendConfigCompatible => vendConfigCompatible.id),
+          vendPrefixes: vendPrefixes.value,
+        }
+      })
       .post('/vend-configs/' + form.value.id + '/update', {
       onSuccess: () => {
         emit('modalClose')
