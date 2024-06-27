@@ -160,6 +160,12 @@
                 </DatePicker>
               </div>
 
+              <div class="sm:col-span-3">
+                  <FormInput v-model="form.power_socket_key_number" :error="form.errors.power_socket_key_number">
+                    Power Socket Key Num
+                  </FormInput>
+                </div>
+
               <div class="sm:col-span-5">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Reference Price Type

@@ -11,6 +11,7 @@ class Key extends Model
 
     protected $fillable = [
         'name',
+        'desc'
     ];
 
     public function vend()

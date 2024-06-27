@@ -83,6 +83,7 @@ class Customer extends Model
         'operator_id',
         // for cms person id
         'person_id',
+        'power_socket_key_number',
         'profile_id',
         'selling_price_type',
         'snap_parameter_json',

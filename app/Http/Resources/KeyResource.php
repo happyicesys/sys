@@ -16,6 +16,7 @@ class KeyResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'desc' => $this->desc,
             'name' => $this->name,
             'vend' => VendResource::make($this->whenLoaded('vend')),
         ];

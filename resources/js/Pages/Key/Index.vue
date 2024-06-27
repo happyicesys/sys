@@ -95,6 +95,9 @@
                       Name
                     </TableHeadSort>
                     <TableHead>
+                      Desc
+                    </TableHead>
+                    <TableHead>
                       Machine
                     </TableHead>
                     <TableHead>
@@ -110,6 +113,9 @@
                         {{ key.name }}
                       </TableData>
                       <TableData :currentIndex="keyIndex" :totalLength="keys.length" inputClass="text-left">
+                        {{ key.desc }}
+                      </TableData>
+                      <TableData :currentIndex="keyIndex" :totalLength="keys.length" inputClass="text-center">
                         {{ key.vend ? key.vend.code : '' }}
                       </TableData>
                       <TableData :currentIndex="keyIndex" :totalLength="keys.length" inputClass="text-center">
