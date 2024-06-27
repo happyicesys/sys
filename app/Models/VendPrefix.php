@@ -20,8 +20,8 @@ class VendPrefix extends Model
         'desc',
         'name',
         'operator_id',
-        'product_mapping_id',
-        'vend_config_id',
+        // 'product_mapping_id',
+        // 'vend_config_id',
     ];
 
     // relationships
@@ -30,9 +30,9 @@ class VendPrefix extends Model
         return $this->belongsTo(Operator::class);
     }
 
-    public function productMapping()
+    public function productMappings()
     {
-        return $this->belongsTo(ProductMapping::class);
+        return $this->belongsToMany(ProductMapping::class);
     }
 
     public function vends()

@@ -41,7 +41,7 @@ class VendPrefixController extends Controller
                 VendPrefix::query()
                     ->with([
                         'operator',
-                        'productMapping',
+                        'productMappings',
                         'vendConfigs.attachments',
                         'vends',
                     ])
@@ -90,6 +90,8 @@ class VendPrefixController extends Controller
         $model = VendPrefix::findOrFail($id);
 
         $model->update($request->all());
+
+        $model->productMappings()->sync($request->productMappings);
 
         return redirect()->route('vend-prefixes');
     }

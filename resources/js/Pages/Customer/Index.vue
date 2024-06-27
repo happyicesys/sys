@@ -265,7 +265,7 @@
                       Customer
                     </TableHeadSort>
                     <TableHead>
-                      RP
+                      Ref Price
                     </TableHead>
                     <TableHead>
                       Label

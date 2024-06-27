@@ -35,13 +35,14 @@
                 </span>
               </label>
               <MultiSelect
-                v-model="form.product_mapping_id"
+                v-model="form.productMappings"
                 :options="productMappingOptions"
                 trackBy="id"
                 valueProp="id"
                 label="value"
                 placeholder="Select"
                 open-direction="top"
+                mode="tags"
                 class="mt-1"
               >
               </MultiSelect>
@@ -151,7 +152,7 @@ onMounted(() => {
   operatorOptions.value = [
     ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
-  productMappingOptions.value = props.productMappingOptions
+  productMappingOptions.value = props.productMappingOptions.data.map((data) => {return {id: data.id, value: data.name}})
 // console.log(productMappingOptions.value)
   // productMappingOptions.value = [
   //   ...props.productMappingOptions.data.map((data) => {return {id: data.id, name: data.name}})
@@ -160,9 +161,10 @@ onMounted(() => {
   form.value = props.vendPrefix ? useForm(
   {
     ...props.vendPrefix,
-    product_mapping_id: productMappingOptions.value.find(productMapping => productMapping.id === props.vendPrefix.product_mapping_id),
+    // product_mapping_id: productMappingOptions.value.find(productMapping => productMapping.id === props.vendPrefix.product_mapping_id),
+    productMappings: props.vendPrefix.productMappings.map(productMapping => productMappingOptions.value.find(productMappingOption => productMappingOption.id === productMapping.id)),
     operator_id: form.value.operator_id ? operatorOptions.value.find(operator => operator.id === props.vendPrefix.operator_id) : operatorOptions.value.find(operator => operator.id === authOperator.id),
-    vend_config_id: vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vendPrefix.vend_config_id),
+    // vend_config_id: vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vendPrefix.vend_config_id),
   }) : useForm(getDefaultForm())
 })
 
@@ -171,8 +173,7 @@ function getDefaultForm() {
     name: '',
     desc: '',
     operator_id: '',
-    product_mapping_id: '',
-    vend_config_id: '',
+    productMappings: [],
   }
 }
 
@@ -185,8 +186,7 @@ function submit() {
       return {
         ...data,
         operator_id: data.operator_id.id,
-        product_mapping_id: data.product_mapping_id.id,
-        vend_config_id: data.vend_config_id.id,
+        productMappings: data.productMappings.map(productMapping => productMapping.id),
       }
     })
     .post('/vend-prefixes/create', {
@@ -204,8 +204,7 @@ function submit() {
         return {
           ...data,
           operator_id: data.operator_id.id,
-          product_mapping_id: data.product_mapping_id ? data.product_mapping_id.id : null,
-          vend_config_id: data.vend_config ? data.vend_config_id.id : null,
+          productMappings: data.productMappings.map(productMapping => productMapping.id),
         }
       })
       .post('/vend-prefixes/' + form.value.id + '/update', {

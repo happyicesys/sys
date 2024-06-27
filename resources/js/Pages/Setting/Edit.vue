@@ -199,7 +199,7 @@
 
             <hr class="sm:col-span-6">
 
-            <div class="sm:col-span-3">
+            <div class="sm:col-span-5">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Setting Chart
                   <span class="text-red-500">
@@ -233,6 +233,29 @@
                 <MultiSelect
                   v-model="form.vend_prefix_id"
                   :options="vendPrefixOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  @selected="onVendPrefixSelected"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.vend_prefix_id">
+                  {{ form.errors.vend_prefix_id }}
+                </div>
+            </div>
+            <div class="sm:col-span-3" v-if="form.vend_prefix_id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Product Mapping
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.product_mapping_id"
+                  :options="productMappingOptions"
                   trackBy="id"
                   valueProp="id"
                   label="name"
@@ -656,6 +679,7 @@ const props = defineProps({
     countries: Object,
     keyOptions: Object,
     operatorOptions: Object,
+    productMappingOptions: Object,
     simcardOptions: Object,
     vend: Object,
     vendConfigOptions: Object,
@@ -686,6 +710,7 @@ const keyOptions = ref([])
 const isExisting = ref(1)
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
+const productMappingOptions = ref([])
 const simcardOptions = ref([])
 const vendConfigOptions = ref([])
 const vendModelOptions = ref([])
@@ -723,6 +748,7 @@ function getDefaultForm() {
       },
     },
     key_id: '',
+    product_mapping_id: '',
     simcard_id: '',
     status: '',
     termination_date: '',
@@ -745,6 +771,10 @@ onMounted(() => {
     ...props.keyOptions.data,
   ]
   operatorOptions.value = props.operatorOptions.data
+  productMappingOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...props.productMappingOptions.data,
+  ]
   simcardOptions.value = [
     { id: '', name: '--- Clear ---'},
     ...props.simcardOptions.data,
@@ -768,6 +798,7 @@ onMounted(() => {
     // is_testing: props.vend.is_testing == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
     cashless_terminal_id: props.vend.cashless_terminal_id ? props.vend.cashless_terminal_id : null,
     key_id: props.vend.key_id ? keyOptions.value.find(key => key.id === props.vend.key_id) : null,
+    product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping => productMapping.id === props.vend.product_mapping_id) : null,
     simcard_id: props.vend.simcard_id ? props.vend.simcard_id : null,
     status: statusOptions.value.find(status => status.id === (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id === props.vend.operator_id) : null : null,
@@ -823,6 +854,22 @@ function onVendConfigSelected() {
     preserveState: true,
     onSuccess: page => {
       vendPrefixOptions.value = props.vendPrefixOptions.data
+    }
+  })
+}
+
+function onVendPrefixSelected() {
+  form.value.product_mapping_id = null
+  productMappingOptions.value = []
+  router.reload({
+    only: ['productMappingOptions'],
+    data: {
+      vend_prefix_id: form.value.vend_prefix_id.id,
+    },
+    replace: true,
+    preserveState: true,
+    onSuccess: page => {
+      productMappingOptions.value = props.productMappingOptions.data
     }
   })
 }
@@ -895,6 +942,7 @@ function saveVend(vendID) {
       // is_testing: data.is_testing.id,
       // is_active: data.is_active.id,
       operator_id: data.operator_id ? data.operator_id.id : null,
+      product_mapping_id: data.product_mapping_id ? data.product_mapping_id.id : null,
       status: data.status.id,
       vend_config_id: data.vend_config_id ? data.vend_config_id.id : null,
       vend_model_id: data.vend_model_id ? data.vend_model_id.id : null,

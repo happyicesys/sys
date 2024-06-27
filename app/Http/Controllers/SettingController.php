@@ -10,6 +10,7 @@ use App\Http\Resources\CustomerResource;
 use App\Http\Resources\KeyResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\SellingPriceResource;
 use App\Http\Resources\SimcardResource;
 use App\Http\Resources\VendConfigResource;
@@ -25,6 +26,7 @@ use App\Models\CategoryGroup;
 use App\Models\Key;
 use App\Models\LocationType;
 use App\Models\Operator;
+use App\Models\ProductMapping;
 use App\Models\SellingPrice;
 use App\Models\Simcard;
 use App\Models\Vend;
@@ -78,6 +80,7 @@ class SettingController extends Controller
                 'cashlessTerminal',
                 'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type',
                 'customer.operator:id,code,name',
+                'productMapping',
                 'simcard',
                 'vendModel',
                 'vendPrefix',
@@ -102,6 +105,7 @@ class SettingController extends Controller
                 'vends.parameter_json',
                 'vends.name',
                 'vends.operator_id',
+                'vends.product_mapping_id',
                 'vends.termination_date',
                 'vends.firmware_ver',
                 'vends.last_updated_at',
@@ -178,6 +182,7 @@ class SettingController extends Controller
             'key',
             'logs',
             'operator',
+            'productMapping',
             'simcard',
             'vendConfig',
             'vendModel',
@@ -205,6 +210,7 @@ class SettingController extends Controller
             'vends.simcard_id',
             'vends.termination_date',
             'vends.operator_id',
+            'vends.product_mapping_id',
             'vends.serial_num',
             'vends.vend_config_id',
             'vends.vend_model_id',
@@ -230,7 +236,6 @@ class SettingController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-
         return Inertia::render('Setting/Edit', [
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
                 CashlessTerminal::orderBy('code')->get()
@@ -246,6 +251,16 @@ class SettingController extends Controller
             ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
+            ),
+            'productMappingOptions' => ProductMappingResource::collection(
+                ProductMapping::query()
+                    ->when($request->vend_prefix_id, function($query) use ($request) {
+                        $query->whereHas('vendPrefixes', function($query) use ($request) {
+                            $query->where('vend_prefixes.id', $request->vend_prefix_id);
+                        });
+                    })
+                    ->orderBy('name')
+                    ->get()
             ),
             'simcardOptions' => SimcardResource::collection(
                 Simcard::orderBy('code')->get()
@@ -268,6 +283,7 @@ class SettingController extends Controller
                                 $query->where('vend_configs.id', $request->vend_config_id);
                             });
                         })
+                        ->orderBy('name')
                         ->get()
             ),
             'type' => 'update',

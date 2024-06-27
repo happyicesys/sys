@@ -1184,6 +1184,7 @@ class VendController extends Controller
             'cashless_terminal_id' => $request->cashless_terminal_id,
             'is_active' => $request->is_active,
             'is_testing' => $request->is_testing,
+            'product_mapping_id' => $request->product_mapping_id,
             'serial_num' => $request->serial_num,
             'simcard_id' => $request->simcard_id,
             'termination_date' => $request->termination_date,

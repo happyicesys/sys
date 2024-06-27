@@ -140,13 +140,16 @@
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
                         {{ vendPrefix.name }}
                       </TableData>
-                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-left">
+                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-left whitespace-pre-line">
                         {{ vendPrefix.desc }}
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
-                        <a :href="'/product-mappings/' + vendPrefix.  productMapping.id + '/edit'" v-if="vendPrefix.productMapping" class="text-blue-600" target="_blank">
-                          {{ vendPrefix.productMapping ? vendPrefix.productMapping.name : '' }}
-                        </a>
+                        <span v-for="productMapping in vendPrefix.productMappings">
+                          <a :href="'/product-mappings/' + productMapping.id + '/edit'" class="text-blue-600" target="_blank">
+                            {{ productMapping.name }}
+                          </a>
+                        </span>
+
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
                         <div v-if="vendPrefix.vendConfigs">
@@ -218,7 +221,7 @@
   <Form
       v-if="showModal"
       :operatorOptions="operatorOptions"
-      :productMappingOptions="productMappingOptions"
+      :productMappingOptions="props.productMappingOptions"
       :vendConfigOptions="vendConfigOptions"
       :vendPrefix="vendPrefix"
       :type="type"
@@ -285,6 +288,7 @@ onMounted(() => {
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   filters.value.vend_config_id = vendConfigOptions.value[0]
+  filters.value.product_mapping_id = productMappingOptions.value[0]
 })
 
 function onCreateClicked() {

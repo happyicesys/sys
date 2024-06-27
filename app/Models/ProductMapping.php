@@ -53,6 +53,6 @@ class ProductMapping extends Model
 
     public function vendPrefixes()
     {
-        return $this->hasMany(VendPrefix::class);
+        return $this->belongsToMany(VendPrefix::class);
     }
 }

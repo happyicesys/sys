@@ -238,6 +238,15 @@
                                 Edit
                             </span>
                           </Button> -->
+                          <span>
+                            <Button
+                            type="button" class="bg-sky-300 hover:bg-sky-400 px-3 py-2 text-xs text-sky-800 flex space-x-1 w-fit"
+                            @click="onAttachmentOverviewClicked(productMapping)"
+                            v-if="productMapping.attachments && productMapping.attachments.length > 0"
+                            >
+                              <PhotoIcon class="h-4 w-4" aria-hidden="true"/>
+                            </Button>
+                          </span>
                           <Link :href="'/product-mappings/' + productMapping.id + '/edit'">
                             <Button
                               type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
@@ -289,6 +298,14 @@
       </div>
     </div>
   </div>
+  <AttachmentOverview
+    v-if="showAttachmentOverviewModal"
+    :showModal="showAttachmentOverviewModal"
+    @modalClose="onAttachmentOverviewModalClose"
+    :model="productMapping"
+    :items="attachments"
+  >
+  </AttachmentOverview>
   <Form
       v-if="showModal"
       :products="products"
@@ -315,6 +332,7 @@
 </template>
 
 <script setup>
+import AttachmentOverview from '@/Components/AttachmentOverview.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/ProductMapping/Form.vue';
@@ -322,7 +340,7 @@ import VendForm from '@/Pages/ProductMapping/VendForm.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, LinkIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, LinkIcon, MagnifyingGlassIcon, PhotoIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { Head, usePage } from '@inertiajs/vue3';
@@ -346,7 +364,9 @@ const filters = ref({
   sortBy: true,
   numberPerPage: 100,
 })
+const attachments = ref([])
 const booleanOptions = ref([])
+const showAttachmentOverviewModal = ref(false)
 const showModal = ref(false)
 const showVendFormModal = ref(false)
 const productMapping = ref()
@@ -369,6 +389,15 @@ onMounted(() => {
   filters.value.is_active = booleanOptions.value[0]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
+
+function onAttachmentOverviewClicked(model) {
+  attachments.value = model.attachments
+  showAttachmentOverviewModal.value = true
+}
+
+function onAttachmentOverviewModalClose() {
+  showAttachmentOverviewModal.value = false
+}
 
 function onCreateClicked() {
   type.value = 'create'
