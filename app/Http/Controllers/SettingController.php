@@ -244,6 +244,11 @@ class SettingController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $request->merge([
+            'vend_prefix_id' => $request->vend_prefix_id ? $request->vend_id_prefix_id : $vend->vend_prefix_id,
+            'vend_config_id' => $request->vend_config_id ? $request->vend_config_id : $vend->vend_config_id,
+        ]);
+
         return Inertia::render('Setting/Edit', [
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
                 CashlessTerminal::orderBy('code')->get()

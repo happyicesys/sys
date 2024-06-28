@@ -10,6 +10,14 @@ class ProductMapping extends Model
 {
     use HasFactory;
 
+    // const ATTACHMENT_PRICE_TYPE = [
+    //     11 => 'P1',
+    //     12 => 'P2',
+    //     13 => 'P3',
+    //     14 => 'P4',
+    //     15 => 'P5',
+    // ];
+
     protected static function booted()
     {
         static::addGlobalScope(new OperatorProductFilterScope);
@@ -35,6 +43,13 @@ class ProductMapping extends Model
     {
         return $this->morphMany(Attachment::class, 'modelable')->oldest();
     }
+
+    // public function attachmentP1()
+    // {
+    //     return $this->morphMany(Attachment::class, 'modelable')
+    //             ->where('type', )
+    //             ->orderBy('sequence');
+    // }
 
     public function productMappingItems()
     {

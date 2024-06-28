@@ -315,6 +315,7 @@ function onEditClicked(telcoValue) {
 function onSearchFilterUpdated() {
   router.get('/vend-prefixes', {
       ...filters.value,
+      product_mapping_id: filters.value.product_mapping_id.id,
       vend_config_id: filters.value.vend_config_id.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {

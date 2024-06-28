@@ -32,6 +32,10 @@ Route::prefix('v1')->group(function() {
     Route::get('/payment-merchants/{countryCode}/{paymentGatewayName}', [PaymentController::class, 'getPaymentMerchantsApi']);
     Route::post('/vends/{id}/upload-log', [VendDataController::class, 'uploadLog']);
     Route::post('/content/vends/{code}', [VendDataController::class, 'getVendMediaContent']);
+
+    Route::prefix('customers')->group(function() {
+        Route::post('/people', [CustomerController::class, 'syncNextDeliveryDate']);
+    });
 });
 
 Route::prefix('delivery')->group(function() {

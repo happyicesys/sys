@@ -32,7 +32,7 @@ class VendPrefix extends Model
 
     public function productMappings()
     {
-        return $this->belongsToMany(ProductMapping::class);
+        return $this->belongsToMany(ProductMapping::class)->orderBy('name', 'asc');
     }
 
     public function vends()

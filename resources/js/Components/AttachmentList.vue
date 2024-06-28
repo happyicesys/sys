@@ -10,7 +10,7 @@
           </a>
         </div>
 
-      <div class="min-w-0 flex-auto">
+      <div class="min-w-0 flex-auto self-center">
         <p class="text-sm leading-4 text-gray-900 pt-2">
           <input type="text"
                 class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"

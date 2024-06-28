@@ -328,10 +328,13 @@ class CustomerController extends Controller
         return redirect()->route('customers.edit', [$customer->id]);
     }
 
-    public function syncNextDeliveryDate()
+    public function syncNextDeliveryDate($people = [])
     {
-        $response = Http::get(env('CMS_URL') . '/api/people/last-invoice-date');
-        $people = $response->collect();
+        if(!$people) {
+            // get all people from cms
+            $response = Http::get(env('CMS_URL') . '/api/people/last-invoice-date');
+            $people = $response->collect();
+        }
 
         if ($people) {
             foreach ($people as $person) {

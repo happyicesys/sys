@@ -44,8 +44,14 @@
                 open-direction="top"
                 mode="tags"
                 class="mt-1"
+                max="2"
               >
               </MultiSelect>
+              <span>
+                <small class="text-xs text-blue-800">
+                  (Maximum 2 options)
+                </small>
+              </span>
               <div class="text-sm text-red-600" v-if="form.errors.operator_id">
                 {{ form.errors.operator_id }}
               </div>
