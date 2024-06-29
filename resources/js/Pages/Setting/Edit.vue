@@ -926,10 +926,12 @@ function formatDatetime(datetime) {
 }
 
 function onVendConfigSelected() {
-  form.value.vend_prefix_id = null
+  form.value.vend_prefix_id = ''
+  form.value.product_mapping_id = ''
   vendPrefixOptions.value = []
+  productMappingOptions.value = []
   router.reload({
-    only: ['vendPrefixOptions'],
+    only: ['vendPrefixOptions', 'productMappingOptions'],
     data: {
       vend_config_id: form.value.vend_config_id.id,
     },
@@ -937,12 +939,13 @@ function onVendConfigSelected() {
     preserveState: true,
     onSuccess: page => {
       vendPrefixOptions.value = props.vendPrefixOptions.data
+      productMappingOptions.value = props.productMappingOptions.data
     }
   })
 }
 
 function onVendPrefixSelected() {
-  form.value.product_mapping_id = null
+  form.value.product_mapping_id = ''
   productMappingOptions.value = []
   router.reload({
     only: ['productMappingOptions'],

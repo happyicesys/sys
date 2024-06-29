@@ -245,9 +245,10 @@ class SettingController extends Controller
             ->get();
 
         $request->merge([
-            'vend_prefix_id' => $request->vend_prefix_id ? $request->vend_id_prefix_id : $vend->vend_prefix_id,
+            'vend_prefix_id' => $request->vend_prefix_id ? $request->vend_prefix_id : $vend->vend_prefix_id,
             'vend_config_id' => $request->vend_config_id ? $request->vend_config_id : $vend->vend_config_id,
         ]);
+        // dd($request->all());
 
         return Inertia::render('Setting/Edit', [
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
@@ -267,11 +268,11 @@ class SettingController extends Controller
             ),
             'productMappingOptions' => ProductMappingResource::collection(
                 ProductMapping::query()
-                    ->when($request->vend_prefix_id, function($query) use ($request) {
-                        $query->whereHas('vendPrefixes', function($query) use ($request) {
+                    // ->when($request->vend_prefix_id, function($query) use ($request) {
+                        ->whereHas('vendPrefixes', function($query) use ($request) {
                             $query->where('vend_prefixes.id', $request->vend_prefix_id);
-                        });
-                    })
+                        })
+                    // })
                     ->orderBy('name')
                     ->get()
             ),

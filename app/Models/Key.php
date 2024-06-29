@@ -14,8 +14,8 @@ class Key extends Model
         'desc'
     ];
 
-    public function vend()
+    public function vends()
     {
-        return $this->hasOne(Vend::class);
+        return $this->hasMany(Vend::class);
     }
 }

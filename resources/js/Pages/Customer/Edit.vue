@@ -169,6 +169,7 @@
               <div class="sm:col-span-5">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Reference Price Type
+                  <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Desired Price to be Set on Vending Machine'"></ExclamationCircleIcon>
                 </label>
                 <MultiSelect
                   v-model="form.selling_price_type"
@@ -204,20 +205,26 @@
                               Product
                             </th>
                             <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                              P1
+                              <div class="flex justify-center">
+                              <span>
+                                P1
+                              </span>
                               <span v-if="profile && profile.base_currency">
                                 ({{ profile.base_currency.currency_symbol }})
                               </span>
+                              <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Actual Price on Vending Machine'"></ExclamationCircleIcon>
+                              </div>
                             </th>
-                            <th
-                              scope="col"
-                              class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"
-                              v-if="vendChannels.some(channel => 'amount2' in channel)"
-                            >
-                              P2
+                            <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                              <div class="flex justify-center">
+                              <span>
+                                P2
+                              </span>
                               <span v-if="profile && profile.base_currency">
                                 ({{ profile.base_currency.currency_symbol }})
                               </span>
+                              <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Discounted Price on 2nd Purchase'"></ExclamationCircleIcon>
+                              </div>
                             </th>
                             <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                               Ref Price
@@ -579,7 +586,8 @@ import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue'
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 

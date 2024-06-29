@@ -24,7 +24,7 @@
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+            Key
           </SearchInput>
           <SearchInput placeholderStr="4 to 5 Digits Number" v-model="filters.vend_codes" @keyup.enter="onSearchFilterUpdated()">
               Machine ID
@@ -92,13 +92,13 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                      Key
                     </TableHeadSort>
                     <TableHead>
-                      Desc
+                      Remarks
                     </TableHead>
                     <TableHead>
-                      Machine
+                      Count
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -116,7 +116,7 @@
                         {{ key.desc }}
                       </TableData>
                       <TableData :currentIndex="keyIndex" :totalLength="keys.length" inputClass="text-center">
-                        {{ key.vend ? key.vend.code : '' }}
+                        {{ key.vends ? key.vends.length : 0 }}
                       </TableData>
                       <TableData :currentIndex="keyIndex" :totalLength="keys.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">

@@ -23,7 +23,7 @@ class KeyController extends Controller
         return Inertia::render('Key/Index', [
             'keys' => KeyResource::collection(
                 Key::query()
-                    ->with('vend')
+                    ->with('vends')
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })

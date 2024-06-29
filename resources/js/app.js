@@ -1,5 +1,6 @@
 import './bootstrap';
 import '../css/app.css';
+import 'floating-vue/dist/style.css'
 import 'v-calendar/dist/style.css';
 
 import { createApp, h } from 'vue';
