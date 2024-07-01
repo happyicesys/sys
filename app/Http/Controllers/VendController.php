@@ -720,7 +720,6 @@ class VendController extends Controller
                     'product_id' => null,
                     'product_code' => null,
                     'product_name' => null,
-                    'product_name_translated' => null,
                     'thumbnail' => null,
                 ];
                 if($vendChannel->product) {
@@ -737,10 +736,10 @@ class VendController extends Controller
                         ];
                     }
                     if($vendChannel->product->translated_names_json) {
-                        foreach($vendChannel->product->translated_names_json as $lang => $name) {
+                        foreach($vendChannel->product->translated_names_json as $lang => $value) {
                             $dataArr[$vendChannelIndex] = [
                                 ...$dataArr[$vendChannelIndex],
-                                'product_name_'.$lang => $name,
+                                'product_name_'.$value['id'] => $value['name'],
                             ];
                         }
                     }
