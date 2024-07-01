@@ -610,6 +610,12 @@
 						</TableHead>
 						<TableHead>
 							<div class="flex flex-col space-y-2">
+								<SingleSortItem modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
+									Operator
+								</SingleSortItem>
+								<SingleSortItem modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('account_manager_name')">
+									Acc Manager
+								</SingleSortItem>
 								<SingleSortItem modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
 									Postcode
 								</SingleSortItem>
@@ -620,12 +626,6 @@
 						</TableHead>
 						<TableHead>
 							<div class="flex flex-col space-y-2">
-								<SingleSortItem modelName="account_manager_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('account_manager_name')">
-									Acc Manager
-								</SingleSortItem>
-								<SingleSortItem modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
-									Operator
-								</SingleSortItem>
 								<span>
 									Firmware Ver
 								</span>
@@ -1279,6 +1279,12 @@
 							<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
 								<div class="flex flex-col space-y-2">
 									<span>
+										{{ vend.operator_code }}
+									</span>
+									<span>
+										{{ vend.account_manager_name }}
+									</span>
+									<span>
 										{{ vend.postcode }}
 									</span>
 									<span>
@@ -1290,12 +1296,6 @@
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
 							<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
 								<div class="flex flex-col space-y-2">
-									<span>
-										{{ vend.account_manager_name }}
-									</span>
-									<span>
-										{{ vend.operator_code }}
-									</span>
 									<span>
 										<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'" v-if="vend.apkVerJson && 'deviceType' in vend.apkVerJson">
 												{{ vend.apkVerJson['deviceType'] }}
