@@ -508,14 +508,14 @@
 						</TableHeadSort>
 						<TableHead>
 							<div class="flex flex-col space-y-2">
-								<SingleSortItem modelName="customers.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.name')">
-									Customer
-								</SingleSortItem>
 								<SingleSortItem modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')">
 									Vend ID
 								</SingleSortItem>
 								<SingleSortItem modelName="vends.vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.vend_prefix_name', false)">
 									Prefix
+								</SingleSortItem>
+								<SingleSortItem modelName="customers.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.name')">
+									Customer
 								</SingleSortItem>
 								<SingleSortItem modelName="customers.selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.selling_price_type', false)">
 									Ref Price
@@ -627,10 +627,19 @@
 						<TableHead>
 							<div class="flex flex-col space-y-2">
 								<span>
-									Firmware Ver
+									VMC Board
 								</span>
 								<span>
-									Android
+									Firmware Rev
+								</span>
+								<span>
+									Android Board
+								</span>
+								<span>
+									APK Ver
+								</span>
+								<span>
+									ACB Rev
 								</span>
 							</div>
 						</TableHead>
@@ -652,6 +661,12 @@
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
 							<div class="flex flex-col space-y-1">
+								<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="text-left">
+									{{ vend.code }}
+								</Link>
+								<div class="text-left">
+									{{ vend.vend_prefix_name }}
+								</div>
 								<span v-if="vend.person_id" class="flex flex-col">
 									<span v-if="permissions.includes('admin-access vends')">
 										<a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
@@ -688,14 +703,8 @@
 										</a>
 									</span>
 								</span>
-								<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']" class="text-center">
-									{{ vend.code }}
-								</Link>
-								<div class="text-center">
-									{{ vend.vend_prefix_name }}
-								</div>
 								<div
-									class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer bg-indigo-100 text-indigo-800 border-indigo-300 justify-center self-center"
+									class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer bg-indigo-100 text-indigo-800 border-indigo-300"
 								>
 									RP{{ vend.selling_price_type }}
 								</div>
@@ -1296,19 +1305,24 @@
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
 							<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
 								<div class="flex flex-col space-y-2">
-									<span>
-										<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'" v-if="vend.apkVerJson && 'deviceType' in vend.apkVerJson">
+									<span class="flex flex-col space-y-1">
+										<span class="text-blue-600" v-if="vend.acbVmcPaJson && 'VMC_MDL' in vend.acbVmcPaJson">
+												{{ vend.acbVmcPaJson['VMC_MDL'] }}
+										</span>
+										<span class="text-gray-900" v-if="vend.apkVerJson && 'deviceType' in vend.apkVerJson">
 												{{ vend.apkVerJson['deviceType'] }}
 										</span>
-										<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
-											<br>
+										<span class="text-blue-600">
 											{{ vend.parameterJson && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
 										</span>
-										<span class="text-blue-600" :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
-											<br>Apk: {{ vend.apkVerJson['apkver'] }}
+										<span class="text-gray-900" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
+											Apk: {{ vend.apkVerJson['apkver'] }}
 											<span v-if="vend.apkVerJson && 'buildtime' in vend.apkVerJson">
 													{{ moment(new Date(vend.apkVerJson['buildtime'])).format('YYMMDD HH:mm:ss')  }}
 											</span>
+										</span>
+										<span class="text-blue-600" v-if="vend.acbVmcPaJson && 'ACBVer' in vend.acbVmcPaJson">
+											{{ vend.acbVmcPaJson['ACBVer'] }}
 										</span>
 									</span>
 									<Link :href="'/vends/' + vend.vend_id + '/edit'">
