@@ -720,6 +720,7 @@ class VendController extends Controller
                     'product_id' => null,
                     'product_code' => null,
                     'product_name' => null,
+                    'product_name_translated' => null,
                     'thumbnail' => null,
                 ];
                 if($vendChannel->product) {
@@ -728,6 +729,7 @@ class VendController extends Controller
                         'product_id' => $vendChannel->product->id,
                         'product_code' => $vendChannel->product->code,
                         'product_name' => $vendChannel->product->name,
+                        'product_name_translated' => $vendChannel->product->translated_names_json,
                     ];
                     if($vendChannel->product->thumbnail) {
                         $dataArr[$vendChannelIndex] = [
