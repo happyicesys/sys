@@ -461,6 +461,19 @@
 								</span>
 							</span>
 						</Button>
+						<Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-black shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+						@click="onSyncCMSInvoiceItemsClicked()"
+						>
+							<ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
+							<span class="flex flex-col space-y-1">
+								<span>
+										Sync CMS Invoice Items
+								</span>
+								<span class="text-xs leading-3">
+										For current filtered results
+								</span>
+							</span>
+						</Button>
 					</div>
 				</div>
 				<dl class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -1743,7 +1756,20 @@ function getVendsField() {
             now.value = moment().format('HH:mm:ss')
         },
     })
-}
+	}
+
+	function onSyncCMSInvoiceItemsClicked() {
+		axios({
+				method: 'POST',
+				url: '/vends/sync-cms-invoice-items',
+				data: vends.value.data.map((vend) => { return vend.id }),
+		}).then(response => {
+				pickLists.value = response.data
+		}).catch(error => {
+		}).finally(() => {
+				showPickListModal.value = true
+		})
+	}
 
 
   function onSyncNextDeliveryDate() {

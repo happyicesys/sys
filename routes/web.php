@@ -438,6 +438,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/trigger-log-upload', [VendController::class, 'triggerLogUpload']);
         Route::post('/{id}/unbind-customer/{returnUrl?}', [VendController::class, 'unbindCustomer']);
         Route::post('/pick-lists', [VendController::class, 'pickLists']);
+        Route::post('/sync-cms-invoice-items', [VendController::class, 'syncCmsInvoiceItems']);
     });
 
     Route::prefix('vend-channel-errors')->group(function() {

@@ -729,7 +729,6 @@ class VendController extends Controller
                         'product_id' => $vendChannel->product->id,
                         'product_code' => $vendChannel->product->code,
                         'product_name' => $vendChannel->product->name,
-                        'product_name_translated' => $vendChannel->product->translated_names_json,
                     ];
                     if($vendChannel->product->thumbnail) {
                         $dataArr[$vendChannelIndex] = [
@@ -737,6 +736,15 @@ class VendController extends Controller
                             'thumbnail' => $vendChannel->product->thumbnail->full_url,
                         ];
                     }
+                    if($vendChannel->product->translated_names_json) {
+                        foreach($vendChannel->product->translated_names_json as $lang => $name) {
+                            $dataArr[$vendChannelIndex] = [
+                                ...$dataArr[$vendChannelIndex],
+                                'product_name_'.$lang => $name,
+                            ];
+                        }
+                    }
+
                 }
             }
             return response()->json($dataArr, 200);
@@ -1147,6 +1155,11 @@ class VendController extends Controller
         ];
 
         return $dataArr;
+    }
+
+    public function syncCmsInvoiceItems(Request $request)
+    {
+        dd($request->all());
     }
 
     public function update(Request $request, $vendID)
