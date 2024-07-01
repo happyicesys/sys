@@ -1144,20 +1144,6 @@
 								</div>
 								<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-										:class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['BILL_SN'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-										v-if="vend.acbVmcPaJson && 'BILL_SN' in vend.acbVmcPaJson"
-								>
-										<div class="flex flex-col">
-												<span class="font-bold">
-														Bill SN
-												</span>
-												<span>
-														{{vend.acbVmcPaJson['BILL_SN'] ? vend.acbVmcPaJson['BILL_SN'] : 'NA' }}
-												</span>
-										</div>
-								</div>
-								<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 										:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CHGEStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CHGEStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
 										v-if="vend.parameterJson && 'CHGEStat' in vend.parameterJson"
 								>
@@ -1227,20 +1213,6 @@
 								</div>
 								<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-										:class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['COIN_SN'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-										v-if="vend.acbVmcPaJson && 'COIN_SN' in vend.acbVmcPaJson"
-								>
-										<div class="flex flex-col">
-												<span class="font-bold">
-														Coin SN
-												</span>
-												<span>
-														{{vend.acbVmcPaJson['COIN_SN'] ? vend.acbVmcPaJson['COIN_SN'] : 'NA' }}
-												</span>
-										</div>
-								</div>
-								<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 										:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CSHLStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CSHLStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
 										v-if="vend.parameterJson && 'CSHLStat' in vend.parameterJson"
 								>
@@ -1278,20 +1250,6 @@
 												</span>
 												<span>
 														{{vend.acbVmcPaJson['CSHL_MDL'] ? vend.acbVmcPaJson['CSHL_MDL'] : 'NA' }}
-												</span>
-										</div>
-								</div>
-								<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-										:class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_SN'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-										v-if="vend.acbVmcPaJson && 'CSHL_SN' in vend.acbVmcPaJson"
-								>
-										<div class="flex flex-col">
-												<span class="font-bold">
-														Cashless SN
-												</span>
-												<span>
-														{{vend.acbVmcPaJson['CSHL_SN'] ? vend.acbVmcPaJson['CSHL_SN'] : 'NA' }}
 												</span>
 										</div>
 								</div>
@@ -1761,8 +1719,8 @@ function getVendsField() {
 	function onSyncCMSInvoiceItemsClicked() {
 		axios({
 				method: 'POST',
-				url: '/vends/sync-cms-invoice-items',
-				data: vends.value.data.map((vend) => { return vend.id }),
+				url: '/customers/sync-cms-invoice-items',
+				data: {customerIDs: vends.value.data.map((vend) => { return vend.customer_id })},
 		}).then(response => {
 				pickLists.value = response.data
 		}).catch(error => {

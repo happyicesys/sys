@@ -53,6 +53,7 @@ class VendTransactionResource extends JsonResource
             'vend_channel_error_desc' => isset($this->vend_channel_error_desc) ? $this->vend_channel_error_desc : null,
             'vend_code' => isset($this->vend_code) ? $this->vend_code : null,
             'vend_name' => isset($this->vend_name) ? $this->vend_name : null,
+            'vend_prefix_name' => isset($this->vend_prefix_name) ? $this->vend_prefix_name : null,
             'vendChannelError' => VendChannelErrorResource::make($this->whenLoaded('vendChannelError')),
             'vendJson' => $this->vend_json,
             'vendTransactionJson' => $this->vend_transaction_json,

@@ -13,6 +13,7 @@ use App\Http\Resources\TagResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\ZoneResource;
 use App\Jobs\SyncVendCustomerCms;
+use App\Jobs\SyncTransactionItemCMS;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Country;
@@ -326,6 +327,20 @@ class CustomerController extends Controller
         }
 
         return redirect()->route('customers.edit', [$customer->id]);
+    }
+
+    public function syncCmsInvoiceItems(Request $request)
+    {
+        $customers = Customer::query()
+            ->whereIn('id', $request->customerIDs)
+            ->get();
+
+        if($customers) {
+            foreach($customers as $customer) {
+                // SyncTransactionItemCMS::dispatch($customer->id)->onQueue('default');
+                SyncTransactionItemCMS::dispatchSync($customer->id);
+            }
+        }
     }
 
     public function syncNextDeliveryDate($people = [])

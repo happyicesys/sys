@@ -804,6 +804,7 @@ class VendController extends Controller
             ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             // ->with([
                 // 'vend:id,code,name',
                 // 'customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
@@ -822,6 +823,7 @@ class VendController extends Controller
                 'vend_transactions.order_id',
                 'vend_transactions.transaction_datetime',
                 'vends.code AS vend_code',
+                'vend_prefixes.name AS vend_prefix_name',
                 'customers.code AS customer_code',
                 'customers.name AS customer_name',
                 'customers.person_id',
@@ -985,6 +987,7 @@ class VendController extends Controller
         ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
         ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
         ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+        ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
         ->filterTransactionIndex($request)
         ->select(
             'vend_transactions.id',
@@ -992,6 +995,7 @@ class VendController extends Controller
             'vend_transactions.transaction_datetime',
             'vends.code AS vend_code',
             'vends.name AS vend_name',
+            'vend_prefixes.name AS vend_prefix_name',
             'customers.code AS customer_code',
             'customers.name AS customer_name',
             'customers.person_id',
@@ -1022,8 +1026,8 @@ class VendController extends Controller
                 'Order ID' => $vendTransaction->order_id,
                 'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
                 'Vend ID' => $vendTransaction->vend_code ? $vendTransaction->vend_code : '',
-                'Customer Prefix' => $vendTransaction->person_id ?
-                                    $vendTransaction->virtual_customer_prefix :
+                'Machine Prefix' => $vendTransaction->vend_prefix_name ?
+                                    $vendTransaction->vend_prefix_name :
                                     '',
                 'Customer Code' => $vendTransaction->person_id ?
                                     $vendTransaction->virtual_customer_code :
@@ -1154,11 +1158,6 @@ class VendController extends Controller
         ];
 
         return $dataArr;
-    }
-
-    public function syncCmsInvoiceItems(Request $request)
-    {
-        dd($request->all());
     }
 
     public function update(Request $request, $vendID)

@@ -303,6 +303,9 @@
                             Vend ID
                         </TableHead>
                         <TableHead>
+                            Machine Prefix
+                        </TableHead>
+                        <TableHead>
                             Customer
                         </TableHead>
                         <TableHead>
@@ -348,6 +351,9 @@
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.vend_code }}
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            {{ vendTransaction.vend_prefix_name }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-left">
                             <span v-if="vendTransaction.person_id">

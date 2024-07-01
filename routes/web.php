@@ -125,6 +125,21 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [CountryController::class, 'delete']);
     });
 
+    Route::prefix('customers')->group(function() {
+        Route::get('/', [CustomerController::class, 'index'])->name('customers');
+        Route::get('/{id}/edit', [CustomerController::class, 'edit'])->name('customers.edit');
+        Route::get('/create', [CustomerController::class, 'create']);
+        Route::post('/store', [CustomerController::class, 'store']);
+        Route::post('/{id}/update', [CustomerController::class, 'update']);
+        Route::post('/{id}/toggle-activation', [CustomerController::class, 'toggleActivation']);
+        Route::delete('/{id}', [CustomerController::class, 'delete']);
+        Route::get('/sync-next-delivery-date', [CustomerController::class, 'syncNextDeliveryDate']);
+        Route::post('/{id}/upload-attachments', [CustomerController::class, 'uploadAttachment']);
+        Route::post('/{id}/bind-vend', [CustomerController::class, 'bindVend']);
+        Route::get('/{id}/selling-prices/type/{type}', [CustomerController::class, 'getProductSellingPrices']);
+        Route::post('/sync-cms-invoice-items', [CustomerController::class, 'syncCmsInvoiceItems']);
+    });
+
     Route::prefix('dashboard')->group(function() {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     });
@@ -198,20 +213,6 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/create', [VendCriteriaBindingController::class, 'create']);
         Route::post('/{id}/update', [VendCriteriaBindingController::class, 'update']);
         Route::delete('/{id}', [VendCriteriaBindingController::class, 'delete']);
-    });
-
-    Route::prefix('customers')->group(function() {
-        Route::get('/', [CustomerController::class, 'index'])->name('customers');
-        Route::get('/{id}/edit', [CustomerController::class, 'edit'])->name('customers.edit');
-        Route::get('/create', [CustomerController::class, 'create']);
-        Route::post('/store', [CustomerController::class, 'store']);
-        Route::post('/{id}/update', [CustomerController::class, 'update']);
-        Route::post('/{id}/toggle-activation', [CustomerController::class, 'toggleActivation']);
-        Route::delete('/{id}', [CustomerController::class, 'delete']);
-        Route::get('/sync-next-delivery-date', [CustomerController::class, 'syncNextDeliveryDate']);
-        Route::post('/{id}/upload-attachments', [CustomerController::class, 'uploadAttachment']);
-        Route::post('/{id}/bind-vend', [CustomerController::class, 'bindVend']);
-        Route::get('/{id}/selling-prices/type/{type}', [CustomerController::class, 'getProductSellingPrices']);
     });
 
     Route::prefix('holidays')->group(function() {
@@ -438,7 +439,6 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/trigger-log-upload', [VendController::class, 'triggerLogUpload']);
         Route::post('/{id}/unbind-customer/{returnUrl?}', [VendController::class, 'unbindCustomer']);
         Route::post('/pick-lists', [VendController::class, 'pickLists']);
-        Route::post('/sync-cms-invoice-items', [VendController::class, 'syncCmsInvoiceItems']);
     });
 
     Route::prefix('vend-channel-errors')->group(function() {
