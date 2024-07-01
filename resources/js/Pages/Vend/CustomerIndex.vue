@@ -603,7 +603,7 @@
 							</div>
 						</TableHead>
 						<TableHead>
-							Status
+							Machine Status
 						</TableHead>
 						<TableHead>
 							Payment Device
