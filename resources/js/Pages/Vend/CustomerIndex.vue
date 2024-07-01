@@ -634,8 +634,6 @@
 								</span>
 							</div>
 						</TableHead>
-						<TableHead>
-						</TableHead>
 					</tr>
 				</thead>
 				<tbody class="bg-white">
@@ -767,9 +765,10 @@
 								</span>
 							</div>
 						</TableData>
+						<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
 							<ul
-							class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
+							class="sm:grid sm:grid-cols-[1fr_1fr] hover:cursor-pointer"
 							v-if="vend.vendChannels"
 							@click="onChannelOverviewClicked(vend)"
 							>
@@ -1312,22 +1311,18 @@
 											</span>
 										</span>
 									</span>
+									<Link :href="'/vends/' + vend.vend_id + '/edit'">
+										<Button
+										type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+										>
+										<EllipsisHorizontalCircleIcon class="w-4 h-4"></EllipsisHorizontalCircleIcon>
+										<span>
+												more
+										</span>
+										</Button>
+									</Link>
 								</div>
 							</span>
-						</TableData>
-						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-							<div class="flex justify-center space-x-1">
-								<Link :href="'/vends/' + vend.vend_id + '/edit'">
-									<Button
-									type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-									>
-									<EllipsisHorizontalCircleIcon class="w-4 h-4"></EllipsisHorizontalCircleIcon>
-									<span>
-											more
-									</span>
-									</Button>
-								</Link>
-							</div>
 						</TableData>
 					</tr>
 					<tr v-if="!vends.data.length">
