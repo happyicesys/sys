@@ -337,8 +337,8 @@ class CustomerController extends Controller
 
         if($customers) {
             foreach($customers as $customer) {
-                // SyncTransactionItemCMS::dispatch($customer->id)->onQueue('default');
-                SyncTransactionItemCMS::dispatchSync($customer->id);
+                SyncTransactionItemCMS::dispatch($customer->id)->onQueue('default');
+                // SyncTransactionItemCMS::dispatchSync($customer->id);
             }
         }
     }

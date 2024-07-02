@@ -771,35 +771,37 @@
             </ul>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-            <span v-for="vendChannelErrorLog in vend.vendChannelErrorLogsJson" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border"
-            :class="[
-              vendChannelErrorLog['vendChannelError'] ?
-              (
-                  vendChannelErrorLog['vendChannelError']['code'] == 4 ||
-                  vendChannelErrorLog['vendChannelError']['code'] == 5 ||
-                  vendChannelErrorLog['vendChannelError']['code'] == 7 ?
-                  'bg-blue-100 text-blue-800' :
-                  'bg-red-100 text-red-800'
-              ) :
-              (
-                  vendChannelErrorLog['vend_channel']['code'] == 4 ||
-                  vendChannelErrorLog['vend_channel']['code'] == 5 ||
-                  vendChannelErrorLog['vend_channel']['code'] == 7 ?
-                  'bg-blue-100 text-blue-800' :
-                  'bg-red-100 text-red-800'
-              )]">
-              <div class="flex flex-col">
-                  <div>
-                      #{{vendChannelErrorLog['vendChannel'] ? vendChannelErrorLog['vendChannel']['code'] : vendChannelErrorLog['vend_channel']['code']}},
-                      <span class="font-bold">
-                      ({{ vendChannelErrorLog['vendChannelError'] ? vendChannelErrorLog['vendChannelError']['code'] : vendChannelErrorLog['vend_channel_error']['code'] }})
-                      </span>
-                  </div>
-                  <div>
-                      {{vendChannelErrorLog['created_at']}}
-                  </div>
-              </div>
-            </span>
+            <div class="flex flex-col space-y-1">
+              <span v-for="vendChannelErrorLog in vend.vendChannelErrorLogsJson" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border"
+              :class="[
+                vendChannelErrorLog['vendChannelError'] ?
+                (
+                    vendChannelErrorLog['vendChannelError']['code'] == 4 ||
+                    vendChannelErrorLog['vendChannelError']['code'] == 5 ||
+                    vendChannelErrorLog['vendChannelError']['code'] == 7 ?
+                    'bg-blue-100 text-blue-800' :
+                    'bg-red-100 text-red-800'
+                ) :
+                (
+                    vendChannelErrorLog['vend_channel']['code'] == 4 ||
+                    vendChannelErrorLog['vend_channel']['code'] == 5 ||
+                    vendChannelErrorLog['vend_channel']['code'] == 7 ?
+                    'bg-blue-100 text-blue-800' :
+                    'bg-red-100 text-red-800'
+                )]">
+                <div class="flex flex-col">
+                    <div>
+                        #{{vendChannelErrorLog['vendChannel'] ? vendChannelErrorLog['vendChannel']['code'] : vendChannelErrorLog['vend_channel']['code']}},
+                        <span class="font-bold">
+                        ({{ vendChannelErrorLog['vendChannelError'] ? vendChannelErrorLog['vendChannelError']['code'] : vendChannelErrorLog['vend_channel_error']['code'] }})
+                        </span>
+                    </div>
+                    <div>
+                        {{vendChannelErrorLog['created_at']}}
+                    </div>
+                </div>
+              </span>
+            </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             <div class="flex flex-col space-y-3 w-full">

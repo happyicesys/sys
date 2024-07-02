@@ -539,8 +539,8 @@
           </div>
           <nav aria-label="Progress">
             <ol role="list" class="overflow-hidden">
-              <li v-for="(customer, customerIndex) in vend.customer_movement_history_json" :key="customer.id" :class="[customerIndex !== vend.customer_movement_history_json.length - 1 ? 'pb-3' : '', 'relative']">
-                <template v-if="customerIndex !== vend.customer_movement_history_json.length - 1">
+              <li v-for="(customer, customerIndex) in vend.customer_movement_history_json" :key="customer.id" :class="[customerIndex !== vend.customer_movement_history_json.length - 1? 'pb-3' : 'relative bg-gray-300 rounded']">
+                <template v-if="true">
                   <span class="group relative flex items-start">
                     <span class="flex h-9 items-center">
                       <span class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full" :class="[customer.is_binding ? 'bg-green-600' : 'bg-red-600']">
@@ -559,7 +559,7 @@
                     </span>
                   </span>
                 </template>
-                <template v-else-if="customerIndex === vend.customer_movement_history_json.length - 1">
+                <!-- <template v-else-if="customerIndex === vend.customer_movement_history_json.length - 1">
                   <a :href="'/customers/' + customer.id + '/edit'" class="group relative flex items-start" aria-current="step">
                     <span class="flex h-9 items-center" aria-hidden="true">
                       <span class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-indigo-600 bg-white">
@@ -576,7 +576,7 @@
                       <span class="text-sm text-gray-500">{{ customer.created_at }}</span>
                     </span>
                   </a>
-                </template>
+                </template> -->
               </li>
             </ol>
           </nav>

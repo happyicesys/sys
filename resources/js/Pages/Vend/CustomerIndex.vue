@@ -1280,11 +1280,11 @@
 										<span class="text-blue-600" v-if="vend.acbVmcPaJson && 'VMC_MDL' in vend.acbVmcPaJson">
 												{{ vend.acbVmcPaJson['VMC_MDL'] }}
 										</span>
-										<span class="text-gray-900" v-if="vend.apkVerJson && 'deviceType' in vend.apkVerJson">
-												{{ vend.apkVerJson['deviceType'] }}
-										</span>
 										<span class="text-blue-600">
 											{{ vend.parameterJson && vend.parameterJson['Ver'] ? vend.parameterJson['Ver'].toString(16) : null }}
+										</span>
+										<span class="text-gray-900" v-if="vend.apkVerJson && 'deviceType' in vend.apkVerJson">
+												{{ vend.apkVerJson['deviceType'] }}
 										</span>
 										<span class="text-gray-900" v-if="vend.apkVerJson && 'apkver' in vend.apkVerJson">
 											Apk: {{ vend.apkVerJson['apkver'] }}
