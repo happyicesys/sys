@@ -28,7 +28,8 @@ class ProductMappingController extends Controller
         $request->merge([
             'is_active' => $request->is_active ? $request->is_active : true,
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
-            'sortBy' => $request->sortBy,
+            'sortBy' => $request->sortBy ? $request->sortBy : true,
+            'sortKey' => $request->sortKey ? $request->sortKey : 'name'
         ]);
 
         return Inertia::render('ProductMapping/Index', [
@@ -62,6 +63,7 @@ class ProductMappingController extends Controller
                 ->when($request->is_active, function($query, $search) use ($request) {
                     $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
                 })
+                ->orderBy($request->sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' )
                 ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                 ->withQueryString()
 

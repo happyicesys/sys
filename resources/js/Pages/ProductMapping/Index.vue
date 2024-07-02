@@ -108,9 +108,9 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHead>
+                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name', false)">
                       Name
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHead>
                       Binded Prefix
                     </TableHead>
@@ -342,6 +342,7 @@ import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { BackspaceIcon, LinkIcon, MagnifyingGlassIcon, PhotoIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
+import TableHeadSort from '@/Components/TableHeadSort.vue';
 import TableData from '@/Components/TableData.vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
@@ -444,13 +445,17 @@ function onSearchFilterUpdated() {
   })
 }
 
+
 function resetFilters() {
   router.get('/product-mappings')
 }
 
-function sortTable(sortKey) {
-  filters.value.sortKey = sortKey
+function sortTable(sortKey, inverse = false) {
   filters.value.sortBy = !filters.value.sortBy
+  if(inverse && filters.value.sortKey != sortKey) {
+      filters.value.sortBy = !filters.value.sortBy
+  }
+  filters.value.sortKey = sortKey
   onSearchFilterUpdated()
 }
 

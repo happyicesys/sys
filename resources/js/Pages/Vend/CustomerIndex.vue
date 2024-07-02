@@ -1402,6 +1402,7 @@
     import Paginator from '@/Components/Paginator.vue';
     import PickList from '@/Pages/Vend/PickList.vue';
     import SearchInput from '@/Components/SearchInput.vue';
+		import Toast from '@/Components/Toast.vue';
     import MultiSelect from '@/Components/MultiSelect.vue';
     import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon, ClipboardDocumentCheckIcon} from '@heroicons/vue/20/solid';
     import TableHead from '@/Components/TableHead.vue';
@@ -1722,10 +1723,8 @@ function getVendsField() {
 				url: '/customers/sync-cms-invoice-items',
 				data: {customerIDs: vends.value.data.map((vend) => { return vend.customer_id })},
 		}).then(response => {
-				pickLists.value = response.data
 		}).catch(error => {
 		}).finally(() => {
-				showPickListModal.value = true
 		})
 	}
 

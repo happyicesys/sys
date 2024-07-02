@@ -10,7 +10,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 
-class SyncTransactionItemCMS implements ShouldQueue
+class SyncTransactionItemCMS
+//implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -52,9 +53,7 @@ class SyncTransactionItemCMS implements ShouldQueue
                 }
             }
 
-            // dd($data);
-
-            Http::post($this->endpoint, $data);
+            $response = Http::post($this->endpoint, $data);
         }
     }
 }
