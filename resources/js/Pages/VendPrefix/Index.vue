@@ -119,7 +119,7 @@
                     <TableHead>
                       Setting Chart
                     </TableHead>
-                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')" class="bg-gray-500" >
+                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')" class="bg-sky-200" >
                       Prefix
                     </TableHeadSort>
                     <TableHead>
@@ -159,7 +159,7 @@
                           </span>
                         </div>
                       </TableData>
-                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
+                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center bg-sky-50">
                         {{ vendPrefix.name }}
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-left whitespace-pre-line">

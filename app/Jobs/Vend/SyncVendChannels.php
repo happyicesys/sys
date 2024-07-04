@@ -88,7 +88,7 @@ class SyncVendChannels implements ShouldQueue
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }
             }
-            SaveVendChannelsJson::dispatch($vend->id)->onQueue('default');
+            SaveVendChannelsJson::dispatch($vend->id, $this->input)->onQueue('default');
             $this->deliveryProductMappingService->syncVendChannels(null, $vend->id);
         }
     }
