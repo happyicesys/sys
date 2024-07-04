@@ -16,14 +16,16 @@ class SaveVendChannelsJson implements ShouldQueue
     //
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    protected $originalVendChannelData;
     protected $vendId;
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct($vendId)
+    public function __construct($vendId, $originalVendChannelData = null)
     {
+        $this->originalVendChannelData = $originalVendChannelData;
         $this->vendId = $vendId;
     }
 
@@ -67,6 +69,7 @@ class SaveVendChannelsJson implements ShouldQueue
         ];
 
         $vend->update([
+            'original_vend_channels_json' => $this->originalVendChannelData,
             'vend_channels_json' => $vend->vendChannels,
             'vend_channel_totals_json' => collect($totals),
         ]);

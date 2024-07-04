@@ -416,7 +416,7 @@
                         </TableData>
                       </tr>
                       <tr v-if="vendTransaction.vendTransactionItemsJson" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItemsJson" class="divide-x">
-                        <td v-if="vendTransactionItemIndex == 0" class="border-b border-gray-200" colspan="6" :rowspan="vendTransaction.vendTransactionItemsJson.length"></td>
+                        <td v-if="vendTransactionItemIndex == 0" class="border-b border-gray-200" colspan="7" :rowspan="vendTransaction.vendTransactionItemsJson.length"></td>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
                             {{ vendTransactionItem.vend_channel_code ? vendTransactionItem.vend_channel_code : null }}
                         </TableData>

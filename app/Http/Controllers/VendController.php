@@ -115,10 +115,16 @@ class VendController extends Controller
                 $request->merge(['is_active' => 'all']);
             }
         }
+
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [auth()->user()->operator_id, Operator::where('code', 'HIMD')->first() ? Operator::where('code', 'HIMD')->first()->id : null]]);
+            }
+        }
+
         $request->merge([
             'indexType' => 'vends',
             'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
-            'operator_id' => isset($request->operator_id) ? $request->operator_id : auth()->user()->operator_id,
             'sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent',
             'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
         ]);
@@ -276,10 +282,15 @@ class VendController extends Controller
                 $request->merge(['is_active' => 'all']);
             }
         }
+
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [auth()->user()->operator_id, Operator::where('code', 'HIMD')->first() ? Operator::where('code', 'HIMD')->first()->id : null]]);
+            }
+        }
         $request->merge([
             'indexType' => 'customers',
             'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
-            'operator_id' => isset($request->operator_id) ? $request->operator_id : auth()->user()->operator_id,
             'sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent',
             'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
         ]);

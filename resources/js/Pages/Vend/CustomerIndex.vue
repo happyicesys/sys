@@ -180,14 +180,15 @@
 								Operator
 							</label>
 							<MultiSelect
-								v-model="filters.operator"
+								v-model="filters.operators"
 								:options="operatorOptions"
 								trackBy="id"
 								valueProp="id"
-								label="full_name"
+								label="code"
 								placeholder="Select"
 								open-direction="bottom"
 								class="mt-1"
+								mode="tags"
 							>
 							</MultiSelect>
 					</div>
@@ -307,13 +308,14 @@
 							Machine Prefix
 						</label>
 						<MultiSelect
-							v-model="filters.vend_prefix_id"
+							v-model="filters.vendPrefixes"
 							:options="vendPrefixOptions"
 							trackBy="id"
 							valueProp="id"
 							label="value"
 							placeholder="Select"
 							open-direction="bottom"
+							mode="tags"
 							class="mt-1"
 						>
 						</MultiSelect>
@@ -1446,7 +1448,6 @@
         errors: [],
         firmware_ver: '',
         locationType: '',
-        operator: '',
         is_active: true,
         is_binded_customer: '',
         tempHigherThan: '',
@@ -1456,6 +1457,7 @@
         lastVisitedGreaterThan: '',
         next_planned_date: '',
         next_planned_driver: '',
+				operators: [],
         is_mqtt: '',
         is_mqtt_active: '',
         is_online: '',
@@ -1465,7 +1467,8 @@
         fanSpeedLowerThan: '',
         balanceStockLessThan: '',
         remainingSkuLessThan: '',
-        vend_prefix_id: '',
+        // vend_prefix_id: '',
+				vendPrefixes: [],
         selling_price_type: '',
         status: '',
         sortKey: '',
@@ -1573,8 +1576,7 @@ onMounted(() => {
       ...props.nextDeliveryDriverOptions.map((data) => {return {id: data.name, value: data.name}})
   ]
   operatorOptions.value = [
-      {id: 'all', full_name: 'All'},
-      ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+      ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
     sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
     statusOptions.value = [
@@ -1585,7 +1587,6 @@ onMounted(() => {
     ]
 
     vendPrefixOptions.value = [
-        {id: 'all', value: 'All'},
         ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
 
@@ -1602,7 +1603,10 @@ onMounted(() => {
   filters.value.locationType = locationTypeOptions.value[0]
     filters.value.next_planned_driver = nextDeliveryDriverOptions.value[0]
 //   filters.value.operator = operatorOptions.value[0]
-  filters.value.operator = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+  filters.value.operators = authOperator ? [
+		operatorOptions.value.find(operator => operator.id === authOperator.id),
+		authOperator.code == 'HIPL' ? operatorOptions.value.find(operator => operator.code == 'HIMD') : null,
+	] : operatorOptions.value[0]
   filters.value.status = statusOptions.value[2]
     filters.value.vend_prefix_id = vendPrefixOptions.value[0]
   // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
@@ -1694,7 +1698,7 @@ function getVendsField() {
         location_type_id: filters.value.locationType.id,
         next_planned_date: filters.value.next_planned_date,
         next_planned_driver: filters.value.next_planned_driver.id,
-        operator_id: filters.value.operator.id,
+        operators: filters.value.operators.map((operator) => { return operator.id }),
         is_active: filters.value.is_active.id,
         is_binded_customer: filters.value.is_binded_customer.id,
         is_door_open: filters.value.is_door_open.id,
@@ -1704,7 +1708,8 @@ function getVendsField() {
         is_sensor: filters.value.is_sensor.id,
         // is_testing: filters.value.is_testing.id,
         status: filters.value.status.id,
-        vend_prefix_id: filters.value.vend_prefix_id.id,
+        // vend_prefix_id: filters.value.vend_prefix_id.id,
+				vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
         numberPerPage: filters.value.numberPerPage.id,
     }, {
         preserveState: true,
@@ -1790,7 +1795,7 @@ function onExportChannelExcelClicked() {
           deviceType: filters.value.deviceType.id,
           errors: filters.value.errors.map((error) => { return error.id }),
           location_type_id: filters.value.locationType.id,
-          operator_id: filters.value.operator.id,
+          operators: filters.value.operators.map((operator) => { return operator.id }),
           is_active: filters.value.is_active.id,
           is_binded_customer: filters.value.is_binded_customer.id,
           is_door_open: filters.value.is_door_open.id,
@@ -1800,7 +1805,8 @@ function onExportChannelExcelClicked() {
           is_sensor: filters.value.is_sensor.id,
           is_testing: filters.value.is_testing.id,
           status: filters.value.status.id,
-          vend_prefix_id: filters.value.vend_prefix_id.id,
+          // vend_prefix_id: filters.value.vend_prefix_id.id,
+					vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       },
       responseType: 'blob',
   }).then(response => {
