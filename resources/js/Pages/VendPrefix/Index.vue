@@ -23,7 +23,7 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+            Prefix
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -116,17 +116,17 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Name
+                    <TableHead>
+                      Setting Chart
+                    </TableHead>
+                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')" class="bg-gray-500" >
+                      Prefix
                     </TableHeadSort>
                     <TableHead>
                       Desc
                     </TableHead>
                     <TableHead>
                       Product Mapping
-                    </TableHead>
-                    <TableHead>
-                      Setting Chart
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -136,6 +136,28 @@
                     <tr v-for="(vendPrefix, vendPrefixIndex) in vendPrefixes.data" :key="vendPrefix.id" class="divide-x divide-gray-200">
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
                         {{ vendPrefixes.meta.from + vendPrefixIndex }}
+                      </TableData>
+                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
+                        <div v-if="vendPrefix.vendConfigs">
+                          <span v-for="vendConfig in vendPrefix.vendConfigs" class="flex space-x-2 space-y-1 items-center">
+                            <Link :href="'/vend-configs/' + vendConfig.id + '/edit'" class="text-blue-600" target="_blank">
+                              {{ vendConfig.name }}
+                            </Link>
+                            <PhotoIcon
+                              class="h-5 w-5 bg-sky-400 mx-1 my-1 py-1 px-1 rounded-full hover:cursor-pointer hover:bg-sky-500 hover:text-white shadow"
+                              aria-hidden="true"
+                              @click="onAttachmentOverviewClicked(vendConfig)"
+                              v-if="vendConfig.attachments && vendConfig.attachments.length > 0"
+                            />
+                            <!-- <Button
+                            type="button" class="bg-sky-300 hover:bg-sky-400 px-1 py-1 text-xs text-sky-800 w-fit"
+                            @click="onAttachmentOverviewClicked(vendConfig)"
+                            v-if="vendConfig.attachments && vendConfig.attachments.length > 0"
+                            >
+
+                            </Button> -->
+                          </span>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
                         {{ vendPrefix.name }}
@@ -149,22 +171,6 @@
                             <a :href="'/product-mappings/' + productMapping.id + '/edit'" class="text-blue-600" target="_blank">
                               {{ productMapping.name }}
                             </a>
-                          </span>
-                        </div>
-                      </TableData>
-                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
-                        <div v-if="vendPrefix.vendConfigs">
-                          <span v-for="vendConfig in vendPrefix.vendConfigs" class="flex space-y-1 items-center justify-between">
-                            <Link :href="'/vend-configs/' + vendConfig.id + '/edit'" class="text-blue-600" target="_blank">
-                              {{ vendConfig.name }}
-                            </Link>
-                            <Button
-                            type="button" class="bg-sky-300 hover:bg-sky-400 px-1 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
-                            @click="onAttachmentOverviewClicked(vendConfig)"
-                            v-if="vendConfig.attachments && vendConfig.attachments.length > 0"
-                            >
-                              <PhotoIcon class="h-3 w-3" aria-hidden="true"/>
-                            </Button>
                           </span>
                         </div>
                       </TableData>
