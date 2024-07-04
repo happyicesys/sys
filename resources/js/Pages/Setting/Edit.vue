@@ -851,7 +851,10 @@ onMounted(() => {
   ]
   simcardOptions.value = [
     { id: '', name: '--- Clear ---'},
-    ...props.simcardOptions.data,
+    ...props.simcardOptions.data.map(simcard => ({
+      id: simcard.id,
+      name: simcard.code,
+    }))
   ]
   vendConfigOptions.value = [
     { id: '', name: '--- Clear ---'},
