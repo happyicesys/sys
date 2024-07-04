@@ -39,12 +39,28 @@
               To
           </DatePicker>
           <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Operator
+            </label>
+            <MultiSelect
+              v-model="filters.operator_id"
+              :options="operatorOptions"
+              trackBy="id"
+              valueProp="id"
+              label="full_name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
               Delivery Platform
             </label>
             <MultiSelect
-              v-model="filters.delivery_platform_operator_id"
-              :options="deliveryPlatformOperatorOptions"
+              v-model="filters.delivery_platform_type_id"
+              :options="deliveryPlatformTypeOptions"
               trackBy="id"
               valueProp="id"
               label="name"
@@ -219,6 +235,8 @@ const props = defineProps({
   deliveryPlatformCampaigns: Object,
   deliveryPlatformOperatorOptions: Object,
   deliveryPlatformOrderStatusOptions: Object,
+  deliveryPlatformTypeOptions: [Array, Object],
+  operatorOptions: Object,
   totals: Object,
 })
 
@@ -228,14 +246,17 @@ const filters = ref({
   vend_code: '',
   date_from: moment().format('YYYY-MM-DD'),
   date_to: moment().format('YYYY-MM-DD'),
-  delivery_platform_operator_id: '',
+  delivery_platform_type_id: '',
   has_complaint: 'all',
+  operator_id: '',
   sortKey: '',
   sortBy: false,
   status: '',
   numberPerPage: 100,
 })
-const deliveryPlatformOperatorOptions = ref([])
+const authOperator = usePage().props.auth.operator
+const deliveryPlatformTypeOptions = ref([])
+const operatorOptions = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
@@ -248,18 +269,23 @@ onMounted(() => {
     { id: 'All', value: 'All' },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
-  deliveryPlatformOperatorOptions.value = [
-    { id: 'all', name: 'All' },
-    ...props.deliveryPlatformOperatorOptions.data.map((data) => {
-    return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
+  deliveryPlatformTypeOptions.value = [
+    {id: 'all', name: 'All'},
+    ...Object.keys(props.deliveryPlatformTypeOptions).map((deliveryPlatformType, index) => {return {id: deliveryPlatformType, name: deliveryPlatformType}})
   ]
-  filters.value.delivery_platform_operator_id = deliveryPlatformOperatorOptions.value[0]
+  operatorOptions.value = [
+    {id: 'all', full_name: 'All'},
+    ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+  ]
+  filters.value.delivery_platform_type_id = deliveryPlatformTypeOptions.value.find(deliveryPlatformType => deliveryPlatformType.id === 'all')
+  filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
 })
 
 function onSearchFilterUpdated() {
-  router.get('/delivery-platform-orders', {
+  router.get('/delivery-platform-campaigns', {
       ...filters.value,
-      delivery_platform_operator_id: filters.value.delivery_platform_operator_id.id,
+      delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
+      operator_id: filters.value.operator_id.id,
       status: filters.value.status.id,
       has_complaint: filters.value.has_complaint.id,
       numberPerPage: filters.value.numberPerPage.id,
@@ -270,7 +296,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  router.get('/delivery-platform-orders')
+  router.get('/delivery-platform-campaigns')
 }
 
 function sortTable(sortKey) {

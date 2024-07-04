@@ -50,9 +50,23 @@ class DeliveryPlatformCampaign extends Model
                     $query->where('delivery_platform_operator_id', $search);
                 }
             })
+            ->when($request->delivery_platform_type_id, function($query, $search) {
+                if($search != 'all') {
+                    $query->whereHas('deliveryPlatformOperator', function($query) use ($search) {
+                        $query->where('type', $search);
+                    });
+                }
+            })
+            ->when($request->operator_id, function($query, $search) {
+                if($search != 'all') {
+                    $query->whereHas('deliveryPlatformOperator', function($query) use ($search) {
+                        $query->where('operator_id', $search);
+                    });
+                }
+            })
             ->when($request->vend_code, function($query, $search) use ($request) {
-                $query->whereHas('deliveryProductMappingVend.vend', function($query) use ($request) {
-                    $query->where('code', 'LIKE', "{$request->vend_code}%");
+            $query->whereHas('deliveryPlatformCampaignItemVends', function($query) use ($request) {
+                    $query->where('vend_code', 'LIKE', "{$request->vend_code}%");
                 });
             });
             // ->when($request->date_from, function ($query, $search) {

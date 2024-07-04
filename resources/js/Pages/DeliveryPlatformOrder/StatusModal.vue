@@ -116,25 +116,23 @@ function statusClass(status) {
   switch(status) {
     case 'Pending':
     case 'Accepted':
-      statusClass = 'bg-blue-400 text-gray-800'
-      break;
     case 'Assigned':
     case 'Arrived':
       statusClass = 'bg-yellow-400 text-gray-800'
       break;
     case 'Requested':
     case 'Dispensed':
-      statusClass = 'bg-indigo-400 text-gray-800'
+      statusClass = 'bg-indigo-500 text-white'
       break;
     case 'Collected':
       statusClass = 'bg-yellow-400 text-gray-800'
       break;
     case 'Delivered':
-      statusClass = 'bg-green-400 text-white-800'
+      statusClass = 'bg-green-400 text-gray-800'
       break;
     case 'Cancelled':
     case 'Failed':
-      statusClass = 'bg-red-400 text-white-800'
+      statusClass = 'bg-red-400 text-gray-800'
       break;
   }
   return statusClass

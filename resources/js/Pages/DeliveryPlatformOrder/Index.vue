@@ -34,12 +34,28 @@
               To
           </DatePicker>
           <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Operator
+            </label>
+            <MultiSelect
+              v-model="filters.operator_id"
+              :options="operatorOptions"
+              trackBy="id"
+              valueProp="id"
+              label="full_name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
               Delivery Platform
             </label>
             <MultiSelect
-              v-model="filters.delivery_platform_operator_id"
-              :options="deliveryPlatformOperatorOptions"
+              v-model="filters.delivery_platform_type_id"
+              :options="deliveryPlatformTypeOptions"
               trackBy="id"
               valueProp="id"
               label="name"
@@ -425,8 +441,10 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 const props = defineProps({
   cmsEndpoint: String,
   deliveryPlatformOrders: Object,
-  deliveryPlatformOperatorOptions: Object,
+  // deliveryPlatformOperatorOptions: Object,
+  deliveryPlatformTypeOptions: [Array, Object],
   deliveryPlatformOrderStatusOptions: Object,
+  operatorOptions: Object,
   totals: Object,
 })
 
@@ -437,18 +455,22 @@ const filters = ref({
   vend_code: '',
   date_from: moment().format('YYYY-MM-DD'),
   date_to: moment().format('YYYY-MM-DD'),
-  delivery_platform_operator_id: '',
+  delivery_platform_type_id: '',
   has_complaint: 'all',
+  operator_id: '',
   sortKey: '',
   sortBy: false,
   status: '',
   numberPerPage: 100,
 })
+const authOperator = usePage().props.auth.operator
 const deliveryPlatformOperatorOptions = ref([])
 const deliveryPlatformOrder = ref()
+const deliveryPlatformTypeOptions = ref([])
 const loading = ref(false)
 const model = ref()
 const operatorCountry = usePage().props.auth.operatorCountry
+const operatorOptions = ref([])
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const showDeliveryPlatformOrderComplaintModal = ref(false)
@@ -467,13 +489,22 @@ onMounted(() => {
     { id: 'All', value: 'All' },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
-  deliveryPlatformOperatorOptions.value = [
-    { id: 'all', name: 'All' },
-    ...props.deliveryPlatformOperatorOptions.data.map((data) => {
-    return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
+  // deliveryPlatformOperatorOptions.value = [
+  //   { id: 'all', name: 'All' },
+  //   ...props.deliveryPlatformOperatorOptions.data.map((data) => {
+  //   return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
+  // ]
+  deliveryPlatformTypeOptions.value = [
+    {id: 'all', name: 'All'},
+    ...Object.keys(props.deliveryPlatformTypeOptions).map((deliveryPlatformType, index) => {return {id: deliveryPlatformType, name: deliveryPlatformType}})
   ]
-  filters.value.delivery_platform_operator_id = deliveryPlatformOperatorOptions.value[0]
+  operatorOptions.value = [
+    {id: 'all', full_name: 'All'},
+    ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+  ]
+  filters.value.delivery_platform_type_id = deliveryPlatformTypeOptions.value.find(deliveryPlatformType => deliveryPlatformType.id === 'all')
   filters.value.has_complaint = booleanOptions.value[0]
+  filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
   filters.value.status = props.deliveryPlatformOrderStatusOptions[0]
 })
 
@@ -506,7 +537,8 @@ function onExportExcelClicked() {
         url: '/delivery-platform-orders/excel',
         params: {
           ...filters.value,
-          delivery_platform_operator_id: filters.value.delivery_platform_operator_id.id,
+          delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
+          operator_id: filters.value.operator_id.id,
           has_complaint: filters.value.has_complaint.id,
           status: filters.value.status.id,
         },
@@ -523,7 +555,8 @@ function onExportExcelClicked() {
 function onSearchFilterUpdated() {
   router.get('/delivery-platform-orders', {
       ...filters.value,
-      delivery_platform_operator_id: filters.value.delivery_platform_operator_id.id,
+      delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
+      operator_id: filters.value.operator_id.id,
       status: filters.value.status.id,
       has_complaint: filters.value.has_complaint.id,
       numberPerPage: filters.value.numberPerPage.id,
@@ -552,23 +585,23 @@ function statusClass(deliveryPlatformOrder) {
   switch(deliveryPlatformOrder.status) {
     case 1:
     case 2:
-      statusClass = 'bg-blue-400 text-gray-800'
-      break;
     case 3:
     case 4:
       statusClass = 'bg-yellow-400 text-gray-800'
       break;
     case 5:
     case 6:
+      statusClass = 'bg-indigo-500 text-white'
+      break;
     case 7:
-      statusClass = 'bg-indigo-400 text-gray-800'
+      statusClass = 'bg-yellow-400 text-gray-800'
       break;
     case 8:
-      statusClass = 'bg-green-400 text-white-800'
+      statusClass = 'bg-green-400 text-gray-800'
       break;
     case 98:
     case 99:
-      statusClass = 'bg-red-400 text-white-800'
+      statusClass = 'bg-red-400 text-gray-800'
       statusDesc = deliveryPlatformOrder.request_history_json['code'] + ' (' + deliveryPlatformOrder.request_history_json['message'] + ')'
       break;
   }

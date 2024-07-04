@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\DeliveryPlatformOrderResource;
+use App\Http\Resources\OperatorResource;
 use App\Exports\DeliveryPlatformOrderExport;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryPlatformOrderItem;
+use App\Models\Operator;
 use App\Services\DeliveryPlatformService;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
@@ -34,14 +36,13 @@ class DeliveryPlatformOrderController extends Controller
         $request->merge([
             'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay(),
             'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay(),
-            'delivery_platform_operator_id' => $request->delivery_platform_operator_id ? $request->delivery_platform_operator_id : 'all',
+            'delivery_platform_type_id' => $request->delivery_platform_type_id ? $request->delivery_platform_type_id : 'all',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : '100',
+            'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
             'status' => $request->status ? $request->status : 'all',
             'sortBy' => $request->sortBy ? $request->sortBy : false,
             'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
         ]);
-
-        // dd($request->all());
 
         $totals = DeliveryPlatformOrder::query()
             ->leftJoin('delivery_product_mapping_vend', 'delivery_platform_orders.delivery_product_mapping_vend_id', '=', 'delivery_product_mapping_vend.id')
@@ -63,9 +64,10 @@ class DeliveryPlatformOrderController extends Controller
 
         return Inertia::render('DeliveryPlatformOrder/Index', [
             'cmsEndpoint' => env('CMS_URL'),
-            'deliveryPlatformOperatorOptions' => DeliveryPlatformOperatorResource::collection(
-                DeliveryPlatformOperator::with('deliveryPlatform')->get()
-            ),
+            // 'deliveryPlatformOperatorOptions' => DeliveryPlatformOperatorResource::collection(
+            //     DeliveryPlatformOperator::with('deliveryPlatform')->get()
+            // ),
+            'deliveryPlatformTypeOptions' => DeliveryPlatformOperator::DELIVERY_PLATFORM_TYPES,
             'deliveryPlatformOrders' => DeliveryPlatformOrderResource::collection(
                     $query
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
@@ -83,6 +85,9 @@ class DeliveryPlatformOrderController extends Controller
                     ];
                 })
             ],
+            'operatorOptions' => OperatorResource::collection(
+                Operator::all()
+            ),
             'totals' => $totals,
         ]);
     }

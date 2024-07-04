@@ -13,12 +13,28 @@
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Operator
+            </label>
+            <MultiSelect
+              v-model="filters.operator_id"
+              :options="operatorOptions"
+              trackBy="id"
+              valueProp="id"
+              label="full_name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
               Delivery Platform
             </label>
             <MultiSelect
-              v-model="filters.delivery_platform_operator_id"
-              :options="deliveryPlatformOperatorOptions"
+              v-model="filters.delivery_platform_type_id"
+              :options="deliveryPlatformTypeOptions"
               trackBy="id"
               valueProp="id"
               label="name"
@@ -197,7 +213,10 @@
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                       <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.customer">
-                        {{ deliveryProductMappingVend.vend.customer.virtual_customer_code }} ({{ deliveryProductMappingVend.vend.customer.virtual_customer_prefix }})
+                        {{ deliveryProductMappingVend.vend.customer.virtual_customer_code }}
+                        <span v-if="deliveryProductMappingVend.vend.customer.virtual_customer_prefix">
+                         ({{ deliveryProductMappingVend.vend.customer.virtual_customer_prefix }})
+                        </span>
                       </span>
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-left">
@@ -355,8 +374,9 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   deliveryProductMappingVends: Object,
-  deliveryPlatformOperatorOptions: Object,
+  deliveryPlatformTypeOptions: [Array, Object],
   deliveryProductMappingOptions: Object,
+  operatorOptions: Object,
   totals: Object,
 })
 
@@ -364,20 +384,23 @@ const filters = ref({
   vend_code: '',
   date_from: moment().startOf('week').format('YYYY-MM-DD'),
   date_to: moment().format('YYYY-MM-DD'),
-  delivery_platform_operator_id: '',
   delivery_product_mapping_id: '',
+  delivery_platform_type_id: '',
+  operator_id: '',
   platform_ref_id: '',
   sortKey: '',
   sortBy: false,
   status: '',
   numberPerPage: 100,
 })
+const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
-const deliveryPlatformOperatorOptions = ref([])
+const deliveryPlatformTypeOptions = ref([])
 const deliveryProductMapping = ref()
 const deliveryProductMappingOptions = ref([])
 const deliveryProductMappingVendModel = ref()
 const operatorCountry = usePage().props.auth.operatorCountry
+const operatorOptions = ref([])
 const numberPerPageOptions = ref([])
 const showChannelOverviewModal = ref(false)
 const permissions = usePage().props.auth.permissions
@@ -395,22 +418,24 @@ onMounted(() => {
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
   ]
-  filters.value.numberPerPage = numberPerPageOptions.value[0]
-  deliveryPlatformOperatorOptions.value = [
-    { id: 'all', name: 'All' },
-    ...props.deliveryPlatformOperatorOptions.data.map((data) => {
-    return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
-  ]
-  filters.value.delivery_platform_operator_id = deliveryPlatformOperatorOptions.value[0]
-
   deliveryProductMappingOptions.value = [
     { id: 'all', name: 'All' },
     ...props.deliveryProductMappingOptions.data.map((data) => {
     return {id: data.id, name: data.name }})
   ]
+  deliveryPlatformTypeOptions.value = [
+    {id: 'all', name: 'All'},
+    ...Object.keys(props.deliveryPlatformTypeOptions).map((deliveryPlatformType, index) => {return {id: deliveryPlatformType, name: deliveryPlatformType}})
+  ]
+  operatorOptions.value = [
+    {id: 'all', full_name: 'All'},
+    ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+  ]
+  filters.value.numberPerPage = numberPerPageOptions.value[0]
   filters.value.is_active = booleanOptions.value[1]
-  filters.value.delivery_platform_operator_id = deliveryPlatformOperatorOptions.value[2]
+  filters.value.delivery_platform_type_id = deliveryPlatformTypeOptions.value.find(deliveryPlatformType => deliveryPlatformType.id === 'all')
   filters.value.delivery_product_mapping_id = deliveryProductMappingOptions.value[0]
+  filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
 })
 
 
@@ -426,8 +451,9 @@ function onChannelOverviewClosed() {
 function onSearchFilterUpdated() {
   router.get('/delivery-product-mapping-vends', {
       ...filters.value,
-      delivery_platform_operator_id: filters.value.delivery_platform_operator_id.id,
+      delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
       delivery_product_mapping_id: filters.value.delivery_product_mapping_id.id,
+      operator_id: filters.value.operator_id.id,
       is_active: filters.value.is_active.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {

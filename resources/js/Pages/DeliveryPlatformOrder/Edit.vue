@@ -450,19 +450,23 @@ function statusClass(status) {
   switch(status) {
     case 1:
     case 2:
-      statusClass = 'bg-blue-400 text-gray-800'
-      break;
     case 3:
     case 4:
-    case 5:
       statusClass = 'bg-yellow-400 text-gray-800'
       break;
+    case 5:
     case 6:
-      statusClass = 'bg-green-400 text-white-800'
+      statusClass = 'bg-indigo-500 text-white'
+      break;
+    case 7:
+      statusClass = 'bg-yellow-400 text-gray-800'
+      break;
+    case 8:
+      statusClass = 'bg-green-400 text-gray-800'
       break;
     case 98:
     case 99:
-      statusClass = 'bg-red-400 text-white-800'
+      statusClass = 'bg-red-400 text-gray-800'
       break;
   }
   return statusClass

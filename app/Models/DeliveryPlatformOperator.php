@@ -12,6 +12,11 @@ class DeliveryPlatformOperator extends Model
     const TYPE_SANDBOX = 'sandbox';
     const TYPE_PRODUCTION = 'production';
 
+    const DELIVERY_PLATFORM_TYPES = [
+        self::TYPE_SANDBOX => self::TYPE_SANDBOX,
+        self::TYPE_PRODUCTION => self::TYPE_PRODUCTION,
+    ];
+
     protected $fillable = [
         'delivery_platform_id',
         'operator_id',

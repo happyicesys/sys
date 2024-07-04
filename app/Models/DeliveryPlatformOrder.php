@@ -167,6 +167,20 @@ class DeliveryPlatformOrder extends Model
                 $query->where('delivery_platform_operator_id', $search);
             }
         })
+        ->when($request->delivery_platform_type_id, function($query, $search) {
+            if($search != 'all') {
+                $query->whereHas('deliveryPlatformOperator', function($query) use ($search) {
+                    $query->where('type', $search);
+                });
+            }
+        })
+        ->when($request->operator_id, function($query, $search) {
+            if($search != 'all') {
+                $query->whereHas('deliveryPlatformOperator', function($query) use ($search) {
+                    $query->where('operator_id', $search);
+                });
+            }
+        })
         ->when($request->order_id, function($query, $search) {
             $query->where('order_id', 'LIKE', "%{$search}%");
         })

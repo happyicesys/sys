@@ -81,6 +81,20 @@ class DeliveryProductMappingVend extends Model
                     $query->where('delivery_product_mapping_id', $search);
                 }
             })
+            ->when($request->delivery_platform_type_id, function($query, $search) {
+                if($search != 'all') {
+                    $query->whereHas('deliveryProductMapping.deliveryPlatformOperator', function($query) use ($search) {
+                        $query->where('type', $search);
+                    });
+                }
+            })
+            ->when($request->operator_id, function($query, $search) {
+                if($search != 'all') {
+                    $query->whereHas('deliveryProductMapping', function($query) use ($search) {
+                        $query->where('operator_id', $search);
+                    });
+                }
+            })
             ->when($request->platform_ref_id, function($query, $search) {
                 $query->where('platform_ref_id', 'LIKE', "{$search}%");
             })

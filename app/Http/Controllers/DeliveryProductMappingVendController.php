@@ -6,10 +6,12 @@ use Illuminate\Http\Request;
 use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\DeliveryProductMappingResource;
 use App\Http\Resources\DeliveryProductMappingVendResource;
+use App\Http\Resources\OperatorResource;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryProductMapping;
+use App\Models\Operator;
 use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use DB;
@@ -25,9 +27,10 @@ class DeliveryProductMappingVendController extends Controller
             'date_from' => $request->date_from ? $request->date_from : Carbon::now()->setTimezone($this->getUserTimezone())->startOfWeek(),
             'date_to' => $request->date_to ? $request->date_to : Carbon::now()->setTimezone($this->getUserTimezone()),
             'delivery_product_mapping_id' => $request->delivery_product_mapping_id ? $request->delivery_product_mapping_id : 'all',
-            'delivery_platform_operator_id' => $request->delivery_platform_operator_id ? $request->delivery_platform_operator_id : '15',
+            'delivery_platform_type_id' => $request->delivery_platform_type_id ? $request->delivery_platform_type_id : 'all',
             'is_active' => $request->is_active ? $request->is_active : 'true',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : '100',
+            'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
             'status' => $request->status ? $request->status : 'all',
             'sortBy' => $request->sortBy ? $request->sortBy : false,
             'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
@@ -107,11 +110,12 @@ class DeliveryProductMappingVendController extends Controller
             'deliveryProductMappingVends' => DeliveryProductMappingVendResource::collection(
                 $deliveryProductMappingVends
             ),
-            'deliveryPlatformOperatorOptions' => DeliveryPlatformOperatorResource::collection(
-                DeliveryPlatformOperator::with('deliveryPlatform')->get()
-            ),
+            'deliveryPlatformTypeOptions' => DeliveryPlatformOperator::DELIVERY_PLATFORM_TYPES,
             'deliveryProductMappingOptions' => DeliveryProductMappingResource::collection(
                 DeliveryProductMapping::all()
+            ),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::all()
             ),
             'totals' => $totals,
         ]);

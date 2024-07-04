@@ -8,11 +8,13 @@ use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryPlatformCampaignItemVend;
+use App\Models\Operator;
 use App\Http\Resources\DeliveryPlatformCampaignResource;
 use App\Http\Resources\DeliveryPlatformCampaignItemResource;
 use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\DeliveryProductMappingResource;
 use App\Http\Resources\DeliveryProductMappingVendResource;
+use App\Http\Resources\OperatorResource;
 use App\Services\DeliveryPlatformCampaignService;
 use App\Services\DeliveryPlatformService;
 use App\Traits\GetUserTimezone;
@@ -38,7 +40,8 @@ class DeliveryPlatformCampaignController extends Controller
         $request->merge([
             'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay(),
             'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay(),
-            'delivery_platform_operator_id' => $request->delivery_platform_operator_id ? $request->delivery_platform_operator_id : 'all',
+            'delivery_platform_type_id' => $request->delivery_platform_type_id ? $request->delivery_platform_type_id : 'all',
+            'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : '100',
             'status' => $request->status ? $request->status : 'all',
             'sortBy' => $request->sortBy ? $request->sortBy : false,
@@ -60,8 +63,9 @@ class DeliveryPlatformCampaignController extends Controller
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
             ),
-            'deliveryPlatformOperatorOptions' => DeliveryPlatformOperatorResource::collection(
-                DeliveryPlatformOperator::with('deliveryPlatform')->get()
+            'deliveryPlatformTypeOptions' => DeliveryPlatformOperator::DELIVERY_PLATFORM_TYPES,
+            'operatorOptions' => OperatorResource::collection(
+                Operator::all()
             ),
         ]);
     }

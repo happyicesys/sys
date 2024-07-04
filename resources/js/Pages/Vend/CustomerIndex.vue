@@ -184,7 +184,7 @@
 								:options="operatorOptions"
 								trackBy="id"
 								valueProp="id"
-								label="code"
+								label="full_name"
 								placeholder="Select"
 								open-direction="bottom"
 								class="mt-1"
