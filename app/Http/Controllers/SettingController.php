@@ -302,6 +302,9 @@ class SettingController extends Controller
             ),
             'vendSerialNumberOptions' => VendSerialNumberResource::collection(
                 VendSerialNumber::query()
+                    ->whereDoesntHave('vend', function($query) use ($vend) {
+                        $query->where('vends.id', '!=', $vend->id);
+                    })
                     ->orderBy('code')
                     ->get()
             ),

@@ -198,6 +198,8 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($request->product_id);
         $product->is_available = !$product->is_available;
+        $product->is_available_updated_by = auth()->user()->id;
+        $product->is_available_updated_at = Carbon::now();
         $product->save();
     }
 

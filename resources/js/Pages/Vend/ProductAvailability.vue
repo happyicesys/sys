@@ -74,12 +74,18 @@
                         </span>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600">
-                        <div class="flex justify-center items-center">
+                        <div class="flex flex-col justify-center items-center">
                           <span v-if="product.is_available">
                             <CheckCircleIcon class="h-6 w-6 text-green-500 hover:cursor-pointer hover:text-green-600" @click.prevent="onIsAvailableClicked(product)"/>
                           </span>
                           <span v-else>
                             <XCircleIcon class="h-6 w-6 text-red-500 hover:cursor-pointer hover:text-red-600" @click.prevent="onIsAvailableClicked(product)" />
+                          </span>
+                          <span class="text-xs text-gray-500">
+                            {{ product.isAvailableUpdatedBy ? product.isAvailableUpdatedBy.name : '' }}
+                          </span>
+                          <span class="text-xs text-gray-500">
+                            {{ product.is_available_updated_at }}
                           </span>
                         </div>
                       </td>

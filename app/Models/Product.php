@@ -37,6 +37,8 @@ class Product extends Model
         'desc',
         'is_active',
         'is_available',
+        'is_available_updated_at',
+        'is_available_updated_by',
         'is_commission',
         'is_inventory',
         'is_supermarket_fee',
@@ -51,6 +53,7 @@ class Product extends Model
 
     protected $casts = [
         'translated_names_json' => 'json',
+        'is_available_updated_at' => 'datetime'
     ];
 
     // relationships
@@ -72,6 +75,11 @@ class Product extends Model
     public function categoryGroup()
     {
         return $this->belongsTo(CategoryGroup::class);
+    }
+
+    public function isAvailableUpdatedBy()
+    {
+        return $this->belongsTo(User::class, 'is_available_updated_by');
     }
 
     public function latestUnitCost()

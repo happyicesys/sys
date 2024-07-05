@@ -1142,20 +1142,6 @@
 								</div>
 								<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-										:class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['BILL_MDL'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-										v-if="vend.acbVmcPaJson && 'BILL_MDL' in vend.acbVmcPaJson"
-								>
-										<div class="flex flex-col">
-												<span class="font-bold">
-														Bill Model
-												</span>
-												<span>
-														{{ vend.acbVmcPaJson['BILL_MDL'] ? vend.acbVmcPaJson['BILL_MDL'] : 'NA' }}
-												</span>
-										</div>
-								</div>
-								<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 										:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CHGEStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CHGEStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
 										v-if="vend.parameterJson && 'CHGEStat' in vend.parameterJson"
 								>
@@ -1211,20 +1197,6 @@
 								</div>
 								<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-										:class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['COIN_MDL'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-										v-if="vend.acbVmcPaJson && 'COIN_MDL' in vend.acbVmcPaJson"
-								>
-										<div class="flex flex-col">
-												<span class="font-bold">
-														Coin Model
-												</span>
-												<span>
-														{{vend.acbVmcPaJson['COIN_MDL'] ? vend.acbVmcPaJson['COIN_MDL'] : 'NA' }}
-												</span>
-										</div>
-								</div>
-								<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 										:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CSHLStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CSHLStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
 										v-if="vend.parameterJson && 'CSHLStat' in vend.parameterJson"
 								>
@@ -1248,20 +1220,6 @@
 												</span>
 												<span>
 														{{vend.acbVmcPaJson['CSHL_MFG'] ? vend.acbVmcPaJson['CSHL_MFG'] : 'NA' }}
-												</span>
-										</div>
-								</div>
-								<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-										:class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MDL'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-										v-if="vend.acbVmcPaJson && 'CSHL_MDL' in vend.acbVmcPaJson"
-								>
-										<div class="flex flex-col">
-												<span class="font-bold">
-														Cashless Model
-												</span>
-												<span>
-														{{vend.acbVmcPaJson['CSHL_MDL'] ? vend.acbVmcPaJson['CSHL_MDL'] : 'NA' }}
 												</span>
 										</div>
 								</div>

@@ -422,8 +422,11 @@ class VendController extends Controller
             ),
             'productOptions' => ProductResource::collection(
                 Product::query()
-                    ->with('thumbnail')
-                    ->select('id', 'code', 'desc', 'name', 'is_available')
+                    ->with(['thumbnail', 'isAvailableUpdatedBy'])
+                    ->when($request->operators, function($query, $search) {
+                        $query->whereIn('operator_id', $search);
+                    })
+                    ->select('id', 'code', 'desc', 'name', 'is_available', 'is_available_updated_at', 'is_available_updated_by')
                     ->where('is_active', true)
                     ->where('is_inventory', true)
                     ->orderBy('code')
