@@ -251,7 +251,8 @@ class VendController extends Controller
             ),
             'productOptions' => ProductResource::collection(
                 Product::query()
-                    ->select('id', 'code', 'desc', 'name')
+                    ->with('thumbnail')
+                    ->select('id', 'code', 'desc', 'name', 'is_available')
                     ->where('is_active', true)
                     ->where('is_inventory', true)
                     ->orderBy('code')
@@ -421,7 +422,8 @@ class VendController extends Controller
             ),
             'productOptions' => ProductResource::collection(
                 Product::query()
-                    ->select('id', 'code', 'desc', 'name')
+                    ->with('thumbnail')
+                    ->select('id', 'code', 'desc', 'name', 'is_available')
                     ->where('is_active', true)
                     ->where('is_inventory', true)
                     ->orderBy('code')

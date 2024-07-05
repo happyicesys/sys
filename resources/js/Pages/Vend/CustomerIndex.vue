@@ -476,6 +476,16 @@
 								</span>
 							</span>
 						</Button>
+						<Button class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+						@click="onProductAvailableModalClicked()"
+						>
+							<PlayCircleIcon class="h-4 w-4" aria-hidden="true"/>
+							<span class="flex flex-col space-y-1">
+								<span>
+										Set Product Availability
+								</span>
+							</span>
+						</Button>
 					</div>
 				</div>
 				<dl class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -529,7 +539,7 @@
 								<SingleSortItem modelName="vends.vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.vend_prefix_name', false)">
 									Prefix
 								</SingleSortItem>
-								<SingleSortItem modelName="customers.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.name')">
+								<SingleSortItem modelName="customers.virtual_customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.virtual_customer_code')">
 									Customer
 								</SingleSortItem>
 								<SingleSortItem modelName="customers.selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.selling_price_type', false)">
@@ -1356,6 +1366,14 @@
 		@modalClose="onPickListModalClose"
 >
 </PickList>
+<ProductAvailability
+	v-if="showProductAvailabilityModal"
+	:products="productOptions"
+	:showModal="showProductAvailabilityModal"
+	@modalClose="onProductAvailabilityModalClose"
+	@productUpdated="refreshProductOptions"
+>
+</ProductAvailability>
 
 	</BreezeAuthenticatedLayout>
 </template>
@@ -1403,10 +1421,11 @@
     import Form from '@/Pages/Vend/Form.vue';
     import Paginator from '@/Components/Paginator.vue';
     import PickList from '@/Pages/Vend/PickList.vue';
+		import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
     import SearchInput from '@/Components/SearchInput.vue';
 		import Toast from '@/Components/Toast.vue';
     import MultiSelect from '@/Components/MultiSelect.vue';
-    import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon, ClipboardDocumentCheckIcon} from '@heroicons/vue/20/solid';
+    import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon} from '@heroicons/vue/20/solid';
     import TableHead from '@/Components/TableHead.vue';
     import TableData from '@/Components/TableData.vue';
     import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -1503,6 +1522,7 @@
     const showCreateModal = ref(false)
     const showEditModal = ref(false)
     const showPickListModal = ref(false)
+		const showProductAvailabilityModal = ref(false)
     const statusOptions = ref([])
     const type = ref('')
     const vend = ref()
@@ -1684,6 +1704,14 @@ function getVendsField() {
       showPickListModal.value = false
   }
 
+	function onProductAvailableModalClicked() {
+		showProductAvailabilityModal.value = true
+	}
+
+	function onProductAvailabilityModalClose() {
+		showProductAvailabilityModal.value = false
+	}
+
   function onShowAllFiltersClicked() {
       showAllFilters.value = !showAllFilters.value
   }
@@ -1757,6 +1785,10 @@ function getVendsField() {
   function onIsShowOperationDivButtonClicked() {
         isShowOperationDiv.value = !isShowOperationDiv.value
   }
+
+	function refreshProductOptions() {
+		router.reload({ only: ['productOptions'] });
+	}
 
   function resetFilters() {
       router.get(baseUrl.value)

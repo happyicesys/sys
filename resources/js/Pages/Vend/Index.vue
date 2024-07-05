@@ -432,7 +432,7 @@
               </span>
             </div>
           </Button>
-          <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-blue-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-blue-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           @click="onSyncNextDeliveryDate()"
           v-if="permissions.includes('admin-access vends')"
           >
@@ -461,7 +461,7 @@
                   Please tick the list below
               </span>
             </span>
-          </Button>
+          </Button> -->
         </div>
       </div>
       <dl class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -507,7 +507,7 @@
           <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType !== 'customers'">
             Vend ID
           </TableHeadSort>
-          <TableHeadSort modelName="customers.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.name')">
+          <TableHeadSort modelName="customers.virtual_customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.virtual_customer_code')">
             Customer
           </TableHeadSort>
           <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType === 'customers'">

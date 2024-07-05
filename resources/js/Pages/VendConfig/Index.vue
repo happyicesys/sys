@@ -100,7 +100,7 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
+                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')" class="bg-sky-200">
                       Name
                     </TableHeadSort>
                     <TableHead>
@@ -124,7 +124,7 @@
                       <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-center">
                         {{ vendConfigs.meta.from + vendConfigIndex }}
                       </TableData>
-                      <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left">
+                      <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left bg-sky-50">
                         <div class="flex flex-col space-y-1">
                           {{ vendConfig.name }}
                           <div

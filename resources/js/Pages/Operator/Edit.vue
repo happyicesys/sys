@@ -533,7 +533,7 @@
                                     @selected="onSearchFilterUpdated()"
                                 >
                                 </MultiSelect>
-                            </div>
+                              </div>
                             </span>
                           </th>
                         </tr>

@@ -316,6 +316,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/update', [ProductController::class, 'update']);
         Route::delete('/{id}', [ProductController::class, 'delete']);
         Route::delete('/selling-prices/{sellingPriceId}', [ProductController::class, 'deleteSellingPrice']);
+        Route::post('/toggle-is-available', [ProductController::class, 'toggleIsAvailable']);
     });
 
     Route::prefix('product-mappings')->group(function() {

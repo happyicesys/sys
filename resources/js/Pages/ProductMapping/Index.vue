@@ -108,7 +108,7 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name', false)">
+                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name', false)"  class="bg-sky-200">
                       Name
                     </TableHeadSort>
                     <TableHead>
@@ -132,7 +132,7 @@
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-center">
                         {{ productMappings.meta.from + productMappingIndex }}
                       </TableData>
-                      <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
+                      <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left bg-sky-50">
                         <div class="flex flex-col space-y-1">
                           <span>
                             <!-- {{ productMapping }} -->

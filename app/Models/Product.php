@@ -36,6 +36,7 @@ class Product extends Model
         'code',
         'desc',
         'is_active',
+        'is_available',
         'is_commission',
         'is_inventory',
         'is_supermarket_fee',

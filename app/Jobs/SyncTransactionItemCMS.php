@@ -41,9 +41,9 @@ class SyncTransactionItemCMS implements ShouldQueue
 
             if($customer->vend and $customer->vend->vendChannels) {
                 foreach($customer->vend->vendChannels as $vendChannel) {
-                    if($vendChannel->capacity > 0 and $vendChannel->is_active) {
+                    if($vendChannel->capacity > 0 and $vendChannel->is_active and $vendChannel->product and $vendChannel->product->is_available) {
                         $data['items'][$vendChannel->code] = [
-                            'product_code' => $vendChannel->product ? $vendChannel->product->code : null,
+                            'product_code' => $vendChannel->product->code,
                             'capacity' => $vendChannel->capacity,
                             'qty' => $vendChannel->qty,
                             'needed' => $vendChannel->capacity - $vendChannel->qty,

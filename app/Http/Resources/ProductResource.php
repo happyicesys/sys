@@ -27,6 +27,7 @@ class ProductResource extends JsonResource
             'remarks' => $this->remarks,
             'desc' => $this->desc,
             'is_active' => $this->is_active ? true : false,
+            'is_available' => $this->is_available ? true : false,
             'is_commission' => $this->is_commission ? true : false,
             'is_inventory' => $this->is_inventory ? true : false,
             'is_supermarket_fee' => $this->is_supermarket_fee ? true : false,

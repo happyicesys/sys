@@ -194,6 +194,13 @@ class ProductController extends Controller
         return redirect()->route('products');
     }
 
+    public function toggleIsAvailable(Request $request)
+    {
+        $product = Product::findOrFail($request->product_id);
+        $product->is_available = !$product->is_available;
+        $product->save();
+    }
+
     public function bindUom(Request $request, $productId)
     {
         // dd($request->all());
