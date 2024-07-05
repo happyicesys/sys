@@ -562,8 +562,22 @@
 
 						</TableHead>
 						<TableHead>
-							Inventory Status <br>
-							(#Channel, Sold, Balance/Capacity)
+							<div class="flex flex-col space-y-2">
+								<span class="flex flex-col space-y-1">
+									<span>
+										Inventory Status
+									</span>
+									<span>
+										(#Channel, Sold, Balance/Capacity)
+									</span>
+								</span>
+								<!-- <SingleSortItem modelName="totals_json->three_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->three_days_error_rate', false)">
+									Cost
+								</SingleSortItem>
+								<SingleSortItem modelName="totals_json->seven_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_error_rate', false)">
+									Sales Value
+								</SingleSortItem> -->
+							</div>
 						</TableHead>
 						<TableHead>
 							<div class="flex flex-col space-y-2">

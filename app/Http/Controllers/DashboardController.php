@@ -46,50 +46,54 @@ class DashboardController extends Controller
 
         // 2 months
         $dayGraph = VendRecord::query()
-            ->where('date' , '>=', $day_date_from->copy()->subMonth()->startOfMonth()->startOfDay())
-            ->where('date', '<=', $day_date_to->copy()->endOfDay())
-            ->filterIndex($request)
-            ->whereNotIn('vend_id', function($query) {
-                $query->select('id')
-                    ->from('vends')
-                    ->where('is_testing', true);
-            })
-            ->groupBy('date')
-            ->select(
-                DB::raw('month'),
-                DB::raw('monthname AS month_name'),
-                DB::raw('date'),
-                DB::raw('day'),
-                DB::raw('SUM(total_amount) as amount'),
-                DB::raw('SUM(total_count) as count'),
-            );
+        ->leftJoin('vends', function($join) {
+            $join->on('vend_records.vend_id', '=', 'vends.id')
+                 ->where('vends.is_testing', true);
+        })
+        ->whereNull('vends.id')
+        ->where('vend_records.operator_id', 1)
+        ->whereBetween('date', [
+            $day_date_from->copy()->subMonth()->startOfMonth()->startOfDay(),
+            $day_date_to->copy()->endOfDay()
+        ])
+        ->filterIndex($request)
+        ->groupBy('date')
+        ->select(
+            DB::raw('MONTH(date) as month'),
+            DB::raw('MONTHNAME(date) AS month_name'),
+            DB::raw('DATE(date) as date'),
+            DB::raw('DAY(date) as day'),
+            DB::raw('SUM(total_amount) as amount'),
+            DB::raw('SUM(total_count) as count')
+        );
 
         $todayGraph = VendTransaction::query()
+            ->leftJoin('vends', function($join) {
+                $join->on('vend_transactions.vend_id', '=', 'vends.id')
+                    ->where('vends.is_testing', true);
+            })
+            ->whereNull('vends.id')
             ->filterTransactionIndex($request)
             ->where(function($query) {
                 $query->where('error_code_normalized', 0)
                     ->orWhere('error_code_normalized', 6)
-                    ->orWhere('error_code_normalized', null)
+                    ->orWhereNull('error_code_normalized')
                     ->orWhere('is_multiple', true);
             })
-            ->where('transaction_datetime', '>=', Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay())
-            ->where('transaction_datetime', '<=', Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay())
-            ->whereNotIn('vend_id', function($query) {
-                $query->select('id')
-                    ->from('vends')
-                    ->where('is_testing', true);
-            })
+            ->whereBetween('transaction_datetime', [$today->startOfDay(), $today->endOfDay()])
             ->select(
                 DB::raw('MONTH(transaction_datetime) as month'),
                 DB::raw('MONTHNAME(transaction_datetime) AS month_name'),
                 DB::raw('DATE(transaction_datetime) as date'),
                 DB::raw('DAY(transaction_datetime) as day'),
                 DB::raw('SUM(amount) as amount'),
-                DB::raw('COUNT(id) as count'),
+                DB::raw('COUNT(vend_transactions.id) as count')
             );
+
         $dayGraph = $dayGraph->union($todayGraph)
             ->orderBy('date', 'asc')
             ->get();
+
 
         // dd($todayGraph->get()->toArray());
 
@@ -145,24 +149,24 @@ class DashboardController extends Controller
         $seven_days_date_to = Carbon::today()->setTimezone($this->getUserTimezone());
         $productGraph = VendTransaction::query()
             ->with([
-                'customer.id,code,name,virtual_customer_prefix,virtual_customer_code',
+                'customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                 'product:id,code,name'
             ])
             ->filterTransactionIndex($request)
+            ->leftJoin('vends', function($join) {
+                $join->on('vend_transactions.vend_id', '=', 'vends.id');
+            })
+            ->whereNull('vends.id')
+            ->where('vends.is_testing', false)
             ->where('transaction_datetime', '>=', $seven_days_date_from->copy()->startOfDay())
             ->where('transaction_datetime', '<=', $seven_days_date_to->copy()->endOfDay())
             ->whereIn('error_code_normalized', [0, 6])
-            ->whereNotIn('vend_id', function($query) {
-                $query->select('id')
-                    ->from('vends')
-                    ->where('is_testing', true);
-            })
             ->groupBy('product_id')
             ->select(
-                'id',
-                DB::raw('product_id'),
-                DB::raw('SUM(amount) as amount'),
-                DB::raw('COUNT(id) as count'),
+                'vend_transactions.id',
+                'vend_transactions.product_id',
+                DB::raw('SUM(vend_transactions.amount) as amount'),
+                DB::raw('COUNT(vend_transactions.id) as count')
             )
             ->orderBy('count', 'desc')
             ->limit(10)
@@ -173,33 +177,32 @@ class DashboardController extends Controller
                 'customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
                 'vend:id,code,name',
             ])
-            ->filterIndex($request)
-            ->where('date', '>=', $today->copy()->subDays(29)->startOfDay())
-            ->where('date', '<=', $today->copy()->endOfDay())
-            ->whereNotIn('vend_id', function($query) {
-                $query->select('id')
-                    ->from('vends')
-                    ->where('is_testing', true);
+            ->leftJoin('vends', function($join) {
+                $join->on('vend_records.vend_id', '=', 'vends.id')
+                     ->where('vends.is_testing', true);
             })
-            ->groupBy('vend_id')
+            ->whereNull('vends.id')
+            ->filterIndex($request)
+            ->whereBetween('date', [
+                $today->copy()->subDays(29)->startOfDay(),
+                $today->copy()->endOfDay()
+            ])
+            ->groupBy('vend_records.vend_id')
             ->select(
-                'id',
-                'customer_id',
-                DB::raw('SUM(total_amount) as amount'),
-                DB::raw('SUM(total_count) as count'),
+                'vend_records.id',
+                'vend_records.customer_id',
+                DB::raw('SUM(vend_records.total_amount) as amount'),
+                DB::raw('SUM(vend_records.total_count) as count')
             )
             ->orderBy('amount', 'desc')
             ->limit(10)
             ->get();
 
         $vendCount = VendRecord::query()
+            ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
             ->filterIndex($request)
-            ->whereDate('date', '=', $today->copy()->subDay())
-            ->whereNotIn('vend_id', function($query) {
-                $query->select('id')
-                    ->from('vends')
-                    ->where('is_testing', true);
-            })
+            ->where('date', '=', $today->copy()->subDay()->toDateString())
+            ->where('vends.is_testing', false)
             ->count();
 
         // 2 years
@@ -304,23 +307,20 @@ class DashboardController extends Controller
 
 
         // monthly within 1 year by different criteria
-        $request->merge(['monthlyDateFrom' => Carbon::today()->setTimezone($this->getUserTimezone())->startOfYear()->startOfDay()]);
-        $request->merge(['monthlyDateTo' => Carbon::today()->setTimezone($this->getUserTimezone())->endOfYear()->endOfDay()]);
-        $request->merge(['monthlyTypeName' => $request->monthlyTypeName ?? 'location-type']);
-        $modelName = '';
-        switch($request->monthlyTypeName) {
-            case 'category':
-                $modelName = 'categories';
-                break;
-            case 'location-type':
-                $modelName = 'location_types';
-                break;
-            case 'operator':
-                $modelName = 'operators';
-                break;
-        }
-        $items = $this->getMonthlySalesQuery($request, $modelName);
-        $items = $items->get();
+        $request->merge([
+            'monthlyDateFrom' => Carbon::today()->setTimezone($this->getUserTimezone())->startOfYear()->startOfDay(),
+            'monthlyDateTo' => Carbon::today()->setTimezone($this->getUserTimezone())->endOfYear()->endOfDay(),
+            'monthlyTypeName' => $request->monthlyTypeName ?? 'location-type'
+        ]);
+
+        $modelName = match ($request->monthlyTypeName) {
+            'category' => 'categories',
+            'location-type' => 'location_types',
+            'operator' => 'operators',
+            default => '',
+        };
+
+        $items = $this->getMonthlySalesQuery($request, $modelName)->get();
 
         $monthsByModel = [];
         $months = Month::all();
@@ -328,28 +328,19 @@ class DashboardController extends Controller
 
         foreach($items as $item) {
             foreach($months as $month) {
-                if($item->id and $item->month == $month->number) {
-                    $monthsByModel[$item->name][$month->number] =
-                    [
-                        'current' => $currentMonthNumber == $month->number ? true : false,
+                $key = $item->id ? $item->name : 'Undefined';
+                if($item->month == $month->number) {
+                    $monthsByModel[$key][$month->number] = [
+                        'current' => $currentMonthNumber == $month->number,
                         'month_short_name' => $month->short_name,
-                        'amount' => $item->amount ? $item->amount/ 100 : 0,
-                        'vend_count' => $item->count ? $item->count : 0,
-                        'average' => $item->average/ 100 ? $item->average/ 100 : 0,
-                    ];
-                }
-                if(!$item->id and $item->month == $month->number) {
-                    $monthsByModel['Undefined'][$month->number] =
-                    [
-                        'current' => $currentMonthNumber == $month->number ? true : false,
-                        'month_short_name' => $month->short_name,
-                        'amount' => $item->amount ? $item->amount/ 100 : 0,
-                        'vend_count' => $item->count ? $item->count : 0,
-                        'average' => $item->average/ 100 ? $item->average/ 100 : 0,
+                        'amount' => $item->amount ? $item->amount / 100 : 0,
+                        'vend_count' => $item->count ?: 0,
+                        'average' => $item->average / 100 ?: 0,
                     ];
                 }
             }
         }
+
         $monthsByModel = collect($monthsByModel)->sortKeys();
 
         return Inertia::render('Dashboard', [
@@ -380,34 +371,37 @@ class DashboardController extends Controller
     private function getMonthlySalesQuery($request, $className)
     {
         $vendRecords = VendRecord::query()
-            ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
-            ->leftJoin('customers', 'customers.id', '=', 'vend_records.customer_id')
-            ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
-            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->leftJoin('operators', 'operators.id', '=', 'vend_records.operator_id')
-            ->where('vend_records.date', '>=', Carbon::parse($request->monthlyDateFrom))
-            ->where('vend_records.date', '<=', Carbon::parse($request->monthlyDateTo))
-            ->filterIndex($request)
-            ->whereNotIn('vend_records.vend_id', function($query) {
-                $query->select('id')
-                    ->from('vends')
-                    ->where('is_testing', true);
-            })
-            ->select('date', DB::raw('COUNT(DISTINCT(vend_id)) as count'));
+        ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
+        ->leftJoin('customers', 'customers.id', '=', 'vend_records.customer_id')
+        ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
+        ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+        ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+        ->leftJoin('operators', 'operators.id', '=', 'vend_records.operator_id')
+        ->whereBetween('vend_records.date', [
+            Carbon::parse($request->monthlyDateFrom),
+            Carbon::parse($request->monthlyDateTo)
+        ])
+        ->filterIndex($request)
+        ->leftJoin('vends as v', function($join) {
+            $join->on('vend_records.vend_id', '=', 'v.id')
+                ->where('v.is_testing', true);
+        })
+        ->whereNull('v.id')
+        ->select('vend_records.date', DB::raw('COUNT(DISTINCT(vend_records.vend_id)) as count'));
 
-            switch($className) {
-                case 'categories':
-                    $vendRecords->selectRaw('categories.id as id');
-                    break;
-                case 'location_types':
-                    $vendRecords->selectRaw('location_types.id as id');
-                    break;
-                case 'operators':
-                    $vendRecords->selectRaw('operators.id as id');
-                    break;
-            }
-            $vendRecords = $vendRecords->groupBy('id', 'date');
+        switch ($className) {
+            case 'categories':
+                $vendRecords->addSelect('categories.id as id');
+                break;
+            case 'location_types':
+                $vendRecords->addSelect('location_types.id as id');
+                break;
+            case 'operators':
+                $vendRecords->addSelect('operators.id as id');
+                break;
+        }
+
+        $vendRecords->groupBy('id', 'vend_records.date');
 
         $query = VendRecord::query()
             ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
@@ -417,7 +411,7 @@ class DashboardController extends Controller
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_records.operator_id')
             ->leftJoinSub($vendRecords, 'x', function ($join) use ($className) {
-                switch($className) {
+                switch ($className) {
                     case 'categories':
                         $join->on('categories.id', '=', 'x.id');
                         break;
@@ -430,45 +424,39 @@ class DashboardController extends Controller
                 }
                 $join->on('vend_records.date', '=', 'x.date');
             })
-            ->where('vend_records.date', '>=', Carbon::parse($request->monthlyDateFrom))
-            ->where('vend_records.date', '<=', Carbon::parse($request->monthlyDateTo))
+            ->whereBetween('vend_records.date', [
+                Carbon::parse($request->monthlyDateFrom),
+                Carbon::parse($request->monthlyDateTo)
+            ])
             ->filterIndex($request)
-            ->whereNotIn('vend_records.vend_id', function($query) {
-                $query->select('id')
-                    ->from('vends')
-                    ->where('is_testing', true);
-            });
+            ->leftJoin('vends as v', function($join) {
+                $join->on('vend_records.vend_id', '=', 'v.id')
+                    ->where('v.is_testing', true);
+            })
+            ->whereNull('v.id');
 
-        switch($className) {
+        switch ($className) {
             case 'categories':
-                $query
-                    ->selectRaw('categories.id as id')
-                    ->selectRaw('categories.name as name');
+                $query->addSelect('categories.id as id', 'categories.name as name');
                 break;
             case 'location_types':
-                $query
-                    ->selectRaw('location_types.id as id')
-                    ->selectRaw('location_types.name as name');
+                $query->addSelect('location_types.id as id', 'location_types.name as name');
                 break;
             case 'operators':
-                $query
-                    ->selectRaw('operators.id as id')
-                    ->selectRaw('operators.name as name');
+                $query->addSelect('operators.id as id', 'operators.name as name');
                 break;
         }
 
-        $query = $query
-            ->selectRaw('SUM(total_count) AS count')
-            ->selectRaw('SUM(total_amount) AS amount')
-            ->selectRaw('COUNT(DISTINCT(vend_records.vend_id)) AS vend_count')
-            ->selectRaw('AVG(total_amount) AS average')
-            ->selectRaw('vend_records.month')
-            ->selectRaw('ROUND(AVG(x.count), 2) AS count');
-
-        $query = $query
-            ->groupBy('id', 'vend_records.month')
-            ->orderBy('name', 'asc');
-            // ->orderBy('average', 'desc');
+        $query->addSelect(
+            DB::raw('SUM(vend_records.total_count) AS count'),
+            DB::raw('SUM(vend_records.total_amount) AS amount'),
+            DB::raw('COUNT(DISTINCT(vend_records.vend_id)) AS vend_count'),
+            DB::raw('AVG(vend_records.total_amount) AS average'),
+            'vend_records.month',
+            DB::raw('ROUND(AVG(x.count), 2) AS count')
+        )
+        ->groupBy('id', 'vend_records.month')
+        ->orderBy('name', 'asc');
 
         return $query;
     }
