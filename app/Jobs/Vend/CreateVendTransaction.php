@@ -60,7 +60,12 @@ class CreateVendTransaction implements ShouldQueue
         $processedInput = $this->processMapping($this->processInput($input));
 
         // check duplicated orderid
-        $duplicatedVendTransaction = VendTransaction::where('order_id', $processedInput['orderID'])->where('vend_id', $vend->id)->first();
+        $duplicatedVendTransaction = VendTransaction::query()
+            ->where(function($query) use ($processedInput) {
+                $query->where('order_id', $processedInput['orderID'])
+                    ->orWhere('order_id', Carbon::now()->format('y').$processedInput['orderID']);
+            })
+            ->where('vend_id', $vend->id)->first();
 
         // exit once found duplicated order id
         if($duplicatedVendTransaction) {
