@@ -802,11 +802,15 @@ class VendController extends Controller
 
     public function transactionIndex(Request $request)
     {
-        $request->merge(['operator_id' => isset($request->operator_id) ? $request->operator_id : auth()->user()->operator_id]);
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [auth()->user()->operator_id, Operator::where('code', 'HIMD')->first() ? Operator::where('code', 'HIMD')->first()->id : null]]);
+            }
+        }
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'transaction_datetime']);
         $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
-        // $request->merge(['is_binded_customer' => isset($request->is_binded_customer) ? $request->is_binded_customer : 'all']);
+
         $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
         $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
@@ -937,7 +941,7 @@ class VendController extends Controller
                 LocationType::orderBy('sequence')->get()
             ),
             'operatorOptions' => OperatorResource::collection(
-                Operator::all()
+                Operator::orderBy('name')->get()
             ),
             'paymentMethods' => PaymentMethodResource::collection(PaymentMethod::orderBy('name')->get()),
             'vendTransactions' => VendTransactionResource::collection(

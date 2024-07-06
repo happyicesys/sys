@@ -342,7 +342,9 @@ trait HasFilter {
             }
         })
         ->when($request->operators, function($query, $search) {
-            $query->whereIn('vends.operator_id', $search);
+            if(!in_array('all', $search)){
+                $query->whereIn('vends.operator_id', $search);
+            }
         })
         ->when($request->is_online, function($query, $search) {
             if($search != 'all') {

@@ -282,6 +282,11 @@ class Customer extends Model
                 $query->where('customers.operator_id', $search);
             }
         })
+        ->when($request->operators, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereIn('customers.operator_id', $search);
+            }
+        })
         ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
         ->when($request->profile_id, fn($query, $input) => $query->where('profile_id', $input))
         ->when($request->ref_id, function($query, $search) {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\MonthResource;
+use App\Http\Resources\OperatorResource;
 use App\Http\Resources\OptionResource;
 use App\Http\Resources\VendTransactionGraphResource;
 use App\Models\Category;
@@ -32,7 +33,11 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $request->merge(['is_binded_customer' => isset($request->is_binded_customer) ? $request->is_binded_customer : true]);
-        $request->merge(['operator_id' => isset($request->operator_id) ? $request->operator_id : auth()->user()->operator->id]);
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [auth()->user()->operator_id, Operator::where('code', 'HIMD')->first() ? Operator::where('code', 'HIMD')->first()->id : null]]);
+            }
+        }
         $className = get_class(new Customer());
         $day_date_from = Carbon::today()->setTimezone($this->getUserTimezone())->startOfMonth();
         $day_date_to = Carbon::today()->setTimezone($this->getUserTimezone())->endOfMonth();
@@ -367,8 +372,8 @@ class DashboardController extends Controller
             'monthGraphData' => collect($monthsArrInit),
             'months' => MonthResource::collection($months),
             'monthsByModel' => $monthsByModel,
-            'operatorOptions' => OptionResource::collection(
-                Operator::toBase()->select('id', 'code', 'name')->orderBy('name')->get()
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
             ),
             'productGraphData' => VendTransactionGraphResource::collection($productGraph),
             'performerGraphData' => VendTransactionGraphResource::collection($bestPerformer),

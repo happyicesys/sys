@@ -124,6 +124,11 @@ class VendRecord extends Model
             if($search != 'all') {
                 $query->where('vend_records.operator_id', $search);
             }
+        })
+        ->when($request->operators, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereIn('vend_records.operator_id', $search);
+            }
         });
 
         return $query;

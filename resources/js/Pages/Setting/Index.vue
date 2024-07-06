@@ -158,7 +158,7 @@
                 Operator
             </label>
             <MultiSelect
-                v-model="filters.operator"
+                v-model="filters.operators"
                 :options="operatorOptions"
                 trackBy="id"
                 valueProp="id"
@@ -166,6 +166,7 @@
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
+                mode="tags"
             >
             </MultiSelect>
           </div>
@@ -783,7 +784,7 @@ const filters = ref({
     categoryGroups: [],
     key_id: '',
     locationType: '',
-    operator: '',
+    operators: [],
     selling_price_type: '',
     simcard_id: '',
     // is_active: '',
@@ -858,7 +859,7 @@ onMounted(() => {
     ]
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
-        ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+        ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
     ]
     sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
     simcardOptions.value = [
@@ -879,7 +880,10 @@ onMounted(() => {
     ]
 
     filters.value.locationType = locationTypeOptions.value[0]
-    filters.value.operator = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+    filters.value.operators = authOperator ? [
+		operatorOptions.value.find(operator => operator.id === authOperator.id),
+		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
+	] : operatorOptions.value[0]
 
     // filters.value.is_active = booleanOptions.value[1]
     filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]
@@ -914,11 +918,9 @@ function onSearchFilterUpdated() {
       categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
       cashless_terminal_id: filters.value.cashless_terminal_id.id,
       location_type_id: filters.value.locationType.id,
-      operator_id: filters.value.operator.id,
-      // is_active: filters.value.is_active.id,
+      operators: filters.value.operators.map((operator) => { return operator.id }),
       is_binded_customer: filters.value.is_binded_customer.id,
       key_id: filters.value.key_id.id,
-      // is_testing: filters.value.is_testing.id,
       selling_price_type: filters.value.selling_price_type.id,
       simcard_id: filters.value.simcard_id.id,
       status: filters.value.status.id,

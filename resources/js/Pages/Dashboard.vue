@@ -54,20 +54,21 @@
                             </MultiSelect>
                         </div>
                         <div v-if="permissions.includes('admin-access vends')">
-                            <label for="text" class="block text-sm font-medium text-gray-700">
-                                Operator
-                            </label>
-                            <MultiSelect
-                                v-model="filters.operator"
-                                :options="operatorOptions"
-                                trackBy="id"
-                                valueProp="id"
-                                label="name"
-                                placeholder="Select"
-                                open-direction="bottom"
-                                class="mt-1"
-                            >
-                            </MultiSelect>
+                        <label for="text" class="block text-sm font-medium text-gray-700">
+                            Operator
+                        </label>
+                        <MultiSelect
+                            v-model="filters.operators"
+                            :options="operatorOptions"
+                            trackBy="id"
+                            valueProp="id"
+                            label="full_name"
+                            placeholder="Select"
+                            open-direction="bottom"
+                            class="mt-1"
+                            mode="tags"
+                        >
+                        </MultiSelect>
                         </div>
                         <div>
                             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -360,7 +361,7 @@
     import Graph from '@/Components/Graph.vue';
     import MultiSelect from '@/Components/MultiSelect.vue';
     import SearchInput from '@/Components/SearchInput.vue';
-    import { ref, onBeforeMount, watch } from 'vue';
+    import { ref, onBeforeMount, watch, onMounted } from 'vue';
     import { Head, Link, router, usePage } from '@inertiajs/vue3';
     import moment from 'moment';
 
@@ -386,9 +387,10 @@
         day_date_from: '',
         day_date_to: '',
         locationType: '',
-        operator: '',
+        operators: [],
         monthlyTypeName: 'location-type',
     })
+    const authOperator = usePage().props.auth.operator
     const categoryOptions = ref([])
     const categoryGroupOptions = ref([])
     const componentKey1 = ref(0);
@@ -569,12 +571,18 @@
             ...props.locationTypeOptions.data.map((data) => {return {id: data.id, name: data.name}})
         ]
         operatorOptions.value = [
-            {id: 'all', name: 'All'},
-            ...props.operatorOptions.data.map((data) => {return {id: data.id, name: data.name}})
+            {id: 'all', full_name: 'All'},
+            ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
         ]
-        filters.value.locationType = locationTypeOptions.value[0]
-        filters.value.operator = operatorOptions.value.find(data =>  data.id == operator.id)
         syncDashboardData()
+    })
+
+    onMounted(() => {
+        filters.value.locationType = locationTypeOptions.value[0]
+        filters.value.operators = authOperator ? [
+            operatorOptions.value.find(operator => operator.id === authOperator.id),
+            ...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
+        ] : operatorOptions.value[0]
     })
 
     function hexToRGBA(hex, alpha) {
@@ -592,7 +600,8 @@
                 categories: filters.value.categories.map((category) => { return category.id }),
                 categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
                 location_type_id: filters.value.locationType.id,
-                operator_id: filters.value.operator.id,
+                // operator_id: filters.value.operator.id,
+                operators: filters.value.operators.map((operator) => { return operator.id }),
             }),{
                 only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'vendCount'],
                 preserveState: true,

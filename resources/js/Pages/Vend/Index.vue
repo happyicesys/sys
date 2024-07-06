@@ -1532,6 +1532,7 @@ nextDeliveryDriverOptions.value = [
     ...props.nextDeliveryDriverOptions.map((data) => {return {id: data.name, value: data.name}})
 ]
 operatorOptions.value = [
+    {id: 'all', full_name: 'All'},
     ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
 ]
   sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))

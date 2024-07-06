@@ -169,7 +169,7 @@
                 Operator
             </label>
             <MultiSelect
-                v-model="filters.operator"
+                v-model="filters.operators"
                 :options="operatorOptions"
                 trackBy="id"
                 valueProp="id"
@@ -177,6 +177,7 @@
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
+                mode="tags"
             >
             </MultiSelect>
           </div>
@@ -454,6 +455,7 @@ const props = defineProps({
 const filters = ref({
   customer: '',
   name: '',
+  operators: [],
   ref_id: '',
   status: '',
   vend_code: '',
@@ -495,9 +497,9 @@ onMounted(() => {
   categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
   categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
   operatorOptions.value = [
-        {id: 'all', full_name: 'All'},
-        ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
-    ]
+    {id: 'all', full_name: 'All'},
+    ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
+  ]
   priceTemplateOptions.value = props.priceTemplates.data.map((data) => {return {id: data.id, name: data.name}})
   profileOptions.value = props.profiles.data.map((data) => {return {id: data.id, name: data.name}})
   sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
@@ -509,7 +511,10 @@ onMounted(() => {
   // filters.value.status = statusOptions.value[3]
   filters.value.is_active = booleanOptions.value[0]
   filters.value.is_cms = booleanOptions.value[0]
-  filters.value.operator = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+  filters.value.operators = authOperator ? [
+		operatorOptions.value.find(operator => operator.id === authOperator.id),
+		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
+	] : operatorOptions.value[0]
 })
 
 function onCreateClicked() {
@@ -529,10 +534,9 @@ function onSearchFilterUpdated() {
       ...filters.value,
       is_cms: filters.value.is_cms.id,
       is_active: filters.value.is_active.id,
+      operators: filters.value.operators.map(operator => operator.id),
       selling_price_type: filters.value.selling_price_type ? filters.value.selling_price_type.id : '',
-      // status: filters.value.status.id,
       numberPerPage: filters.value.numberPerPage.id,
-      operator_id: filters.value.operator.id,
   }, {
       preserveState: true,
       replace: true,

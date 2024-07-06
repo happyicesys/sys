@@ -54,7 +54,11 @@ class SettingController extends Controller
     public function index(Request $request)
     {
         $request->merge(['numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100]);
-        $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [auth()->user()->operator_id, Operator::where('code', 'HIMD')->first() ? Operator::where('code', 'HIMD')->first()->id : null]]);
+            }
+        }
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'code']);
         $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : true]);
         $className = get_class(new Customer());
@@ -75,7 +79,6 @@ class SettingController extends Controller
                 ]);
             }
         }
-        // dd($request->all());
 
         $vends = Vend::query()
             ->with([

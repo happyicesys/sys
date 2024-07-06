@@ -523,6 +523,11 @@ class Vend extends Model
                 $query->where('vends.operator_id', $search);
             }
         })
+        ->when($request->operators, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereIn('vends.operator_id', $search);
+            }
+        })
         ->when($request->is_online, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {

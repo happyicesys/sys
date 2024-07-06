@@ -140,12 +140,12 @@
                     Product Name
                 </SearchInput>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+            <div v-if="permissions.includes('admin-access vends')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Operator
                 </label>
                 <MultiSelect
-                    v-model="filters.operator_id"
+                    v-model="filters.operators"
                     :options="operatorOptions"
                     trackBy="id"
                     valueProp="id"
@@ -153,6 +153,7 @@
                     placeholder="Select"
                     open-direction="bottom"
                     class="mt-1"
+                    mode="tags"
                 >
                 </MultiSelect>
             </div>
@@ -497,6 +498,7 @@ const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
 const locationTypeOptions = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
+const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
@@ -532,7 +534,7 @@ onMounted(() => {
     ]
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
-        ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+        ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
     ]
     successfulOptions.value = [
         {id: 'all', value: 'All'},
@@ -540,8 +542,10 @@ onMounted(() => {
         {id: 'false', value: 'Unsuccessful'},
     ]
     filters.value.location_type_id = locationTypeOptions.value[0]
-    // filters.value.operator_id = operatorOptions.value[0]
-    filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+    filters.value.operators = authOperator ? [
+		operatorOptions.value.find(operator => operator.id === authOperator.id),
+		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
+	] : operatorOptions.value[0]
     filters.value.is_binded_customer = booleanOptions.value[0]
     filters.value.is_payment_received = booleanOptions.value[0]
 })
@@ -557,7 +561,7 @@ const filters = ref({
     product_name: '',
     errors: [],
     location_type_id: '',
-    operator_id: '',
+    operators: [],
     order_id: '',
     is_binded_customer: '',
     is_payment_received: '',
@@ -569,7 +573,6 @@ const filters = ref({
     numberPerPage: 50,
     visited: true,
 })
-const operatorOptions = ref([])
 // const vendOptions = ref([])
 const vendChannelErrorOptions = ref([])
 const loading = ref(false)
@@ -617,7 +620,7 @@ function onExportExcelClicked() {
             channel_codes: filters.value.channel_codes,
             errors: filters.value.errors.map((error) => { return error.id }),
             location_type_id: filters.value.location_type_id.id,
-            operator_id: filters.value.operator_id.id,
+            operators: filters.value.operators.map((operator) => { return operator.id }),
             is_binded_customer: filters.value.is_binded_customer.id,
             is_payment_received: filters.value.is_payment_received.id,
             paymentMethod: filters.value.paymentMethod.id,
@@ -641,7 +644,7 @@ function onSearchFilterUpdated() {
         channel_codes: filters.value.channel_codes,
         errors: filters.value.errors.map((error) => { return error.id }),
         location_type_id: filters.value.location_type_id.id,
-        operator_id: filters.value.operator_id.id,
+        operators: filters.value.operators.map((operator) => { return operator.id }),
         is_binded_customer: filters.value.is_binded_customer.id,
         is_payment_received: filters.value.is_payment_received.id,
         paymentMethod: filters.value.paymentMethod.id,

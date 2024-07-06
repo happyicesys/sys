@@ -52,10 +52,14 @@ class CustomerController extends Controller
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
             'is_active' => $request->is_active ? $request->is_active : 'all',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
-            'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
             'sortKey' => $request->sortKey ? $request->sortKey : 'customers.created_at',
             'sortBy' => $request->sortBy ? $request->sortBy : false,
         ]);
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [auth()->user()->operator_id, Operator::where('code', 'HIMD')->first() ? Operator::where('code', 'HIMD')->first()->id : null]]);
+            }
+        }
         $className = get_class(new Customer());
 
         $customers = Customer::with([

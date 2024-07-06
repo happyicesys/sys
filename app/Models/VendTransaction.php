@@ -261,6 +261,11 @@ class VendTransaction extends Model
                 $query->where('vend_transactions.operator_id', $search);
             }
         })
+        ->when($request->operators, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereIn('vend_transactions.operator_id', $search);
+            }
+        })
         ->when($request->product_code, function($query, $search) {
             $query->whereIn('vend_transactions.product_id', function($query) use ($search) {
                 $query->select('id')->from('products')->where('code', 'LIKE', "{$search}%");
