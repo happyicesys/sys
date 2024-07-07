@@ -320,6 +320,52 @@ class VendController extends Controller
                         ->where('addresses.type', '=', 2)
                         ->limit(1);
             })
+            ->leftJoin(DB::raw('
+                (
+                    SELECT vend_id, SUM(amount * qty) AS total_stock_amount
+                    FROM vend_channels
+                    WHERE is_active = true
+                    AND capacity > 0
+                    GROUP BY vend_id
+                ) AS vc
+            '), 'vc.vend_id', '=', 'vends.id')
+            ->leftJoin(DB::raw('
+            (
+                SELECT
+                    vend_channels.vend_id,
+                    SUM(vend_channels.qty * unit_costs.cost) AS total_stock_cost
+                FROM
+                    vend_channels
+                INNER JOIN
+                    products ON vend_channels.product_id = products.id
+                INNER JOIN
+                    unit_costs ON products.id = unit_costs.product_id
+                WHERE
+                    unit_costs.is_current = true
+                AND vend_channels.is_active = true
+                AND vend_channels.capacity > 0
+                GROUP BY
+                    vend_channels.vend_id
+            ) AS vc_cost
+        '), 'vc_cost.vend_id', '=', 'vends.id')
+        ->leftJoin(DB::raw('
+            (
+                SELECT
+                    vend_channels.vend_id,
+                    SUM(vend_channels.amount * (vend_channels.capacity - vend_channels.qty)) AS actual_stock_in_value,
+                    SUM(vend_channels.capacity - vend_channels.qty) AS actual_stock_in_qty
+                FROM
+                    vend_channels
+                INNER JOIN
+                    products ON vend_channels.product_id = products.id
+                WHERE
+                    products.is_available = true
+                AND vend_channels.is_active = true
+                AND vend_channels.capacity > 0
+                GROUP BY
+                    vend_channels.vend_id
+            ) AS vc_stock
+        '), 'vc_stock.vend_id', '=', 'vends.id')
             ->select(
                 'customers.id AS id',
                 'vends.id AS vend_id',
@@ -377,6 +423,10 @@ class VendController extends Controller
                 'operators.name AS operator_name',
                 'addresses.postcode AS postcode',
                 'vend_prefixes.name AS vend_prefix_name',
+                'vc.total_stock_amount',
+                'vc_cost.total_stock_cost',
+                'vc_stock.actual_stock_in_value',
+                'vc_stock.actual_stock_in_qty'
             );
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends, 'customers');

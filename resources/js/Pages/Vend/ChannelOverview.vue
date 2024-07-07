@@ -110,10 +110,10 @@
                       </td>
                       <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center" v-if="vend.product_mapping_name">
                         <div class="flex justify-center items-center" >
-                          <img class="h-16 w-16 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
+                          <img class="h-16 w-16 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product.is_available ? '' : 'opacity-50']"/>
                         </div>
                       </td>
-                      <td class="py-4 text-sm font-semibold text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']" v-if="vend.product_mapping_name">
+                      <td class="py-4 text-sm font-semibold text-center" :class="[vend.is_active && (channel.product && channel.product.is_available) ? 'text-gray-800' : 'text-gray-400']" v-if="vend.product_mapping_name">
                         <span v-if="!editable">
                           <span v-if="channel.product && channel.product.code">
                             {{ channel.product.code }}

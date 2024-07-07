@@ -571,12 +571,12 @@
 										(#Channel, Sold, Balance/Capacity)
 									</span>
 								</span>
-								<!-- <SingleSortItem modelName="totals_json->three_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->three_days_error_rate', false)">
-									Cost
+								<SingleSortItem modelName="total_stock_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_cost')">
+									Stock Cost
 								</SingleSortItem>
-								<SingleSortItem modelName="totals_json->seven_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_error_rate', false)">
-									Sales Value
-								</SingleSortItem> -->
+								<SingleSortItem modelName="total_stock_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_amount')">
+									Stock Value
+								</SingleSortItem>
 							</div>
 						</TableHead>
 						<TableHead>
@@ -599,6 +599,9 @@
 								</SingleSortItem>
 								<SingleSortItem modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent', false)">
 									Remaining SKU#
+								</SingleSortItem>
+								<SingleSortItem modelName="actual_stock_in_value" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('actual_stock_in_value')">
+									Act Stock In Value
 								</SingleSortItem>
 							</div>
 						</TableHead>
@@ -815,28 +818,49 @@
 						</TableData>
 						<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-							<ul
-							class="sm:grid sm:grid-cols-[1fr_1fr] hover:cursor-pointer"
-							v-if="vend.vendChannels"
-							@click="onChannelOverviewClicked(vend)"
-							>
-								<li v-for="(channel, channelIndex) in vend.vendChannels"
-										class="quick-look"
-										:class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
+							<div class="flex flex-col space-y-2">
+								<ul
+								class="sm:grid sm:grid-cols-[1fr_1fr] hover:cursor-pointer"
+								v-if="vend.vendChannels"
+								@click="onChannelOverviewClicked(vend)"
 								>
-								<span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
-										<span :class="[vend.is_active || vend.is_testing ? 'text-black' : 'text-gray-600']">
-												#{{channel['code']}},
+									<li v-for="(channel, channelIndex) in vend.vendChannels"
+											class="quick-look"
+											:class="[
+												channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '',
+												channel.product && !channel.product.is_available ? 'bg-gray-300' : ''
+											]"
+									>
+										<span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
+												<span :class="[vend.is_active || vend.is_testing ? 'text-black' : 'text-gray-600']">
+														#{{channel['code']}},
+												</span>
+												<span :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-500']">
+														{{channel['capacity'] - channel['qty']}},
+												</span>
+												<span :class="[vend.is_active || vend.is_testing ? (channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700') : 'text-gray-400']">
+														{{channel['qty']}}/{{channel['capacity']}}
+												</span>
 										</span>
-										<span :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-500']">
-												{{channel['capacity'] - channel['qty']}},
-										</span>
-										<span :class="[vend.is_active || vend.is_testing ? (channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700') : 'text-gray-400']">
-												{{channel['qty']}}/{{channel['capacity']}}
-										</span>
-								</span>
-								</li>
-							</ul>
+									</li>
+								</ul>
+								<div class="flex flex-col space-y-1 pl-2 text-left">
+									<span>
+										<div
+											class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer bg-indigo-100 text-indigo-800 border-indigo-300"
+										>
+											{{ vend.total_stock_cost ? vend.total_stock_cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										</div>
+									</span>
+									<span>
+										<div
+											class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer bg-sky-100 text-sky-800 border-sky-300"
+										>
+											{{ vend.total_stock_amount ? vend.total_stock_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										</div>
+									</span>
+								</div>
+							</div>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
 							<div class="flex flex-col space-y-2">
@@ -907,6 +931,9 @@
 								>
 										{{ vend.vendChannelTotalsJson['count'] - vend.vendChannelTotalsJson['outOfStockSku'] }}/ {{ vend.vendChannelTotalsJson['count'] }} <br>
 										({{ 100 - vend.out_of_stock_sku_percent }}%)
+								</span>
+								<span :class="[vend.actual_stock_in_value < 100 ? 'text-red-500' : 'text-gray-800']" v-if="vend.actual_stock_in_value">
+									{{ operatorCountry.currency_symbol }}{{(vend.actual_stock_in_value ? vend.actual_stock_in_value : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}({{vend.actual_stock_in_qty ? vend.actual_stock_in_qty.toLocaleString(undefined, {minimumFractionDigits: 0}) : 0}})
 								</span>
 							</div>
 						</TableData>
