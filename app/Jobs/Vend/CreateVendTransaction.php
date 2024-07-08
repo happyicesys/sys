@@ -63,6 +63,7 @@ class CreateVendTransaction implements ShouldQueue
         $duplicatedVendTransaction = VendTransaction::query()
             ->where(function($query) use ($processedInput) {
                 $query->where('order_id', $processedInput['orderID']);
+                    // ->orWhere('order_id', Carbon::now()->format('y').$processedInput['orderID']);
             })
             ->where('vend_id', $vend->id)->first();
 
