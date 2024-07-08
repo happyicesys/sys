@@ -600,7 +600,7 @@
                 categories: filters.value.categories.map((category) => { return category.id }),
                 categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
                 location_type_id: filters.value.locationType.id,
-                // operator_id: filters.value.operator.id,
+                operator_id: filters.value.operator.id,
                 operators: filters.value.operators.map((operator) => { return operator.id }),
             }),{
                 only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'vendCount'],
