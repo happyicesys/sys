@@ -582,7 +582,7 @@
 						<TableHead>
 							<div class="flex flex-col space-y-2">
 								<SingleSortItem modelName="vend_channel_error_logs_json" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_error_logs_json')">
-									Error(s)
+									Uncleared Error(s)
 								</SingleSortItem>
 								<SingleSortItem modelName="totals_json->three_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->three_days_error_rate', false)">
 									3d Rate
@@ -601,7 +601,10 @@
 									Remaining SKU#
 								</SingleSortItem>
 								<SingleSortItem modelName="actual_stock_in_value" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('actual_stock_in_value')">
-									Act Stock In Value
+									Stock In Value
+								</SingleSortItem>
+								<SingleSortItem modelName="actual_stock_in_qty" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('actual_stock_in_qty')">
+									Stock In Qty
 								</SingleSortItem>
 							</div>
 						</TableHead>
@@ -844,19 +847,19 @@
 										</span>
 									</li>
 								</ul>
-								<div class="flex flex-col space-y-1 pl-2 text-left">
+								<div class="flex flex-col space-y-1 pl-2 text-center">
 									<span>
 										<div
-											class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer bg-indigo-100 text-indigo-800 border-indigo-300"
+											class="text-gray-800"
 										>
-											{{ vend.total_stock_cost ? vend.total_stock_cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+											Cost: {{ operatorCountry.currency_symbol }}{{ vend.total_stock_cost ? vend.total_stock_cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 										</div>
 									</span>
 									<span>
 										<div
-											class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer bg-sky-100 text-sky-800 border-sky-300"
+											class="text-gray-800"
 										>
-											{{ vend.total_stock_amount ? vend.total_stock_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+											Value: {{ operatorCountry.currency_symbol }}{{ vend.total_stock_amount ? vend.total_stock_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 										</div>
 									</span>
 								</div>
@@ -933,7 +936,10 @@
 										({{ 100 - vend.out_of_stock_sku_percent }}%)
 								</span>
 								<span :class="[vend.actual_stock_in_value < 100 ? 'text-red-500' : 'text-gray-800']" v-if="vend.actual_stock_in_value">
-									{{ operatorCountry.currency_symbol }}{{(vend.actual_stock_in_value ? vend.actual_stock_in_value : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}({{vend.actual_stock_in_qty ? vend.actual_stock_in_qty.toLocaleString(undefined, {minimumFractionDigits: 0}) : 0}})
+									{{ operatorCountry.currency_symbol }}{{(vend.actual_stock_in_value ? vend.actual_stock_in_value : 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+								</span>
+								<span :class="[vend.actual_stock_in_value < 100 ? 'text-red-500' : 'text-gray-800']" v-if="vend.actual_stock_in_value">
+									{{vend.actual_stock_in_qty ? vend.actual_stock_in_qty.toLocaleString(undefined, {minimumFractionDigits: 0}) : 0}}
 								</span>
 							</div>
 						</TableData>
