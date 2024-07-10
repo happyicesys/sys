@@ -163,12 +163,11 @@ class CreateVendTransaction implements ShouldQueue
         $vendTransactionItem = VendTransactionItem::create([
             'is_refunded' => false,
             'product_id' => $input['productID'],
-            'product_json' => $input['productID'] ? collect($this->vend->productMapping->productMappingItems()->where('channel_code', $input['vendChannelCode'])->first()->product)->except(['product_mapping_items']) : null,
             'unit_cost_id' => $input['unitCostID'],
+            'cost' => isset($input['unitCostID']) && $input['unitCostID'] ? UnitCost::find($input['unitCostID'])->cost : 0,
             'vend_channel_id' => $input['vendChannelID'],
             'vend_channel_code' => $input['vendChannelCode'],
             'vend_channel_error_id' => $input['vendChannelErrorID'],
-            'vend_channel_error_json' => isset($input['vendChannelErrorID']) && $input['vendChannelErrorID'] ? VendChannelError::find($input['vendChannelErrorID']) : null,
             'vend_transaction_id' => $vendTransaction->id,
         ]);
 

@@ -3262,9 +3262,25 @@
       "_MultiSelect.vue_vue_type_style_index_1_lang.44c8f53e.js"
     ]
   },
+  "resources/js/Pages/Report/IndexStockCount.css": {
+    "file": "assets/IndexStockCount.8b3a4ee5.css",
+    "src": "resources/js/Pages/Report/IndexStockCount.css"
+  },
+  "MultiSelect.css": {
+    "file": "assets/MultiSelect.b163af4f.css",
+    "src": "MultiSelect.css"
+  },
+  "resources/js/Pages/DeliveryProductMappingVend/Index.css": {
+    "file": "assets/Index.8b3a4ee5.css",
+    "src": "resources/js/Pages/DeliveryProductMappingVend/Index.css"
+  },
   "resources/js/Pages/Vend/IndexComponent.css": {
     "file": "assets/IndexComponent.8b3a4ee5.css",
     "src": "resources/js/Pages/Vend/IndexComponent.css"
+  },
+  "filepond-plugin-file-validate-size.css": {
+    "file": "assets/filepond-plugin-file-validate-size.d34a28df.css",
+    "src": "filepond-plugin-file-validate-size.css"
   },
   "main.css": {
     "file": "assets/main.768eba40.css",
@@ -3274,25 +3290,9 @@
     "file": "assets/Welcome.b7da5231.css",
     "src": "resources/js/Pages/Welcome.css"
   },
-  "MultiSelect.css": {
-    "file": "assets/MultiSelect.b163af4f.css",
-    "src": "MultiSelect.css"
-  },
-  "resources/js/Pages/Vend/Index.css": {
-    "file": "assets/Index.8b3a4ee5.css",
-    "src": "resources/js/Pages/Vend/Index.css"
-  },
   "resources/js/Pages/Vend/CustomerIndex.css": {
     "file": "assets/CustomerIndex.c948f66b.css",
     "src": "resources/js/Pages/Vend/CustomerIndex.css"
-  },
-  "filepond-plugin-file-validate-size.css": {
-    "file": "assets/filepond-plugin-file-validate-size.d34a28df.css",
-    "src": "filepond-plugin-file-validate-size.css"
-  },
-  "resources/js/Pages/Report/IndexStockCount.css": {
-    "file": "assets/IndexStockCount.8b3a4ee5.css",
-    "src": "resources/js/Pages/Report/IndexStockCount.css"
   },
   "resources/js/app.css": {
     "file": "assets/app.5c6cbd59.css",

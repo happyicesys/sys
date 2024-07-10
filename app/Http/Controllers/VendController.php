@@ -1054,6 +1054,7 @@ class VendController extends Controller
         ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
         ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
         ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
+        ->leftJoin('unit_costs', 'unit_costs.id', '=', 'vend_transactions.unit_cost_id')
         ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
         ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
         ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
@@ -1071,55 +1072,113 @@ class VendController extends Controller
             'customers.person_id',
             'customers.virtual_customer_prefix',
             'customers.virtual_customer_code',
+            'location_types.name AS location_type_name',
             'operators.code AS operator_code',
-            'vend_transactions.vend_channel_code',
             'products.code AS product_code',
             'products.name AS product_name',
+            'payment_methods.name AS payment_method_name',
+            'unit_costs.cost',
             'vend_channels.amount AS vend_channel_amount',
             'vend_channels.amount2 AS vend_channel_amount2',
-            'vend_transactions.amount',
-            'payment_methods.name AS payment_method_name',
             'vend_channel_errors.desc AS vend_channel_error_desc',
             'vend_channel_errors.code AS vend_channel_error_code',
+            'vend_transactions.amount',
             'vend_transactions.is_multiple',
             'vend_transactions.vend_transaction_items_json',
             'vend_transactions.revenue',
-            'vend_transactions.unit_cost',
             'vend_transactions.is_payment_received',
             'vend_transactions.items_json',
-            'location_types.name AS location_type_name',
+            'vend_transactions.vend_channel_code'
         )
         ->get();
 
-        return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
-            return [
-                'Order ID' => $vendTransaction->order_id,
-                'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
-                'Vend ID' => $vendTransaction->vend_code ? $vendTransaction->vend_code : '',
-                'Machine Prefix' => $vendTransaction->vend_prefix_name ?
+        // return (new FastExcel($this->yieldOneByOne($vendTransactions)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTransaction) {
+        //     return [
+        //         'Order ID' => $vendTransaction->order_id,
+        //         'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
+        //         'Vend ID' => $vendTransaction->vend_code ? $vendTransaction->vend_code : '',
+        //         'Machine Prefix' => $vendTransaction->vend_prefix_name ?
+        //                             $vendTransaction->vend_prefix_name :
+        //                             '',
+        //         'Customer Code' => $vendTransaction->person_id ?
+        //                             $vendTransaction->virtual_customer_code :
+        //                             '',
+        //         'Customer Name' => $vendTransaction->customer_name,
+        //         'Channel' => $vendTransaction->vend_channel_code,
+        //         'Product Code' => $vendTransaction->product_code,
+        //         'Product Name' => $vendTransaction->product_name,
+        //         'Price Type' => $vendTransaction->vend_channel_amount ==  $vendTransaction->amount ?
+        //                         'P1' :
+        //                         ($vendTransaction->vend_channel_amount2 ==  $vendTransaction->amount ? 'P2' : '' ),
+        //         'Amount' => $vendTransaction->amount/ 100,
+        //         'Sales (before GST)' => $vendTransaction->revenue/ 100,
+        //         'Unit Cost' => $vendTransaction->unit_cost ?
+        //                         $vendTransaction->unit_cost/ 100 :
+        //                         '',
+        //         'Payment Method' => $vendTransaction->payment_method_name,
+        //         'Error Code' => $vendTransaction->vend_channel_error_code,
+        //         'Location Type' => $vendTransaction->location_type_name,
+        //         'Operator' => $vendTransaction->operator_code,
+        //     ];
+        // });
+        $data = [];
+        foreach($vendTransactions as $vendTransaction) {
+            $data[] = [
+                'order_id' => $vendTransaction->order_id,
+                'transaction_datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
+                'vend_id' => $vendTransaction->vend_code ? $vendTransaction->vend_code : '',
+                'machine_prefix' => $vendTransaction->vend_prefix_name ?
                                     $vendTransaction->vend_prefix_name :
                                     '',
-                'Customer Code' => $vendTransaction->person_id ?
+                'customer_code' => $vendTransaction->person_id ?
                                     $vendTransaction->virtual_customer_code :
                                     '',
-                'Customer Name' => $vendTransaction->customer_name,
-                'Channel' => $vendTransaction->vend_channel_code,
-                'Product Code' => $vendTransaction->product_code,
-                'Product Name' => $vendTransaction->product_name,
-                'Price Type' => $vendTransaction->vend_channel_amount ==  $vendTransaction->amount ?
+                'customer_name' => $vendTransaction->customer_name,
+                'channel' => $vendTransaction->vend_channel_code ? $vendTransaction->vend_channel_code : '',
+                'product_code' => $vendTransaction->product_code,
+                'product_name' => $vendTransaction->product_name,
+                'price_type' => $vendTransaction->vend_channel_amount ==  $vendTransaction->amount ?
                                 'P1' :
                                 ($vendTransaction->vend_channel_amount2 ==  $vendTransaction->amount ? 'P2' : '' ),
-                'Amount' => $vendTransaction->amount/ 100,
-                'Sales (before GST)' => $vendTransaction->revenue/ 100,
-                'Unit Cost' => $vendTransaction->unit_cost ?
-                                $vendTransaction->unit_cost/ 100 :
+                'amount' => $vendTransaction->amount/ 100,
+                'sales_before_gst' => $vendTransaction->revenue/ 100,
+                'unit_cost' => $vendTransaction->cost ?
+                                $vendTransaction->cost/100 :
                                 '',
-                'Payment Method' => $vendTransaction->payment_method_name,
-                'Error Code' => $vendTransaction->vend_channel_error_code,
-                'Location Type' => $vendTransaction->location_type_name,
-                'Operator' => $vendTransaction->operator_code,
+                'payment_method' => $vendTransaction->payment_method_name,
+                'error_code' => $vendTransaction->vend_channel_error_code,
+                'location_type' => $vendTransaction->location_type_name,
+                'operator' => $vendTransaction->operator_code,
             ];
-        });
+
+            if(isset($vendTransaction['vend_transaction_items_json']) and $vendTransaction['vend_transaction_items_json']) {
+
+                foreach($vendTransaction['vend_transaction_items_json'] as $vendTransactionItem) {
+                    $data[] = [
+                        'order_id' => '',
+                        'transaction_datetime' => '',
+                        'vend_id' => '',
+                        'machine_prefix' => '',
+                        'customer_code' => '',
+                        'customer_name' => '',
+                        'channel' => $vendTransactionItem['vend_channel_code'],
+                        'product_code' => isset($vendTransactionItem['product']) ? $vendTransactionItem['product']['code'] : '',
+                        'product_name' => isset($vendTransactionItem['product']) ? $vendTransactionItem['product']['name'] : '',
+                        'price_type' => '',
+                        'amount' => '',
+                        'sales_before_gst' => '',
+                        'unit_cost' => isset($vendTransactionItem['cost']) && $vendTransactionItem['cost'] ?
+                                        $vendTransactionItem['cost']/ 100 :
+                                        '',
+                        'payment_method' => '',
+                        'error_code' => $vendTransactionItem['vend_channel_error'] ? $vendTransactionItem['vend_channel_error']['code'] : '',
+                        'location_type' => '',
+                        'operator' => '',
+                    ];
+                }
+            }
+        }
+        return (new FastExcel($this->yieldOneByOne($data)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx');
     }
 
     public function exportVendSnapshotExcel($vendSnapshotId)
