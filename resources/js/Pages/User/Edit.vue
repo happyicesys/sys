@@ -324,7 +324,7 @@ function submit() {
     form.value
       .transform((data) => ({
         ...data,
-        phone_country_id: data.phone_country_id.id,
+        phone_country_id: data.phone_country_id ? data.phone_country_id.id : null,
         operator_id: data.operator_id.id,
         role_id: data.role_id.id,
         user: props.user,
