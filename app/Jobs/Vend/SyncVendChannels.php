@@ -19,7 +19,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class SyncVendChannels implements ShouldQueue
+class SyncVendChannels
+//implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -54,10 +55,7 @@ class SyncVendChannels implements ShouldQueue
             foreach($channels as $channel) {
                 $prevVendChannel = VendChannel::where('vend_id', $vend->id)->where('code', $channel['channel_code'])->first();
 
-                $vendChannel = VendChannel::updateOrCreate([
-                    'vend_id' => $vend->id,
-                    'code' => $channel['channel_code'],
-                ], [
+                $data = [
                     'amount' => $channel['amount'],
                     'amount2' => isset($channel['amount2']) ? $channel['amount2'] : 0,
                     'capacity' => $channel['capacity'],
@@ -65,10 +63,22 @@ class SyncVendChannels implements ShouldQueue
                     'is_active' => $this->getVendChannelStatus($channel),
                     'locked_qty' => isset($channel['locked_qty']) ? $channel['locked_qty'] : 0,
                     'qty' => $channel['qty'],
-                    'qty_sold_at' => $prevVendChannel && $prevVendChannel->qty != 0 && $channel['qty'] == 0 ? Carbon::now() : ($prevVendChannel && $prevVendChannel->qty_sold_at ? $prevVendChannel->qty_sold_at : null),
-                    'qty_restocked_at' => $prevVendChannel && $prevVendChannel->qty == 0 && $channel['qty'] > 0 ? Carbon::now() : ($prevVendChannel && $prevVendChannel->qty_restocked_at ? $prevVendChannel->qty_restocked_at : null),
                     'sku_code' => isset($channel['sku_code']) ? $channel['sku_code'] : null,
-                ]);
+                ];
+
+                // Check condition and add qty_sold_at only if the condition meets
+                if ($prevVendChannel && $prevVendChannel->qty != 0 && $channel['qty'] == 0) {
+                    $data['qty_sold_at'] = Carbon::now();
+                }
+
+                if ($prevVendChannel && $prevVendChannel->qty == 0 && $channel['qty'] > 0) {
+                    $data['qty_restocked_at'] = Carbon::now();
+                }
+
+                $vendChannel = VendChannel::updateOrCreate([
+                    'vend_id' => $vend->id,
+                    'code' => $channel['channel_code'],
+                ], $data);
 
                 // update error rate json based on vend channel
                 if($vendChannel->is_active) {

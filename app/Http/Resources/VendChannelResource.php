@@ -22,6 +22,7 @@ class VendChannelResource extends JsonResource
             'error_rate_json' => $this->error_rate_json,
             'qty' => $this->qty,
             'qty_sold_at' => $this->qty_sold_at,
+            'qty_sold_at_formatted' => $this->qty_sold_at ? $this->qty_sold_at->format('ymd h:ia') : '',
             'qty_restocked_at' => $this->qty_restocked_at,
             'qty_not_available_duration' => $this->qty_not_available_duration,
             'locked_qty' => $this->locked_qty,

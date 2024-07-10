@@ -225,7 +225,10 @@
                         :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']"
                         v-if="channels.some(channel => 'qty_not_available_duration' in channel)"
                       >
-                        {{ channel.qty_not_available_duration }}
+                        <div class="flex flex-col space-y-1">
+                          {{ channel.qty_sold_at_formatted }}
+                          {{ channel.qty_not_available_duration }}
+                        </div>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center"
                       v-if="permissions.includes('admin-access vends') && vend.is_active">
