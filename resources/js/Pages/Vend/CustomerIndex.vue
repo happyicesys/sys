@@ -581,6 +581,9 @@
 						</TableHead>
 						<TableHead>
 							<div class="flex flex-col space-y-2">
+								<span>
+									Error
+								</span>
 								<SingleSortItem modelName="vend_channel_error_logs_json" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_error_logs_json')">
 									Uncleared Error(s)
 								</SingleSortItem>
@@ -594,17 +597,20 @@
 						</TableHead>
 						<TableHead>
 							<div class="flex flex-col space-y-2">
+								<span>
+									Stock
+								</span>
 								<SingleSortItem modelName="balance_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('balance_percent', true)">
-									Balance Stock
+									Balance Qty
 								</SingleSortItem>
 								<SingleSortItem modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent', false)">
 									Remaining SKU#
 								</SingleSortItem>
 								<SingleSortItem modelName="actual_stock_in_value" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('actual_stock_in_value')">
-									Stock In Value
+									Refill Value
 								</SingleSortItem>
 								<SingleSortItem modelName="actual_stock_in_qty" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('actual_stock_in_qty')">
-									Stock In Qty
+									Refill Qty
 								</SingleSortItem>
 							</div>
 						</TableHead>
