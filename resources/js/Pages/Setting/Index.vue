@@ -374,9 +374,9 @@
                     <TableHeadSort modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
                       Operator
                     </TableHeadSort>
-                    <TableHead>
+                    <TableHeadSort modelName="vend_serial_number_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_serial_number_code')">
                       Serial Num
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHead>
                       Setting Chart
                     </TableHead>
@@ -674,7 +674,7 @@
                         {{ vend.operator_code }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.vendSerialNumber ? vend.vendSerialNumber.code : ''}}
+                        {{ vend.vend_serial_number_code }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <span v-if="vend.vendConfig">

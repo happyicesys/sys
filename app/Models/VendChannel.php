@@ -21,18 +21,18 @@ class VendChannel extends Model
         'is_active',
         'locked_qty',
         'product_id',
+        'qty_not_available_duration',
+        'qty_sold_at',
+        'qty_restocked_at',
         'sku_code',
         'qty',
-        'last_inactive_at',
-        'last_active_at',
-        'inactive_active_duration',
         'vend_id',
     ];
 
     protected $casts = [
         'error_rate_json' => 'json',
-        'last_inactive_at' => 'datetime',
-        'last_active_at' => 'datetime',
+        'qty_restocked_at' => 'datetime',
+        'qty_sold_at' => 'datetime',
     ];
 
     // relationships

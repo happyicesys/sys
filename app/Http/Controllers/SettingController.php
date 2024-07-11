@@ -93,6 +93,7 @@ class SettingController extends Controller
                 'vendSerialNumber',
             ])
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
+            ->leftJoin('vend_serial_numbers', 'vend_serial_numbers.id', '=', 'vends.vend_serial_number_id')
             ->filterIndex($request)
             ->select(
                 'operators.code AS operator_code',
@@ -121,6 +122,7 @@ class SettingController extends Controller
                 'vends.vend_model_id',
                 'vends.vend_prefix_id',
                 'vends.vend_serial_number_id',
+                'vend_serial_numbers.code AS vend_serial_number_code',
             );
         $vends = $this->filterOperator($vends);
 
