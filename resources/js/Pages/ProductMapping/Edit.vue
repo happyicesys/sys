@@ -73,10 +73,10 @@
             </div>
 
             <div class="sm:col-span-6">
-              <AttachmentList
+              <AttachmentListProductMapping
                 :items="productMapping.data.attachments"
               >
-            </AttachmentList>
+              </AttachmentListProductMapping>
             </div>
 
             <div class="sm:col-span-6">
@@ -265,7 +265,7 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import AttachmentList from '@/Components/AttachmentList.vue';
+import AttachmentListProductMapping from '@/Components/AttachmentListProductMapping.vue';
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';

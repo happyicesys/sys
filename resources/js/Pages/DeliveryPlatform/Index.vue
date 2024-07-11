@@ -150,7 +150,10 @@
                               {{ deliveryProductMappingVendIndex + 1 }}.
                             </span>
                             <span v-if="deliveryProductMappingVend.vend.customer && deliveryProductMappingVend.vend.customer.person_id">
-                              {{ deliveryProductMappingVend.vend.code }} - {{ deliveryProductMappingVend.vend.customer.virtual_customer_code }} ({{ deliveryProductMappingVend.vend.customer.virtual_customer_prefix }}) - {{ deliveryProductMappingVend.vend.customer.name }}
+                              {{ deliveryProductMappingVend.vend.code }} <br>
+                              ({{ deliveryProductMappingVend.vend.customer.virtual_customer_code }})
+                              <!-- ({{ deliveryProductMappingVend.vend.customer.virtual_customer_prefix }}) -  -->
+                              {{ deliveryProductMappingVend.vend.customer.name }}
                             </span>
                             <span v-else-if="deliveryProductMappingVend.vend.customer && !deliveryProductMappingVend.vend.customer.person_id">
                               {{ deliveryProductMappingVend.vend.code }} - {{ deliveryProductMappingVend.vend.customer.name }}

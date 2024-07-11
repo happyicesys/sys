@@ -25,7 +25,7 @@
         </p>
       </div>
       <span class="text-xs pt-3 text-gray-600 self-center">
-        {{ item.created_at_formatted }}
+        {{ item.created_at_formatted ? item.created_at_formatted : formatDatetime(item.created_at) }}
       </span>
       <div class="flex space-x-2">
         <div class="flex shrink-0 items-center gap-x-4">
@@ -88,7 +88,10 @@ function deleteAttachment(id) {
       location.reload()
     },
   })
+}
 
+function formatDatetime(datetime) {
+  return datetime ? moment(datetime).format('YYYY-MM-DD hh:mm a') : ''
 }
 
 </script>

@@ -181,7 +181,8 @@
                                                     </td>
                                                     <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600">
                                                         <span v-if="vend.customer">
-                                                            {{ vend.customer.virtual_customer_prefix }}-{{ vend.customer.virtual_customer_code }} <br>
+                                                            <!-- {{ vend.customer.virtual_customer_prefix }}- -->
+                                                            {{ vend.customer.virtual_customer_code }} <br>
                                                             {{ vend.customer.name }}
                                                         </span>
                                                         <span v-else>

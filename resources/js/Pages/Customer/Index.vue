@@ -321,9 +321,9 @@
                             <span v-if="customer.virtual_customer_code">
                               {{ customer.virtual_customer_code }}
                             </span>
-                            <span v-if="customer.virtual_customer_prefix">
+                            <!-- <span v-if="customer.virtual_customer_prefix">
                               ({{ customer.virtual_customer_prefix }})
-                            </span>
+                            </span> -->
                              <br>
                           </span>
                           <span v-else>

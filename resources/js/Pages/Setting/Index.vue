@@ -345,10 +345,10 @@
                       Vend ID
                     </TableHeadSort>
                     <TableHead>
-                      Customer
+                      Prefix
                     </TableHead>
                     <TableHead>
-                      Prefix
+                      Customer
                     </TableHead>
                     <TableHead>
                       Ref Price
@@ -401,15 +401,18 @@
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.code }}
                       </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        {{ vend.vendPrefix ? vend.vendPrefix.name : '' }}
+                      </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
                         <a :class="[vend && vend.customer && vend.customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="vend.customer && vend.customer.person_id ? cmsEndpoint + '/person/' + vend.customer.person_id + '/edit' : (vend.customer ? '/customers/' + vend.customer.id + '/edit' : '#' )">
                           <span v-if="vend.customer && vend.customer.person_id && (vend.customer.virtual_customer_code || vend.customer.virtual_customer_prefix)">
                             <span v-if="vend.customer.virtual_customer_code">
                               {{ vend.customer.virtual_customer_code }}
                             </span>
-                            <span v-if="vend.customer.virtual_customer_prefix">
+                            <!-- <span v-if="vend.customer.virtual_customer_prefix">
                               ({{ vend.customer.virtual_customer_prefix }})
-                            </span>
+                            </span> -->
                              <br>
                           </span>
                           <span v-else>
@@ -436,9 +439,6 @@
                         <span v-else>
                           {{ vend.name }}
                         </span> -->
-                      </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.vendPrefix ? vend.vendPrefix.name : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.customer ? vend.customer.selling_price_type : '' }}

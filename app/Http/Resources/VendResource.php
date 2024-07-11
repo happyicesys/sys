@@ -119,7 +119,7 @@ class VendResource extends JsonResource
             'person_id' => isset($this->person_id) ? $this->person_id : null,
             'full_name' => $this->when($this->relationLoaded('customer'), function() {
                 if($this->customer && $this->customer->person_id) {
-                    return $this->customer->virtual_customer_prefix . ' - ' . $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
+                    return $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
                 }else if($this->customer && !$this->customer->person_id) {
                     return $this->customer->code . ' - ' . $this->customer->name;
                 }else {
@@ -128,7 +128,7 @@ class VendResource extends JsonResource
             }),
             'cust_full_name' => $this->when($this->relationLoaded('customer'), function() {
                 if($this->customer && $this->customer->person_id) {
-                    return '('. $this->code . ') ' .   $this->customer->virtual_customer_prefix . ' - ' . $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
+                    return '('. $this->code . ')  - ' . $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
                 }else if($this->customer && !$this->customer->person_id) {
                     return '('. $this->code . ') ' . $this->customer->code . ' - ' . $this->customer->name;
                 }else {
