@@ -10,6 +10,7 @@ use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentGatewayLog;
 use App\Models\PaymentMethod;
 use App\Models\Product;
+use App\Models\UnitCost;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
