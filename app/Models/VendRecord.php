@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Scopes\OperatorTransactionFilterScope;
+use App\Models\Scopes\OperatorVendRecordScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -12,7 +12,7 @@ class VendRecord extends Model
 
     protected static function booted()
     {
-        static::addGlobalScope(new OperatorTransactionFilterScope);
+        static::addGlobalScope(new OperatorVendRecordScope);
     }
 
     protected $fillable = [

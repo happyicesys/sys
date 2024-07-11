@@ -32,7 +32,7 @@ class OperatorTransactionFilterScope implements Scope
         $user = auth()->user();
         $vendIds = $user->vends ? $user->vends->pluck('id')->toArray() : null;
         if($vendIds) {
-            $builder->whereIn('vend_id', $vendIds);
+            $builder->whereIn('vend_transactions.vend_id', $vendIds);
         }
       }
     }

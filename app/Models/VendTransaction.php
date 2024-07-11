@@ -317,10 +317,10 @@ class VendTransaction extends Model
         })
         ->when($request->customer_name, function($query, $search) {
             $query->where(function($query) use ($search) {
-                $query->whereIn('customer_id', function($query) use ($search) {
+                $query->whereIn('vend_transactions.customer_id', function($query) use ($search) {
                     $query->select('id')->from('customers')->where('name', 'LIKE', "{$search}%");
                 });
-                $query->orWhereIn('vend_id', function($query) use ($search) {
+                $query->orWhereIn('vend_transactions.vend_id', function($query) use ($search) {
                     $query->select('id')->from('vends')->where('name', 'LIKE', "{$search}%");
                 });
             });

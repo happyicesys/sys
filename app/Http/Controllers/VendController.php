@@ -962,7 +962,7 @@ class VendController extends Controller
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->filterTransactionIndex($request)
-            ->whereNotIn('vend_id', function($query) {
+            ->whereNotIn('vend_transactions.vend_id', function($query) {
                 $query->select('id')
                     ->from('vends')
                     ->where('is_testing', true);

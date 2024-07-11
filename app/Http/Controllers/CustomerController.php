@@ -43,6 +43,7 @@ class CustomerController extends Controller
         HistoryService $historyService,
     )
     {
+        $this->middleware(['permission:read customers']);
         $this->historyService = $historyService;
     }
 
