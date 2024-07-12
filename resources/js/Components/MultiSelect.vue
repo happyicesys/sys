@@ -102,13 +102,13 @@ function onDeselected(data) {
   overflow-x: scroll;
 }
 .multiselect--active {
-  z-index: 20;
+  z-index: 100;
 }
 .multiselect__content-wrapper {
-  z-index: 20;
+  z-index: 100;
   position: static;
 }
 .custom-multiselect .multiselect__content-wrapper {
-  z-index: 60; /* Ensure this is higher than the modal's z-index */
+  z-index: 100; /* Ensure this is higher than the modal's z-index */
 }
 </style>

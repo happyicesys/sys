@@ -9,6 +9,7 @@ use App\Http\Resources\VendResource;
 use App\Models\Product;
 use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
+use App\Models\SellingPrice;
 use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -122,6 +123,7 @@ class ProductMappingController extends Controller
         ])->findOrFail($id);
 
         return Inertia::render('ProductMapping/Edit', [
+            'priceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'productMapping' => ProductMappingResource::make($productMapping),
             'products' => ProductResource::collection(
                 Product::with([
@@ -177,7 +179,6 @@ class ProductMappingController extends Controller
             $fileName = basename($storedPath);
             $url = Storage::url($storedPath);
             $productMapping->attachments()->create([
-                'type' => 1,
                 'full_url' => $url,
                 'local_url' => $dir.'/'.$fileName,
             ]);

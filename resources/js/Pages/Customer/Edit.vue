@@ -107,7 +107,7 @@
                   <input
                     type="text"
                     class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                    :value="customer.person_id ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name : customer.code + ' - ' + customer.name"
+                    :value="customer.person_id ? ' (' + customer.virtual_customer_code + ')  ' + customer.name : customer.code + ' - ' + customer.name"
                     disabled
                   />
                 </div>
@@ -187,6 +187,13 @@
                   {{ form.errors['customer.selling_price_type'] }}
                 </div>
               </div>
+              <div class="sm:col-span-5" v-if="customer.vend && customer.vend.product_mapping && customer.vend.product_mapping.attachments">
+                <AttachmentList
+                  :items="customer.vend.product_mapping.attachments"
+                  :isEditEnabled="false"
+                >
+                </AttachmentList>
+              </div>
 
               <div class="flex flex-col sm:col-span-5">
                 <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
@@ -227,7 +234,7 @@
                               </div>
                             </th>
                             <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                              Ref Price
+                              Ref Price {{ form.selling_price_type ? form.selling_price_type.id : '' }}
                             </th>
                           </tr>
                         </thead>
@@ -612,6 +619,7 @@ const booleanStrictOptions = ref([
 ])
 
 const countryOptions = ref([])
+const customer = ref([])
 const isExisting = ref(1)
 const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([])
@@ -655,6 +663,8 @@ function getDefaultForm() {
 
 onMounted(() => {
   countryOptions.value = props.countries.data
+  customer.value = props.customer
+  console.log(customer.value)
   operatorOptions.value = props.operatorOptions.data
   sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, value]) => {
     return {
@@ -844,7 +854,9 @@ function onSellingPriceTypeSelected() {
     replace: true,
     preserveState: true,
     onSuccess: page => {
-      vendChannels.value = props.customer.vend.vend_channels
+      customer.value = props.customer
+      vendChannels.value = props.customer.vend.vend_channels;
+      vendChannels.value = [...vendChannels.value];
     }
   })
 }

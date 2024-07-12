@@ -43,7 +43,6 @@ class CustomerController extends Controller
         HistoryService $historyService,
     )
     {
-        $this->middleware(['permission:read customers']);
         $this->historyService = $historyService;
     }
 
@@ -208,7 +207,18 @@ class CustomerController extends Controller
 
     public function edit(Request $request, $id)
     {
-        $customer = Customer::query()
+        $customerInit = Customer::findOrFail($id);
+
+            // dd($request->all());
+            if($request->selling_price_type) {
+                $type = $request->selling_price_type;
+            }else {
+                $type = $customerInit->selling_price_type;
+            }
+
+            // dd($type);
+
+            $customer = Customer::query()
             ->with([
                 'attachments',
                 'billingAddress',
@@ -220,29 +230,27 @@ class CustomerController extends Controller
                 'profile',
                 'status',
                 'tagBindings',
-                'vend',
-                'zone'
-            ])
-            ->find($id);
-
-            if($request->selling_price_type) {
-                $type = $request->selling_price_type;
-            }else {
-                $type = $customer->selling_price_type;
-            }
-
-            $customer->load([
                 'vend:id,code,customer_id,product_mapping_id',
+                'vend.productMapping.attachments' => function ($query) use ($type) {
+                    // $query->when($type, function ($query, $type) {
+                    //     $query->where('type', $type);
+                    // });
+                    $query->where('type', $type);
+                },
                 'vend.vendChannels:id,amount,amount2,code,vend_id,product_id',
                 'vend.vendChannels.product:id,name,code,desc',
                 'vend.vendChannels.product.sellingPrices' => function ($query) use ($type) {
-                    $query->when($type, function ($query, $type) {
-                        $query->where('type', $type);
-                    });
+                    // $query->when($type, function ($query, $type) {
+                    //     $query->where('type', $type);
+                    // });
                     $query->where('type', $type);
                 },
-                'vend.vendChannels.product.thumbnail'
-            ]);
+                'vend.vendChannels.product.thumbnail',
+                'zone',
+            ])
+            ->find($id);
+
+            // dd($customer->toArray());
 
         return Inertia::render('Customer/Edit', [
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),

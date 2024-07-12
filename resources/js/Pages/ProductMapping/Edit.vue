@@ -1,22 +1,23 @@
 <template>
   <Head title="VM Edit" />
   <BreezeAuthenticatedLayout>
-    <template #header >
-        <div class="flex flex-col md:flex-row space-x-2">
-          <span class="text-gray-600" v-if="productMapping.data && productMapping.data.id">
-            Editing
-          </span>
-          <span v-if="productMapping.data && productMapping.data.id">
-            {{ productMapping.data.name }}
-          </span>
-        </div>
-      </template>
-    <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
-      <div class="mt-6 flex flex-col">
-       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
-        <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll p-5">
-          <form @submit.prevent="submit" id="submit">
-          <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
+    <template #header>
+      <div class="flex flex-col md:flex-row space-x-2">
+        <span class="text-gray-600" v-if="productMapping.data && productMapping.data.id">
+          Editing
+        </span>
+        <span v-if="productMapping.data && productMapping.data.id">
+          {{ productMapping.data.name }}
+        </span>
+      </div>
+    </template>
+    <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3 overflow-visible">
+      <div class="mt-6 flex flex-col overflow-visible">
+        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8 overflow-visible">
+          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-visible p-5">
+            <form @submit.prevent="submit" id="submit">
+              <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
+
             <div class="sm:col-span-6">
               <div
                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
@@ -75,6 +76,7 @@
             <div class="sm:col-span-6">
               <AttachmentListProductMapping
                 :items="productMapping.data.attachments"
+                :priceTypeOptions="priceTypeOptions"
               >
               </AttachmentListProductMapping>
             </div>
@@ -253,13 +255,13 @@
                 </Button>
               </div>
             </div>
+
+              </div>
+            </form>
           </div>
-        </form>
         </div>
       </div>
     </div>
-  </div>
-
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -276,6 +278,7 @@ import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 
 const props = defineProps({
+  priceTypeOptions: Object,
   products: Object,
   productMapping: Object,
 })
@@ -315,13 +318,13 @@ function getDefaultForm() {
 
 function submit() {
   form.value.clearErrors()
-    form.value
-      .transform((data) => ({
-        ...data,
-        productMappingItems: productMappingItems.value,
-        is_active: form.value.is_active.id,
-      }))
-      .post('/product-mappings/' + form.value.id + '/update', {
+  form.value
+    .transform((data) => ({
+      ...data,
+      productMappingItems: productMappingItems.value,
+      is_active: form.value.is_active.id,
+    }))
+    .post('/product-mappings/' + form.value.id + '/update', {
       onSuccess: () => {
         emit('modalClose')
       },
@@ -330,10 +333,9 @@ function submit() {
     })
 }
 
-
 function bindProductMappingItem() {
-  if(productMappingItems.value.map(function(productMapping) { return productMapping.channel_code; }).indexOf(form.value.channel_code) < 0) {
-    productMappingItems.value.push({product: form.value.product_id, channel_code: form.value.channel_code})
+  if (productMappingItems.value.map(function (productMapping) { return productMapping.channel_code; }).indexOf(form.value.channel_code) < 0) {
+    productMappingItems.value.push({ product: form.value.product_id, channel_code: form.value.channel_code })
     productMappingItems.value.sort((a, b) => a.channel_code - b.channel_code)
   }
 }
@@ -343,8 +345,8 @@ function toggleActivateDeactivate() {
     onSuccess: () => {
       emit('modalClose')
     },
-      preserveState: true,
-      replace: true,
+    preserveState: true,
+    replace: true,
   })
 }
 
@@ -354,13 +356,12 @@ function unbindProductMappingItem(productMappingItem) {
 
 function replicateProductMapping() {
   router.post('/product-mappings/replicate',
-  {
-    id: form.value.id,
-  },
-  {
-    preserveState: true,
-    replace: true,
-  })
+    {
+      id: form.value.id,
+    },
+    {
+      preserveState: true,
+      replace: true,
+    })
 }
-
 </script>
