@@ -276,6 +276,13 @@ class VendTransaction extends Model
                 $query->select('id')->from('products')->where('name', 'LIKE', "%{$search}%");
             });
         })
+        ->when($request->vendPrefixes, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereHas('vend', function($query) use ($search) {
+                    $query->whereIn('vend_prefix_id', $search);
+                });
+            }
+        })
         ->when($request->sortKey, function($query, $search) use ($request) {
             if(strpos($search, '->')) {
                 $inputSearch = explode("->", $search);
@@ -358,6 +365,13 @@ class VendTransaction extends Model
             $query->whereHas('vend.customer.category.categoryGroup', function($query) use ($search) {
                 $query->whereIn('id', $search);
             });
+        })
+        ->when($request->vendPrefixes, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereHas('vend', function($query) use ($search) {
+                    $query->whereIn('vend_prefix_id', $search);
+                });
+            }
         });
 
         return $query;

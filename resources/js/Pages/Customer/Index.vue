@@ -197,6 +197,22 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Machine Model
+            </label>
+            <MultiSelect
+                v-model="filters.vend_model_id"
+                :options="vendModelOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -449,6 +465,7 @@ const props = defineProps({
   statuses: Object,
   tags: Object,
   users: Object,
+  vendModelOptions: Object,
   zones: Object,
 })
 
@@ -459,6 +476,7 @@ const filters = ref({
   ref_id: '',
   status: '',
   vend_code: '',
+  vend_model_id: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
@@ -480,6 +498,7 @@ const userOptions = ref([])
 const zoneOptions = ref([])
 const type = ref('')
 const numberPerPageOptions = ref([])
+const vendModelOptions = ref([])
 
 onMounted(() => {
   booleanOptions.value = [
@@ -508,6 +527,10 @@ onMounted(() => {
   zoneOptions.value = props.zones.data.map((data) => {return {id: data.id, name: data.name}})
   priceTemplateOptions.value = props.priceTemplates.data.map((data) => {return {id: data.id, name: data.name}})
   tagOptions.value = props.tags.data.map((data) => {return {id: data.id, name: data.name}})
+  vendModelOptions.value = [
+        {id: 'all', value: 'All'},
+        ...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    ]
   // filters.value.status = statusOptions.value[3]
   filters.value.is_active = booleanOptions.value[0]
   filters.value.is_cms = booleanOptions.value[0]
@@ -515,6 +538,8 @@ onMounted(() => {
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
 		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
 	] : operatorOptions.value[0]
+  filters.value.vend_model_id = vendModelOptions.value[0]
+
 })
 
 function onCreateClicked() {
@@ -536,6 +561,7 @@ function onSearchFilterUpdated() {
       is_active: filters.value.is_active.id,
       operators: filters.value.operators.map(operator => operator.id),
       selling_price_type: filters.value.selling_price_type ? filters.value.selling_price_type.id : '',
+      vend_model_id: filters.value.vend_model_id.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

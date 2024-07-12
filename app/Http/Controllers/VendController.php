@@ -999,6 +999,9 @@ class VendController extends Controller
             ),
             'totals' => $totals,
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
         ]);
     }
 

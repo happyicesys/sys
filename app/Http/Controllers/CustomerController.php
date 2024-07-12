@@ -11,6 +11,7 @@ use App\Http\Resources\PriceTemplateResource;
 use App\Http\Resources\ProfileResource;
 use App\Http\Resources\TagResource;
 use App\Http\Resources\UserResource;
+use App\Http\Resources\VendModelResource;
 use App\Http\Resources\ZoneResource;
 use App\Jobs\SyncVendCustomerCms;
 use App\Jobs\SyncTransactionItemCMS;
@@ -25,6 +26,7 @@ use App\Models\SellingPrice;
 use App\Models\Tag;
 use App\Models\User;
 use App\Models\Vend;
+use App\Models\VendModel;
 use App\Models\Zone;
 use App\Services\HistoryService;
 use App\Traits\HasFilter;
@@ -152,6 +154,9 @@ class CustomerController extends Controller
                 User::query()
                     ->orderBy('name')
                     ->get()
+            ),
+            'vendModelOptions' => VendModelResource::collection(
+                VendModel::orderBy('name')->get()
             ),
             'zones' => ZoneResource::collection(
                 Zone::query()

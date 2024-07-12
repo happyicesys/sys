@@ -301,6 +301,13 @@ class Customer extends Model
                 ->pluck('customer_id')
             );
         })
+        ->when($request->vend_model_id, function($query, $search) {
+            if($search != 'all') {
+                $query->whereHas('vend', function($query) use ($search) {
+                    $query->where('vend_model_id', $search);
+                });
+            }
+        })
         ->when($request->zone_id, fn($query, $input) => $query->where('zone_id', $input))
         ->when($request->sortKey, function($query, $search) use ($request) {
             $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );

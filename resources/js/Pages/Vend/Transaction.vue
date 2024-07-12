@@ -205,6 +205,23 @@
                 >
                 </MultiSelect>
             </div>
+            <div>
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Machine Prefix
+                </label>
+                <MultiSelect
+                    v-model="filters.vendPrefixes"
+                    :options="vendPrefixOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                    mode="tags"
+                >
+                </MultiSelect>
+            </div>
             </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -491,6 +508,7 @@ const props = defineProps({
     vendTransactions: Object,
     totals: [Object, Array],
     vendChannelErrors: Object,
+    vendPrefixOptions: Object,
 })
 const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
@@ -501,6 +519,7 @@ const locationTypeOptions = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
+const vendPrefixOptions = ref([])
 
 onMounted(() => {
     filters.value.visited = true
@@ -542,6 +561,10 @@ onMounted(() => {
         {id: 'true', value: 'Successful'},
         {id: 'false', value: 'Unsuccessful'},
     ]
+    vendPrefixOptions.value = [
+        {id: 'all', value: 'All'},
+        ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    ]
     filters.value.location_type_id = locationTypeOptions.value[0]
     filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
@@ -572,6 +595,7 @@ const filters = ref({
     sortKey: '',
     sortBy: false,
     numberPerPage: 50,
+    vendPrefixes: [],
     visited: true,
 })
 // const vendOptions = ref([])
@@ -650,6 +674,7 @@ function onSearchFilterUpdated() {
         is_payment_received: filters.value.is_payment_received.id,
         paymentMethod: filters.value.paymentMethod.id,
         numberPerPage: filters.value.numberPerPage.id,
+        vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
     }, {
         preserveState: true,
         replace: true,
