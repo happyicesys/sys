@@ -118,6 +118,7 @@ class ProductMappingController extends Controller
             'productMappingItems',
             'productMappingItems.product:id,code,name,is_active',
             'productMappingItems.product.thumbnail',
+            'upcomingProductMappings',
             'vends:id,code,name,product_mapping_id,customer_id',
             'vends.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',
         ])->findOrFail($id);
@@ -125,6 +126,15 @@ class ProductMappingController extends Controller
         return Inertia::render('ProductMapping/Edit', [
             'priceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'productMapping' => ProductMappingResource::make($productMapping),
+            'upcomingProductMappingOptions' => ProductMappingResource::collection(
+                ProductMapping::query()
+                ->whereHas('vendPrefixes', function($query) use ($productMapping) {
+                    $query->whereIn('vend_prefix_id', $productMapping->vendPrefixes->pluck('id'));
+                })
+                ->where('id', '!=', $id)
+                ->orderBy('name')
+                ->get()
+            ),
             'products' => ProductResource::collection(
                 Product::with([
                     'thumbnail'
@@ -149,6 +159,8 @@ class ProductMappingController extends Controller
         // ]);
         $productMapping = ProductMapping::findOrFail($productMappingId);
         $productMapping->fill($request->all());
+
+        $productMapping->upcomingProductMappings()->sync($request->upcomingProductMappings);
 
         if($request->productMappingItems) {
            $productMapping->product_mapping_items_json =  $request->productMappingItems;

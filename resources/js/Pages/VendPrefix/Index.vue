@@ -43,10 +43,26 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Product Mapping
+                Current Mapping
             </label>
             <MultiSelect
                 v-model="filters.product_mapping_id"
+                :options="productMappingOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Upcoming Mapping
+            </label>
+            <MultiSelect
+                v-model="filters.upcoming_product_mapping_id"
                 :options="productMappingOptions"
                 trackBy="id"
                 valueProp="id"
@@ -126,7 +142,12 @@
                       Desc
                     </TableHead>
                     <TableHead>
-                      Product Mapping
+                      Product Mapping <br>
+                      (Current)
+                    </TableHead>
+                    <TableHead>
+                      Product Mapping <br>
+                      (Upcoming)
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -170,6 +191,15 @@
                           <span v-for="productMapping in vendPrefix.productMappings">
                             <a :href="'/product-mappings/' + productMapping.id + '/edit'" class="text-blue-600" target="_blank">
                               {{ productMapping.name }}
+                            </a>
+                          </span>
+                        </div>
+                      </TableData>
+                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
+                        <div class="flex flex-col space-y-1">
+                          <span v-for="productMapping in vendPrefix.productMappings">
+                            <a v-for="upcomingProductMapping in productMapping.upcomingProductMappings" :href="'/product-mappings/' + upcomingProductMapping.id + '/edit'" class="text-blue-600 flex flex-col space-y-1" target="_blank">
+                              {{ upcomingProductMapping.name }}
                             </a>
                           </span>
                         </div>
@@ -264,6 +294,8 @@ const props = defineProps({
 
 const filters = ref({
   name: '',
+  product_mapping_id: '',
+  upcoming_product_mapping_id: '',
   vend_config_id: '',
   sortKey: '',
   sortBy: true,
@@ -296,6 +328,7 @@ onMounted(() => {
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   filters.value.vend_config_id = vendConfigOptions.value[0]
   filters.value.product_mapping_id = productMappingOptions.value[0]
+  filters.value.upcoming_product_mapping_id = productMappingOptions.value[0]
 })
 
 function onCreateClicked() {
@@ -322,6 +355,7 @@ function onSearchFilterUpdated() {
   router.get('/vend-prefixes', {
       ...filters.value,
       product_mapping_id: filters.value.product_mapping_id.id,
+      upcoming_product_mapping_id: filters.value.upcoming_product_mapping_id.id,
       vend_config_id: filters.value.vend_config_id.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {

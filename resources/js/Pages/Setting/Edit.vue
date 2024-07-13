@@ -260,28 +260,6 @@
                   {{ form.errors.vend_prefix_id }}
                 </div>
             </div>
-            <div class="sm:col-span-3" v-if="form.vend_prefix_id">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Product Mapping
-                  <span class="text-red-500">
-                    *
-                  </span>
-                </label>
-                <MultiSelect
-                  v-model="form.product_mapping_id"
-                  :options="productMappingOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="name"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                >
-                </MultiSelect>
-                <div class="text-sm text-red-600" v-if="form.errors.vend_prefix_id">
-                  {{ form.errors.vend_prefix_id }}
-                </div>
-            </div>
 
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -324,6 +302,48 @@
             </div>
 
             <hr class="sm:col-span-6">
+            <div class="sm:col-span-3" v-if="form.vend_prefix_id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Product Mapping
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.product_mapping_id"
+                  :options="productMappingOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.vend_prefix_id">
+                  {{ form.errors.vend_prefix_id }}
+                </div>
+            </div>
+            <div class="sm:col-span-3" v-if="form.vend_prefix_id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Upcoming Product Mapping
+                </label>
+                <MultiSelect
+                  v-model="form.upcoming_product_mapping_id"
+                  :options="upcomingProductMappingOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.upcoming_product_mapping_id">
+                  {{ form.errors.upcoming_product_mapping_id }}
+                </div>
+            </div>
+            <hr class="sm:col-span-6">
 
             <div class="sm:col-span-6">
               <span class="flex space-x-1">
@@ -336,6 +356,17 @@
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
                     Save Vending Machine
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1"
+                  v-if="permissions.includes('update vends') && vend.upcoming_product_mapping_id"
+                  @click.prevent="replaceProductMapping(vend.id)"
+                >
+                  <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                  <span>
+                    Replace Current Product Mapping
                   </span>
                 </Button>
                 <Button
@@ -752,6 +783,7 @@ const props = defineProps({
     operatorOptions: Object,
     productMappingOptions: Object,
     simcardOptions: Object,
+    upcomingProductMappingOptions: Object,
     vend: Object,
     vendConfigOptions: Object,
     vendModelOptions: Object,
@@ -784,6 +816,7 @@ const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const productMappingOptions = ref([])
 const simcardOptions = ref([])
+const upcomingProductMappingOptions = ref([])
 const vendConfigOptions = ref([])
 const vendModelOptions = ref([])
 const vendPrefixOptions = ref([])
@@ -827,6 +860,7 @@ function getDefaultForm() {
     termination_date: '',
     is_testing: '',
     is_active: '',
+    upcoming_product_mapping_id: '',
     vend_config_id: '',
     vend_model_id: '',
     vend_prefix_id: '',
@@ -855,6 +889,10 @@ onMounted(() => {
       id: simcard.id,
       name: simcard.code,
     }))
+  ]
+  upcomingProductMappingOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...props.upcomingProductMappingOptions.data,
   ]
   vendConfigOptions.value = [
     { id: '', name: '--- Clear ---'},
@@ -887,6 +925,7 @@ onMounted(() => {
     simcard_id: props.vend.simcard_id ? props.vend.simcard_id : null,
     status: statusOptions.value.find(status => status.id === (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id === props.vend.operator_id) : null : null,
+    upcoming_product_mapping_id: props.vend.upcoming_product_mapping_id ? upcomingProductMappingOptions.value.find(upcomingProductMapping => upcomingProductMapping.id === props.vend.upcoming_product_mapping_id) : null,
     vend_config_id: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vend.vend_config_id) : null : null,
     vend_model_id: props.vend ? props.vend.vend_model_id ? vendModelOptions.value.find(vendModel => vendModel.id === props.vend.vend_model_id) : null : null,
     vend_prefix_id: props.vend ? props.vend.vend_prefix_id ? vendPrefixOptions.value.find(vendPrefix => vendPrefix.id === props.vend.vend_prefix_id) : null : null,
@@ -934,7 +973,7 @@ function onVendConfigSelected() {
   vendPrefixOptions.value = []
   productMappingOptions.value = []
   router.reload({
-    only: ['vendPrefixOptions', 'productMappingOptions'],
+    only: ['vendPrefixOptions', 'productMappingOptions', 'upcomingProductMappingOptions'],
     data: {
       vend_config_id: form.value.vend_config_id.id,
     },
@@ -951,7 +990,7 @@ function onVendPrefixSelected() {
   form.value.product_mapping_id = ''
   productMappingOptions.value = []
   router.reload({
-    only: ['productMappingOptions'],
+    only: ['productMappingOptions', 'upcomingProductMappingOptions'],
     data: {
       vend_prefix_id: form.value.vend_prefix_id.id,
     },
@@ -961,6 +1000,25 @@ function onVendPrefixSelected() {
       productMappingOptions.value = props.productMappingOptions.data
     }
   })
+}
+
+function replaceProductMapping(vendID) {
+  const approval = confirm('Are you sure to replace the current product mapping to upcoming product mapping?');
+  if (!approval) {
+      return;
+  }
+
+  form.value.clearErrors()
+
+  form.value
+    .post('/vends/' + vendID + '/replace-product-mapping', {
+    onSuccess: () => {
+
+    },
+    preserveState: true,
+    replace: true,
+  })
+
 }
 
 function restartAPK(vendID) {
@@ -1033,6 +1091,7 @@ function saveVend(vendID) {
       operator_id: data.operator_id ? data.operator_id.id : null,
       product_mapping_id: data.product_mapping_id ? data.product_mapping_id.id : null,
       status: data.status.id,
+      upcoming_product_mapping_id: data.upcoming_product_mapping_id ? data.upcoming_product_mapping_id.id : null,
       vend_config_id: data.vend_config_id ? data.vend_config_id.id : null,
       vend_model_id: data.vend_model_id ? data.vend_model_id.id : null,
       vend_prefix_id: data.vend_prefix_id ? data.vend_prefix_id.id : null,

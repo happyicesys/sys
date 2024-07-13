@@ -25,6 +25,7 @@ class VendConfigResource extends JsonResource
             'vendConfigCompatibles' => VendConfigResource::collection($this->whenLoaded('vendConfigCompatibles')),
             'vendConfigCompatibleWith' => VendConfigResource::collection($this->whenLoaded('vendConfigCompatibleWith')),
             'vendPrefixes' => VendPrefixResource::collection($this->whenLoaded('vendPrefixes')),
+            'version' => $this->version,
         ];
     }
 }

@@ -46,7 +46,10 @@ const props = defineProps({
   },
   label: String,
   mode: String,
-  modelValue: [Array, Boolean, Object, String, Number],
+  modelValue: {
+    type: [Array, Boolean, Object, String, Number],
+    default: () => ([]),
+  },
   options: [Array, Object, String],
   placeholder: String,
   refreshOptions: Boolean,
@@ -61,7 +64,7 @@ const props = defineProps({
     default: 'multiselect',
   },
   max: {
-    type: Number,
+    type: [Number, String],
     default: -1,
   },
 });
@@ -74,6 +77,9 @@ watch(() => props.modelValue, (newValue) => {
 
 function onSelected(data) {
   if (props.mode === 'tags') {
+    if (!internalValue.value) {
+      internalValue.value = [];
+    }
     if (!internalValue.value.find(el => el.id === data.id)) {
       internalValue.value.push(data);
       emit('update:modelValue', internalValue.value);

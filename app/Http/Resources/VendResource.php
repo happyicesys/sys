@@ -196,6 +196,8 @@ class VendResource extends JsonResource
             'selling_price_type' => isset($this->selling_price_type) ? $this->selling_price_type : null,
             'total_stock_cost' => isset($this->total_stock_cost) ? $this->total_stock_cost/100 : null,
             'total_stock_amount' => isset($this->total_stock_amount) ? $this->total_stock_amount/100 : null,
+            'upcomingProductMapping' => ProductMappingResource::make($this->whenLoaded('upcomingProductMapping')),
+            'upcoming_product_mapping_id' => isset($this->upcoming_product_mapping_id) ? $this->upcoming_product_mapping_id : null,
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'vendChannels' => VendChannelResource::collection($this->whenLoaded('vendChannels')),
             'vendChannelsJson' => isset($this->vend_channels_json) ? $this->vend_channels_json : null,

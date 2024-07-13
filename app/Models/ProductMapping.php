@@ -51,6 +51,11 @@ class ProductMapping extends Model
     //             ->orderBy('sequence');
     // }
 
+    public function upcomingProductMappings()
+    {
+        return $this->belongsToMany(ProductMapping::class, 'product_mapping_product_mapping', 'product_mapping_id', 'upcoming_product_mapping_id')->orderBy('name');
+    }
+
     public function productMappingItems()
     {
         return $this->hasMany(ProductMappingItem::class)->orderBy('channel_code', 'asc');

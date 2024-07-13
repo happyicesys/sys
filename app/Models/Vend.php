@@ -97,6 +97,7 @@ class Vend extends Model
         'statistics1_json',
         'termination_date',
         'keylock_number',
+        'upcoming_product_mapping_id',
         'vend_channel_error_logs_json',
         'vend_channels_json',
         'vend_channel_totals_json',
@@ -225,6 +226,11 @@ class Vend extends Model
     public function outOfStockVendChannels()
     {
         return $this->vendChannels()->where('qty', '=', 0);
+    }
+
+    public function upcomingProductMapping()
+    {
+        return $this->belongsTo(ProductMapping::class, 'upcoming_product_mapping_id');
     }
 
     public function vendCriterias()

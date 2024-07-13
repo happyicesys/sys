@@ -10,11 +10,14 @@ class VendConfig extends Model
 {
     use HasFactory;
 
+    const VERSION = array('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z');
+
     protected $fillable = [
         'desc',
         'is_active',
         'name',
-        'operator_id'
+        'operator_id',
+        'version'
     ];
 
     // relationships

@@ -381,7 +381,12 @@
                       Setting Chart
                     </TableHead>
                     <TableHead>
-                      Product Mapping
+                      Product Mapping <br>
+                      (Current)
+                    </TableHead>
+                    <TableHead>
+                      Product Mapping <br>
+                      (Upcoming)
                     </TableHead>
                     <TableHead>
                       Deploy Date
@@ -689,7 +694,13 @@
                             {{ vend.productMapping.name }}
                           </a>
                         </span>
-
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        <span v-if="vend.upcomingProductMapping">
+                          <a :href="'/product-mappings/' + vend.upcomingProductMapping.id + '/edit'" target="_blank" class="text-blue-600">
+                            {{ vend.upcomingProductMapping.name }}
+                          </a>
+                        </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.begin_date_short }}

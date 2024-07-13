@@ -23,6 +23,25 @@
               </FormInput>
             </div>
             <div class="sm:col-span-6">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Version
+              </label>
+              <MultiSelect
+                v-model="form.version"
+                :options="versionOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.version">
+                {{ form.errors.version }}
+              </div>
+            </div>
+            <div class="sm:col-span-6">
               <FormTextarea v-model="form.desc" :error="form.errors.desc" rows="10">
                 Desc
               </FormTextarea>
@@ -251,6 +270,7 @@ const props = defineProps({
   vendConfig: Object,
   vendConfigOptions: Object,
   vendPrefixOptions: Object,
+  versionOptions: Object,
 })
 
 const booleanStrictOptions = ref([
@@ -267,15 +287,19 @@ const form = ref(
 const vendConfigOptions = ref([])
 const vendPrefixes = ref([])
 const vendPrefixOptions = ref([])
+const versionOptions = ref([])
 
 onMounted(() => {
-  form.value = props.vendConfig ? useForm({
-    ...props.vendConfig.data,
-    vendConfigCompatibles: props.vendConfig.data.vendConfigCompatibles.map((vendConfigCompatible) => {return {id: vendConfigCompatible.id, value: vendConfigCompatible.name}}),
-  }) : useForm(getDefaultForm())
   vendConfigOptions.value = props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
   vendPrefixOptions.value = props.vendPrefixOptions.data
   vendPrefixes.value = JSON.parse(JSON.stringify(props.vendConfig.data.vendPrefixes))
+  versionOptions.value = Object.entries(props.versionOptions).map(([id, version]) => ({id: version, value: version}))
+
+  form.value = props.vendConfig ? useForm({
+    ...props.vendConfig.data,
+    vendConfigCompatibles: props.vendConfig.data.vendConfigCompatibles.map((vendConfigCompatible) => {return {id: vendConfigCompatible.id, value: vendConfigCompatible.name}}),
+    version: props.vendConfig.data.version ? {id: props.vendConfig.data.version, value: props.vendConfig.data.version} : null,
+  }) : useForm(getDefaultForm())
 })
 
 function bindVendPrefix() {
@@ -302,6 +326,7 @@ function getDefaultForm() {
     desc: '',
     vendConfigCompatibles: [],
     vend_prefix_id: '',
+    version: '',
     // channel_code: '',
     // product_id: '',
   }
@@ -315,6 +340,7 @@ function submit() {
           ...data,
           vendConfigCompatibles: data.vendConfigCompatibles.map(vendConfigCompatible => vendConfigCompatible.id),
           vendPrefixes: vendPrefixes.value,
+          version: data.version ? data.version.id : null,
         }
       })
       .post('/vend-configs/' + form.value.id + '/update', {

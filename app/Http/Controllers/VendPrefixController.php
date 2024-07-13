@@ -41,7 +41,7 @@ class VendPrefixController extends Controller
                 VendPrefix::query()
                     ->with([
                         'operator',
-                        'productMappings',
+                        'productMappings.upcomingProductMappings',
                         'vendConfigs.attachments',
                         'vends',
                     ])
@@ -92,6 +92,21 @@ class VendPrefixController extends Controller
         $model->update($request->all());
 
         $model->productMappings()->sync($request->productMappings);
+
+        // validate if product mapping is no longer in vend prefix, unmap the product mapping id of vend
+        $vends = $model->vends;
+        foreach($vends as $vend) {
+            if($vend->productMapping and $vend->vendPrefix) {
+                // check whether vendPrefix is in productMapping, if not, unmap the product_mapping_id of vend
+                $productMapping = $vend->productMapping;
+                $vendPrefixes = $productMapping->vendPrefixes;
+                if(!in_array($model->id, $vendPrefixes->pluck('id')->toArray())) {
+                    $vend->product_mapping_id = null;
+                    $vend->upcoming_product_mapping_id = null;
+                    $vend->save();
+                }
+            }
+        }
 
         return redirect()->route('vend-prefixes');
     }

@@ -41,6 +41,22 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Version
+            </label>
+            <MultiSelect
+              v-model="filters.version"
+              :options="versionOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -103,6 +119,9 @@
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')" class="bg-sky-200">
                       Name
                     </TableHeadSort>
+                    <TableHeadSort modelName="version" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('version')">
+                      Version
+                    </TableHeadSort>
                     <TableHead>
                       Desc
                     </TableHead>
@@ -138,6 +157,9 @@
                             </div>
                           </div>
                         </div>
+                      </TableData>
+                      <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-center">
+                        {{ vendConfig.version }}
                       </TableData>
                       <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left whitespace-pre-line">
                         {{ vendConfig.desc }}
@@ -261,6 +283,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 const props = defineProps({
   operatorOptions: [Array, Object],
   vendConfigs: Object,
+  versionOptions: [Array, Object],
 })
 
 const filters = ref({
@@ -269,6 +292,7 @@ const filters = ref({
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
+  version: '',
 })
 const attachments = ref([])
 const booleanOptions = ref([
@@ -281,6 +305,7 @@ const showModal = ref(false)
 const vendConfig = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
+const versionOptions = ref([])
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -289,8 +314,14 @@ onMounted(() => {
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
   ]
+  versionOptions.value = [
+    { id: 'all', value: 'All' },
+    ...Object.entries(props.versionOptions).map(([id, version]) => ({id: version, value: version}))
+  ]
+
   filters.value.is_active = booleanOptions.value[0]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
+  filters.value.version = versionOptions.value[0]
 })
 
 function onCreateClicked() {
@@ -324,6 +355,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       is_active: filters.value.is_active ? filters.value.is_active.id : null,
       numberPerPage: filters.value.numberPerPage.id,
+      version: filters.value.version.id,
   }, {
       preserveState: true,
       replace: true,

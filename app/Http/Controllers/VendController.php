@@ -1321,7 +1321,12 @@ class VendController extends Controller
 
         $vend = Vend::findOrFail($vendID);
 
-        // dd($request->all());
+        if($request->product_mapping_id != $vend->product_mapping_id) {
+            $request->merge([
+                'upcoming_product_mapping_id' => null,
+            ]);
+        }
+
         $vend->update([
             'name' => $request->name,
             'begin_date' => $request->begin_date,
@@ -1333,6 +1338,7 @@ class VendController extends Controller
             'serial_num' => $request->serial_num,
             'simcard_id' => $request->simcard_id,
             'termination_date' => $request->termination_date,
+            'upcoming_product_mapping_id' => $request->upcoming_product_mapping_id,
             'vend_config_id' => $request->vend_config_id,
             'vend_model_id' => $request->vend_model_id,
             'vend_prefix_id' => $request->vend_prefix_id,
@@ -1574,6 +1580,16 @@ class VendController extends Controller
         //   $this->mqttService->publish('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
           return true;
+    }
+
+    public function replaceProductMapping($id)
+    {
+        $vend = Vend::findOrFail($id);
+        $vend->product_mapping_id = $vend->upcoming_product_mapping_id;
+        $vend->upcoming_product_mapping_id = null;
+        $vend->save();
+
+        return redirect()->back();
     }
 
     private function processVendTempTiming($vendTemps)

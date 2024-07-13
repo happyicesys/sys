@@ -87,6 +87,7 @@ class SettingController extends Controller
                 'customer.operator:id,code,name',
                 'productMapping',
                 'simcard',
+                'upcomingProductMapping',
                 'vendModel',
                 'vendPrefix',
                 'vendConfig',
@@ -118,6 +119,7 @@ class SettingController extends Controller
                 'vends.last_updated_at',
                 'vends.private_key',
                 'vends.simcard_id',
+                'vends.upcoming_product_mapping_id',
                 'vends.vend_config_id',
                 'vends.vend_model_id',
                 'vends.vend_prefix_id',
@@ -193,6 +195,7 @@ class SettingController extends Controller
             'operator',
             'productMapping',
             'simcard',
+            'upcomingProductMapping',
             'vendConfig',
             'vendModel',
             'vendPrefix',
@@ -224,6 +227,7 @@ class SettingController extends Controller
             'vends.product_mapping_id',
             // 'vends.serial_num',
             'vends.key_id',
+            'vends.upcoming_product_mapping_id',
             'vends.vend_config_id',
             'vends.vend_model_id',
             'vends.vend_prefix_id',
@@ -253,7 +257,7 @@ class SettingController extends Controller
             'vend_prefix_id' => $request->vend_prefix_id ? $request->vend_prefix_id : $vend->vend_prefix_id,
             'vend_config_id' => $request->vend_config_id ? $request->vend_config_id : $vend->vend_config_id,
         ]);
-        // dd($request->all());
+        $upcomingProductMappingOptions = ProductMapping::find($vend->product_mapping_id)->upcomingProductMappings;
 
         return Inertia::render('Setting/Edit', [
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
@@ -286,6 +290,9 @@ class SettingController extends Controller
             ),
             'adminCustomerOptions' => CustomerResource::collection(
                 $customers
+            ),
+            'upcomingProductMappingOptions' => ProductMappingResource::collection(
+                $upcomingProductMappingOptions
             ),
             'vend' => $vend,
             'vendConfigOptions' => VendConfigResource::collection(

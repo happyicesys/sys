@@ -44,12 +44,18 @@ class VendConfigController extends Controller
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
+                    ->when($request->version, function($query, $search) {
+                        if($search !== 'all') {
+                            $query->where('version', $search);
+                        }
+                    })
                     ->when($request->sortKey, function($query, $search) use ($request) {
                         $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                     })
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
             ),
+            'versionOptions' => VendConfig::VERSION,
         ]);
     }
 
@@ -88,6 +94,7 @@ class VendConfigController extends Controller
                     ->orderBy('name')
                     ->get()
             ),
+            'versionOptions' => VendConfig::VERSION,
         ]);
     }
 
