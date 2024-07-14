@@ -701,6 +701,19 @@
                             {{ vend.upcomingProductMapping.name }}
                           </a>
                         </span>
+                        <span v-else>
+                          <span v-if="vend.productMapping && vend.productMapping.upcomingProductMappings">
+                            <a
+                              v-for="upcomingProductMapping in vend.productMapping.upcomingProductMappings"
+                              :key="upcomingProductMapping.id"
+                              :href="'/product-mappings/' + upcomingProductMapping.id + '/edit'"
+                              class="text-red-600 flex flex-col space-y-1"
+                              target="_blank"
+                            >
+                              {{ upcomingProductMapping.name }}
+                            </a>
+                          </span>
+                        </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.begin_date_short }}

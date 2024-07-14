@@ -85,7 +85,7 @@ class SettingController extends Controller
                 'cashlessTerminal',
                 'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type',
                 'customer.operator:id,code,name',
-                'productMapping',
+                'productMapping.upcomingProductMappings',
                 'simcard',
                 'upcomingProductMapping',
                 'vendModel',

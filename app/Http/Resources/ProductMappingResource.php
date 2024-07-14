@@ -17,6 +17,7 @@ class ProductMappingResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'currentProductMappings' => ProductMappingResource::collection($this->whenLoaded('currentProductMappings')),
             'upcomingProductMappings' => ProductMappingResource::collection($this->whenLoaded('upcomingProductMappings')),
             'upcoming_product_mapping_id' => $this->upcoming_product_mapping_id,
             'is_active' => $this->is_active ? true : false,

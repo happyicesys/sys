@@ -1,5 +1,4 @@
 <template>
-
   <Head title="Menu Prefix" />
 
   <BreezeAuthenticatedLayout>
@@ -12,13 +11,12 @@
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="flex justify-end">
-          <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          @click="onCreateClicked()"
+          <Button
+            class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            @click="onCreateClicked()"
           >
-            <PlusIcon class="h-4 w-4" aria-hidden="true"/>
-            <span>
-              Create
-            </span>
+            <PlusIcon class="h-4 w-4" aria-hidden="true" />
+            <span>Create</span>
           </Button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
@@ -27,235 +25,284 @@
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Setting Chart
+              Setting Chart
             </label>
             <MultiSelect
-                v-model="filters.vend_config_id"
-                :options="vendConfigOptions"
-                trackBy="id"
-                valueProp="id"
-                label="value"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
+              v-model="filters.vend_config_id"
+              :options="vendConfigOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
             >
             </MultiSelect>
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Current Mapping
+              Current Mapping
             </label>
             <MultiSelect
-                v-model="filters.product_mapping_id"
-                :options="productMappingOptions"
-                trackBy="id"
-                valueProp="id"
-                label="value"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
+              v-model="filters.product_mapping_id"
+              :options="productMappingOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
             >
             </MultiSelect>
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Upcoming Mapping
+              Upcoming Mapping
             </label>
             <MultiSelect
-                v-model="filters.upcoming_product_mapping_id"
-                :options="productMappingOptions"
-                trackBy="id"
-                valueProp="id"
-                label="value"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
+              v-model="filters.upcoming_product_mapping_id"
+              :options="productMappingOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
             >
             </MultiSelect>
           </div>
         </div>
 
-
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
           <div class="mt-3">
             <div class="flex space-x-1">
-              <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              @click="onSearchFilterUpdated()"
+              <Button
+                class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                @click="onSearchFilterUpdated()"
               >
-                <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
-                <span>
-                  Search
-                </span>
+                <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" />
+                <span>Search</span>
               </Button>
-              <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              @click="resetFilters()"
+              <Button
+                class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                @click="resetFilters()"
               >
-                <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
-                <span>
-                  Reset
-                </span>
+                <BackspaceIcon class="h-4 w-4" aria-hidden="true" />
+                <span>Reset</span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
-              <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
-                  <span class="font-medium">{{ vendPrefixes.meta.from ?? 0 }}</span>
-                  <span>to</span>
-                  <span class="font-medium">{{ vendPrefixes.meta.to ?? 0 }}</span>
-                  <span>of</span>
-                  <span class="font-medium">{{ vendPrefixes.meta.total }}</span>
-                  <span>results</span>
-              </p>
-              <MultiSelect
-                  v-model="filters.numberPerPage"
-                  :options="numberPerPageOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="value"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                  @selected="onSearchFilterUpdated"
-              >
-              </MultiSelect>
+            <p class="text-sm text-gray-700 leading-5 flex space-x-1">
+              <span>Showing</span>
+              <span class="font-medium">{{ vendPrefixes.meta.from ?? 0 }}</span>
+              <span>to</span>
+              <span class="font-medium">{{ vendPrefixes.meta.to ?? 0 }}</span>
+              <span>of</span>
+              <span class="font-medium">{{ vendPrefixes.meta.total }}</span>
+              <span>results</span>
+            </p>
+            <MultiSelect
+              v-model="filters.numberPerPage"
+              :options="numberPerPageOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              @selected="onSearchFilterUpdated"
+            >
+            </MultiSelect>
           </div>
         </div>
       </div>
 
       <div class="mt-6 flex flex-col">
-       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
             <table class="min-w-full border-separate" style="border-spacing: 0">
-                <thead class="bg-gray-100">
-                  <tr class="divide-x divide-gray-200">
-                    <TableHead>
-                      #
-                    </TableHead>
-                    <TableHead>
-                      Setting Chart
-                    </TableHead>
-                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')" class="bg-sky-200" >
-                      Prefix
-                    </TableHeadSort>
-                    <TableHead>
-                      Desc
-                    </TableHead>
-                    <TableHead>
-                      Product Mapping <br>
-                      (Current)
-                    </TableHead>
-                    <TableHead>
-                      Product Mapping <br>
-                      (Upcoming)
-                    </TableHead>
-                    <TableHead>
-                    </TableHead>
-                  </tr>
-                </thead>
-                  <tbody class="bg-white">
-                    <tr v-for="(vendPrefix, vendPrefixIndex) in vendPrefixes.data" :key="vendPrefix.id" class="divide-x divide-gray-200">
-                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
-                        {{ vendPrefixes.meta.from + vendPrefixIndex }}
-                      </TableData>
-                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
-                        <div v-if="vendPrefix.vendConfigs">
-                          <span v-for="vendConfig in vendPrefix.vendConfigs" class="flex space-x-2 space-y-1 items-center">
-                            <Link :href="'/vend-configs/' + vendConfig.id + '/edit'" class="text-blue-600" target="_blank">
-                              {{ vendConfig.name }}
-                            </Link>
-                            <PhotoIcon
-                              class="h-5 w-5 bg-sky-400 mx-1 my-1 py-1 px-1 rounded-full hover:cursor-pointer hover:bg-sky-500 hover:text-white shadow"
-                              aria-hidden="true"
-                              @click="onAttachmentOverviewClicked(vendConfig)"
-                              v-if="vendConfig.attachments && vendConfig.attachments.length > 0"
-                            />
-                            <!-- <Button
-                            type="button" class="bg-sky-300 hover:bg-sky-400 px-1 py-1 text-xs text-sky-800 w-fit"
-                            @click="onAttachmentOverviewClicked(vendConfig)"
-                            v-if="vendConfig.attachments && vendConfig.attachments.length > 0"
-                            >
-
-                            </Button> -->
-                          </span>
-                        </div>
-                      </TableData>
-                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center bg-sky-50">
-                        {{ vendPrefix.name }}
-                      </TableData>
-                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-left whitespace-pre-line">
-                        {{ vendPrefix.desc }}
-                      </TableData>
-                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
-                        <div class="flex flex-col space-y-1">
-                          <span v-for="productMapping in vendPrefix.productMappings">
-                            <a :href="'/product-mappings/' + productMapping.id + '/edit'" class="text-blue-600" target="_blank">
-                              {{ productMapping.name }}
-                            </a>
-                          </span>
-                        </div>
-                      </TableData>
-                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
-                        <div class="flex flex-col space-y-1">
-                          <span v-for="productMapping in vendPrefix.productMappings">
-                            <a v-for="upcomingProductMapping in productMapping.upcomingProductMappings" :href="'/product-mappings/' + upcomingProductMapping.id + '/edit'" class="text-blue-600 flex flex-col space-y-1" target="_blank">
-                              {{ upcomingProductMapping.name }}
-                            </a>
-                          </span>
-                        </div>
-                      </TableData>
-                      <TableData :currentIndex="vendPrefixIndex" :totalLength="vendPrefixes.length" inputClass="text-center">
-                        <div class="flex justify-center space-x-1">
-                          <Button
-                            type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-                            @click="onEditClicked(vendPrefix)"
-                          >
-                            <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                            <span>
-                                Edit
-                            </span>
-                          </Button>
-                          <Button
-                            type="button"
-                            class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1 w-fit"
-                            :class="[(vendPrefix.vends && vendPrefix.vends.length > 0) || (vendPrefix.vendConfigs && vendPrefix.vendConfigs.length > 0) ? 'opacity-50 cursor-not-allowed' : '']"
-                            @click="onDeleteClicked(vendPrefix)"
-                            :disabled="(vendPrefix.vends && vendPrefix.vends.length > 0) || (vendPrefix.vendConfigs && vendPrefix.vendConfigs.length > 0)"
-                          >
-                            <span class="flex space-x-1 items-center">
-                              <TrashIcon class="w-4 h-4"></TrashIcon>
-                              <span>
-                                  Delete
-                              </span>
-                            </span>
-                            <span v-if="(vendPrefix.vends && vendPrefix.vends.length > 0) || (vendPrefix.vendConfigs && vendPrefix.vendConfigs.length > 0)">
-                              (Binded)
-                            </span>
-                          </Button>
-                        </div>
-                      </TableData>
-                      </tr>
+              <thead class="bg-gray-100">
+                <tr class="divide-x divide-gray-200">
+                  <TableHead>#</TableHead>
+                  <TableHead>Setting Chart</TableHead>
+                  <TableHeadSort
+                    modelName="name"
+                    :sortKey="filters.sortKey"
+                    :sortBy="filters.sortBy"
+                    @sort-table="sortTable('name')"
+                    class="bg-sky-200"
+                  >
+                    Prefix
+                  </TableHeadSort>
+                  <TableHead>Desc</TableHead>
+                  <TableHead>Product Mapping <br /> (Current)</TableHead>
+                  <TableHead>Product Mapping <br /> (Upcoming)</TableHead>
+                  <TableHead></TableHead>
+                </tr>
+              </thead>
+              <tbody class="bg-white">
+                <tr
+                  v-for="(vendPrefix, vendPrefixIndex) in vendPrefixes.data"
+                  :key="vendPrefix.id"
+                  class="divide-x divide-gray-200"
+                >
+                  <TableData
+                    :currentIndex="vendPrefixIndex"
+                    :totalLength="vendPrefixes.length"
+                    inputClass="text-center"
+                  >
+                    {{ vendPrefixes.meta.from + vendPrefixIndex }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="vendPrefixIndex"
+                    :totalLength="vendPrefixes.length"
+                    inputClass="text-center"
+                  >
+                    <div v-if="vendPrefix.vendConfigs">
+                      <span
+                        v-for="vendConfig in vendPrefix.vendConfigs"
+                        class="flex space-x-2 space-y-1 items-center"
+                      >
+                        <Link
+                          :href="'/vend-configs/' + vendConfig.id + '/edit'"
+                          class="text-blue-600"
+                          target="_blank"
+                        >
+                          {{ vendConfig.name }}
+                        </Link>
+                        <PhotoIcon
+                          class="h-5 w-5 bg-sky-400 mx-1 my-1 py-1 px-1 rounded-full hover:cursor-pointer hover:bg-sky-500 hover:text-white shadow"
+                          aria-hidden="true"
+                          @click="onAttachmentOverviewClicked(vendConfig)"
+                          v-if="vendConfig.attachments && vendConfig.attachments.length > 0"
+                        />
+                      </span>
+                    </div>
+                  </TableData>
+                  <TableData
+                    :currentIndex="vendPrefixIndex"
+                    :totalLength="vendPrefixes.length"
+                    inputClass="text-center bg-sky-50"
+                  >
+                    {{ vendPrefix.name }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="vendPrefixIndex"
+                    :totalLength="vendPrefixes.length"
+                    inputClass="text-left whitespace-pre-line"
+                  >
+                    {{ vendPrefix.desc }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="vendPrefixIndex"
+                    :totalLength="vendPrefixes.length"
+                    inputClass="text-center"
+                  >
+                    <div class="flex flex-col space-y-1">
+                      <span
+                        v-for="productMapping in filteredProductMappings(vendPrefix)"
+                        :key="productMapping.id"
+                      >
+                        <a
+                          :href="'/product-mappings/' + productMapping.id + '/edit'"
+                          class="text-blue-600"
+                          target="_blank"
+                        >
+                          {{ productMapping.name }}
+                        </a>
+                      </span>
+                    </div>
+                  </TableData>
+                  <TableData
+                    :currentIndex="vendPrefixIndex"
+                    :totalLength="vendPrefixes.length"
+                    inputClass="text-center"
+                  >
+                    <div class="flex flex-col space-y-1">
+                      <span v-for="productMapping in vendPrefix.productMappings" :key="productMapping.id">
+                        <a
+                          v-for="upcomingProductMapping in productMapping.upcomingProductMappings"
+                          :key="upcomingProductMapping.id"
+                          :href="'/product-mappings/' + upcomingProductMapping.id + '/edit'"
+                          class="text-blue-600 flex flex-col space-y-1"
+                          target="_blank"
+                        >
+                          {{ upcomingProductMapping.name }}
+                        </a>
+                      </span>
+                    </div>
+                  </TableData>
+                  <TableData
+                    :currentIndex="vendPrefixIndex"
+                    :totalLength="vendPrefixes.length"
+                    inputClass="text-center"
+                  >
+                    <div class="flex justify-center space-x-1">
+                      <Button
+                        type="button"
+                        class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                        @click="onEditClicked(vendPrefix)"
+                      >
+                        <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                        <span>Edit</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1 w-fit"
+                        :class="[
+                          (vendPrefix.vends && vendPrefix.vends.length > 0) ||
+                          (vendPrefix.vendConfigs && vendPrefix.vendConfigs.length > 0)
+                            ? 'opacity-50 cursor-not-allowed'
+                            : ''
+                        ]"
+                        @click="onDeleteClicked(vendPrefix)"
+                        :disabled="(vendPrefix.vends && vendPrefix.vends.length > 0) || (vendPrefix.vendConfigs && vendPrefix.vendConfigs.length > 0)"
+                      >
+                        <span class="flex space-x-1 items-center">
+                          <TrashIcon class="w-4 h-4"></TrashIcon>
+                          <span>Delete</span>
+                        </span>
+                        <span
+                          v-if="
+                            (vendPrefix.vends && vendPrefix.vends.length > 0) ||
+                            (vendPrefix.vendConfigs && vendPrefix.vendConfigs.length > 0)
+                          "
+                        >
+                          (Binded)
+                        </span>
+                      </Button>
+                    </div>
+                  </TableData>
+                </tr>
                 <tr v-if="!vendPrefixes.data.length">
-                  <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                  <td
+                    colspan="24"
+                    class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center"
+                  >
+                    No Results Found
                   </td>
                 </tr>
               </tbody>
             </table>
-            <Paginator v-if="vendPrefixes.data.length" :links="vendPrefixes.links" :meta="vendPrefixes.meta"></Paginator>
+            <Paginator
+              v-if="vendPrefixes.data.length"
+              :links="vendPrefixes.links"
+              :meta="vendPrefixes.meta"
+            ></Paginator>
           </div>
+        </div>
       </div>
     </div>
-  </div>
-  <AttachmentOverview
-    v-if="showAttachmentOverviewModal"
-    :showModal="showAttachmentOverviewModal"
-    @modalClose="onAttachmentOverviewModalClose"
-    :model="vendConfig"
-    :items="attachments"
-  >
-  </AttachmentOverview>
-  <Form
+    <AttachmentOverview
+      v-if="showAttachmentOverviewModal"
+      :showModal="showAttachmentOverviewModal"
+      @modalClose="onAttachmentOverviewModalClose"
+      :model="vendConfig"
+      :items="attachments"
+    >
+    </AttachmentOverview>
+    <Form
       v-if="showModal"
       :operatorOptions="operatorOptions"
       :productMappingOptions="props.productMappingOptions"
@@ -264,8 +311,8 @@
       :type="type"
       :showModal="showModal"
       @modalClose="onModalClose"
-  >
-  </Form>
+    >
+    </Form>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -277,7 +324,14 @@ import Form from '@/Pages/VendPrefix/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PhotoIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import {
+  BackspaceIcon,
+  MagnifyingGlassIcon,
+  PhotoIcon,
+  PencilSquareIcon,
+  PlusIcon,
+  TrashIcon,
+} from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -290,7 +344,7 @@ const props = defineProps({
   productMappingOptions: [Array, Object],
   vendConfigOptions: [Array, Object],
   vendPrefixes: Object,
-})
+});
 
 const filters = ref({
   name: '',
@@ -300,15 +354,15 @@ const filters = ref({
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
-})
-const attachments = ref([])
-const showAttachmentOverviewModal = ref(false)
-const showModal = ref(false)
-const vendPrefix = ref()
-const type = ref('')
-const numberPerPageOptions = ref([])
-const productMappingOptions = ref([])
-const vendConfigOptions = ref([])
+});
+const attachments = ref([]);
+const showAttachmentOverviewModal = ref(false);
+const showModal = ref(false);
+const vendPrefix = ref();
+const type = ref('');
+const numberPerPageOptions = ref([]);
+const productMappingOptions = ref([]);
+const vendConfigOptions = ref([]);
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -316,74 +370,98 @@ onMounted(() => {
     { id: 200, value: 200 },
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
-  ]
+  ];
   productMappingOptions.value = [
-    {id: 'all', value: 'All'},
-    ...props.productMappingOptions.data.map((data) => {return {id: data.id, value: data.name}})
-  ]
+    { id: 'all', value: 'All' },
+    ...props.productMappingOptions.data.map((data) => {
+      return { id: data.id, value: data.name };
+    }),
+  ];
   vendConfigOptions.value = [
-    {id: 'all', value: 'All'},
-    ...props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
-  ]
-  filters.value.numberPerPage = numberPerPageOptions.value[0]
-  filters.value.vend_config_id = vendConfigOptions.value[0]
-  filters.value.product_mapping_id = productMappingOptions.value[0]
-  filters.value.upcoming_product_mapping_id = productMappingOptions.value[0]
-})
+    { id: 'all', value: 'All' },
+    ...props.vendConfigOptions.data.map((data) => {
+      return { id: data.id, value: data.name };
+    }),
+  ];
+  filters.value.numberPerPage = numberPerPageOptions.value[0];
+  filters.value.vend_config_id = vendConfigOptions.value[0];
+  filters.value.product_mapping_id = productMappingOptions.value[0];
+  filters.value.upcoming_product_mapping_id = productMappingOptions.value[0];
+});
 
 function onCreateClicked() {
-  type.value = 'create'
-  vendPrefix.value = null
-  showModal.value = true
+  type.value = 'create';
+  vendPrefix.value = null;
+  showModal.value = true;
 }
 
 function onDeleteClicked(vendPrefix) {
   const approval = confirm('Are you sure to delete ' + vendPrefix.name + '?');
   if (!approval) {
-      return;
+    return;
   }
-  router.delete('/vend-prefixes/' + vendPrefix.id)
+  router.delete('/vend-prefixes/' + vendPrefix.id);
 }
 
 function onEditClicked(telcoValue) {
-  type.value = 'update'
-  vendPrefix.value = telcoValue
-  showModal.value = true
+  type.value = 'update';
+  vendPrefix.value = telcoValue;
+  showModal.value = true;
 }
 
 function onSearchFilterUpdated() {
-  router.get('/vend-prefixes', {
+  router.get(
+    '/vend-prefixes',
+    {
       ...filters.value,
       product_mapping_id: filters.value.product_mapping_id.id,
       upcoming_product_mapping_id: filters.value.upcoming_product_mapping_id.id,
       vend_config_id: filters.value.vend_config_id.id,
       numberPerPage: filters.value.numberPerPage.id,
-  }, {
+    },
+    {
       preserveState: true,
       replace: true,
-  })
+    }
+  );
 }
 
 function resetFilters() {
-  router.get('/vend-prefixes')
+  router.get('/vend-prefixes');
 }
 
 function sortTable(sortKey) {
-  filters.value.sortKey = sortKey
-  filters.value.sortBy = !filters.value.sortBy
-  onSearchFilterUpdated()
+  filters.value.sortKey = sortKey;
+  filters.value.sortBy = !filters.value.sortBy;
+  onSearchFilterUpdated();
 }
 
 function onAttachmentOverviewClicked(vendConfig) {
-  attachments.value = vendConfig.attachments
-  showAttachmentOverviewModal.value = true
+  attachments.value = vendConfig.attachments;
+  showAttachmentOverviewModal.value = true;
 }
 
 function onAttachmentOverviewModalClose() {
-  showAttachmentOverviewModal.value = false
+  showAttachmentOverviewModal.value = false;
 }
 
 function onModalClose() {
-  showModal.value = false
+  showModal.value = false;
+}
+
+function upcomingProductMappingIds(vendPrefix) {
+  return vendPrefix.productMappings.reduce((ids, productMapping) => {
+    const upcomingIds = productMapping.upcomingProductMappings.map(
+      (upcoming) => upcoming.id
+    );
+    return ids.concat(upcomingIds);
+  }, []);
+}
+
+function filteredProductMappings(vendPrefix) {
+  const upcomingIds = upcomingProductMappingIds(vendPrefix);
+  return vendPrefix.productMappings.filter(
+    (productMapping) => !upcomingIds.includes(productMapping.id)
+  );
 }
 </script>
