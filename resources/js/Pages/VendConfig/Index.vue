@@ -120,7 +120,7 @@
                       Name
                     </TableHeadSort>
                     <TableHeadSort modelName="version" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('version')">
-                      Version
+                      Latest Version
                     </TableHeadSort>
                     <TableHead>
                       Desc
@@ -316,6 +316,7 @@ onMounted(() => {
   ]
   versionOptions.value = [
     { id: 'all', value: 'All' },
+    { id: '-', value: '-' },
     ...Object.entries(props.versionOptions).map(([id, version]) => ({id: version, value: version}))
   ]
 

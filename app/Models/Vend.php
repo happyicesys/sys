@@ -110,6 +110,7 @@ class Vend extends Model
         'vend_temp_alert_json',
         'vend_transaction_totals_json',
         'vend_type_id',
+        'vend_vend_config_version',
         'virtual_firmware_ver',
     ];
 

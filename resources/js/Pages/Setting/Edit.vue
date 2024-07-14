@@ -199,7 +199,7 @@
                   valueProp="id"
                   label="full_name"
                   placeholder="Select"
-                  open-direction="top"
+                  open-direction="bottom"
                   class="mt-1"
                 >
                 </MultiSelect>
@@ -213,7 +213,7 @@
 
             <hr class="sm:col-span-6">
 
-            <div class="sm:col-span-5">
+            <div class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Setting Chart
                   <span class="text-red-500">
@@ -234,6 +234,36 @@
                 </MultiSelect>
                 <div class="text-sm text-red-600" v-if="form.errors.vend_config_id">
                   {{ form.errors.vend_config_id }}
+                </div>
+            </div>
+            <div class="sm:col-span-2">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Latest Version
+                </label>
+                <input
+                  type="text"
+                  class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed mt-1"
+                  :value="form.vend_config_id ? form.vend_config_version : ''"
+                  disabled
+                />
+            </div>
+            <div class="sm:col-span-2">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Current Version
+                </label>
+                <MultiSelect
+                  v-model="form.vend_vend_config_version"
+                  :options="versionOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.vend_vend_config_version">
+                  {{ form.errors.vend_vend_config_version }}
                 </div>
             </div>
 
@@ -304,7 +334,7 @@
             <hr class="sm:col-span-6">
             <div class="sm:col-span-3" v-if="form.vend_prefix_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Product Mapping
+                  Product Mapping (current)
                   <span class="text-red-500">
                     *
                   </span>
@@ -326,7 +356,7 @@
             </div>
             <div class="sm:col-span-3" v-if="form.vend_prefix_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Upcoming Product Mapping
+                  Product Mapping (upcoming)
                 </label>
                 <MultiSelect
                   v-model="form.upcoming_product_mapping_id"
@@ -783,13 +813,14 @@ const props = defineProps({
     operatorOptions: Object,
     productMappingOptions: Object,
     simcardOptions: Object,
+    type: String,
     upcomingProductMappingOptions: Object,
     vend: Object,
     vendConfigOptions: Object,
     vendModelOptions: Object,
     vendPrefixOptions: Object,
     vendSerialNumberOptions: Object,
-    type: String,
+    versionOptions: Object,
   })
 
 const form = ref(
@@ -821,6 +852,7 @@ const vendConfigOptions = ref([])
 const vendModelOptions = ref([])
 const vendPrefixOptions = ref([])
 const vendSerialNumberOptions = ref([])
+const versionOptions = ref([])
 
 function getDefaultForm() {
   return {
@@ -862,9 +894,11 @@ function getDefaultForm() {
     is_active: '',
     upcoming_product_mapping_id: '',
     vend_config_id: '',
+    vend_config_version: '',
     vend_model_id: '',
     vend_prefix_id: '',
     vend_serial_number_id: '',
+    vend_vend_config_version: '',
   }
 }
 
@@ -914,22 +948,26 @@ onMounted(() => {
       name: vendSerialNumber.code,
     }))
   ]
+  versionOptions.value = [
+    { id: '-', value: '-'},
+    ...Object.entries(props.versionOptions).map(([id, version]) => ({id: version, value: version}))
+  ]
 
   form.value = props.vend ? useForm({
     ...props.vend,
-    // is_active: props.vend.is_active == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
-    // is_testing: props.vend.is_testing == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
     cashless_terminal_id: props.vend.cashless_terminal_id ? props.vend.cashless_terminal_id : null,
     key_id: props.vend.key_id ? keyOptions.value.find(keyModel => keyModel.id === props.vend.key_id) : null,
-    product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping => productMapping.id === props.vend.product_mapping_id) : null,
+    product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping =>    productMapping.id === props.vend.product_mapping_id) : null,
     simcard_id: props.vend.simcard_id ? props.vend.simcard_id : null,
     status: statusOptions.value.find(status => status.id === (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id === props.vend.operator_id) : null : null,
     upcoming_product_mapping_id: props.vend.upcoming_product_mapping_id ? upcomingProductMappingOptions.value.find(upcomingProductMapping => upcomingProductMapping.id === props.vend.upcoming_product_mapping_id) : null,
     vend_config_id: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vend.vend_config_id) : null : null,
+    vend_config_version: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vend.vend_config_id).version : null : null,
     vend_model_id: props.vend ? props.vend.vend_model_id ? vendModelOptions.value.find(vendModel => vendModel.id === props.vend.vend_model_id) : null : null,
     vend_prefix_id: props.vend ? props.vend.vend_prefix_id ? vendPrefixOptions.value.find(vendPrefix => vendPrefix.id === props.vend.vend_prefix_id) : null : null,
     vend_serial_number_id: props.vend ? props.vend.vend_serial_number_id ? vendSerialNumberOptions.value.find(vendSerialNumber => vendSerialNumber.id === props.vend.vend_serial_number_id) : null : null,
+    vend_vend_config_version: props.vend.vend_vend_config_version ? {id: props.vend.vend_vend_config_version, value: props.vend.vend_vend_config_version} : null,
     customer: {
       ...JSON.parse(JSON.stringify(props.vend.customer)),
       code: props.vend.customer && props.vend.customer.person_id ? props.vend.customer.virtual_customer_code + ' (' + props.vend.customer.virtual_customer_prefix + ')' : (props.vend.customer ? props.vend.customer.code : null),
@@ -1096,6 +1134,7 @@ function saveVend(vendID) {
       vend_model_id: data.vend_model_id ? data.vend_model_id.id : null,
       vend_prefix_id: data.vend_prefix_id ? data.vend_prefix_id.id : null,
       vend_serial_number_id: data.vend_serial_number_id ? data.vend_serial_number_id.id : null,
+      vend_vend_config_version: data.vend_vend_config_version ? data.vend_vend_config_version.id : null,
     }))
     .post('/vends/' + vendID + '/update', {
     onSuccess: () => {

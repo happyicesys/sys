@@ -232,6 +232,7 @@ class SettingController extends Controller
             'vends.vend_model_id',
             'vends.vend_prefix_id',
             'vends.vend_serial_number_id',
+            'vends.vend_vend_config_version',
             DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
             DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
         )
@@ -257,7 +258,7 @@ class SettingController extends Controller
             'vend_prefix_id' => $request->vend_prefix_id ? $request->vend_prefix_id : $vend->vend_prefix_id,
             'vend_config_id' => $request->vend_config_id ? $request->vend_config_id : $vend->vend_config_id,
         ]);
-        $upcomingProductMappingOptions = ProductMapping::find($vend->product_mapping_id)->upcomingProductMappings;
+        $upcomingProductMappingOptions = ProductMapping::find($vend->product_mapping_id) ? ProductMapping::find($vend->product_mapping_id)->upcomingProductMappings : [];
 
         return Inertia::render('Setting/Edit', [
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
@@ -320,6 +321,7 @@ class SettingController extends Controller
                     ->orderBy('code')
                     ->get()
             ),
+            'versionOptions' => VendConfig::VERSION,
             'type' => 'update',
         ]);
     }

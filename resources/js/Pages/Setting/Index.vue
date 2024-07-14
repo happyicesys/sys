@@ -682,10 +682,18 @@
                         {{ vend.vend_serial_number_code }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        <span v-if="vend.vendConfig">
+                        <span v-if="vend.vendConfig" class="flex flex-col space-y-1">
                           <a :href="'/vend-configs/' + vend.vendConfig.id + '/edit'" target="_blank" class="text-blue-600">
-                            {{ vend.vendConfig.name }}
+                            <span>
+                              {{ vend.vendConfig.name }}
+                            </span>
                           </a>
+                          <span v-if="vend.vend_vend_config_version">
+                            Current Ver: {{ vend.vend_vend_config_version }}
+                          </span>
+                          <span v-if="vend.vendConfig && vend.vendConfig.version">
+                            Latest Ver: {{ vend.vendConfig.version }}
+                          </span>
                         </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">

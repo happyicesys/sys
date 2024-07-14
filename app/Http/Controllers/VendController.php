@@ -1343,6 +1343,7 @@ class VendController extends Controller
             'vend_model_id' => $request->vend_model_id,
             'vend_prefix_id' => $request->vend_prefix_id,
             'vend_serial_number_id' => $request->vend_serial_number_id,
+            'vend_vend_config_version' => $request->vend_vend_config_version,
         ]);
 
 

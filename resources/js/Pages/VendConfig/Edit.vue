@@ -24,7 +24,7 @@
             </div>
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Version
+                Latest Version
               </label>
               <MultiSelect
                 v-model="form.version"
@@ -293,8 +293,10 @@ onMounted(() => {
   vendConfigOptions.value = props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
   vendPrefixOptions.value = props.vendPrefixOptions.data
   vendPrefixes.value = JSON.parse(JSON.stringify(props.vendConfig.data.vendPrefixes))
-  versionOptions.value = Object.entries(props.versionOptions).map(([id, version]) => ({id: version, value: version}))
-
+  versionOptions.value = [
+    { id: '-', value: '-'},
+    ...Object.entries(props.versionOptions).map(([id, version]) => ({id: version, value: version}))
+  ]
   form.value = props.vendConfig ? useForm({
     ...props.vendConfig.data,
     vendConfigCompatibles: props.vendConfig.data.vendConfigCompatibles.map((vendConfigCompatible) => {return {id: vendConfigCompatible.id, value: vendConfigCompatible.name}}),
