@@ -205,7 +205,7 @@ class SettingController extends Controller
         ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
         ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
         ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
-        ->leftJoin('upcoming_product_mappings', 'upcoming_product_mappings.id', '=', 'vends.upcoming_product_mapping_id')
+        ->leftJoin('product_mappings as upcoming_product_mappings', 'product_mappings.id', '=', 'vends.upcoming_product_mapping_id')
         ->leftJoin('addresses', function($query) {
             $query->on('addresses.modelable_id', '=', 'customers.id')
                     ->where('addresses.modelable_type', '=', 'App\Models\Customer')
