@@ -1642,7 +1642,7 @@ onMounted(() => {
 		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
 	] : operatorOptions.value[0]
   filters.value.status = statusOptions.value[2]
-    filters.value.vend_prefix_id = vendPrefixOptions.value[0]
+    // filters.value.vend_prefix_id = vendPrefixOptions.value[0]
   // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
 })
 

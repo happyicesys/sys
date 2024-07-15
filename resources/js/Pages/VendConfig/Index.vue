@@ -42,6 +42,23 @@
             </MultiSelect>
           </div>
           <div>
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Machine Prefix
+						</label>
+						<MultiSelect
+							v-model="filters.vendPrefixes"
+							:options="vendPrefixOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							mode="tags"
+							class="mt-1"
+						>
+						</MultiSelect>
+					</div>
+          <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Version
             </label>
@@ -283,6 +300,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 const props = defineProps({
   operatorOptions: [Array, Object],
   vendConfigs: Object,
+  vendPrefixOptions: [Array, Object],
   versionOptions: [Array, Object],
 })
 
@@ -292,6 +310,7 @@ const filters = ref({
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
+  vendPrefixes: [],
   version: '',
 })
 const attachments = ref([])
@@ -305,6 +324,7 @@ const showModal = ref(false)
 const vendConfig = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
+const vendPrefixOptions = ref([])
 const versionOptions = ref([])
 
 onMounted(() => {
@@ -313,6 +333,9 @@ onMounted(() => {
     { id: 200, value: 200 },
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
+  ]
+  vendPrefixOptions.value = [
+    ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   versionOptions.value = [
     { id: 'all', value: 'All' },
@@ -356,6 +379,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       is_active: filters.value.is_active ? filters.value.is_active.id : null,
       numberPerPage: filters.value.numberPerPage.id,
+      vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => vendPrefix.id),
       version: filters.value.version.id,
   }, {
       preserveState: true,

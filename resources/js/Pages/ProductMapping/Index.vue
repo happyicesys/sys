@@ -49,6 +49,23 @@
             >
             </MultiSelect>
           </div>
+          <div>
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Machine Prefix
+						</label>
+						<MultiSelect
+							v-model="filters.vendPrefixes"
+							:options="vendPrefixOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							mode="tags"
+							class="mt-1"
+						>
+						</MultiSelect>
+					</div>
         </div>
 
 
@@ -111,9 +128,9 @@
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name', false)"  class="bg-sky-200">
                       Name
                     </TableHeadSort>
-                    <TableHead>
+                    <TableHeadSort modelName="vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefix_name', false)">
                       Binded Prefix
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHead>
                       Channel - Product
                     </TableHead>
@@ -354,6 +371,7 @@ const props = defineProps({
   productMappings: Object,
   productMappingOptions: Object,
   unbindedVends: Object,
+  vendPrefixOptions: Object,
 })
 
 const filters = ref({
@@ -364,6 +382,7 @@ const filters = ref({
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
+  vendPrefixes: [],
 })
 const attachments = ref([])
 const booleanOptions = ref([])
@@ -375,6 +394,7 @@ const type = ref('')
 const numberPerPageOptions = ref([])
 const roles = usePage().props.auth.roles
 const permissions = usePage().props.auth.permissions
+const vendPrefixOptions = ref([])
 
 onMounted(() => {
   booleanOptions.value = [
@@ -386,6 +406,9 @@ onMounted(() => {
     { id: 200, value: 200 },
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
+  ]
+  vendPrefixOptions.value = [
+    ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   filters.value.is_active = booleanOptions.value[0]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
@@ -439,6 +462,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       is_active: filters.value.is_active.id,
       numberPerPage: filters.value.numberPerPage.id,
+      vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
   }, {
       preserveState: true,
       replace: true,

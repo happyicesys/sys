@@ -367,7 +367,7 @@ class Vend extends Model
             }
         })
         ->when($request->account_manager_name, function($query, $search) {
-        $query->where('customers.account_manager_json->name', 'LIKE', "{$search}%");
+            $query->where('customers.account_manager_json->name', 'LIKE', "{$search}%");
         })
         ->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
@@ -589,6 +589,12 @@ class Vend extends Model
             if($search != 'all') {
                 $query->where('vends.vend_prefix_id', $search);
             }
+        })
+        ->when($request->vendPrefixes, function($query, $search) {
+            $query->whereIn('vend_prefix_id', $search);
+            // $query->whereHas('vendPrefix', function($query) use ($search) {
+            //     $query->whereIn('id', $search);
+            // });
         })
         ->when($request->vendRecordsThirtyDaysAmountAverageLessThan, function($query, $search) {
             $query->where('virtual_vend_records_thirty_days_amount_average', '<=', $search*100);

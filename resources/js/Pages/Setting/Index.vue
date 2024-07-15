@@ -203,21 +203,22 @@
             </MultiSelect>
           </div>
           <div>
-            <label for="text" class="block text-sm font-medium text-gray-700">
-                Machine Prefix
-            </label>
-            <MultiSelect
-                v-model="filters.vend_prefix_id"
-                :options="vendPrefixOptions"
-                trackBy="id"
-                valueProp="id"
-                label="value"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-            >
-            </MultiSelect>
-          </div>
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Machine Prefix
+						</label>
+						<MultiSelect
+							v-model="filters.vendPrefixes"
+							:options="vendPrefixOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							mode="tags"
+							class="mt-1"
+						>
+						</MultiSelect>
+					</div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Setting Chart
@@ -824,7 +825,7 @@ const filters = ref({
     // is_testing: '',
     vend_config_id: '',
     vend_model_id: '',
-    vend_prefix_id: '',
+    vendPrefixes: [],
     sortKey: '',
     sortBy: true,
     status: '',
@@ -926,7 +927,6 @@ onMounted(() => {
     filters.value.simcard_id = simcardOptions.value[0]
     filters.value.vend_config_id = vendConfigOptions.value[0]
     filters.value.vend_model_id = vendModelOptions.value[0]
-    filters.value.vend_prefix_id = vendPrefixOptions.value[0]
 })
 
 function onCreateClicked() {
@@ -958,7 +958,7 @@ function onSearchFilterUpdated() {
       status: filters.value.status.id,
       vend_config_id: filters.value.vend_config_id.id,
       vend_model_id: filters.value.vend_model_id.id,
-      vend_prefix_id: filters.value.vend_prefix_id.id,
+      vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

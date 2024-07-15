@@ -44,6 +44,11 @@ class VendConfigController extends Controller
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
+                    ->when($request->vendPrefixes, function($query, $search) {
+                        $query->whereHas('vendPrefixes', function($query) use ($search) {
+                            $query->whereIn('vend_prefix_id', $search);
+                        });
+                    })
                     ->when($request->version, function($query, $search) {
                         if($search !== 'all') {
                             $query->where('version', $search);
@@ -54,6 +59,11 @@ class VendConfigController extends Controller
                     })
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
+            ),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::query()
+                    ->orderBy('name')
+                    ->get()
             ),
             'versionOptions' => VendConfig::VERSION,
         ]);

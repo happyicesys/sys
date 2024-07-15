@@ -6,12 +6,15 @@ use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\VendResource;
+use App\Http\Resources\VendPrefixResource;
 use App\Models\Product;
 use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Models\SellingPrice;
 use App\Models\Vend;
+use App\Models\VendPrefix;
 use Carbon\Carbon;
+use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -45,6 +48,16 @@ class ProductMappingController extends Controller
                     'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
                     'vendPrefixes'
                 ])
+                ->leftJoin('vend_prefixes', function ($join) {
+                    $join->on('product_mappings.id', '=', 'vend_prefixes.product_mapping_id')
+                         ->whereIn('vend_prefixes.id', function ($query) {
+                             $query->select(DB::raw('MIN(id)'))
+                                   ->from('vend_prefixes as vp')
+                                   ->whereColumn('vp.product_mapping_id', 'product_mappings.id')
+                                   ->orderBy('vp.name', 'asc')
+                                   ->groupBy('vp.product_mapping_id');
+                         });
+                })
                 ->when($request->name, function($query, $search) {
                     $query->where('name', 'LIKE', "%{$search}%");
                 })
@@ -61,9 +74,15 @@ class ProductMappingController extends Controller
                         $query->where('code', 'LIKE', "{$search}%");
                     });
                 })
+                ->when($request->vendPrefixes, function($query, $search) {
+                    $query->whereHas('vendPrefixes', function($query) use ($search) {
+                        $query->whereIn('vend_prefix_id', $search);
+                    });
+                })
                 ->when($request->is_active, function($query, $search) use ($request) {
                     $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
                 })
+                ->select('product_mappings.*', 'vend_prefixes.name as vend_prefix_name')
                 ->orderBy($request->sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' )
                 ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                 ->withQueryString()
@@ -93,7 +112,10 @@ class ProductMappingController extends Controller
                     )
                     ->orderBy('code')
                     ->get()
-                ),
+            ),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
         ]);
     }
 
