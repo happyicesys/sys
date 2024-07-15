@@ -59,7 +59,7 @@ class ProductMappingController extends Controller
                          });
                 })
                 ->when($request->name, function($query, $search) {
-                    $query->where('name', 'LIKE', "%{$search}%");
+                    $query->where('product_mappings.name', 'LIKE', "%{$search}%");
                 })
                 ->when($request->product, function($query, $search) {
                     $query->where(function($query) use ($search) {
@@ -80,7 +80,7 @@ class ProductMappingController extends Controller
                     });
                 })
                 ->when($request->is_active, function($query, $search) use ($request) {
-                    $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+                    $query->where('product_mappings.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
                 })
                 ->select('product_mappings.*', 'vend_prefixes.name as vend_prefix_name')
                 ->orderBy($request->sortKey, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' )

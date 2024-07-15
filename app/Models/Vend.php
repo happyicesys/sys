@@ -525,6 +525,11 @@ class Vend extends Model
                 $query->where('location_type_id', $search);
             }
         })
+        ->when($request->locationTypes, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereIn('location_type_id', $search);
+            }
+        })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
                 $query->where('vends.operator_id', $search);

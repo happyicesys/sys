@@ -93,12 +93,21 @@ class SettingController extends Controller
                 'vendConfig',
                 'vendSerialNumber',
             ])
+            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
+            ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->leftJoin('product_mappings as upcoming_product_mappings', 'product_mappings.id', '=', 'vends.upcoming_product_mapping_id')
+            ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
+            ->leftJoin('vend_models', 'vend_models.id', '=', 'vends.vend_model_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->leftJoin('vend_serial_numbers', 'vend_serial_numbers.id', '=', 'vends.vend_serial_number_id')
             ->filterIndex($request)
             ->select(
+                'customers.code AS customer_code',
                 'operators.code AS operator_code',
                 'operators.name AS operator_name',
+                'product_mappings.name AS product_mapping_name',
+                'upcoming_product_mappings.name AS upcoming_product_mapping_name',
                 'vends.id',
                 'vends.acb_vmc_pa_json',
                 'vends.begin_date',
@@ -125,6 +134,9 @@ class SettingController extends Controller
                 'vends.vend_prefix_id',
                 'vends.vend_serial_number_id',
                 'vends.vend_vend_config_version',
+                'vend_configs.name AS vend_config_name',
+                'vend_models.name AS vend_model_name',
+                'vend_prefixes.name AS vend_prefix_name',
                 'vend_serial_numbers.code AS vend_serial_number_code',
             );
         $vends = $this->filterOperator($vends);

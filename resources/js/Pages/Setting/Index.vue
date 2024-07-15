@@ -142,7 +142,7 @@
                 Location Type
             </label>
             <MultiSelect
-                v-model="filters.locationType"
+                v-model="filters.locationTypes"
                 :options="locationTypeOptions"
                 trackBy="id"
                 valueProp="id"
@@ -150,6 +150,7 @@
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
+                mode="tags"
             >
             </MultiSelect>
           </div>
@@ -342,7 +343,7 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHeadSort modelName="vend_model_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_model_name')">
+                    <TableHeadSort modelName="vend_models.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_models.name')">
                       Model
                     </TableHeadSort>
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
@@ -420,7 +421,7 @@
                           <span>
                             Current Ver: {{ vend.vend_vend_config_version }}
                           </span>
-                          <span v-if="vend.vendConfig">
+                          <span v-if="vend.vendConfig" :class="[vend.vend_vend_config_version == vend.vendConfig.version ? 'text-gray-800' : 'text-red-600']">
                             Latest Ver: {{ vend.vendConfig.version }}
                           </span>
                         </span>
@@ -816,7 +817,7 @@ const filters = ref({
     categories: [],
     categoryGroups: [],
     key_id: '',
-    locationType: '',
+    locationTypes: [],
     operators: [],
     selling_price_type: '',
     simcard_id: '',
@@ -912,7 +913,7 @@ onMounted(() => {
         ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
 
-    filters.value.locationType = locationTypeOptions.value[0]
+    // filters.value.locationType = locationTypeOptions.value[0]
     filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
 		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
@@ -949,7 +950,8 @@ function onSearchFilterUpdated() {
       categories: filters.value.categories.map((category) => { return category.id }),
       categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
       cashless_terminal_id: filters.value.cashless_terminal_id.id,
-      location_type_id: filters.value.locationType.id,
+      // location_type_id: filters.value.locationType.id,
+      locationTypes: filters.value.locationTypes.map((locationType) => { return locationType.id }),
       operators: filters.value.operators.map((operator) => { return operator.id }),
       is_binded_customer: filters.value.is_binded_customer.id,
       key_id: filters.value.key_id.id,
