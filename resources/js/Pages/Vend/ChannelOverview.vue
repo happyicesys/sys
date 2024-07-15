@@ -382,11 +382,7 @@ function compareSellingPrice(channel) {
       }
     }
   }
-  // if(channel.product && channel.product.selling_prices[0] && channel.product.selling_prices[0].amount) {
-  //   if(channel.amount == channel.product.selling_prices[0].amount) {
-  //     return 'text-red-500'
-  //   }
-  // }
+
   return 'text-gray-800'
 }
 

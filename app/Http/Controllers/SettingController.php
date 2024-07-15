@@ -124,6 +124,7 @@ class SettingController extends Controller
                 'vends.vend_model_id',
                 'vends.vend_prefix_id',
                 'vends.vend_serial_number_id',
+                'vends.vend_vend_config_version',
                 'vend_serial_numbers.code AS vend_serial_number_code',
             );
         $vends = $this->filterOperator($vends);
@@ -204,12 +205,16 @@ class SettingController extends Controller
         ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
         ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
         ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+        ->leftJoin('upcoming_product_mappings', 'upcoming_product_mappings.id', '=', 'vends.upcoming_product_mapping_id')
         ->leftJoin('addresses', function($query) {
             $query->on('addresses.modelable_id', '=', 'customers.id')
                     ->where('addresses.modelable_type', '=', 'App\Models\Customer')
                     ->where('addresses.type', '=', 2)
                     ->limit(1);
         })
+        ->leftJoin('vend_configs', 'vend_configs.id', '=', 'vends.vend_config_id')
+        ->leftJoin('vend_models', 'vend_models.id', '=', 'vends.vend_model_id')
+        ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
         ->where('vends.id', $id)
         ->select(
             'vends.id',
@@ -218,6 +223,9 @@ class SettingController extends Controller
             DB::raw('CASE WHEN customers.person_id IS NOT NULL THEN CONCAT(customers.virtual_customer_code," (",customers.virtual_customer_prefix,")") ELSE customers.code END AS customer_code'),
             'customers.name AS customer_name',
             'customers.person_id',
+            'customers.selling_price_type',
+            'product_mappings.name AS product_mapping_name',
+            'upcoming_product_mappings.name AS upcoming_product_mapping_name',
             'vends.cashless_terminal_id',
             'vends.customer_movement_history_json',
             'vends.begin_date',
@@ -233,6 +241,9 @@ class SettingController extends Controller
             'vends.vend_prefix_id',
             'vends.vend_serial_number_id',
             'vends.vend_vend_config_version',
+            'vend_configs.name AS vend_config_name',
+            'vend_models.name AS vend_model_name',
+            'vend_prefixes.name AS vend_prefix_name',
             DB::raw('CASE WHEN vends.is_testing THEN true ELSE false END AS is_testing'),
             DB::raw('CASE WHEN vends.is_active THEN true ELSE false END AS is_active'),
         )

@@ -341,23 +341,34 @@
                     <TableHead>
                       #
                     </TableHead>
+                    <TableHeadSort modelName="vend_model_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_model_name')">
+                      Model
+                    </TableHeadSort>
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
                       Vend ID
                     </TableHeadSort>
-                    <TableHead>
+                    <TableHeadSort modelName="vend_config_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_config_name')">
+                      Setting Chart
+                    </TableHeadSort>
+                    <TableHeadSort modelName="vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefix_name')">
                       Prefix
-                    </TableHead>
-                    <TableHead>
+                    </TableHeadSort>
+                    <TableHeadSort modelName="customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customer_code')">
                       Customer
-                    </TableHead>
-                    <TableHead>
+                    </TableHeadSort>
+                    <TableHeadSort modelName="selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('selling_price_type')">
                       Ref Price
-                    </TableHead>
+                    </TableHeadSort>
+                    <TableHeadSort modelName="product_mapping_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('product_mapping_name')">
+                      Product Mapping <br>
+                      (Current)
+                    </TableHeadSort>
+                    <TableHeadSort modelName="upcoming_product_mapping_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('upcoming_product_mapping_name')">
+                      Product Mapping <br>
+                      (Upcoming)
+                    </TableHeadSort>
                     <TableHead>
-                      Simcard
-                    </TableHead>
-                    <TableHead>
-                      Cashless Terminal
+                      Status
                     </TableHead>
                     <TableHead>
                       Bill Acceptor
@@ -366,10 +377,10 @@
                       Coin Acceptor
                     </TableHead>
                     <TableHead>
-                      Status
+                      Cashless Terminal
                     </TableHead>
                     <TableHead>
-                      Model
+                      Simcard
                     </TableHead>
                     <TableHeadSort modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
                       Operator
@@ -377,23 +388,12 @@
                     <TableHeadSort modelName="vend_serial_number_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_serial_number_code')">
                       Serial Num
                     </TableHeadSort>
-                    <TableHead>
-                      Setting Chart
-                    </TableHead>
-                    <TableHead>
-                      Product Mapping <br>
-                      (Current)
-                    </TableHead>
-                    <TableHead>
-                      Product Mapping <br>
-                      (Upcoming)
-                    </TableHead>
-                    <TableHead>
+                    <TableHeadSort modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date')">
                       Deploy Date
-                    </TableHead>
-                    <TableHead>
+                    </TableHeadSort>
+                    <TableHeadSort modelName="termination_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('termination_date')">
                       Retired Date
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHead>
                     </TableHead>
                   </tr>
@@ -404,7 +404,25 @@
                         {{ vends.meta.from + vendIndex }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        {{ vend.vendModel ? vend.vendModel.name : '' }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.code }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        <span v-if="vend.vendConfig" class="flex flex-col space-y-1">
+                          <a :href="'/vend-configs/' + vend.vendConfig.id + '/edit'" target="_blank" class="text-blue-600">
+                            <span>
+                              {{ vend.vendConfig.name }}
+                            </span>
+                          </a>
+                          <span>
+                            Current Ver: {{ vend.vend_vend_config_version }}
+                          </span>
+                          <span v-if="vend.vendConfig">
+                            Latest Ver: {{ vend.vendConfig.version }}
+                          </span>
+                        </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.vendPrefix ? vend.vendPrefix.name : '' }}
@@ -449,65 +467,43 @@
                         {{ vend.customer ? vend.customer.selling_price_type : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.simcard ? vend.simcard.code : '' }}
+                        <span v-if="vend.productMapping">
+                          <a :href="'/product-mappings/' + vend.productMapping.id + '/edit'" target="_blank" class="text-blue-600">
+                            {{ vend.productMapping.name }}
+                          </a>
+                        </span>
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        <span v-if="vend.upcomingProductMapping">
+                          <a :href="'/product-mappings/' + vend.upcomingProductMapping.id + '/edit'" target="_blank" class="text-blue-600">
+                            {{ vend.upcomingProductMapping.name }}
+                          </a>
+                        </span>
+                        <span v-else>
+                          <span v-if="vend.productMapping && vend.productMapping.upcomingProductMappings">
+                            <a
+                              v-for="upcomingProductMapping in vend.productMapping.upcomingProductMappings"
+                              :key="upcomingProductMapping.id"
+                              :href="'/product-mappings/' + upcomingProductMapping.id + '/edit'"
+                              class="text-red-600 flex flex-col space-y-1"
+                              target="_blank"
+                            >
+                              {{ upcomingProductMapping.name }}
+                            </a>
+                          </span>
+                        </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <div class="flex flex-col space-y-1">
                           <div
-                              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                              :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CSHLStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CSHLStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
-                              v-if="vend.parameterJson && 'CSHLStat' in vend.parameterJson"
+                            class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                            :class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-green-200' : 'bg-red-200')]"
                           >
-                              <div class="flex flex-col">
-                                  <span class="font-bold">
-                                      Cashless Status
-                                  </span>
-                                  <span>
-                                      {{vend.parameterJson['CSHLStat'] == 3 ? 'Active' : (vend.parameterJson['CSHLStat'] == 1 ? 'Inactive' : 'NA') }}
-                                  </span>
-                              </div>
-                          </div>
-                          <div
-                              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                              :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-                              v-if="vend.acbVmcPaJson && 'CSHL_MFG' in vend.acbVmcPaJson"
-                          >
-                              <div class="flex flex-col">
-                                  <span class="font-bold">
-                                      Cashless Mfg
-                                  </span>
-                                  <span>
-                                      {{vend.acbVmcPaJson['CSHL_MFG'] ? vend.acbVmcPaJson['CSHL_MFG'] : 'NA' }}
-                                  </span>
-                              </div>
-                          </div>
-                          <div
-                              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                              :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MDL'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-                              v-if="vend.acbVmcPaJson && 'CSHL_MDL' in vend.acbVmcPaJson"
-                          >
-                              <div class="flex flex-col">
-                                  <span class="font-bold">
-                                      Cashless Model
-                                  </span>
-                                  <span>
-                                      {{vend.acbVmcPaJson['CSHL_MDL'] ? vend.acbVmcPaJson['CSHL_MDL'] : 'NA' }}
-                                  </span>
-                              </div>
-                          </div>
-                          <div
-                              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                              :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_SN'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-                              v-if="vend.acbVmcPaJson && 'CSHL_SN' in vend.acbVmcPaJson"
-                          >
-                              <div class="flex flex-col">
-                                  <span class="font-bold">
-                                      Cashless SN
-                                  </span>
-                                  <span>
-                                      {{vend.acbVmcPaJson['CSHL_SN'] ? vend.acbVmcPaJson['CSHL_SN'] : 'NA' }}
-                                  </span>
-                              </div>
+                            <div class="flex flex-col">
+                              <span class="font-bold">
+                                {{vend.is_testing ? 'Factory' : (vend.is_active ? 'Active' : 'Not Active')}}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </TableData>
@@ -661,67 +657,71 @@
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <div class="flex flex-col space-y-1">
                           <div
-                            class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-                            :class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-green-200' : 'bg-red-200')]"
+                              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                              :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CSHLStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CSHLStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
+                              v-if="vend.parameterJson && 'CSHLStat' in vend.parameterJson"
                           >
-                            <div class="flex flex-col">
-                              <span class="font-bold">
-                                {{vend.is_testing ? 'Factory' : (vend.is_active ? 'Active' : 'Not Active')}}
-                              </span>
-                            </div>
+                              <div class="flex flex-col">
+                                  <span class="font-bold">
+                                      Cashless Status
+                                  </span>
+                                  <span>
+                                      {{vend.parameterJson['CSHLStat'] == 3 ? 'Active' : (vend.parameterJson['CSHLStat'] == 1 ? 'Inactive' : 'NA') }}
+                                  </span>
+                              </div>
+                          </div>
+                          <div
+                              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                              :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                              v-if="vend.acbVmcPaJson && 'CSHL_MFG' in vend.acbVmcPaJson"
+                          >
+                              <div class="flex flex-col">
+                                  <span class="font-bold">
+                                      Cashless Mfg
+                                  </span>
+                                  <span>
+                                      {{vend.acbVmcPaJson['CSHL_MFG'] ? vend.acbVmcPaJson['CSHL_MFG'] : 'NA' }}
+                                  </span>
+                              </div>
+                          </div>
+                          <div
+                              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                              :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MDL'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                              v-if="vend.acbVmcPaJson && 'CSHL_MDL' in vend.acbVmcPaJson"
+                          >
+                              <div class="flex flex-col">
+                                  <span class="font-bold">
+                                      Cashless Model
+                                  </span>
+                                  <span>
+                                      {{vend.acbVmcPaJson['CSHL_MDL'] ? vend.acbVmcPaJson['CSHL_MDL'] : 'NA' }}
+                                  </span>
+                              </div>
+                          </div>
+                          <div
+                              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+                              :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_SN'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                              v-if="vend.acbVmcPaJson && 'CSHL_SN' in vend.acbVmcPaJson"
+                          >
+                              <div class="flex flex-col">
+                                  <span class="font-bold">
+                                      Cashless SN
+                                  </span>
+                                  <span>
+                                      {{vend.acbVmcPaJson['CSHL_SN'] ? vend.acbVmcPaJson['CSHL_SN'] : 'NA' }}
+                                  </span>
+                              </div>
                           </div>
                         </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.vendModel ? vend.vendModel.name : '' }}
+                        {{ vend.simcard ? vend.simcard.code : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.operator_code }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.vend_serial_number_code }}
-                      </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        <span v-if="vend.vendConfig" class="flex flex-col space-y-1">
-                          <a :href="'/vend-configs/' + vend.vendConfig.id + '/edit'" target="_blank" class="text-blue-600">
-                            <span>
-                              {{ vend.vendConfig.name }}
-                            </span>
-                          </a>
-                          <span v-if="vend.vend_vend_config_version">
-                            Current Ver: {{ vend.vend_vend_config_version }}
-                          </span>
-                          <span v-if="vend.vendConfig && vend.vendConfig.version">
-                            Latest Ver: {{ vend.vendConfig.version }}
-                          </span>
-                        </span>
-                      </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        <span v-if="vend.productMapping">
-                          <a :href="'/product-mappings/' + vend.productMapping.id + '/edit'" target="_blank" class="text-blue-600">
-                            {{ vend.productMapping.name }}
-                          </a>
-                        </span>
-                      </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        <span v-if="vend.upcomingProductMapping">
-                          <a :href="'/product-mappings/' + vend.upcomingProductMapping.id + '/edit'" target="_blank" class="text-blue-600">
-                            {{ vend.upcomingProductMapping.name }}
-                          </a>
-                        </span>
-                        <span v-else>
-                          <span v-if="vend.productMapping && vend.productMapping.upcomingProductMappings">
-                            <a
-                              v-for="upcomingProductMapping in vend.productMapping.upcomingProductMappings"
-                              :key="upcomingProductMapping.id"
-                              :href="'/product-mappings/' + upcomingProductMapping.id + '/edit'"
-                              class="text-red-600 flex flex-col space-y-1"
-                              target="_blank"
-                            >
-                              {{ upcomingProductMapping.name }}
-                            </a>
-                          </span>
-                        </span>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.begin_date_short }}

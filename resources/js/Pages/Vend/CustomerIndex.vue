@@ -843,9 +843,9 @@
 											]"
 									>
 										<span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
-												<span :class="[vend.is_active || vend.is_testing ? 'text-black' : 'text-gray-600']">
-														#{{channel['code']}},
-												</span>
+												<span :class="[vend.is_active || vend.is_testing ? compareRefPrice(vend, channel) : 'text-gray-600']">
+														#{{channel['code']}}
+												</span>,
 												<span :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-500']">
 														{{channel['capacity'] - channel['qty']}},
 												</span>
@@ -1645,6 +1645,21 @@ onMounted(() => {
     filters.value.vend_prefix_id = vendPrefixOptions.value[0]
   // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
 })
+
+function compareRefPrice(vend, channel) {
+	let type = vend && vend.customer ? vend.customer.selling_price_type : vend.selling_price_type
+
+	if(channel.product && channel.product.sellingPrices) {
+		let sellingPrice = channel.product.sellingPrices.find((sellingPrice) => sellingPrice.type == type)
+		if(sellingPrice) {
+			if(channel.amount != sellingPrice.amount/ 100) {
+				return 'text-red-500'
+			}
+		}
+	}
+
+	return 'text-gray-900'
+}
 
 function getVendsField() {
     return {

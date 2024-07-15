@@ -238,17 +238,6 @@
             </div>
             <div class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Latest Version
-                </label>
-                <input
-                  type="text"
-                  class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed mt-1"
-                  :value="form.vend_config_id ? form.vend_config_version : ''"
-                  disabled
-                />
-            </div>
-            <div class="sm:col-span-2">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Current Version
                 </label>
                 <MultiSelect
@@ -266,7 +255,17 @@
                   {{ form.errors.vend_vend_config_version }}
                 </div>
             </div>
-
+            <div class="sm:col-span-2">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Latest Version
+                </label>
+                <input
+                  type="text"
+                  class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed mt-1"
+                  :value="form.vend_config_id ? form.vend_config_version : ''"
+                  disabled
+                />
+            </div>
             <div class="sm:col-span-3" v-if="form.vend_config_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Machine Prefix
