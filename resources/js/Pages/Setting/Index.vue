@@ -225,7 +225,7 @@
                 Setting Chart
             </label>
             <MultiSelect
-                v-model="filters.vend_config_id"
+                v-model="filters.vendConfigs"
                 :options="vendConfigOptions"
                 trackBy="id"
                 valueProp="id"
@@ -233,6 +233,7 @@
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
+                mode="tags"
             >
             </MultiSelect>
           </div>
@@ -241,7 +242,7 @@
                 Machine Model
             </label>
             <MultiSelect
-                v-model="filters.vend_model_id"
+                v-model="filters.vendModels"
                 :options="vendModelOptions"
                 trackBy="id"
                 valueProp="id"
@@ -249,6 +250,7 @@
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
+                mode="tags"
             >
             </MultiSelect>
           </div>
@@ -824,8 +826,8 @@ const filters = ref({
     // is_active: '',
     is_binded_customer: '',
     // is_testing: '',
-    vend_config_id: '',
-    vend_model_id: '',
+    vendConfigs: [],
+    vendModels: [],
     vendPrefixes: [],
     sortKey: '',
     sortBy: true,
@@ -926,8 +928,8 @@ onMounted(() => {
     filters.value.status = statusOptions.value[2]
     filters.value.cashless_terminal_id = cashlessTerminalOptions.value[0]
     filters.value.simcard_id = simcardOptions.value[0]
-    filters.value.vend_config_id = vendConfigOptions.value[0]
-    filters.value.vend_model_id = vendModelOptions.value[0]
+    // filters.value.vend_config_id = vendConfigOptions.value[0]
+    // filters.value.vend_model_id = vendModelOptions.value[0]
 })
 
 function onCreateClicked() {
@@ -958,8 +960,10 @@ function onSearchFilterUpdated() {
       selling_price_type: filters.value.selling_price_type.id,
       simcard_id: filters.value.simcard_id.id,
       status: filters.value.status.id,
-      vend_config_id: filters.value.vend_config_id.id,
-      vend_model_id: filters.value.vend_model_id.id,
+      vendConfigs: filters.value.vendConfigs.map((vendConfig) => { return vendConfig.id }),
+      vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
+      // vend_config_id: filters.value.vend_config_id.id,
+      // vend_model_id: filters.value.vend_model_id.id,
       vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       numberPerPage: filters.value.numberPerPage.id,
   }, {
