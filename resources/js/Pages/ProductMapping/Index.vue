@@ -210,7 +210,7 @@
 
                             <span v-if="vend.customer && vend.customer.person_id">
                                 <span v-if="permissions.includes('admin-access vends')">
-                                    <a :class="[vend.customer && vend.customer.person_id && vend.customer.is_active ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="cmsEndpoint ? cmsEndpoint + '/person/' + vend.customer.person_id + '/edit' : ''">
+                                    <a :class="[vend.customer && vend.customer.person_id && vend.customer.is_active ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer.id + '/edit'">
                                         {{ vend.customer.virtual_customer_code }} ({{ vend.customer.virtual_customer_prefix }})
                                         <br>
                                         {{ vend.customer.name }}
@@ -408,6 +408,7 @@ onMounted(() => {
     { id: 'All', value: 'All' },
   ]
   vendPrefixOptions.value = [
+    { id: '', value: 'All' },
     ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   filters.value.is_active = booleanOptions.value[0]

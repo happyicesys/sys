@@ -45,9 +45,6 @@ class VendPrefixController extends Controller
                         'vendConfigs.attachments',
                         'vends',
                     ])
-                    ->when($request->name, function($query, $search) {
-                        $query->where('name', 'LIKE', "%{$search}%");
-                    })
                     ->when($request->product_mapping_id, function($query, $search) {
                         if($search !== 'all') {
                             $query->where('product_mapping_id', $search);
@@ -60,11 +57,21 @@ class VendPrefixController extends Controller
                             });
                         }
                     })
+                    ->when($request->vendPrefixes, function($query, $search) {
+                        if($search !== 'all') {
+                            $query->whereIn('id', $search);
+                        }
+                    })
                     ->when($request->sortKey, function($query, $search) use ($request) {
                         $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                     })
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
+            ),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::query()
+                    ->orderBy('name')
+                    ->get()
             ),
         ]);
     }

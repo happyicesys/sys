@@ -20,9 +20,23 @@
           </Button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Prefix
-          </SearchInput>
+          <div>
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Machine Prefix
+						</label>
+						<MultiSelect
+							v-model="filters.vendPrefixes"
+							:options="vendPrefixOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							mode="tags"
+							class="mt-1"
+						>
+						</MultiSelect>
+					</div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Setting Chart
@@ -136,8 +150,8 @@
                     Prefix
                   </TableHeadSort>
                   <TableHead>Desc</TableHead>
-                  <TableHead>Product Mapping <br /> (Current)</TableHead>
-                  <TableHead>Product Mapping <br /> (Upcoming)</TableHead>
+                  <TableHead>Product Mapping <br /> Current</TableHead>
+                  <TableHead>Product Mapping <br /> Upcoming</TableHead>
                   <TableHead></TableHead>
                 </tr>
               </thead>
@@ -344,13 +358,14 @@ const props = defineProps({
   productMappingOptions: [Array, Object],
   vendConfigOptions: [Array, Object],
   vendPrefixes: Object,
+  vendPrefixOptions: Object,
 });
 
 const filters = ref({
-  name: '',
   product_mapping_id: '',
   upcoming_product_mapping_id: '',
   vend_config_id: '',
+  vendPrefixes: [],
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
@@ -363,6 +378,7 @@ const type = ref('');
 const numberPerPageOptions = ref([]);
 const productMappingOptions = ref([]);
 const vendConfigOptions = ref([]);
+const vendPrefixOptions = ref([]);
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -383,6 +399,10 @@ onMounted(() => {
       return { id: data.id, value: data.name };
     }),
   ];
+  vendPrefixOptions.value = [
+    { id: '', value: 'All' },
+    ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
+  ]
   filters.value.numberPerPage = numberPerPageOptions.value[0];
   filters.value.vend_config_id = vendConfigOptions.value[0];
   filters.value.product_mapping_id = productMappingOptions.value[0];
@@ -417,6 +437,7 @@ function onSearchFilterUpdated() {
       product_mapping_id: filters.value.product_mapping_id.id,
       upcoming_product_mapping_id: filters.value.upcoming_product_mapping_id.id,
       vend_config_id: filters.value.vend_config_id.id,
+      vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => vendPrefix.id),
       numberPerPage: filters.value.numberPerPage.id,
     },
     {

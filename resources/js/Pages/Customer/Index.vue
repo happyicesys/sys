@@ -331,24 +331,32 @@
                         {{ customer.vend ? customer.vend.code : null }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
-                        <!-- <a :class="[customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="'//admin.happyice.com.sg/person/' + customer.person_id + '/edit'"> -->
-                        <a :class="[customer && customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="customer && customer.person_id ? cmsEndpoint + '/person/' + customer.person_id + '/edit' : (customer ? '/customers/' + customer.id + '/edit' : '#' )">
-                          <span v-if="customer.person_id && (customer.virtual_customer_code || customer.virtual_customer_prefix)">
-                            <span v-if="customer.virtual_customer_code">
-                              {{ customer.virtual_customer_code }}
+                        <div class="flex flex-col space-y-1">
+                          <a :class="[customer && customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="'/customers/' + customer.id + '/edit'">
+                            <span v-if="customer.person_id && (customer.virtual_customer_code || customer.virtual_customer_prefix)">
+                              <span v-if="customer.virtual_customer_code">
+                                {{ customer.virtual_customer_code }}
+                              </span>
+                              <!-- <span v-if="customer.virtual_customer_prefix">
+                                ({{ customer.virtual_customer_prefix }})
+                              </span> -->
+                              <br>
                             </span>
-                            <!-- <span v-if="customer.virtual_customer_prefix">
-                              ({{ customer.virtual_customer_prefix }})
-                            </span> -->
-                             <br>
-                          </span>
-                          <span v-else>
-                            <span v-if="customer.code">
-                              {{ customer.code }} <br>
+                            <span v-else>
+                              <span v-if="customer.code">
+                                {{ customer.code }} <br>
+                              </span>
                             </span>
-                          </span>
-                          {{ customer.name }}
-                        </a>
+                            {{ customer.name }}
+                          </a>
+                          <a target="_blank" :href="cmsEndpoint + '/person/' + customer.person_id + '/edit'" class="">
+                            <div
+                                class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
+                            >
+                                CMS
+                            </div>
+                          </a>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         {{ customer.selling_price_type }}
