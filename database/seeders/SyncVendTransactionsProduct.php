@@ -23,7 +23,11 @@ class SyncVendTransactionsProduct extends Seeder
 
         if($vend and $vend->product_mapping_id) {
             foreach($vend->vendTransactions as $vendTransaction) {
+                $product = $vend->productMapping->productMappingItems->where('channel_code', $vendTransaction->vend_channel_code)->first();
 
+                $vendTransaction->product_id = $product ? $product->product_id : null;
+                $vendTransaction->product_json = $product ? collect($product) : null;
+                $vendTransaction->save();
             }
         }
     }
