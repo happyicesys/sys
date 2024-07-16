@@ -222,6 +222,22 @@
                 >
                 </MultiSelect>
             </div>
+            <div class="col-span-5 md:col-span-1">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Is Refunded?
+                </label>
+                <MultiSelect
+                    v-model="filters.is_refunded"
+                    :options="booleanOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
             </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -437,7 +453,9 @@
                             </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            <CheckCirlceIcon class="h-4 w-4 bg-green-400" v-if="vendTransaction.is_refunded"></CheckCirlceIcon>
+                            <div class="flex justify-center">
+                                <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="vendTransaction.is_refunded"/>
+                            </div>
                         </TableData>
                       </tr>
                       <tr v-if="vendTransaction.vendTransactionItemsJson" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItemsJson" class="divide-x">
@@ -492,7 +510,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
-import { MagnifyingGlassIcon, BackspaceIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
+import { MagnifyingGlassIcon, BackspaceIcon, CheckCircleIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import moment from 'moment';
 import SearchInput from '@/Components/SearchInput.vue';
@@ -578,6 +596,7 @@ onMounted(() => {
 	] : operatorOptions.value[0]
     filters.value.is_binded_customer = booleanOptions.value[0]
     filters.value.is_payment_received = booleanOptions.value[0]
+    filters.value.is_refunded = booleanOptions.value[0]
 })
 
 const filters = ref({
@@ -595,6 +614,7 @@ const filters = ref({
     order_id: '',
     is_binded_customer: '',
     is_payment_received: '',
+    is_refunded: '',
     paymentMethod: '',
     date_from: moment().format('YYYY-MM-DD'),
     date_to: moment().format('YYYY-MM-DD'),
@@ -678,6 +698,7 @@ function onSearchFilterUpdated() {
         operators: filters.value.operators.map((operator) => { return operator.id }),
         is_binded_customer: filters.value.is_binded_customer.id,
         is_payment_received: filters.value.is_payment_received.id,
+        is_refunded: filters.value.is_refunded.id,
         paymentMethod: filters.value.paymentMethod.id,
         numberPerPage: filters.value.numberPerPage.id,
         vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),

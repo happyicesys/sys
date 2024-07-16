@@ -208,6 +208,15 @@ class VendTransaction extends Model
                 }
             }
         })
+        ->when($request->is_refunded, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->where('is_refunded', true);
+                }else {
+                    $query->where('is_refunded', false);
+                }
+            }
+        })
         ->when($isPaymentReceived, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
@@ -338,6 +347,15 @@ class VendTransaction extends Model
                     $query->has('vend.customer');
                 }else {
                     $query->doesntHave('vend.customer');
+                }
+            }
+        })
+        ->when($request->is_refunded, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->where('is_refunded', true);
+                }else {
+                    $query->where('is_refunded', false);
                 }
             }
         })

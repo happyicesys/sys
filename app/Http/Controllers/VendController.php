@@ -910,6 +910,7 @@ class VendController extends Controller
                 'vend_channel_errors.desc AS vend_channel_error_desc',
                 'vend_channel_errors.code AS vend_channel_error_code',
                 'vend_transactions.is_multiple',
+                'vend_transactions.is_refunded',
                 'vend_transaction_items_json',
                 'vend_transactions.is_payment_received',
                 'vend_transactions.items_json',
