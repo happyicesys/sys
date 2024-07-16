@@ -25,6 +25,7 @@ class VendTransactionResource extends JsonResource
             'customer_json' => $this->customer_json,
             'is_multiple' => $this->is_multiple,
             'is_payment_received' => $this->is_payment_received,
+            'is_refunded' => isset($this->is_refunded) && $this->is_refunded ? true : false,
             'itemsJson' => $this->items_json,
             'locationTypeJson' => $this->location_type_json,
             'order_id' => $this->order_id,

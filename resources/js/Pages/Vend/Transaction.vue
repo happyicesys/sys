@@ -353,6 +353,9 @@
                         <TableHead>
                             Payment Received
                         </TableHead>
+                        <TableHead>
+                            Refunded?
+                        </TableHead>
                       </tr>
                   </thead>
                   <tbody class="bg-white">
@@ -432,6 +435,9 @@
                             <span v-else>
                                 {{ vendTransaction.vend_channel_error_code ? (vendTransaction.vend_channel_error_code == 0 || vendTransaction.vend_channel_error_code == 6 ? 'Successful' : "Unsuccessful") : 'Successful' }}
                             </span>
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            <CheckCirlceIcon class="h-4 w-4 bg-green-400" v-if="vendTransaction.is_refunded"></CheckCirlceIcon>
                         </TableData>
                       </tr>
                       <tr v-if="vendTransaction.vendTransactionItemsJson" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItemsJson" class="divide-x">
