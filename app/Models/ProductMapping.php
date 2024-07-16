@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Scopes\OperatorProductFilterScope;
+use App\Models\Scopes\OperatorProductMappingScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -20,7 +20,7 @@ class ProductMapping extends Model
 
     protected static function booted()
     {
-        static::addGlobalScope(new OperatorProductFilterScope);
+        static::addGlobalScope(new OperatorProductMappingScope);
     }
 
     protected $casts = [
