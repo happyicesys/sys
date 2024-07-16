@@ -1153,6 +1153,8 @@ class VendController extends Controller
                 'error_code' => $vendTransaction->vend_channel_error_code,
                 'location_type' => $vendTransaction->location_type_name,
                 'operator' => $vendTransaction->operator_code,
+                'is_successful' => $vendTransaction->vend_channel_error_code ? ($vendTransaction->vend_channel_error_code == 0 || $vendTransaction->vend_channel_error_code == 6 ? 'Successful' : "Unsuccessful") : 'Successful',
+                'is_refunded' => $vendTransaction->is_refunded ? 'Yes' : '',
             ];
 
             if(isset($vendTransaction['vend_transaction_items_json']) and $vendTransaction['vend_transaction_items_json']) {
@@ -1178,6 +1180,8 @@ class VendController extends Controller
                         'error_code' => $vendTransactionItem['vend_channel_error'] ? $vendTransactionItem['vend_channel_error']['code'] : '',
                         'location_type' => '',
                         'operator' => '',
+                        'is_successful' => $vendTransactionItem['vend_channel_error'] ? ($vendTransactionItem['vend_channel_error']['code'] == 0 || $vendTransactionItem['vend_channel_error']['code'] == 6 ? 'Successful' : "Unsuccessful") : 'Successful',
+                        'is_refunded' => '',
                     ];
                 }
             }
