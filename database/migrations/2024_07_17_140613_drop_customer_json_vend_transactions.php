@@ -24,15 +24,18 @@ return new class extends Migration
         //     $table->dropColumn('error_json');
         // });
 
-        // Schema::table('payment_gateway_logs', function (Blueprint $table) {
-        //     $table->dropColumn('error_json');
-        // });
-
-        // Schema::dropIfExists('delivery_platform_logs');
-
-        Schema::table('vend_transactions', function (Blueprint $table) {
-            $table->json('meta_json')->nullable();
+        Schema::dropIfExists('delivery_platform_logs');
+        Schema::table('payment_gateway_logs', function (Blueprint $table) {
+            $table->dropColumn('error_json');
         });
+        Schema::table('vend_transactions', function (Blueprint $table) {
+            $table->dropColumn('customer_json');
+        });
+
+
+        // Schema::table('vend_transactions', function (Blueprint $table) {
+        //     $table->json('meta_json')->nullable();
+        // });
         // Schema::table('vend_transactions', function (Blueprint $table) {
         //     $table->dropColumn('customer_json');
         // });
