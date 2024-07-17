@@ -11,10 +11,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('vend_transactions', function (Blueprint $table) {
-            $table->dropColumn('customer_json');
-        });
-
         Schema::table('vend_records', function (Blueprint $table) {
             $table->dropColumn('customer_json');
         });
@@ -33,6 +29,11 @@ return new class extends Migration
         });
 
         Schema::dropIfExists('delivery_platform_logs');
+
+        Schema::table('vend_transactions', function (Blueprint $table) {
+            $table->json('meta_json')->nullable();
+            $table->dropColumn('customer_json');
+        });
     }
 
     /**
