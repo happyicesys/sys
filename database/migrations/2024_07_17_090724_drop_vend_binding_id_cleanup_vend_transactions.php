@@ -11,15 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('vend_transactions', function (Blueprint $table) {
-            $table->dropColumn('operator_json');
-            $table->dropColumn('product_json');
-            $table->dropColumn('vend_binding_id');
-            $table->dropColumn('vend_json');
+        // Schema::table('vend_transactions', function (Blueprint $table) {
+        //     $table->dropColumn('operator_json');
+        //     $table->dropColumn('product_json');
+        //     $table->dropColumn('vend_binding_id');
+        //     $table->dropColumn('vend_json');
 
 
-            $table->bigInteger('location_type_id')->nullable()->index()->after('location_type_json');
-        });
+        //     $table->bigInteger('location_type_id')->nullable()->index()->after('location_type_json');
+        // });
 
         Schema::dropIfExists('vend_transactions_bk');
 
