@@ -32,6 +32,8 @@ return new class extends Migration
 
         Schema::table('vend_transactions', function (Blueprint $table) {
             $table->json('meta_json')->nullable();
+        });
+        Schema::table('vend_transactions', function (Blueprint $table) {
             $table->dropColumn('customer_json');
         });
     }
