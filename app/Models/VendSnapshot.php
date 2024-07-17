@@ -10,14 +10,12 @@ class VendSnapshot extends Model
     use HasFactory;
 
     protected $casts = [
-        'customer_json' => 'json',
         'parameter_json' => 'json',
         'vend_channels_json' => 'json',
     ];
 
     protected $fillable = [
         'customer_id',
-        'customer_json',
         'operator_id',
         'parameter_json',
         'vend_id',

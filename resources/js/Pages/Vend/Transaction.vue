@@ -458,29 +458,29 @@
                             </div>
                         </TableData>
                       </tr>
-                      <tr v-if="vendTransaction.vendTransactionItemsJson" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItemsJson" class="divide-x">
-                        <td v-if="vendTransactionItemIndex == 0" class="border-b border-gray-200" colspan="7" :rowspan="vendTransaction.vendTransactionItemsJson.length"></td>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
+                      <tr v-if="vendTransaction.vendTransactionItems" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItems" class="divide-x">
+                        <td v-if="vendTransactionItemIndex == 0" class="border-b border-gray-200" colspan="7" :rowspan="vendTransaction.vendTransactionItems.length"></td>
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             {{ vendTransactionItem.vend_channel_code ? vendTransactionItem.vend_channel_code : null }}
                         </TableData>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             <span v-if="vendTransactionItem.product">
-                                {{ vendTransactionItem.product['code'] }}
+                                {{ vendTransactionItem.product.code }}
                             </span>
                             <span v-else></span>
                         </TableData>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-left bg-gray-100">
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-left bg-gray-100">
                             <span v-if="vendTransactionItem.product">
-                                {{ vendTransactionItem.product['name'] }}
+                                {{ vendTransactionItem.product.name }}
                             </span>
                             <span v-else></span>
                         </TableData>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100" colspan="3">
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100" colspan="3">
                         </TableData>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             {{ vendTransactionItem.vend_channel_error ? vendTransactionItem.vend_channel_error.desc : null }}
                         </TableData>
-                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.itemsJson.length" inputClass="text-center bg-gray-100">
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             <span v-if="!vendTransactionItem.vend_channel_error || (vendTransactionItem.vend_channel_error && vendTransactionItem.vend_channel_error.code == 0) || (vendTransactionItem.vend_channel_error && vendTransactionItem.vend_channel_error.code == 6)">
                                 Successful
                             </span>

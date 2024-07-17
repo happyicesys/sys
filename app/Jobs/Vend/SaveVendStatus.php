@@ -33,7 +33,6 @@ class SaveVendStatus implements ShouldQueue
         if($this->vend && $this->vend->customer) {
             VendSnapshot::create([
                 'customer_id' => $this->vend->customer->id,
-                'customer_json' => $this->vend->customer,
                 'operator_id' => $this->vend->customer->operator()->exists() ? $this->vend->customer->operator->id : 1,
                 'parameter_json' => $this->vend->parameter_json,
                 'vend_channels_json' => $this->vend->vend_channels_json,

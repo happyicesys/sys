@@ -12,19 +12,13 @@ class VendTransactionItem extends Model
     protected $fillable = [
         'is_refunded',
         'product_id',
-        'product_json',
         'unit_cost',
         'unit_cost_id',
         'vend_channel_id',
         'vend_channel_code',
+        'vend_channel_error_code',
         'vend_channel_error_id',
-        'vend_channel_error_json',
         'vend_transaction_id',
-    ];
-
-    protected $casts = [
-        'product_json' => 'json',
-        'vend_channel_error_json' => 'json',
     ];
 
     // relationships

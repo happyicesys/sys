@@ -127,19 +127,6 @@ class DeliveryPlatformOrderController extends Controller
             'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
         ]);
 
-        // $query = DeliveryPlatformOrderItem::query()
-        // ->with([
-        //     'deliveryPlatformOrder.deliveryPlatform:id,name,country_id,slug',
-        //     'deliveryProductMappingItem.deliveryProductMapping:id,name',
-        //     'deliveryPlatformOrder.deliveryProductMappingVend.vend:id,code,name',
-        //     'deliveryPlatformOrder.deliveryProductMappingVend.vend.customer:id,code,name',
-        //     'deliveryPlatformOrder.deliveryPlatformOperator',
-        //     'deliveryPlatformOrder.deliveryPlatformOrderComplaint',
-        //     'deliveryProductMappingItem.product:id,code,name,is_active',
-        //     'deliveryProductMappingItem.product.thumbnail',
-        //     'orderItemVendChannels',
-
-        // ])
         $query = $this->getDeliveryPlatformOrderQuery($request);
         $query = $query->filterIndex($request)
             ->when($request->sortKey, function($query, $search) use ($request) {

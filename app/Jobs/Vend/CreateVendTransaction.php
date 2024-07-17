@@ -146,19 +146,18 @@ class CreateVendTransaction implements ShouldQueue
             'vend_transaction_json' => $input['originalJson'],
             'payment_gateway_log_id' => $input['paymentGatewayLogID'],
             'product_id' => $input['productID'],
-            'vend_json' => $this->vend ? collect($this->vend)->except(['customer', 'product_mapping', 'vend_channels_json']) : null,
             'customer_id' => $this->vend->customer()->exists() ? $this->vend->customer->id : null,
-            'customer_json' => $this->vend->customer()->exists() ? collect($this->vend->customer()->with([
-                'category.categoryGroup'
-            ])->first()) : [
-                'name' => $this->vend->name,
-            ],
-            'location_type_json' => $this->vend->customer()->exists() && $this->vend->customer->locationType()->exists() ? collect($this->vend->customer->locationType) : null,
+            'location_type_id' => $this->vend->customer()->exists() && $this->vend->customer->locationType()->exists() ? $this->vend->customer->locationType->id : null,
             'operator_id' => $this->vend->customer()->exists() && $this->vend->customer->operator()->exists() ? $this->vend->customer->operator->id : 1,
-            'operator_json' => $this->vend->customer()->exists() && $this->vend->customer->operator()->exists() ? $this->vend->customer->operator : Operator::first(),
-            'product_json' => $input['productID'] ? collect($this->vend->productMapping->productMappingItems()->where('channel_code', $input['vendChannelCode'])->first()->product)->except(['product_mapping_items']) : null,
             'unit_cost_id' => $input['unitCostID'],
             'gst_vat_rate' => $input['gstVatRate'],
+            'meta_json' => [
+                'vend_code' => $this->vend->code,
+                'customer_code' => $this->vend->customer()->exists() ? $this->vend->customer->id + 20000 : null,
+                'customer_name' => $this->vend->customer()->exists() ? $this->vend->customer->name : null,
+                'vend_prefix_id' => $this->vend->vendPrefix()->exists() ? $this->vend->vendPrefix->id : null,
+                'vend_prefix_name' => $this->vend->vendPrefix()->exists() ? $this->vend->vendPrefix->name : null,
+            ]
         ]);
 
         return $vendTransaction;
@@ -170,7 +169,7 @@ class CreateVendTransaction implements ShouldQueue
             'is_refunded' => false,
             'product_id' => $input['productID'],
             'unit_cost_id' => $input['unitCostID'],
-            'cost' => isset($input['unitCostID']) && $input['unitCostID'] ? UnitCost::find($input['unitCostID'])->cost : 0,
+            'unit_cost' => isset($input['unitCostID']) && $input['unitCostID'] ? UnitCost::find($input['unitCostID'])->cost : 0,
             'vend_channel_id' => $input['vendChannelID'],
             'vend_channel_code' => $input['vendChannelCode'],
             'vend_channel_error_id' => $input['vendChannelErrorID'],

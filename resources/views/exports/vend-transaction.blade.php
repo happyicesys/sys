@@ -36,9 +36,9 @@
             {{ $vendTransaction->vend->code }}
           </td>
           <td>
-            {{$vendTransaction->customer_json && isset($vendTransaction->customer_json['person_id']) && $vendTransaction->customer_json['person_id'] ? (isset($vendTransaction->customer_json['virtual_customer_prefix']) ? $vendTransaction->customer_json['virtual_customer_prefix'] . '-' . $vendTransaction->customer_json['virtual_customer_code'] : $vendTransaction->customer_json['name']) : ''}}
+            {{$vendTransaction->customer && $vendTransaction->customer->person_id ? $vendTransaction->customer->virtual_customer_prefix . '-' .$vendTransaction->customer->virtual_customer_code : ''}}
             <br>
-            {{$vendTransaction->customer_json ? $vendTransaction->customer_json['name'] : ''}}
+            {{$vendTransaction->customer ? $vendTransaction->customer->name : ''}}
 
           </td>
           <td>
@@ -46,16 +46,12 @@
           </td>
           <td>
             {{
-                $vendTransaction->product_json ?
-                $vendTransaction->product_json['code'] :
-                ($vendTransaction->product ? $vendTransaction->product->code : '')
+                $vendTransaction->product ? $vendTransaction->product->code : ''
             }}
           </td>
           <td>
             {{
-                $vendTransaction->product_json ?
-                $vendTransaction->product_json['name'] :
-                ($vendTransaction->product ? $vendTransaction->product->name : '')
+                $vendTransaction->product ? $vendTransaction->product->name : ''
             }}
           </td>
           <td>
@@ -95,14 +91,14 @@
           </td>
           <td>
             {{
-                $vendTransactionItem->product_json ?
-                $vendTransactionItem->product_json['code'] : ''
+                $vendTransactionItem->product ?
+                $vendTransactionItem->product->code : ''
             }}
           </td>
           <td>
             {{
-                $vendTransactionItem->product_json ?
-                $vendTransactionItem->product_json['name'] : ''
+                $vendTransactionItem->product ?
+                $vendTransactionItem->product->name : ''
             }}
           </td>
         </tr>

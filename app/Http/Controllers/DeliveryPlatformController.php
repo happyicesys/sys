@@ -179,27 +179,12 @@ class DeliveryPlatformController extends Controller
             ], 404));
         }
 
-        $deliveryPlatformOrder->update([
-            'error_json' => $request->all(),
-        ]);
-
         if(($deliveryPlatformOrder->deliveryPlatformOperator->type === 'production') and (Carbon::parse($deliveryPlatformOrder->created_at)->diffInHours(Carbon::now()) > DeliveryPlatformOrder::ORDER_EXPIRED_HOURS)) {
             abort(response([
                 'error_code' => 404,
                 'error_message' => 'Order Expired',
             ], 404));
         }
-        // $transactionResponse = $deliveryPlatformOrder->vendTransaction ? $deliveryPlatformOrder->vendTransaction->vend_transaction_json : null;
-        // if($transactionResponse) {
-        //     $orderItems = $deliveryPlatformOrder->response_history_json['shipment_info'];
-        //     $transactionItems = $transactionResponse['transf_info'];
-        //     dd($orderItems, $transactionItems);
-        //     foreach($items as $item) {
-        //         if($item['vend_code'] === $code) {
-        //             $data = $item;
-        //         }
-        //     }
-        // }
 
         if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
             if($dispenseSearch) {

@@ -872,16 +872,4 @@ function unbindCustomer(vendID) {
       })
 }
 
-function downloadVendSnapshot(vendSnapshotId) {
-    axios({
-        method: 'get',
-        url: '/vends/vend-snapshots/excel/' + vendSnapshotId,
-        responseType: 'blob',
-    }).then(response => {
-        fileDownload(response.data, 'Vending_Channels_' + moment().format('YYMMDDhhmmss') +'.xlsx')
-    }).catch(error => {
-        console.log(error)
-    }).finally(() => {
-    })
-}
 </script>

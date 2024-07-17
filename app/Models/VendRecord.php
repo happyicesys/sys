@@ -18,7 +18,6 @@ class VendRecord extends Model
     protected $fillable = [
         'all_total_count',
         'customer_id',
-        'customer_json',
         'date',
         'day',
         'error_count',
@@ -38,10 +37,6 @@ class VendRecord extends Model
         'vend_code',
         'vend_id',
         'year',
-    ];
-
-    protected $casts = [
-        'customer_json' => 'json',
     ];
 
     // relationships

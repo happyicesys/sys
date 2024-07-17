@@ -28,7 +28,6 @@ class VendDBResource extends JsonResource
             'name' => isset($this->name) ? $this->name : null,
             'cms_invoice_history' => isset($this->cms_invoice_history) ? json_decode($this->cms_invoice_history) : null,
             'customer_code' => isset($this->customer_code) ? $this->customer_code : null,
-            'customer_json' => isset($this->customer_json) ? json_decode($this->customer_json) : null,
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,
             'person_id' => isset($this->person_id) ? $this->person_id : null,
             'full_name' => isset($this->customer_code) ? $this->customer_code . ' - ' . $this->customer_name : null,

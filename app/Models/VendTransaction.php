@@ -19,20 +19,16 @@ class VendTransaction extends Model
     }
 
     protected $casts = [
-        'customer_json' => 'json',
         'items_json' => 'json',
         'location_type_json' => 'json',
-        'operator_json' => 'json',
-        'product_json' => 'json',
+        'meta_json' => 'json',
         'transaction_datetime' => 'datetime',
-        'vend_json' => 'json',
         'vend_transaction_json' => 'json',
         'vend_transaction_items_json' => 'json',
     ];
 
     protected $fillable = [
         'customer_id',
-        'customer_json',
         'order_id',
         'transaction_datetime',
         'amount',
@@ -43,19 +39,18 @@ class VendTransaction extends Model
         'is_payment_received',
         'is_refunded',
         'items_json',
+        'location_type_id',
         'location_type_json',
+        'meta_json',
         'operator_id',
-        'operator_json',
         'payment_gateway_log_id',
         'payment_method_id',
         'product_id',
-        'product_json',
         'revenue',
         'vend_channel_id',
         'vend_channel_code',
         'vend_channel_error_id',
         'vend_id',
-        'vend_json',
         'vend_transaction_json',
         'vend_transaction_items_json',
         'unit_cost',
@@ -247,14 +242,18 @@ class VendTransaction extends Model
         ->when($request->customer, function($query, $search) {
             if(strpos($search, "-")) {
                 $searchArray = explode("-", $search);
-                    $query->where('vend_transactions.customer_json->prefix', $searchArray[0])
-                        ->where('vend_transactions.customer_json->code', $searchArray[1]);
+                    $query->whereIn('customer_id', function($query) use ($searchArray) {
+                        $query->select('id')->from('customers')
+                            ->where('virtual_customer_prefix', $searchArray[0])
+                            ->where('virtual_customer_code', $searchArray[1]);
+                    });
             }else {
-                $query->where(function($query) use ($search) {
-                    $query->where('vend_transactions.customer_json->virtual_customer_prefix', 'LIKE', "{$search}%")
-                        ->orWhere('vend_transactions.customer_json->virtual_customer_code', 'LIKE', "{$search}%")
-                        ->orWhere(DB::raw("lower(json_unquote(json_extract(vend_transactions.customer_json, '$.name')))"), 'LIKE', '%'.strtolower( $search ).'%')
-                        ->orWhere(DB::raw("lower(json_unquote(json_extract(vend_transactions.vend_json, '$.name')))"), 'LIKE', '%'.strtolower( $search ).'%');
+                $query->whereIn('customer_id', function($query) use ($search) {
+                    $query->select('id')->from('customers')->where(function($query) use ($search) {
+                        $query->where('virtual_customer_prefix', 'LIKE', "{$search}%")
+                            ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
+                            ->orWhere(DB::raw("lower(name)"), 'LIKE', '%'.strtolower( $search ).'%');
+                    });
                 });
             }
         })

@@ -189,7 +189,6 @@ class StoreVendsRecord implements ShouldQueue
             ], [
                 'all_total_count' => $vend->all_total_count,
                 'customer_id' => isset($vend->customer_id) ? $vend->customer_id : null,
-                'customer_json' => isset($vend->customer_id) ? $vend->customer : ['name' => $vend->name],
                 'day' => $vend->day,
                 'error_count' => $vend->error_count,
                 'failure_amount' => $vend->failure_amount,
@@ -233,7 +232,6 @@ class StoreVendsRecord implements ShouldQueue
                         'date' => Carbon::parse($date)->toDateString(),
                     ], [
                         'customer_id' => $vend->customer_id,
-                        'customer_json' => isset($vend->customer_id) ? $vend->customer : ['name' => $vend->name],
                         'day' => Carbon::parse($date)->day,
                         'month' => Carbon::parse($date)->month,
                         'monthname' => Carbon::parse($date)->format('F'),
