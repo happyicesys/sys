@@ -445,7 +445,7 @@
                             <span v-if="vendTransaction.vend_channel_error_desc">
                                 {{ vendTransaction.vend_channel_error_desc }}
                             </span>
-                            <span v-if="'SErr' in vendTransaction.vendTransactionJson && vendTransaction.vendTransactionJson['SErr'] > 0">
+                            <span v-if="vendTransaction.vendTransactionJson && vendTransaction.vendTransactionJson['SErr'] && vendTransaction.vendTransactionJson['SErr'] > 0">
                                 {{ vendTransaction.vendTransactionJson['SErr'] }}
                             </span>
                         </TableData>
