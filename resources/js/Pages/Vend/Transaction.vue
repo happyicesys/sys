@@ -486,8 +486,8 @@
                             <span v-if="vendTransactionItem.vendChannelError">
                                 {{ vendTransactionItem.vendChannelError ? vendTransactionItem.vendChannelError.desc : null }}
                             </span>
-                            <span v-else-if="!vendTransactionItem.vendChannelError && vend_channel_error_code">
-                                {{ vendTransactionItem.vend_channel_error_code }}
+                            <span v-if="!vendTransactionItem.vendChannelError && vendTransactionItem.vend_channel_error_code">
+                                ({{ vendTransactionItem.vend_channel_error_code }})
                             </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
