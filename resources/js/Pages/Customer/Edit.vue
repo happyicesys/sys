@@ -187,6 +187,22 @@
                   {{ form.errors['customer.selling_price_type'] }}
                 </div>
               </div>
+              <hr>
+              <div class="sm:col-span-3" v-if="customer.vend && customer.vend.product_mapping">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Product Mapping
+                </label>
+                <div class="mt-1">
+                  <a :href="'/product-mappings/' + customer.vend.product_mapping.id + '/edit'" target="_blank">
+                    <input
+                      type="text"
+                      class="shadow-sm focus:ring-indigo-300 focus:border-indigo-300 block w-full text-sm border-gray-200 rounded-md bg-gray-100 hover:cursor-pointer text-blue-600 hover:text-blue-700"
+                      :value="customer.vend.product_mapping.name"
+                      readonly
+                    />
+                  </a>
+                </div>
+              </div>
               <div class="sm:col-span-5" v-if="customer.vend && customer.vend.product_mapping && customer.vend.product_mapping.attachments">
                 <AttachmentList
                   :items="customer.vend.product_mapping.attachments"

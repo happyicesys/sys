@@ -442,7 +442,12 @@
                             {{ vendTransaction.payment_method_name }}
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
-                            {{ vendTransaction.vend_channel_error_desc }}
+                            <span v-if="vendTransaction.vend_channel_error_desc">
+                                {{ vendTransaction.vend_channel_error_desc }}
+                            </span>
+                            <span v-if="'SErr' in vendTransaction.vendTransactionJson && vendTransaction.vendTransactionJson['SErr'] > 0">
+                                {{ vendTransaction.vendTransactionJson['SErr'] }}
+                            </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.is_payment_received">
@@ -478,7 +483,12 @@
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100" colspan="3">
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
-                            {{ vendTransactionItem.vendChannelError ? vendTransactionItem.vendChannelError.desc : null }}
+                            <span v-if="vendTransactionItem.vendChannelError">
+                                {{ vendTransactionItem.vendChannelError ? vendTransactionItem.vendChannelError.desc : null }}
+                            </span>
+                            <span v-else-if="!vendTransactionItem.vendChannelError && vend_channel_error_code">
+                                {{ vendTransactionItem.vend_channel_error_code }}
+                            </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             <span v-if="!vendTransactionItem.vendChannelError || (vendTransactionItem.vendChannelError && vendTransactionItem.vendChannelError.code == 0) || (vendTransactionItem.vendChannelError && vendTransactionItem.vendChannelError.code == 6)">

@@ -172,6 +172,7 @@ class CreateVendTransaction implements ShouldQueue
             'unit_cost' => isset($input['unitCostID']) && $input['unitCostID'] ? UnitCost::find($input['unitCostID'])->cost : 0,
             'vend_channel_id' => $input['vendChannelID'],
             'vend_channel_code' => $input['vendChannelCode'],
+            'vend_channel_error_code' => $input['errorCode'],
             'vend_channel_error_id' => $input['vendChannelErrorID'],
             'vend_transaction_id' => $vendTransaction->id,
         ]);
