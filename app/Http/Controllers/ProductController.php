@@ -123,8 +123,11 @@ class ProductController extends Controller
             'operator_id.required' => 'Please choose the operator.',
         ]);
 
+// dd($request->all());
+
         $product = Product::findOrFail($productId);
-        $product->update($request->all());
+        $product->fill($request->except(['is_available', 'is_available_updated_at']));
+        $product->save();
 
         if($request->hasFile('thumbnail')){
             $request->validate([
