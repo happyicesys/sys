@@ -11,13 +11,13 @@ class AttachmentController extends Controller
     public function update(Request $request, $id)
     {
         $attachment = Attachment::find($id);
-        if($request->type and $attachment) {
-            $removeSameType = $attachment->modelable->attachments()->where('type', $request->type)->first();
+        // if($request->type and $attachment) {
+        //     $removeSameType = $attachment->modelable->attachments()->where('type', $request->type)->first();
 
-            if($removeSameType) {
-                $removeSameType->update(['type' => null]);
-            }
-        }
+        //     if($removeSameType) {
+        //         $removeSameType->update(['type' => null]);
+        //     }
+        // }
         $attachment->update($request->all());
 
         return redirect()->back();

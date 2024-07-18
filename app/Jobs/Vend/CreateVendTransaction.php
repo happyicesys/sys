@@ -151,13 +151,13 @@ class CreateVendTransaction implements ShouldQueue
             'operator_id' => $this->vend->customer()->exists() && $this->vend->customer->operator()->exists() ? $this->vend->customer->operator->id : 1,
             'unit_cost_id' => $input['unitCostID'],
             'gst_vat_rate' => $input['gstVatRate'],
-            // 'meta_json' => [
-            //     'vend_code' => $this->vend->code,
-            //     'customer_code' => $this->vend->customer()->exists() ? $this->vend->customer->id + 20000 : null,
-            //     'customer_name' => $this->vend->customer()->exists() ? $this->vend->customer->name : null,
-            //     'vend_prefix_id' => $this->vend->vendPrefix()->exists() ? $this->vend->vendPrefix->id : null,
-            //     'vend_prefix_name' => $this->vend->vendPrefix()->exists() ? $this->vend->vendPrefix->name : null,
-            // ]
+            'meta_json' => [
+                'vend_code' => $this->vend->code,
+                'customer_code' => $this->vend->customer()->exists() ? $this->vend->customer->id + 20000 : null,
+                'customer_name' => $this->vend->customer()->exists() ? $this->vend->customer->name : null,
+                'vend_prefix_id' => $this->vend->vendPrefix()->exists() ? $this->vend->vendPrefix->id : null,
+                'vend_prefix_name' => $this->vend->vendPrefix()->exists() ? $this->vend->vendPrefix->name : null,
+            ]
         ]);
 
         return $vendTransaction;

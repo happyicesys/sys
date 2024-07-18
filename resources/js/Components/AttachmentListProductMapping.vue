@@ -108,7 +108,11 @@ const items = ref(props.items)
 const priceTypeOptions = ref([])
 
 onMounted(() => {
-  priceTypeOptions.value = Object.entries(props.priceTypeOptions).map(([id, name]) => ({id: id, name: name}))
+  priceTypeOptions.value = [
+    {id: '', name: '--- Clear ---' },
+    ...Object.entries(props.priceTypeOptions).map(([id, name]) => ({id: id, name: name}))
+  ]
+
 })
 
 function saveAttachment(itemIndex) {

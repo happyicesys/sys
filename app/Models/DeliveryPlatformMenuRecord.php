@@ -11,7 +11,6 @@ class DeliveryPlatformMenuRecord extends Model
 
     protected $fillable = [
         'delivery_platform_slug',
-        'menu_json',
         'platform_ref_id',
         'ref_id',
         'request_json',
@@ -19,7 +18,6 @@ class DeliveryPlatformMenuRecord extends Model
     ];
 
     protected $casts = [
-        'menu_json' => 'json',
         'request_json' => 'json',
     ];
 }
