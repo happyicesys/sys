@@ -19,7 +19,6 @@ use App\Http\Resources\VendChannelResource;
 use App\Http\Resources\VendChannelErrorResource;
 use App\Http\Resources\VendFanResource;
 use App\Http\Resources\VendPrefixResource;
-use App\Http\Resources\VendTransactionDBResource;
 use App\Http\Resources\VendTransactionResource;
 use App\Http\Resources\VendTempResource;
 use App\Jobs\SyncVendCustomerCms;

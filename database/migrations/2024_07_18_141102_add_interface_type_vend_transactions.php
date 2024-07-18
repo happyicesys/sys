@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('payment_gateway_logs', function (Blueprint $table) {
-            $table->json('vend_channels_json')->nullable();
+        Schema::table('vend_transactions', function (Blueprint $table) {
+            $table->integer('interface_type')->nullable()->after('vend_id');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('payment_gateway_logs', function (Blueprint $table) {
-            $table->dropColumn('vend_channels_json');
+        Schema::table('vend_transactions', function (Blueprint $table) {
+            $table->dropColumn('interface_type');
         });
     }
 };

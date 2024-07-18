@@ -135,6 +135,7 @@ class CreateVendTransaction implements ShouldQueue
             'transaction_datetime' => $this->isCurrentTime ? Carbon::now() : Carbon::parse($input['time']),
             'amount' => $input['amount'],
             'order_id' => $input['orderID'],
+            'interface_type' => $input['interfaceType'],
             'is_multiple' => $input['isMultiple'],
             'is_payment_received' => $input['isPaymentReceived'],
             'items_json' => $input['children'],
@@ -240,6 +241,7 @@ class CreateVendTransaction implements ShouldQueue
             'children' => isset($input['children']) ? $input['children'] : [],
             'errorCode' => $input['errorCode'],
             'gstVatRate' => $gstVatRate,
+            'interfaceType' => isset($input['interfaceType']) ? $input['interfaceType'] : null,
             'isMultiple' => isset($input['isMultiple']) ? $input['isMultiple'] : false,
             'isPaymentReceived' => $isPaymentReceived,
             'isSuccessful' => $isSuccessful,
@@ -269,6 +271,7 @@ class CreateVendTransaction implements ShouldQueue
         $data['time'] = isset($input['TIME']) ? $input['TIME'] : Carbon::now()->toDateTimeString();
         $data['errorCode'] = isset($input['SErr']) ? $input['SErr'] : (isset($input['errorCode']) ? $input['errorCode'] : 0);
         $data['vendChannelCode'] = isset($input['SId']) ? $input['SId'] : 0;
+        $data['interfaceType'] = isset($input['TXN_SRC']) ? $input['TXN_SRC'] : null;
         $data['isMultiple'] = false;
         $data['children'] = [];
 

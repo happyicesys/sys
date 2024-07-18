@@ -115,6 +115,11 @@ class Vend extends Model
     ];
 
     // relationships
+    public function attachments()
+    {
+        return $this->morphMany(Attachment::class, 'modelable')->orderBy('sequence');
+    }
+
     public function category()
     {
         return $this->morphOne(Category::class, 'modelable');

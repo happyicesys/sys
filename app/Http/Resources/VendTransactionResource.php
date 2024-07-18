@@ -22,6 +22,7 @@ class VendTransactionResource extends JsonResource
             'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'customer_code' => isset($this->customer_code) ? $this->customer_code : null,
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,
+            'interface_type' => isset($this->interface_type) ? $this->interface_type : null,
             'is_multiple' => $this->is_multiple,
             'is_payment_received' => $this->is_payment_received,
             'is_refunded' => isset($this->is_refunded) && $this->is_refunded ? true : false,

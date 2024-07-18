@@ -13,6 +13,14 @@ class VendTransaction extends Model
 {
     use GetUserTimezone, HasFactory;
 
+    const INTERFACE_TYPE_0 = 0;
+    const INTERFACE_TYPE_1 = 1;
+
+    const INTERFACE_TYPE_MAPPINGS = [
+        self::INTERFACE_TYPE_0 => 'Normal',
+        self::INTERFACE_TYPE_1 => 'Soft Keyboard/ Multiple Cart',
+    ];
+
     protected static function booted()
     {
         static::addGlobalScope(new OperatorTransactionFilterScope);
@@ -35,6 +43,7 @@ class VendTransaction extends Model
         'gross_profit',
         'gross_profit_margin',
         'gst_vat_rate',
+        'interface_type',
         'is_multiple',
         'is_payment_received',
         'is_refunded',

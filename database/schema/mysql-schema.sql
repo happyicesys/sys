@@ -79,7 +79,9 @@ CREATE TABLE `cashless_terminals` (
   `updated_by` bigint DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  `operator_id` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `cashless_terminals_operator_id_index` (`operator_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `categories`;
@@ -183,12 +185,13 @@ CREATE TABLE `customers` (
   `virtual_customer_prefix` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (json_unquote(json_extract(`person_json`,_utf8mb4'$.prefix'))) VIRTUAL,
   `virtual_customer_code` int GENERATED ALWAYS AS (json_unquote(json_extract(`person_json`,_utf8mb4'$.code'))) VIRTUAL,
   `begin_date` datetime DEFAULT NULL,
-  `is_testing` tinyint(1) NOT NULL DEFAULT '0',
   `termination_date` datetime DEFAULT NULL,
   `snap_parameter_json` json DEFAULT NULL,
   `snap_vend_channels_json` json DEFAULT NULL,
   `snap_vend_channel_error_logs_json` json DEFAULT NULL,
   `snap_vend_status_json` json DEFAULT NULL,
+  `selling_price_type` int NOT NULL DEFAULT '1',
+  `power_socket_key_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `customers_location_type_id_index` (`location_type_id`),
   KEY `customers_category_id_index` (`category_id`),
@@ -272,45 +275,12 @@ CREATE TABLE `delivery_platform_campaigns` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `delivery_platform_logs`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `delivery_platform_logs` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `amount` int DEFAULT NULL,
-  `delivery_platform_id` bigint NOT NULL,
-  `delivery_platform_operator_id` bigint NOT NULL,
-  `error_json` json DEFAULT NULL,
-  `order_completed_at` datetime DEFAULT NULL,
-  `order_created_at` datetime DEFAULT NULL,
-  `ref_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `order_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `order_json` json DEFAULT NULL,
-  `request_history_json` json DEFAULT NULL,
-  `response_history_json` json DEFAULT NULL,
-  `status` int NOT NULL DEFAULT '1',
-  `vend_channel_code` int NOT NULL,
-  `vend_channel_id` bigint NOT NULL,
-  `vend_code` int NOT NULL,
-  `vend_id` bigint NOT NULL,
-  `created_at` timestamp NULL DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `delivery_platform_logs_delivery_platform_id_index` (`delivery_platform_id`),
-  KEY `delivery_platform_logs_delivery_platform_operator_id_index` (`delivery_platform_operator_id`),
-  KEY `delivery_platform_logs_status_index` (`status`),
-  KEY `delivery_platform_logs_vend_channel_id_index` (`vend_channel_id`),
-  KEY `delivery_platform_logs_vend_code_index` (`vend_code`),
-  KEY `delivery_platform_logs_vend_id_index` (`vend_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `delivery_platform_menu_records`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `delivery_platform_menu_records` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `delivery_platform_slug` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `menu_json` json DEFAULT NULL,
   `platform_ref_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -382,11 +352,10 @@ CREATE TABLE `delivery_platform_orders` (
   `delivery_platform_id` bigint NOT NULL,
   `delivery_platform_operator_id` bigint NOT NULL,
   `driver_phone_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `error_json` json DEFAULT NULL,
   `is_cancelled` tinyint(1) NOT NULL DEFAULT '0',
   `is_edited` tinyint(1) NOT NULL DEFAULT '0',
   `is_verified` tinyint(1) NOT NULL DEFAULT '0',
-  `order_created_at` datetime DEFAULT NULL,
+  `order_created_at` datetime NOT NULL,
   `order_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `order_json` json DEFAULT NULL,
   `product_mapping_id` bigint DEFAULT NULL,
@@ -397,9 +366,8 @@ CREATE TABLE `delivery_platform_orders` (
   `status_json` json DEFAULT NULL,
   `total_amount` int DEFAULT NULL,
   `vend_code` int NOT NULL,
-  `vend_json` json DEFAULT NULL,
   `campaign_json` json DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT NULL,
+  `created_at` datetime NOT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `platform_ref_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `delivery_product_mapping_vend_id` bigint unsigned DEFAULT NULL,
@@ -421,7 +389,9 @@ CREATE TABLE `delivery_platform_orders` (
   KEY `delivery_platform_orders_short_order_id_index` (`short_order_id`),
   KEY `delivery_platform_orders_status_index` (`status`),
   KEY `delivery_platform_orders_vend_code_index` (`vend_code`),
-  KEY `delivery_platform_orders_delivery_product_mapping_vend_id_index` (`delivery_product_mapping_vend_id`)
+  KEY `delivery_platform_orders_delivery_product_mapping_vend_id_index` (`delivery_product_mapping_vend_id`),
+  KEY `delivery_platform_orders_created_at_index` (`created_at`),
+  KEY `delivery_platform_orders_order_created_at_index` (`order_created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `delivery_platforms`;
@@ -640,6 +610,18 @@ CREATE TABLE `holidays` (
   `desc` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `keys`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `keys` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `desc` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -888,6 +870,55 @@ CREATE TABLE `operators` (
   KEY `operators_country_id_index` (`country_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `ops_job_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ops_job_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `cash_amount` int DEFAULT NULL,
+  `cashless_amount` int DEFAULT NULL,
+  `channels_json` json DEFAULT NULL,
+  `completed_at` datetime DEFAULT NULL,
+  `completed_by` bigint unsigned DEFAULT NULL,
+  `customer_id` bigint unsigned NOT NULL,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `ops_job_id` bigint unsigned NOT NULL,
+  `sequence` int DEFAULT NULL,
+  `status` int NOT NULL DEFAULT '1',
+  `picked_at` datetime DEFAULT NULL,
+  `picked_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned NOT NULL,
+  `vend_id` bigint unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `ops_job_items_customer_id_index` (`customer_id`),
+  KEY `ops_job_items_ops_job_id_index` (`ops_job_id`),
+  KEY `ops_job_items_vend_id_index` (`vend_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `ops_jobs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ops_jobs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `code` int NOT NULL,
+  `created_by` bigint unsigned NOT NULL,
+  `date` datetime NOT NULL,
+  `delivered_by` bigint unsigned DEFAULT NULL,
+  `operator_id` bigint unsigned NOT NULL,
+  `picked_at` datetime DEFAULT NULL,
+  `picked_by` bigint unsigned DEFAULT NULL,
+  `status` int NOT NULL DEFAULT '1',
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ops_jobs_code_unique` (`code`),
+  KEY `ops_jobs_date_index` (`date`),
+  KEY `ops_jobs_operator_id_index` (`operator_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `order_item_vend_channels`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -927,7 +958,6 @@ CREATE TABLE `payment_gateway_logs` (
   `response` json DEFAULT NULL,
   `request_history_json` json DEFAULT NULL,
   `history_json` json DEFAULT NULL,
-  `error_json` json DEFAULT NULL,
   `order_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `ref_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `vend_transaction_id` bigint NOT NULL,
@@ -941,6 +971,7 @@ CREATE TABLE `payment_gateway_logs` (
   `qr_text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `vend_id` bigint DEFAULT NULL,
   `vend_channel_id` bigint DEFAULT NULL,
+  `vend_channels_json` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `payment_gateway_logs_order_id_index` (`order_id`),
   KEY `payment_gateway_logs_operator_payment_gateway_id_index` (`operator_payment_gateway_id`),
@@ -1073,6 +1104,33 @@ CREATE TABLE `product_mapping_items` (
   KEY `product_mapping_items_product_mapping_id_index` (`product_mapping_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `product_mapping_product_mapping`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `product_mapping_product_mapping` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `product_mapping_id` bigint unsigned NOT NULL,
+  `upcoming_product_mapping_id` bigint unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `product_mapping_upcoming_unique` (`product_mapping_id`,`upcoming_product_mapping_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `product_mapping_vend_prefix`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `product_mapping_vend_prefix` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `product_mapping_id` bigint unsigned NOT NULL,
+  `vend_prefix_id` bigint unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `product_mapping_vend_prefix_product_mapping_id_index` (`product_mapping_id`),
+  KEY `product_mapping_vend_prefix_vend_prefix_id_index` (`vend_prefix_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `product_mappings`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -1155,11 +1213,15 @@ CREATE TABLE `products` (
   `category_id` bigint DEFAULT NULL,
   `category_group_id` bigint DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `is_available` tinyint(1) NOT NULL DEFAULT '1',
+  `is_available_updated_at` datetime DEFAULT NULL,
+  `is_available_updated_by` bigint DEFAULT NULL,
   `is_commission` tinyint(1) NOT NULL DEFAULT '0',
   `is_supermarket_fee` tinyint(1) NOT NULL DEFAULT '0',
   `barcode` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `operator_id` bigint NOT NULL DEFAULT '1',
   `cms_refer_id` bigint unsigned DEFAULT NULL,
+  `translated_names_json` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `products_is_inventory_index` (`is_inventory`),
   KEY `products_code_index` (`code`),
@@ -1235,6 +1297,19 @@ CREATE TABLE `roles` (
   UNIQUE KEY `roles_name_guard_name_unique` (`name`,`guard_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `selling_prices`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `selling_prices` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `amount` int NOT NULL DEFAULT '0',
+  `product_id` bigint unsigned NOT NULL,
+  `type` int NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `simcards`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -1250,7 +1325,9 @@ CREATE TABLE `simcards` (
   `updated_by` bigint DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  `operator_id` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `simcards_operator_id_index` (`operator_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `statuses`;
@@ -1428,6 +1505,8 @@ CREATE TABLE `users` (
   `profile_id` bigint DEFAULT NULL,
   `operator_id` bigint DEFAULT '1',
   `access_token` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `phone_country_id` bigint DEFAULT NULL,
+  `phone_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `users_email_unique` (`email`),
   KEY `users_profile_id_index` (`profile_id`),
@@ -1507,6 +1586,7 @@ CREATE TABLE `vend_channels` (
   `product_id` bigint DEFAULT NULL,
   `amount2` int NOT NULL DEFAULT '0',
   `discount_group` int DEFAULT NULL,
+  `error_rate_json` json NOT NULL,
   `locked_qty` int NOT NULL DEFAULT '0',
   `sku_code` int DEFAULT NULL,
   `qty_sold_at` datetime DEFAULT NULL,
@@ -1517,6 +1597,49 @@ CREATE TABLE `vend_channels` (
   KEY `vend_channels_is_active_index` (`is_active`),
   KEY `vend_channels_vend_id_index` (`vend_id`),
   KEY `vend_channels_product_id_index` (`product_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `vend_config_vend_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `vend_config_vend_config` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `vend_config_id` bigint unsigned NOT NULL,
+  `compatible_vend_config_id` bigint unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `vend_config_compatible_unique` (`vend_config_id`,`compatible_vend_config_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `vend_config_vend_prefix`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `vend_config_vend_prefix` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `vend_config_id` bigint unsigned NOT NULL,
+  `vend_prefix_id` bigint unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `vend_config_vend_prefix_vend_config_id_index` (`vend_config_id`),
+  KEY `vend_config_vend_prefix_vend_prefix_id_index` (`vend_prefix_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `vend_configs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `vend_configs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `desc` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `operator_id` bigint unsigned DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '-',
+  PRIMARY KEY (`id`),
+  KEY `vend_configs_operator_id_index` (`operator_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `vend_criteria_bindings`;
@@ -1588,6 +1711,17 @@ CREATE TABLE `vend_fans` (
   KEY `vend_fans_created_at_index` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `vend_models`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `vend_models` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `vend_package_items`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -1608,13 +1742,29 @@ CREATE TABLE `vend_packages` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `vend_prefixes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `vend_prefixes` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `desc` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `vend_config_id` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `operator_id` bigint unsigned DEFAULT NULL,
+  `product_mapping_id` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `vend_prefixes_vend_config_id_index` (`vend_config_id`),
+  KEY `vend_prefixes_operator_id_index` (`operator_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `vend_records`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vend_records` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `customer_id` bigint DEFAULT NULL,
-  `customer_json` json DEFAULT NULL,
   `date` datetime NOT NULL,
   `day` int NOT NULL,
   `failure_amount` int NOT NULL DEFAULT '0',
@@ -1635,11 +1785,27 @@ CREATE TABLE `vend_records` (
   `online_success_count` int NOT NULL DEFAULT '0',
   `revenue` int NOT NULL DEFAULT '0',
   `gross_profit` int NOT NULL DEFAULT '0',
+  `all_total_count` int NOT NULL DEFAULT '0',
+  `error_count` int NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   KEY `vend_records_customer_id_index` (`customer_id`),
   KEY `vend_records_date_index` (`date`),
   KEY `vend_records_operator_id_index` (`operator_id`),
-  KEY `vend_records_vend_id_index` (`vend_id`)
+  KEY `vend_records_vend_id_index` (`vend_id`),
+  KEY `vend_records_year_index` (`year`),
+  KEY `vend_records_month_index` (`month`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `vend_serial_numbers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `vend_serial_numbers` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `desc` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `vend_snapshots`;
@@ -1648,7 +1814,6 @@ DROP TABLE IF EXISTS `vend_snapshots`;
 CREATE TABLE `vend_snapshots` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `customer_id` bigint DEFAULT NULL,
-  `customer_json` json DEFAULT NULL,
   `operator_id` bigint DEFAULT NULL,
   `parameter_json` json DEFAULT NULL,
   `vend_id` bigint NOT NULL,
@@ -1702,37 +1867,17 @@ CREATE TABLE `vend_transaction_items` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `is_refunded` tinyint(1) NOT NULL DEFAULT '0',
   `product_id` bigint unsigned DEFAULT NULL,
-  `product_json` json DEFAULT NULL,
   `unit_cost` int DEFAULT NULL,
   `unit_cost_id` bigint unsigned DEFAULT NULL,
   `vend_channel_id` bigint unsigned NOT NULL,
+  `vend_channel_error_code` int DEFAULT NULL,
   `vend_channel_code` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `vend_channel_error_id` bigint unsigned DEFAULT NULL,
   `vend_transaction_id` bigint NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
-  `vend_channel_error_json` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `vend_transaction_items_vend_transaction_id_index` (`vend_transaction_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `vend_transaction_items_bk`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `vend_transaction_items_bk` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `is_refunded` tinyint(1) NOT NULL DEFAULT '0',
-  `product_id` bigint unsigned DEFAULT NULL,
-  `product_json` json DEFAULT NULL,
-  `unit_cost` int DEFAULT NULL,
-  `unit_cost_id` bigint unsigned DEFAULT NULL,
-  `vend_channel_id` bigint unsigned NOT NULL,
-  `vend_channel_code` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `vend_channel_error_id` bigint unsigned DEFAULT NULL,
-  `vend_transaction_id` bigint unsigned NOT NULL,
-  `created_at` timestamp NULL DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `vend_transactions`;
@@ -1740,7 +1885,6 @@ DROP TABLE IF EXISTS `vend_transactions`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `vend_transactions` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `vend_binding_id` bigint DEFAULT NULL,
   `order_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `transaction_datetime` datetime NOT NULL,
   `amount` int NOT NULL DEFAULT '0',
@@ -1753,15 +1897,12 @@ CREATE TABLE `vend_transactions` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `vend_transaction_json` json DEFAULT NULL,
+  `meta_json` json DEFAULT NULL,
   `product_id` bigint DEFAULT NULL,
   `unit_cost_id` bigint DEFAULT NULL,
-  `customer_json` json DEFAULT NULL,
-  `location_type_json` json DEFAULT NULL,
-  `operator_json` json DEFAULT NULL,
-  `product_json` json DEFAULT NULL,
+  `location_type_id` bigint DEFAULT NULL,
   `gst_vat_rate` int NOT NULL DEFAULT '0',
   `is_payment_received` tinyint(1) DEFAULT NULL,
-  `vend_json` json DEFAULT NULL,
   `revenue` int DEFAULT NULL,
   `gross_profit` int DEFAULT NULL,
   `gross_profit_margin` int DEFAULT NULL,
@@ -1783,52 +1924,8 @@ CREATE TABLE `vend_transactions` (
   KEY `vend_transactions_vend_channel_code_index` (`vend_channel_code`),
   KEY `vend_transactions_amount_index` (`amount`),
   KEY `vend_transactions_customer_id_index` (`customer_id`),
+  KEY `vend_transactions_vend_channel_id` (`vend_channel_id`),
   KEY `vend_transactions_error_code_normalized_index` (`error_code_normalized`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `vend_transactions_bk`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `vend_transactions_bk` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `order_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `transaction_datetime` datetime NOT NULL,
-  `amount` int NOT NULL DEFAULT '0',
-  `customer_id` bigint DEFAULT NULL,
-  `operator_id` bigint DEFAULT NULL,
-  `payment_method_id` bigint DEFAULT NULL,
-  `vend_channel_id` bigint NOT NULL,
-  `vend_channel_error_id` bigint DEFAULT NULL,
-  `vend_id` bigint NOT NULL,
-  `created_at` timestamp NULL DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT NULL,
-  `vend_transaction_json` json DEFAULT NULL,
-  `product_id` bigint DEFAULT NULL,
-  `unit_cost_id` bigint DEFAULT NULL,
-  `customer_json` json DEFAULT NULL,
-  `location_type_json` json DEFAULT NULL,
-  `operator_json` json DEFAULT NULL,
-  `product_json` json DEFAULT NULL,
-  `gst_vat_rate` int NOT NULL DEFAULT '0',
-  `is_payment_received` tinyint(1) DEFAULT NULL,
-  `vend_json` json DEFAULT NULL,
-  `revenue` int DEFAULT NULL,
-  `gross_profit` int DEFAULT NULL,
-  `gross_profit_margin` int DEFAULT NULL,
-  `unit_cost` int DEFAULT NULL,
-  `vend_channel_code` int DEFAULT NULL,
-  `is_refunded` tinyint(1) NOT NULL DEFAULT '0',
-  `payment_gateway_log_id` bigint unsigned DEFAULT NULL,
-  `is_multiple` tinyint(1) NOT NULL DEFAULT '0',
-  `items_json` json DEFAULT NULL,
-  `vend_transaction_items_json` json DEFAULT NULL,
-  `error_code_normalized` int DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `vend_transactions_vend_id_index` (`vend_id`),
-  KEY `vend_transactions_created_at_index` (`created_at`),
-  KEY `vend_transactions_operator_id_index` (`operator_id`),
-  KEY `vend_transactions_customer_id_index` (`customer_id`),
-  KEY `vend_transactions_amount_index` (`amount`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `vend_types`;
@@ -1860,6 +1957,7 @@ CREATE TABLE `vends` (
   `is_door_open` tinyint(1) NOT NULL DEFAULT '0',
   `is_sensor_normal` tinyint(1) NOT NULL DEFAULT '0',
   `simcard_id` bigint DEFAULT NULL,
+  `vend_config_id` bigint unsigned DEFAULT NULL,
   `cashless_terminal_id` bigint DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -1867,6 +1965,7 @@ CREATE TABLE `vends` (
   `vend_type_id` bigint DEFAULT NULL,
   `keylock_number` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `vend_channels_json` json DEFAULT NULL,
+  `original_vend_channels_json` json DEFAULT NULL,
   `vend_channel_error_logs_json` json DEFAULT NULL,
   `vend_channel_totals_json` json DEFAULT NULL,
   `parameter_json` json DEFAULT NULL,
@@ -1875,6 +1974,7 @@ CREATE TABLE `vends` (
   `vend_transaction_totals_json` json DEFAULT NULL,
   `virtual_vend_records_thirty_days_amount_average` int GENERATED ALWAYS AS (json_unquote(json_extract(`vend_transaction_totals_json`,_utf8mb4'$.vend_records_thirty_days_amount_average'))) VIRTUAL,
   `product_mapping_id` bigint DEFAULT NULL,
+  `upcoming_product_mapping_id` bigint DEFAULT NULL,
   `apk_ver_json` json DEFAULT NULL,
   `private_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `out_of_stock_sku_percent` int GENERATED ALWAYS AS (json_unquote(json_extract(`vend_channel_totals_json`,_utf8mb4'$.outOfStockSkuPercent'))) VIRTUAL,
@@ -1898,6 +1998,14 @@ CREATE TABLE `vends` (
   `is_mqtt_offline_notified` tinyint(1) NOT NULL DEFAULT '0',
   `is_mqtt_active` tinyint(1) NOT NULL DEFAULT '0',
   `customer_id` bigint DEFAULT NULL,
+  `customer_movement_history_json` json DEFAULT NULL,
+  `operator_id` bigint unsigned DEFAULT NULL,
+  `vend_temp_alert_json` json DEFAULT NULL,
+  `vend_prefix_id` bigint DEFAULT NULL,
+  `vend_model_id` bigint unsigned DEFAULT NULL,
+  `key_id` bigint unsigned DEFAULT NULL,
+  `vend_serial_number_id` bigint unsigned DEFAULT NULL,
+  `vend_vend_config_version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '-',
   PRIMARY KEY (`id`),
   KEY `vends_code_index` (`code`),
   KEY `vends_product_mapping_id_index` (`product_mapping_id`),
@@ -2305,3 +2413,48 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (336,'2024_03_11_16
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (337,'2024_03_11_165009_add_totals_json_customers',152);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (338,'2024_03_26_234610_add_revenue_gross_profit_vend_records',153);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (339,'2024_04_01_140931_add_is_active_product_mappings',154);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (340,'2024_04_03_110924_add_operator_id_vends',155);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (341,'2024_04_09_011810_add_translated_names_json_products',156);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (342,'2024_04_12_161907_add_grand_total_count_error_count_vend_records',157);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (343,'2024_04_13_095631_add_error_rate_json_vend_channels',158);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (344,'2024_04_23_233219_add_vend_channels_json_payment_gateway_logs',159);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (345,'2024_04_30_101055_add_customer_movement_history_json_vends',160);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (346,'2024_05_02_094450_alter_delivery_platform_orders_created_at_index',161);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (347,'2024_05_02_115336_alter_delivery_platform_orders_order_created_at_index',162);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (348,'2024_05_02_115706_alter_vend_records_year_month_index',162);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (349,'2024_05_02_154226_create_selling_prices_table',163);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (350,'2024_05_02_164700_create_vend_prefixes_table',163);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (351,'2024_05_02_170532_create_vend_configs_table',163);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (352,'2024_05_02_174816_create_product_mapping_vend_prefix_table',163);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (353,'2024_05_07_100126_add_operator_id_vend_prefixes_vend_configs_simcards_cashless_terminals--table=vend_prefixes',164);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (354,'2024_05_10_233016_add_vend_temp_alert_json_vends',165);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (355,'2024_05_11_043929_add_phone_country_id_phone_number_users',165);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (356,'2024_05_20_101323_drop_is_testing_customers',166);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (357,'2024_05_20_104741_add_selling_price_type_customers',166);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (358,'2024_05_27_001420_add_cashless_terminal_id_simcard_id_vend_prefix_id_vends',167);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (359,'2024_06_14_154543_create_ops_jobs_table',168);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (360,'2024_06_14_223622_create_ops_job_items_table',168);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (361,'2024_06_18_225945_create_vend_config_vend_prefix_table',169);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (362,'2024_06_19_110650_add_is_active_vend_configs_table',169);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (363,'2024_06_19_114510_add_vend_config_id_vends',169);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (364,'2024_06_19_151339_create_vend_models_table',170);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (365,'2024_06_19_154717_add_vend_model_id_vends',171);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (366,'2024_06_22_105737_create_keys_table',172);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (367,'2024_06_22_120617_add_key_id_vends',172);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (368,'2024_06_24_160726_add_product_mapping_id_vend_prefixes',173);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (369,'2024_06_27_133336_create_vend_config_vend_config_table',174);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (370,'2024_06_27_172757_add_desc_keys',175);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (371,'2024_06_27_173509_add_power_socket_key_number_customers',175);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (372,'2024_06_27_232934_create_vend_serial_numbers_table',176);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (373,'2024_06_27_235657_add_vend_serial_number_id_vends',176);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (374,'2024_07_04_124809_add_original_vend_channels_json',177);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (375,'2024_07_04_230110_add_is_available_products',178);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (376,'2024_07_05_130445_add_is_available_updated_at',179);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (377,'2024_07_12_172351_create_product_mapping_product_mapping',180);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (378,'2024_07_12_231626_add_version_vend_configs',180);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (379,'2024_07_13_094533_add_upcoming_product_mapping_id_vends',180);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (380,'2024_07_14_223408_add_vend_config_version_vends',181);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (381,'2024_07_15_120122_alter_vend_vend_config_version_vends',182);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (382,'2024_07_17_090724_drop_vend_binding_id_cleanup_vend_transactions',183);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (383,'2024_07_17_140613_drop_customer_json_vend_transactions',184);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (384,'2024_07_17_194846_add_meta_json_vend_transactions',184);
