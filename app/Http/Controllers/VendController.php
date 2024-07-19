@@ -18,6 +18,7 @@ use App\Http\Resources\VendResource;
 use App\Http\Resources\VendChannelResource;
 use App\Http\Resources\VendChannelErrorResource;
 use App\Http\Resources\VendFanResource;
+use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendTransactionResource;
 use App\Http\Resources\VendTempResource;
@@ -39,6 +40,7 @@ use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
 use App\Models\VendData;
+use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Models\VendRecord;
 use App\Models\VendSnapshot;
@@ -261,6 +263,9 @@ class VendController extends Controller
             'totals' => $totals,
             'vends' => VendResource::collection($vends),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
+            'vendModelOptions' => VendModelResource::collection(
+                VendModel::orderBy('name')->get()
+            ),
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
             ),
@@ -485,6 +490,9 @@ class VendController extends Controller
             'totals' => $totals,
             'vends' => VendResource::collection($vends),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
+            'vendModelOptions' => VendModelResource::collection(
+                VendModel::orderBy('name')->get()
+            ),
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
             ),

@@ -335,6 +335,23 @@
           >
           </MultiSelect>
         </div>
+        <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Machine Model
+            </label>
+            <MultiSelect
+                v-model="filters.vendModels"
+                :options="vendModelOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+            >
+            </MultiSelect>
+          </div>
       </div>
 
       <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -1390,6 +1407,7 @@ font-size:13px;
       totals: [Array, Object],
       vends: Object,
       vendChannelErrors: Object,
+      vendModelOptions: Object,
       vendPrefixOptions: Object,
   })
 
@@ -1430,6 +1448,7 @@ font-size:13px;
       selling_price_type: '',
       status: '',
       sortKey: '',
+      vendModels: [],
       vendRecordsThirtyDaysAmountAverageLessThan: '',
       sortBy: true,
       numberPerPage: '',
@@ -1467,6 +1486,7 @@ font-size:13px;
 
   const vends = ref(getVendsField())
   const vendChannelErrorsOptions = ref([])
+  const vendModelOptions = ref([])
   const vendPrefixOptions = ref([])
   //   const vendOptions = ref([])
   const operatorCountry = usePage().props.auth.operatorCountry
@@ -1537,17 +1557,21 @@ operatorOptions.value = [
     {id: 'all', full_name: 'All'},
     ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
 ]
-  sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
-  statusOptions.value = [
-      {id: 'all', value: 'All'},
-      {id: 'factory', value: 'Factory'},
-      {id: 'active', value: 'Active'},
-      {id: 'inactive', value: 'Not Active'},
-  ]
+sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
+statusOptions.value = [
+    {id: 'all', value: 'All'},
+    {id: 'factory', value: 'Factory'},
+    {id: 'active', value: 'Active'},
+    {id: 'inactive', value: 'Not Active'},
+]
+vendModelOptions.value = [
+    {id: 'all', value: 'All'},
+    ...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
+]
 
-  vendPrefixOptions.value = [
-      ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
-  ]
+vendPrefixOptions.value = [
+    ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
+]
 
 filters.value.is_active = booleanOptions.value[1]
 filters.value.deviceType = deviceTypeOptions.value[0]
@@ -1667,6 +1691,7 @@ function onSearchFilterUpdated() {
       is_sensor: filters.value.is_sensor.id,
       // is_testing: filters.value.is_testing.id,
       status: filters.value.status.id,
+      vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
       vend_prefix_id: filters.value.vend_prefix_id.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
@@ -1751,6 +1776,7 @@ axios({
         is_sensor: filters.value.is_sensor.id,
         is_testing: filters.value.is_testing.id,
         status: filters.value.status.id,
+        vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
         vend_prefix_id: filters.value.vend_prefix_id.id,
     },
     responseType: 'blob',

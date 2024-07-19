@@ -407,6 +407,11 @@ trait HasFilter {
         //         $query->where('vends.vend_prefix_id', $search);
         //     }
         // })
+        ->when($request->vendModels, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereIn('vends.vend_model_id', $search);
+            }
+        })
         ->when($request->vendPrefixes, function($query, $search) {
             $query->whereIn('vends.vend_prefix_id', $search);
         })
