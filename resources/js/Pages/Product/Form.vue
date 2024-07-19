@@ -6,7 +6,7 @@
           <span class="text-gray-600" v-if="product">
             Editing
           </span>
-          <span v-if="props.product">
+          <span v-if="product">
             {{ product.name }}
           </span>
           <span class="text-gray-600" v-else>
@@ -19,7 +19,6 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-6 pb-3">
               <div class="mt-1 flex flex-col md:flex-row space-y-2 md:space-y-0 items-center">
-
                 <span class="h-28 w-28 overflow-hidden rounded-full bg-gray-100">
                   <a :href="product.thumbnail.full_url" target="_blank" v-if="product && product.thumbnail">
                     <img class="h-28 w-28 rounded-full border" :src="product.thumbnail.full_url" alt="" v-if="product && product.thumbnail"/>
@@ -81,8 +80,6 @@
               <div class="text-sm text-red-600" v-if="form.errors.measurement_unit">
                 {{ form.errors.measurement_unit }}
               </div>
-            <!-- </div> -->
-            <!-- <div class="col-span-12 sm:col-span-6"> -->
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Operator
                 <span class="text-red-500">
@@ -104,196 +101,50 @@
                 {{ form.errors.operator_id }}
               </div>
             </div>
-            <!-- <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Category
-              </label>
-              <MultiSelect
-                v-model="form.category_id"
-                :options="categoryOptions"
-                trackBy="id"
-                valueProp="id"
-                label="name"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-              >
-              </MultiSelect>
-              <div class="text-sm text-red-600" v-if="form.errors.category_id">
-                {{ form.errors.category_id }}
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Unit Cost</span>
+                </div>
               </div>
             </div>
-            <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Group
-              </label>
-              <MultiSelect
-                v-model="form.category_group_id"
-                :options="categoryGroupOptions"
-                trackBy="id"
-                valueProp="id"
-                label="name"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-              >
-              </MultiSelect>
-              <div class="text-sm text-red-600" v-if="form.errors.category_group_id">
-                {{ form.errors.category_group_id }}
-              </div>
-            </div> -->
-            <!-- <div class="sm:col-span-6 pt-2">
-              <div class="flex md:justify-between flex-col space-y-3 md:flex-row md:space-y-0">
-                <div class="relative flex items-start">
-                  <div class="flex h-5 items-center">
-                    <input id="candidates" v-model="form.is_inventory" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-75" />
-                  </div>
-                  <div class="ml-3 text-sm">
-                    <label for="candidates" class="font-medium text-gray-700">Is Inventory?</label>
-                  </div>
-                </div>
-
-                <div class="relative flex items-start">
-                  <div class="flex h-5 items-center">
-                    <input id="candidates" v-model="form.is_commission" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-75" :disabled="form.is_inventory"/>
-                  </div>
-                  <div class="ml-3 text-sm">
-                    <label for="candidates" class="font-medium text-gray-700" :class="[form.is_inventory ? 'text-gray-400' : '']">Is Commission?</label>
-                  </div>
-                </div>
-
-                <div class="relative flex items-start">
-                  <div class="flex h-5 items-center">
-                    <input id="candidates" v-model="form.is_supermarket_fee" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-75" :disabled="form.is_inventory"/>
-                  </div>
-                  <div class="ml-3 text-sm">
-                    <label for="candidates" class="font-medium text-gray-700" :class="[form.is_inventory ? 'text-gray-400' : '']">Is Supermarket Fee?</label>
-                  </div>
-                </div>
-              </div>
-            </div> -->
-            <!-- <div class="sm:col-span-6">
-              <div class="mt-8 flex flex-col">
-                <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-                  <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-                    <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                      <table class="min-w-full divide-y divide-gray-300">
-                        <thead class="bg-gray-50">
-                          <tr>
-                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                              #
-                            </th>
-                            <th scope="col" class="py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 sm:pl-6">
-                              UOM Name
-                            </th>
-                            <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                              Value
-                            </th>
-                            <th scope="col" colspan="2" class="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">
-                              <Button type="button" @click.prevent="onUomModalClicked" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 px-3 py-1">
-                                <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                                <span>
-                                  New UOM
-                                </span>
-                              </Button>
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 bg-white">
-                          <tr v-for="(productUom, productUomIndex) in productUoms" :key="productUom.id">
-                            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                              {{ productUomIndex + 1 }}
-                            </td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-700 text-center">
-                              {{ productUom.uom.name }}
-                            </td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-700 text-center">
-                              {{ productUom.value }}
-                            </td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-700 text-center">
-                              <div class="flex flex-col space-y-1 justify-center">
-                                <div>
-                                  <span class="inline-flex items-center rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800" v-if="productUom.is_base_uom">
-                                    base_uom
-                                  </span>
-                                </div>
-                                <div>
-                                  <span class="inline-flex items-center rounded-md bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800" v-if="productUom.is_transaction_uom">
-                                    transacted_uom
-                                  </span>
-                                </div>
-                              </div>
-                            </td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-700 text-center">
-                              <Button
-                                type="button" class="bg-red-300 hover:bg-red-400 px-2 py-2 text-xs text-red-800 flex space-x-1"
-                                @click="onProductUomDeleted(productUom)"
-                              >
-                                <XCircleIcon class="w-4 h-4"></XCircleIcon>
-                              </Button>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div> -->
-
-            <!-- unit costs start -->
-
-              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
-                <div class="relative">
-                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                    <div class="w-full border-t border-gray-300"></div>
-                  </div>
-                  <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Unit Cost</span>
-                  </div>
-                </div>
-              </div>
-
-
-              <div class="sm:col-span-3" v-if="form.id">
-                <FormInput v-model="form.unit_cost" :error="form.errors.unit_cost" required="true">
-                  Unit Cost
-                  <span class="text-xs text-gray-500">
-                    (before GST)
-                  </span>
-                </FormInput>
-              </div>
-
-              <div class="sm:col-span-3" v-if="form.id">
-                <DatePicker
-                      v-model="form.date_from"
-                  >
-                  Start Date
-                  <span class="text-[9px]">
-                    (Leave blank to start NOW)
-                  </span>
-                </DatePicker>
-              </div>
-
-              <div class="sm:col-span-6 flex justify-start" v-if="form.id">
-                <Button
+            <div class="sm:col-span-3" v-if="form.id">
+              <FormInput v-model="form.unit_cost" :error="form.errors.unit_cost" required="true">
+                Unit Cost
+                <span class="text-xs text-gray-500">
+                  (before GST)
+                </span>
+              </FormInput>
+            </div>
+            <div class="sm:col-span-3" v-if="form.id">
+              <DatePicker v-model="form.date_from">
+                Start Date
+                <span class="text-[9px]">
+                  (Leave blank to start NOW)
+                </span>
+              </DatePicker>
+            </div>
+            <div class="sm:col-span-6 flex justify-start" v-if="form.id">
+              <Button
                 type="button"
-                @click="addUnitCost()"
+                @click="addUnitCost"
                 class="bg-green-500 hover:bg-green-600 text-white"
                 :class="[
                   !form.unit_cost || isNaN(form.unit_cost) ?
                   'opacity-50 cursor-not-allowed' : ''
                   ]"
                 :disabled="!form.unit_cost || isNaN(form.unit_cost)"
-                >
-                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
-                  <span>
-                    Add
-                  </span>
-                </Button>
-              </div>
-
-              <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+              >
+                <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                <span>
+                  Add
+                </span>
+              </Button>
+            </div>
+            <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
               <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                 <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                   <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
@@ -316,30 +167,26 @@
                         </tr>
                       </thead>
                       <tbody class="bg-white">
-                        <tr v-for="(unitCost, unitCostIndex) in product.unitCosts" :key="unitCost.id" :class="unitCostIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <tr v-for="(unitCost, unitCostIndex) in unitCosts" :key="unitCostIndex" :class="unitCostIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             {{ unitCostIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ unitCost.cost ? unitCost.cost.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : 0 }}
+                            {{ unitCost.cost ? unitCost.cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ unitCost.date_from }}
                           </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
-                          <Button
-                            class="bg-red-400 hover:bg-red-500 text-white"
-                            @click.prevent="removeUnitCost(unitCost)"
-                            v-if="!unitCost.id"
-                          >
-                            <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
-                          </Button>
-                          <span class="inline-flex items-center rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10" v-if="unitCost.is_current">
-                            Current
-                          </span>
-                        </td>
+                            <Button
+                              class="bg-red-400 hover:bg-red-500 text-white"
+                              @click.prevent="removeUnitCost(unitCost)"
+                            >
+                              <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                            </Button>
+                          </td>
                         </tr>
-                        <tr v-if="!product.unitCosts.length">
+                        <tr v-if="!unitCosts.length">
                           <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
                             No Results Found
                           </td>
@@ -349,67 +196,56 @@
                   </div>
                 </div>
               </div>
-              </div>
-
-              <!-- unit cost end -->
-
-              <!-- sellin price start -->
-
-              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
-                <div class="relative">
-                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                    <div class="w-full border-t border-gray-300"></div>
-                  </div>
-                  <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Selling Price(s)</span>
-                  </div>
+            </div>
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Selling Price(s)</span>
                 </div>
               </div>
-
-
-              <div class="sm:col-span-3" v-if="form.id">
-                <FormInput v-model="form.selling_price_amount" :error="form.errors.unit_cost" placeholder="Number" required="true">
-                  Amount
-                </FormInput>
-              </div>
-
-              <div class="sm:col-span-3" v-if="form.id">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Ref Price Type
-                </label>
-                <MultiSelect
-                  v-model="form.selling_price_type"
-                  :options="priceTypeOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="name"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                >
-                </MultiSelect>
-              </div>
-
-
-              <div class="sm:col-span-6 flex justify-start" v-if="form.id">
-                <Button
+            </div>
+            <div class="sm:col-span-3" v-if="form.id">
+              <FormInput v-model="form.selling_price_amount" :error="form.errors.unit_cost" placeholder="Number" required="true">
+                Amount
+              </FormInput>
+            </div>
+            <div class="sm:col-span-3" v-if="form.id">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Ref Price Type
+              </label>
+              <MultiSelect
+                v-model="form.selling_price_type"
+                :options="priceTypeOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+            <div class="sm:col-span-6 flex justify-start" v-if="form.id">
+              <Button
                 type="button"
-                @click="addSellingPrice()"
+                @click="addSellingPrice"
                 class="bg-green-500 hover:bg-green-600 text-white"
                 :class="[
                   !form.selling_price_amount || isNaN(form.selling_price_amount) || !form.selling_price_type ?
                   'opacity-50 cursor-not-allowed' : ''
                   ]"
                 :disabled="!form.selling_price_amount || isNaN(form.selling_price_amount) || !form.selling_price_type"
-                >
-                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
-                  <span>
-                    Add
-                  </span>
-                </Button>
-              </div>
-
-              <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+              >
+                <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                <span>
+                  Add
+                </span>
+              </Button>
+            </div>
+            <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
               <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                 <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                   <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
@@ -429,7 +265,7 @@
                         </tr>
                       </thead>
                       <tbody class="bg-white">
-                        <tr v-for="(sellingPrice, sellingPriceIndex) in sellingPrices" :key="sellingPrice.id" :class="sellingPriceIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <tr v-for="(sellingPrice, sellingPriceIndex) in sellingPrices" :key="sellingPriceIndex" :class="sellingPriceIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             {{ sellingPriceIndex + 1 }}
                           </td>
@@ -440,15 +276,15 @@
                             {{ sellingPrice.type }}
                           </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
-                          <Button
-                            class="bg-red-400 hover:bg-red-500 text-white"
-                            @click.prevent="removeSellingPrice(sellingPrice)"
-                          >
-                            <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
-                          </Button>
-                        </td>
+                            <Button
+                              class="bg-red-400 hover:bg-red-500 text-white"
+                              @click.prevent="removeSellingPrice(sellingPrice)"
+                            >
+                              <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                            </Button>
+                          </td>
                         </tr>
-                        <tr v-if="!sellingPrices || !sellingPrices.length">
+                        <tr v-if="!sellingPrices.length">
                           <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
                             No Results Found
                           </td>
@@ -458,65 +294,56 @@
                   </div>
                 </div>
               </div>
-              </div>
-
-              <!-- selling price end -->
-
-              <!-- translate name start -->
-
-              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
-                <div class="relative">
-                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                    <div class="w-full border-t border-gray-300"></div>
-                  </div>
-                  <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Translated Name</span>
-                  </div>
+            </div>
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900"> Translated Name</span>
                 </div>
               </div>
-
-              <div class="sm:col-span-3" v-if="form.id">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Language
-                </label>
-                <MultiSelect
-                  v-model="form.language"
-                  :options="languageOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="name"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                >
-                </MultiSelect>
-              </div>
-              <div class="sm:col-span-3" v-if="form.id">
-                <FormInput v-model="form.translated_name" :error="form.errors.translated_name">
-                  Translated Name
-                </FormInput>
-              </div>
-
-
-              <div class="sm:col-span-6 flex justify-start" v-if="form.id">
-                <Button
+            </div>
+            <div class="sm:col-span-3" v-if="form.id">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Language
+              </label>
+              <MultiSelect
+                v-model="form.language"
+                :options="languageOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+            <div class="sm:col-span-3" v-if="form.id">
+              <FormInput v-model="form.translated_name" :error="form.errors.translated_name">
+                Translated Name
+              </FormInput>
+            </div>
+            <div class="sm:col-span-6 flex justify-start" v-if="form.id">
+              <Button
                 type="button"
-                @click="addLanguage()"
+                @click="addLanguage"
                 class="bg-green-500 hover:bg-green-600 text-white"
                 :class="[
                   !form.translated_name ?
                   'opacity-50 cursor-not-allowed' : ''
                   ]"
                 :disabled="!form.translated_name"
-                >
-                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
-                  <span>
-                    Add
-                  </span>
-                </Button>
-              </div>
-
-              <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+              >
+                <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                <span>
+                  Add
+                </span>
+              </Button>
+            </div>
+            <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
               <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                 <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                   <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
@@ -532,8 +359,7 @@
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Translated Name
                           </th>
-                          <th>
-                          </th>
+                          <th></th>
                         </tr>
                       </thead>
                       <tbody class="bg-white">
@@ -542,21 +368,21 @@
                             {{ languageIndex + 1 }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ language ? language.language : '' }}
+                            {{ language.language }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ language.name }}
                           </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
-                          <Button
-                            class="bg-red-400 hover:bg-red-500 text-white"
-                            @click.prevent="removeLanguage(languageIndex)"
-                          >
-                            <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
-                          </Button>
-                        </td>
+                            <Button
+                              class="bg-red-400 hover:bg-red-500 text-white"
+                              @click.prevent="removeLanguage(languageIndex)"
+                            >
+                              <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                            </Button>
+                          </td>
                         </tr>
-                        <tr v-if="!languages || Object.keys(languages).length === 0">
+                        <tr v-if="!languages.length">
                           <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
                             No Results Found
                           </td>
@@ -566,7 +392,7 @@
                   </div>
                 </div>
               </div>
-              </div>
+            </div>
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 pt-5 justify-end">
@@ -607,11 +433,10 @@
         </form>
       </template>
     </Modal>
-
     <Uom
       v-if="showUomModal"
       :product="product"
-      :uoms = "uoms"
+      :uoms="uoms"
       :showModal="showUomModal"
       @modalClose="onUomModalClose"
     >
@@ -625,17 +450,17 @@ import DatePicker from '@/Components/DatePicker.vue';
 import Uom from '@/Pages/Product/Uom.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
-import MultiSelect from '@/Components/MultiSelect.vue'
+import MultiSelect from '@/Components/MultiSelect.vue';
 import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon, RectangleStackIcon } from '@heroicons/vue/20/solid';
 import { useForm, usePage } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue'
+import { ref, onMounted } from 'vue';
 import moment from 'moment';
 
 const props = defineProps({
   categories: Object,
   categoryGroups: Object,
-  languageOptions:[Array, Object],
+  languageOptions: [Array, Object],
   measurementUnitOptions: Object,
   priceTypeOptions: Object,
   product: Object,
@@ -644,48 +469,42 @@ const props = defineProps({
   showModal: Boolean,
   operatorOptions: Object,
   permissions: [Array, Object],
-})
+});
 
-const emit = defineEmits(['modalClose'])
+const emit = defineEmits(['modalClose']);
 
-const categoryOptions = ref([])
-const categoryGroupOptions = ref([])
-const measurementUnitOptions = ref([])
-const showUomModal = ref(false)
-const uomOptions = ref([])
-const unitCosts = ref([])
-// const productUoms = ref(props.product.productUoms)
-const form = ref(
-  useForm(getDefaultForm())
-)
-const languages = ref([])
-const languageOptions = ref([])
-const operatorCountry = usePage().props.auth.operatorCountry
-const operatorOptions = ref([])
-const operatorRole = usePage().props.auth.operatorRole
-const priceTypeOptions = ref([])
-const sellingPrices = ref([])
+const categoryOptions = ref([]);
+const categoryGroupOptions = ref([]);
+const measurementUnitOptions = ref([]);
+const showUomModal = ref(false);
+const uomOptions = ref([]);
+const unitCosts = ref([]);
+const form = ref(useForm(getDefaultForm()));
+const languages = ref([]);
+const languageOptions = ref([]);
+const operatorCountry = usePage().props.auth.operatorCountry;
+const operatorOptions = ref([]);
+const operatorRole = usePage().props.auth.operatorRole;
+const priceTypeOptions = ref([]);
+const sellingPrices = ref([]);
 
 onMounted(() => {
-  form.value = props.product ? useForm(props.product) : useForm(getDefaultForm())
-  categoryOptions.value = props.categories.data.map((category) => {return {id: category.id, name: category.name}})
-  categoryGroupOptions.value = props.categoryGroups.data.map((categoryGroup) => {return {id: categoryGroup.id, name: categoryGroup.name}})
-  languageOptions.value = Object.entries(props.languageOptions).map(([id, name]) => ({ id, name }))
-  measurementUnitOptions.value = Object.keys(props.measurementUnitOptions).map((measurementUnit, index) => {return {id: measurementUnit, name: measurementUnit}})
-  priceTypeOptions.value = Object.entries(props.priceTypeOptions).map(([id, name]) => ({id: id, name: name}))
-  uomOptions.value = props.uoms.data.map((uom) => {return {id: uom.id, name: uom.name}})
-  operatorOptions.value = props.operatorOptions.slice(1)
-  sellingPrices.value = props.product ? props.product.sellingPrices : []
-  unitCosts.value = props.product ?
-  {...props.product.unitCosts,
-  } : null
-  languages.value = props.product ? (props.product.translated_names_json ? props.product.translated_names_json : []) : []
+  form.value = props.product ? useForm(props.product) : useForm(getDefaultForm());
+  categoryOptions.value = props.categories.data.map(category => ({ id: category.id, name: category.name }));
+  categoryGroupOptions.value = props.categoryGroups.data.map(categoryGroup => ({ id: categoryGroup.id, name: categoryGroup.name }));
+  languageOptions.value = Object.entries(props.languageOptions).map(([id, name]) => ({ id, name }));
+  measurementUnitOptions.value = Object.keys(props.measurementUnitOptions).map(measurementUnit => ({ id: measurementUnit, name: measurementUnit }));
+  priceTypeOptions.value = Object.entries(props.priceTypeOptions).map(([id, name]) => ({ id, name }));
+  uomOptions.value = props.uoms.data.map(uom => ({ id: uom.id, name: uom.name }));
+  operatorOptions.value = props.operatorOptions.slice(1);
+  sellingPrices.value = props.product ? props.product.sellingPrices : [];
+  unitCosts.value = props.product ? (Array.isArray(props.product.unitCosts) ? props.product.unitCosts : []) : [];
+  languages.value = props.product ? (props.product.translated_names_json ? props.product.translated_names_json : []) : [];
 
-  // pricetypeOptions get value which is not in sellingPrices.value type
-  priceTypeOptions.value = priceTypeOptions.value.filter((priceTypeOption) => {
-    return !sellingPrices.value.some((sellingPrice) => sellingPrice.type == priceTypeOption.id)
-  })
-})
+  priceTypeOptions.value = priceTypeOptions.value.filter(priceTypeOption => {
+    return !sellingPrices.value.some(sellingPrice => sellingPrice.type === priceTypeOption.id);
+  });
+});
 
 function getDefaultForm() {
   return {
@@ -707,91 +526,91 @@ function getDefaultForm() {
     selling_price_type: '',
     unit_cost: '',
     date_from: '',
-  }
+  };
 }
 
 function submit() {
-  form.value.clearErrors()
+  form.value.clearErrors();
 
-  if(props.type === 'create') {
+  if (props.type === 'create') {
     form.value
-    .transform((data) => ({
-      ...data,
-      measurement_unit: data.measurement_unit.id,
-      operator_id: data.operator_id.id,
-      // category_id: data.category_id.id,
-      // category_group_id: data.category_group_id.id,
-    }))
-    .post('/products/create', {
-      onSuccess: () => {
-        emit('modalClose')
-      },
-      preserveState: true,
-      replace: true,
-    })
+      .transform(data => ({
+        ...data,
+        measurement_unit: data.measurement_unit.id,
+        operator_id: data.operator_id.id,
+      }))
+      .post('/products/create', {
+        onSuccess: () => {
+          emit('modalClose');
+        },
+        preserveState: true,
+        replace: true,
+      });
   }
 
-  if(props.type === 'update') {
+  if (props.type === 'update') {
     form.value
-      .transform((data) => ({
+      .transform(data => ({
         ...data,
         measurement_unit: data.measurement_unit.id,
         operator_id: data.operator_id.id,
         unitCosts: unitCosts.value,
         languages: languages.value,
         sellingPrices: sellingPrices.value,
-        // category_id: data.category_id.id,
-        // category_group_id: data.category_group_id.id,
       }))
       .post('/products/' + form.value.id + '/update', {
-      onSuccess: () => {
-        emit('modalClose')
-      },
-      preserveScroll: true,
-      preserveState: true,
-      replace: true,
-    })
+        onSuccess: () => {
+          emit('modalClose');
+        },
+        preserveScroll: true,
+        preserveState: true,
+        replace: true,
+      });
   }
 }
 
 function toggleActivateDeactivate() {
   form.value.post('/products/' + form.value.id + '/toggle-activate-deactivate', {
     onSuccess: () => {
-      emit('modalClose')
+      emit('modalClose');
     },
-      preserveState: true,
-      replace: true,
-  })
+    preserveState: true,
+    replace: true,
+  });
 }
 
 function onProductUomDeleted(productUom) {
   form.value.delete('/products/product-uoms/' + productUom.id, {
     onSuccess: () => {
-      emit('modalClose')
+      emit('modalClose');
     },
     preserveState: true,
     resetOnSuccess: true,
     replace: true,
-  })
+  });
 }
 
 function onUomModalClicked() {
-  showUomModal.value = true
+  showUomModal.value = true;
 }
 
 function onUomModalClose() {
-  showUomModal.value = false
+  showUomModal.value = false;
 }
 
 function addUnitCost() {
+  if (!Array.isArray(unitCosts.value)) {
+    unitCosts.value = [];
+  }
+
   unitCosts.value.unshift({
     cost: form.value.unit_cost,
     date_from: form.value.date_from ? form.value.date_from : moment().format('YYYY-MM-DD'),
-  })
+  });
 }
 
 function removeUnitCost(unitCost) {
-  unitCosts.value.splice(unitCosts.value.indexOf(unitCost), 1)
+  unitCosts.value.splice(unitCosts.value.indexOf(unitCost), 1);
 }
 
 function addLanguage() {
@@ -799,44 +618,42 @@ function addLanguage() {
     id: form.value.language.id,
     language: form.value.language.name,
     name: form.value.translated_name,
-  })
-  form.value.language = ''
-  form.value.translated_name = ''
+  });
+  form.value.language = '';
+  form.value.translated_name = '';
 }
 
 function removeLanguage(key) {
-  languages.value.splice(key, 1)
+  languages.value.splice(key, 1);
 }
 
 function addSellingPrice() {
   sellingPrices.value.push({
     amount: form.value.selling_price_amount,
     type: form.value.selling_price_type.id,
-  })
-  form.value.selling_price_amount = ''
-  form.value.selling_price_type = ''
-  priceTypeOptions.value = priceTypeOptions.value.filter((priceTypeOption) => {
-    return !sellingPrices.value.some((sellingPrice) => sellingPrice.type == priceTypeOption.id)
-  })
+  });
+  form.value.selling_price_amount = '';
+  form.value.selling_price_type = '';
+  priceTypeOptions.value = priceTypeOptions.value.filter(priceTypeOption => {
+    return !sellingPrices.value.some(sellingPrice => sellingPrice.type === priceTypeOption.id);
+  });
 }
 
 function removeSellingPrice(sellingPrice) {
-  if(sellingPrice.id) {
+  if (sellingPrice.id) {
     form.value.delete('/products/selling-prices/' + sellingPrice.id, {
       onSuccess: () => {
-        emit('modalClose')
+        emit('modalClose');
       },
       preserveState: true,
       resetOnSuccess: true,
       replace: true,
-    })
-  }else {
-    sellingPrices.value.splice(sellingPrices.value.indexOf(sellingPrice), 1)
-    priceTypeOptions.value = priceTypeOptions.value.filter((priceTypeOption) => {
-      return !sellingPrices.value.some((sellingPrice) => sellingPrice.type == priceTypeOption.id)
-    })
+    });
+  } else {
+    sellingPrices.value.splice(sellingPrices.value.indexOf(sellingPrice), 1);
+    priceTypeOptions.value = priceTypeOptions.value.filter(priceTypeOption => {
+      return !sellingPrices.value.some(sellingPrice => sellingPrice.type === priceTypeOption.id);
+    });
   }
 }
-
-
 </script>
