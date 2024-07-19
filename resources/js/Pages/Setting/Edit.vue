@@ -723,6 +723,7 @@
               </div>
             </div>
             </div>
+
             <!-- <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -793,6 +794,7 @@
 </template>
 
 <script setup>
+import AttachmentList from '@/Components/AttachmentList.vue';
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
@@ -803,6 +805,7 @@ import { ArrowPathIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon,
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
+import UploadFileInput from '@/Components/UploadFileInput.vue';
 
 const props = defineProps({
     adminCustomerOptions: Object,

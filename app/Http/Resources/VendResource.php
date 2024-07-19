@@ -25,6 +25,7 @@ class VendResource extends JsonResource
             'account_manager_name' => isset($this->account_manager_name) ? $this->account_manager_name : null,
             'actual_stock_in_value' => isset($this->actual_stock_in_value) ? $this->actual_stock_in_value/100 : null,
             'actual_stock_in_qty' => isset($this->actual_stock_in_qty) ? $this->actual_stock_in_qty : null,
+            'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'balance_percent' => isset($this->balance_percent) ? $this->balance_percent : null,
             'cashlessTerminal' => CashlessTerminalResource::make($this->whenLoaded('cashlessTerminal')),
             'cashless_terminal_id' => isset($this->cashless_terminal_id) ? $this->cashless_terminal_id : null,

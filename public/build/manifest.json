@@ -2131,7 +2131,7 @@
     ]
   },
   "resources/js/Pages/Setting/Edit.vue": {
-    "file": "assets/Edit.39476aee.js",
+    "file": "assets/Edit.b3f37e34.js",
     "src": "resources/js/Pages/Setting/Edit.vue",
     "isDynamicEntry": true,
     "imports": [
@@ -2140,6 +2140,7 @@
       "_Button.5030b203.js",
       "_DatePicker.9d256cd3.js",
       "_MultiSelect.4a06a2d4.js",
+      "_filepond-plugin-file-validate-size.esm.5a285ac6.js",
       "_CheckCircleIcon.2d724ddc.js",
       "_ArrowUpTrayIcon.b632dc1e.js",
       "_ArrowUturnLeftIcon.dff3dccf.js",
@@ -3271,6 +3272,14 @@
       "_MultiSelect.vue_vue_type_style_index_1_lang.da78e2ee.js"
     ]
   },
+  "resources/js/Pages/Welcome.css": {
+    "file": "assets/Welcome.b7da5231.css",
+    "src": "resources/js/Pages/Welcome.css"
+  },
+  "resources/js/Pages/Vend/IndexComponent.css": {
+    "file": "assets/IndexComponent.8b3a4ee5.css",
+    "src": "resources/js/Pages/Vend/IndexComponent.css"
+  },
   "resources/js/Pages/DeliveryProductMappingVend/Index.css": {
     "file": "assets/Index.8b3a4ee5.css",
     "src": "resources/js/Pages/DeliveryProductMappingVend/Index.css"
@@ -3279,9 +3288,9 @@
     "file": "assets/CustomerIndex.c948f66b.css",
     "src": "resources/js/Pages/Vend/CustomerIndex.css"
   },
-  "resources/js/Pages/Report/IndexStockCount.css": {
-    "file": "assets/IndexStockCount.8b3a4ee5.css",
-    "src": "resources/js/Pages/Report/IndexStockCount.css"
+  "main.css": {
+    "file": "assets/main.768eba40.css",
+    "src": "main.css"
   },
   "filepond-plugin-file-validate-size.css": {
     "file": "assets/filepond-plugin-file-validate-size.d34a28df.css",
@@ -3291,17 +3300,9 @@
     "file": "assets/MultiSelect.5c8bc91d.css",
     "src": "MultiSelect.css"
   },
-  "main.css": {
-    "file": "assets/main.768eba40.css",
-    "src": "main.css"
-  },
-  "resources/js/Pages/Welcome.css": {
-    "file": "assets/Welcome.b7da5231.css",
-    "src": "resources/js/Pages/Welcome.css"
-  },
-  "resources/js/Pages/Vend/IndexComponent.css": {
-    "file": "assets/IndexComponent.8b3a4ee5.css",
-    "src": "resources/js/Pages/Vend/IndexComponent.css"
+  "resources/js/Pages/Report/IndexStockCount.css": {
+    "file": "assets/IndexStockCount.8b3a4ee5.css",
+    "src": "resources/js/Pages/Report/IndexStockCount.css"
   },
   "resources/js/app.css": {
     "file": "assets/app.6f12a919.css",

@@ -237,12 +237,12 @@ class VendTransaction extends Model
             $query->where('payment_method_id', $search);
         })
         ->when($request->categories, function($query, $search) {
-            $query->whereIn('customer_id', function($query) use ($search) {
+            $query->whereIn('vend_transactions.customer_id', function($query) use ($search) {
                 $query->select('id')->from('customers')->whereIn('category_id', $search);
             });
         })
         ->when($request->categoryGroups, function($query, $search) {
-            $query->whereIn('customer_id', function($query) use ($search) {
+            $query->whereIn('vend_transactions.customer_id', function($query) use ($search) {
                 $query->select('id')->from('customers')->whereIn('category_id', function($query) use ($search) {
                     $query->select('id')->from('categories')->whereIn('category_group_id', $search);
                 });
@@ -251,13 +251,13 @@ class VendTransaction extends Model
         ->when($request->customer, function($query, $search) {
             if(strpos($search, "-")) {
                 $searchArray = explode("-", $search);
-                    $query->whereIn('customer_id', function($query) use ($searchArray) {
+                    $query->whereIn('vend_transactions.customer_id', function($query) use ($searchArray) {
                         $query->select('id')->from('customers')
                             ->where('virtual_customer_prefix', $searchArray[0])
                             ->where('virtual_customer_code', $searchArray[1]);
                     });
             }else {
-                $query->whereIn('customer_id', function($query) use ($search) {
+                $query->whereIn('vend_transactions.customer_id', function($query) use ($search) {
                     $query->select('id')->from('customers')->where(function($query) use ($search) {
                         $query->where('virtual_customer_prefix', 'LIKE', "{$search}%")
                             ->orWhere('virtual_customer_code', 'LIKE', "{$search}%")
@@ -268,7 +268,7 @@ class VendTransaction extends Model
         })
         ->when($request->location_type_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereIn('customer_id', function($query) use ($search) {
+                $query->whereIn('vend_transactions.customer_id', function($query) use ($search) {
                     $query->select('id')->from('customers')->where('location_type_id', $search);
                 });
             }

@@ -1505,6 +1505,25 @@ class VendController extends Controller
         return redirect()->back();
     }
 
+    public function uploadAttachment(Request $request, $id)
+    {
+        $vend = Vend::findOrFail($id);
+
+        if ($request->hasFile('files')) {
+            $files = $request->file('files');
+            $dir = 'sys/vends';
+            $storedPath = $files->storePublicly($dir);
+            $fileName = basename($storedPath);
+            $url = Storage::url($storedPath);
+            $vend->attachments()->create([
+                'type' => 1,
+                'full_url' => $url,
+                'local_url' => $dir . '/' . $fileName,
+            ]);
+        }
+        return true;
+    }
+
     private function processVendTempTiming($vendTemps)
     {
         if($vendTemps) {
