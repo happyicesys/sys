@@ -24,6 +24,9 @@ class VendSerialNumberController extends Controller
             'vendSerialNumbers' => VendSerialNumberResource::collection(
                 VendSerialNumber::query()
                     ->with('vend')
+                    ->when($request->id, function($query, $search) {
+                        $query->where('id', $search);
+                    })
                     ->when($request->code, function($query, $search) {
                         $query->where('code', 'LIKE', "%{$search}%");
                     })

@@ -149,7 +149,16 @@
             </div>
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Serial Number
+                <div class="flex space-x-2 items-center">
+                    <span>
+                      Serial Number
+                    </span>
+                    <span v-if="form.vend_serial_number_id && form.vend_serial_number_id.id">
+                      <a class="text-blue-700" target="_blank" :href="'/vend-serial-numbers?id=' + form.vend_serial_number_id.id">
+                        <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
+                      </a>
+                    </span>
+                  </div>
                 </label>
                 <MultiSelect
                   v-model="form.vend_serial_number_id"
@@ -212,13 +221,19 @@
             </div>
 
             <hr class="sm:col-span-6">
-
             <div class="sm:col-span-2">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Setting Chart
-                  <span class="text-red-500">
-                    *
-                  </span>
+                  <div class="flex space-x-2 items-center">
+                    Setting Chart
+                    <span class="text-red-500">
+                      *
+                    </span>
+                    <span v-if="form.vend_config_id && form.vend_config_id.id">
+                      <a class="text-blue-700" target="_blank" :href="'/vend-configs/' + form.vend_config_id.id + '/edit'">
+                        <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
+                      </a>
+                    </span>
+                  </div>
                 </label>
                 <MultiSelect
                   v-model="form.vend_config_id"
@@ -268,10 +283,17 @@
             </div>
             <div class="sm:col-span-3" v-if="form.vend_config_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Machine Prefix
-                  <span class="text-red-500">
-                    *
-                  </span>
+                  <div class="flex space-x-2 items-center">
+                    Machine Prefix
+                    <span class="text-red-500">
+                      *
+                    </span>
+                    <span v-if="form.vend_prefix_id && form.vend_prefix_id.id">
+                      <a class="text-blue-700" target="_blank" :href="'/vend-prefixes?vendPrefixes%5B0%5D=' + form.vend_prefix_id.id">
+                        <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
+                      </a>
+                    </span>
+                  </div>
                 </label>
                 <MultiSelect
                   v-model="form.vend_prefix_id"
@@ -333,10 +355,17 @@
             <hr class="sm:col-span-6">
             <div class="sm:col-span-3" v-if="form.vend_prefix_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Product Mapping (current)
-                  <span class="text-red-500">
-                    *
-                  </span>
+                  <div class="flex space-x-2 items-center">
+                    Product Mapping (current)
+                    <span class="text-red-500">
+                      *
+                    </span>
+                    <span v-if="form.product_mapping_id && form.product_mapping_id.id">
+                      <a class="text-blue-700" target="_blank" :href="'/product-mappings/' + form.product_mapping_id.id + '/edit'">
+                        <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
+                      </a>
+                    </span>
+                  </div>
                 </label>
                 <MultiSelect
                   v-model="form.product_mapping_id"
@@ -355,7 +384,17 @@
             </div>
             <div class="sm:col-span-3" v-if="form.vend_prefix_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Product Mapping (upcoming)
+                  <div class="flex space-x-2 items-center">
+                    Product Mapping (upcoming)
+                    <span class="text-red-500">
+                      *
+                    </span>
+                    <span v-if="form.upcoming_product_mapping_id && form.upcoming_product_mapping_id.id">
+                      <a class="text-blue-700" target="_blank" :href="'/product-mappings/' + form.upcoming_product_mapping_id.id + '/edit'">
+                        <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
+                      </a>
+                    </span>
+                  </div>
                 </label>
                 <MultiSelect
                   v-model="form.upcoming_product_mapping_id"
@@ -801,7 +840,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
-import { ArrowPathIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';

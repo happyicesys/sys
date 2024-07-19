@@ -532,7 +532,7 @@
           </TableHeadSort>
           <TableHead>
             <SingleSortItem modelName="vends.vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.vend_prefix_name', false)">
-              Prefix
+              Machine Prefix
             </SingleSortItem>
             <SingleSortItem modelName="customers.selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.selling_price_type', false)">
               Ref Price

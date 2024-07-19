@@ -114,11 +114,6 @@
               </div>
 
               <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
-                <!-- <div class="sm:col-span-2">
-                  <FormInput v-model="form.refID" :error="form.errors.code" :disabled="form.person_id">
-                    Cust ID
-                  </FormInput>
-                </div> -->
                 <div class="sm:col-span-5">
                   <FormInput v-model="form.name" :error="form.errors.name" required="true" :disabled="form.person_id">
                     Cust Name
@@ -188,6 +183,13 @@
                 </div>
               </div>
               <hr>
+              <div class="sm:col-span-5" v-if="customer.vend && customer.vend.product_mapping && customer.vend.product_mapping.attachments">
+                <AttachmentList
+                  :items="customer.vend.product_mapping.attachments"
+                  :isEditEnabled="false"
+                >
+                </AttachmentList>
+              </div>
               <div class="sm:col-span-3" v-if="customer.vend && customer.vend.product_mapping">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Product Mapping
@@ -203,14 +205,6 @@
                   </a>
                 </div>
               </div>
-              <div class="sm:col-span-5" v-if="customer.vend && customer.vend.product_mapping && customer.vend.product_mapping.attachments">
-                <AttachmentList
-                  :items="customer.vend.product_mapping.attachments"
-                  :isEditEnabled="false"
-                >
-                </AttachmentList>
-              </div>
-
               <div class="flex flex-col sm:col-span-5">
                 <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                   <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
@@ -502,17 +496,19 @@
               </div>
             </div>
 
-            <div class="sm:col-span-6 mb-3" v-if="customer.vend">
+            <div class="sm:col-span-3" v-if="customer.vend">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Vend ID#
               </label>
               <div class="mt-1">
-                <input
-                  type="text"
-                  class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                  :value="customer.vend ? customer.vend.code : ''"
-                  disabled
-                />
+                <a :href="'/settings/vend/' + customer.vend.id + '/update'" target="_blank">
+                  <input
+                    type="text"
+                    class="shadow-sm focus:ring-indigo-300 focus:border-indigo-300 block w-full text-sm border-gray-200 rounded-md bg-gray-100 hover:cursor-pointer text-blue-600 hover:text-blue-700"
+                    :value="customer.vend.code"
+                    readonly
+                  />
+                </a>
               </div>
             </div>
             <span v-if="!customer.vend" class="text-gray-600">

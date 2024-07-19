@@ -28,7 +28,7 @@
             Customer ID
           </SearchInput>
           <SearchInput placeholderStr="ID" v-model="filters.vend_code">
-            Vend ID
+            Machine ID
           </SearchInput>
           <SearchInput placeholderStr="Customer" v-model="filters.customer">
             Customer
@@ -276,7 +276,7 @@
                       Customer ID
                     </TableHead>
                     <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
-                      Vend ID
+                      Machine ID
                     </TableHeadSort>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
                       Customer
