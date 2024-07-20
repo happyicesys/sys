@@ -1071,8 +1071,8 @@ class VendController extends Controller
                                 'P1' :
                                 ($vendTransaction->vend_channel_amount2 ==  $vendTransaction->amount ? 'P2' : '' ),
                 'amount' => $vendTransaction->amount/ 100,
-                'total' => $vendTransaction->is_multiple ? ($vendTransaction->amount - VendTransactionItem::withSum('vendChannel', 'amount')->whereIn('id', $vendTransaction->vendTransactionItems->pluck('id'))->get()->sum('vend_channel_sum_amount'))/ 100 : $vendTransaction->amount/ 100,
-                'sales_before_gst' => $vendTransaction->revenue/ 100,
+                'amount_breakdown' => $vendTransaction->is_multiple ? ($vendTransaction->amount - VendTransactionItem::withSum('vendChannel', 'amount')->whereIn('id', $vendTransaction->vendTransactionItems->pluck('id'))->get()->sum('vend_channel_sum_amount'))/ 100 : $vendTransaction->amount/ 100,
+                // 'sales_before_gst' => $vendTransaction->revenue/ 100,
                 'unit_cost' => $vendTransaction->cost ?
                                 $vendTransaction->cost/100 :
                                 '',
@@ -1114,10 +1114,10 @@ class VendController extends Controller
                         'channel' => (int)$vendTransactionItem->vend_channel_code,
                         'product_code' => $vendTransactionItem->product ? $vendTransactionItem->product->code : '',
                         'product_name' => $vendTransactionItem->product ? $vendTransactionItem->product->name : '',
-                        'price_type' => '',
+                        'price_type' => 'P1',
                         'amount' => '',
-                        'total' => $vendTransactionItem->vendChannel ? $vendTransactionItem->vendChannel->amount/100 : '',
-                        'sales_before_gst' => '',
+                        'amount_breakdown' => $vendTransactionItem->vendChannel ? $vendTransactionItem->vendChannel->amount/100 : '',
+                        // 'sales_before_gst' => '',
                         'unit_cost' => $vendTransactionItem->unitCost ?
                                         $vendTransactionItem->unitCost->cost :
                                         '',
