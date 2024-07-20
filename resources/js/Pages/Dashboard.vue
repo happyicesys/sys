@@ -179,15 +179,17 @@
                                                     <td class="whitespace-nowrap py-1 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                                                         {{ vendIndex + 1 }}
                                                     </td>
-                                                    <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600">
-                                                        <span v-if="vend.customer">
+                                                    <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 flex space-x-2">
+                                                        <span>
+                                                            {{ vend.vend.code }} -
+                                                        </span>
+                                                        <span v-if="vend.customer && vend.customer.person_id">
                                                             <!-- {{ vend.customer.virtual_customer_prefix }}- -->
                                                             {{ vend.customer.virtual_customer_code }} <br>
                                                             {{ vend.customer.name }}
                                                         </span>
                                                         <span v-else>
-                                                            {{ vend.code }} <br>
-                                                            {{ vend.name }}
+                                                            {{ vend.customer.name }}
                                                         </span>
                                                     </td>
                                                     <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-500 text-right mx-3">

@@ -471,17 +471,30 @@
                     </Button>
                   </Link>
                 </span>
-                <Button
-                  type="button"
-                  class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                  v-if="!customer.vend && permissions.includes('update customers')"
-                  @click.prevent="deleteCustomer(customer.id)"
-                >
-                  <XCircleIcon class="w-4 h-4"></XCircleIcon>
-                  <span>
-                    Delete Customer
-                  </span>
-                </Button>
+                <span class="flex space-x-1">
+                  <!-- <Button
+                    type="button"
+                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                    v-if="permissions.includes('update customers')"
+                    @click.prevent="disconnectCMSCustomer(customer.id)"
+                  >
+                    <StopCircleIcon class="w-4 h-4"></StopCircleIcon>
+                    <span>
+                      Disconnect from CMS
+                    </span>
+                  </Button> -->
+                  <Button
+                    type="button"
+                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                    v-if="!customer.vend && permissions.includes('update customers')"
+                    @click.prevent="deleteCustomer(customer.id)"
+                  >
+                    <XCircleIcon class="w-4 h-4"></XCircleIcon>
+                    <span>
+                      Delete Customer
+                    </span>
+                  </Button>
+                </span>
               </span>
             </div>
 
@@ -605,7 +618,7 @@ import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, ExclamationCircleIcon, PaperClipIcon, StopCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue'
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';

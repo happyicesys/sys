@@ -21,6 +21,7 @@ use App\Http\Resources\VendFanResource;
 use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendTransactionResource;
+use App\Http\Resources\VendTransactionItemResource;
 use App\Http\Resources\VendTempResource;
 use App\Jobs\SyncVendCustomerCms;
 use App\Jobs\Vend\SaveVendChannelsJson;
@@ -46,6 +47,7 @@ use App\Models\VendRecord;
 use App\Models\VendSnapshot;
 use App\Models\VendTemp;
 use App\Models\VendTransaction;
+use App\Models\VendTransactionItem;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
 use App\Services\HistoryService;
@@ -1021,6 +1023,7 @@ class VendController extends Controller
             'vends.code AS vend_code',
             'vends.name AS vend_name',
             'vend_prefixes.name AS vend_prefix_name',
+            'customers.id AS customer_id',
             'customers.code AS customer_code',
             'customers.name AS customer_name',
             'customers.person_id',
@@ -1037,6 +1040,7 @@ class VendController extends Controller
             'vend_channel_errors.desc AS vend_channel_error_desc',
             'vend_channel_errors.code AS vend_channel_error_code',
             'vend_transactions.amount',
+            'vend_transactions.interface_type',
             'vend_transactions.is_multiple',
             'vend_transactions.is_refunded',
             'vend_transactions.revenue',
@@ -1055,6 +1059,7 @@ class VendController extends Controller
                 'machine_prefix' => $vendTransaction->vend_prefix_name ?
                                     $vendTransaction->vend_prefix_name :
                                     '',
+                'customer_id' => $vendTransaction->customer_id + 20000,
                 'customer_code' => $vendTransaction->person_id ?
                                     $vendTransaction->virtual_customer_code :
                                     '',
@@ -1066,6 +1071,7 @@ class VendController extends Controller
                                 'P1' :
                                 ($vendTransaction->vend_channel_amount2 ==  $vendTransaction->amount ? 'P2' : '' ),
                 'amount' => $vendTransaction->amount/ 100,
+                'total' => $vendTransaction->is_multiple ? ($vendTransaction->amount - VendTransactionItem::withSum('vendChannel', 'amount')->whereIn('id', $vendTransaction->vendTransactionItems->pluck('id'))->get()->sum('vend_channel_sum_amount'))/ 100 : $vendTransaction->amount/ 100,
                 'sales_before_gst' => $vendTransaction->revenue/ 100,
                 'unit_cost' => $vendTransaction->cost ?
                                 $vendTransaction->cost/100 :
@@ -1076,33 +1082,54 @@ class VendController extends Controller
                 'operator' => $vendTransaction->operator_code,
                 'is_successful' => $vendTransaction->vend_channel_error_code ? ($vendTransaction->vend_channel_error_code == 0 || $vendTransaction->vend_channel_error_code == 6 ? 'Successful' : "Unsuccessful") : 'Successful',
                 'is_refunded' => $vendTransaction->is_refunded ? 'Yes' : '',
+                'is_multiple' => $vendTransaction->is_multiple ? 'Yes' : 'No',
+                'multiple_qty' => $vendTransaction->is_multiple ? $vendTransaction->vendTransactionItems->count() : 1,
+                'txn_src' => $vendTransaction->interface_type,
             ];
 
             if($vendTransaction->vendTransactionItems) {
-
+                $vendTransactionItems = $vendTransaction
+                    ->vendTransactionItems()
+                    ->with([
+                        'vendChannel',
+                        'vendTransaction',
+                        'vendTransaction.vend',
+                        'vendTransaction.vend.vendPrefix',
+                        'vendTransaction.customer.locationType',
+                        'vendTransaction.operator',
+                        'product',
+                        'unitCost',
+                        'vendChannelError',
+                    ])
+                    ->get();
                 foreach($vendTransaction->vendTransactionItems as $vendTransactionItem) {
                     $data[] = [
-                        'order_id' => '',
-                        'transaction_datetime' => '',
-                        'vend_id' => '',
-                        'machine_prefix' => '',
-                        'customer_code' => '',
-                        'customer_name' => '',
-                        'channel' => $vendTransactionItem->vend_channel_code,
+                        'order_id' => $vendTransactionItem->vendTransaction->order_id,
+                        'transaction_datetime' => Carbon::parse($vendTransactionItem->vendTransaction->transaction_datetime)->toDateTimeString(),
+                        'vend_id' => $vendTransactionItem->vendTransaction->vend->code,
+                        'machine_prefix' => $vendTransactionItem->vendTransaction->vend && $vendTransactionItem->vendTransaction->vend->vendPrefix ? $vendTransactionItem->vendTransaction->vend->vendPrefix->name : '',
+                        'customer_id' => $vendTransactionItem->vendTransaction->customer ? $vendTransactionItem->vendTransaction->customer->id + 20000 : '',
+                        'customer_code' => $vendTransactionItem->vendTransaction->customer && $vendTransactionItem->vendTransaction->customer->person_id ? $vendTransactionItem->vendTransaction->customer->virtual_customer_code : '',
+                        'customer_name' => $vendTransactionItem->vendTransaction->customer ? $vendTransactionItem->vendTransaction->customer->name : '',
+                        'channel' => (int)$vendTransactionItem->vend_channel_code,
                         'product_code' => $vendTransactionItem->product ? $vendTransactionItem->product->code : '',
                         'product_name' => $vendTransactionItem->product ? $vendTransactionItem->product->name : '',
                         'price_type' => '',
                         'amount' => '',
+                        'total' => $vendTransactionItem->vendChannel ? $vendTransactionItem->vendChannel->amount/100 : '',
                         'sales_before_gst' => '',
                         'unit_cost' => $vendTransactionItem->unitCost ?
                                         $vendTransactionItem->unitCost->cost :
                                         '',
                         'payment_method' => '',
                         'error_code' => $vendTransactionItem->vendChannelError ? $vendTransactionItem->vendChannelError->code : '',
-                        'location_type' => '',
-                        'operator' => '',
+                        'location_type' => $vendTransactionItem->vendTransaction->customer && $vendTransactionItem->vendTransaction->customer->locationType ? $vendTransactionItem->vendTransaction->customer->locationType->name : '',
+                        'operator' => $vendTransactionItem->vendTransaction->operator ? $vendTransactionItem->vendTransaction->operator->code : '',
                         'is_successful' => $vendTransactionItem->vendChannelError ? ($vendTransactionItem->vendChannelError->code == 0 || $vendTransactionItem->vendChannelError->code == 6 ? 'Successful' : "Unsuccessful") : 'Successful',
                         'is_refunded' => '',
+                        'is_multiple' => $vendTransactionItem->vendTransaction->is_multiple ? 'Yes' : 'No',
+                        'multiple_qty' => 0,
+                        'txn_src' => $vendTransactionItem->vendTransaction->interface_type,
                     ];
                 }
             }

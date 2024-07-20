@@ -225,12 +225,10 @@
                             <span v-else-if="vend.customer && !vend.customer.person_id">
                                 <span v-if="permissions.includes('admin-access vends')" :class="[vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
                                     <!-- <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'"> -->
-                                        {{ vend.customer.code }} <br>
                                         {{ vend.customer.name }}
                                     <!-- </a> -->
                                 </span>
                                 <span v-else :class="[vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
-                                    {{ vend.customer.code }} <br>
                                     {{ vend.customer.name }}
                                 </span>
                             </span>

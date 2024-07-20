@@ -342,14 +342,9 @@
                               </span> -->
                               <br>
                             </span>
-                            <span v-else>
-                              <span v-if="customer.code">
-                                {{ customer.code }} <br>
-                              </span>
-                            </span>
                             {{ customer.name }}
                           </a>
-                          <a target="_blank" :href="cmsEndpoint + '/person/' + customer.person_id + '/edit'" class="">
+                          <a target="_blank" :href="cmsEndpoint + '/person/' + customer.person_id + '/edit'" class="" v-if="customer.person_id">
                             <div
                                 class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
                             >

@@ -568,9 +568,6 @@
                                 {{ vend.customer.name }}
                             </span>
                             <span v-else>
-                              <span v-if="vend.customer && vend.customer.code">
-                                {{ vend.customer.code }} <br>
-                              </span>
                               {{ vend.customer && vend.customer.name ? vend.customer.name : ''}}
                             </span>
                           </td>

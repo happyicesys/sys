@@ -66,6 +66,11 @@ class VendChannel extends Model
         return $this->hasMany(VendTransaction::class);
     }
 
+    public function vendTransactionItems()
+    {
+        return $this->hasMany(VendTransactionItem::class);
+    }
+
     // custom functions
     public function daysVendTransactions($from = 0, $to = 0)
     {

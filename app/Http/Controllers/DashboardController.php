@@ -191,6 +191,7 @@ class DashboardController extends Controller
             ->select(
                 'id',
                 'customer_id',
+                'vend_id',
                 DB::raw('SUM(total_amount) as amount'),
                 DB::raw('SUM(total_count) as count')
             )

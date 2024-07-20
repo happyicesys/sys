@@ -739,15 +739,11 @@
 									<span v-if="permissions.includes('admin-access vends')">
 										<a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
 												{{ vend.virtual_customer_code }}
-												<!-- ({{ vend.virtual_customer_prefix }}) -->
 												<br>
 												{{ vend.customer_name }}
 										</a>
 									</span>
 									<span v-else :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
-										{{ vend.virtual_customer_code }}
-										<!-- ({{ vend.virtual_customer_prefix }}) -->
-										<br>
 										{{ vend.customer_name }}
 									</span>
 
@@ -762,13 +758,11 @@
 								<span v-else-if="!vend.person_id">
 									<span v-if="permissions.includes('admin-access vends')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
 										<a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
-												{{ vend.customer_code }} <br>
 												{{ vend.customer_name }}
 										</a>
 									</span>
 									<span v-else :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
 										<a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
-										{{ vend.customer_code }} <br>
 										{{ vend.customer_name }}
 										</a>
 									</span>
