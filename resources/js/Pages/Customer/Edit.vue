@@ -85,21 +85,34 @@
                   />
                 </div>
               </div>
-              <div class="sm:col-span-3" v-if="customer.id">
+              <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Created At
+                  Operator
+                  <span class="text-red-500">
+                    *
+                  </span>
                 </label>
-                <div class="mt-1">
-                  <input
-                    type="text"
-                    class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                    :value="formatDatetime(customer.created_at)"
-                    disabled
-                  />
+                <MultiSelect
+                  v-model="form.operator_id"
+                  :options="operatorOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="full_name"
+                  placeholder="Select"
+                  open-direction="top"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.operator_id">
+                  {{ form.errors.operator_id }}
+                </div>
+                <div class="text-blue-600 text-xs">
+                  ** Changing Operator will change Vending Machine's Operator as well
                 </div>
               </div>
 
-              <div class="sm:col-span-5" v-if="customer.id && customer.person_id">
+
+              <div class="sm:col-span-4" v-if="customer.id && customer.person_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Customer
                 </label>
@@ -111,22 +124,36 @@
                     disabled
                   />
                 </div>
+                <div class="text-blue-600 text-xs" v-if="customer.person_id">
+                  ** Customer Data only editable from CMS
+                  <span>
+                    <a :class="[form.person_id ? 'text-blue-700' : 'text-gray-500']" target="_blank" :href="'//admin.happyice.com.sg/person/' + form.person_id + '/edit'">
+                      (Click Here)
+                    </a>
+                  </span>
+                </div>
               </div>
 
-              <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
+              <div class="sm:col-span-4 grid grid-cols-1 gap-3 sm:grid-cols-6" v-if="(customer.id && !customer.person_id) || (!customer.id && isExisting != 1)">
                 <div class="sm:col-span-5">
                   <FormInput v-model="form.name" :error="form.errors.name" required="true" :disabled="form.person_id">
                     Cust Name
                   </FormInput>
                 </div>
               </div>
-              <div class="sm:col-span-6 text-blue-600 text-xs" v-if="customer.person_id">
-                ** Customer Data only editable from CMS
-                <span>
-                  <a :class="[form.person_id ? 'text-blue-700' : 'text-gray-500']" target="_blank" :href="'//admin.happyice.com.sg/person/' + form.person_id + '/edit'">
-                    (Click Here)
-                  </a>
-                </span>
+
+              <div class="sm:col-span-2" v-if="customer.id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Created At
+                </label>
+                <div class="mt-1">
+                  <input
+                    type="text"
+                    class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
+                    :value="formatDatetime(customer.created_at)"
+                    disabled
+                  />
+                </div>
               </div>
               <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -182,7 +209,17 @@
                   {{ form.errors['customer.selling_price_type'] }}
                 </div>
               </div>
-              <hr>
+              <hr class="sm:col-span-6">
+              <div class="sm:col-span-6 pb-1 md:pt-5 md:pb-3">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-start">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Menu </span>
+                  </div>
+                </div>
+              </div>
               <div class="sm:col-span-5" v-if="customer.vend && customer.vend.product_mapping && customer.vend.product_mapping.attachments">
                 <AttachmentList
                   :items="customer.vend.product_mapping.attachments"
@@ -190,7 +227,36 @@
                 >
                 </AttachmentList>
               </div>
-              <div class="sm:col-span-3" v-if="customer.vend && customer.vend.product_mapping">
+              <div class="sm:col-span-6 pb-1 md:pt-5 md:pb-3">
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div class="relative flex justify-start">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Binded Machine </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sm:col-span-6" v-if="customer.vend">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Machine ID#
+                </label>
+                <div class="mt-1">
+                  <a :href="'/settings/vend/' + customer.vend.id + '/update'" target="_blank">
+                    <input
+                      type="text"
+                      class="shadow-sm focus:ring-indigo-300 focus:border-indigo-300 block w-full text-sm border-gray-200 rounded-md bg-gray-100 hover:cursor-pointer text-blue-600 hover:text-blue-700"
+                      :value="customer.vend.code"
+                      readonly
+                    />
+                  </a>
+                </div>
+              </div>
+              <span v-if="!customer.vend" class="text-gray-600">
+                No Binding Detected, please bind in Machine Management Page
+              </span>
+              <div class="sm:col-span-6" v-if="customer.vend && customer.vend.product_mapping">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Product Mapping
                 </label>
@@ -295,32 +361,6 @@
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div class="sm:col-span-4">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Operator
-                  <span class="text-red-500">
-                    *
-                  </span>
-                </label>
-                <MultiSelect
-                  v-model="form.operator_id"
-                  :options="operatorOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="full_name"
-                  placeholder="Select"
-                  open-direction="top"
-                  class="mt-1"
-                >
-                </MultiSelect>
-                <div class="text-sm text-red-600" v-if="form.errors.operator_id">
-                  {{ form.errors.operator_id }}
-                </div>
-              </div>
-              <div class="sm:col-span-6 text-blue-600 text-xs">
-                ** If change Operator, the Binded Vending Machine's Operator will be changed as well
               </div>
             </div>
               <!-- <div class="sm:col-span-2">
@@ -497,36 +537,6 @@
                 </span>
               </span>
             </div>
-
-            <div class="sm:col-span-6 mt-2 pt-2 pb-1 md:pt-5 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-start">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Vending Machine </span>
-                </div>
-              </div>
-            </div>
-
-            <div class="sm:col-span-3" v-if="customer.vend">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Vend ID#
-              </label>
-              <div class="mt-1">
-                <a :href="'/settings/vend/' + customer.vend.id + '/update'" target="_blank">
-                  <input
-                    type="text"
-                    class="shadow-sm focus:ring-indigo-300 focus:border-indigo-300 block w-full text-sm border-gray-200 rounded-md bg-gray-100 hover:cursor-pointer text-blue-600 hover:text-blue-700"
-                    :value="customer.vend.code"
-                    readonly
-                  />
-                </a>
-              </div>
-            </div>
-            <span v-if="!customer.vend" class="text-gray-600">
-              No Binding Detected, please bind in Machine Management Page
-            </span>
             <!-- <div class="sm:col-span-6" v-if="!customer.vend">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Vend ID#
