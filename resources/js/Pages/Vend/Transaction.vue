@@ -238,6 +238,22 @@
                 >
                 </MultiSelect>
             </div>
+            <div class="col-span-5 md:col-span-1">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    TXN_SRC
+                </label>
+                <MultiSelect
+                    v-model="filters.interface_type"
+                    :options="vmcByteOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
             </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -372,6 +388,9 @@
                         <TableHead>
                             Refunded?
                         </TableHead>
+                        <TableHead>
+                            TXN_SRC
+                        </TableHead>
                       </tr>
                   </thead>
                   <tbody class="bg-white">
@@ -462,6 +481,9 @@
                                 <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="vendTransaction.is_refunded"/>
                             </div>
                         </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            {{ vendTransaction.interface_type }}
+                        </TableData>
                       </tr>
                       <tr v-if="vendTransaction.vendTransactionItems" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItems" class="divide-x">
                         <td v-if="vendTransactionItemIndex == 0" class="border-b border-gray-200" colspan="7" :rowspan="vendTransaction.vendTransactionItems.length"></td>
@@ -497,6 +519,14 @@
                             <span v-else>
                                 Unsuccessful
                             </span>
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
+                            <div class="flex justify-center">
+                                <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="vendTransactionItem.is_refunded"/>
+                            </div>
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
+                            {{ vendTransaction.interface_type }}
                         </TableData>
                       </tr>
                       <tr v-if="!vendTransactions.data.length">
@@ -554,6 +584,7 @@ const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const vendPrefixOptions = ref([])
+const vmcByteOptions = ref([])
 
 onMounted(() => {
     filters.value.visited = true
@@ -599,11 +630,17 @@ onMounted(() => {
         {id: 'all', value: 'All'},
         ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
+    vmcByteOptions.value = [
+        {id: 'all', value: 'All'},
+        {id: '0', value: '0'},
+        {id: '1', value: '1'},
+    ]
     filters.value.location_type_id = locationTypeOptions.value[0]
     filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
 		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
 	] : operatorOptions.value[0]
+    filters.value.interface_type = vmcByteOptions.value[0]
     filters.value.is_binded_customer = booleanOptions.value[0]
     filters.value.is_payment_received = booleanOptions.value[0]
     filters.value.is_refunded = booleanOptions.value[0]
@@ -622,6 +659,7 @@ const filters = ref({
     location_type_id: '',
     operators: [],
     order_id: '',
+    interface_type: '',
     is_binded_customer: '',
     is_payment_received: '',
     is_refunded: '',
@@ -682,10 +720,13 @@ function onExportExcelClicked() {
             errors: filters.value.errors.map((error) => { return error.id }),
             location_type_id: filters.value.location_type_id.id,
             operators: filters.value.operators.map((operator) => { return operator.id }),
+            interface_type: filters.value.interface_type.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             is_payment_received: filters.value.is_payment_received.id,
+            is_refunded: filters.value.is_refunded.id,
             paymentMethod: filters.value.paymentMethod.id,
             numberPerPage: filters.value.numberPerPage.id,
+            vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
         },
         responseType: 'blob',
     }).then(response => {
@@ -706,6 +747,7 @@ function onSearchFilterUpdated() {
         errors: filters.value.errors.map((error) => { return error.id }),
         location_type_id: filters.value.location_type_id.id,
         operators: filters.value.operators.map((operator) => { return operator.id }),
+        interface_type: filters.value.interface_type.id,
         is_binded_customer: filters.value.is_binded_customer.id,
         is_payment_received: filters.value.is_payment_received.id,
         is_refunded: filters.value.is_refunded.id,

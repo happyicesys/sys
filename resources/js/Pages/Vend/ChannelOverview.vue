@@ -278,13 +278,15 @@
               </span>
             </Button>
           </span>
-          <span class="flex flex-col text-blue-800 text-sm p-3" v-if="vend.product_mapping_name">
-            <span class="" v-if="vend.product_mapping_name">
-            {{ vend.product_mapping_name }}
-            </span>
-            <span v-if="vend.product_mapping_remarks">
-              {{ vend.product_mapping_remarks }}
-            </span>
+          <span v-if="vend.product_mapping_name">
+            <a :href="'/product-mappings/' + vend.product_mapping_id + '/edit'" target="_blank" class="hover:cursor-pointer flex flex-col text-blue-800 text-sm p-3">
+              <span class="" v-if="vend.product_mapping_name">
+              {{ vend.product_mapping_name }}
+              </span>
+              <span v-if="vend.product_mapping_remarks">
+                {{ vend.product_mapping_remarks }}
+              </span>
+            </a>
           </span>
         </div>
       </template>
