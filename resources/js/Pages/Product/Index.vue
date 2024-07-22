@@ -270,9 +270,8 @@
                                     <span class="font-semibold grow-0">
                                       {{ sellingPrice.type ? sellingPrice.type_name + ' SP' : null }}:
                                     </span>
-
                                     <span>
-                                      {{ ((sellingPrice.amount ? (sellingPrice.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null)/ (product.operator ? product.operator.gst_vat_rate + 100 : 1) * 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                                      {{ calculateSellingPrice(sellingPrice.amount, operatorCountry.currency_exponent, operatorCountry.is_currency_exponent_hidden, product.operator ? product.operator.gst_vat_rate : 0) }}
                                     </span>
                                 </div>
                             </div>
@@ -285,7 +284,7 @@
                                       {{ sellingPrice.type ? sellingPrice.type_name + ' GM' : null }}:
                                     </span>
                                     <span>
-                                      {{ ((((sellingPrice.amount ? (sellingPrice.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null)/ (product.operator ? product.operator.gst_vat_rate + 100 : 1) * 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) - product.latestUnitCost.cost)/ ((sellingPrice.amount ? (sellingPrice.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null)/ (product.operator ? product.operator.gst_vat_rate + 100 : 1) * 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) * 100).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '%' }}
+                                      {{ calculateGrossMargin(sellingPrice.amount, product.latestUnitCost.cost, operatorCountry.currency_exponent, operatorCountry.is_currency_exponent_hidden, product.operator ? product.operator.gst_vat_rate : 0) }}
                                     </span>
                                 </div>
                             </div>
@@ -431,6 +430,46 @@ onMounted(() => {
   filters.value.is_active = booleanOptions.value[0]
   // console.log(JSON.parse(JSON.stringify(props.uoms)))
 })
+
+function calculateSellingPrice(amount, currencyExponent, isCurrencyExponentHidden, gstVatRate) {
+    if (!amount) {
+        return null;
+    }
+
+    const convertedAmount = amount / Math.pow(10, currencyExponent);
+    const divisor = gstVatRate + 100;
+    if (divisor === 0) {
+        return null;
+    }
+
+    const priceBeforeGST = (convertedAmount / divisor) * 100;
+
+    return priceBeforeGST.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
+
+function calculateGrossMargin(amount, latestUnitCost, currencyExponent, isCurrencyExponentHidden, gstVatRate) {
+    if (!amount || !latestUnitCost) {
+        return null;
+    }
+
+    const convertedAmount = amount / Math.pow(10, currencyExponent);
+    const divisor = gstVatRate + 100;
+    if (divisor === 0) {
+        return null;
+    }
+
+    const priceBeforeGST = (convertedAmount / divisor) * 100;
+    const grossMargin = ((priceBeforeGST - latestUnitCost) / priceBeforeGST) * 100;
+
+    return grossMargin.toLocaleString(undefined, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+    }) + '%';
+}
+
 
 function onCreateClicked() {
   type.value = 'create'
