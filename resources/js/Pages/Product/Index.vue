@@ -175,6 +175,16 @@
                     <TableHead v-if="permissions.includes('admin-access products')">
                       Reference Price
                     </TableHead>
+                    <TableHead v-if="permissions.includes('admin-access products')">
+                      <div class="flex justify-between">
+                        <span>
+                          Selling Price
+                        </span>
+                        <span>
+                          Gross Margin
+                        </span>
+                      </div>
+                    </TableHead>
                     <!-- <TableHead>
                       Category
                     </TableHead>
@@ -232,21 +242,54 @@
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-right" v-if="permissions.includes('admin-access products')">
                         {{ product.latestUnitCost ? (product.latestUnitCost.cost).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
                       </TableData>
-                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-right" v-if="permissions.includes('admin-access products')">
-                        <div class="flex flex-col space-y-1 justify-self-end">
-                          <div
-                              class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer bg-indigo-100 text-indigo-800 border-indigo-300"
-                              v-for="(sellingPrice, sellingPriceIndex) in product.sellingPrices"
-                          >
-                              <div class="flex space-x-1">
-                                  <span class="font-semibold grow-0">
-                                    {{ sellingPrice.type ? sellingPrice.type_name : null }}:
-                                  </span>
-                                  <span>
-                                    {{ sellingPrice.amount ? (sellingPrice.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
-                                  </span>
-                              </div>
-                          </div>
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center" v-if="permissions.includes('admin-access products')">
+                        <div class="flex flex-col space-y-1">
+                          <span v-for="(sellingPrice, sellingPriceIndex) in product.sellingPrices" class="flex space-x-1">
+                            <div
+                                class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-indigo-100 text-indigo-800 border-indigo-300"
+                            >
+                                <div class="flex space-x-1">
+                                    <span class="font-semibold grow-0">
+                                      {{ sellingPrice.type ? sellingPrice.type_name : null }}:
+                                    </span>
+                                    <span>
+                                      {{ sellingPrice.amount ? (sellingPrice.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
+                                    </span>
+                                </div>
+                            </div>
+                          </span>
+                        </div>
+                      </TableData>
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center" v-if="permissions.includes('admin-access products')">
+                        <div class="flex flex-col space-y-1">
+                          <span v-for="(sellingPrice, sellingPriceIndex) in product.sellingPrices" class="flex justify-between">
+                            <div
+                                class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-purple-100 text-purple-800 border-purple-300"
+                            >
+                                <div class="flex space-x-1">
+                                    <span class="font-semibold grow-0">
+                                      {{ sellingPrice.type ? sellingPrice.type_name + ' SP' : null }}:
+                                    </span>
+
+                                    <span>
+                                      {{ ((sellingPrice.amount ? (sellingPrice.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null)/ (product.operator ? product.operator.gst_vat_rate + 100 : 1) * 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div
+                                class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-indigo-100 text-indigo-800 border-indigo-300"
+                                v-if="product && product.latestUnitCost"
+                            >
+                                <div class="flex space-x-1">
+                                    <span class="font-semibold grow-0">
+                                      {{ sellingPrice.type ? sellingPrice.type_name + ' GM' : null }}:
+                                    </span>
+                                    <span>
+                                      {{ ((((sellingPrice.amount ? (sellingPrice.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null)/ (product.operator ? product.operator.gst_vat_rate + 100 : 1) * 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) - product.latestUnitCost.cost)/ ((sellingPrice.amount ? (sellingPrice.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null)/ (product.operator ? product.operator.gst_vat_rate + 100 : 1) * 100).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) * 100).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '%' }}
+                                    </span>
+                                </div>
+                            </div>
+                          </span>
                         </div>
                       </TableData>
                       <!-- <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
