@@ -253,9 +253,55 @@
                   </a>
                 </div>
               </div>
-              <span v-if="!customer.vend" class="text-gray-600">
+              <!-- <span v-if="!customer.vend" class="text-gray-600">
                 No Binding Detected, please bind in Machine Management Page
+              </span> -->
+            <div class="sm:col-span-6" v-if="!customer.vend">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Machine ID#
+              </label>
+              <MultiSelect
+                v-model="form.vend_id"
+                :options="vendOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+
+            <div class="sm:col-span-6 mt-1">
+              <span class="flex justify-between">
+                <Button
+                  type="button"
+                  class="text-white flex space-x-1"
+                  :class="!form.vend_id ? 'cursor-not-allowed bg-gray-400' : 'cursor-pointer bg-green-500 hover:bg-green-600'"
+                  :disabled="!form.vend_id"
+                  v-if="!customer.vend && permissions.includes('update customers')"
+                  @click.prevent="saveCustomer(form.id)"
+                >
+                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                  <span>
+                    Bind
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                  v-if="customer.vend && permissions.includes('update customers')"
+                  @click.prevent="unbindCustomer(customer.vend.id)"
+                >
+                  <XCircleIcon class="w-4 h-4"></XCircleIcon>
+                  <span>
+                    Unbind
+                  </span>
+                </Button>
               </span>
+            </div>
+
               <div class="sm:col-span-6" v-if="customer.vend && customer.vend.product_mapping">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Product Mapping
@@ -537,51 +583,6 @@
                 </span>
               </span>
             </div>
-            <!-- <div class="sm:col-span-6" v-if="!customer.vend">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Vend ID#
-              </label>
-              <MultiSelect
-                v-model="form.vend_id"
-                :options="vendOptions"
-                trackBy="id"
-                valueProp="id"
-                label="full_name"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-              >
-              </MultiSelect>
-            </div> -->
-<!--
-            <div class="sm:col-span-6 mt-3">
-              <span class="flex justify-between">
-                <Button
-                  type="button"
-                  class="text-white flex space-x-1"
-                  :class="!form.vend_id ? 'cursor-not-allowed bg-gray-400' : 'cursor-pointer bg-green-500 hover:bg-green-600'"
-                  :disabled="!form.vend_id"
-                  v-if="!customer.vend && permissions.includes('update customers')"
-                  @click.prevent="saveCustomer(form.id)"
-                >
-                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                  <span>
-                    Bind
-                  </span>
-                </Button>
-                <Button
-                  type="button"
-                  class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                  v-if="customer.vend && permissions.includes('update customers')"
-                  @click.prevent="unbindCustomer(customer.vend.id)"
-                >
-                  <XCircleIcon class="w-4 h-4"></XCircleIcon>
-                  <span>
-                    Unbind
-                  </span>
-                </Button>
-              </span>
-            </div> -->
 
             <div class="sm:col-span-6 mt-5 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
@@ -699,7 +700,6 @@ function getDefaultForm() {
 onMounted(() => {
   countryOptions.value = props.countries.data
   customer.value = props.customer
-  console.log(customer.value)
   operatorOptions.value = props.operatorOptions.data
   sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, value]) => {
     return {
@@ -828,6 +828,19 @@ function saveCustomer(customerID) {
     }))
     .post('/customers/' + customerID + '/update', {
     onSuccess: () => {
+      router.reload({
+          only: ['customer'],
+          data: {
+            id: form.value.id,
+          },
+          replace: true,
+          preserveState: true,
+          onSuccess: page => {
+            customer.value = props.customer
+            vendChannels.value = props.customer.vend.vend_channels;
+            vendChannels.value = [...vendChannels.value];
+          }
+        })
     },
     preserveState: true,
     replace: true,
@@ -912,13 +925,26 @@ function bindVend(customerID) {
 }
 
 function unbindCustomer(vendID) {
+  form.value.clearErrors();
+
   form.value
-    .post('/vends/' + vendID + '/unbind-customer', {}, {
+    .post('/vends/' + vendID + '/unbind-customer/customers', {}, {
       onSuccess: () => {
+        router.reload({
+          only: ['customer'],
+          data: {
+            id: form.value.id,
+          },
+          replace: true,
+          preserveState: true,
+          onSuccess: (page) => {
+            customer.value = page.props.customer; // Update the customer data
+            vendChannels.value = page.props.customer.vend ? page.props.customer.vend.vend_channels : []; // Update the vendChannels data
+            location.reload();
+          },
+        });
       },
-      preserveState: true,
-      replace: true,
-    })
+    });
 }
 
 function downloadVendSnapshot(vendSnapshotId) {

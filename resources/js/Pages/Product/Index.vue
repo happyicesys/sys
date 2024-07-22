@@ -178,7 +178,8 @@
                     <TableHead v-if="permissions.includes('admin-access products')">
                       <div class="flex justify-between">
                         <span>
-                          Selling Price
+                          Selling Price <br>
+                          (before GST)
                         </span>
                         <span>
                           Gross Margin
@@ -268,7 +269,7 @@
                             >
                                 <div class="flex space-x-1">
                                     <span class="font-semibold grow-0">
-                                      {{ sellingPrice.type ? sellingPrice.type_name + ' SP' : null }}:
+                                      {{ sellingPrice.type ? sellingPrice.type_name : null }}:
                                     </span>
                                     <span>
                                       {{ calculateSellingPrice(sellingPrice.amount, operatorCountry.currency_exponent, operatorCountry.is_currency_exponent_hidden, product.operator ? product.operator.gst_vat_rate : 0) }}
@@ -281,7 +282,7 @@
                             >
                                 <div class="flex space-x-1">
                                     <span class="font-semibold grow-0">
-                                      {{ sellingPrice.type ? sellingPrice.type_name + ' GM' : null }}:
+                                      {{ sellingPrice.type ? sellingPrice.type_name : null }}:
                                     </span>
                                     <span>
                                       {{ calculateGrossMargin(sellingPrice.amount, product.latestUnitCost.cost, operatorCountry.currency_exponent, operatorCountry.is_currency_exponent_hidden, product.operator ? product.operator.gst_vat_rate : 0) }}

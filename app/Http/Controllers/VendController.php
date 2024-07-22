@@ -1314,6 +1314,7 @@ class VendController extends Controller
     public function unbindCustomer($vendID, $returnUrl = null)
     {
         $vend = Vend::findOrFail($vendID);
+        $customerID = $vend->customer_id;
 
         $vend->customer->update([
             // 'is_active' => false,
@@ -1359,6 +1360,8 @@ class VendController extends Controller
             return redirect()->route('vends.edit', [$vendID]);
         }else if ($returnUrl == 'settings') {
             return redirect()->route('settings.edit', [$vendID]);
+        }else if ($returnUrl == 'customers') {
+            return redirect()->route('customers.edit', [$customerID]);
         }else {
             return redirect()->back();
         }
