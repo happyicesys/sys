@@ -41,7 +41,7 @@ const navigation = [
         tagline: null,
         children: [
             {name: 'View By Customers', href: '/vends/customers'},
-            {name: 'View By Machines', href: '/vends'},
+            {name: 'View By Machines', href: '/vends', permission: 'admin-access vends'},
         ]
     },
     {
@@ -95,7 +95,7 @@ const navigation = [
         icon: IdentificationIcon,
         current: false,
         href: 'customers',
-        permission: 'read customers',
+        permission: 'admin-access vends',
         tagline: null,
     },
     {
@@ -174,7 +174,7 @@ const navigation = [
         icon: DocumentTextIcon,
         current: false,
         href: 'reports',
-        permission: 'read reports',
+        permission: 'admin-access vends',
         tagline: null,
         children: [
             {name: 'Month End Stock Count', href: '/reports/stock-count'},
@@ -314,6 +314,7 @@ const smallLogoUrl = usePage().props.smallLogoUrl
                                             :href="subItem.href">
                                         <DisclosureButton
                                             class="group w-full flex items-center pl-3 pr-2 py-2 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-200"
+                                            v-if="subItem && (!subItem.permission || (subItem.permission && permissions.includes(subItem.permission)))"
                                             >
                                             {{ subItem.name }}
                                         </DisclosureButton>
