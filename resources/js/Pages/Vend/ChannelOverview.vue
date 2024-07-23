@@ -20,13 +20,13 @@
           <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
             <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
               <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table class="table-fixed min-w-full divide-y divide-gray-300">
+                <table class="min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
                     <tr>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         #
                       </th>
-                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
+                      <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
                         Image
                       </th>
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_name">
@@ -113,7 +113,7 @@
                       </td>
                       <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center" v-if="vend.product_mapping_name">
                         <div class="flex justify-center items-center" >
-                          <img class="h-16 w-16 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product.is_available ? '' : 'opacity-50']"/>
+                          <img class="h-20 w-20 min-w-20 min-h-20 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product.is_available ? '' : 'opacity-50']"/>
                         </div>
                       </td>
                       <td class="py-4 text-sm font-semibold text-center" :class="[vend.is_active && (channel.product && channel.product.is_available) ? 'text-gray-800' : 'text-gray-400']" v-if="vend.product_mapping_name">
@@ -224,7 +224,7 @@
                         {{ channel.sku_code }}
                       </td>
                       <td
-                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center"
+                        class="whitespace-nowrap py-4 pl-4 pr-3 text-xs font-medium sm:pl-6 text-center"
                         :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']"
                         v-if="channels.some(channel => 'qty_not_available_duration' in channel)"
                       >

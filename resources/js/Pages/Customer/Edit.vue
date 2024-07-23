@@ -285,7 +285,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Bind
+                    Bind Machine
                   </span>
                 </Button>
                 <Button
@@ -296,7 +296,7 @@
                 >
                   <XCircleIcon class="w-4 h-4"></XCircleIcon>
                   <span>
-                    Unbind
+                    Unbind Machine
                   </span>
                 </Button>
               </span>
