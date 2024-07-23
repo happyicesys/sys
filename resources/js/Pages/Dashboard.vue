@@ -189,7 +189,7 @@
                                                             {{ vend.customer.name }}
                                                         </span>
                                                         <span v-else>
-                                                            {{ vend.customer.name }}
+                                                            {{ vend.customer ? vend.customer.name : '' }}
                                                         </span>
                                                     </td>
                                                     <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-500 text-right mx-3">
