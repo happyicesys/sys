@@ -181,18 +181,18 @@
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
                         <ul class="divide-y divide-gray-200">
-                          <li class="flex py-1 px-3 space-x-2" v-for="(productMappingItem, productMappingItemIndex) in productMapping.productMappingItemsJson">
+                          <li class="flex py-1 px-3 space-x-2" v-for="(productMappingItem, productMappingItemIndex) in productMapping.productMappingItems">
                             <span>
                               {{ productMappingItemIndex + 1 }}.
                             </span>
                             <span class="text-blue-700 text-md pr-2">
-                              {{ productMappingItem['channel_code'] }}
+                              {{ productMappingItem.channel_code }}
                             </span>
-                            <span v-if="productMappingItem['product']['code']">
-                              {{ productMappingItem['product']['code'] }}
+                            <span v-if="productMappingItem.product && productMappingItem.product.code">
+                              {{ productMappingItem.product.code }}
                             </span>
                             <span>
-                              - {{ productMappingItem['product']['name'] }}
+                              - {{ productMappingItem.product.name }}
                             </span>
 
                           </li>
