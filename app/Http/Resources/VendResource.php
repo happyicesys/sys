@@ -45,7 +45,6 @@ class VendResource extends JsonResource
             'customer_code' => isset($this->customer_code) ? $this->customer_code : null,
             'customer_id' => isset($this->customer_id) ? $this->customer_id : null,
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,
-            'person_id' => isset($this->person_id) ? $this->person_id : null,
             'full_name' => $this->when($this->relationLoaded('customer'), function() {
                 if($this->customer && $this->customer->person_id) {
                     return $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
@@ -64,6 +63,9 @@ class VendResource extends JsonResource
                     return null;
                 }
             }),
+            'key' => KeyResource::make($this->whenLoaded('key')),
+            'key_name' => isset($this->key_name) ? $this->key_name : null,
+            'person_id' => isset($this->person_id) ? $this->person_id : null,
             'temp' => isset($this->temp) ? ((int)$this->temp)/ 10 : null,
             'temp_updated_at' => isset($this->temp_updated_at) ? Carbon::parse($this->temp_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'termination_date' => isset($this->termination_date) ? Carbon::parse($this->termination_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,

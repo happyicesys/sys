@@ -1056,7 +1056,7 @@ class VendController extends Controller
             $data[] = [
                 'order_id' => $vendTransaction->order_id,
                 'transaction_datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
-                'vend_id' => $vendTransaction->vend_code ? $vendTransaction->vend_code : '',
+                'machine_id' => $vendTransaction->vend_code ? $vendTransaction->vend_code : '',
                 'machine_prefix' => $vendTransaction->vend_prefix_name ?
                                     $vendTransaction->vend_prefix_name :
                                     '',

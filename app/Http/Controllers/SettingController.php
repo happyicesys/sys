@@ -94,6 +94,7 @@ class SettingController extends Controller
                 'vendSerialNumber',
             ])
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->leftJoin('keys', 'keys.id', '=', 'vends.key_id')
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('product_mappings as upcoming_product_mappings', 'product_mappings.id', '=', 'vends.upcoming_product_mapping_id')
@@ -104,6 +105,7 @@ class SettingController extends Controller
             ->filterIndex($request)
             ->select(
                 'customers.code AS customer_code',
+                'keys.name AS key_name',
                 'operators.code AS operator_code',
                 'operators.name AS operator_name',
                 'product_mappings.name AS product_mapping_name',

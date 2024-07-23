@@ -81,7 +81,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access vends')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Category
                 </label>
@@ -98,7 +98,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access vends')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Group
                 </label>
@@ -157,7 +157,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access vends')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Customer Binded?
                 </label>
@@ -189,7 +189,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access vends')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Location Type
                 </label>
@@ -205,7 +205,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div>
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access vends')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Machine Prefix
                 </label>
@@ -238,7 +238,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access vends')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     TXN_SRC
                 </label>

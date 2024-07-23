@@ -386,6 +386,9 @@
                     <TableHead>
                       Simcard
                     </TableHead>
+                    <TableHeadSort modelName="key_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('key_name')">
+                      Machine Key
+                    </TableHeadSort>
                     <TableHeadSort modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
                       Operator
                     </TableHeadSort>
@@ -720,6 +723,9 @@
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.simcard ? vend.simcard.code : '' }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        {{ vend.key_name }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.operator_code }}
