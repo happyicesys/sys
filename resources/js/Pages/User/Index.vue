@@ -47,6 +47,22 @@
                 >
                 </MultiSelect>
             </div>
+            <div>
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                Is Active?
+                </label>
+                <MultiSelect
+                v-model="filters.is_active"
+                :options="booleanOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                >
+                </MultiSelect>
+            </div>
           </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -134,7 +150,21 @@
                               {{ users.meta.from + userIndex }}
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-left">
-                              {{ user.name }}
+                            <div class="flex flex-col space-y-1">
+                                <div>
+                                {{ user.name }}
+                                </div>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-0.5 py-0.5 text-xs border w-fit hover:cursor-pointer"
+                                    :class="user.is_active ? 'bg-green-100 text-green-800 border-green-300' : 'bg-red-100 text-red-800 border-red-300'"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-semibold grow-0">
+                                        {{ user.is_active ? 'Active' : 'Inactive' }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-left">
                               {{ user.email }}
@@ -228,6 +258,7 @@ const props = defineProps({
 })
 
 const filters = ref({
+    is_active: '',
   name: '',
   operator_id: '',
   uen: '',
@@ -236,6 +267,7 @@ const filters = ref({
   numberPerPage: 100,
 })
 const authOperator = usePage().props.auth.operator
+const booleanOptions = ref([])
 const operatorOptions = ref([])
 const showFormModal = ref(false)
 const user = ref()
@@ -244,6 +276,11 @@ const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
+    booleanOptions.value = [
+        {id: '', value: 'All'},
+        {id: 'true', value: 'Yes'},
+        {id: 'false', value: 'No'},
+    ]
   numberPerPageOptions.value = [
       { id: 100, value: 100 },
       { id: 200, value: 200 },
@@ -256,6 +293,8 @@ onMounted(() => {
     ...props.operators.data.map((data) => {return {id: data.id, full_name: data.full_name}})
     ]
     filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+
+    filters.value.is_active = booleanOptions.value[1]
 })
 
 function onCreateClicked() {
@@ -301,6 +340,7 @@ function onEditClicked(userValue) {
 function onSearchFilterUpdated() {
   router.get('/users', {
       ...filters.value,
+      is_active: filters.value.is_active.id,
       operator_id: filters.value.operator_id.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {

@@ -18,6 +18,7 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
+            'is_active' => $this->is_active,
             'username' => $this->username,
             'operator_id' => $this->operator_id,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),

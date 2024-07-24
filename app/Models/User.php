@@ -25,6 +25,7 @@ class User extends Authenticatable
         'access_token',
         'name',
         'email',
+        'is_active',
         'operator_id',
         'password',
         'password_confirmation',

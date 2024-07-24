@@ -17,6 +17,20 @@
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll p-5">
           <form @submit.prevent="submit" id="submit">
             <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
+              <div class="col-span-12 sm:col-span-6 flex space-x-1">
+                <div
+                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
+                    :class="[user.is_active ? 'bg-green-300' : 'bg-red-300']"
+                    v-if="user"
+                >
+                  <span v-if="user.is_active">
+                    Active
+                  </span>
+                  <span v-if="!user.is_active">
+                    Not Active
+                  </span>
+                </div>
+              </div>
               <div class="col-span-12 sm:col-span-6">
                 <FormInput v-model="form.name" :error="form.errors.name" required="true">
                   Name
@@ -37,7 +51,7 @@
                   Password {{type == 'update' ? '(Override)' : ''}}
                 </FormInput>
               </div>
-              <div class="sm:col-span-3">
+              <div class="col-span-12 sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Phone Code
                 </label>
@@ -56,7 +70,7 @@
                   {{ form.errors.phone_country_id }}
                 </div>
               </div>
-              <div class="sm:col-span-3">
+              <div class="col-span-12 sm:col-span-3">
                 <FormInput v-model="form.phone_number" :error="form.errors.phone_number">
                   Phone Number
                 </FormInput>
@@ -97,7 +111,7 @@
                 </div>
               </div>
 
-              <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+              <div class="col-span-12 sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
                 <div class="relative">
                   <div class="absolute inset-0 flex items-center" aria-hidden="true">
                     <div class="w-full border-t border-gray-300"></div>
@@ -108,7 +122,7 @@
                 </div>
               </div>
 
-              <div class="sm:col-span-5" v-if="form.id">
+              <div class="col-span-12 sm:col-span-5" v-if="form.id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Vending Machine to Bind
                 </label>
@@ -129,7 +143,7 @@
                 </div>
               </div>
 
-              <div class="sm:col-span-1" v-if="form.id">
+              <div class=" col-span-12 sm:col-span-1" v-if="form.id">
                 <Button
                 type="button"
                 @click="bindOperatorVend()"
@@ -144,7 +158,7 @@
                 </Button>
               </div>
 
-              <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+              <div class="col-span-12 sm:col-span-6 flex flex-col mt-3" v-if="form.id">
               <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                 <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                   <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
@@ -204,25 +218,43 @@
               </div>
               </div>
             </div>
-            <div class="sm:col-span-6">
-              <div class="flex space-x-1 mt-5 justify-end">
-                <Link :href="'/users'">
-                  <Button
-                    type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
-                  >
-                    <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+            <div class="col-span-12 sm:col-span-6">
+              <div class="flex justify-between mt-5">
+                <Button type="button" v-if="permissions.includes('admin-access vends')" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
+                  <div>
+                    <span class="flex space-x-1 items-center" v-if="form.is_active">
+                      <FolderMinusIcon class="w-4 h-4"></FolderMinusIcon>
+                      <span>
+                        Deactivate
+                      </span>
+                    </span>
+                    <span class="flex space-x-1 items-center" v-else>
+                      <FolderPlusIcon class="w-4 h-4"></FolderPlusIcon>
+                      <span>
+                        Activate
+                      </span>
+                    </span>
+                  </div>
+                </Button>
+                <div class="flex space-x-1 justify-end">
+                  <Link :href="'/users'">
+                    <Button
+                      type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                    >
+                      <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                      <span>
+                        Back
+                      </span>
+                    </Button>
+                  </Link>
+                  <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
+                    <!-- @click.prevent="submit" -->
+                    <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                     <span>
-                      Back
+                      Save
                     </span>
                   </Button>
-                </Link>
-                <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
-                  <!-- @click.prevent="submit" -->
-                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                  <span>
-                    Save
-                  </span>
-                </Button>
+                </div>
               </div>
             </div>
         </form>
@@ -239,7 +271,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, FolderPlusIcon, FolderMinusIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 
@@ -298,6 +330,16 @@ function bindOperatorVend() {
   }
 }
 
+function toggleActivateDeactivate() {
+  form.value.post('/users/' + form.value.id + '/toggle-activate-deactivate', {
+    onSuccess: () => {
+      emit('modalClose');
+    },
+    preserveState: true,
+    replace: true,
+  });
+}
+
 function unbindOperatorVend(vend) {
   user.value.vends.splice(user.value.vends.indexOf(vend), 1)
   unbindedVendOptions.value.push(vend)
@@ -308,6 +350,7 @@ function getDefaultForm() {
   return {
     name: '',
     email: '',
+    is_active: '',
     username: '',
     password: '',
     phone_country_id: '',

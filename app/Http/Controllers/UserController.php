@@ -28,6 +28,7 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $request->merge([
+            'is_active' => $request->is_active ? $request->is_active : 'true',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'sortKey' => $request->sortKey ? $request->sortKey : 'name',
             'sortBy' => $request->sortBy ? $request->sortBy : true,
@@ -49,6 +50,11 @@ class UserController extends Controller
                     'vends:id,code,name',
                     'vends.customer:id,code,name',
                 ])
+                ->when($request->is_active, function($query, $search) {
+                    if($search != 'all') {
+                        $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+                    }
+                })
                 ->when($request->name, function($query, $search) {
                     $query->where('name', 'LIKE', "%{$search}%");
                 })
@@ -181,6 +187,15 @@ class UserController extends Controller
         $user->update($validated);
 
         return redirect()->route('self');
+    }
+
+    public function toggleActivateDeactivate($id)
+    {
+        $user = User::findOrFail($id);
+        $user->is_active = !$user->is_active;
+        $user->save();
+
+        return redirect()->route('users');
     }
 
     public function update(Request $request, $userId)
