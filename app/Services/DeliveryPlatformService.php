@@ -875,14 +875,14 @@ class DeliveryPlatformService
       'nameTranslation' => isset($params['translated_item_name']) ? $params['translated_item_name'] : null,
       'description' => $params['desc'],
       'price' =>  round($params['amount'] * 100),
-      'availableStatus' => isset($params['is_active']) ? $params['is_active'] : self::STATUS_AVAILABLE,
+      'availableStatus' => isset($params['is_active']) ? $params['is_active'] : Grab::STATUS_AVAILABLE,
       'sellingTimeID' => $this->getGrabMenuSellingTimes()['id'],
       'photos' => [
         $params['image_url'],
       ],
       'specialType' => '',
-      'maxStock' => $params['available_qty'],
-      'maxCount' => $params['available_qty'],
+      'maxStock' => isset($params['is_active']) && $params['is_active'] == Grab::STATUS_AVAILABLE ? $params['available_qty'] : 0,
+      'maxCount' => isset($params['is_active']) && $params['is_active'] == Grab::STATUS_AVAILABLE ? $params['available_qty'] : 0,
       'soldByWeight' => false,
     ];
 
