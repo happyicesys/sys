@@ -481,7 +481,7 @@ const filters = ref({
   vend_code: '',
   vend_model_id: '',
   sortKey: '',
-  sortBy: true,
+  sortBy: false,
   numberPerPage: 100,
 })
 const authOperator = usePage().props.auth.operator

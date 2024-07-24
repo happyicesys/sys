@@ -54,8 +54,8 @@ class CustomerController extends Controller
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
             'is_active' => $request->is_active ? $request->is_active : 'all',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
-            'sortKey' => $request->sortKey ? $request->sortKey : 'customers.created_at',
-            'sortBy' => $request->sortBy ? $request->sortBy : false,
+            'sortKey' => $request->sortKey ? $request->sortKey : 'customers.id',
+            'sortBy' => $request->sortBy ? $request->sortBy : 'false',
         ]);
         if(!$request->operators) {
             if(auth()->user()->operator->code == 'HIPL') {
