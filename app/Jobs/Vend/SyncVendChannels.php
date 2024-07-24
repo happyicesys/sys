@@ -73,6 +73,7 @@ class SyncVendChannels
 
                 if ($prevVendChannel && $prevVendChannel->qty == 0 && $channel['qty'] > 0) {
                     $data['qty_restocked_at'] = Carbon::now();
+                    $data['qty_sold_at'] = null;
                 }
 
                 $vendChannel = VendChannel::updateOrCreate([
@@ -90,6 +91,10 @@ class SyncVendChannels
                 if($vendChannel->qty_sold_at and $vendChannel->qty_restocked_at) {
                     $vendChannel->update([
                         'qty_not_available_duration' => $vendChannel->qty_sold_at->diffForHumans($vendChannel->qty_restocked_at, true),
+                    ]);
+                }else {
+                    $vendChannel->update([
+                        'qty_not_available_duration' => null,
                     ]);
                 }
 

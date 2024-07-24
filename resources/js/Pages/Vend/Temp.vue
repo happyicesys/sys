@@ -260,7 +260,7 @@ import { layouts } from 'chart.js';
     plugins: {
         title: {
             display: true,
-            text: '#'+vend.value.code + ' (' + vend.value.full_name + ')'
+            text: '#'+vend.value.code + ' (' + (vend.value.cust_full_name ? vend.value.cust_full_name : vend.value.customer_name) + ')'
         },
         tooltip: {
             callbacks: {

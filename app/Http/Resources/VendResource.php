@@ -49,7 +49,7 @@ class VendResource extends JsonResource
                 if($this->customer && $this->customer->person_id) {
                     return $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
                 }else if($this->customer && !$this->customer->person_id) {
-                    return $this->customer->code . ' - ' . $this->customer->name;
+                    return $this->customer->id + 20000 . ' - ' . $this->customer->name;
                 }else {
                     return null;
                 }
