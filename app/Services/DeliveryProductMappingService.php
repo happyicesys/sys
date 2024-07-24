@@ -9,6 +9,7 @@ use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryProductMappingVendChannel;
+use App\Models\VendChannel;
 use Carbon\Carbon;
 
 class DeliveryProductMappingService
@@ -146,5 +147,18 @@ class DeliveryProductMappingService
           'status' => $status,
           'available_qty' => $availableQty,
         ];
+    }
+
+    public function getVendChannelErrorStatus(VendChannel $vendChannel)
+    {
+      $isError = false;
+      if($vendChannel->vendChannelLatestError && $vendChannel->vendChannelLatestError->vendChannelError && $vendChannel->vendChannelLatestError->vendChannelError->code != '7') {
+        $isError = true;
+        if($vendChannel->vendChannelLatestError->is_error_cleared) {
+          $isError = false;
+        }
+      }
+
+      return $isError;
     }
 }

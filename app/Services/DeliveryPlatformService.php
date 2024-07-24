@@ -695,7 +695,8 @@ class DeliveryPlatformService
         },
         'deliveryProductMappingItem.product:id,code,name,desc,barcode,measurement_value,measurement_unit,measurement_count,translated_names_json',
         'deliveryProductMappingItem.product.thumbnail:id,full_url,attachments.modelable_type,attachments.modelable_id',
-        'deliveryProductMappingVend:id'
+        'deliveryProductMappingVend:id',
+        'vendChannel.vendChannelLatestError.vendChannelError',
       ])
       ->whereIn('id', $vendChannelsId)
       ->select(
@@ -734,7 +735,7 @@ class DeliveryPlatformService
           'desc' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->desc,
           'amount' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->amount,
           'image_url' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->thumbnail->full_url,
-          'is_active' => Grab::STATUS_MAPPING[$deliveryProductMappingVendChannel->is_active],
+          'is_active' => $deliveryProductMappingVendChannel->is_active && ! $this->deliveryProductMappingService->getVendChannelErrorStatus($deliveryProductMappingVendChannel->vendChannel) ? Grab::STATUS_AVAILABLE : Grab::STATUS_UNAVAILABLE,
           'available_qty' => Grab::STATUS_MAPPING[$deliveryProductMappingVendChannel->is_active] === Grab::STATUS_AVAILABLE ? $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel)['available_qty'] : 0,
         ]);
       }
