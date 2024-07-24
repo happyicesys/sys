@@ -558,17 +558,17 @@
                   </Link>
                 </span>
                 <span class="flex space-x-1">
-                  <!-- <Button
+                  <Button
                     type="button"
-                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                    v-if="permissions.includes('update customers')"
+                    class="bg-yellow-500 hover:bg-yellow-600 text-gray-800 flex space-x-1"
+                    v-if="permissions.includes('update customers') && customer.person_id"
                     @click.prevent="disconnectCMSCustomer(customer.id)"
                   >
                     <StopCircleIcon class="w-4 h-4"></StopCircleIcon>
                     <span>
                       Disconnect from CMS
                     </span>
-                  </Button> -->
+                  </Button>
                   <Button
                     type="button"
                     class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
@@ -773,6 +773,24 @@ function deleteCustomer(customerID) {
   })
 }
 
+function disconnectCMSCustomer(customerID) {
+  const approval = confirm('Are you sure to disconnect this customer from CMS ?');
+  if (!approval) {
+      return;
+  }
+
+  form.value.clearErrors()
+
+  form.value
+    .post('/customers/' + customerID + '/disconnect-cms', {
+    onSuccess: () => {
+      location.reload();
+    },
+    preserveState: true,
+    replace: true,
+  })
+}
+
 function formatDatetime(datetime) {
   return datetime ? moment(datetime).format('YYYY-MM-DD hh:mm a') : ''
 }
@@ -928,7 +946,7 @@ function unbindCustomer(vendID) {
   form.value.clearErrors();
 
   form.value
-    .post('/vends/' + vendID + '/unbind-customer/customers', {}, {
+    .post('/vends/' + vendID + '/unbind-customer/customers', {
       onSuccess: () => {
         router.reload({
           only: ['customer'],
@@ -938,9 +956,8 @@ function unbindCustomer(vendID) {
           replace: true,
           preserveState: true,
           onSuccess: (page) => {
-            customer.value = page.props.customer; // Update the customer data
-            vendChannels.value = page.props.customer.vend ? page.props.customer.vend.vend_channels : []; // Update the vendChannels data
-            location.reload();
+            customer.value = props.customer; // Update the customer data
+            vendChannels.value = props.customer.vend ? props.customer.vend.vend_channels : []; // Update the vendChannels data
           },
         });
       },

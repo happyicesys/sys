@@ -138,6 +138,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/bind-vend', [CustomerController::class, 'bindVend']);
         Route::get('/{id}/selling-prices/type/{type}', [CustomerController::class, 'getProductSellingPrices']);
         Route::post('/sync-cms-invoice-items', [CustomerController::class, 'syncCmsInvoiceItems']);
+        Route::post('/{id}/disconnect-cms', [CustomerController::class, 'disconnectCms']);
     });
 
     Route::prefix('dashboard')->group(function() {

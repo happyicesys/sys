@@ -210,6 +210,15 @@ class CustomerController extends Controller
         return redirect()->route('customers');
     }
 
+    public function disconnectCms($id)
+    {
+        $customer = Customer::find($id);
+        $customer->person_id = null;
+        $customer->save();
+
+        return redirect()->route('customers.edit', [$id]);
+    }
+
     public function edit(Request $request, $id)
     {
         $customerInit = Customer::findOrFail($id);
@@ -254,8 +263,6 @@ class CustomerController extends Controller
                 'zone',
             ])
             ->find($id);
-
-            // dd($customer->toArray());
 
         return Inertia::render('Customer/Edit', [
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
