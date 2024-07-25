@@ -61,32 +61,32 @@ class CreateVendTransaction implements ShouldQueue
         $processedInput = $this->processMapping($this->processInput($input));
 
         // exception for 2007 for debug purpose
-        // if($vend->code != '2007') {
-        //     // check duplicated orderid
-        //     $duplicatedVendTransaction = VendTransaction::query()
-        //         ->where(function($query) use ($processedInput) {
-        //             $query->where('order_id', $processedInput['orderID'])
-        //                 ->orWhere('order_id', Carbon::now()->format('y').$processedInput['orderID']);
-        //         })
-        //         ->where('vend_id', $vend->id)
-        //         ->first();
+        if($vend->code != '2007') {
+            // check duplicated orderid
+            $duplicatedVendTransaction = VendTransaction::query()
+                ->where(function($query) use ($processedInput) {
+                    $query->where('order_id', $processedInput['orderID'])
+                        ->orWhere('order_id', Carbon::now()->format('y').$processedInput['orderID']);
+                })
+                ->where('vend_id', $vend->id)
+                ->first();
 
-        //     // exit once found duplicated order id
-        //     if($duplicatedVendTransaction) {
-        //         return;
-        //     }
+            // exit once found duplicated order id
+            if($duplicatedVendTransaction) {
+                return;
+            }
 
-        //     // 240709 case, delete those dun have shipment info when truncate 2 char infront, still duplicated order id
-        //     $shortVersionCreatedBefore = VendTransaction::query()
-        //         // truncate 2 char infront of orderID
-        //         ->where('order_id', substr($processedInput['orderID'], 2))
-        //         ->where('vend_id', $vend->id)
-        //         ->first();
+            // 240709 case, delete those dun have shipment info when truncate 2 char infront, still duplicated order id
+            $shortVersionCreatedBefore = VendTransaction::query()
+                // truncate 2 char infront of orderID
+                ->where('order_id', substr($processedInput['orderID'], 2))
+                ->where('vend_id', $vend->id)
+                ->first();
 
-        //     if($shortVersionCreatedBefore) {
-        //         $shortVersionCreatedBefore->delete();
-        //     }
-        // }
+            if($shortVersionCreatedBefore) {
+                $shortVersionCreatedBefore->delete();
+            }
+        }
 
         DB::beginTransaction();
         $vendTransaction = $this->createVendTransaction($processedInput);
