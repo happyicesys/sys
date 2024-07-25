@@ -433,12 +433,12 @@ onMounted(() => {
 })
 
 function calculateSellingPrice(amount, currencyExponent, isCurrencyExponentHidden, gstVatRate) {
-    if (!amount) {
+  if (!amount) {
         return null;
     }
 
     const convertedAmount = amount / Math.pow(10, currencyExponent);
-    const divisor = gstVatRate + 100;
+    const divisor = + gstVatRate + 100; // This will be 109.00 if gstVatRate is 9.00
     if (divisor === 0) {
         return null;
     }
@@ -457,7 +457,7 @@ function calculateGrossMargin(amount, latestUnitCost, currencyExponent, isCurren
     }
 
     const convertedAmount = amount / Math.pow(10, currencyExponent);
-    const divisor = gstVatRate + 100;
+    const divisor = + gstVatRate + 100;
     if (divisor === 0) {
         return null;
     }

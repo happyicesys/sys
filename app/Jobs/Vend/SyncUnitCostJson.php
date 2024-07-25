@@ -35,6 +35,8 @@ class SyncUnitCostJson implements ShouldQueue
         $grossProfit = $vendTransaction->getGrossProfit();
         $grossProfitMargin = $revenue ? (($grossProfit * 100)/ $revenue) : 0;
 
+        // dd($revenue, $unitCost, $grossProfit, $grossProfitMargin);
+
         $vendTransaction->update([
             'revenue' => $revenue,
             'gross_profit' => $grossProfit,

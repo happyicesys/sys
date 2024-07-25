@@ -14,6 +14,10 @@ class LogisticsRoleSeeder extends Seeder
      */
     public function run(): void
     {
+        // remove the excessive roles
+        $removeRoles = ['user', 'user_observer', 'vc_observer', 'vc_observer_loose'];
+
+
         $role = Role::create([
             'name' => 'logistics',
             'guard_name' => 'web',
