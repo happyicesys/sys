@@ -83,7 +83,7 @@ class VendTransaction extends Model
 
     public function getUnitCost()
     {
-        return $this->unitCost ? $this->unitCost->cost : 0;
+        return $this->unitCost ? $this->unitCost->cost * 100 : 0;
     }
 
     public function customer()
