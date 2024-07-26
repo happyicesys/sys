@@ -88,7 +88,8 @@ class DatabaseSeeder extends Seeder
             // VendSerialNumAndKeySeeder::class,
             // SyncProductMappingToVendPrefix::class,
             // SyncBindingVendConfigVendPrefixProductMapping::class,
-            SyncVendTransactionsProduct::class,
+            // SyncVendTransactionsProduct::class,
+            LogisticsRoleSeeder::class,
         ]);
     }
 }

@@ -5,7 +5,7 @@ import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { ArrowsPointingInIcon, BuildingOfficeIcon, ClipboardDocumentListIcon, CodeBracketSquareIcon, Cog8ToothIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, FolderIcon, IdentificationIcon, LinkIcon, MapPinIcon, RectangleStackIcon, TruckIcon, UserCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid'
+import { ArrowsPointingInIcon, BuildingOfficeIcon, ClipboardDocumentListIcon, CodeBracketSquareIcon, Cog8ToothIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, FolderIcon, IdentificationIcon, LinkIcon, MapPinIcon, RectangleStackIcon, TruckIcon, UserCircleIcon, UserGroupIcon, BookOpenIcon } from '@heroicons/vue/20/solid'
 
 const navigation = [
     {
@@ -40,8 +40,8 @@ const navigation = [
         permission: 'read vends',
         tagline: null,
         children: [
-            {name: 'View By Customers', href: '/vends/customers'},
-            {name: 'View By Machines', href: '/vends', permission: 'admin-access vends'},
+            {name: 'View By Customers', href: '/vends/customers', permission: 'read vend-customers'},
+            {name: 'View By Machines', href: '/vends', permission: 'read vend-machines'},
         ]
     },
     {
@@ -57,7 +57,7 @@ const navigation = [
         icon: ArrowsPointingInIcon,
         current: false,
         href: 'holidays',
-        permission: 'admin-access vends',
+        permission: 'read operations',
         tagline: null,
         children: [
             {name: 'Jobs', href: '/ops-jobs'},
@@ -81,7 +81,7 @@ const navigation = [
         icon: Cog8ToothIcon,
         current: false,
         href: 'settings',
-        permission: 'admin-access vends',
+        permission: 'read vend-settings',
         tagline: null,
         children: [
             {name: 'Machines', href: '/settings'},
@@ -95,7 +95,7 @@ const navigation = [
         icon: IdentificationIcon,
         current: false,
         href: 'customers',
-        permission: 'admin-access vends',
+        permission: 'read customers',
         tagline: null,
     },
     {
@@ -106,8 +106,8 @@ const navigation = [
         permission: 'read products',
         tagline: null,
         children: [
-            {name: 'Products', href: '/products'},
-            {name: 'Product Mappings', href: '/product-mappings'},
+            {name: 'Products', href: '/products', permission: 'read products'},
+            {name: 'Product Mappings', href: '/product-mappings', permission: 'read product-mappings'},
         ]
     },
     {
@@ -115,7 +115,7 @@ const navigation = [
         icon: FolderIcon,
         current: false,
         href: 'data-management',
-        permission: 'admin-access vends',
+        permission: 'read data-settings',
         children: [
             {name: 'Cashless Providers', href: '/cashless-providers'},
             // {name: 'Cashless Terminals', href: '/cashless-terminals'},
@@ -144,13 +144,13 @@ const navigation = [
         icon: TruckIcon,
         current: false,
         href: 'delivery-product-mappings',
-        permission: 'admin-access vends',
+        permission: 'read delivery-platforms',
         tagline: null,
         children: [
-            {name: 'Machines', href: '/delivery-product-mapping-vends'},
-            {name: 'Orders', href: '/delivery-platform-orders'},
-            {name: 'Product Mapping', href: '/delivery-product-mappings'},
-            {name: 'Campaign', href: '/delivery-platform-campaigns'}
+            {name: 'Machines', href: '/delivery-product-mapping-vends', permission: 'read delivery-platform-vends'},
+            {name: 'Orders', href: '/delivery-platform-orders', permission: 'read delivery-platform-orders'},
+            {name: 'Product Mapping', href: '/delivery-product-mappings', permission: 'read delivery-platform-product-mappings'},
+            {name: 'Campaign', href: '/delivery-platform-campaigns', permission: 'read delivery-platform-campaigns'},
         ]
     },
     // {
@@ -174,7 +174,7 @@ const navigation = [
         icon: DocumentTextIcon,
         current: false,
         href: 'reports',
-        permission: 'admin-access vends',
+        permission: 'read reports',
         tagline: null,
         children: [
             {name: 'Month End Stock Count', href: '/reports/stock-count'},
@@ -220,14 +220,21 @@ const navigation = [
         name: 'Admin',
         icon: UserCircleIcon,
         current: false,
-        href: 'users',
-        permission: 'admin-access vends',
+        href: 'admins',
+        permission: 'read users',
         tagline: null,
         children: [
-            {name: 'Operators', href: '/operators'},
-            {name: 'Users', href: '/users'},
-            {name: 'Resource Center (Tutorial)', href: '/resource-centers'},
+            {name: 'Operators', href: '/operators', permission: 'read operators'},
+            {name: 'Users', href: '/users', permission: 'read users'},
         ]
+    },
+    {
+        name: 'Resource Center (Tutorial)',
+        icon: BookOpenIcon,
+        current: false,
+        href: 'resource-centers',
+        permission: 'read resource-centers',
+        tagline: null,
     },
 
 

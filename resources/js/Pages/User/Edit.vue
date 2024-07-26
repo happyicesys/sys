@@ -220,7 +220,7 @@
             </div>
             <div class="col-span-12 sm:col-span-6">
               <div class="flex justify-between mt-5">
-                <Button type="button" v-if="permissions.includes('admin-access vends')" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
+                <Button type="button" v-if="permissions.includes('admin-access users')" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
                   <div>
                     <span class="flex space-x-1 items-center" v-if="form.is_active">
                       <FolderMinusIcon class="w-4 h-4"></FolderMinusIcon>
@@ -306,7 +306,7 @@ onMounted(() => {
     id: operator.id,
     name: operator.name
   }))
-  roleOptions.value = props.roles.data
+  roleOptions.value = JSON.parse(JSON.stringify(props.roles.data))
   unbindedVendOptions.value = props.unbindedVends.data
   form.value = props.user ? useForm({
     ...getDefaultForm(),
@@ -314,11 +314,11 @@ onMounted(() => {
     ...props.user.data,
     operator_id: props.user ? operatorOptions.value.find(operator => operator.id == user.value.operator_id) : '',
   }) : useForm(getDefaultForm())
-  if(!usePage().props.auth.permissions.includes('admin-access operators')) {
-    roleOptions.value = props.roles.data.filter(function(role) {
-      return role.name == 'operator' || role.name == 'operator_user'
-    })
-  }
+  // if(!usePage().props.auth.permissions.includes('admin-access operators')) {
+  //   roleOptions.value = props.roles.data.filter(function(role) {
+  //     return role.name == 'operator' || role.name == 'operator_user'
+  //   })
+  // }
 })
 
 function bindOperatorVend() {

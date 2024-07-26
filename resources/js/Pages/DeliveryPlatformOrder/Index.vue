@@ -121,7 +121,7 @@
 
               <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
                 @click="onExportExcelClicked()"
-                v-if="permissions.includes('export excel')">
+                v-if="permissions.includes('export delivery-platform-orders')">
                 <div class="flex space-x-1">
                   <div>
                     <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>

@@ -37,13 +37,13 @@
           <SearchInput placeholderStr="Serial Num" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
               Serial Num
           </SearchInput>
-          <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+          <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vend-settings')" @keyup.enter="onSearchFilterUpdated()">
               Cust ID
           </SearchInput>
-          <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+          <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vend-settings')" @keyup.enter="onSearchFilterUpdated()">
               Cust Name
           </SearchInput>
-          <div v-if="permissions.includes('admin-access vends')">
+          <div v-if="permissions.includes('admin-access vend-settings')">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Category
             </label>
@@ -60,7 +60,7 @@
             >
             </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vends')">
+          <div v-if="permissions.includes('admin-access vend-settings')">
               <label for="text" class="block text-sm font-medium text-gray-700">
                   Group
               </label>
@@ -77,7 +77,7 @@
               >
               </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vends')">
+          <div v-if="permissions.includes('admin-access vend-settings')">
               <label for="text" class="block text-sm font-medium text-gray-700">
                   Customer Binded?
               </label>
@@ -93,7 +93,7 @@
               >
               </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vends')">
+          <div v-if="permissions.includes('admin-access vend-settings')">
               <label for="text" class="block text-sm font-medium text-gray-700">
                   Operator
               </label>

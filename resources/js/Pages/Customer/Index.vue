@@ -33,7 +33,7 @@
           <SearchInput placeholderStr="Customer" v-model="filters.customer">
             Customer
           </SearchInput>
-          <div>
+          <div v-if="permissions.includes('admin-access customers')">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Category
             </label>
@@ -50,7 +50,7 @@
             >
             </MultiSelect>
           </div>
-          <div>
+          <div v-if="permissions.includes('admin-access customers')">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Category Group
             </label>
@@ -99,7 +99,7 @@
             >
             </MultiSelect>
           </div> -->
-          <div>
+          <div v-if="permissions.includes('admin-access customers')">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Zone
             </label>
@@ -148,7 +148,7 @@
             >
             </MultiSelect>
           </div>
-          <div>
+          <div v-if="permissions.includes('admin-access customers')">
               <label for="text" class="block text-sm font-medium text-gray-700">
                   Is From CMS
               </label>
@@ -164,7 +164,7 @@
               >
               </MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access vends')">
+          <div v-if="permissions.includes('admin-access customers')">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Operator
             </label>

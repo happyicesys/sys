@@ -52,13 +52,13 @@
           >
           </MultiSelect>
         </div>
-        <!-- <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+        <!-- <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
             Cust ID
         </SearchInput> -->
-        <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
           Customer
         </SearchInput>
-        <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  v-if="permissions.includes('admin-access vends') && indexType === 'customers'">
+        <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  v-if="permissions.includes('admin-access vend-machines') && indexType === 'customers'">
           <label for="text" class="block text-sm font-medium text-gray-700">
             Category
           </label>
@@ -75,7 +75,7 @@
           >
           </MultiSelect>
         </div>
-        <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  v-if="permissions.includes('admin-access vends') && indexType === 'customers'">
+        <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  v-if="permissions.includes('admin-access vend-machines') && indexType === 'customers'">
           <label for="text" class="block text-sm font-medium text-gray-700">
               Group
           </label>
@@ -108,7 +108,7 @@
           >
           </MultiSelect>
         </div>
-        <div v-if="permissions.includes('admin-access vends') && indexType === 'customers'">
+        <div v-if="permissions.includes('admin-access vend-machines') && indexType === 'customers'">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Customer Active?
             </label>
@@ -124,7 +124,7 @@
             >
             </MultiSelect>
         </div>
-        <div v-if="permissions.includes('admin-access vends')">
+        <div v-if="permissions.includes('admin-access vend-machines')">
           <label for="text" class="block text-sm font-medium text-gray-700">
             Machine Status
           </label>
@@ -175,7 +175,7 @@
         <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan" @keyup.enter="onSearchFilterUpdated()">
             Fan Speed &lt;&lt;
         </SearchInput>
-        <div v-if="permissions.includes('admin-access vends')">
+        <div v-if="permissions.includes('admin-access vend-machines')">
           <label for="text" class="block text-sm font-medium text-gray-700">
             Operator
           </label>
@@ -217,10 +217,10 @@
         <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Remaining SKU Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()">
           Remaining SKU(%) &lt;&lt;
         </SearchInput>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Firmware Ver" v-model="filters.firmware_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Firmware Ver" v-model="filters.firmware_ver" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
           Firmware Ver
         </SearchInput>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="APK Ver" v-model="filters.apk_ver" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="APK Ver" v-model="filters.apk_ver" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
           APK Ver
         </SearchInput>
         <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']">
@@ -239,7 +239,7 @@
           >
           </MultiSelect>
         </div>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
           Avg/Day Sales (30d) &lt;&lt;
         </SearchInput>
         <div>
@@ -274,7 +274,7 @@
           >
           </MultiSelect>
         </div>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Account Manager" v-model="filters.account_manager_name" v-if="permissions.includes('admin-access vends') && indexType === 'customers'" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Account Manager" v-model="filters.account_manager_name" v-if="permissions.includes('admin-access vend-machines') && indexType === 'customers'" @keyup.enter="onSearchFilterUpdated()">
           Account Manager
         </SearchInput>
         <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Number" v-model="filters.coinLessThan" @keyup.enter="onSearchFilterUpdated()">
@@ -390,7 +390,7 @@
             </Button>
             <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
             @click="onIsShowOperationDivButtonClicked()"
-            v-if="permissions.includes('export excel')">
+            v-if="permissions.includes('export vends')">
               <div class="flex space-x-1">
                   <div>
                       <ChevronDoubleDownIcon class="h-4 w-4" aria-hidden="true" v-if="!isShowOperationDiv"/>
@@ -435,7 +435,7 @@
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 space-x-1 mt-5">
           <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
           @click="onExportChannelExcelClicked()"
-          v-if="permissions.includes('export excel')">
+          v-if="permissions.includes('export vends')">
             <div class="flex space-x-1">
               <div>
                   <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>
@@ -451,7 +451,7 @@
           </Button>
           <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-blue-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           @click="onSyncNextDeliveryDate()"
-          v-if="permissions.includes('admin-access vends')"
+          v-if="permissions.includes('admin-access vend-machines')"
           >
             <div class="flex space-x-1">
               <div>
@@ -647,7 +647,7 @@
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
             <span v-if="vend.person_id" class="flex flex-col space-y-1">
-                <span v-if="permissions.includes('admin-access vends')">
+                <span v-if="permissions.includes('admin-access vend-machines')">
                     <a :class="[vend.person_id && vend.customer_is_active || vend.is_testing ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
                         {{ vend.virtual_customer_code }}
                         <!-- ({{ vend.virtual_customer_prefix }}) -->
@@ -671,7 +671,7 @@
                     </a>
             </span>
             <span v-else-if="!vend.person_id">
-                <span v-if="permissions.includes('admin-access vends')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
+                <span v-if="permissions.includes('admin-access vend-machines')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
                     <a class="text-blue-700" target="_blank" :href="'/customers/' + vend.customer_id + '/edit'">
                         {{ vend.customer_name }}
                     </a>

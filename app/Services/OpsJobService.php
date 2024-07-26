@@ -6,7 +6,7 @@ use App\Models\OpsJob;
 use App\Models\VendChannel;
 use Carbon\Carbon;
 
-class MqttService
+class OpsJobService
 {
 
   public function getItemChannels($vendChannels)

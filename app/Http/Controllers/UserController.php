@@ -133,8 +133,7 @@ class UserController extends Controller
             'roles',
             'vends:id,code,name,customer_id',
             'vends.customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix',
-        ])
-        ->findOrFail($id);
+        ])->findOrFail($id);
 
         return Inertia::render('User/Edit', [
             'countries' => CountryResource::collection(
@@ -143,13 +142,11 @@ class UserController extends Controller
                     ->orderBy('name')
                     ->get()
             ),
-            'user' => UserResource::make(
-                $user
-            ),
+            'user' => UserResource::make($user),
             'operators' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
-            'roles' => RoleResource::collection(Role::orderBy('name')->get()),
+            'roles' => RoleResource::collection(Role::orderBy('name')->get()),  // Ensure roles are correctly retrieved
             'type' => 'update',
             'unbindedVends' => fn () =>
                 VendResource::collection(
@@ -163,9 +160,10 @@ class UserController extends Controller
                     ->orderBy('code')
                     ->select('id', 'code', 'name', 'customer_id')
                     ->get()
-            )
+                )
         ]);
     }
+
 
     public function selfUpdate(Request $request, $id)
     {

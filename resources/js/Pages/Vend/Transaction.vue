@@ -81,7 +81,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access vends')">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Category
                 </label>
@@ -98,7 +98,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access vends')">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Group
                 </label>
@@ -140,7 +140,7 @@
                     Product Name
                 </SearchInput>
             </div>
-            <div v-if="permissions.includes('admin-access vends')">
+            <div v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Operator
                 </label>
@@ -157,7 +157,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access vends')">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Customer Binded?
                 </label>
@@ -189,7 +189,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access vends')">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Location Type
                 </label>
@@ -205,7 +205,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access vends')">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Machine Prefix
                 </label>
@@ -238,7 +238,7 @@
                 >
                 </MultiSelect>
             </div>
-            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access vends')">
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     TXN_SRC
                 </label>
@@ -277,7 +277,7 @@
                         </Button>
                         <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
                             @click.prevent="onExportExcelClicked()"
-                            v-if="permissions.includes('export excel')">
+                            v-if="permissions.includes('export transactions')">
                             <div class="flex space-x-1">
                                 <div>
                                     <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>

@@ -48,7 +48,7 @@ class SettingController extends Controller
 
     public function __construct()
     {
-        $this->middleware(['permission:admin-access vends']);
+        $this->middleware(['permission:read vend-settings']);
     }
 
     public function index(Request $request)

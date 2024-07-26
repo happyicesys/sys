@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Http;
 
-class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
+class Foodpanda extends DeliveryPlatform implements DeliveryPlatformInterface
 {
     use HasFactory;
 

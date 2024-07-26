@@ -93,7 +93,8 @@ class VendController extends Controller
         VendDispenseService $vendDispenseService
     )
     {
-        $this->middleware(['permission:read vends'])->only(['index', 'indexCustomer']);
+        $this->middleware(['permission:read vend-customers'])->only('indexCustomer');
+        $this->middleware(['permission:read vend-machines'])->only('index');
         $this->middleware(['permission:read transactions'])->only('transactionIndex');
         $this->historyService = $historyService;
         $this->mqttService = $mqttService;

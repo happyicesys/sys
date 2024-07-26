@@ -380,7 +380,7 @@
                   </Button>
                   <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
                   @click="onIsShowOperationDivButtonClicked()"
-                  v-if="permissions.includes('export excel')">
+                  v-if="permissions.includes('export vends')">
                       <div class="flex space-x-1">
                           <div>
                               <ChevronDoubleDownIcon class="h-4 w-4" aria-hidden="true" v-if="!isShowOperationDiv"/>
@@ -425,7 +425,7 @@
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 space-x-1 mt-5">
             <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
             @click="onExportChannelExcelClicked()"
-            v-if="permissions.includes('export excel')">
+            v-if="permissions.includes('export vends')">
                 <div class="flex space-x-1">
                     <div>
                         <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>

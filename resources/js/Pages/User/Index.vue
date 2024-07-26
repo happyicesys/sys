@@ -31,7 +31,7 @@
               <SearchInput placeholderStr="Email" v-model="filters.email">
                   Email
               </SearchInput>
-              <div v-if="permissions.includes('admin-access vends')">
+              <div v-if="permissions.includes('admin-access users')">
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Operator
                 </label>
