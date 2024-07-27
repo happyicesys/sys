@@ -71,6 +71,8 @@ class DashboardController extends Controller
             if (auth()->user()->operator->code == 'HIPL') {
                 $operatorHIMD = Operator::where('code', 'HIMD')->first();
                 $request->merge(['operators' => [auth()->user()->operator_id, $operatorHIMD ? $operatorHIMD->id : null]]);
+            }else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
     }

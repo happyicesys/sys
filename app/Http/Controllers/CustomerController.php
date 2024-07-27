@@ -60,6 +60,8 @@ class CustomerController extends Controller
         if(!$request->operators) {
             if(auth()->user()->operator->code == 'HIPL') {
                 $request->merge(['operators' => [auth()->user()->operator_id, Operator::where('code', 'HIMD')->first() ? Operator::where('code', 'HIMD')->first()->id : null]]);
+            }else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
             }
         }
         $className = get_class(new Customer());
