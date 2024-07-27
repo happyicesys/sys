@@ -213,6 +213,23 @@
             >
             </MultiSelect>
           </div>
+          <div v-if="permissions.includes('admin-access customers')">
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Zone
+						</label>
+						<MultiSelect
+							v-model="filters.zones"
+							:options="zoneOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							class="mt-1"
+							mode="tags"
+						>
+						</MultiSelect>
+					</div>
         </div>
 
 
@@ -302,9 +319,9 @@
                     <TableHead>
                       Tags
                     </TableHead>
-                    <TableHead>
+                    <TableHeadSort modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')">
                       Zone
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHead>
                       Status
                     </TableHead>
@@ -382,7 +399,7 @@
                         </span>
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.zone ? customer.zone.name : null }}
+                        {{ customer.zone_id ? customer.zone_name : null }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         <div
@@ -469,7 +486,7 @@ const props = defineProps({
   tags: Object,
   users: Object,
   vendModelOptions: Object,
-  zones: Object,
+  zoneOptions: Object,
 })
 
 const filters = ref({
@@ -483,6 +500,7 @@ const filters = ref({
   sortKey: '',
   sortBy: false,
   numberPerPage: 100,
+  zones: [],
 })
 const authOperator = usePage().props.auth.operator
 const showModal = ref(false)
@@ -527,13 +545,16 @@ onMounted(() => {
   sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
   // statusOptions.value = props.statuses.map((data) => {return {id: data.id, name: data.name}})
   userOptions.value = props.users.data.map((data) => {return {id: data.id, name: data.name}})
-  zoneOptions.value = props.zones.data.map((data) => {return {id: data.id, name: data.name}})
   priceTemplateOptions.value = props.priceTemplates.data.map((data) => {return {id: data.id, name: data.name}})
   tagOptions.value = props.tags.data.map((data) => {return {id: data.id, name: data.name}})
   vendModelOptions.value = [
         {id: 'all', value: 'All'},
         ...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
+  zoneOptions.value = [
+    {id: 'all', value: 'All'},
+    ...props.zoneOptions.data.map((data) => {return {id: data.id, value: data.name}})
+	]
   // filters.value.status = statusOptions.value[3]
   filters.value.is_active = booleanOptions.value[0]
   filters.value.is_cms = booleanOptions.value[0]
@@ -566,6 +587,7 @@ function onSearchFilterUpdated() {
       selling_price_type: filters.value.selling_price_type ? filters.value.selling_price_type.id : '',
       vend_model_id: filters.value.vend_model_id.id,
       numberPerPage: filters.value.numberPerPage.id,
+      zones: filters.value.zones.map(zone => zone.id),
   }, {
       preserveState: true,
       replace: true,

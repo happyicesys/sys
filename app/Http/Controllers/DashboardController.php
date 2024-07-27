@@ -27,7 +27,7 @@ class DashboardController extends Controller
 
     public function __construct()
     {
-        $this->middleware(['auth', 'permission:read dashboard']);
+        $this->middleware(['permission:read dashboard'])->only('index');
     }
 
     public function index(Request $request)

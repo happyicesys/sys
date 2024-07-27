@@ -89,7 +89,8 @@ class DatabaseSeeder extends Seeder
             // SyncProductMappingToVendPrefix::class,
             // SyncBindingVendConfigVendPrefixProductMapping::class,
             // SyncVendTransactionsProduct::class,
-            LogisticsRoleSeeder::class,
+            // LogisticsRoleSeeder::class,
+            ZoneSeeder::class,
         ]);
     }
 }

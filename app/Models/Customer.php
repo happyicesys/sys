@@ -308,7 +308,11 @@ class Customer extends Model
                 });
             }
         })
-        ->when($request->zone_id, fn($query, $input) => $query->where('zone_id', $input))
+        ->when($request->zones, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereIn('zone_id', $search);
+            }
+        })
         ->when($request->sortKey, function($query, $search) use ($request) {
             $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
         });

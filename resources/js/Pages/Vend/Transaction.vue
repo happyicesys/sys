@@ -318,17 +318,45 @@
                 </div>
             </div>
 
-        <dl class="mt-2 grid grid-cols-1 gap-5 sm:grid-cols-3">
-            <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Total Amount (Success)</dt>
+        <!-- <dl class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-5"> -->
+        <dl class="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <dt class="truncate text-sm font-medium text-gray-500">Total Revenue (Success)</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{(totals['amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                 </dd>
             </div>
-            <div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
-                <dt class="truncate text-sm font-medium text-gray-500">Total Count (Success)</dt>
+            <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <dt class="truncate text-sm font-medium text-gray-500">Transactions Count (Success)</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     {{totals['count'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                </dd>
+            </div>
+            <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <dt class="truncate text-sm font-medium text-gray-500">Multiple Puchases Count</dt>
+                <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                    <div class="flex justify-between items-center">
+                        <span class="truncate text-xs font-medium text-gray-600">
+                            Delivery Platform
+                        </span>
+                        <span>
+                            {{totals['multiple_count_payment_gateway'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="truncate text-xs font-medium text-gray-600">
+                            Machine
+                        </span>
+                        <span>
+                            {{totals['multiple_count_machine'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                        </span>
+                    </div>
+                </dd>
+            </div>
+            <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <dt class="truncate text-sm font-medium text-gray-500">Total Qty (Success)</dt>
+                <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                    {{totals['total_qty'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                 </dd>
             </div>
         </dl>

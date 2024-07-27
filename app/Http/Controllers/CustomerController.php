@@ -81,14 +81,17 @@ class CustomerController extends Controller
         ])
             ->leftJoin('operators', 'customers.operator_id', '=', 'operators.id')
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+            ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
             ->select(
                 'customers.*',
                 'customers.id',
                 'customers.begin_date as begin_date',
                 'customers.operator_id',
+                'customers.zone_id',
                 'operators.code as operator_code',
                 'operators.name as operator_name',
                 'vends.code as vend_code',
+                'zones.name as zone_name'
             )
             ->filterIndex($request);
 
@@ -158,7 +161,7 @@ class CustomerController extends Controller
             'vendModelOptions' => VendModelResource::collection(
                 VendModel::orderBy('name')->get()
             ),
-            'zones' => ZoneResource::collection(
+            'zoneOptions' => ZoneResource::collection(
                 Zone::query()
                     ->orderBy('sequence')
                     ->orderBy('name')

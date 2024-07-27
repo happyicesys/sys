@@ -131,12 +131,12 @@ const navigation = [
             // {name: 'Tags', href: '/tags'},
             // {name: 'Tax', href: '/taxes'},
             // {name: 'UOM', href: '/uoms'},
-            // {name: 'Zone', href: '/zones'},
             {name: 'Machine Models', href: '/vend-models'},
             {name: 'Keys', href: '/keys'},
             {name: 'Serial Numbers', href: '/vend-serial-numbers'},
             {name: 'Telco', href: '/telcos'},
             {name: 'Simcard', href: '/simcards'},
+            {name: 'Zone', href: '/zones'},
         ],
     },
     {

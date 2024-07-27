@@ -23,6 +23,7 @@ use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendTransactionResource;
 use App\Http\Resources\VendTransactionItemResource;
 use App\Http\Resources\VendTempResource;
+use App\Http\Resources\ZoneResource;
 use App\Jobs\SyncVendCustomerCms;
 use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Mail\VendChannelErrorLogsMail;
@@ -50,6 +51,7 @@ use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
+use App\Models\Zone;
 use App\Services\HistoryService;
 use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
@@ -321,6 +323,7 @@ class VendController extends Controller
             ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
             ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
+            ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
             ->leftJoin('addresses', function($query) {
                 $query->on('addresses.modelable_id', '=', 'customers.id')
                         ->where('addresses.modelable_type', '=', 'App\Models\Customer')
@@ -433,7 +436,8 @@ class VendController extends Controller
                 'vc.total_stock_amount',
                 'vc_cost.total_stock_cost',
                 'vc_stock.actual_stock_in_value',
-                'vc_stock.actual_stock_in_qty'
+                'vc_stock.actual_stock_in_qty',
+                'zones.name AS zone_name',
             );
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends, 'customers');
@@ -498,6 +502,9 @@ class VendController extends Controller
             ),
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
+            ),
+            'zoneOptions' => ZoneResource::collection(
+                Zone::orderBy('name')->get()
             ),
         ]);
     }
@@ -938,7 +945,10 @@ class VendController extends Controller
             })
             ->select(
                 DB::raw('ROUND(COALESCE(SUM(vend_transactions.amount), 0), 2) AS amount'),
-                DB::raw('COUNT(*) AS count')
+                DB::raw('COUNT(*) AS count'),
+                DB::raw('SUM(CASE WHEN is_multiple = 1 AND payment_gateway_log_id IS NOT NULL THEN 1 ELSE 0 END) AS multiple_count_payment_gateway'),
+                DB::raw('SUM(CASE WHEN is_multiple = 1 AND payment_gateway_log_id IS NULL THEN 1 ELSE 0 END) AS multiple_count_machine'),
+                DB::raw('SUM(CASE WHEN vend_transactions.is_multiple = 1 THEN (SELECT COUNT(*) FROM vend_transaction_items WHERE vend_transaction_items.vend_transaction_id = vend_transactions.id) ELSE 1 END) AS total_qty')
             )
             ->first();
 

@@ -353,6 +353,23 @@
             >
             </MultiSelect>
           </div>
+					<div v-if="permissions.includes('admin-access vend-customers')">
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Zone
+						</label>
+						<MultiSelect
+							v-model="filters.zones"
+							:options="zoneOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							class="mt-1"
+							mode="tags"
+						>
+						</MultiSelect>
+					</div>
 				</div>
 
 				<div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -689,6 +706,9 @@
 								</SingleSortItem>
 								<SingleSortItem modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
 									Location
+								</SingleSortItem>
+								<SingleSortItem modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')">
+									Zone
 								</SingleSortItem>
 							</div>
 						</TableHead>
@@ -1309,6 +1329,9 @@
 									<span>
 										{{ vend.location_type_name }}
 									</span>
+									<span>
+										{{ vend.zone_name }}
+									</span>
 								</div>
 							</span>
 						</TableData>
@@ -1479,6 +1502,7 @@
         vendChannelErrors: Object,
 				vendModelOptions: Object,
         vendPrefixOptions: Object,
+				zoneOptions: Object,
     })
 
     const filters = ref({
@@ -1524,6 +1548,7 @@
         sortBy: true,
         numberPerPage: '',
         visited: true,
+				zones: [],
     })
 
     const authOperator = usePage().props.auth.operator
@@ -1560,6 +1585,7 @@
     const vendChannelErrorsOptions = ref([])
 		const vendModelOptions = ref([])
     const vendPrefixOptions = ref([])
+		const zoneOptions = ref([])
     //   const vendOptions = ref([])
     const operatorCountry = usePage().props.auth.operatorCountry
     const operatorRole = usePage().props.auth.operatorRole
@@ -1644,6 +1670,11 @@ onMounted(() => {
 
 	vendPrefixOptions.value = [
 			...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
+	]
+
+	zoneOptions.value = [
+			{id: 'all', value: 'All'},
+			...props.zoneOptions.data.map((data) => {return {id: data.id, value: data.name}})
 	]
 
   filters.value.is_active = booleanOptions.value[1]
@@ -1790,6 +1821,7 @@ function getVendsField() {
         // vend_prefix_id: filters.value.vend_prefix_id.id,
 				vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
 				vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
+				zones: filters.value.zones.map((zone) => { return zone.id }),
         numberPerPage: filters.value.numberPerPage.id,
     }, {
         preserveState: true,
@@ -1892,6 +1924,7 @@ function onExportChannelExcelClicked() {
           // vend_prefix_id: filters.value.vend_prefix_id.id,
 					vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
 					vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
+					zones: filters.value.zones.map((zone) => { return zone.id }),
       },
       responseType: 'blob',
   }).then(response => {
