@@ -372,7 +372,7 @@
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                 <dt class="truncate text-sm font-medium text-gray-500">Total Qty (Success)</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                    {{(totals['total_qty'] ? totals['total_qty'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                    {{(totals['total_qty'] ? totals['total_qty'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                 </dd>
             </div>
         </dl>

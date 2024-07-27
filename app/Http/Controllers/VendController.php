@@ -927,7 +927,7 @@ class VendController extends Controller
             )->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 
-        $totals = VendTransaction::query()
+            $totals = VendTransaction::query()
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->filterTransactionIndex($request)
@@ -944,13 +944,19 @@ class VendController extends Controller
                     ->orWhere('is_multiple', true);
             })
             ->select(
-                DB::raw('ROUND(COALESCE(SUM(vend_transactions.amount), 0), 2) AS amount'),
-                DB::raw('COUNT(*) AS count'),
-                DB::raw('SUM(CASE WHEN is_multiple = 1 AND payment_gateway_log_id IS NOT NULL THEN 1 ELSE 0 END) AS multiple_count_payment_gateway'),
-                DB::raw('SUM(CASE WHEN is_multiple = 1 AND payment_gateway_log_id IS NULL THEN 1 ELSE 0 END) AS multiple_count_machine'),
-                DB::raw('SUM(CASE WHEN vend_transactions.is_multiple = 1 THEN (SELECT COUNT(*) FROM vend_transaction_items WHERE vend_transaction_items.vend_transaction_id = vend_transactions.id) ELSE 1 END) AS total_qty')
+                DB::raw('CAST(ROUND(COALESCE(SUM(vend_transactions.amount), 0), 2) AS SIGNED) AS amount'),
+                DB::raw('CAST(COUNT(*) AS SIGNED) AS count'),
+                DB::raw('CAST(SUM(CASE WHEN is_multiple = 1 AND payment_gateway_log_id IS NOT NULL THEN 1 ELSE 0 END) AS SIGNED) AS multiple_count_payment_gateway'),
+                DB::raw('CAST(SUM(CASE WHEN is_multiple = 1 AND payment_gateway_log_id IS NULL THEN 1 ELSE 0 END) AS SIGNED) AS multiple_count_machine'),
+                DB::raw('CAST(SUM(CASE
+                                    WHEN vend_transactions.is_multiple = 1 AND (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
+                                    THEN (SELECT COUNT(*) FROM vend_transaction_items WHERE vend_transaction_items.vend_transaction_id = vend_transactions.id)
+                                    ELSE 1
+                                END) AS SIGNED) AS total_qty')
             )
             ->first();
+
+
 
         return Inertia::render('Vend/Transaction', [
             'categories' => CategoryResource::collection(
