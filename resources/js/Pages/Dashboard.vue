@@ -17,7 +17,7 @@
                     <div class="p-4">
                         <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-200 px-4 py-3 md:px-4 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                         @click="showFilters = true"
-                        v-if="!showFilters && permissions.includes('admin-access vends')"
+                        v-if="!showFilters && permissions.includes('admin-access dashboard')"
                         >
                             <ChevronDoubleDownIcon class="h-4 w-4" aria-hidden="true"/>
                             <span>
@@ -36,7 +36,7 @@
                         <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
                             Customer
                         </SearchInput>
-                        <div v-if="permissions.includes('admin-access vends')">
+                        <div v-if="permissions.includes('admin-access dashboard')">
                             <label for="text" class="block text-sm font-medium text-gray-700">
                                 Category
                             </label>
@@ -53,7 +53,7 @@
                             >
                             </MultiSelect>
                         </div>
-                        <div v-if="permissions.includes('admin-access vends')">
+                        <div v-if="permissions.includes('admin-access dashboard')">
                         <label for="text" class="block text-sm font-medium text-gray-700">
                             Operator
                         </label>
