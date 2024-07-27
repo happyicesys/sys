@@ -62,7 +62,7 @@ class SettingController extends Controller
             }
         }
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'code']);
-        $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : true]);
+        $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
         $className = get_class(new Customer());
         if(!isset($request->status)) {
             if(

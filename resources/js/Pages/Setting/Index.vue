@@ -349,7 +349,7 @@
                       Model
                     </TableHeadSort>
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-                      Vend ID
+                      Machine ID
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_config_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_config_name')">
                       Setting Chart
@@ -836,7 +836,7 @@ const filters = ref({
     vendModels: [],
     vendPrefixes: [],
     sortKey: '',
-    sortBy: true,
+    sortBy: false,
     status: '',
     numberPerPage: '',
     visited: true,
