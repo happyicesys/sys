@@ -382,6 +382,8 @@ function compareSellingPrice(channel) {
       if(channel.amount != sellingPrice.amount/ 100) {
         return 'text-red-500'
       }
+    }else {
+      return 'text-red-500'
     }
   }
 
