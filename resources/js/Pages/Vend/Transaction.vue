@@ -254,6 +254,22 @@
                 >
                 </MultiSelect>
             </div>
+            <div class="col-span-5 md:col-span-1">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Is Multiple?
+                </label>
+                <MultiSelect
+                    v-model="filters.is_multiple"
+                    :options="booleanOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
             </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -323,13 +339,13 @@
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                 <dt class="truncate text-sm font-medium text-gray-500">Total Revenue (Success)</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                    {{(totals['amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                    {{((totals['amount'] ? totals['amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                 <dt class="truncate text-sm font-medium text-gray-500">Transactions Count (Success)</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                    {{totals['count'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                    {{(totals['count'] ? totals['count'] : 0 ).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                 </dd>
             </div>
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
@@ -340,7 +356,7 @@
                             Delivery Platform
                         </span>
                         <span>
-                            {{totals['multiple_count_payment_gateway'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                            {{(totals['multiple_count_payment_gateway'] ? totals['multiple_count_payment_gateway'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                         </span>
                     </div>
                     <div class="flex justify-between items-center">
@@ -348,7 +364,7 @@
                             Machine
                         </span>
                         <span>
-                            {{totals['multiple_count_machine'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                            {{(totals['multiple_count_machine'] ? totals['multiple_count_machine'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                         </span>
                     </div>
                 </dd>
@@ -356,7 +372,7 @@
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                 <dt class="truncate text-sm font-medium text-gray-500">Total Qty (Success)</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
-                    {{totals['total_qty'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                    {{(totals['total_qty'] ? totals['total_qty'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                 </dd>
             </div>
         </dl>
@@ -670,6 +686,7 @@ onMounted(() => {
 	] : operatorOptions.value[0]
     filters.value.interface_type = vmcByteOptions.value[0]
     filters.value.is_binded_customer = booleanOptions.value[0]
+    filters.value.is_multiple = booleanOptions.value[0]
     filters.value.is_payment_received = booleanOptions.value[0]
     filters.value.is_refunded = booleanOptions.value[0]
 })
@@ -689,6 +706,7 @@ const filters = ref({
     order_id: '',
     interface_type: '',
     is_binded_customer: '',
+    is_multiple: '',
     is_payment_received: '',
     is_refunded: '',
     paymentMethod: '',
@@ -750,6 +768,7 @@ function onExportExcelClicked() {
             operators: filters.value.operators.map((operator) => { return operator.id }),
             interface_type: filters.value.interface_type.id,
             is_binded_customer: filters.value.is_binded_customer.id,
+            is_multiple: filters.value.is_multiple.id,
             is_payment_received: filters.value.is_payment_received.id,
             is_refunded: filters.value.is_refunded.id,
             paymentMethod: filters.value.paymentMethod.id,
@@ -777,6 +796,7 @@ function onSearchFilterUpdated() {
         operators: filters.value.operators.map((operator) => { return operator.id }),
         interface_type: filters.value.interface_type.id,
         is_binded_customer: filters.value.is_binded_customer.id,
+        is_multiple: filters.value.is_multiple.id,
         is_payment_received: filters.value.is_payment_received.id,
         is_refunded: filters.value.is_refunded.id,
         paymentMethod: filters.value.paymentMethod.id,
