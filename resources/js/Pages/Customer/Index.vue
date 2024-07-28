@@ -558,10 +558,7 @@ onMounted(() => {
   // filters.value.status = statusOptions.value[3]
   filters.value.is_active = booleanOptions.value[0]
   filters.value.is_cms = booleanOptions.value[0]
-  filters.value.operators = authOperator ? [
-		operatorOptions.value.find(operator => operator.id === authOperator.id),
-		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
-	] : operatorOptions.value[0]
+  filters.value.operators = [operatorOptions.value.find(operator => operator.id == 'all')]
   filters.value.vend_model_id = vendModelOptions.value[0]
 
 })
