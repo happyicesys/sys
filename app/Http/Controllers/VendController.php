@@ -940,6 +940,7 @@ class VendController extends Controller
 
             $totals = VendTransaction::query()
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id')
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->filterTransactionIndex($request)
             ->whereNotIn('vend_transactions.vend_id', function($query) {
@@ -950,8 +951,8 @@ class VendController extends Controller
             ->select(
                 DB::raw('CAST(ROUND(COALESCE(SUM(vend_transactions.amount), 0), 2) AS SIGNED) AS amount'),
                 DB::raw('CAST(COUNT(*) AS SIGNED) AS count'),
-                DB::raw('CAST(SUM(CASE WHEN is_multiple = 1 AND payment_gateway_log_id IS NOT NULL THEN 1 ELSE 0 END) AS SIGNED) AS multiple_count_payment_gateway'),
-                DB::raw('CAST(SUM(CASE WHEN is_multiple = 1 AND payment_gateway_log_id IS NULL THEN 1 ELSE 0 END) AS SIGNED) AS multiple_count_machine'),
+                DB::raw('CAST(SUM(CASE WHEN is_multiple = 1 AND delivery_platform_orders.id IS NOT NULL THEN 1 ELSE 0 END) AS SIGNED) AS multiple_count_delivery_platform'),
+                DB::raw('CAST(SUM(CASE WHEN is_multiple = 1 AND delivery_platform_orders.id IS NULL THEN 1 ELSE 0 END) AS SIGNED) AS multiple_count_machine'),
                 DB::raw('CAST(SUM(CASE
                                     WHEN vend_transactions.is_multiple = 1
                                     THEN (SELECT COUNT(*) FROM vend_transaction_items WHERE vend_transaction_items.vend_transaction_id = vend_transactions.id)

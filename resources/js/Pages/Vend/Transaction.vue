@@ -368,7 +368,7 @@
                             Delivery Platform
                         </span>
                         <span>
-                            {{(totals['multiple_count_payment_gateway'] ? totals['multiple_count_payment_gateway'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                            {{(totals['multiple_count_delivery_platform'] ? totals['multiple_count_delivery_platform'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
                         </span>
                     </div>
                     <div class="flex justify-between items-center">
