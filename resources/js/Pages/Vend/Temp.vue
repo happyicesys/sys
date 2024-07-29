@@ -71,27 +71,28 @@
                 </div>
             </div> -->
 
-            <label for="text" class="pt-4 pl-1 block text-sm font-medium text-gray-700">
-                Shortcut
-            </label>
-            <div class="pl-1 py-2 flex space-x-2 overflow-x-scroll">
-                <Button
-                    v-for="hourDurationFilter in hourDurationFilters"
-                    class="border-transparent bg-indigo-600 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 px-10 sm:px-3"
-                    :class="hourDurationFilter == filters.duration ? 'outline-none ring-2 ring-indigo-500 ring-offset-2' : ''"
-                    @click="onDurationFilterClicked(hourDurationFilter, 'hour')">
-                    {{ hourDurationFilter }} {{ hourDurationFilter > 1 ? 'Hours' : 'Hour' }}
-                </Button>
-                <Button
-                    v-for="durationFilter in durationFilters"
-                    class="border-transparent bg-indigo-600 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 px-10 sm:px-3"
-                    :class="durationFilter == filters.duration ? 'outline-none ring-2 ring-indigo-500 ring-offset-2' : ''"
-                    @click="onDurationFilterClicked(durationFilter, 'day')">
-                    {{ durationFilter }} {{ durationFilter > 1 ? 'Days' : 'Day' }}
-                </Button>
-
-            </div>
-            <div class="pl-1 py-3 grid grid-cols-1 md:grid-cols-5 gap-2">
+            <div class="pl-1 py-2 grid grid-cols-1 md:grid-cols-5 gap-2">
+              <div class="col-span-5 md:col-span-5">
+                <label for="text" class="pt-4 pl-1 block text-sm font-medium text-gray-700">
+                    Shortcut
+                </label>
+                <div class="pl-1 py-2 flex space-x-2 overflow-x-scroll">
+                    <Button
+                        v-for="hourDurationFilter in hourDurationFilters"
+                        class="border-transparent bg-indigo-600 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 px-10 sm:px-3"
+                        :class="hourDurationFilter == filters.duration ? 'outline-none ring-2 ring-indigo-500 ring-offset-2' : ''"
+                        @click="onDurationFilterClicked(hourDurationFilter, 'hour')">
+                        {{ hourDurationFilter }} {{ hourDurationFilter > 1 ? 'Hours' : 'Hour' }}
+                    </Button>
+                    <Button
+                        v-for="durationFilter in durationFilters"
+                        class="border-transparent bg-indigo-600 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 px-10 sm:px-3"
+                        :class="durationFilter == filters.duration ? 'outline-none ring-2 ring-indigo-500 ring-offset-2' : ''"
+                        @click="onDurationFilterClicked(durationFilter, 'day')">
+                        {{ durationFilter }} {{ durationFilter > 1 ? 'Days' : 'Day' }}
+                    </Button>
+                </div>
+              </div>
                 <DatetimePicker
                     v-model="filters.datetime_from"
                     class="col-span-5 md:col-span-2"
@@ -105,7 +106,7 @@
                 >
                     To
                 </DatetimePicker>
-                <div class="col-span-5 flex space-x-1">
+                <div class="col-span-5 flex space-x-1 mt-2">
                     <Button
                         class="border-transparent bg-green-600 py-3 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-700 px-10 sm:px-3 md:py-2 active:outline-none active:ring-2 active:ring-green-500 active:ring-offset-2"
                         @click.prevent="onCustomDatetimeSearched">
@@ -137,7 +138,7 @@
                 <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
                     <div class="inline-block min-w-full py-2 align-middle">
                         <div class="shadow-sm ring-1 ring-black ring-opacity-5">
-                            <div class="flex justify-between">
+                            <div class="flex flex-col space-y-1">
                                 <div class="p-2 flex space-x-1">
                                     <span class="inline-flex rounded-md shadow-sm" v-if="vend.temp && ('t2' in vend.parameterJson || 't3' in vend.parameterJson || 't4' in vend.parameterJson)">
                                         <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
@@ -171,7 +172,7 @@
                                     </span> -->
                                 </div>
                                 <div
-                                    class="inline-flex justify-center items-center rounded mx-1 px-1 px-1.5 py-0.5 text-xs font-medium border min-w-fit"
+                                    class="inline-flex justify-center items-center rounded mx-2 px-2 px-2 py-2 text-xs font-medium border w-fit"
                                     :class="[vend.is_active || vend.is_testing ? (vend.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
                             >
                                     <div class="flex flex-col">
