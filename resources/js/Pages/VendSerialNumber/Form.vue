@@ -24,7 +24,7 @@
             </div>
             <div class="sm:col-span-6">
               <FormTextarea v-model="form.desc" :error="form.errors.desc">
-                Desc
+                Remarks
               </FormTextarea>
             </div>
           </div>

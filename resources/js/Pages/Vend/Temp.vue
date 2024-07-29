@@ -14,7 +14,7 @@
                         {{ vend.code }}
                     </h2>
                     <h2 class="font-semibold text-md md:text-xl text-gray-700 leading-tight">
-                        {{ type.name }} Temperature
+                        Temperature
                     </h2>
                 </div>
             </div>
@@ -94,14 +94,14 @@
             <div class="pl-1 py-3 grid grid-cols-1 md:grid-cols-5 gap-2">
                 <DatetimePicker
                     v-model="filters.datetime_from"
-                    class="col-span-5 md:col-span-1"
+                    class="col-span-5 md:col-span-2"
                 >
                     From
                 </DatetimePicker>
                 <DatetimePicker
                     v-model="filters.datetime_to"
                     :minDate="filters.datetime_from"
-                    class="col-span-5 md:col-span-1"
+                    class="col-span-5 md:col-span-2"
                 >
                     To
                 </DatetimePicker>
@@ -137,37 +137,52 @@
                 <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
                     <div class="inline-block min-w-full py-2 align-middle">
                         <div class="shadow-sm ring-1 ring-black ring-opacity-5">
-                            <div class="p-2 flex space-x-1">
-                                <span class="inline-flex rounded-md shadow-sm" v-if="vend.temp && ('t2' in vend.parameterJson || 't3' in vend.parameterJson || 't4' in vend.parameterJson)">
-                                    <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
-                                    <input type="checkbox" value="1" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                        <label class="pl-2">T1: Machine Temp</label>
+                            <div class="flex justify-between">
+                                <div class="p-2 flex space-x-1">
+                                    <span class="inline-flex rounded-md shadow-sm" v-if="vend.temp && ('t2' in vend.parameterJson || 't3' in vend.parameterJson || 't4' in vend.parameterJson)">
+                                        <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
+                                        <input type="checkbox" value="1" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                            <label class="pl-2">T1: Machine Temp</label>
+                                        </span>
                                     </span>
-                                </span>
-                                <span class="inline-flex rounded-md shadow-sm" v-if="'t2' in vend.parameterJson && vend.parameterJson['t2'] != tempError">
-                                    <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
-                                    <input type="checkbox" value="2" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                        <label class="pl-2">T2: Evaporator Temp</label>
+                                    <span class="inline-flex rounded-md shadow-sm" v-if="'t2' in vend.parameterJson && vend.parameterJson['t2'] != tempError">
+                                        <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
+                                        <input type="checkbox" value="2" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                            <label class="pl-2">T2: Evaporator Temp</label>
+                                        </span>
                                     </span>
-                                </span>
-                                <span class="inline-flex rounded-md shadow-sm " v-if="'t3' in vend.parameterJson && vend.parameterJson['t3'] != tempError">
-                                    <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
-                                    <input type="checkbox" value="3" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                        <label class="pl-2">T3</label>
+                                    <span class="inline-flex rounded-md shadow-sm " v-if="'t3' in vend.parameterJson && vend.parameterJson['t3'] != tempError">
+                                        <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
+                                        <input type="checkbox" value="3" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                            <label class="pl-2">T3</label>
+                                        </span>
                                     </span>
-                                </span>
-                                <span class="inline-flex rounded-md shadow-sm " v-if="'t4' in vend.parameterJson && vend.parameterJson['t4'] != tempError">
-                                    <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
-                                    <input type="checkbox" value="4" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                        <label class="pl-2">T4</label>
+                                    <span class="inline-flex rounded-md shadow-sm " v-if="'t4' in vend.parameterJson && vend.parameterJson['t4'] != tempError">
+                                        <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
+                                        <input type="checkbox" value="4" v-model="types" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                            <label class="pl-2">T4</label>
+                                        </span>
                                     </span>
-                                </span>
-                                <!-- <span class="inline-flex rounded-md shadow-sm " v-if="'fan' in vend.parameterJson">
-                                    <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
-                                    <input type="checkbox" value="1" v-model="fans" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                                        <label class="pl-2">Fan</label>
-                                    </span>
-                                </span> -->
+                                    <!-- <span class="inline-flex rounded-md shadow-sm " v-if="'fan' in vend.parameterJson">
+                                        <span class="inline-flex items-center rounded-l-md rounded-r-md border border-gray-300 bg-white px-2 py-2">
+                                        <input type="checkbox" value="1" v-model="fans" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                            <label class="pl-2">Fan</label>
+                                        </span>
+                                    </span> -->
+                                </div>
+                                <div
+                                    class="inline-flex justify-center items-center rounded mx-1 px-1 px-1.5 py-0.5 text-xs font-medium border min-w-fit"
+                                    :class="[vend.is_active || vend.is_testing ? (vend.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
+                            >
+                                    <div class="flex flex-col">
+                                            <span class="font-bold">
+                                                    {{vend.is_online ? 'Online' : 'Offline'}}
+                                            </span>
+                                            <span v-if="vend.last_updated_at">
+                                                    {{vend.last_updated_at}}
+                                            </span>
+                                    </div>
+                                </div>
                             </div>
                             <Graph
                                 :key="componentKey"

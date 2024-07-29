@@ -95,7 +95,7 @@
                       Serial Number
                     </TableHeadSort>
                     <TableHead>
-                      Desc
+                      Remarks
                     </TableHead>
                     <TableHead>
                       Machine

@@ -331,7 +331,6 @@ class CustomerController extends Controller
             'operator_id' => 'required',
         ]);
 
-        // dd($request->all(), $request->customer, $request->contact, $request->address);
         if ($request->is_existing) {
             $request->validate([
                 'cms_customer_id' => 'required',
@@ -339,6 +338,12 @@ class CustomerController extends Controller
             SyncVendCustomerCms::dispatchSync($request->cms_customer_id, null);
 
             $customer = Customer::where('person_id', $request->cms_customer_id)->first();
+
+            if($request->operator_id) {
+                $customer->update([
+                    'operator_id' => $request->operator_id,
+                ]);
+            }
         } else {
             $request->validate([
                 'name' => 'required',

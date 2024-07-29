@@ -308,7 +308,7 @@
             Machine Prefix
           </label>
           <MultiSelect
-            v-model="filters.vend_prefix_id"
+            v-model="filters.vendPrefixes"
             :options="vendPrefixOptions"
             trackBy="id"
             valueProp="id"
@@ -316,6 +316,7 @@
             placeholder="Select"
             open-direction="bottom"
             class="mt-1"
+            mode="tags"
           >
           </MultiSelect>
         </div>
@@ -1570,7 +1571,8 @@ vendModelOptions.value = [
 ]
 
 vendPrefixOptions.value = [
-    ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
+  {id: 'all', value: 'All'},
+  ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
 filters.value.is_active = booleanOptions.value[1]
@@ -1591,7 +1593,6 @@ filters.value.operators = authOperator ? [
 		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
 	] : operatorOptions.value[0]
 filters.value.status = statusOptions.value[2]
-  filters.value.vend_prefix_id = vendPrefixOptions.value[0]
 // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
 })
 
@@ -1692,7 +1693,7 @@ function onSearchFilterUpdated() {
       // is_testing: filters.value.is_testing.id,
       status: filters.value.status.id,
       vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
-      vend_prefix_id: filters.value.vend_prefix_id.id,
+      vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,
@@ -1777,7 +1778,7 @@ axios({
         is_testing: filters.value.is_testing.id,
         status: filters.value.status.id,
         vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
-        vend_prefix_id: filters.value.vend_prefix_id.id,
+        vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
     },
     responseType: 'blob',
 }).then(response => {
