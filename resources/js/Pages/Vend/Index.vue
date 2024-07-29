@@ -539,18 +539,20 @@
             </SingleSortItem>
           </TableHead>
           <TableHead>
-            <SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
-              T1&#8451;
-            </SingleSortItem>
-            <SingleSortItem modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2', true)">
-              T2&#8451;
-            </SingleSortItem>
-            <SingleSortItem modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at', true)">
-              Updated
-            </SingleSortItem>
-
-            &Delta;T1-T2
-
+            <div class="flex flex-col space-y-2">
+              <SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
+                T1: Machine Temp
+              </SingleSortItem>
+              <SingleSortItem modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2', true)">
+                T2: Evaporator Temp
+              </SingleSortItem>
+              <SingleSortItem modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at', true)">
+                Updated
+              </SingleSortItem>
+              <span>
+                &Delta;T1-T2
+              </span>
+            </div>
           </TableHead>
           <TableHead>
             Inventory Status <br>
