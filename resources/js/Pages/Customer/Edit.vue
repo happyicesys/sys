@@ -494,6 +494,7 @@ import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon,
 import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue'
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
     vendOptions: Object,
@@ -518,6 +519,7 @@ const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorOptions = ref([]);
 const permissions = usePage().props.auth.permissions;
 const profile = usePage().props.auth.profile;
+const toast = useToast()
 const vendChannels = ref([]);
 const sellingPriceTypeOptions = ref([]);
 const vendOptions = ref([]);
@@ -570,7 +572,8 @@ onMounted(() => {
     vend_id: '',
     person_id: props.customer ? props.customer.person_id : null,
     contact: props.customer ? {
-      ...JSON.parse(JSON.stringify(props.customer.contact))
+      ...JSON.parse(JSON.stringify(props.customer.contact)),
+      phone_country_id: props.customer && props.customer.contact ? countryOptions.value.find(country => country.id === props.customer.contact.phone_country_id) : null,
     } : {
       name: '',
       email: '',
@@ -685,11 +688,20 @@ function saveCustomer(customerID) {
         },
         replace: true,
         preserveState: true,
-        onSuccess: page => {
+        onSuccess: () => {
           customer.value = props.customer;
           vendChannels.value = props.customer.vend.vend_channels;
           vendChannels.value = [...vendChannels.value];
-        }
+          toast.success("Successfully Saved", {
+            timeout: 3000
+          });
+        },
+        onError: (errors) => {
+          console.log(errors)
+          toast.error("Failed, Please Try Again", {
+            timeout: 3000
+          });
+        },
       });
     },
     preserveState: true,

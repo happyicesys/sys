@@ -429,9 +429,8 @@ class CustomerController extends Controller
                     'customer.operator_id' => 'required',
                     'customer.name' => 'required',
                 ]);
-
                 $customer = Customer::create($request->customer);
-                // dd($request->customer['contact'], $request->customer['address']);
+
                 if ($request->customer['contact'] && isset($request->customer['contact']['name']) && $request->customer['contact']['name']) {
                     $customer->contact()->updateOrCreate($request->customer['contact']);
                 }
@@ -456,11 +455,11 @@ class CustomerController extends Controller
             // dd('here1111', $request->all());
             $customer->update($request->customer);
 
-            if ($request->customer['contact'] && isset($request->customer['contact']['name']) && $request->customer['contact']['name']) {
+            if ($request->customer['contact']) {
                 $customer->contact()->updateOrCreate($request->customer['contact']);
             }
 
-            if ($request->customer['address'] && isset($request->customer['address']['postcode']) && $request->customer['address']['postcode']) {
+            if ($request->customer['address']) {
                 $customer->deliveryAddress()->updateOrCreate([
                     'type' => Customer::ADDRESS_TYPE_DELIVERY,
                 ], $request->customer['address']);

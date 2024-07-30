@@ -66,6 +66,7 @@
 import { ArrowLeftCircleIcon, CheckCircleIcon, PencilSquareIcon, XCircleIcon } from '@heroicons/vue/20/solid'
 import { router } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   items: [Array, Object],
@@ -74,6 +75,7 @@ const props = defineProps({
     type: Boolean,
   }
 })
+const toast = useToast()
 
 const items = ref(props.items)
 
@@ -104,6 +106,15 @@ function deleteAttachment(id) {
   router.delete('/attachments/' + id, {
     onSuccess: () => {
       location.reload()
+      toast.success("Successfully Saved", {
+        timeout: 3000
+      });
+    },
+    onError: (errors) => {
+      console.log(errors)
+      toast.error("Failed, Please Try Again", {
+        timeout: 3000
+      });
     },
   })
 }

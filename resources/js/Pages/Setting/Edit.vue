@@ -845,6 +845,7 @@ import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
     adminCustomerOptions: Object,
@@ -889,6 +890,7 @@ const permissions = usePage().props.auth.permissions
 const productMappingOptions = ref([])
 const simcardOptions = ref([])
 const upcomingProductMappingOptions = ref([])
+const toast = useToast()
 const vendConfigOptions = ref([])
 const vendModelOptions = ref([])
 const vendPrefixOptions = ref([])
@@ -1179,7 +1181,14 @@ function saveVend(vendID) {
     }))
     .post('/vends/' + vendID + '/update', {
     onSuccess: () => {
-      // emit('modalClose')
+      toast.success("Successfully Saved", {
+        timeout: 3000
+      });
+    },
+    onError: (errors) => {
+      toast.error("Failed, Please Try Again", {
+        timeout: 3000
+      });
     },
     preserveState: true,
     replace: true,
