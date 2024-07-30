@@ -455,11 +455,11 @@ class CustomerController extends Controller
             // dd('here1111', $request->all());
             $customer->update($request->customer);
 
-            if ($request->customer['contact']) {
+            if ($request->customer['contact'] && isset($request->customer['contact']['name'])) {
                 $customer->contact()->updateOrCreate($request->customer['contact']);
             }
 
-            if ($request->customer['address']['country_id']) {
+            if ($request->customer['address'] && isset($request->customer['address']['country_id'])) {
                 $customer->deliveryAddress()->updateOrCreate([
                     'type' => Customer::ADDRESS_TYPE_DELIVERY,
                 ], $request->customer['address']);
