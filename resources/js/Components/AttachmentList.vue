@@ -111,7 +111,6 @@ function deleteAttachment(id) {
       });
     },
     onError: (errors) => {
-      console.log(errors)
       toast.error("Failed, Please Try Again", {
         timeout: 3000
       });

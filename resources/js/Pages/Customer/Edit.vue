@@ -389,7 +389,12 @@
                   <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="customer.person_id"> Street Name </FormInput>
                 </div>
                 <div class="sm:col-span-3">
-                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700"> Country </label>
+                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                    Country
+                    <span class="text-red-500">
+                      *
+                    </span>
+                  </label>
                   <MultiSelect
                     v-model="form.address.country_id"
                     :options="countryOptions"

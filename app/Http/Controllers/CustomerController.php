@@ -459,7 +459,7 @@ class CustomerController extends Controller
                 $customer->contact()->updateOrCreate($request->customer['contact']);
             }
 
-            if ($request->customer['address']) {
+            if ($request->customer['address']['country_id']) {
                 $customer->deliveryAddress()->updateOrCreate([
                     'type' => Customer::ADDRESS_TYPE_DELIVERY,
                 ], $request->customer['address']);
