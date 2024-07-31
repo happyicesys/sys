@@ -71,9 +71,21 @@
               </div>
 
               <div class="sm:col-span-5">
-                <SearchVendCodeWithOperatorInput v-model="form.vend_id" @selected="selected" required="true" :error="form.errors.vend_id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Machine to Bind
-                </SearchVendCodeWithOperatorInput>
+                </label>
+                <MultiSelect
+                  v-model="form.vend_id"
+                  :options="unbindedVendOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="full_name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  ref="multiselect"
+                >
+                </MultiSelect>
                 <div class="text-sm text-red-600" v-if="form.errors.vend_id">
                   {{ form.errors.vend_id }}
                 </div>
@@ -82,10 +94,10 @@
               <div class="sm:col-span-1">
                 <Button
                 type="button"
-                @click="bindOperatorVend()"
+                @click="addOpsJobItem()"
                 class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
                 :class="[!form.vend_id ? 'opacity-50 cursor-not-allowed' : '']"
-                :disabled="!form.vend_id && !permissions.includes('update operators')"
+                :disabled="!form.vend_id && !permissions.includes('update operations')"
                 >
                   <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                   <span>
@@ -94,20 +106,23 @@
                 </Button>
               </div>
 
-              <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+              <div class="sm:col-span-6 flex flex-col mt-3">
               <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                 <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                   <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                     <table class="min-w-full divide-y divide-gray-300">
                       <thead class="bg-gray-50">
                         <tr>
-                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            #
+                          </th>
+                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Vend ID
                           </th>
-                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          <th scope="col" class="w-4/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Customer
                           </th>
-                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Action
                           </th>
                         </tr>
@@ -116,27 +131,27 @@
                       <tbody class="bg-white">
                         <tr v-for="(opsJobItem, opsJobItemIndex) in opsJob.opsJobItems" :key="opsJobItem.id" :class="opsJobItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            <!-- input of sequence for ops job item -->
-                            <input
+                            {{ opsJobItemIndex + 1 }}
+                            <!-- <input
                               type="text"
-                              class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md"
+                              class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-fit text-sm border-gray-300 rounded-md"
                               v-model="opsJobItem.sequence"
-                              />
+                              /> -->
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ opsJobItem.vend.code }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                            <span v-if="opsJobItem.customer && opsJobItem.customer.person_id">
-                                {{ opsJobItem.customer.virtual_customer_code }} ({{ opsJobItem.customer.virtual_customer_prefix }})
+                            <span v-if="opsJobItem.vend.customer && opsJobItem.vend.customer.person_id">
+                                {{ opsJobItem.vend.customer.virtual_customer_code }} ({{ opsJobItem.vend.customer.virtual_customer_prefix }})
                                 <br>
-                                {{ opsJobItem.customer.name }}
+                                {{ opsJobItem.vend.customer.name }}
                             </span>
                             <span v-else>
-                              <span v-if="opsJobItem.customer && opsJobItem.customer.code">
-                                {{ opsJobItem.customer.code }} <br>
+                              <span v-if="opsJobItem.vend.customer && opsJobItem.vend.customer.code">
+                                {{ opsJobItem.vend.customer.code }} <br>
                               </span>
-                              {{ opsJobItem.customer && opsJobItem.customer.name ? opsJobItem.customer.name : ''}}
+                              {{ opsJobItem.vend.customer && opsJobItem.vend.customer.name ? opsJobItem.vend.customer.name : ''}}
                             </span>
                           </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
@@ -149,7 +164,7 @@
                             </Button>
                           </td>
                         </tr>
-                        <tr v-if="!opsJob.opsJobItems.length">
+                        <tr v-if="!opsJob.opsJobItems || !opsJob.opsJobItems.length">
                           <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
                             No Result Found
                           </td>
@@ -163,9 +178,19 @@
 
 
             <div class="sm:col-span-6 mt-5 ">
-              <div class="flex justify-end">
+              <div class="flex justify-between">
+                <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-black shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                @click="createCMSEmptyInvoices()"
+                >
+                  <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
+                  <span class="flex flex-col space-y-1">
+                    <span>
+                        Create CMS Empty Invoice(s)
+                    </span>
+                  </span>
+                </Button>
                 <div class="flex space-x-1 justify-end">
-                  <Link :href="'/vend-configs'">
+                  <Link :href="'/ops-jobs'">
                     <Button
                       type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
                     >
@@ -197,19 +222,16 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import AttachmentList from '@/Components/AttachmentList.vue';
-import AttachmentOverview from '@/Components/AttachmentOverview.vue';
 import Button from '@/Components/Button.vue';
-import FormInput from '@/Components/FormInput.vue';
-import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import UploadFileInput from '@/Components/UploadFileInput.vue';
-import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, BackspaceIcon, ClipboardDocumentCheckIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   opsJob: Object,
+  unbindedVendOptions: [Array, Object],
 })
 
 const booleanStrictOptions = ref([
@@ -225,9 +247,17 @@ const form = ref(
 
 const opsJob = ref([])
 const permissions = usePage().props.auth.permissions
+const toast = useToast()
+const unbindedVendOptions = ref([])
 
 onMounted(() => {
   opsJob.value = props.opsJob.data
+  unbindedVendOptions.value = props.unbindedVendOptions.data.map(vend => {
+    return {
+      id: vend.id,
+      full_name: vend.cust_full_name,
+    }
+  })
 })
 
 function getDefaultForm() {
@@ -235,6 +265,54 @@ function getDefaultForm() {
     id: '',
     vend_id: '',
   }
+}
+
+function addOpsJobItem() {
+  form.value
+    .transform((data) => ({
+      ...data,
+      vend_id: data.vend_id.id,
+    }))
+    .post('/ops-jobs/' + opsJob.value.id + '/item/create', {
+      onSuccess: () => {
+        toast.success("Successfully Saved", {
+          timeout: 3000
+        });
+        form.value.vend_id = ''
+      },
+      preserveState: true,
+      replace: true,
+    })
+}
+
+function createCMSEmptyInvoices() {
+  form.value.post('/ops-jobs/' + opsJob.value.id + '/create-cms-empty-invoices', {
+    onSuccess: () => {
+      toast.success("Successfully Saved", {
+        timeout: 3000
+      });
+    },
+    preserveState: true,
+    replace: true,
+  })
+}
+
+function deleteOpsJobItem(opsJobItem) {
+  const approval = confirm('Are you sure to delete this entry?');
+  if (!approval) {
+      return;
+  }
+
+  form.value.delete('/ops-jobs/items/' + opsJobItem.id, {
+    onSuccess: () => {
+      toast.success("Successfully Deleted", {
+        timeout: 3000
+      });
+      opsJob.value = props.opsJob.data
+    },
+    preserveState: true,
+    replace: true,
+  })
 }
 
 function submit() {

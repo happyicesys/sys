@@ -39,6 +39,8 @@ class CustomerResource extends JsonResource
             'virtual_customer_code' => $this->virtual_customer_code,
             'virtual_customer_prefix' => $this->virtual_customer_prefix,
             'zone_id' => $this->zone_id,
+            'zone_name' => isset($this->zone) ? $this->zone->name : null,
+            'zone' => ZoneResource::make($this->whenLoaded('zone')),
             'accountManager' => UserResource::make($this->whenLoaded('handledBy')),
             'addresses' => AddressResource::make($this->whenLoaded('addresses')),
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),

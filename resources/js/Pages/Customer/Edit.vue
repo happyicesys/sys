@@ -141,6 +141,24 @@
                   <div class="sm:col-span-3">
                     <FormInput v-model="form.power_socket_key_number" :error="form.errors.power_socket_key_number"> Power Socket Key Num </FormInput>
                   </div>
+                  <div class="sm:col-span-3">
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                      Zone
+                    </label>
+                    <MultiSelect
+                      v-model="form.zone_id"
+                      :options="zoneOptions"
+                      trackBy="id"
+                      valueProp="id"
+                      label="value"
+                      placeholder="Select"
+                      open-direction="bottom"
+                      class="mt-1"
+                    ></MultiSelect>
+                    <div class="text-sm text-red-600" v-if="form.errors['customer.zone_id']">
+                      {{ form.errors['customer.zone_id'] }}
+                    </div>
+                  </div>
                   <div class="sm:col-span-5">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                       Reference Price Type
@@ -363,101 +381,107 @@
                 </div>
 
                 <!-- Address Section -->
-                <div class="sm:col-span-6 pt-2 mt-2 md:pt-5 md:pb-3">
-                  <div class="relative">
-                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                      <div class="w-full border-t border-gray-300"></div>
-                    </div>
-                    <div class="relative flex justify-start">
-                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Address </span>
+                <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6">
+                  <div class="sm:col-span-6 pt-2 mt-2 md:pt-5 md:pb-3">
+                    <div class="relative">
+                      <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div class="w-full border-t border-gray-300"></div>
+                      </div>
+                      <div class="relative flex justify-start">
+                        <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Address </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div class="sm:col-span-6">
-                  <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']" :disabled="customer.person_id"> Postcode </SearchAddressInput>
-                </div>
-                <div class="sm:col-span-3">
-                  <FormInput v-model="form.address.unit_num" :error="form.errors['address.unit_num']"> Unit Num </FormInput>
-                </div>
-                <div class="sm:col-span-3">
-                  <FormInput v-model="form.address.block_num" :error="form.errors['address.block_num']" :disabled="customer.person_id"> Block Num </FormInput>
-                </div>
-                <div class="sm:col-span-3">
-                  <FormInput v-model="form.address.building" :error="form.errors['address.building']" :disabled="customer.person_id"> Building Name </FormInput>
-                </div>
-                <div class="sm:col-span-3">
-                  <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="customer.person_id"> Street Name </FormInput>
-                </div>
-                <div class="sm:col-span-3">
-                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                    Country
-                    <span class="text-red-500">
-                      *
-                    </span>
-                  </label>
-                  <MultiSelect
-                    v-model="form.address.country_id"
-                    :options="countryOptions"
-                    trackBy="id"
-                    valueProp="id"
-                    label="name"
-                    placeholder="Select"
-                    open-direction="bottom"
-                    class="mt-1"
-                    :disabled="customer.person_id"
-                  ></MultiSelect>
-                  <div class="text-sm text-red-600" v-if="form.errors['address.country_id']">
-                    {{ form.errors['address.country_id'] }}
-                  </div>
-                </div>
-                <div class="sm:col-span-3 hidden">
-                  <FormInput v-model="form.address.latitude"> Latitude </FormInput>
-                </div>
-                <div class="sm:col-span-3 hidden">
-                  <FormInput v-model="form.address.longitude"> Longitude </FormInput>
-                </div>
 
-                <!-- Save and Delete Buttons -->
-                <div class="sm:col-span-6 mt-3 pt-2">
-                  <span class="flex justify-between">
-                    <span class="flex space-x-1">
-                      <Button
-                        type="button"
-                        class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
-                        v-if="permissions.includes('update customers')"
-                        @click.prevent="saveCustomer(form.id)"
-                      >
-                        <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                        <span> Save Customer </span>
-                      </Button>
-                      <Link :href="'/customers'">
-                        <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1">
-                          <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                          <span> Back </span>
+                  <div class="sm:col-span-6">
+                    <FormInput v-model="form.address.map_url" :error="form.errors['address.map_url']"> Google Map URL </FormInput>
+                  </div>
+                  <div class="sm:col-span-6">
+                    <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']" :disabled="customer.person_id"> Postcode </SearchAddressInput>
+                  </div>
+                  <div class="col-span-3">
+                    <FormInput v-model="form.address.unit_num" :error="form.errors['address.unit_num']"> Unit Num </FormInput>
+                  </div>
+                  <div class="col-span-3">
+                    <FormInput v-model="form.address.block_num" :error="form.errors['address.block_num']" :disabled="customer.person_id"> Block Num </FormInput>
+                  </div>
+                  <div class="col-span-3">
+                    <FormInput v-model="form.address.building" :error="form.errors['address.building']" :disabled="customer.person_id"> Building Name </FormInput>
+                  </div>
+                  <div class="col-span-3">
+                    <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="customer.person_id"> Street Name </FormInput>
+                  </div>
+                  <div class="col-span-3">
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                      Country
+                      <span class="text-red-500">
+                        *
+                      </span>
+                    </label>
+                    <MultiSelect
+                      v-model="form.address.country_id"
+                      :options="countryOptions"
+                      trackBy="id"
+                      valueProp="id"
+                      label="name"
+                      placeholder="Select"
+                      open-direction="bottom"
+                      class="mt-1"
+                      :disabled="customer.person_id"
+                    ></MultiSelect>
+                    <div class="text-sm text-red-600" v-if="form.errors['address.country_id']">
+                      {{ form.errors['address.country_id'] }}
+                    </div>
+                  </div>
+                  <div class="sm:col-span-3 hidden">
+                    <FormInput v-model="form.address.latitude"> Latitude </FormInput>
+                  </div>
+                  <div class="sm:col-span-3 hidden">
+                    <FormInput v-model="form.address.longitude"> Longitude </FormInput>
+                  </div>
+
+                  <!-- Save and Delete Buttons -->
+                  <div class="sm:col-span-6 mt-3 pt-2">
+                    <span class="flex justify-between">
+                      <span class="flex space-x-1">
+                        <Button
+                          type="button"
+                          class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
+                          v-if="permissions.includes('update customers')"
+                          @click.prevent="saveCustomer(form.id)"
+                        >
+                          <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                          <span> Save Customer </span>
                         </Button>
-                      </Link>
+                        <Link :href="'/customers'">
+                          <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1">
+                            <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                            <span> Back </span>
+                          </Button>
+                        </Link>
+                      </span>
+                      <span class="flex space-x-1">
+                        <Button
+                          type="button"
+                          class="bg-yellow-500 hover:bg-yellow-600 text-gray-800 flex space-x-1"
+                          v-if="permissions.includes('update customers') && customer.person_id"
+                          @click.prevent="disconnectCMSCustomer(customer.id)"
+                        >
+                          <StopCircleIcon class="w-4 h-4"></StopCircleIcon>
+                          <span> Disconnect from CMS </span>
+                        </Button>
+                        <Button
+                          type="button"
+                          class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                          v-if="!customer.vend && permissions.includes('update customers')"
+                          @click.prevent="deleteCustomer(customer.id)"
+                        >
+                          <XCircleIcon class="w-4 h-4"></XCircleIcon>
+                          <span> Delete Customer </span>
+                        </Button>
+                      </span>
                     </span>
-                    <span class="flex space-x-1">
-                      <Button
-                        type="button"
-                        class="bg-yellow-500 hover:bg-yellow-600 text-gray-800 flex space-x-1"
-                        v-if="permissions.includes('update customers') && customer.person_id"
-                        @click.prevent="disconnectCMSCustomer(customer.id)"
-                      >
-                        <StopCircleIcon class="w-4 h-4"></StopCircleIcon>
-                        <span> Disconnect from CMS </span>
-                      </Button>
-                      <Button
-                        type="button"
-                        class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                        v-if="!customer.vend && permissions.includes('update customers')"
-                        @click.prevent="deleteCustomer(customer.id)"
-                      >
-                        <XCircleIcon class="w-4 h-4"></XCircleIcon>
-                        <span> Delete Customer </span>
-                      </Button>
-                    </span>
-                  </span>
+                  </div>
                 </div>
 
                 <!-- Attachment Section -->
@@ -508,6 +532,7 @@ const props = defineProps({
     customer: Object,
     sellingPriceTypeOptions: [Array, Object],
     type: String,
+    zoneOptions: Object,
 })
 
 const form = ref(useForm(getDefaultForm()));
@@ -528,6 +553,7 @@ const toast = useToast()
 const vendChannels = ref([]);
 const sellingPriceTypeOptions = ref([]);
 const vendOptions = ref([]);
+const zoneOptions = ref([]);
 
 function getDefaultForm() {
   return {
@@ -564,6 +590,10 @@ onMounted(() => {
   countryOptions.value = props.countries.data;
   customer.value = props.customer;
   operatorOptions.value = props.operatorOptions.data;
+  zoneOptions.value = props.zoneOptions.data.map(zone => ({
+    id: zone.id,
+    value: zone.name,
+  }));
   sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, value]) => {
     return {
       id: id,
@@ -600,6 +630,7 @@ onMounted(() => {
     },
     is_active: props.customer ? props.customer.is_active ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false') : booleanStrictOptions.value.find(option => option.id === 'true'),
     selling_price_type: props.customer && props.customer.selling_price_type ? sellingPriceTypeOptions.value.find(option => option.id == props.customer.selling_price_type) : null,
+    zone_id: props.customer && props.customer.zone_id ? zoneOptions.value.find(zone => zone.id === props.customer.zone_id) : null,
   }) : useForm(getDefaultForm());
 
   vendChannels.value = props.customer && props.customer.vend ? props.customer.vend.vend_channels : [];
@@ -683,6 +714,7 @@ function saveCustomer(customerID) {
       is_active: data.is_active.id,
       selling_price_type: data.selling_price_type ? data.selling_price_type.id : null,
       vend_id: data.vend_id ? data.vend_id.id : null,
+      zone_id: data.zone_id ? data.zone_id.id : null,
     }
   })).post('/customers/' + customerID + '/update', {
     onSuccess: () => {

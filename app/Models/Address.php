@@ -21,6 +21,7 @@ class Address extends Model
         'full_address',
         'latitude',
         'longitude',
+        'map_url',
         'postcode',
         'sequence',
         'street_name',

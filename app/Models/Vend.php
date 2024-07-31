@@ -224,6 +224,11 @@ class Vend extends Model
         return $this->belongsTo(ProductMapping::class);
     }
 
+    public function opsJobItems()
+    {
+        return $this->hasMany(OpsJobItem::class);
+    }
+
     public function outOfStockVendChannels()
     {
         return $this->vendChannels()->where('qty', '=', 0);

@@ -467,7 +467,7 @@
 								</span>
 							</div>
 						</Button>
-						<Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-blue-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+						<!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-blue-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
 						@click="onSyncNextDeliveryDate()"
 						v-if="permissions.includes('admin-access vend-customers')"
 						>
@@ -483,7 +483,7 @@
 										Sync Next Delivery Date
 								</span>
 							</div>
-						</Button>
+						</Button> -->
 						<Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
 						@click="onGeneratePickListClicked()"
 						>
@@ -493,7 +493,34 @@
 										Generate Pick List
 								</span>
 								<span class="text-xs leading-3">
-										Please tick the list below
+									(Checkbox)
+								</span>
+							</span>
+						</Button>
+						<Button class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+						@click="onProductAvailableModalClicked()"
+						>
+							<PlayCircleIcon class="h-4 w-4" aria-hidden="true"/>
+							<span class="flex flex-col space-y-1">
+								<span>
+										Set Product Availability
+								</span>
+							</span>
+						</Button>
+
+						<!-- if there is any checkbox selected (vend.is_selected) -->
+						<Button class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-black shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+						:class="{ 'opacity-50 cursor-not-allowed': vends.data.filter(vend => vend.is_selected).length === 0 }"
+						@click="onAssignJobClicked()"
+            :disabled="vends.data.filter(vend => vend.is_selected).length === 0"
+						>
+							<ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
+							<span class="flex flex-col space-y-1">
+								<span>
+										Assign Job(s)
+								</span>
+								<span class="text-xs leading-3">
+										(Checkbox)
 								</span>
 							</span>
 						</Button>
@@ -506,17 +533,7 @@
 										Sync CMS Invoice Items
 								</span>
 								<span class="text-xs leading-3">
-										For current filtered results
-								</span>
-							</span>
-						</Button>
-						<Button class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-						@click="onProductAvailableModalClicked()"
-						>
-							<PlayCircleIcon class="h-4 w-4" aria-hidden="true"/>
-							<span class="flex flex-col space-y-1">
-								<span>
-										Set Product Availability
+										(Filter)
 								</span>
 							</span>
 						</Button>
@@ -1426,6 +1443,15 @@
 	@productUpdated="refreshProductOptions"
 >
 </ProductAvailability>
+<AssignJob
+	v-if="showAssignJobModal"
+	:driverOptions="driverOptions"
+	:showModal="showAssignJobModal"
+	@modalClose="onAssignJobModalClose"
+	@jobAssigned="onJobAssigned"
+	:vends="vends.data.filter(vend => vend.is_selected)"
+>
+</AssignJob>
 
 	</BreezeAuthenticatedLayout>
 </template>
@@ -1465,6 +1491,7 @@
 </style>
 
 <script setup>
+		import AssignJob from '@/Pages/Vend/AssignJob.vue';
     import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
     import Button from '@/Components/Button.vue';
     import ChannelOverview from '@/Pages/Vend/ChannelOverview.vue';
@@ -1493,6 +1520,7 @@
         cmsEndpoint: String,
         constTempError: Number,
         deviceTypes: [Array, Object],
+				driverOptions: Object,
         indexType: String,
         locationTypeOptions: Object,
         nextDeliveryDriverOptions: [Array, Object],
@@ -1553,6 +1581,7 @@
 				zones: [],
     })
 
+		const showAssignJobModal = ref(false)
     const authOperator = usePage().props.auth.operator
     const baseUrl = ref(props.indexType === 'customers' ? '/vends/customers' : '/vends')
     const booleanOptions = ref([])
@@ -1781,6 +1810,19 @@ function getVendsField() {
         })
     }
   }
+
+	function onAssignJobClicked() {
+		showAssignJobModal.value = true
+	}
+
+	function onAssignJobModalClose() {
+		showAssignJobModal.value = false
+	}
+
+	function onJobAssigned() {
+		onAssignJobModalClose()
+
+	}
 
   function onModalClose() {
       showEditModal.value = false

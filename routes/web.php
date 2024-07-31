@@ -266,6 +266,10 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/complete', [OpsJobController::class, 'complete']);
         Route::post('/{id}/pick', [OpsJobController::class, 'pick']);
         Route::post('/{id}/deliver', [OpsJobController::class, 'deliver']);
+        Route::post('/assign', [OpsJobController::class, 'assign']);
+        Route::post('/{id}/item/create', [OpsJobController::class, 'createItem']);
+        Route::post('/{id}/create-cms-empty-invoices', [OpsJobController::class, 'createCmsEmptyInvoices']);
+        Route::delete('/items/{itemId}', [OpsJobController::class, 'deleteItem']);
     });
 
     Route::prefix('reports')->group(function() {

@@ -85,7 +85,7 @@ class OpsJobItem extends Model
 
     public function vend()
     {
-        return $this->belongsTo(Vend::class);
+        return $this->belongsTo(Vend::class, 'vend_id');
     }
 
 }

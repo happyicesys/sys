@@ -141,6 +141,9 @@
                       Delivery By
                     </TableHead>
                     <TableHead>
+                      Machine Count
+                    </TableHead>
+                    <TableHead>
                       Created By
                     </TableHead>
                     <TableHead>
@@ -166,6 +169,9 @@
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
                         {{ opsJob.deliveredBy ? opsJob.deliveredBy.name : '' }}
+                      </TableData>
+                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
+                        {{ opsJob.ops_job_items_count }}
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
                         {{ opsJob.createdBy ? opsJob.createdBy.name : '' }}
@@ -257,7 +263,7 @@ const props = defineProps({
 const filters = ref({
   code: '',
   date_from: moment().format('YYYY-MM-DD'),
-  date_to: moment().format('YYYY-MM-DD'),
+  date_to: moment().add(1, 'week').format('YYYY-MM-DD'),
   delivered_by: '',
   created_by: '',
   sortKey: '',
@@ -292,7 +298,7 @@ function onCreateClicked() {
 }
 
 function onDeleteClicked(opsJob) {
-  const approval = confirm('Are you sure to delete ' + opsJob.name + '?');
+  const approval = confirm('Are you sure to delete ' + opsJob.code + '?');
   if (!approval) {
       return;
   }

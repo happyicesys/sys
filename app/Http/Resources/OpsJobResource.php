@@ -22,6 +22,8 @@ class OpsJobResource extends JsonResource
             'createdBy' => UserResource::make($this->whenLoaded('createdBy')),
             'deliveredBy' => UserResource::make($this->whenLoaded('deliveredBy')),
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
+            'opsJobItems' => OpsJobItemResource::collection($this->whenLoaded('opsJobItems')),
+            'ops_job_items_count' => isset($this->ops_job_items_count) ? $this->ops_job_items_count : 0,
             'picked_at' => $this->picked_at,
             'pickedBy' => UserResource::make($this->whenLoaded('pickedBy')),
             'updatedBy' => UserResource::make($this->whenLoaded('updatedBy')),

@@ -27,6 +27,7 @@ class AddressResource extends JsonResource
                                 .$this->postcode,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
+            'map_url' => $this->map_url,
             'postcode' => $this->postcode,
             'sequence' => $this->sequence,
             'street_name' => $this->street_name,

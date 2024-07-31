@@ -13,6 +13,7 @@ use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\ProductResource;
+use App\Http\Resources\UserResource;
 use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendChannelResource;
@@ -37,6 +38,7 @@ use App\Models\PaymentMethod;
 use App\Models\PaymentGatewayLog;
 use App\Models\Product;
 use App\Models\SellingPrice;
+use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
@@ -473,6 +475,15 @@ class VendController extends Controller
             'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
             'deviceTypes' => Vend::DEVICE_TYPE_MAPPINGS,
+            'driverOptions' => UserResource::collection(
+                User::whereHas('roles', function($query) use ($request) {
+                    $query
+                        ->whereIn('name', ['admin', 'driver', 'supervisor', 'technician'])
+                        ->when($request->operators, function($query, $search) {
+                            $query->whereIn('operator_id', $search);
+                        });
+                })->orderBy('name')->get()
+            ),
             'indexType' => $request->indexType,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()

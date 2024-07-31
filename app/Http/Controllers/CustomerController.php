@@ -282,6 +282,12 @@ class CustomerController extends Controller
                 ->get(),
             'customer' => $customer,
             'type' => 'update',
+            'zoneOptions' => ZoneResource::collection(
+                Zone::query()
+                    ->orderBy('sequence')
+                    ->orderBy('name')
+                    ->get()
+            ),
         ]);
     }
 
