@@ -408,8 +408,10 @@
                   <div class="col-span-3">
                     <FormInput v-model="form.address.building" :error="form.errors['address.building']" :disabled="customer.person_id"> Building Name </FormInput>
                   </div>
-                  <div class="col-span-3">
-                    <FormInput v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="customer.person_id"> Street Name </FormInput>
+                  <div class="col-span-5">
+                    <FormTextarea v-model="form.address.street_name" :error="form.errors['address.street_name']" :disabled="customer.person_id">
+                      Street Name
+                    </FormTextarea>
                   </div>
                   <div class="col-span-3">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -516,10 +518,11 @@ import AttachmentList from '@/Components/AttachmentList.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
+import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import { ArrowPathIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon, ExclamationCircleIcon, PaperClipIcon, StopCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, CheckCircleIcon, ExclamationCircleIcon, StopCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue'
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';

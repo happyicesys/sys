@@ -72,7 +72,7 @@
                       </td>
                       <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center">
                         <div class="flex justify-center items-center" >
-                          <img class="h-16 w-16 rounded-full" :src="channel.delivery_product_mapping_item.product.thumbnail.full_url" alt="" v-if="channel.delivery_product_mapping_item && channel.delivery_product_mapping_item.product && channel.delivery_product_mapping_item.product.thumbnail.full_url"/>
+                          <img class="h-20 w-20 min-w-20 min-h-20 rounded-full" :src="channel.delivery_product_mapping_item.product.thumbnail.full_url" alt="" v-if="channel.delivery_product_mapping_item && channel.delivery_product_mapping_item.product && channel.delivery_product_mapping_item.product.thumbnail.full_url"/>
                         </div>
                       </td>
                       <td class="py-4 text-sm font-semibold text-gray-900 text-center">
@@ -124,36 +124,38 @@
                         </td>
                       </td>
 
-                      <td class="whitespace-nowrap py-2 pl-4 pr-2 text-sm font-normal text-gray-900 sm:pl-3 text-center flex flex-col space-y-1 py-3">
-                        <Button
-                          class="flex space-x-1"
-                          :class="[channel.is_editable ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-400 hover:bg-gray-800 text-black']"
-                          @click.prevent="toggleChannelEditable(channel)"
-                        >
-                          <CheckCircleIcon class="w-3 h-3" v-if="channel.is_editable"></CheckCircleIcon>
-                          <PencilSquareIcon class="w-3 h-3" v-else></PencilSquareIcon>
-                          <span class="text-xs" v-if="channel.is_editable">
-                            Save
-                          </span>
-                          <span class="text-xs" v-else>
-                            Edit
-                          </span>
-                        </Button>
-                        <Button
-                          class="flex space-x-1"
-                          :class="[channel.is_active ? 'bg-yellow-300 hover:bg-yellow-400 text-black' : 'bg-green-500 hover:bg-green-600 text-white']"
-                          @click.prevent="togglePauseDeliveryProductMappingVendChannel(channel)"
-                          v-if="!channel.is_editable"
-                        >
-                          <PauseCircleIcon class="w-3 h-3" v-if="channel.is_active"></PauseCircleIcon>
-                          <PlayCircleIcon class="w-3 h-3" v-else></PlayCircleIcon>
-                          <span class="text-xs" v-if="channel.is_active">
-                            Pause
-                          </span>
-                          <span class="text-xs" v-else>
-                            Resume
-                          </span>
-                        </Button>
+                      <td class="whitespace-nowrap py-2 pl-4 pr-2 text-sm font-normal text-gray-900 sm:pl-3 text-center">
+                        <div class="flex flex-col space-y-1 py-3">
+                          <Button
+                            class="flex space-x-1"
+                            :class="[channel.is_editable ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-400 hover:bg-gray-800 text-black']"
+                            @click.prevent="toggleChannelEditable(channel)"
+                          >
+                            <CheckCircleIcon class="w-3 h-3" v-if="channel.is_editable"></CheckCircleIcon>
+                            <PencilSquareIcon class="w-3 h-3" v-else></PencilSquareIcon>
+                            <span class="text-xs" v-if="channel.is_editable">
+                              Save
+                            </span>
+                            <span class="text-xs" v-else>
+                              Edit
+                            </span>
+                          </Button>
+                          <Button
+                            class="flex space-x-1"
+                            :class="[channel.is_active ? 'bg-yellow-300 hover:bg-yellow-400 text-black' : 'bg-green-500 hover:bg-green-600 text-white']"
+                            @click.prevent="togglePauseDeliveryProductMappingVendChannel(channel)"
+                            v-if="!channel.is_editable"
+                          >
+                            <PauseCircleIcon class="w-3 h-3" v-if="channel.is_active"></PauseCircleIcon>
+                            <PlayCircleIcon class="w-3 h-3" v-else></PlayCircleIcon>
+                            <span class="text-xs" v-if="channel.is_active">
+                              Pause
+                            </span>
+                            <span class="text-xs" v-else>
+                              Resume
+                            </span>
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   </tbody>

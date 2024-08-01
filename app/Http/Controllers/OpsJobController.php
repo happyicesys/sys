@@ -80,7 +80,7 @@ class OpsJobController extends Controller
         $opsJob = OpsJob::findOrFail($id);
 
         foreach($opsJob->opsJobItems as $opsJobItem) {
-            $opsJobItem->vend->customer->createEmptyInvoice($opsJob->date);
+            $this->customerService->createCMSEmptyInvoice($opsJobItem->customer, $opsJob->date, $opsJob->deliveredBy);
         }
 
         return redirect()->back();
