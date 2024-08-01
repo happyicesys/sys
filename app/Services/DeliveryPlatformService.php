@@ -715,6 +715,17 @@ class DeliveryPlatformService
 
       $data = [];
       foreach($deliveryProductMappingVendChannels as $deliveryProductMappingVendChannelIndex => $deliveryProductMappingVendChannel) {
+
+        // sync status for the channel based on qty, machine active, channel active
+        $available = false;
+        $qty = 0;
+
+        if($deliveryProductMappingVendChannel->is_active && ! $this->deliveryProductMappingService->getVendChannelErrorStatus($deliveryProductMappingVendChannel->vendChannel) && $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel)['available_qty']) {
+          $available = true;
+          $qty = $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel)['available_qty'];
+        }
+
+        // fill the data array
         $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['id'] = $deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id;
         $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['name'] = $deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_name;
         $data[$deliveryProductMappingVendChannel->deliveryProductMappingItem->platform_sub_category_id]['availableStatus'] = Grab::STATUS_MAPPING[$deliveryProductMappingVendChannel->deliveryProductMappingItem->is_active];
@@ -723,11 +734,6 @@ class DeliveryPlatformService
         $this->getGrabMenuItems([
           'item_id' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->id,
           'item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->name,
-          // 'translated_item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json ? collect($deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json)->map(function($item) {
-          //   return [
-          //       $item['id'] => $item['name']
-          //   ];
-          // }) : '',
           'translated_item_name' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json ? array_reduce($deliveryProductMappingVendChannel->deliveryProductMappingItem->product->translated_names_json, function($carry, $item) {
             $carry[$item['id']] = $item['name'];
             return $carry;
@@ -735,8 +741,8 @@ class DeliveryPlatformService
           'desc' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->desc,
           'amount' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->amount,
           'image_url' => $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->thumbnail->full_url,
-          'is_active' => $deliveryProductMappingVendChannel->is_active && ! $this->deliveryProductMappingService->getVendChannelErrorStatus($deliveryProductMappingVendChannel->vendChannel) ? Grab::STATUS_AVAILABLE : Grab::STATUS_UNAVAILABLE,
-          'available_qty' => Grab::STATUS_MAPPING[$deliveryProductMappingVendChannel->is_active] === Grab::STATUS_AVAILABLE ? $this->deliveryProductMappingService->getDeliveryVendChannelStatus($deliveryProductMappingVendChannel->vendChannel, $deliveryProductMappingVendChannel)['available_qty'] : 0,
+          'is_active' => $available ? Grab::STATUS_AVAILABLE : Grab::STATUS_UNAVAILABLE,
+          'available_qty' => $qty,
         ]);
       }
       $dataArr = [];
@@ -875,14 +881,14 @@ class DeliveryPlatformService
       'nameTranslation' => isset($params['translated_item_name']) ? $params['translated_item_name'] : null,
       'description' => $params['desc'],
       'price' =>  round($params['amount'] * 100),
-      'availableStatus' => isset($params['is_active']) ? $params['is_active'] : Grab::STATUS_AVAILABLE,
+      'availableStatus' => $params['is_active'],
       'sellingTimeID' => $this->getGrabMenuSellingTimes()['id'],
       'photos' => [
         $params['image_url'],
       ],
       'specialType' => '',
-      'maxStock' => isset($params['is_active']) && $params['is_active'] == Grab::STATUS_AVAILABLE ? $params['available_qty'] : 0,
-      'maxCount' => isset($params['is_active']) && $params['is_active'] == Grab::STATUS_AVAILABLE ? $params['available_qty'] : 0,
+      'maxStock' => $params['available_qty'],
+      'maxCount' => $params['available_qty'],
       'soldByWeight' => false,
     ];
 
