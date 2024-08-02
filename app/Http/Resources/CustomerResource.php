@@ -27,6 +27,7 @@ class CustomerResource extends JsonResource
             'first_transaction_id' => $this->first_transaction_id,
             'is_active' => $this->is_active,
             'location_type_id' => $this->location_type_id,
+            'nextInvoiceDriver' => UserResource::make($this->whenLoaded('nextInvoiceDriver')),
             'operator_id' => $this->operator_id,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'operator_code' => $this->operator_code,

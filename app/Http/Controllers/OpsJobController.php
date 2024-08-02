@@ -12,7 +12,9 @@ use App\Models\OpsJob;
 use App\Models\OpsJobItem;
 use App\Models\User;
 use App\Models\Vend;
+use App\Models\VendData;
 use App\Traits\GetUserTimezone;
+use App\Services\OpsJobService;
 use App\Services\RunningNumberService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -25,6 +27,7 @@ class OpsJobController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->opsJobService = new OpsJobService();
         $this->runningNumberService = new RunningNumberService();
     }
 
@@ -80,8 +83,18 @@ class OpsJobController extends Controller
         $opsJob = OpsJob::findOrFail($id);
 
         foreach($opsJob->opsJobItems as $opsJobItem) {
-            $this->customerService->createCMSEmptyInvoice($opsJobItem->customer, $opsJob->date, $opsJob->deliveredBy);
+            if($opsJobItem->cms_transaction_id) {
+                continue;
+            }
+
+            $dataArr[] = [
+                'ops_job_item_id' => $opsJobItem->id,
+                'customer_id' => $opsJobItem->customer_id,
+                'person_id' => $opsJobItem->customer?->person_id,
+            ];
         }
+
+        $this->opsJobService->createCMSEmptyInvoicesByOpsJobItem($dataArr, $opsJob->date, $opsJob->deliveredBy);
 
         return redirect()->back();
     }
@@ -93,7 +106,7 @@ class OpsJobController extends Controller
             'createdBy:id,name', // Select only necessary columns
             'deliveredBy:id,name',
             'operator:id,name',
-            'opsJobItems:id,ops_job_id,vend_id', // Select necessary columns
+            'opsJobItems:id,ops_job_id,vend_id,cms_transaction_id', // Select necessary columns
             'opsJobItems.vend:id,customer_id,code',
             'opsJobItems.vend.customer:id,name,person_id,virtual_customer_prefix,virtual_customer_code',
             'pickedBy:id,name',
@@ -135,29 +148,13 @@ class OpsJobController extends Controller
         ]);
 
         foreach($vendsID as $vendID) {
-            OpsJobItem::updateOrCreate([
-                'ops_job_id' => $opsJob->id,
-                'vend_id' => $vendID,
-            ],[
-                'status' => '1',
-                'created_by' => auth()->id(),
-                'updated_by' => auth()->id(),
-            ]);
+            $this->createOpsJobItem($opsJob->id, $vendID);
         }
     }
 
     public function createItem(Request $request, $id)
     {
-        $opsJob = OpsJob::findOrFail($id);
-
-        OpsJobItem::updateOrCreate([
-            'ops_job_id' => $opsJob->id,
-            'vend_id' => $request->vend_id,
-        ],[
-            'status' => '1',
-            'created_by' => auth()->id(),
-            'updated_by' => auth()->id(),
-        ]);
+        $this->createOpsJobItem($id, $request->vend_id);
     }
 
     public function store(Request $request)
@@ -190,8 +187,47 @@ class OpsJobController extends Controller
 
     public function deleteItem($id)
     {
-        OpsJobItem::findOrFail($id)->delete();
+        $opsJobItem = OpsJobItem::findOrFail($id);
+
+        if($opsJobItem->cms_transaction_id) {
+            $this->opsJobService->deleteJobItemCMSTransaction($id);
+        }
+
+        $opsJobItem->delete();
 
         return redirect()->back();
+    }
+
+    public function syncOpsJobItem(Request $request, $opsJobItemID)
+    {
+        dd($request->all());
+        $opsJobItem = OpsJobItem::findOrFail($opsJobItemID);
+
+        $opsJobItem->update([
+            'sequence' => $request->sequence,
+        ]);
+
+        return redirect()->back();
+    }
+
+    private function createOpsJobItem($opsJobID, $vendID)
+    {
+        $vend = Vend::findOrFail($vendID);
+
+        $opsJobItem = OpsJobItem::updateOrCreate([
+            'customer_id' => $vend->customer_id,
+            'ops_job_id' => $opsJobID,
+            'vend_id' => $vendID,
+        ],[
+            'status' => '1',
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+        ]);
+
+        // sync next invoice date and next invoice driver
+        $vend->customer->update([
+            'next_invoice_date' => $opsJobItem->opsJob->date,
+            'next_invoice_driver_id' => $opsJobItem->opsJob->delivered_by,
+        ]);
     }
 }

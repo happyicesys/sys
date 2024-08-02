@@ -314,6 +314,7 @@ class VendController extends Controller
 
         $vends = Customer::query()
             ->with([
+                'nextInvoiceDriver',
                 'vend.vendChannels',
                 'vend.vendChannels.product.thumbnail',
                 'vend.vendChannels.product.sellingPrices',

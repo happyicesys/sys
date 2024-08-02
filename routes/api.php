@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DeliveryPlatformController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\OpsJobController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\VendController;
 use App\Http\Controllers\VoucherController;
@@ -35,6 +36,10 @@ Route::prefix('v1')->group(function() {
 
     Route::prefix('customers')->group(function() {
         Route::post('/people', [CustomerController::class, 'syncNextDeliveryDate']);
+    });
+
+    Route::prefix('ops-jobs')->group(function() {
+        Route::post('/item/{opsJobItemID}', [OpsJobController::class, 'syncOpsJobItem']);
     });
 });
 

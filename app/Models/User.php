@@ -76,11 +76,7 @@ class User extends Authenticatable
     public function getRedirectRoute()
     {
         // dd($this->toArray(), $this->roles()->first()->toArray());
-        if($this->hasRole('vc_observer') or $this->roles()->exists() == false) {
-            return '/dashboard';
-        }else {
-            return '/vends/customers';
-        }
+        return '/vends/customers';
         // $currentRole = (int)$this->roles()->first()->id;
 
         // if($currentRole == 14) {

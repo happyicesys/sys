@@ -14,6 +14,8 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         '/api/v1/vend-data',
         '/api/v1/payment-gateway-status',
+        '/api/v1/customers',
+        '/api/v1/ops-jobs',
         '/SetPara2',
     ];
 }

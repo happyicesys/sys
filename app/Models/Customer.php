@@ -80,6 +80,7 @@ class Customer extends Model
         'last_invoice_date',
         'location_type_id',
         'next_invoice_date',
+        'next_invoice_driver_id',
         'operator_id',
         // for cms person id
         'person_id',
@@ -153,6 +154,11 @@ class Customer extends Model
     public function locationType()
     {
         return $this->belongsTo(LocationType::class);
+    }
+
+    public function nextInvoiceDriver()
+    {
+        return $this->belongsTo(User::class, 'next_invoice_driver_id');
     }
 
     public function operator()

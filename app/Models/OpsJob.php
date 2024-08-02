@@ -57,7 +57,7 @@ class OpsJob extends Model
 
     public function opsJobItems()
     {
-        return $this->hasMany(OpsJobItem::class);
+        return $this->hasMany(OpsJobItem::class)->orderBy('sequence')->orderBy('created_at');
     }
 
     public function pickedBy()

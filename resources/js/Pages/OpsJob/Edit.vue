@@ -122,6 +122,10 @@
                           <th scope="col" class="w-4/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Customer
                           </th>
+                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900"
+                            v-if="permissions.includes('admin-access operations')">
+                            CMS Sync
+                          </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Action
                           </th>
@@ -153,6 +157,16 @@
                               </span>
                               {{ opsJobItem.vend.customer && opsJobItem.vend.customer.name ? opsJobItem.vend.customer.name : ''}}
                             </span>
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center" v-if="permissions.includes('admin-access operations')">
+                            <div class="flex items-center justify-center">
+                              <span v-if="opsJobItem.cms_transaction_id">
+                                <CheckCircleIcon class="w-4 h-4 text-green-500"></CheckCircleIcon>
+                              </span>
+                              <span v-else>
+                                <XCircleIcon class="w-4 h-4 text-red-500"></XCircleIcon>
+                              </span>
+                            </div>
                           </td>
                           <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button
@@ -224,7 +238,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowUturnLeftIcon, BackspaceIcon, ClipboardDocumentCheckIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, BackspaceIcon, ClipboardDocumentCheckIcon, CheckCircleIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -279,6 +293,7 @@ function addOpsJobItem() {
           timeout: 3000
         });
         form.value.vend_id = ''
+        opsJob.value = props.opsJob.data
       },
       preserveState: true,
       replace: true,
@@ -288,7 +303,7 @@ function addOpsJobItem() {
 function createCMSEmptyInvoices() {
   form.value.post('/ops-jobs/' + opsJob.value.id + '/create-cms-empty-invoices', {
     onSuccess: () => {
-      toast.success("Successfully Saved", {
+      toast.success("Data Sent to CMS", {
         timeout: 3000
       });
     },

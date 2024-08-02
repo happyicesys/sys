@@ -15,6 +15,7 @@ class OpsJobItem extends Model
         'cash_amount',
         'cashless_amount',
         'channels_json',
+        'cms_transaction_id',
         'completed_at',
         'completed_by',
         'customer_id',

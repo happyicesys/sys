@@ -69,11 +69,12 @@ class SyncVendChannels
                 // Check condition and add qty_sold_at only if the condition meets
                 if ($prevVendChannel && $prevVendChannel->qty != 0 && $channel['qty'] == 0) {
                     $data['qty_sold_at'] = Carbon::now();
+                    $data['qty_restocked_at'] = null;
                 }
 
                 if ($prevVendChannel && $prevVendChannel->qty == 0 && $channel['qty'] > 0) {
                     $data['qty_restocked_at'] = Carbon::now();
-                    $data['qty_sold_at'] = null;
+                    // $data['qty_sold_at'] = null;
                 }
 
                 $vendChannel = VendChannel::updateOrCreate([
