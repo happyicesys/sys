@@ -203,11 +203,16 @@ class VendTransaction extends Model
                 });
             }
         })
-        ->where(function($query) use ($request) {
-            if($request->interface_type != 'all') {
-                $query->where('interface_type', $request->interface_type);
+        ->when($request->interface_type, function($query, $search) {
+            if($search != 'all') {
+                $query->where('interface_type', $search);
             }
         })
+        // ->where(function($query) use ($request) {
+        //     if($request->interface_type != 'all') {
+        //         $query->where('interface_type', $request->interface_type);
+        //     }
+        // })
         ->when($request->is_binded_customer, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
@@ -395,9 +400,6 @@ class VendTransaction extends Model
                 $query->whereIn('customer_id', function($query) use ($search) {
                     $query->select('id')->from('customers')->where('location_type_id', $search);
                 });
-                // $query->whereHas('vend.customer', function($query) use ($search) {
-                //     $query->where('location_type_id', $search);
-                // });
             }
         })
         ->when($request->operator_id, function($query, $search) {
