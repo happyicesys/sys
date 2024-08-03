@@ -1337,12 +1337,16 @@ class VendController extends Controller
                 'upcoming_product_mapping_id' => null,
             ]);
         }
-
         $vend->update([
             'name' => $request->name,
             'begin_date' => $request->begin_date,
             'key_id' => $request->key_id,
             'cashless_terminal_id' => $request->cashless_terminal_id,
+            'claw_machine_board_id' => $request->claw_machine_board_id,
+            'claw_machine_body_id' => $request->claw_machine_body_id,
+            'lcd_monitor_id' => $request->lcd_monitor_id,
+            'menu_frame_id' => $request->menu_frame_id,
+            'modem_type_id' => $request->modem_type_id,
             'is_active' => $request->is_active,
             'is_testing' => $request->is_testing,
             'product_mapping_id' => $request->product_mapping_id,

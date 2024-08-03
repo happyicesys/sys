@@ -16,6 +16,17 @@ class Vend extends Model
     const ATTACHMENT_TYPE_LOG = 1;
     const ATTACHMENT_TYPE_MEDIA_CONTENT = 2;
 
+    const CLAW_MACHINE_BOARD_MAPPINGS = [
+        1 => 'China Huaqi Board',
+        2 => 'Taiwanese Feiloli Board',
+    ];
+
+    const CLAW_MACHINE_BODY_MAPPINGS = [
+        1 => 'Tall (Old Key)',
+        2 => 'Tall (New Key)',
+        3 => 'Short',
+    ];
+
     const DEVICE_TYPE_ANDROID = 'ANDROID';
     const DEVICE_TYPE_ZC83A = 'ZC-83A';
     const DEVICE_TYPE_ZC328 = 'ZC-328';
@@ -26,6 +37,28 @@ class Vend extends Model
         self::DEVICE_TYPE_ZC83A => 'ZC-83A',
         self::DEVICE_TYPE_ZC328 => 'ZC-328',
         self::DEVICE_TYPE_INPAD3101 => 'INPAD3101',
+    ];
+
+    const LCD_MONITOR_MAPPINGS = [
+        1 => 'WaveShare 7 inch 1024x600',
+        2 => 'WaveShare 10.1 inch 1920x1200',
+        3 => 'WaveShare 10.1HP-CAPLCD (Type-C) 1280x800'
+    ];
+
+    const MENU_FRAME_MAPPINGS = [
+        1 => 'Square (A) 方',
+        2 => 'Rectangle (L) 长',
+        3 => 'Left Square (A) + Right Square (A) 左方右方',
+        4 => 'Left Square (A) + Right Rectangle (L) 左方右长',
+        5 => 'Model E - Potrait',
+        6 => 'Model F - Landscape'
+    ];
+
+    const MODEM_TYPE_MAPPINGS = [
+        1 => 'Quectel - EC25-EFA',
+        2 => 'Quectel - EC25-EUXGR',
+        3 => 'Air724UGB4',
+        4 => 'Huawei 3G',
     ];
 
     protected static function booted()
@@ -63,10 +96,14 @@ class Vend extends Model
         'apk_ver_json',
         'begin_date',
         'cashless_terminal_id',
+        'claw_machine_body_id',
+        'claw_machine_board_id',
         'code',
         'customer_id',
         'customer_movement_history_json',
-        'serial_num',
+        'lcd_monitor_id',
+        'modem_type_id',
+        'menu_frame_id',
         'name',
         'temp',
         'temp_updated_at',
@@ -93,6 +130,7 @@ class Vend extends Model
         'parameter_json',
         'private_key',
         'product_mapping_id',
+        'serial_num',
         'simcard_id',
         'statistics1_json',
         'termination_date',

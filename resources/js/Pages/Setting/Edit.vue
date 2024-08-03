@@ -352,6 +352,115 @@
                 </div>
             </div>
 
+            <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Modem Type
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.modem_type_id"
+                  :options="modemTypeOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.modem_type_id">
+                  {{ form.errors.modem_type_id }}
+                </div>
+            </div>
+            <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Menu Frame
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.menu_frame_id"
+                  :options="menuFrameOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.modem_frame_id">
+                  {{ form.errors.modem_frame_id }}
+                </div>
+            </div>
+            <!-- hardcode form.vend_model_id is equals to claw -->
+            <div class="sm:col-span-3" v-if="form.vend_model_id && form.vend_model_id.id == 5">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Claw Machine Body
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.claw_machine_body_id"
+                  :options="clawMachineBodyOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.claw_machine_body_id">
+                  {{ form.errors.claw_machine_body_id }}
+                </div>
+            </div>
+            <div class="sm:col-span-3" v-if="form.vend_model_id && form.vend_model_id.id == 5">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Claw Machine Board
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.claw_machine_board_id"
+                  :options="clawMachineBoardOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.claw_machine_board_id">
+                  {{ form.errors.claw_machine_board_id }}
+                </div>
+            </div>
+            <div class="sm:col-span-3" v-if="form.vend_model_id && form.vend_model_id.id == 5">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  LCD Monitor
+                </label>
+                <MultiSelect
+                  v-model="form.lcd_monitor_id"
+                  :options="lcdMonitorOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.lcd_monitor_id">
+                  {{ form.errors.lcd_monitor_id }}
+                </div>
+            </div>
+
             <hr class="sm:col-span-6">
             <div class="sm:col-span-3" v-if="form.vend_prefix_id">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -850,8 +959,13 @@ import { useToast } from "vue-toastification";
 const props = defineProps({
     adminCustomerOptions: Object,
     cashlessTerminalOptions: Object,
+    clawMachineBoardOptions: [Array, Object],
+    clawMachineBodyOptions: [Array, Object],
     countries: Object,
     keyOptions: Object,
+    lcdMonitorOptions: [Array, Object],
+    menuFrameOptions: [Array, Object],
+    modemTypeOptions: [Array, Object],
     operatorOptions: Object,
     productMappingOptions: Object,
     simcardOptions: Object,
@@ -882,7 +996,12 @@ const statusOptions = ref([
 ])
 
 const cashlessTerminalOptions = ref([])
+const clawMachineBoardOptions = ref([])
+const clawMachineBodyOptions = ref([])
 const countryOptions = ref([])
+const lcdMonitorOptions = ref([])
+const menuFrameOptions = ref([])
+const modemTypeOptions = ref([])
 const keyOptions = ref([])
 const isExisting = ref(1)
 const operatorOptions = ref([])
@@ -902,9 +1021,11 @@ function getDefaultForm() {
     id: '',
     begin_date: '',
     cashless_terminal_id: '',
+    claw_machine_board_id: '',
+    claw_machine_body_id: '',
     code: '',
     customer_id: '',
-    operator_id: '',
+    lcd_monitor_id: '',
     customer: {
       begin_date: '',
       termination_date: '',
@@ -928,6 +1049,9 @@ function getDefaultForm() {
         phone_num: '',
       },
     },
+    menu_frame_id: '',
+    modem_type_id: '',
+    operator_id: '',
     key_id: '',
     product_mapping_id: '',
     simcard_id: '',
@@ -950,11 +1074,32 @@ onMounted(() => {
     { id: '', name: '--- Clear ---'},
     ...props.cashlessTerminalOptions.data,
   ]
+  clawMachineBoardOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...Object.entries(props.clawMachineBoardOptions).map(([id, name]) => ({ id: id, name: name }))
+  ];
   countryOptions.value = props.countries.data
+  clawMachineBodyOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...Object.entries(props.clawMachineBodyOptions).map(([id, name]) => ({ id: id, name: name }))
+  ];
+  lcdMonitorOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...Object.entries(props.lcdMonitorOptions).map(([id, name]) => ({ id: id, name: name }))
+  ];
+
   keyOptions.value = [
     { id: '', name: '--- Clear ---'},
     ...props.keyOptions.data,
   ]
+  menuFrameOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...Object.entries(props.menuFrameOptions).map(([id, name]) => ({ id: id, name: name }))
+  ];
+  modemTypeOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...Object.entries(props.modemTypeOptions).map(([id, name]) => ({ id: id, name: name }))
+  ];
   operatorOptions.value = props.operatorOptions.data
   productMappingOptions.value = [
     { id: '', name: '--- Clear ---'},
@@ -999,7 +1144,12 @@ onMounted(() => {
   form.value = props.vend ? useForm({
     ...props.vend,
     cashless_terminal_id: props.vend.cashless_terminal_id ? props.vend.cashless_terminal_id : null,
+    claw_machine_board_id: props.vend.claw_machine_board_id ? clawMachineBoardOptions.value.find(clawMachineBoard => clawMachineBoard.id == props.vend.claw_machine_board_id) : null,
+    claw_machine_body_id: props.vend.claw_machine_body_id ? clawMachineBodyOptions.value.find(clawMachineBody => clawMachineBody.id == props.vend.claw_machine_body_id) : null,
+    lcd_monitor_id: props.vend.lcd_monitor_id ? lcdMonitorOptions.value.find(lcdMonitor => lcdMonitor.id == props.vend.lcd_monitor_id) : null,
     key_id: props.vend.key_id ? keyOptions.value.find(keyModel => keyModel.id === props.vend.key_id) : null,
+    menu_frame_id: props.vend.menu_frame_id ? menuFrameOptions.value.find(menuFrame => menuFrame.id == props.vend.menu_frame_id) : null,
+    modem_type_id: props.vend.modem_type_id ? modemTypeOptions.value.find(modemType => modemType.id == props.vend.modem_type_id) : null,
     product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping =>    productMapping.id === props.vend.product_mapping_id) : null,
     simcard_id: props.vend.simcard_id ? props.vend.simcard_id : null,
     status: statusOptions.value.find(status => status.id === (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')),
@@ -1163,12 +1313,15 @@ function saveVend(vendID) {
     .transform((data) => ({
       ...data,
       cashless_terminal_id: data.cashless_terminal_id ? data.cashless_terminal_id.id : null,
+      claw_machine_board_id: data.claw_machine_board_id ? data.claw_machine_board_id.id : null,
+      claw_machine_body_id: data.claw_machine_body_id ? data.claw_machine_body_id.id : null,
+      lcd_monitor_id: data.lcd_monitor_id ? data.lcd_monitor_id.id : null,
       begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
       key_id: data.key_id ? data.key_id.id : null,
+      menu_frame_id: data.menu_frame_id ? data.menu_frame_id.id : null,
+      modem_type_id: data.modem_type_id ? data.modem_type_id.id : null,
       simcard_id: data.simcard_id ? data.simcard_id.id : null,
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
-      // is_testing: data.is_testing.id,
-      // is_active: data.is_active.id,
       operator_id: data.operator_id ? data.operator_id.id : null,
       product_mapping_id: data.product_mapping_id ? data.product_mapping_id.id : null,
       status: data.status.id,

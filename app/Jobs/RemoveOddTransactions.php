@@ -31,7 +31,6 @@ class RemoveOddTransactions implements ShouldQueue
     public function handle(): void
     {
         VendTransaction::query()
-            ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->where(function($query) {
                 $query->where('amount', '=', 20000)
                     ->orWhere('amount', '=', 0)

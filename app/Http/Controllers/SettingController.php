@@ -243,10 +243,15 @@ class SettingController extends Controller
             'product_mappings.name AS product_mapping_name',
             'upcoming_product_mappings.name AS upcoming_product_mapping_name',
             'vends.cashless_terminal_id',
+            'vends.claw_machine_board_id',
+            'vends.claw_machine_body_id',
+            'vends.lcd_monitor_id',
             'vends.customer_movement_history_json',
             'vends.begin_date',
             'vends.simcard_id',
             'vends.termination_date',
+            'vends.menu_frame_id',
+            'vends.modem_type_id',
             'vends.operator_id',
             'vends.product_mapping_id',
             // 'vends.serial_num',
@@ -291,6 +296,8 @@ class SettingController extends Controller
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
                 CashlessTerminal::orderBy('code')->get()
             ),
+            'clawMachineBoardOptions' => Vend::CLAW_MACHINE_BOARD_MAPPINGS,
+            'clawMachineBodyOptions' => Vend::CLAW_MACHINE_BODY_MAPPINGS,
             'countries' => CountryResource::collection(
                 Country::query()
                     ->orderBy('sequence')
@@ -300,6 +307,9 @@ class SettingController extends Controller
             'keyOptions' => KeyResource::collection(
                 Key::orderBy('name')->get()
             ),
+            'lcdMonitorOptions' => Vend::LCD_MONITOR_MAPPINGS,
+            'modemTypeOptions' => Vend::MODEM_TYPE_MAPPINGS,
+            'menuFrameOptions' => Vend::MENU_FRAME_MAPPINGS,
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
