@@ -215,6 +215,23 @@
           </div>
           <div v-if="permissions.includes('admin-access customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
+							Location Type
+						</label>
+						<MultiSelect
+							v-model="filters.location_types"
+							:options="locationTypeOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							class="mt-1"
+							mode="tags"
+						>
+						</MultiSelect>
+					</div>
+          <div v-if="permissions.includes('admin-access customers')">
+						<label for="text" class="block text-sm font-medium text-gray-700">
 							Zone
 						</label>
 						<MultiSelect
@@ -478,6 +495,7 @@ const props = defineProps({
   categories: Object,
   categoryGroups: Object,
   cmsEndpoint: String,
+  locationTypeOptions: [Array, Object],
   operatorOptions: Object,
   priceTemplates: Object,
   profiles: Object,
@@ -491,6 +509,7 @@ const props = defineProps({
 
 const filters = ref({
   customer: '',
+  location_types: [],
   name: '',
   operators: [],
   ref_id: '',
@@ -508,6 +527,7 @@ const booleanOptions = ref([])
 const customer = ref()
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
+const locationTypeOptions = ref([])
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const priceTemplateOptions = ref([])
@@ -536,6 +556,10 @@ onMounted(() => {
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
   categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
+  locationTypeOptions.value = [
+    {id: 'all', value: 'All'},
+    ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
+  ]
   operatorOptions.value = [
     {id: 'all', full_name: 'All'},
     ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
@@ -558,6 +582,7 @@ onMounted(() => {
   // filters.value.status = statusOptions.value[3]
   filters.value.is_active = booleanOptions.value[0]
   filters.value.is_cms = booleanOptions.value[0]
+  filters.value.location_types = [locationTypeOptions.value.find(locationType => locationType.id == 'all')]
   filters.value.operators = [operatorOptions.value.find(operator => operator.id == 'all')]
   filters.value.vend_model_id = vendModelOptions.value[0]
 
@@ -580,6 +605,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       is_cms: filters.value.is_cms.id,
       is_active: filters.value.is_active.id,
+      location_types: filters.value.location_types.map(locationType => locationType.id),
       operators: filters.value.operators.map(operator => operator.id),
       selling_price_type: filters.value.selling_price_type ? filters.value.selling_price_type.id : '',
       vend_model_id: filters.value.vend_model_id.id,

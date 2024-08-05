@@ -6,6 +6,7 @@ use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CountryResource;
 use App\Http\Resources\CustomerResource;
+use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PriceTemplateResource;
 use App\Http\Resources\ProfileResource;
@@ -19,6 +20,7 @@ use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Country;
 use App\Models\Customer;
+use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\PriceTemplate;
 use App\Models\Profile;
@@ -57,13 +59,13 @@ class CustomerController extends Controller
             'sortKey' => $request->sortKey ? $request->sortKey : 'customers.id',
             'sortBy' => $request->sortBy ? $request->sortBy : 'false',
         ]);
-        if(!$request->operators) {
-            if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [auth()->user()->operator_id, Operator::where('code', 'HIMD')->first() ? Operator::where('code', 'HIMD')->first()->id : null]]);
-            }else {
-                $request->merge(['operators' => ['all']]);
-            }
-        }
+        // if(!$request->operators) {
+        //     if(auth()->user()->operator->code == 'HIPL') {
+        //         $request->merge(['operators' => [auth()->user()->operator_id, Operator::where('code', 'HIMD')->first() ? Operator::where('code', 'HIMD')->first()->id : null]]);
+        //     }else {
+        //         $request->merge(['operators' => ['all']]);
+        //     }
+        // }
         $className = get_class(new Customer());
 
         $customers = Customer::with([
@@ -124,6 +126,9 @@ class CustomerController extends Controller
                     })->orderBy('name')->get()
             ),
             'cmsEndpoint' => env('CMS_URL'),
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('name')->get()
+            ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
@@ -271,6 +276,9 @@ class CustomerController extends Controller
 
         return Inertia::render('Customer/Edit', [
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('name')->get()
+            ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),

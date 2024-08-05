@@ -508,6 +508,11 @@ class Vend extends Model
                 $query->where('parameter_json->door', '=', $search);
             }
         })
+        ->when($request->modem_type_id, function($query, $search) {
+            if($search != 'all') {
+                $query->where('vends.modem_type_id', $search);
+            }
+        })
         ->when($request->simcard_id, function($query, $search) {
             if($search != 'all') {
                 $query->where('vends.simcard_id', $search);

@@ -57,7 +57,7 @@ class SyncVendCustomerCms implements ShouldQueue
             $customerCollection = collect($customerCollection[0]);
                 if(isset($customerCollection['location_type'])) {
                     $locationTypeData = $customerCollection['location_type'];
-                    $locationType = LocationType::updateOrCreate([
+                    $locationType = LocationType::firstOrCreate([
                         'name' => $locationTypeData['name'],
                     ],
                     [

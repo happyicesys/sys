@@ -143,6 +143,24 @@
                   </div>
                   <div class="sm:col-span-3">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                      Location Type
+                    </label>
+                    <MultiSelect
+                      v-model="form.location_type_id"
+                      :options="locationTypeOptions"
+                      trackBy="id"
+                      valueProp="id"
+                      label="value"
+                      placeholder="Select"
+                      open-direction="bottom"
+                      class="mt-1"
+                    ></MultiSelect>
+                    <div class="text-sm text-red-600" v-if="form.errors['customer.location_type_id']">
+                      {{ form.errors['customer.location_type_id'] }}
+                    </div>
+                  </div>
+                  <div class="sm:col-span-3">
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                       Zone
                     </label>
                     <MultiSelect
@@ -531,6 +549,7 @@ import { useToast } from "vue-toastification";
 const props = defineProps({
     vendOptions: Object,
     countries: Object,
+    locationTypeOptions: [Array, Object],
     operatorOptions: Object,
     customer: Object,
     sellingPriceTypeOptions: [Array, Object],
@@ -548,6 +567,7 @@ const booleanStrictOptions = ref([
 const countryOptions = ref([]);
 const customer = ref([]);
 const isExisting = ref(1);
+const locationTypeOptions = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorOptions = ref([]);
 const permissions = usePage().props.auth.permissions;
@@ -565,6 +585,7 @@ function getDefaultForm() {
     person_id: '',
     operator_id: '',
     begin_date: '',
+    location_type_id: '',
     selling_price_type: '',
     termination_date: '',
     code: '',
@@ -586,17 +607,29 @@ function getDefaultForm() {
       phone_num: '',
     },
     vend_id: '',
+    zone_id: '',
   }
 }
 
 onMounted(() => {
   countryOptions.value = props.countries.data;
   customer.value = props.customer;
+  locationTypeOptions.value = [
+    { id: '', value: '--- Clear ---'},
+    ...props.locationTypeOptions.data.map(locationType => ({
+      id: locationType.id,
+      value: locationType.name,
+    }))
+  ]
+
   operatorOptions.value = props.operatorOptions.data;
-  zoneOptions.value = props.zoneOptions.data.map(zone => ({
-    id: zone.id,
-    value: zone.name,
-  }));
+  zoneOptions.value = [
+    { id: '', value: '--- Clear ---'},
+    ...props.zoneOptions.data.map(zone => ({
+      id: zone.id,
+      value: zone.name,
+    }))
+  ]
   sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, value]) => {
     return {
       id: id,
@@ -606,6 +639,7 @@ onMounted(() => {
   form.value = props.customer ? useForm({
     ...JSON.parse(JSON.stringify(props.customer)),
     code: props.customer && props.customer.person_id ? props.customer.virtual_customer_code + ' (' + props.customer.virtual_customer_prefix + ')' : (props.customer ? props.customer.code : null),
+    location_type_id: props.customer ? props.customer.location_type_id ? locationTypeOptions.value.find(locationType => locationType.id === props.customer.location_type_id) : null : null,
     operator_id: props.customer ? props.customer.operator_id ? operatorOptions.value.find(operator => operator.id === props.customer.operator_id) : null : null,
     vend_id: '',
     person_id: props.customer ? props.customer.person_id : null,
@@ -705,6 +739,7 @@ function saveCustomer(customerID) {
       ...data,
       begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
+      location_type_id: data.location_type_id ? data.location_type_id.id : null,
       operator_id: data.operator_id ? data.operator_id.id : null,
       contact: {
         ...data.contact,

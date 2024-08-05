@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
 use App\Http\Resources\VendChannelResource;
@@ -41,6 +42,7 @@ class VendResource extends JsonResource
             'last_updated_at' => isset($this->last_updated_at) ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'lcd_monitor_id' => isset($this->lcd_monitor_id) ? $this->lcd_monitor_id : null,
             'menu_frame_id' => isset($this->menu_frame_id) ? $this->menu_frame_id : null,
+            'modem_type' => isset($this->modem_type_id) ? Vend::MODEM_TYPE_MAPPINGS[$this->modem_type_id] : null,
             'modem_type_id' => isset($this->modem_type_id) ? $this->modem_type_id : null,
             'mqtt_last_updated_at' => isset($this->mqtt_last_updated_at) ? Carbon::parse($this->mqtt_last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'mqtt_updated_at' => isset($this->mqtt_updated_at) ? Carbon::parse($this->mqtt_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,

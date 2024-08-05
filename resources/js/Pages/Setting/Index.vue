@@ -189,6 +189,22 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
+                Modem Type
+            </label>
+            <MultiSelect
+                v-model="filters.modem_type_id"
+                :options="modemTypeOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
                 Simcard
             </label>
             <MultiSelect
@@ -384,6 +400,9 @@
                       Cashless Terminal
                     </TableHead>
                     <TableHead>
+                      Modem Type
+                    </TableHead>
+                    <TableHead>
                       Simcard
                     </TableHead>
                     <TableHeadSort modelName="key_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('key_name')">
@@ -414,7 +433,11 @@
                         {{ vend.vendModel ? vend.vendModel.name : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.code }}
+                        <Link :href="'/settings/vend/' + vend.id + '/update'">
+                          <span class="text-blue-600">
+                            {{ vend.code }}
+                          </span>
+                        </Link>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <span v-if="vend.vendConfig" class="flex flex-col space-y-1">
@@ -722,6 +745,9 @@
                         </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        {{ vend.modem_type }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.simcard ? vend.simcard.code : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -808,6 +834,7 @@ const props = defineProps({
     cmsEndpoint: String,
     keyOptions: Object,
     locationTypeOptions: Object,
+    modemTypeOptions: [Array, Object],
     operatorOptions: Object,
     sellingPriceTypeOptions: [Array, Object],
     simcardOptions: Object,
@@ -826,6 +853,7 @@ const filters = ref({
     categoryGroups: [],
     key_id: '',
     locationTypes: [],
+    modem_type_id: '',
     operators: [],
     selling_price_type: '',
     simcard_id: '',
@@ -850,6 +878,7 @@ const filters = ref({
   const keyOptions = ref([])
   const loading = ref(false)
   const locationTypeOptions = ref([])
+  const modemTypeOptions = ref([])
   const numberPerPageOptions = ref([])
   const operatorOptions = ref([])
   const type = ref('')
@@ -899,6 +928,7 @@ onMounted(() => {
         {id: 'all', value: 'All'},
         ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
+    modemTypeOptions.value = Object.entries(props.modemTypeOptions).map(([id, name]) => ({id: id, value: name}))
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
@@ -960,6 +990,7 @@ function onSearchFilterUpdated() {
       cashless_terminal_id: filters.value.cashless_terminal_id.id,
       // location_type_id: filters.value.locationType.id,
       locationTypes: filters.value.locationTypes.map((locationType) => { return locationType.id }),
+      modem_type_id: filters.value.modem_type_id.id,
       operators: filters.value.operators.map((operator) => { return operator.id }),
       is_binded_customer: filters.value.is_binded_customer.id,
       key_id: filters.value.key_id.id,

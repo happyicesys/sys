@@ -123,6 +123,7 @@ class SettingController extends Controller
                 'vends.is_active',
                 'vends.is_testing',
                 'vends.last_updated_at',
+                'vends.modem_type_id',
                 'vends.parameter_json',
                 'vends.name',
                 'vends.operator_id',
@@ -166,6 +167,7 @@ class SettingController extends Controller
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
+            'modemTypeOptions' => Vend::MODEM_TYPE_MAPPINGS,
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),

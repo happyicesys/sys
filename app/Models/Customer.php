@@ -283,6 +283,11 @@ class Customer extends Model
             }
         })
         ->when($request->handled_by, fn($query, $input) => $query->where('handled_by', $input))
+        ->when($request->location_types, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereIn('location_type_id', $search);
+            }
+        })
         ->when($request->operator_id, function($query, $search) {
             if($search != 'all') {
                 $query->where('customers.operator_id', $search);
