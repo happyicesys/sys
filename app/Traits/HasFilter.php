@@ -204,17 +204,18 @@ trait HasFilter {
             }
         })
         ->when($request->customer, function($query, $search) {
-            if(strpos($search, "-")) {
-                $searchArray = explode("-", $search);
-                $query->where('customers.virtual_customer_prefix', $searchArray[0])
-                    ->where('customers.virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
-            }else {
+            // if(strpos($search, "-")) {
+            //     $searchArray = explode("-", $search);
+            //     $query->where('customers.virtual_customer_prefix', $searchArray[0])
+            //         ->where('customers.virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
+            // }else {
                 $query->where(function($query) use ($search) {
-                    $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
-                        ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                    // $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
+                        // ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                    $query->where('vend_prefixes.name', 'LIKE', "{$search}%")
                         ->orWhere('customers.name', 'LIKE', "%{$search}%");
                 });
-            }
+            // }
         })
         ->when($request->product_code, function($query, $search) {
             $query->where('products.code', 'LIKE', "%{$search}%");
