@@ -131,6 +131,7 @@ const navigation = [
             // {name: 'Tags', href: '/tags'},
             // {name: 'Tax', href: '/taxes'},
             // {name: 'UOM', href: '/uoms'},
+            {name: 'Location Types', href: '/location-types'},
             {name: 'Machine Models', href: '/vend-models'},
             {name: 'Keys', href: '/keys'},
             {name: 'Serial Numbers', href: '/vend-serial-numbers'},

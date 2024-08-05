@@ -22,11 +22,6 @@
                 Name
               </FormInput>
             </div>
-            <div class="sm:col-span-6">
-              <FormInput v-model="form.weightage" :error="form.errors.weightage">
-                Weightage
-              </FormInput>
-            </div>
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">
@@ -59,7 +54,7 @@ import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 
 const props = defineProps({
@@ -73,6 +68,8 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+
+const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
   form.value = props.locationType ? useForm(props.locationType) : useForm(getDefaultForm())

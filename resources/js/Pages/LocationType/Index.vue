@@ -5,7 +5,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Weightage (Location Type)
+        Location Types
       </h2>
     </template>
 
@@ -87,9 +87,6 @@
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
                       Name
                     </TableHeadSort>
-                    <TableHeadSort modelName="weightage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('weightage')">
-                      Weightage
-                    </TableHeadSort>
                     <TableHead>
                     </TableHead>
                   </tr>
@@ -101,9 +98,6 @@
                       </TableData>
                       <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-left">
                         {{ locationType.name }}
-                      </TableData>
-                      <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-center">
-                        {{ locationType.weightage }}
                       </TableData>
                       <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
@@ -119,6 +113,7 @@
                           <Button
                             type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
                             @click="onDeleteClicked(locationType)"
+                            v-if="permissions.includes('admin-access data-settings')"
                           >
                             <TrashIcon class="w-4 h-4"></TrashIcon>
                             <span>
@@ -163,7 +158,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   locationTypes: Object,
@@ -177,6 +172,7 @@ const filters = ref({
 })
 const showModal = ref(false)
 const locationType = ref()
+const permissions = usePage().props.auth.permissions
 const type = ref('')
 const numberPerPageOptions = ref([])
 

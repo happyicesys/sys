@@ -40,6 +40,14 @@ class LocationTypeController extends Controller
             'name' => 'required',
         ]);
 
+        if(!$request->sequence) {
+            $request->merge(['sequence' => LocationType::max('sequence') + 1]);
+        }
+
+        if(!$request->weightage) {
+            $request->merge(['weightage' => 0]);
+        }
+
         LocationType::create($request->all());
 
         return redirect()->route('location-types');
@@ -54,7 +62,7 @@ class LocationTypeController extends Controller
         $locationType = LocationType::findOrFail($locationTypeId);
         $locationType->update($request->all());
 
-        $this->recalculateAllWeightage(get_class($locationType));
+        // $this->recalculateAllWeightage(get_class($locationType));
 
         return redirect()->route('location-types');
     }
