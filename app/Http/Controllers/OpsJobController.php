@@ -200,7 +200,6 @@ class OpsJobController extends Controller
 
     public function syncOpsJobItem(Request $request, $opsJobItemID)
     {
-        dd($request->all());
         $opsJobItem = OpsJobItem::findOrFail($opsJobItemID);
 
         $opsJobItem->update([

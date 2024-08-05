@@ -108,11 +108,12 @@ class VendResource extends JsonResource
                         && Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() < 0
                     )
                     ? 'tomorrow'
-                    : Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffForHumans(['options' => Carbon::ONE_DAY_WORDS])
+                    : 'Next ' . ceil(abs(Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days'
                 )
             )
             : null,
             'next_invoice_diff_count' => isset($this->next_invoice_date) ? Carbon::parse($this->next_invoice_date)->setTimezone($this->getUserTimezone())->diffInDays() : null,
+            'next_invoice_driver_id' => isset($this->next_invoice_driver_id) ? $this->next_invoice_driver_id : null,
             'location_type_id' => isset($this->location_type_id) ? $this->location_type_id : null,
             'location_type_name' => isset($this->location_type_name) ? $this->location_type_name : null,
             'log_created_at' => isset($this->log_created_at) ? Carbon::parse($this->log_created_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,

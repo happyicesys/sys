@@ -165,7 +165,22 @@
                         {{ opsJob.code }}
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
-                        {{ opsJob.date }}
+                        <div class="flex flex-col space-y-2">
+                          <span>
+                            {{ opsJob.date }}
+                          </span>
+                          <span>
+                            <div
+                              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
+                              :class="[(opsJob.date_diff_count < 1 &&  opsJob.date_diff_count > 0) ? 'bg-green-200' : ((opsJob.date_diff_count > -1 && opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
+                              v-if="opsJob.date_diff_human"
+                            >
+                              <span>
+                                {{ opsJob.date_diff_human }}
+                              </span>
+                            </div>
+                          </span>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
                         {{ opsJob.deliveredBy ? opsJob.deliveredBy.name : '' }}

@@ -405,6 +405,7 @@ class VendController extends Controller
                 'vends.is_testing',
                 DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
                 DB::raw('DATE(customers.next_invoice_date) AS next_invoice_date'),
+                'customers.next_invoice_driver_id',
                 'vends.last_updated_at',
                 'vends.mqtt_last_updated_at',
                 'vends.out_of_stock_sku_percent',

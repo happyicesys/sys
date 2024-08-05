@@ -32,6 +32,11 @@ class OpsJobService
         if($opsJobItem) {
             $opsJobItem->cms_transaction_id = $cmsCustomer['transaction_id'];
             $opsJobItem->save();
+
+            $opsJobItem->customer()->update([
+              'cms_invoice_history->next_transaction_id' => $cmsCustomer['transaction_id'],
+              'cms_invoice_history->next_delivery_driver' => $opsJobItem->opsJob->deliveredBy->name,
+            ]);
         }
       }
     }
@@ -43,6 +48,12 @@ class OpsJobService
 
     if($opsJobItem->cms_transaction_id) {
         DeleteTransactionsCMS::dispatch($opsJobItem->cms_transaction_id);
+
+        $opsJobItem->customer()->update([
+          'cms_invoice_history->next_transaction_id' => null,
+          'cms_invoice_history->next_delivery_driver' => null,
+          'cms_invoice_history->next_delivery_date' => null,
+        ]);
     }
   }
 }
