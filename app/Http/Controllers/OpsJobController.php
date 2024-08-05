@@ -106,9 +106,10 @@ class OpsJobController extends Controller
             'createdBy:id,name', // Select only necessary columns
             'deliveredBy:id,name',
             'operator:id,name',
-            'opsJobItems:id,ops_job_id,vend_id,cms_transaction_id', // Select necessary columns
-            'opsJobItems.vend:id,customer_id,code',
+            'opsJobItems:id,ops_job_id,vend_id,cms_transaction_id,status', // Select necessary columns
+            'opsJobItems.vend:id,customer_id,code,vend_prefix_id',
             'opsJobItems.vend.customer:id,name,person_id,virtual_customer_prefix,virtual_customer_code',
+            'opsJobItems.vend.vendPrefix',
             'pickedBy:id,name',
             'updatedBy:id,name'
         ])

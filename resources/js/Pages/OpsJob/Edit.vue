@@ -117,10 +117,16 @@
                             #
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Vend ID
+                            Machine ID
+                          </th>
+                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Machine Prefix
                           </th>
                           <th scope="col" class="w-4/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Customer
+                          </th>
+                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Status
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900"
                             v-if="permissions.includes('admin-access operations')">
@@ -145,6 +151,9 @@
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ opsJobItem.vend.code }}
                           </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ opsJobItem.vend && opsJobItem.vend.vendPrefix ? opsJobItem.vend.vendPrefix.name : '' }}
+                          </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <span v-if="opsJobItem.vend.customer && opsJobItem.vend.customer.person_id">
                                 {{ opsJobItem.vend.customer.virtual_customer_code }} ({{ opsJobItem.vend.customer.virtual_customer_prefix }})
@@ -157,6 +166,9 @@
                               </span>
                               {{ opsJobItem.vend.customer && opsJobItem.vend.customer.name ? opsJobItem.vend.customer.name : ''}}
                             </span>
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ opsJobItem.status }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center" v-if="permissions.includes('admin-access operations')">
                             <div class="flex items-center justify-center">
