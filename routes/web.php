@@ -270,6 +270,8 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/item/create', [OpsJobController::class, 'createItem']);
         Route::post('/{id}/create-cms-empty-invoices', [OpsJobController::class, 'createCmsEmptyInvoices']);
         Route::delete('/items/{itemId}', [OpsJobController::class, 'deleteItem']);
+        Route::post('/items/{itemId}/confirm', [OpsJobController::class, 'confirmItem']);
+        Route::post('/items/{itemId}/verify', [OpsJobController::class, 'verifyItem']);
     });
 
     Route::prefix('reports')->group(function() {

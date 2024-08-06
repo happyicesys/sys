@@ -13,12 +13,16 @@ class OpsJob extends Model
     const STATUS_PENDING = '1';
     const STATUS_PICKED = '2';
     const STATUS_DELIVERED = '3';
+    const STATUS_VERIFIED = '4';
+    const STATUS_FLAGGED = '98';
     const STATUS_CANCELLED = '99';
 
     const STATUS_MAPPINGS = [
         self::STATUS_PENDING => 'Pending',
         self::STATUS_PICKED => 'Picked',
         self::STATUS_DELIVERED => 'Delivered',
+        self::STATUS_VERIFIED => 'Verified',
+        self::STATUS_FLAGGED => 'Flagged',
         self::STATUS_CANCELLED => 'Cancelled',
     ];
 
@@ -57,7 +61,7 @@ class OpsJob extends Model
 
     public function opsJobItems()
     {
-        return $this->hasMany(OpsJobItem::class)->orderBy('sequence')->orderBy('created_at');
+        return $this->hasMany(OpsJobItem::class)->orderByRaw('ISNULL(sequence), sequence ASC')->orderBy('created_at');
     }
 
     public function pickedBy()

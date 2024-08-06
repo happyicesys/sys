@@ -7,6 +7,7 @@ use App\Http\Resources\OpsJobResource;
 use App\Http\Resources\OpsJobItemResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendResource;
+use App\Jobs\SyncOpsJobItemTransactionItemCMS;
 use App\Models\Operator;
 use App\Models\OpsJob;
 use App\Models\OpsJobItem;
@@ -78,6 +79,52 @@ class OpsJobController extends Controller
         ]);
     }
 
+    public function confirmItem(Request $request, $id)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($id);
+
+        switch($opsJobItem->status) {
+            case 1:
+                $opsJobItem->update([
+                    'status' => OpsJob::STATUS_PICKED,
+                    'picked_by' => auth()->id(),
+                    'picked_at' => Carbon::now(),
+                ]);
+
+                if($request->channels) {
+                    foreach($request->channels as $channel) {
+                        $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
+                        $opsJobItemChannel->update([
+                            'picked_qty' => $channel['picked'],
+                        ]);
+                    }
+                }
+                break;
+            case 2:
+                $opsJobItem->update([
+                    'status' => OpsJob::STATUS_DELIVERED,
+                    'completed_by' => auth()->id(),
+                    'completed_at' => Carbon::now(),
+                ]);
+
+                SyncOpsJobItemTransactionItemCMS::dispatch($opsJobItem->id);
+
+                if($request->channels) {
+                    foreach($request->channels as $channel) {
+                        $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
+                        $opsJobItemChannel->update([
+                            'actual_qty' => $channel['refill'],
+                            'cash_amount' => $request->cash_amount,
+                            'cashless_amount' => $request->cashless_amount,
+                        ]);
+                    }
+                }
+                break;
+        }
+
+        return redirect()->back();
+    }
+
     public function createCmsEmptyInvoices($id)
     {
         $opsJob = OpsJob::findOrFail($id);
@@ -106,11 +153,29 @@ class OpsJobController extends Controller
             'createdBy:id,name', // Select only necessary columns
             'deliveredBy:id,name',
             'operator:id,name',
-            'opsJobItems:id,ops_job_id,vend_id,cms_transaction_id,status', // Select necessary columns
+            'opsJobItems' => function($query) use ($request) {
+                $query->when($request->vend_code, function($query, $search) {
+                    $query->whereHas('vend', function($query) use ($search) {
+                        $query->where('code', 'LIKE', "{$search}%");
+                    });
+                });
+                $query->when($request->customer, function($query, $search) {
+                    $query->where(function($query) use ($search) {
+                        $query->whereHas('vend.customer', function($query) use ($search) {
+                            $query->where('name', 'LIKE', "%{$search}%")
+                                ->orWhere('virtual_customer_code', 'LIKE', "{$search}%");
+                        });
+                    });
+                });
+
+                $query->select(['id', 'cash_amount', 'cashless_amount', 'ops_job_id', 'vend_id', 'cms_transaction_id', 'status', 'picked_at', 'picked_by', 'completed_at', 'completed_by']);
+            }, // Select necessary columns
             'opsJobItems.vend:id,customer_id,code,vend_prefix_id',
             'opsJobItems.vend.customer:id,name,person_id,virtual_customer_prefix,virtual_customer_code',
+            'opsJobItems.opsJobItemChannels.vendChannel.product.thumbnail',
             'opsJobItems.vend.vendPrefix',
-            'pickedBy:id,name',
+            'opsJobItems.pickedBy:id,name',
+            'opsJobItems.completedBy:id,name',
             'updatedBy:id,name'
         ])
         ->findOrFail($id);
@@ -181,7 +246,18 @@ class OpsJobController extends Controller
 
     public function delete($id)
     {
-        OpsJob::findOrFail($id)->delete();
+        $opsJob = OpsJob::findOrFail($id);
+
+        if($opsJob->opsJobItems) {
+            foreach($opsJob->opsJobItems as $opsJobItem) {
+                if($opsJobItem->opsJobItemChannels) {
+                    $opsJobItem->opsJobItemChannels()->delete();
+                }
+            }
+
+            $opsJob->opsJobItems()->delete();
+        }
+        $opsJob->delete();
 
         return redirect()->route('ops-jobs');
     }
@@ -192,6 +268,10 @@ class OpsJobController extends Controller
 
         if($opsJobItem->cms_transaction_id) {
             $this->opsJobService->deleteJobItemCMSTransaction($id);
+        }
+
+        if($opsJobItem->opsJobItemChannels) {
+            $opsJobItem->opsJobItemChannels()->delete();
         }
 
         $opsJobItem->delete();
@@ -210,19 +290,56 @@ class OpsJobController extends Controller
         return redirect()->back();
     }
 
+    public function verifyItem(Request $request, $id)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($id);
+
+        switch($request->verify) {
+            case 0:
+                $opsJobItem->update([
+                    'status' => OpsJob::STATUS_FLAGGED,
+                ]);
+                break;
+            case 1:
+                $opsJobItem->update([
+                    'status' => OpsJob::STATUS_VERIFIED,
+                ]);
+                break;
+        }
+
+        return redirect()->back();
+    }
+
     private function createOpsJobItem($opsJobID, $vendID)
     {
-        $vend = Vend::findOrFail($vendID);
+        $vend = Vend::with('vendChannels')->find($vendID);
 
         $opsJobItem = OpsJobItem::updateOrCreate([
             'customer_id' => $vend->customer_id,
             'ops_job_id' => $opsJobID,
             'vend_id' => $vendID,
         ],[
+            'cash_amount' => 0,
+            'cashless_amount' => 0,
             'status' => '1',
             'created_by' => auth()->id(),
             'updated_by' => auth()->id(),
         ]);
+
+        foreach($vend->vendChannels as $vendChannel) {
+            // dd($vendChannel->toArray());
+            $opsJobItem->opsJobItemChannels()->updateOrCreate([
+                'ops_job_id' => $opsJobItem->ops_job_id,
+                'product_id' => $vendChannel->product_id ?? 0,
+                'vend_channel_code' => $vendChannel->code,
+                'vend_channel_id' => $vendChannel->id,
+                'vend_code' => $vend->code,
+            ],[
+                'actual_qty' => 0,
+                'capacity' => $vendChannel->capacity,
+                'picked_qty' => 0,
+            ]);
+        }
 
         // sync next invoice date and next invoice driver
         $vend->customer->update([

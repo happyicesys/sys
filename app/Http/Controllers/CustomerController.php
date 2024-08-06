@@ -22,6 +22,7 @@ use App\Models\Country;
 use App\Models\Customer;
 use App\Models\LocationType;
 use App\Models\Operator;
+use App\Models\OpsJobItem;
 use App\Models\PriceTemplate;
 use App\Models\Profile;
 use App\Models\SellingPrice;
@@ -410,6 +411,15 @@ class CustomerController extends Controller
                         'last_invoice_date' => $person['last_delivery_date'],
                         'next_invoice_date' => $person['next_delivery_date'],
                     ]);
+                }
+                if($person['next_transaction_id'] && $person['next_transaction_sequence']) {
+                    $opsJobItem = OpsJobItem::where('cms_transaction_id', $person['next_transaction_id'])->first();
+
+                    if($opsJobItem) {
+                        $opsJobItem->update([
+                            'sequence' => $person['next_transaction_sequence'],
+                        ]);
+                    }
                 }
             }
         }

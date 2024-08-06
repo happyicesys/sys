@@ -34,6 +34,7 @@ class SyncTransactionItemCMS implements ShouldQueue
 
         if($customer->cms_invoice_history and isset($customer->cms_invoice_history['next_transaction_id'])) {
             $data = [
+                'status' => 'Confirmed',
                 'cms_person_id' => isset($customer->cms_invoice_history['id']) ? $customer->cms_invoice_history['id'] : null,
                 'transaction_id' => $customer->cms_invoice_history['next_transaction_id'],
                 'items' => [],

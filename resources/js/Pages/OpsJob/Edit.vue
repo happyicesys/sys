@@ -112,6 +112,18 @@
                   <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                     <table class="min-w-full divide-y divide-gray-300">
                       <thead class="bg-gray-50">
+                        <tr class="bg-gray-200">
+                          <th scope="col" colspan="8" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            <span class="flex space-x-2">
+                              <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code" @input="onSearchFilterUpdated()">
+                                  Machine ID
+                              </SearchInput>
+                              <SearchInput placeholderStr="Customer" v-model="filters.customer" @input="onSearchFilterUpdated()">
+                                  Customer
+                              </SearchInput>
+                            </span>
+                          </th>
+                        </tr>
                         <tr>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             #
@@ -122,15 +134,18 @@
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Machine Prefix
                           </th>
-                          <th scope="col" class="w-4/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Customer
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Status
                           </th>
+                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Channel
+                          </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900"
                             v-if="permissions.includes('admin-access operations')">
-                            CMS Sync
+                            CMS Empty Inv
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Action
@@ -168,7 +183,25 @@
                             </span>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ opsJobItem.status }}
+                            <div
+                                class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs"
+                                :class="statusClass(opsJobItem.status)"
+                            >
+                                <div class="flex flex-col">
+                                    <span class="font-semibold grow-0">
+                                      {{ opsJobItem.status_name }}
+                                    </span>
+                                </div>
+                            </div>
+                          </td>
+                          <td class="whitespace-nowrap py-4 px-4 text-sm font-semibold text-gray-900 text-center">
+                            <Button
+                              class="bg-green-400 hover:bg-green-500 text-white"
+                              @click.prevent="onChannelClicked(opsJobItem)"
+                              v-if="permissions.includes('update operations')"
+                            >
+                              <ArrowRightCircleIcon class="w-5 h-5"></ArrowRightCircleIcon>
+                            </Button>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center" v-if="permissions.includes('admin-access operations')">
                             <div class="flex items-center justify-center">
@@ -183,16 +216,18 @@
                           <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button
                               class="bg-red-400 hover:bg-red-500 text-white"
+                              :class="[opsJobItem.status >= 3 ? 'opacity-50 cursor-not-allowed' : '']"
                               @click.prevent="deleteOpsJobItem(opsJobItem)"
                               v-if="permissions.includes('update operations')"
+                              :disabled="opsJobItem.status >= 3"
                             >
                               <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                             </Button>
                           </td>
                         </tr>
                         <tr v-if="!opsJob.opsJobItems || !opsJob.opsJobItems.length">
-                          <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
-                            No Result Found
+                          <td colspan="8" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
+                            No Records Found
                           </td>
                         </tr>
                       </tbody>
@@ -205,16 +240,29 @@
 
             <div class="sm:col-span-6 mt-5 ">
               <div class="flex justify-between">
-                <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-black shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                @click="createCMSEmptyInvoices()"
-                >
-                  <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
-                  <span class="flex flex-col space-y-1">
-                    <span>
-                        Create CMS Empty Invoice(s)
+                <div>
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  @click.prevent="onGeneratePickListClicked()"
+                  >
+                    <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
+                    <span class="flex flex-col space-y-1">
+                      <span>
+                          Generate Live Pick List
+                      </span>
                     </span>
-                  </span>
-                </Button>
+                  </Button>
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-black shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  @click.prevent="createCMSEmptyInvoices()"
+                  v-if="!opsJob.opsJobItems || opsJob.opsJobItems.length && opsJob.opsJobItems.every(item => item.cms_transaction_id == null)"
+                  >
+                    <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
+                    <span class="flex flex-col space-y-1">
+                      <span>
+                          Create CMS Empty Invoice(s)
+                      </span>
+                    </span>
+                  </Button>
+                </div>
                 <div class="flex space-x-1 justify-end">
                   <Link :href="'/ops-jobs'">
                     <Button
@@ -227,12 +275,12 @@
                     </Button>
                   </Link>
 
-                  <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
+                  <!-- <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
                     <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                     <span>
                       Save
                     </span>
-                  </Button>
+                  </Button> -->
                 </div>
               </div>
             </div>
@@ -243,14 +291,34 @@
     </div>
   </div>
 
+  <Channel
+		v-if="showChannelModal"
+		:opsJobItem="opsJobItemModel"
+		:showModal="showChannelModal"
+		@modalClose="onChannelClosed"
+    @statusUpdated="statusUpdated"
+  >
+  </Channel>
+
+  <PickList
+		v-if="showPickListModal"
+		:pickLists="pickLists"
+		:showModal="showPickListModal"
+		@modalClose="onPickListModalClose"
+  >
+  </PickList>
+
   </BreezeAuthenticatedLayout>
 </template>
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import Channel from '@/Pages/OpsJob/Channel.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowUturnLeftIcon, BackspaceIcon, ClipboardDocumentCheckIcon, CheckCircleIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import PickList from '@/Pages/Vend/PickList.vue';
+import SearchInput from '@/Components/SearchInput.vue';
+import { ArrowUturnLeftIcon, BackspaceIcon, ClipboardDocumentCheckIcon, CheckCircleIcon, PlusCircleIcon, XCircleIcon, ArrowRightCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -267,12 +335,21 @@ const booleanStrictOptions = ref([
 
 const emit = defineEmits(['modalClose'])
 
+const filters = ref({
+    vend_code: '',
+    customer: '',
+  })
+
 const form = ref(
   useForm(getDefaultForm())
 )
 
 const opsJob = ref([])
+const opsJobItemModel = ref([])
 const permissions = usePage().props.auth.permissions
+const pickLists = ref([])
+const showChannelModal = ref(false)
+const showPickListModal = ref(false)
 const toast = useToast()
 const unbindedVendOptions = ref([])
 
@@ -342,6 +419,98 @@ function deleteOpsJobItem(opsJobItem) {
   })
 }
 
+// reload opsJob when modal opened
+function onChannelClicked(obj) {
+  router.reload({
+    only: ['opsJob'],
+    data: {
+      ...filters.value,
+    },
+    replace: true,
+    preserveState: true,
+    onSuccess: page => {
+      opsJob.value = props.opsJob ? props.opsJob.data : null
+    }
+  })
+  // get the opsJobItem where obj is the opsJobItem
+    opsJobItemModel.value = opsJob.value.opsJobItems.find(item => item.id === obj.id)
+    showChannelModal.value = true
+}
+
+function onChannelClosed() {
+    showChannelModal.value = false
+}
+
+function onGeneratePickListClicked() {
+    axios({
+        method: 'POST',
+        url: '/vends/pick-lists',
+        // get all the vends from the opsJobItems
+        data: opsJob.value.opsJobItems,
+    }).then(response => {
+        pickLists.value = response.data
+    }).catch(error => {
+    }).finally(() => {
+        showPickListModal.value = true
+    })
+}
+
+function onPickListModalClose() {
+  showPickListModal.value = false
+}
+
+
+function onSearchFilterUpdated() {
+  router.reload({
+    only: ['opsJob'],
+    data: {
+      ...filters.value,
+    },
+    replace: true,
+    preserveState: true,
+    onSuccess: page => {
+      opsJob.value = props.opsJob ? props.opsJob.data : null
+    }
+  })
+}
+
+function statusClass(status) {
+  let statusClass = ''
+  switch(status) {
+    case 1:
+      statusClass = 'bg-blue-400 text-white'
+      break;
+    case 2:
+      statusClass = 'bg-yellow-400 text-gray-800'
+      break;
+    case 3:
+    case 4:
+      statusClass = 'bg-green-400 text-gray-800'
+      break;
+    case 98:
+    case 99:
+      statusClass = 'bg-red-500 text-white'
+      break;
+  }
+  return statusClass
+}
+
+function statusUpdated() {
+  showChannelModal.value = false
+
+  router.reload({
+    only: ['opsJob'],
+    data: {
+      ...filters.value,
+    },
+    replace: true,
+    preserveState: true,
+    onSuccess: page => {
+      opsJob.value = props.opsJob ? props.opsJob.data : null
+    }
+  })
+}
+
 function submit() {
   form.value.clearErrors()
     form.value
@@ -356,28 +525,6 @@ function submit() {
       preserveState: true,
       replace: true,
     })
-}
-
-
-function toggleActivateDeactivate() {
-  form.value.post('/vend-configs/' + form.value.id + '/toggle-activate-deactivate', {
-    onSuccess: () => {
-      emit('modalClose')
-    },
-      preserveState: true,
-      replace: true,
-  })
-}
-
-function replicateProductMapping() {
-  router.post('/vend-configs/replicate',
-  {
-    id: form.value.id,
-  },
-  {
-    preserveState: true,
-    replace: true,
-  })
 }
 
 </script>

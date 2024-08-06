@@ -18,8 +18,10 @@
                   {{ authUser.name }} ({{ now }})
                 </dd>
               </div>
-              <div class="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-2 sm:px-0">
-                <dt class="text-sm font-medium leading-6 text-gray-900">Machine(s)</dt>
+              <!-- if there is no vend.code in vends, then hide this div -->
+              <div class="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-2 sm:px-0"
+              v-if="vends.length > 0 && vends.some(vend => vend.code)">
+                <dt class="text-sm font-medium leading-6 text-gray-900">Vend Code</dt>
                 <dd class="mt-1 mb-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <span v-for="(vend, vendIndex) in vends" class="flex flex-col space-y-1">
                     <span>
@@ -64,16 +66,16 @@
                     </tr>
                   </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(item, itemIndex) in items" :key="item.id" :class="itemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-900">
+                    <tr v-for="(item, itemIndex) in items" :key="item.id" :class="[itemIndex % 2 === 0 ? undefined : 'bg-gray-50', item.product && !item.product.is_available ? 'text-gray-400' : 'text-gray-800']">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center">
                         {{ itemIndex + 1 }}
                       </td>
-                      <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center">
+                      <td class="whitespace-nowrap text-sm font-semibold text-center">
                         <div class="flex justify-center items-center">
-                          <img class="h-16 w-16 rounded-full" :src="item.product.thumbnail.full_url" alt="" v-if="item.product && item.product.thumbnail"/>
+                          <img class="h-16 w-16 rounded-full" :src="item.product.thumbnail.full_url" alt="" v-if="item.product && item.product.thumbnail" :class="[item.product && !item.product.is_available ? 'opacity-50' : '']"/>
                         </div>
                       </td>
-                      <td class="py-4 text-sm font-semibold text-center text-gray-800">
+                      <td class="py-4 text-sm font-semibold text-center ">
                         <span v-if="item.product && item.product.code">
                           {{ item.product.code }}
                         </span>
@@ -81,7 +83,8 @@
                           <br> {{ item.product.name }}
                         </span>
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600"
+                      :class="[item.product && !item.product.is_available ? 'text-gray-400' : 'text-blue-600']">
                         {{ item.topup_qty }}
                       </td>
                     </tr>

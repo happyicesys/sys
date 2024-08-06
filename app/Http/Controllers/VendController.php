@@ -1269,11 +1269,12 @@ class VendController extends Controller
 
     public function pickLists(Request $request)
     {
+        // dd($request->all());
         $dataArr = [];
         $input = collect($request->all());
         $items = VendChannel::query()
             ->with([
-                'product:id,code,name,desc',
+                'product:id,code,name,desc,is_available',
                 'product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
             ])
             ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')

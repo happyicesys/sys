@@ -74,6 +74,11 @@ class OpsJobItem extends Model
         return $this->belongsTo(OpsJob::class);
     }
 
+    public function opsJobItemChannels()
+    {
+        return $this->hasMany(OpsJobItemChannel::class);
+    }
+
     public function pickedBy()
     {
         return $this->belongsTo(User::class, 'picked_by');
