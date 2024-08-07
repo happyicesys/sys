@@ -28,6 +28,7 @@ class OpsJobItemResource extends JsonResource
             'completedBy' => UserResource::make($this->whenLoaded('completedBy')),
             'name' => $this->name,
             'qty' => $this->qty,
+            'remarks' => $this->remarks,
             'status' => $this->status,
             'status_name' => OpsJob::STATUS_MAPPINGS[$this->status],
             'created_by' => UserResource::make($this->whenLoaded('createdBy')),

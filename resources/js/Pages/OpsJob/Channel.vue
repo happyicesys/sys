@@ -62,39 +62,57 @@
                 </div>
               </dd>
             </div>
-            <div class="px-4 py-6 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2">
+            <div class="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2">
+              <dt class="text-sm font-medium leading-6 text-gray-900">
+                Cash Collected
+                <span class="text-red-500">*</span>
+              </dt>
+              <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                <div class="flex space-x-2">
+                  <FormInput inputType="number" v-model="form.cash_amount" class="text-center" :disabled="opsJobItem.status >= 3">
+                  </FormInput>
+                </div>
+              </dd>
+            </div>
+            <div class="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2">
+              <dt class="text-sm font-medium leading-6 text-gray-900">
+                Cashless Collected
+                <span class="text-red-500">*</span>
+              </dt>
+              <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                <div class="flex space-x-2">
+                  <FormInput inputType="number" v-model="form.cashless_amount" class="text-center" :disabled="opsJobItem.status >= 3">
+                  </FormInput>
+                </div>
+              </dd>
+            </div>
+            <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2">
               <dt class="text-sm font-medium leading-6 text-gray-900">
                 Remarks
               </dt>
-              <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                <div class="flex flex-col space-y-2">
-                  <FormInput inputType="Number" v-model="form.cash_amount" class="text-center" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3" required="true">
-                    Cash Collected
-                  </FormInput>
-                  <div v-if="opsJobItem.status >= 3" class="flex space-x-3">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                        Cash Collected
-                    </label>
-                    <div class="mt-1">
-                      {{ form.cash_amount }}
-                    </div>
-                  </div>
-                  <FormInput inputType="Number" v-model="form.cashless_amount" class="text-center" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3" required="true">
-                    Cashless Collected
-                  </FormInput>
-                  <div v-if="opsJobItem.status >= 3" class="flex space-x-3">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                        Cashless Collected
-                    </label>
-                    <div class="mt-1">
-                      {{ form.cashless_amount }}
-                    </div>
-                  </div>
-                </div>
+              <dd class="text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                <FormTextarea v-model="form.remarks" class="w-full" v-if="opsJobItem.status >= 2">
+                </FormTextarea>
               </dd>
             </div>
           </dl>
         </div>
+        <div class="flex justify-end mb-2">
+        <Button
+            type="button"
+            class=" px-1 py-1 mt-1 ml-1 text-xs  flex space-x-1 bg-green-500 hover:bg-green-600 text-white"
+            @click.prevent="onSaveFormClicked()"
+        >
+          <span class="flex space-x-1 items-center">
+            <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+            <span>
+              Save
+            </span>
+          </span>
+        </Button>
+        </div>
+
+
         <div class="flex flex-col">
           <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
             <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
@@ -158,14 +176,14 @@
                         {{ channel.capacity - channel.qty }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']">
-                        <FormInput inputType="Number" v-model="channel.picked" class="text-center" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
+                        <FormInput inputType="number" v-model="channel.picked" :maxValue="channel.capacity - channel.qty" class="text-center" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                         </FormInput>
                         <span v-if="opsJobItem.status >= 2">
                           {{ channel.picked }}
                         </span>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                        <FormInput inputType="Number" v-model="channel.refill" class="text-center" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
+                        <FormInput inputType="number" v-model="channel.refill" :maxValue="channel.picked" class="text-center" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                         </FormInput>
                         <span v-if="opsJobItem.status > 2">
                           {{ channel.refill }}
@@ -182,17 +200,24 @@
           <span>
             <Button
                 type="button"
-                class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-green-500 hover:bg-green-600 text-white"
+                class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800"
                 @click="onConfirmClicked()"
-                v-if="opsJobItem.status < 3"
+                v-if="opsJobItem.status < 2 && opsJobItem.status < 3"
             >
-              <span class="flex space-x-1 items-center" v-if="opsJobItem.status < 2">
+              <span class="flex space-x-1 items-center">
                 <ClipboardDocumentCheckIcon class="w-4 h-4"></ClipboardDocumentCheckIcon>
                 <span>
                   Picked
                 </span>
               </span>
-              <span class="flex space-x-1 items-center" v-if="opsJobItem.status == 2">
+            </Button>
+            <Button
+                type="button"
+                class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-green-400 hover:bg-green-500 text-gray-800"
+                @click="onConfirmClicked()"
+                v-if="opsJobItem.status == 2 && opsJobItem.status < 3"
+            >
+            <span class="flex space-x-1 items-center">
                 <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                 <span>
                   Stock In
@@ -215,7 +240,7 @@
             </Button>
             <Button
                 type="button"
-                class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-500 hover:bg-yellow-700 text-white"
+                class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-red-500 hover:bg-red-700 text-white"
                 @click="onVerifyClicked(0)"
                 v-if="opsJobItem.status >= 3 && opsJobItem.status != 98"
             >
@@ -247,24 +272,19 @@
 import { ChevronDoubleDownIcon, ChevronDoubleUpIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, FlagIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
+import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';
-import MultiSelect from '@/Components/MultiSelect.vue';
-import ErrorList from '@/Pages/Vend/ErrorList.vue';
 import { onMounted, ref } from 'vue';
 import { router, usePage, useForm } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   opsJobItem: Object,
   showModal: Boolean,
 })
 
-const channel = ref()
 const channels = ref([])
-const operatorCountry = usePage().props.auth.operatorCountry
-const permissions = usePage().props.auth.permissions
-const productOptions = ref([])
-const showFilters = ref(false)
-const showErrorListModal = ref(false)
+const toast = useToast()
 const vend = ref([])
 
 
@@ -272,7 +292,7 @@ onMounted(() => {
   vend.value = props.opsJobItem.vend
 
   form.value = props.opsJobItem ? useForm({
-    ...props.opsJobItem.data,
+    ...props.opsJobItem,
   }) : useForm(getDefaultForm())
 
   channels.value = props.opsJobItem.opsJobItemChannels.map((opsJobItemChannel) => {
@@ -298,6 +318,7 @@ function getDefaultForm() {
   return {
     cash_amount: '',
     cashless_amount: '',
+    remarks: '',
   }
 }
 
@@ -309,11 +330,26 @@ function onConfirmClicked() {
         picked: channel.picked,
         refill: channel.refill,
       }
-    })
+    }),
+    ...form.value
   }, {
     preserveScroll: true,
     onSuccess: () => {
+      toast.success("Successfully Updated", {
+        timeout: 3000
+      });
       emit('statusUpdated')
+    }
+  })
+}
+
+function onSaveFormClicked() {
+  router.post('/ops-jobs/items/' + props.opsJobItem.id + '/update', form.value, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success("Successfully Saved", {
+        timeout: 3000
+      });
     }
   })
 }
@@ -324,6 +360,9 @@ function onVerifyClicked(verify) {
   }, {
     preserveScroll: true,
     onSuccess: () => {
+      toast.success("Successfully Verified", {
+        timeout: 3000
+      });
       emit('statusUpdated')
     }
   })

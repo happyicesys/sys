@@ -72,7 +72,7 @@
 
               <div class="sm:col-span-5">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Machine to Bind
+                  Add Machine
                 </label>
                 <MultiSelect
                   v-model="form.vend_id"
@@ -113,7 +113,7 @@
                     <table class="min-w-full divide-y divide-gray-300">
                       <thead class="bg-gray-50">
                         <tr class="bg-gray-200">
-                          <th scope="col" colspan="8" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          <th scope="col" colspan="10" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             <span class="flex space-x-2">
                               <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code" @input="onSearchFilterUpdated()">
                                   Machine ID
@@ -134,21 +134,27 @@
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Machine Prefix
                           </th>
-                          <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Customer
+                          </th>
+                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Ops Note
+                          </th>
+                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Remarks
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Status
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Channel
+                            Stock In
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900"
                             v-if="permissions.includes('admin-access operations')">
                             CMS Empty Inv
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Action
+                            Delete
                           </th>
                         </tr>
 
@@ -181,6 +187,12 @@
                               </span>
                               {{ opsJobItem.vend.customer && opsJobItem.vend.customer.name ? opsJobItem.vend.customer.name : ''}}
                             </span>
+                          </td>
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                            {{ opsJobItem.vend.customer ? opsJobItem.vend.customer.ops_note : '' }}
+                          </td>
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                            {{ opsJobItem.remarks }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             <div
@@ -226,7 +238,7 @@
                           </td>
                         </tr>
                         <tr v-if="!opsJob.opsJobItems || !opsJob.opsJobItems.length">
-                          <td colspan="8" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
+                          <td colspan="10" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
                             No Records Found
                           </td>
                         </tr>
@@ -240,9 +252,10 @@
 
             <div class="sm:col-span-6 mt-5 ">
               <div class="flex justify-between">
-                <div>
+                <div class="flex space-x-1">
                   <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                   @click.prevent="onGeneratePickListClicked()"
+                  v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 2)"
                   >
                     <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
                     <span class="flex flex-col space-y-1">
@@ -253,7 +266,7 @@
                   </Button>
                   <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-black shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                   @click.prevent="createCMSEmptyInvoices()"
-                  v-if="!opsJob.opsJobItems || opsJob.opsJobItems.length && opsJob.opsJobItems.every(item => item.cms_transaction_id == null)"
+                  v-if="!opsJob.opsJobItems || opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.cms_transaction_id == null)"
                   >
                     <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
                     <span class="flex flex-col space-y-1">

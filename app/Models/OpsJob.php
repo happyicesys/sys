@@ -20,7 +20,7 @@ class OpsJob extends Model
     const STATUS_MAPPINGS = [
         self::STATUS_PENDING => 'Pending',
         self::STATUS_PICKED => 'Picked',
-        self::STATUS_DELIVERED => 'Delivered',
+        self::STATUS_DELIVERED => 'Stock In',
         self::STATUS_VERIFIED => 'Verified',
         self::STATUS_FLAGGED => 'Flagged',
         self::STATUS_CANCELLED => 'Cancelled',

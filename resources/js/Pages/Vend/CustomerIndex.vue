@@ -728,11 +728,11 @@
 								<SingleSortItem modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
 									Location
 								</SingleSortItem>
-								<SingleSortItem modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')">
-									Zone
-								</SingleSortItem>
 							</div>
 						</TableHead>
+						<TableHeadSort modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
+							Zone
+						</TableHeadSort>
 						<TableHead v-if="!roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-2">
 								<span>
@@ -1350,6 +1350,15 @@
 									<span>
 										{{ vend.location_type_name }}
 									</span>
+									<span>
+										{{ vend.zone_name }}
+									</span>
+								</div>
+							</span>
+						</TableData>
+						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
+							<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
+								<div class="flex flex-col space-y-2">
 									<span>
 										{{ vend.zone_name }}
 									</span>

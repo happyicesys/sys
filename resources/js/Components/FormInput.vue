@@ -14,6 +14,7 @@
             :value="modelValue"
             :disabled="disabled"
             :autocomplete="autocomplete"
+            :max="inputType === 'number' ? maxValue : null"
           />
           <div class="text-sm text-red-600" v-if="error">
             {{ error }}
@@ -31,6 +32,10 @@ defineProps({
   },
   placeholderStr: {
     type: [Array, String]
+  },
+  maxValue: {
+    type: [String, Number],
+    default: null,
   },
   modelValue: [String, Number],
   error: String,

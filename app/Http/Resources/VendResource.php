@@ -158,6 +158,8 @@ class VendResource extends JsonResource
             'virtual_customer_code' => isset($this->virtual_customer_code) ? $this->virtual_customer_code : null,
             'virtual_customer_prefix' => isset($this->virtual_customer_prefix) ? $this->virtual_customer_prefix : null,
             'virtual_vend_records_thirty_days_amount_average' => isset($this->virtual_vend_records_thirty_days_amount_average) ? $this->virtual_vend_records_thirty_days_amount_average/100 : 0,
+            'zone_name' => isset($this->zone_name) ? $this->zone_name : null,
+            'zone_id' => isset($this->zone_id) ? $this->zone_id : null,
             'this_month_count' => isset($this->this_month_count) ? $this->this_month_count : 0,
             'this_month_revenue' => isset($this->this_month_revenue) ? $this->this_month_revenue/100 : 0,
             'this_month_gross_profit' => isset($this->this_month_gross_profit) ? $this->this_month_gross_profit/100 : 0,

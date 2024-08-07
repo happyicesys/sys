@@ -178,6 +178,11 @@
                     </div>
                   </div>
                   <div class="sm:col-span-5">
+                    <FormTextarea v-model="form.ops_note" :error="form.errors.ops_note">
+                      Ops Note
+                    </FormTextarea>
+                  </div>
+                  <div class="sm:col-span-5">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                       Reference Price Type
                       <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Desired Price to be Set on Vending Machine'"></ExclamationCircleIcon>
@@ -210,6 +215,15 @@
                       <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Menu </span>
                     </div>
                   </div>
+                </div>
+                <div class="sm:col-span-6">
+                  <AttachmentListProductMapping
+                    :items="customer.vend.product_mapping.attachments"
+                    :priceTypeOptions="sellingPriceTypeOptions"
+                    v-if="customer.vend && customer.vend.product_mapping && customer.vend.product_mapping.attachments"
+                  >
+                  </AttachmentListProductMapping>
+
                 </div>
 
                 <!-- Binded Machine Section -->
@@ -533,6 +547,7 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import AttachmentList from '@/Components/AttachmentList.vue';
+import AttachmentListProductMapping from '@/Components/AttachmentListProductMapping.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
@@ -586,6 +601,7 @@ function getDefaultForm() {
     operator_id: '',
     begin_date: '',
     location_type_id: '',
+    ops_note: '',
     selling_price_type: '',
     termination_date: '',
     code: '',
@@ -772,7 +788,6 @@ function saveCustomer(customerID) {
           });
         },
         onError: (errors) => {
-          console.log(errors)
           toast.error("Failed, Please Try Again", {
             timeout: 3000
           });

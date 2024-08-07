@@ -70,24 +70,31 @@ class CustomerController extends Controller
         $className = get_class(new Customer());
 
         $customers = Customer::with([
-            'attachments',
-            'billingAddress',
-            'category',
-            'category.categoryGroup',
-            'contact',
-            'deliveryAddress',
-            'firstTransaction',
-            'operator',
-            'profile',
-            'status',
-            'tagBindings',
-            'vend',
-            'zone'
-        ])
+                'attachments',
+                'billingAddress',
+                'category',
+                'category.categoryGroup',
+                'contact',
+                'deliveryAddress',
+                'firstTransaction',
+                'operator',
+                'profile',
+                'status',
+                'tagBindings',
+                'vend',
+                'zone'
+            ])
+            ->leftJoin('addresses', function($query) {
+                $query->on('addresses.modelable_id', '=', 'customers.id')
+                        ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                        ->where('addresses.type', '=', 2)
+                        ->limit(1);
+            })
             ->leftJoin('operators', 'customers.operator_id', '=', 'operators.id')
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
             ->select(
+                'addresses.postcode as postcode',
                 'customers.*',
                 'customers.id',
                 'customers.begin_date as begin_date',

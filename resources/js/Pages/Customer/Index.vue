@@ -306,18 +306,18 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHead>
+                    <TableHeadSort modelName="id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('id')">
                       Customer ID
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
                       Machine ID
                     </TableHeadSort>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
                       Customer
                     </TableHeadSort>
-                    <TableHead>
+                    <TableHeadSort modelName="selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('selling_price_type')">
                       Ref Price
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHead>
                       Label
                     </TableHead>
@@ -330,15 +330,18 @@
                     <TableHead>
                       Del Address
                     </TableHead>
-                    <TableHead>
+                    <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
                       Del Postcode
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHead>
                       Tags
                     </TableHead>
                     <TableHeadSort modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')">
                       Zone
                     </TableHeadSort>
+                    <TableHead>
+                      Ops Note
+                    </TableHead>
                     <TableHead>
                       Status
                     </TableHead>
@@ -417,6 +420,9 @@
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         {{ customer.zone_id ? customer.zone_name : null }}
+                      </TableData>
+                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left whitespace-pre-line">
+                        {{ customer.ops_note }}
                       </TableData>
                       <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
                         <div

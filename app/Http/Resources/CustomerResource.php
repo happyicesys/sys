@@ -32,6 +32,7 @@ class CustomerResource extends JsonResource
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'operator_code' => $this->operator_code,
             'operator_name' => $this->operator_name,
+            'ops_note' => $this->ops_note,
             'person_id' => $this->person_id,
             'profile_id' => $this->profile_id,
             'selling_price_type' => $this->selling_price_type,

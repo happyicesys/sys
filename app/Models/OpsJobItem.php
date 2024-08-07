@@ -21,6 +21,7 @@ class OpsJobItem extends Model
         'customer_id',
         'notes',
         'ops_job_id',
+        'remarks',
         'sequence',
         'status',
         'picked_at',

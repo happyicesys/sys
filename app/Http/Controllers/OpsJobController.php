@@ -105,6 +105,8 @@ class OpsJobController extends Controller
                     'status' => OpsJob::STATUS_DELIVERED,
                     'completed_by' => auth()->id(),
                     'completed_at' => Carbon::now(),
+                    'cash_amount' => $request->cash_amount,
+                    'cashless_amount' => $request->cashless_amount,
                 ]);
 
                 SyncOpsJobItemTransactionItemCMS::dispatch($opsJobItem->id);
@@ -114,8 +116,6 @@ class OpsJobController extends Controller
                         $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
                         $opsJobItemChannel->update([
                             'actual_qty' => $channel['refill'],
-                            'cash_amount' => $request->cash_amount,
-                            'cashless_amount' => $request->cashless_amount,
                         ]);
                     }
                 }
@@ -168,10 +168,10 @@ class OpsJobController extends Controller
                     });
                 });
 
-                $query->select(['id', 'cash_amount', 'cashless_amount', 'ops_job_id', 'vend_id', 'cms_transaction_id', 'status', 'picked_at', 'picked_by', 'completed_at', 'completed_by']);
+                $query->select(['id', 'cash_amount', 'cashless_amount', 'ops_job_id', 'vend_id', 'cms_transaction_id', 'status', 'picked_at', 'picked_by', 'completed_at', 'completed_by', 'remarks']);
             }, // Select necessary columns
             'opsJobItems.vend:id,customer_id,code,vend_prefix_id',
-            'opsJobItems.vend.customer:id,name,person_id,virtual_customer_prefix,virtual_customer_code',
+            'opsJobItems.vend.customer:id,name,person_id,virtual_customer_prefix,virtual_customer_code,ops_note',
             'opsJobItems.opsJobItemChannels.vendChannel.product.thumbnail',
             'opsJobItems.vend.vendPrefix',
             'opsJobItems.pickedBy:id,name',
@@ -285,6 +285,19 @@ class OpsJobController extends Controller
 
         $opsJobItem->update([
             'sequence' => $request->sequence,
+        ]);
+
+        return redirect()->back();
+    }
+
+    public function updateItem(Request $request, $id)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($id);
+
+        $opsJobItem->update([
+            'cash_amount' => $request->cash_amount,
+            'cashless_amount' => $request->cashless_amount,
+            'remarks' => $request->remarks,
         ]);
 
         return redirect()->back();

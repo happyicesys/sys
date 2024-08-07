@@ -82,6 +82,7 @@ class Customer extends Model
         'next_invoice_date',
         'next_invoice_driver_id',
         'operator_id',
+        'ops_note',
         // for cms person id
         'person_id',
         'power_socket_key_number',
