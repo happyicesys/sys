@@ -308,7 +308,7 @@ const filters = ref({
   name: '',
   is_active: '',
   sortKey: '',
-  sortBy: true,
+  sortBy: false,
   numberPerPage: 100,
   vendPrefixes: [],
   version: '',

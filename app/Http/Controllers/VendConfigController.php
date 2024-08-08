@@ -22,7 +22,7 @@ class VendConfigController extends Controller
             'is_active' => $request->is_active ? $request->is_active : 'true',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'sortKey' => $request->sortKey ? $request->sortKey : 'name',
-            'sortBy' => $request->sortBy ? $request->sortBy : true,
+            'sortBy' => $request->sortBy ? $request->sortBy : false,
         ]);
 
         // dd($request->all());
