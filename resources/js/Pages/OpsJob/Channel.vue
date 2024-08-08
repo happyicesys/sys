@@ -86,12 +86,12 @@
                 </div>
               </dd>
             </div>
-            <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2">
+            <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
               <dt class="text-sm font-medium leading-6 text-gray-900">
                 Remarks
               </dt>
               <dd class="text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                <FormTextarea v-model="form.remarks" class="w-full" v-if="opsJobItem.status >= 2">
+                <FormTextarea v-model="form.remarks" class="w-full">
                 </FormTextarea>
               </dd>
             </div>

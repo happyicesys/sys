@@ -106,18 +106,11 @@ trait HasFilter {
             });
         })
         ->when($request->customer, function($query, $search) {
-            if(strpos($search, "-")) {
-                $searchArray = explode("-", $search);
-                $query->where('customers.virtual_customer_prefix', $searchArray[0])
-                    ->where('customers.virtual_customer_code', 'LIKE', "{$searchArray[1]}%");
-            }else {
-                $query->where(function($query) use ($search) {
-                    $query->where('customers.virtual_customer_prefix', 'LIKE', "{$search}%")
-                          ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
-                          ->orWhere('customers.name', 'LIKE', "%{$search}%")
-                          ->orWhere('vends.name', 'LIKE', "%{$search}%");
-                  });
-            }
+            $query->where(function($query) use ($search) {
+                $query->where('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                ->orWhere('vend_prefixes.name', 'LIKE', "{$search}%")
+                ->orWhere('customers.name', 'LIKE', "%{$search}%");
+            });
         })
         ->when($request->is_binded_customer, function($query, $search) {
             if($search != 'all') {

@@ -480,7 +480,7 @@ class VendController extends Controller
             'driverOptions' => UserResource::collection(
                 User::whereHas('roles', function($query) use ($request) {
                     $query
-                        ->whereIn('name', ['admin', 'driver', 'supervisor', 'technician'])
+                        ->whereIn('name', ['driver', 'supervisor', 'technician'])
                         ->when($request->operators, function($query, $search) {
                             $query->whereIn('operator_id', $search);
                         });

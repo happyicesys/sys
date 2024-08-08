@@ -159,29 +159,6 @@
                       {{ form.errors['customer.location_type_id'] }}
                     </div>
                   </div>
-                  <div class="sm:col-span-3">
-                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                      Zone
-                    </label>
-                    <MultiSelect
-                      v-model="form.zone_id"
-                      :options="zoneOptions"
-                      trackBy="id"
-                      valueProp="id"
-                      label="value"
-                      placeholder="Select"
-                      open-direction="bottom"
-                      class="mt-1"
-                    ></MultiSelect>
-                    <div class="text-sm text-red-600" v-if="form.errors['customer.zone_id']">
-                      {{ form.errors['customer.zone_id'] }}
-                    </div>
-                  </div>
-                  <div class="sm:col-span-5">
-                    <FormTextarea v-model="form.ops_note" :error="form.errors.ops_note">
-                      Ops Note
-                    </FormTextarea>
-                  </div>
                   <div class="sm:col-span-5">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                       Reference Price Type
@@ -420,6 +397,52 @@
                         <div class="w-full border-t border-gray-300"></div>
                       </div>
                       <div class="relative flex justify-start">
+                        <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Operations </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="sm:col-span-3">
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                      Zone
+                    </label>
+                    <MultiSelect
+                      v-model="form.zone_id"
+                      :options="zoneOptions"
+                      trackBy="id"
+                      valueProp="id"
+                      label="value"
+                      placeholder="Select"
+                      open-direction="bottom"
+                      class="mt-1"
+                    ></MultiSelect>
+                    <div class="text-sm text-red-600" v-if="form.errors['customer.zone_id']">
+                      {{ form.errors['customer.zone_id'] }}
+                    </div>
+                  </div>
+                  <div class="sm:col-span-3">
+                    <FormTextarea v-model="form.ops_note" :error="form.errors.ops_note" rows="3">
+                      Ops Note
+                    </FormTextarea>
+                  </div>
+                  <div class="sm:col-span-6">
+                      <label>Preferred Visit Days:</label>
+                      <div class="flex flex-wrap gap-2 mt-2 space-x-3">
+                        <label v-for="(day, index) in days" :key="index" class="flex items-center">
+                          <input type="checkbox" v-model="form.preferred_visit_days_json[index]" class="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                          <span>
+                            {{ day }}
+                          </span>
+                        </label>
+                      </div>
+                  </div>
+
+
+                  <div class="sm:col-span-6 pt-2 mt-2 md:pt-5 md:pb-3">
+                    <div class="relative">
+                      <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div class="w-full border-t border-gray-300"></div>
+                      </div>
+                      <div class="relative flex justify-start">
                         <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Address </span>
                       </div>
                     </div>
@@ -556,38 +579,39 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon, ExclamationCircleIcon, StopCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
-import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue'
+import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
-    vendOptions: Object,
-    countries: Object,
-    locationTypeOptions: [Array, Object],
-    operatorOptions: Object,
-    customer: Object,
-    sellingPriceTypeOptions: [Array, Object],
-    type: String,
-    zoneOptions: Object,
-})
+  vendOptions: Object,
+  countries: Object,
+  days: Object,
+  locationTypeOptions: [Array, Object],
+  operatorOptions: Object,
+  customer: Object,
+  sellingPriceTypeOptions: [Array, Object],
+  type: String,
+  zoneOptions: Object,
+});
 
 const form = ref(useForm(getDefaultForm()));
 const adminCustomerOptions = ref([]);
 const booleanStrictOptions = ref([
-    {id: 'true', value: 'Yes'},
-    {id: 'false', value: 'No'},
+  { id: 'true', value: 'Yes' },
+  { id: 'false', value: 'No' },
 ]);
 
 const countryOptions = ref([]);
 const customer = ref([]);
 const isExisting = ref(1);
-const locationTypeOptions = ref([])
+const locationTypeOptions = ref([]);
 const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorOptions = ref([]);
 const permissions = usePage().props.auth.permissions;
 const profile = usePage().props.auth.profile;
-const toast = useToast()
+const toast = useToast();
 const vendChannels = ref([]);
 const sellingPriceTypeOptions = ref([]);
 const vendOptions = ref([]);
@@ -602,6 +626,15 @@ function getDefaultForm() {
     begin_date: '',
     location_type_id: '',
     ops_note: '',
+    preferred_visit_days_json:  {
+      1: false,
+      2: false,
+      3: false,
+      4: false,
+      5: false,
+      6: false,
+      7: false,
+    },
     selling_price_type: '',
     termination_date: '',
     code: '',
@@ -624,34 +657,43 @@ function getDefaultForm() {
     },
     vend_id: '',
     zone_id: '',
-  }
+  };
 }
 
 onMounted(() => {
   countryOptions.value = props.countries.data;
   customer.value = props.customer;
   locationTypeOptions.value = [
-    { id: '', value: '--- Clear ---'},
+    { id: '', value: '--- Clear ---' },
     ...props.locationTypeOptions.data.map(locationType => ({
       id: locationType.id,
       value: locationType.name,
     }))
-  ]
+  ];
 
   operatorOptions.value = props.operatorOptions.data;
   zoneOptions.value = [
-    { id: '', value: '--- Clear ---'},
+    { id: '', value: '--- Clear ---' },
     ...props.zoneOptions.data.map(zone => ({
       id: zone.id,
       value: zone.name,
     }))
-  ]
+  ];
   sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, value]) => {
     return {
       id: id,
       value: value,
     };
   });
+  const initialPreferredVisitDays = {
+    1: false,
+    2: false,
+    3: false,
+    4: false,
+    5: false,
+    6: false,
+    7: false,
+  };
   form.value = props.customer ? useForm({
     ...JSON.parse(JSON.stringify(props.customer)),
     code: props.customer && props.customer.person_id ? props.customer.virtual_customer_code + ' (' + props.customer.virtual_customer_prefix + ')' : (props.customer ? props.customer.code : null),
@@ -682,6 +724,7 @@ onMounted(() => {
       unit_num: '',
     },
     is_active: props.customer ? props.customer.is_active ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false') : booleanStrictOptions.value.find(option => option.id === 'true'),
+    preferred_visit_days_json: { ...initialPreferredVisitDays, ...props.customer.preferred_visit_days_json },
     selling_price_type: props.customer && props.customer.selling_price_type ? sellingPriceTypeOptions.value.find(option => option.id == props.customer.selling_price_type) : null,
     zone_id: props.customer && props.customer.zone_id ? zoneOptions.value.find(zone => zone.id === props.customer.zone_id) : null,
   }) : useForm(getDefaultForm());
@@ -695,8 +738,8 @@ onMounted(() => {
 });
 
 function compareSellingPrice(channel) {
-  if(channel.product && channel.product.selling_prices[0] && channel.product.selling_prices[0].amount) {
-    if(channel.amount != channel.product.selling_prices[0].amount) {
+  if (channel.product && channel.product.selling_prices[0] && channel.product.selling_prices[0].amount) {
+    if (channel.amount != channel.product.selling_prices[0].amount) {
       return 'text-red-500';
     }
   }
@@ -718,7 +761,7 @@ function deleteCustomer(customerID) {
 function disconnectCMSCustomer(customerID) {
   const approval = confirm('Are you sure to disconnect this customer from CMS ?');
   if (!approval) {
-      return;
+    return;
   }
 
   form.value.clearErrors();
@@ -740,7 +783,7 @@ function toggleActivationCustomer(customerID) {
   form.value.clearErrors();
 
   form.value.post('/customers/' + customerID + '/toggle-activation', {
-    onSuccess: () => {},
+    onSuccess: () => { },
     preserveState: true,
     replace: true,
   });
@@ -808,7 +851,7 @@ function saveVend(vendID) {
     termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
     is_testing: data.is_testing.id,
   })).post('/customers/' + vendID + '/update', {
-    onSuccess: () => {},
+    onSuccess: () => { },
     preserveState: true,
     replace: true,
   });
@@ -862,7 +905,7 @@ function bindVend(customerID) {
   form.value.post('/customers/' + customerID + '/bind-vend', {
     vendID: form.value.vend_id.id
   }, {
-    onSuccess: () => {},
+    onSuccess: () => { },
     preserveState: true,
     replace: true,
   });
@@ -898,6 +941,7 @@ function downloadVendSnapshot(vendSnapshotId) {
     fileDownload(response.data, 'Vending_Channels_' + moment().format('YYMMDDhhmmss') + '.xlsx');
   }).catch(error => {
     console.log(error);
-  }).finally(() => {});
+  }).finally(() => { });
 }
 </script>
+

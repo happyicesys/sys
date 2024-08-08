@@ -11,6 +11,16 @@ class Customer extends Model
 {
     use HasFactory;
 
+    const DAYS_MAPPING = [
+        1 => 'Mon',
+        2 => 'Tue',
+        3 => 'Wed',
+        4 => 'Thu',
+        5 => 'Fri',
+        6 => 'Sat',
+        7 => 'Sun',
+    ];
+
     const RUNNING_NUMBER_INIT = 20000;
 
     const STATUS_NEW = 4;
@@ -46,7 +56,6 @@ class Customer extends Model
         'snap_vend_status_json' => 'json',
         'termination_date' => 'datetime',
         'totals_json' => 'json',
-
         // json declaration for vend
         'acb_vmc_pa_json' => 'json',
         'acb_status_json' => 'json',
@@ -55,6 +64,7 @@ class Customer extends Model
         'last_updated_at' => 'datetime',
         'mqtt_last_updated_at' => 'datetime',
         'parameter_json' => 'json',
+        'preferred_visit_days_json' => 'json',
         'statistics1_json' => 'json',
         'temp_updated_at' => 'datetime',
         'termination_date' => 'datetime',
@@ -86,6 +96,7 @@ class Customer extends Model
         // for cms person id
         'person_id',
         'power_socket_key_number',
+        'preferred_visit_days_json',
         'profile_id',
         'selling_price_type',
         'snap_parameter_json',

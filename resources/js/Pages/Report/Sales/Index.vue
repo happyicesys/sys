@@ -1,6 +1,6 @@
 <template>
 
-  <Head title="GP by VM" />
+  <Head title="Sales Report" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
@@ -46,7 +46,7 @@
           <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
             Cust Name
           </SearchInput> -->
-          <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+          <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
             Customer
           </SearchInput>
           <SearchInput placeholderStr="Product ID" v-model="filters.product_code" @keyup.enter="onSearchFilterUpdated()">
@@ -312,7 +312,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -330,6 +330,7 @@ const filters = ref({
   categoryGroups: [],
   codes: '',
   currentFilterDate: '',
+  customer: '',
   customer_code: '',
   customer_name: '',
   date_from: '',
@@ -360,6 +361,7 @@ const currentUrl = ref()
 const tabs = ref([
   { name: 'Operator', href: '/reports/sales/operator', current: false },
   { name: 'Vending Machines', href: '/reports/sales/vend', current: false },
+  { name: 'Customer', href: '/reports/sales/customer', current: false },
   { name: 'Product', href: '/reports/sales/product', current: false },
   { name: 'Category', href: '/reports/sales/category', current: false },
   { name: 'Location Type', href: '/reports/sales/location-type', current: false },

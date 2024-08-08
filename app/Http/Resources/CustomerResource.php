@@ -34,6 +34,7 @@ class CustomerResource extends JsonResource
             'operator_name' => $this->operator_name,
             'ops_note' => $this->ops_note,
             'person_id' => $this->person_id,
+            'preferred_visit_days_json' => $this->preferred_visit_days_json,
             'profile_id' => $this->profile_id,
             'selling_price_type' => $this->selling_price_type,
             'status_id' => $this->status_id,

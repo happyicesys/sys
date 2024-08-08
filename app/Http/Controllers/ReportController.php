@@ -86,6 +86,9 @@ class ReportController extends Controller
             case 'vend':
                 $modelName = 'vends';
                 break;
+            case 'customer':
+                $modelName = 'customers';
+                break;
         }
 
         $items = $this->getSalesQuery($request, $modelName);
@@ -476,6 +479,9 @@ class ReportController extends Controller
             case 'vend':
                 $modelName = 'vends';
                 break;
+            case 'customer':
+                $modelName = 'customers';
+                break;
         }
 
         $items = $this->getSalesQuery($request, $modelName)->get();
@@ -536,6 +542,12 @@ class ReportController extends Controller
                     ->selectRaw('vends.id as id')
                     ->selectRaw('vends.code as code')
                     ->selectRaw('CASE WHEN customers.id THEN CONCAT(customers.virtual_customer_code," (", customers.virtual_customer_prefix,") - ", customers.name) ELSE vends.name END as name');
+                break;
+            case 'customers':
+                $transactionsQuery
+                    ->selectRaw('customers.id as id')
+                    ->selectRaw('customers.id + 20000 as code')
+                    ->selectRaw('CASE WHEN customers.person_id THEN CONCAT(customers.virtual_customer_code, " - ", customers.name) ELSE customers.name END as name');
                 break;
         }
 

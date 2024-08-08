@@ -1,5 +1,4 @@
 <template>
-
   <Head title="Customers" />
 
   <BreezeAuthenticatedLayout>
@@ -10,19 +9,15 @@
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
-      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
+      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3">
         <div class="flex justify-end">
           <Link href="/customers/create">
-            <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-            >
-              <PlusIcon class="h-4 w-4" aria-hidden="true"/>
-              <span>
-                Create
-              </span>
+            <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+              <PlusIcon class="h-4 w-4" aria-hidden="true" />
+              <span>Create</span>
             </Button>
           </Link>
         </div>
-          <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="ID" v-model="filters.ref_id">
             Customer ID
@@ -47,8 +42,7 @@
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
-            >
-            </MultiSelect>
+            ></MultiSelect>
           </div>
           <div v-if="permissions.includes('admin-access customers')">
             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -64,8 +58,7 @@
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
-            >
-            </MultiSelect>
+            ></MultiSelect>
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -80,25 +73,8 @@
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
-            >
-            </MultiSelect>
+            ></MultiSelect>
           </div>
-          <!-- <div>
-            <label for="text" class="block text-sm font-medium text-gray-700">
-              Account Manager
-            </label>
-            <MultiSelect
-              v-model="filters.handled_by"
-              :options="userOptions"
-              trackBy="id"
-              valueProp="id"
-              label="name"
-              placeholder="Select"
-              open-direction="bottom"
-              class="mt-1"
-            >
-            </MultiSelect>
-          </div> -->
           <div v-if="permissions.includes('admin-access customers')">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Zone
@@ -112,8 +88,7 @@
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
-            >
-            </MultiSelect>
+            ></MultiSelect>
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -128,8 +103,7 @@
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
-            >
-            </MultiSelect>
+            ></MultiSelect>
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -145,340 +119,446 @@
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
-            >
-            </MultiSelect>
-          </div>
-          <div v-if="permissions.includes('admin-access customers')">
-              <label for="text" class="block text-sm font-medium text-gray-700">
-                  Is From CMS
-              </label>
-              <MultiSelect
-                  v-model="filters.is_cms"
-                  :options="booleanOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="value"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-              >
-              </MultiSelect>
+            ></MultiSelect>
           </div>
           <div v-if="permissions.includes('admin-access customers')">
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Operator
+              Is From CMS
             </label>
             <MultiSelect
-                v-model="filters.operators"
-                :options="operatorOptions"
-                trackBy="id"
-                valueProp="id"
-                label="full_name"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-                mode="tags"
-            >
-            </MultiSelect>
+              v-model="filters.is_cms"
+              :options="booleanOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            ></MultiSelect>
+          </div>
+          <div v-if="permissions.includes('admin-access customers')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Operator
+            </label>
+            <MultiSelect
+              v-model="filters.operators"
+              :options="operatorOptions"
+              trackBy="id"
+              valueProp="id"
+              label="full_name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              mode="tags"
+            ></MultiSelect>
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Ref Price Type
+              Ref Price Type
             </label>
             <MultiSelect
-                v-model="filters.selling_price_type"
-                :options="sellingPriceTypeOptions"
-                trackBy="id"
-                valueProp="id"
-                label="value"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-            >
-            </MultiSelect>
+              v-model="filters.selling_price_type"
+              :options="sellingPriceTypeOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            ></MultiSelect>
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Machine Model
+              Machine Model
             </label>
             <MultiSelect
-                v-model="filters.vend_model_id"
-                :options="vendModelOptions"
-                trackBy="id"
-                valueProp="id"
-                label="value"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-            >
-            </MultiSelect>
+              v-model="filters.vend_model_id"
+              :options="vendModelOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            ></MultiSelect>
           </div>
           <div v-if="permissions.includes('admin-access customers')">
-						<label for="text" class="block text-sm font-medium text-gray-700">
-							Location Type
-						</label>
-						<MultiSelect
-							v-model="filters.location_types"
-							:options="locationTypeOptions"
-							trackBy="id"
-							valueProp="id"
-							label="value"
-							placeholder="Select"
-							open-direction="bottom"
-							class="mt-1"
-							mode="tags"
-						>
-						</MultiSelect>
-					</div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Location Type
+            </label>
+            <MultiSelect
+              v-model="filters.location_types"
+              :options="locationTypeOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              mode="tags"
+            ></MultiSelect>
+          </div>
           <div v-if="permissions.includes('admin-access customers')">
-						<label for="text" class="block text-sm font-medium text-gray-700">
-							Zone
-						</label>
-						<MultiSelect
-							v-model="filters.zones"
-							:options="zoneOptions"
-							trackBy="id"
-							valueProp="id"
-							label="value"
-							placeholder="Select"
-							open-direction="bottom"
-							class="mt-1"
-							mode="tags"
-						>
-						</MultiSelect>
-					</div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Zone
+            </label>
+            <MultiSelect
+              v-model="filters.zones"
+              :options="zoneOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              mode="tags"
+            ></MultiSelect>
+          </div>
         </div>
-
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
           <div class="mt-3">
             <div class="flex space-x-1">
-              <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              @click="onSearchFilterUpdated()"
+              <Button
+                class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                @click="onSearchFilterUpdated"
               >
-                <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
-                <span>
-                  Search
-                </span>
+                <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true" />
+                <span>Search</span>
               </Button>
-              <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              @click="resetFilters()"
+              <Button
+                class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                @click="resetFilters"
               >
-                <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
-                <span>
-                  Reset
-                </span>
+                <BackspaceIcon class="h-4 w-4" aria-hidden="true" />
+                <span>Reset</span>
               </Button>
             </div>
           </div>
           <div class="flex flex-col space-y-2">
-              <p class="text-sm text-gray-700 leading-5 flex space-x-1">
-                  <span>Showing</span>
-                  <span class="font-medium">{{ customers.meta.from ?? 0 }}</span>
-                  <span>to</span>
-                  <span class="font-medium">{{ customers.meta.to ?? 0 }}</span>
-                  <span>of</span>
-                  <span class="font-medium">{{ customers.meta.total }}</span>
-                  <span>results</span>
-              </p>
-              <MultiSelect
-                  v-model="filters.numberPerPage"
-                  :options="numberPerPageOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="value"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1"
-                  @selected="onSearchFilterUpdated"
-              >
-              </MultiSelect>
+            <p class="text-sm text-gray-700 leading-5 flex space-x-1">
+              <span>Showing</span>
+              <span class="font-medium">{{ customers.meta.from ?? 0 }}</span>
+              <span>to</span>
+              <span class="font-medium">{{ customers.meta.to ?? 0 }}</span>
+              <span>of</span>
+              <span class="font-medium">{{ customers.meta.total }}</span>
+              <span>results</span>
+            </p>
+            <MultiSelect
+              v-model="filters.numberPerPage"
+              :options="numberPerPageOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              @selected="onSearchFilterUpdated"
+            ></MultiSelect>
           </div>
         </div>
       </div>
 
       <div class="mt-6 flex flex-col">
-       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
             <table class="min-w-full border-separate" style="border-spacing: 0">
-                <thead class="bg-gray-100">
-                  <tr class="divide-x divide-gray-200">
-                    <TableHead>
-                      #
-                    </TableHead>
-                    <TableHeadSort modelName="id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('id')">
-                      Customer ID
-                    </TableHeadSort>
-                    <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
-                      Machine ID
-                    </TableHeadSort>
-                    <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
-                      Customer
-                    </TableHeadSort>
-                    <TableHeadSort modelName="selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('selling_price_type')">
-                      Ref Price
-                    </TableHeadSort>
-                    <TableHead>
-                      Label
-                    </TableHead>
-                    <!-- <TableHeadSort modelName="category_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('category_id')">
-                      Category
-                    </TableHeadSort>
-                    <TableHeadSort modelName="category_group" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('category_group')">
-                      Group
-                    </TableHeadSort> -->
-                    <TableHead>
-                      Del Address
-                    </TableHead>
-                    <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
-                      Del Postcode
-                    </TableHeadSort>
-                    <TableHead>
-                      Tags
-                    </TableHead>
-                    <TableHeadSort modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')">
-                      Zone
-                    </TableHeadSort>
-                    <TableHead>
-                      Ops Note
-                    </TableHead>
-                    <TableHead>
-                      Status
-                    </TableHead>
-                    <TableHeadSort modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
-                      Operator
-                    </TableHeadSort>
-                    <TableHeadSort modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date')">
-                      Begin Date
-                    </TableHeadSort>
-                    <TableHead>
-                      Action
-                    </TableHead>
-                  </tr>
-                </thead>
-                  <tbody class="bg-white">
-                    <tr v-for="(customer, customerIndex) in customers.data" :key="customer.id" class="divide-x divide-gray-200">
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customers.meta.from + customerIndex }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.ref_id }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.vend ? customer.vend.code : null }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
-                        <div class="flex flex-col space-y-1">
-                          <a :class="[customer && customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="'/customers/' + customer.id + '/edit'">
-                            <span v-if="customer.person_id && (customer.virtual_customer_code || customer.virtual_customer_prefix)">
-                              <span v-if="customer.virtual_customer_code">
-                                {{ customer.virtual_customer_code }}
-                              </span>
-                              <!-- <span v-if="customer.virtual_customer_prefix">
-                                ({{ customer.virtual_customer_prefix }})
-                              </span> -->
-                              <br>
-                            </span>
-                            {{ customer.name }}
-                          </a>
-                          <a target="_blank" :href="cmsEndpoint + '/person/' + customer.person_id + '/edit'" class="" v-if="customer.person_id">
-                            <div
-                                class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
-                            >
-                                CMS
-                            </div>
-                          </a>
-                        </div>
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.selling_price_type }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        <div
-                            class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[10px] font-small border min-w-full bg-green-200"
-                            v-if="customer.person_id"
+              <thead class="bg-gray-100">
+                <tr class="divide-x divide-gray-200">
+                  <TableHead>#</TableHead>
+                  <TableHeadSort
+                    modelName="id"
+                    :sortKey="filters.sortKey"
+                    :sortBy="filters.sortBy"
+                    @sort-table="sortTable('id')"
+                  >
+                    Customer ID
+                  </TableHeadSort>
+                  <TableHeadSort
+                    modelName="vend_code"
+                    :sortKey="filters.sortKey"
+                    :sortBy="filters.sortBy"
+                    @sort-table="sortTable('vend_code')"
+                  >
+                    Machine ID
+                  </TableHeadSort>
+                  <TableHeadSort
+                    modelName="name"
+                    :sortKey="filters.sortKey"
+                    :sortBy="filters.sortBy"
+                    @sort-table="sortTable('name')"
+                  >
+                    Customer
+                  </TableHeadSort>
+                  <TableHeadSort
+                    modelName="selling_price_type"
+                    :sortKey="filters.sortKey"
+                    :sortBy="filters.sortBy"
+                    @sort-table="sortTable('selling_price_type')"
+                  >
+                    Ref Price
+                  </TableHeadSort>
+                  <TableHead>Label</TableHead>
+                  <TableHead>Del Address</TableHead>
+                  <TableHeadSort
+                    modelName="postcode"
+                    :sortKey="filters.sortKey"
+                    :sortBy="filters.sortBy"
+                    @sort-table="sortTable('postcode')"
+                  >
+                    Del Postcode
+                  </TableHeadSort>
+                  <TableHead>Tags</TableHead>
+                  <TableHeadSort
+                    modelName="zone_name"
+                    :sortKey="filters.sortKey"
+                    :sortBy="filters.sortBy"
+                    @sort-table="sortTable('zone_name')"
+                  >
+                    Zone
+                  </TableHeadSort>
+                  <TableHead>Ops Note</TableHead>
+                  <TableHead>Preferred Visit Days</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHeadSort
+                    modelName="operator_code"
+                    :sortKey="filters.sortKey"
+                    :sortBy="filters.sortBy"
+                    @sort-table="sortTable('operator_code')"
+                  >
+                    Operator
+                  </TableHeadSort>
+                  <TableHeadSort
+                    modelName="begin_date"
+                    :sortKey="filters.sortKey"
+                    :sortBy="filters.sortBy"
+                    @sort-table="sortTable('begin_date')"
+                  >
+                    Begin Date
+                  </TableHeadSort>
+                  <TableHead>Action</TableHead>
+                </tr>
+              </thead>
+              <tbody class="bg-white">
+                <tr
+                  v-for="(customer, customerIndex) in customers.data"
+                  :key="customer.id"
+                  class="divide-x divide-gray-200"
+                >
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    {{ customers.meta.from + customerIndex }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    {{ customer.ref_id }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    {{ customer.vend ? customer.vend.code : null }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-left"
+                  >
+                    <div class="flex flex-col space-y-1">
+                      <a
+                        :class="[customer && customer.person_id ? 'text-blue-700' : 'text-purple-700']"
+                        target="_blank"
+                        :href="'/customers/' + customer.id + '/edit'"
+                      >
+                        <span
+                          v-if="customer.person_id && (customer.virtual_customer_code || customer.virtual_customer_prefix)"
                         >
-                          From CMS
-                        </div>
-                      </TableData>
-                      <!-- <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.category ? customer.category.name : '' }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.category && customer.category.categoryGroup ? customer.category.categoryGroup.name : '' }}
-                      </TableData> -->
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
-                        {{ customer.deliveryAddress ? customer.deliveryAddress.full_address : null }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.deliveryAddress ? customer.deliveryAddress.postcode : null }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left">
-                        <span v-for="tag in customer.tags" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                          {{tag.name}}
+                          <span v-if="customer.virtual_customer_code">
+                            {{ customer.virtual_customer_code }}
+                          </span>
+                          <br />
                         </span>
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.zone_id ? customer.zone_name : null }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-left whitespace-pre-line">
-                        {{ customer.ops_note }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
+                        {{ customer.name }}
+                      </a>
+                      <a
+                        target="_blank"
+                        :href="cmsEndpoint + '/person/' + customer.person_id + '/edit'"
+                        class=""
+                        v-if="customer.person_id"
+                      >
                         <div
-                            class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-green-300"
-                            v-if="customer.is_active"
+                          class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
                         >
-                          Active
+                          CMS
                         </div>
-                        <div
-                            class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-red-300"
-                            v-if="!customer.is_active"
+                      </a>
+                    </div>
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    {{ customer.selling_price_type }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    <div
+                      class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[10px] font-small border min-w-full bg-green-200"
+                      v-if="customer.person_id"
+                    >
+                      From CMS
+                    </div>
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-left"
+                  >
+                    {{ customer.deliveryAddress
+                      ? customer.deliveryAddress.full_address
+                      : null }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    {{ customer.deliveryAddress
+                      ? customer.deliveryAddress.postcode
+                      : null }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-left"
+                  >
+                    <span
+                      v-for="tag in customer.tags"
+                      class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"
+                    >
+                      {{ tag.name }}
+                    </span>
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    {{ customer.zone_id ? customer.zone_name : null }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-left whitespace-pre-line"
+                  >
+                    {{ customer.ops_note }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    <div class="flex flex-col space-y-1">
+                      <span
+                        v-for="(day, dayIndex) in days"
+                        :key="dayIndex"
+                        v-if="customer.preferred_visit_days_json"
+                      >
+                        <span v-if="customer.preferred_visit_days_json[dayIndex - 1] == true" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                          {{ day }}
+                        </span>
+                      </span>
+                    </div>
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    <div
+                      class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-green-300"
+                      v-if="customer.is_active"
+                    >
+                      Active
+                    </div>
+                    <div
+                      class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-red-300"
+                      v-if="!customer.is_active"
+                    >
+                      Not Active
+                    </div>
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    {{ customer.operator_code }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    {{ customer.begin_date }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    <div class="flex justify-center space-x-1">
+                      <Link :href="'/customers/' + customer.id + '/edit'">
+                        <Button
+                          type="button"
+                          class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800 flex space-x-1"
                         >
-                          Not Active
-                        </div>
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.operator_code }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        {{ customer.begin_date }}
-                      </TableData>
-                      <TableData :currentIndex="customerIndex" :totalLength="customers.length" inputClass="text-center">
-                        <div class="flex justify-center space-x-1">
-                          <Link :href="'/customers/' + customer.id + '/edit'">
-                              <Button
-                              type="button" class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800 flex space-x-1"
-                              >
-                              <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                              <span>
-                                  Edit
-                              </span>
-                              </Button>
-                          </Link>
-                        </div>
-                      </TableData>
-                      </tr>
+                          <PencilSquareIcon class="w-4 h-4" />
+                          <span>Edit</span>
+                        </Button>
+                      </Link>
+                    </div>
+                  </TableData>
+                </tr>
                 <tr v-if="!customers.data.length">
-                  <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
+                  <td
+                    colspan="24"
+                    class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center"
+                  >
+                    No Results Found
                   </td>
                 </tr>
               </tbody>
             </table>
-            <Paginator v-if="customers.data.length" :links="customers.links" :meta="customers.meta"></Paginator>
+            <Paginator
+              v-if="customers.data.length"
+              :links="customers.links"
+              :meta="customers.meta"
+            ></Paginator>
           </div>
+        </div>
       </div>
     </div>
-  </div>
-  <Form
+    <Form
       v-if="showModal"
       :customer="customer"
       :type="type"
       :showModal="showModal"
       @modalClose="onModalClose"
-  >
-  </Form>
+    >
+    </Form>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -501,6 +581,7 @@ const props = defineProps({
   categories: Object,
   categoryGroups: Object,
   cmsEndpoint: String,
+  days: [Array, Object],
   locationTypeOptions: [Array, Object],
   operatorOptions: Object,
   priceTemplates: Object,
@@ -511,7 +592,7 @@ const props = defineProps({
   users: Object,
   vendModelOptions: Object,
   zoneOptions: Object,
-})
+});
 
 const filters = ref({
   customer: '',
@@ -526,114 +607,136 @@ const filters = ref({
   sortBy: false,
   numberPerPage: 100,
   zones: [],
-})
-const authOperator = usePage().props.auth.operator
-const showModal = ref(false)
-const booleanOptions = ref([])
-const customer = ref()
-const categoryOptions = ref([])
-const categoryGroupOptions = ref([])
-const locationTypeOptions = ref([])
-const operatorOptions = ref([])
-const permissions = usePage().props.auth.permissions
-const priceTemplateOptions = ref([])
-const profileOptions = ref([])
-const sellingPriceTypeOptions = ref([])
-const statusOptions = ref([])
-const tagOptions = ref([])
-const userOptions = ref([])
-const zoneOptions = ref([])
-const type = ref('')
-const numberPerPageOptions = ref([])
-const vendModelOptions = ref([])
+});
+const authOperator = usePage().props.auth.operator;
+const showModal = ref(false);
+const booleanOptions = ref([]);
+const customer = ref();
+const categoryOptions = ref([]);
+const categoryGroupOptions = ref([]);
+const locationTypeOptions = ref([]);
+const operatorOptions = ref([]);
+const permissions = usePage().props.auth.permissions;
+const priceTemplateOptions = ref([]);
+const profileOptions = ref([]);
+const sellingPriceTypeOptions = ref([]);
+const statusOptions = ref([]);
+const tagOptions = ref([]);
+const userOptions = ref([]);
+const zoneOptions = ref([]);
+const type = ref('');
+const numberPerPageOptions = ref([]);
+const vendModelOptions = ref([]);
 
 onMounted(() => {
   booleanOptions.value = [
-    {id: 'all', value: 'All'},
-    {id: 'true', value: 'Yes'},
-    {id: 'false', value: 'No'},
-  ]
+    { id: 'all', value: 'All' },
+    { id: 'true', value: 'Yes' },
+    { id: 'false', value: 'No' },
+  ];
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
-  ]
-  filters.value.numberPerPage = numberPerPageOptions.value[0]
-  categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
-  categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
+  ];
+  filters.value.numberPerPage = numberPerPageOptions.value[0];
+  categoryOptions.value = props.categories.data.map((data) => {
+    return { id: data.id, name: data.name };
+  });
+  categoryGroupOptions.value = props.categoryGroups.data.map((data) => {
+    return { id: data.id, name: data.name };
+  });
   locationTypeOptions.value = [
-    {id: 'all', value: 'All'},
-    ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
-  ]
+    { id: 'all', value: 'All' },
+    ...props.locationTypeOptions.data.map((data) => {
+      return { id: data.id, value: data.name };
+    }),
+  ];
   operatorOptions.value = [
-    {id: 'all', full_name: 'All'},
-    ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
-  ]
-  priceTemplateOptions.value = props.priceTemplates.data.map((data) => {return {id: data.id, name: data.name}})
-  profileOptions.value = props.profiles.data.map((data) => {return {id: data.id, name: data.name}})
-  sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
-  // statusOptions.value = props.statuses.map((data) => {return {id: data.id, name: data.name}})
-  userOptions.value = props.users.data.map((data) => {return {id: data.id, name: data.name}})
-  priceTemplateOptions.value = props.priceTemplates.data.map((data) => {return {id: data.id, name: data.name}})
-  tagOptions.value = props.tags.data.map((data) => {return {id: data.id, name: data.name}})
+    { id: 'all', full_name: 'All' },
+    ...props.operatorOptions.data.map((data) => {
+      return { id: data.id, code: data.code, full_name: data.full_name };
+    }),
+  ];
+  priceTemplateOptions.value = props.priceTemplates.data.map((data) => {
+    return { id: data.id, name: data.name };
+  });
+  profileOptions.value = props.profiles.data.map((data) => {
+    return { id: data.id, name: data.name };
+  });
+  sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(
+    ([id, name]) => ({ id: id, value: name })
+  );
+  userOptions.value = props.users.data.map((data) => {
+    return { id: data.id, name: data.name };
+  });
+  tagOptions.value = props.tags.data.map((data) => {
+    return { id: data.id, name: data.name };
+  });
   vendModelOptions.value = [
-        {id: 'all', value: 'All'},
-        ...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
-    ]
+    { id: 'all', value: 'All' },
+    ...props.vendModelOptions.data.map((data) => {
+      return { id: data.id, value: data.name };
+    }),
+  ];
   zoneOptions.value = [
-    {id: 'all', value: 'All'},
-    ...props.zoneOptions.data.map((data) => {return {id: data.id, value: data.name}})
-	]
-  // filters.value.status = statusOptions.value[3]
-  filters.value.is_active = booleanOptions.value[0]
-  filters.value.is_cms = booleanOptions.value[0]
-  filters.value.location_types = [locationTypeOptions.value.find(locationType => locationType.id == 'all')]
-  filters.value.operators = [operatorOptions.value.find(operator => operator.id == 'all')]
-  filters.value.vend_model_id = vendModelOptions.value[0]
-
-})
+    { id: 'all', value: 'All' },
+    ...props.zoneOptions.data.map((data) => {
+      return { id: data.id, value: data.name };
+    }),
+  ];
+  filters.value.is_active = booleanOptions.value[0];
+  filters.value.is_cms = booleanOptions.value[0];
+  filters.value.location_types = [locationTypeOptions.value.find((locationType) => locationType.id == 'all')];
+  filters.value.operators = [operatorOptions.value.find((operator) => operator.id == 'all')];
+  filters.value.vend_model_id = vendModelOptions.value[0];
+});
 
 function onCreateClicked() {
-  type.value = 'create'
-  customer.value = null
-  showModal.value = true
+  type.value = 'create';
+  customer.value = null;
+  showModal.value = true;
 }
 
 function onEditClicked(customerValue) {
-  type.value = 'update'
-  customer.value = customerValue
-  showModal.value = true
+  type.value = 'update';
+  customer.value = customerValue;
+  showModal.value = true;
 }
 
 function onSearchFilterUpdated() {
-  router.get('/customers', {
+  router.get(
+    '/customers',
+    {
       ...filters.value,
       is_cms: filters.value.is_cms.id,
       is_active: filters.value.is_active.id,
-      location_types: filters.value.location_types.map(locationType => locationType.id),
-      operators: filters.value.operators.map(operator => operator.id),
+      location_types: filters.value.location_types.map((locationType) => locationType.id),
+      operators: filters.value.operators.map((operator) => operator.id),
       selling_price_type: filters.value.selling_price_type ? filters.value.selling_price_type.id : '',
       vend_model_id: filters.value.vend_model_id.id,
       numberPerPage: filters.value.numberPerPage.id,
-      zones: filters.value.zones.map(zone => zone.id),
-  }, {
+      zones: filters.value.zones.map((zone) => zone.id),
+    },
+    {
       preserveState: true,
       replace: true,
-  })
+    }
+  );
 }
 
 function resetFilters() {
-  router.get('/customers')
+  router.get('/customers');
 }
 
 function sortTable(sortKey) {
-  filters.value.sortKey = sortKey
-  filters.value.sortBy = !filters.value.sortBy
-  onSearchFilterUpdated()
+  filters.value.sortKey = sortKey;
+  filters.value.sortBy = !filters.value.sortBy;
+  onSearchFilterUpdated();
 }
 
 function onModalClose() {
-  showModal.value = false
+  showModal.value = false;
 }
 </script>

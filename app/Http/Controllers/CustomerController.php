@@ -99,6 +99,7 @@ class CustomerController extends Controller
                 'customers.id',
                 'customers.begin_date as begin_date',
                 'customers.operator_id',
+                'customers.preferred_visit_days_json',
                 'customers.zone_id',
                 'operators.code as operator_code',
                 'operators.name as operator_name',
@@ -134,6 +135,7 @@ class CustomerController extends Controller
                     })->orderBy('name')->get()
             ),
             'cmsEndpoint' => env('CMS_URL'),
+            'days' => Customer::DAYS_MAPPING,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('name')->get()
             ),
@@ -241,49 +243,47 @@ class CustomerController extends Controller
     {
         $customerInit = Customer::findOrFail($id);
 
-            // dd($request->all());
-            if($request->selling_price_type) {
-                $type = $request->selling_price_type;
-            }else {
-                $type = $customerInit->selling_price_type;
-            }
+        if($request->selling_price_type) {
+            $type = $request->selling_price_type;
+        }else {
+            $type = $customerInit->selling_price_type;
+        }
 
-            // dd($type);
-
-            $customer = Customer::query()
-            ->with([
-                'attachments',
-                'billingAddress',
-                'category',
-                'category.categoryGroup',
-                'contact',
-                'deliveryAddress',
-                'firstTransaction',
-                'profile',
-                'status',
-                'tagBindings',
-                'vend:id,code,customer_id,product_mapping_id',
-                'vend.productMapping.attachments' => function ($query) use ($type) {
-                    // $query->when($type, function ($query, $type) {
-                    //     $query->where('type', $type);
-                    // });
-                    $query->where('type', $type);
-                },
-                'vend.vendChannels:id,amount,amount2,code,vend_id,product_id',
-                'vend.vendChannels.product:id,name,code,desc',
-                'vend.vendChannels.product.sellingPrices' => function ($query) use ($type) {
-                    // $query->when($type, function ($query, $type) {
-                    //     $query->where('type', $type);
-                    // });
-                    $query->where('type', $type);
-                },
-                'vend.vendChannels.product.thumbnail',
-                'zone',
-            ])
-            ->find($id);
+        $customer = Customer::query()
+        ->with([
+            'attachments',
+            'billingAddress',
+            'category',
+            'category.categoryGroup',
+            'contact',
+            'deliveryAddress',
+            'firstTransaction',
+            'profile',
+            'status',
+            'tagBindings',
+            'vend:id,code,customer_id,product_mapping_id',
+            'vend.productMapping.attachments' => function ($query) use ($type) {
+                // $query->when($type, function ($query, $type) {
+                //     $query->where('type', $type);
+                // });
+                $query->where('type', $type);
+            },
+            'vend.vendChannels:id,amount,amount2,code,vend_id,product_id',
+            'vend.vendChannels.product:id,name,code,desc',
+            'vend.vendChannels.product.sellingPrices' => function ($query) use ($type) {
+                // $query->when($type, function ($query, $type) {
+                //     $query->where('type', $type);
+                // });
+                $query->where('type', $type);
+            },
+            'vend.vendChannels.product.thumbnail',
+            'zone',
+        ])
+        ->find($id);
 
         return Inertia::render('Customer/Edit', [
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
+            'days' => Customer::DAYS_MAPPING,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('name')->get()
             ),
@@ -436,6 +436,7 @@ class CustomerController extends Controller
 
     public function update(Request $request, $id)
     {
+        // dd($request->all());
         $customer = Customer::find($id);
         $vend = Vend::find($request->id);
 
