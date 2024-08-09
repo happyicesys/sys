@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\OpsJob;
 use App\Models\VendTemp;
 use App\Models\Scopes\OperatorVendFilterScope;
 use Carbon\Carbon;
@@ -265,6 +266,26 @@ class Vend extends Model
     public function opsJobItems()
     {
         return $this->hasMany(OpsJobItem::class);
+    }
+
+    public function lastOpsJobItem()
+    {
+        return $this->hasOne(OpsJobItem::class)
+                    ->whereHas('opsJob', function ($query) {
+                        $query->where('date', '<=', Carbon::today()->endOfDay());
+                    })
+                    ->where('status', '>=', OpsJob::STATUS_DELIVERED)
+                    ->latest();
+    }
+
+    public function nextOpsJobItem()
+    {
+        return $this->hasOne(OpsJobItem::class)
+                    ->whereHas('opsJob', function ($query) {
+                        $query->where('date', '>=', Carbon::today()->startOfDay());
+                    })
+                    ->where('status', '<', OpsJob::STATUS_DELIVERED)
+                    ->oldest();
     }
 
     public function outOfStockVendChannels()

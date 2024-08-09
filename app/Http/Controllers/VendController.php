@@ -315,6 +315,8 @@ class VendController extends Controller
         $vends = Customer::query()
             ->with([
                 'nextInvoiceDriver',
+                'vend.lastOpsJobItem.opsJob.deliveredBy',
+                'vend.nextOpsJobItem.opsJob.deliveredBy',
                 'vend.vendChannels',
                 'vend.vendChannels.product.thumbnail',
                 'vend.vendChannels.product.sellingPrices',
@@ -480,7 +482,7 @@ class VendController extends Controller
             'driverOptions' => UserResource::collection(
                 User::whereHas('roles', function($query) use ($request) {
                     $query
-                        ->whereIn('name', ['driver', 'supervisor', 'technician'])
+                        ->whereIn('name', ['admin', 'driver', 'supervisor', 'technician'])
                         ->when($request->operators, function($query, $search) {
                             $query->whereIn('operator_id', $search);
                         });

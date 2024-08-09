@@ -1050,38 +1050,45 @@
 							</span>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
-							<span v-if="vend.cms_invoice_history && 'last_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
-									{{ vend.cms_invoice_history['last_delivery_driver'] }} <br>
-							</span>
-							<span :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
-									{{ vend.last_invoice_date }}
-									<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
-										:class="[(vend.last_invoice_diff_count >= 5 && vend.last_invoice_diff_count < 7) ? 'bg-yellow-200' : (vend.last_invoice_diff_count >= 7 ? 'bg-red-200' : '') ]"
-										v-if="vend.last_invoice_diff"
-									>
-										<span>
-											{{ vend.last_invoice_diff }}
-										</span>
-									</div>
-							</span>
+							<div>
+								<span v-if="vend.cms_invoice_history && 'last_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
+										{{ vend.cms_invoice_history['last_delivery_driver'] }} <br>
+								</span>
+								<span :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
+										{{ vend.last_invoice_date }}
+										<div
+											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
+											:class="[(vend.last_invoice_diff_count >= 5 && vend.last_invoice_diff_count < 7) ? 'bg-yellow-200' : (vend.last_invoice_diff_count >= 7 ? 'bg-red-200' : '') ]"
+											v-if="vend.last_invoice_diff"
+										>
+											<span>
+												{{ vend.last_invoice_diff }}
+											</span>
+										</div>
+								</span>
+							</div>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
-							<span v-if="vend.cms_invoice_history && 'next_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
-										{{ vend.cms_invoice_history['next_delivery_driver'] }} <br>
-							</span>
-							<span :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
-									{{ vend.next_invoice_date }} <br>
-									<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
-										:class="[(vend.next_invoice_diff_count < 1 &&  vend.next_invoice_diff_count > 0) ? 'bg-green-200' : ((vend.next_invoice_diff_count > -1 && vend.next_invoice_diff_count < 0) ? 'bg-yellow-200' : '') ]"
-										v-if="vend.next_invoice_diff"
-									>
-										<span>
-											{{ vend.next_invoice_diff }}
-										</span>
-									</div>
-							</span>
+							<div v-if="!vend.nextOpsJobItem">
+								<span v-if="vend.cms_invoice_history && 'next_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
+											{{ vend.cms_invoice_history['next_delivery_driver'] }} <br>
+								</span>
+								<span :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
+										{{ vend.next_invoice_date }} <br>
+										<div
+											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
+											:class="[(vend.next_invoice_diff_count < 1 &&  vend.next_invoice_diff_count > 0) ? 'bg-green-200' : ((vend.next_invoice_diff_count > -1 && vend.next_invoice_diff_count < 0) ? 'bg-yellow-200' : '') ]"
+											v-if="vend.next_invoice_diff"
+										>
+											<span>
+												{{ vend.next_invoice_diff }}
+											</span>
+										</div>
+								</span>
+							</div>
+							<div v-if="vend.nextOpsJobItem">
+								{{ vend.nextOpsJobItem.opsJob.deliveredBy.name }}
+							</div>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-2">

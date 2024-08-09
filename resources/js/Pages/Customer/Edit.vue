@@ -193,14 +193,13 @@
                     </div>
                   </div>
                 </div>
-                <div class="sm:col-span-6">
+                <div class="sm:col-span-6 mb-3">
                   <AttachmentListProductMapping
                     :items="customer.vend.product_mapping.attachments"
                     :priceTypeOptions="sellingPriceTypeOptions"
                     v-if="customer.vend && customer.vend.product_mapping && customer.vend.product_mapping.attachments"
                   >
                   </AttachmentListProductMapping>
-
                 </div>
 
                 <!-- Binded Machine Section -->
@@ -255,7 +254,7 @@
                     </Button>
                     <Button
                       type="button"
-                      class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                      class="bg-red-500 hover:bg-red-600 text-white flex space-x-1 w-full md:w-fit my-1"
                       v-if="customer.vend && permissions.includes('update customers')"
                       @click.prevent="unbindCustomer(customer.vend.id)"
                     >
@@ -435,9 +434,9 @@
                         </label>
                       </div>
                   </div>
+                </div>
 
-
-                  <div class="sm:col-span-6 pt-2 mt-2 md:pt-5 md:pb-3">
+                  <div class="sm:col-span-6 pt-2 mt-2 md:pt-5 pb-3">
                     <div class="relative">
                       <div class="absolute inset-0 flex items-center" aria-hidden="true">
                         <div class="w-full border-t border-gray-300"></div>
@@ -449,7 +448,18 @@
                   </div>
 
                   <div class="sm:col-span-6">
-                    <FormInput v-model="form.address.map_url" :error="form.errors['address.map_url']"> Google Map URL </FormInput>
+                    <FormInput v-model="form.address.map_url" :error="form.errors['address.map_url']">
+                      <div class="flex space-x-1">
+                        <span>
+                          Google Map URL
+                        </span>
+                        <span v-if="form.address.map_url">
+                          <a class="text-blue-700" target="_blank" rel="noopener noreferrer" :href=" '//' + form.address.map_url">
+                            <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
+                          </a>
+                        </span>
+                      </div>
+                    </FormInput>
                   </div>
                   <div class="sm:col-span-6">
                     <SearchAddressInput v-model="form.address.postcode" @selected="onAddressSelected" :error="form.errors['address.postcode']" :disabled="customer.person_id"> Postcode </SearchAddressInput>
@@ -499,11 +509,11 @@
 
                   <!-- Save and Delete Buttons -->
                   <div class="sm:col-span-6 mt-3 pt-2">
-                    <span class="flex justify-between">
-                      <span class="flex space-x-1">
+                    <span class="flex flex-col space-y-1 md:flex-row justify-between">
+                      <span class="flex flex-col space-y-1 md:flex-row md:space-x-1">
                         <Button
                           type="button"
-                          class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
+                          class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 w-full"
                           v-if="permissions.includes('update customers')"
                           @click.prevent="saveCustomer(form.id)"
                         >
@@ -511,13 +521,13 @@
                           <span> Save Customer </span>
                         </Button>
                         <Link :href="'/customers'">
-                          <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1">
+                          <Button class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 w-full">
                             <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                             <span> Back </span>
                           </Button>
                         </Link>
                       </span>
-                      <span class="flex space-x-1">
+                      <span class="flex flex-col md:flex-row space-x-1">
                         <Button
                           type="button"
                           class="bg-yellow-500 hover:bg-yellow-600 text-gray-800 flex space-x-1"
@@ -539,7 +549,6 @@
                       </span>
                     </span>
                   </div>
-                </div>
 
                 <!-- Attachment Section -->
                 <div class="sm:col-span-6 mt-5 pb-1 md:pt-5 md:pb-3">
@@ -578,7 +587,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import { ArrowUturnLeftIcon, CheckCircleIcon, ExclamationCircleIcon, StopCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, ExclamationCircleIcon, StopCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';

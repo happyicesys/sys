@@ -130,12 +130,6 @@
                         Product
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Cap
-                      </th>
-                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Bal
-                      </th>
-                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Needed
                       </th>
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']">
@@ -165,12 +159,6 @@
                             <br> {{ channel.product.name }}
                           </span>
                         </span>
-                      </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800">
-                        {{ channel.capacity }}
-                      </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800">
-                        {{ channel.qty }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900">
                         {{ channel.capacity - channel.qty }}
