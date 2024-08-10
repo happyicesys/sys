@@ -46,7 +46,7 @@ trait HasFilter {
                 $query = $query->where($columnName, $operatorId);
             }
 
-            $vendIds = auth()->user()->vends ? auth()->user()->vends->pluck('id')->toArray() : null;
+            $vendIds = auth()->user()->vends?->pluck('id')->toArray();
             if($vendIds != null) {
                 $query->whereIn('vends.id', $vendIds);
             }

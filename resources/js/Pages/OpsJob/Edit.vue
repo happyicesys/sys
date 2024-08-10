@@ -114,7 +114,7 @@
                       <thead class="bg-gray-50">
                         <tr class="bg-gray-200">
                           <th scope="col" colspan="10" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            <span class="flex space-x-2">
+                            <span class="flex flex-col md:flex-row space-y-2 md:space-y-0 text-left md:space-x-2">
                               <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code" @input="onSearchFilterUpdated()">
                                   Machine ID
                               </SearchInput>
@@ -129,32 +129,38 @@
                             #
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Machine ID
+                            <div class="flex flex-col space-y-2">
+                              <span>
+                                Machine ID
+                              </span>
+                              <span>
+                                Machine Prefix
+                              </span>
+                            </div>
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Machine Prefix
-                          </th>
-                          <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Customer
+                            Action
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Ops Note
+                            <div class="flex flex-col space-y-2">
+                              <span>
+                                Status
+                              </span>
+                              <span>
+                                Customer
+                              </span>
+                            </div>
                           </th>
+
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Remarks
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Status
-                          </th>
-                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Stock In
+                            Ops Note
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900"
                             v-if="permissions.includes('admin-access operations')">
                             CMS Empty Inv
-                          </th>
-                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Delete
                           </th>
                         </tr>
 
@@ -170,50 +176,58 @@
                               /> -->
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ opsJobItem.vend.code }}
-                          </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ opsJobItem.vend && opsJobItem.vend.vendPrefix ? opsJobItem.vend.vendPrefix.name : '' }}
-                          </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                            <span v-if="opsJobItem.vend.customer && opsJobItem.vend.customer.person_id">
-                                {{ opsJobItem.vend.customer.virtual_customer_code }} ({{ opsJobItem.vend.customer.virtual_customer_prefix }})
-                                <br>
-                                {{ opsJobItem.vend.customer.name }}
-                            </span>
-                            <span v-else>
-                              <span v-if="opsJobItem.vend.customer && opsJobItem.vend.customer.code">
-                                {{ opsJobItem.vend.customer.code }} <br>
+                            <div class="flex flex-col space-y-2">
+                              <span>
+                                {{ opsJobItem.vend.code }}
                               </span>
-                              {{ opsJobItem.vend.customer && opsJobItem.vend.customer.name ? opsJobItem.vend.customer.name : ''}}
-                            </span>
-                          </td>
-                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                            {{ opsJobItem.vend.customer ? opsJobItem.vend.customer.ops_note : '' }}
-                          </td>
-                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                            {{ opsJobItem.remarks }}
-                          </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            <div
-                                class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs"
-                                :class="statusClass(opsJobItem.status)"
-                            >
-                                <div class="flex flex-col">
-                                    <span class="font-semibold grow-0">
-                                      {{ opsJobItem.status_name }}
-                                    </span>
-                                </div>
+                              <span>
+                                {{ opsJobItem.vend && opsJobItem.vend.vendPrefix ? opsJobItem.vend.vendPrefix.name : '' }}
+                              </span>
                             </div>
                           </td>
-                          <td class="whitespace-nowrap py-4 px-4 text-sm font-semibold text-gray-900 text-center">
+                          <td class="whitespace-nowrap py-3 px-3 text-xs font-semibold text-gray-900 text-center">
                             <Button
                               class="bg-green-400 hover:bg-green-500 text-white"
                               @click.prevent="onChannelClicked(opsJobItem)"
                               v-if="permissions.includes('update operations')"
                             >
-                              <ArrowRightCircleIcon class="w-5 h-5"></ArrowRightCircleIcon>
+                              <ArrowRightCircleIcon class="w-4 h-4"></ArrowRightCircleIcon>
                             </Button>
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                            <div class="flex flex-col space-y-1">
+                              <span>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs"
+                                    :class="statusClass(opsJobItem.status)"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-semibold grow-0">
+                                          {{ opsJobItem.status_name }}
+                                        </span>
+                                    </div>
+                                </div>
+                              </span>
+                              <span>
+                                <span v-if="opsJobItem.vend.customer && opsJobItem.vend.customer.person_id">
+                                    {{ opsJobItem.vend.customer.virtual_customer_code }} ({{ opsJobItem.vend.customer.virtual_customer_prefix }})
+                                    <br>
+                                    {{ opsJobItem.vend.customer.name }}
+                                </span>
+                                <span v-else>
+                                  <span v-if="opsJobItem.vend.customer && opsJobItem.vend.customer.code">
+                                    {{ opsJobItem.vend.customer.code }} <br>
+                                  </span>
+                                  {{ opsJobItem.vend.customer && opsJobItem.vend.customer.name ? opsJobItem.vend.customer.name : ''}}
+                                </span>
+                              </span>
+                            </div>
+                          </td>
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                            {{ opsJobItem.remarks }}
+                          </td>
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                            {{ opsJobItem.vend.customer ? opsJobItem.vend.customer.ops_note : '' }}
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center" v-if="permissions.includes('admin-access operations')">
                             <div class="flex items-center justify-center">
@@ -225,7 +239,7 @@
                               </span>
                             </div>
                           </td>
-                          <td class="whitespace-nowrap py-4 text-sm text-center">
+                          <!-- <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button
                               class="bg-red-400 hover:bg-red-500 text-white"
                               :class="[opsJobItem.status >= 3 ? 'opacity-50 cursor-not-allowed' : '']"
@@ -235,7 +249,7 @@
                             >
                               <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                             </Button>
-                          </td>
+                          </td> -->
                         </tr>
                         <tr v-if="!opsJob.opsJobItems || !opsJob.opsJobItems.length">
                           <td colspan="10" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
@@ -251,8 +265,8 @@
 
 
             <div class="sm:col-span-6 mt-5 ">
-              <div class="flex justify-between">
-                <div class="flex space-x-1">
+              <div class="flex flex-col space-y-1 md:space-y-0 md:flex-row md:justify-between">
+                <div class="flex flex-col space-y-1 md:space-y-0 md:flex-row md:space-x-1">
                   <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                   @click.prevent="onGeneratePickListClicked()"
                   v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 2)"
@@ -276,10 +290,10 @@
                     </span>
                   </Button>
                 </div>
-                <div class="flex space-x-1 justify-end">
+                <div class="flex space-x-1 md:justify-end">
                   <Link :href="'/ops-jobs'">
                     <Button
-                      type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                      type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 "
                     >
                       <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                       <span>

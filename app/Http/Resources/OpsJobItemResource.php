@@ -34,6 +34,7 @@ class OpsJobItemResource extends JsonResource
             'created_by' => UserResource::make($this->whenLoaded('createdBy')),
             'delivered_by' => UserResource::make($this->whenLoaded('deliveredBy')),
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
+            'opsJob' => OpsJobResource::make($this->whenLoaded('opsJob')),
             'opsJobItemChannels' => OpsJobItemChannelResource::collection($this->whenLoaded('opsJobItemChannels')),
             'picked_at' => isset($this->picked_at) ? $this->picked_at->format('ymd h:i a') : '',
             'picked_by' => $this->picked_by,

@@ -13,7 +13,7 @@
         </div>
       </template>
       <template #default>
-        <div class="px-2 border-b mb-2 border-gray-100">
+        <div class="px-2 border-b mb-2 border-gray-100 text-left">
           <dl class="divide-y divide-gray-100">
             <div class="px-4 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
               <dt class="text-sm font-medium leading-6 text-gray-900">
@@ -97,10 +97,10 @@
             </div>
           </dl>
         </div>
-        <div class="flex justify-end mb-2">
+        <div class="flex md:justify-end mb-2 px-4 py-4">
         <Button
             type="button"
-            class=" px-1 py-1 mt-1 ml-1 text-xs  flex space-x-1 bg-green-500 hover:bg-green-600 text-white"
+            class="px-2 py-2 mt-1 ml-1 text-xs md:text-md flex space-x-1 bg-green-500 hover:bg-green-600 text-white w-full md:w-fit"
             @click.prevent="onSaveFormClicked()"
         >
           <span class="flex space-x-1 items-center">
@@ -130,13 +130,16 @@
                         Product
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Needed
+                        Needed/ Cap
                       </th>
-                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']">
+                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
                         Picked
                       </th>
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                         Stock In
+                      </th>
+                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                        VMC Adjust
                       </th>
                     </tr>
                   </thead>
@@ -161,21 +164,24 @@
                         </span>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900">
-                        {{ channel.capacity - channel.qty }}
+                        {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']">
-                        <FormInput inputType="number" v-model="channel.picked" :maxValue="channel.capacity - channel.qty" class="text-center" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
+                        <FormInput inputType="number" v-model="channel.picked" :maxValue="channel.capacity" class="text-center min-w-12" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                         </FormInput>
                         <span v-if="opsJobItem.status >= 2">
                           {{ channel.picked }}
                         </span>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                        <FormInput inputType="number" v-model="channel.refill" :maxValue="channel.picked" class="text-center" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
+                        <FormInput inputType="number" v-model="channel.refill" :maxValue="channel.picked" class="text-center min-w-12" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                         </FormInput>
                         <span v-if="opsJobItem.status > 2">
                           {{ channel.refill }}
                         </span>
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status >= 2">
+                        {{ channel.refill - channel.capacity }}
                       </td>
                     </tr>
                   </tbody>

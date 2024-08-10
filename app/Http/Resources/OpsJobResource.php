@@ -35,7 +35,7 @@ class OpsJobResource extends JsonResource
                         && Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 0
                     )
                     ? 'tomorrow'
-                    : Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffForHumans(['options' => Carbon::ONE_DAY_WORDS])
+                    : (Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 0 ? ('Next ' . ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days') : ('Last ' . ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days'))
                 )
             )
             : null,
@@ -49,8 +49,8 @@ class OpsJobResource extends JsonResource
             'picked_at' => $this->picked_at,
             'pickedBy' => UserResource::make($this->whenLoaded('pickedBy')),
             'updatedBy' => UserResource::make($this->whenLoaded('updatedBy')),
-            'created_at' => $this->created_at->format('ymd h:i a'),
-            'updated_at' => $this->updated_at->format('ymd h:i a'),
+            'created_at' => isset($this->created_at) ? $this->created_at->format('ymd h:i a') : null,
+            'updated_at' => isset($this->updated_at) ? $this->updated_at->format('ymd h:i a') : null,
         ];
     }
 }

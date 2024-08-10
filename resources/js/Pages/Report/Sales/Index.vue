@@ -35,7 +35,7 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="Vend ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-            Vend ID
+            Machine ID
             <span class="text-[9px]">
               ("," for multiple)
             </span>

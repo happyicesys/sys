@@ -506,6 +506,7 @@ class ReportController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->where('vend_transactions.created_at', '>=', Carbon::parse($request->date_from)->startOfDay())
             ->where('vend_transactions.created_at', '<=', Carbon::parse($request->date_to)->endOfDay())
             ->where(function($query) {

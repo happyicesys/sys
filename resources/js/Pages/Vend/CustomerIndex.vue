@@ -662,10 +662,10 @@
 									Remaining SKU#
 								</SingleSortItem>
 								<SingleSortItem modelName="actual_stock_in_value" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('actual_stock_in_value')">
-									Refill Value
+									Refillable Value
 								</SingleSortItem>
 								<SingleSortItem modelName="actual_stock_in_qty" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('actual_stock_in_qty')">
-									Refill Qty
+									Refillable Qty
 								</SingleSortItem>
 							</div>
 						</TableHead>
@@ -1050,7 +1050,7 @@
 							</span>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
-							<div>
+							<div v-if="vend.vend && !vend.vend.lastOpsJobItem">
 								<span v-if="vend.cms_invoice_history && 'last_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
 										{{ vend.cms_invoice_history['last_delivery_driver'] }} <br>
 								</span>
@@ -1067,9 +1067,39 @@
 										</div>
 								</span>
 							</div>
+							<div v-if="vend.vend && vend.vend.lastOpsJobItem" class="flex flex-col space-y-2">
+								<span>
+									{{ vend.vend.lastOpsJobItem.opsJob.deliveredBy.name }}
+								</span>
+								<span class="flex flex-col space-y-1">
+									<span>
+										{{ vend.vend.lastOpsJobItem.opsJob.date }}
+									</span>
+									<div
+										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
+										:class="[(vend.vend.lastOpsJobItem.opsJob.date_diff_count < 1 &&  vend.vend.lastOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.vend.lastOpsJobItem.opsJob.date_diff_count > -1 && vend.vend.lastOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
+										v-if="vend.vend.lastOpsJobItem.opsJob.date_diff_human"
+									>
+										<span>
+											{{ vend.vend.lastOpsJobItem.opsJob.date_diff_human }}
+										</span>
+									</div>
+								</span>
+								<span class="flex flex-col space-y-1">
+									<span class="underline">
+										{{ vend.vend.lastOpsJobItem.status_name }}
+									</span>
+									<span v-if="vend.vend.lastOpsJobItem.status >= 2 && vend.vend.lastOpsJobItem.status <= 3">
+										Cost: {{ operatorCountry.currency_symbol }}{{ vend.total_ops_job_stock_cost ? vend.total_ops_job_stock_cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+									</span>
+									<span v-if="vend.vend.lastOpsJobItem.status >= 2 && vend.vend.lastOpsJobItem.status <= 3">
+										Value: {{ operatorCountry.currency_symbol }}{{ vend.total_ops_job_stock_amount ? vend.total_ops_job_stock_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+									</span>
+								</span>
+							</div>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
-							<div v-if="!vend.nextOpsJobItem">
+							<div v-if="vend.vend && !vend.vend.nextOpsJobItem">
 								<span v-if="vend.cms_invoice_history && 'next_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
 											{{ vend.cms_invoice_history['next_delivery_driver'] }} <br>
 								</span>
@@ -1086,8 +1116,35 @@
 										</div>
 								</span>
 							</div>
-							<div v-if="vend.nextOpsJobItem">
-								{{ vend.nextOpsJobItem.opsJob.deliveredBy.name }}
+							<div v-if="vend.vend && vend.vend.nextOpsJobItem" class="flex flex-col space-y-2">
+								<span>
+									{{ vend.vend.nextOpsJobItem.opsJob.deliveredBy.name }}
+								</span>
+								<span class="flex flex-col space-y-1">
+									<span>
+										{{ vend.vend.nextOpsJobItem.opsJob.date }}
+									</span>
+									<div
+										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
+										:class="[(vend.vend.nextOpsJobItem.opsJob.date_diff_count < 1 &&  vend.vend.nextOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.vend.nextOpsJobItem.opsJob.date_diff_count > -1 && vend.vend.nextOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
+										v-if="vend.vend.nextOpsJobItem.opsJob.date_diff_human"
+									>
+										<span>
+											{{ vend.vend.nextOpsJobItem.opsJob.date_diff_human }}
+										</span>
+									</div>
+								</span>
+								<span class="flex flex-col space-y-1">
+									<span class="underline">
+										{{ vend.vend.nextOpsJobItem.status_name }}
+									</span>
+									<span v-if="vend.vend.nextOpsJobItem.status >= 2 && vend.vend.nextOpsJobItem.status <= 3">
+										Cost: {{ operatorCountry.currency_symbol }}{{ vend.total_ops_job_stock_cost ? vend.total_ops_job_stock_cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+									</span>
+									<span v-if="vend.vend.nextOpsJobItem.status >= 2 && vend.vend.nextOpsJobItem.status <= 3">
+										Value: {{ operatorCountry.currency_symbol }}{{ vend.total_ops_job_stock_amount ? vend.total_ops_job_stock_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+									</span>
+								</span>
 							</div>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_3pl')">
@@ -1644,6 +1701,7 @@
     const now = ref(moment().format('HH:mm:ss'))
 
 onMounted(() => {
+	console.log(props.vends)
   filters.value.visited = true
   vendChannelErrorsOptions.value = [
       // {'id': '', 'desc': 'All'},
