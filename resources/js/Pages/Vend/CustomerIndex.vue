@@ -684,14 +684,32 @@
 								Last30d
 							</SingleSortItem>
 						</TableHead>
-						<TableHeadSort modelName="last_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_invoice_date')" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
-							Last Visited <br>
-							yymmdd
-						</TableHeadSort>
-						<TableHeadSort modelName="next_invoice_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_invoice_date')" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
-							Next Planned Visit <br>
-							yymmdd
-						</TableHeadSort>
+						<TableHead v-if="!roles.includes('operator_3pl')">
+							<div class="flex flex-col space-y-2">
+								<span>
+									Last Stock In
+								</span>
+								<SingleSortItem modelName="last_ops_job_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_ops_job_amount')">
+									Value
+								</SingleSortItem>
+								<SingleSortItem modelName="last_ops_job_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_ops_job_count')">
+									Qty
+								</SingleSortItem>
+							</div>
+						</TableHead>
+						<TableHead v-if="!roles.includes('operator_3pl')">
+							<div class="flex flex-col space-y-2">
+								<span>
+									Next Picked
+								</span>
+								<SingleSortItem modelName="next_ops_job_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_ops_job_amount')">
+									Value
+								</SingleSortItem>
+								<SingleSortItem modelName="next_ops_job_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_ops_job_count')">
+									Qty
+								</SingleSortItem>
+							</div>
+						</TableHead>
 						<TableHead v-if="!roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-2">
 								<SingleSortItem modelName="vend_transaction_totals_json->vend_records_amount_latest" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->vend_records_amount_latest', true)">
@@ -1085,15 +1103,15 @@
 										</span>
 									</div>
 								</span>
-								<span class="flex flex-col space-y-1">
-									<span class="underline">
-										{{ vend.vend.lastOpsJobItem.status_name }}
+								<span class="flex flex-col space-y-1"
+									v-if="vend.vend.lastOpsJobItem.status >= 3"
+									:class="[vend.vend.lastOpsJobItem.status == 4 ? 'text-green-700' : (vend.vend.lastOpsJobItem.status == 98 ? 'text-red-700' : '')]"
+								>
+									<span>
+										{{ operatorCountry.currency_symbol }}{{ vend.last_ops_job_amount ? vend.last_ops_job_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</span>
-									<span v-if="vend.vend.lastOpsJobItem.status >= 2 && vend.vend.lastOpsJobItem.status <= 3">
-										Cost: {{ operatorCountry.currency_symbol }}{{ vend.total_ops_job_stock_cost ? vend.total_ops_job_stock_cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
-									</span>
-									<span v-if="vend.vend.lastOpsJobItem.status >= 2 && vend.vend.lastOpsJobItem.status <= 3">
-										Value: {{ operatorCountry.currency_symbol }}{{ vend.total_ops_job_stock_amount ? vend.total_ops_job_stock_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+									<span>
+										{{ vend.last_ops_job_count ? vend.last_ops_job_count.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</span>
 								</span>
 							</div>
@@ -1134,15 +1152,13 @@
 										</span>
 									</div>
 								</span>
-								<span class="flex flex-col space-y-1">
-									<span class="underline">
-										{{ vend.vend.nextOpsJobItem.status_name }}
+								<span class="flex flex-col space-y-1" v-if="vend.vend.nextOpsJobItem.status == 2"
+									:class="[vend.vend.nextOpsJobItem.status == 4 ? 'text-green-700' : (vend.vend.nextOpsJobItem.status == 98 ? 'text-red-700' : '')]">
+									<span>
+										{{ operatorCountry.currency_symbol }}{{ vend.next_ops_job_amount ? vend.next_ops_job_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</span>
-									<span v-if="vend.vend.nextOpsJobItem.status >= 2 && vend.vend.nextOpsJobItem.status <= 3">
-										Cost: {{ operatorCountry.currency_symbol }}{{ vend.total_ops_job_stock_cost ? vend.total_ops_job_stock_cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
-									</span>
-									<span v-if="vend.vend.nextOpsJobItem.status >= 2 && vend.vend.nextOpsJobItem.status <= 3">
-										Value: {{ operatorCountry.currency_symbol }}{{ vend.total_ops_job_stock_amount ? vend.total_ops_job_stock_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+									<span>
+										{{ vend.next_ops_job_count ? vend.next_ops_job_count.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</span>
 								</span>
 							</div>
@@ -1701,7 +1717,6 @@
     const now = ref(moment().format('HH:mm:ss'))
 
 onMounted(() => {
-	console.log(props.vends)
   filters.value.visited = true
   vendChannelErrorsOptions.value = [
       // {'id': '', 'desc': 'All'},

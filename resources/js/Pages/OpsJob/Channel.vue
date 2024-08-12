@@ -112,6 +112,23 @@
         </Button>
         </div>
 
+        <div class="sm:col-span-6 pb-2 md:pt-2 md:pb-3">
+          <div class="relative">
+            <div class="absolute inset-0 flex items-center" aria-hidden="true">
+              <div class="w-full border-t border-gray-300"></div>
+            </div>
+            <div class="relative flex justify-center ">
+              <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Attachment(s) </span>
+            </div>
+          </div>
+        </div>
+        <div class="sm:col-span-6">
+          <AttachmentList :items="opsJobItem.attachments"></AttachmentList>
+        </div>
+        <div class="sm:col-span-6">
+          <UploadFileInput :endpoint="'/ops-jobs/items/' + opsJobItem.id + '/upload-attachments'"></UploadFileInput>
+        </div>
+
 
         <div class="flex flex-col">
           <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
@@ -181,7 +198,7 @@
                         </span>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status >= 2">
-                        {{ channel.refill - channel.capacity }}
+                        {{ channel.refill - (channel.capacity - channel.qty) }}
                       </td>
                     </tr>
                   </tbody>

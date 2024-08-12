@@ -252,7 +252,7 @@ class VendDataService
             // SyncVendParameter::dispatchSync($processedInput, $vend);
             break;
           default:
-            $saveVendData = false;
+            $saveVendData = true;
         }
       }
       UpdateVendLastUpdated::dispatch($vend)->onQueue('default');

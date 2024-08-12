@@ -393,55 +393,87 @@ class VendController extends Controller
             ->leftJoin(DB::raw('
                 (
                     SELECT
-                        ops_job_items.vend_id,
-                        SUM(
-                            CASE
-                                WHEN ops_job_items.status = 2 THEN ops_job_item_channels.picked_qty * unit_costs.cost
-                                WHEN ops_job_items.status = 3 THEN ops_job_item_channels.actual_qty * unit_costs.cost
-                                ELSE 0
-                            END
-                        ) AS total_ops_job_stock_cost
+                        last_ops_jobs_inner.vend_id,
+                        last_ops_jobs_inner.amount,
+                        last_ops_jobs_inner.count
                     FROM
-                        ops_job_item_channels
-                    INNER JOIN
-                        vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
-                    INNER JOIN
-                        ops_job_items ON ops_job_item_channels.ops_job_item_id = ops_job_items.id
-                    INNER JOIN
-                        ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
-                    INNER JOIN
-                        products ON vend_channels.product_id = products.id
-                    INNER JOIN
-                        unit_costs ON products.id = unit_costs.product_id
-                    WHERE
-                        unit_costs.is_current = true
-                    GROUP BY
-                        ops_job_items.vend_id
-                ) AS ops_job_cost
-            '), 'ops_job_cost.vend_id', '=', 'vends.id')
+                    (
+                        SELECT
+                            ops_job_items.vend_id,
+                            SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount,
+                            SUM(ops_job_item_channels.actual_qty) AS count,
+                            ROW_NUMBER() OVER (PARTITION BY ops_job_items.vend_id ORDER BY ops_job_items.created_at DESC) AS rn
+                        FROM
+                            ops_job_item_channels
+                        INNER JOIN
+                            vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
+                        INNER JOIN
+                            ops_job_items ON ops_job_item_channels.ops_job_item_id = ops_job_items.id
+                        INNER JOIN
+                            ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
+                        WHERE
+                            ops_job_items.status >= 3
+                            AND ops_job_items.created_at < CURDATE() + INTERVAL 1 DAY
+                        GROUP BY
+                            ops_job_items.vend_id, ops_job_items.created_at
+                    ) AS last_ops_jobs_inner
+                    WHERE last_ops_jobs_inner.rn = 1
+                ) AS last_ops_jobs
+            '), 'last_ops_jobs.vend_id', '=', 'vends.id')
             ->leftJoin(DB::raw('
                 (
                     SELECT
-                        ops_job_items.vend_id,
-                        SUM(
-                            CASE
-                                WHEN ops_job_items.status = 2 THEN ops_job_item_channels.picked_qty * vend_channels.amount
-                                WHEN ops_job_items.status = 3 THEN ops_job_item_channels.actual_qty * vend_channels.amount
-                                ELSE 0
-                            END
-                        ) AS total_ops_job_stock_amount
+                        next_ops_jobs_inner.vend_id,
+                        next_ops_jobs_inner.amount,
+                        next_ops_jobs_inner.count
                     FROM
-                        ops_job_item_channels
-                    INNER JOIN
-                        vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
-                    INNER JOIN
-                        ops_job_items ON ops_job_item_channels.ops_job_item_id = ops_job_items.id
-                    INNER JOIN
-                        ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
-                    GROUP BY
-                        ops_job_items.vend_id
-                ) AS ops_job_amount
-            '), 'ops_job_amount.vend_id', '=', 'vends.id')
+                    (
+                        SELECT
+                            ops_job_items.vend_id,
+                            SUM(ops_job_item_channels.picked_qty * vend_channels.amount) AS amount,
+                            SUM(ops_job_item_channels.picked_qty) AS count,
+                            ROW_NUMBER() OVER (PARTITION BY ops_job_items.vend_id ORDER BY ops_job_items.created_at ASC) AS rn
+                        FROM
+                            ops_job_item_channels
+                        INNER JOIN
+                            vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
+                        INNER JOIN
+                            ops_job_items ON ops_job_item_channels.ops_job_item_id = ops_job_items.id
+                        INNER JOIN
+                            ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
+                        WHERE
+                            ops_job_items.status = 2
+                            AND ops_job_items.created_at >= CURDATE()
+                        GROUP BY
+                            ops_job_items.vend_id, ops_job_items.created_at
+                    ) AS next_ops_jobs_inner
+                    WHERE next_ops_jobs_inner.rn = 1
+                ) AS next_ops_jobs
+            '), 'next_ops_jobs.vend_id', '=', 'vends.id')
+
+            // ->leftJoin(DB::raw('
+            //     (
+            //         SELECT
+            //             ops_job_items.vend_id,
+            //             SUM(
+            //                 CASE
+            //                     WHEN ops_job_items.status = 2 THEN ops_job_item_channels.picked_qty * vend_channels.amount
+            //                     WHEN ops_job_items.status = 3 THEN ops_job_item_channels.actual_qty * vend_channels.amount
+            //                     ELSE 0
+            //                 END
+            //             ) AS total_ops_job_stock_amount
+            //         FROM
+            //             ops_job_item_channels
+            //         INNER JOIN
+            //             vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
+            //         INNER JOIN
+            //             ops_job_items ON ops_job_item_channels.ops_job_item_id = ops_job_items.id
+            //         INNER JOIN
+            //             ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
+            //         GROUP BY
+            //             ops_job_items.vend_id
+            //     ) AS ops_job_amount
+            // '), 'ops_job_amount.vend_id', '=', 'vends.id')
             ->select(
                 'customers.id AS id',
                 'vends.id AS vend_id',
@@ -494,12 +526,15 @@ class VendController extends Controller
                 'customers.virtual_customer_prefix',
                 'customers.virtual_customer_code',
                 'location_types.name AS location_type_name',
+                'last_ops_jobs.amount AS last_ops_job_amount',
+                'last_ops_jobs.count AS last_ops_job_count',
+                'next_ops_jobs.amount AS next_ops_job_amount',
+                'next_ops_jobs.count AS next_ops_job_count',
                 'product_mappings.name AS product_mapping_name',
                 'product_mappings.remarks AS product_mapping_remarks',
                 'operators.code AS operator_code',
                 'operators.name AS operator_name',
-                'ops_job_cost.total_ops_job_stock_cost',
-                'ops_job_amount.total_ops_job_stock_amount',
+                // 'ops_job_amount.total_ops_job_stock_amount',
                 'addresses.postcode AS postcode',
                 'vend_prefixes.name AS vend_prefix_name',
                 'vc.total_stock_amount',
