@@ -198,7 +198,7 @@
                         </span>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status >= 2">
-                        {{ channel.refill - (channel.capacity - channel.qty) }}
+                        {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
                       </td>
                     </tr>
                   </tbody>

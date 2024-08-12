@@ -8,6 +8,7 @@ use App\Jobs\SyncAcbVmcPa;
 use App\Jobs\SyncAcbStatus;
 use App\Jobs\SyncDeliveryPlatformMenu;
 use App\Jobs\SyncIsMqttVend;
+use App\Jobs\UpdateHttpLastUpdated;
 use App\Jobs\Vend\CreateVendStatistics;
 use App\Jobs\Vend\CreateVendTransaction;
 use App\Jobs\Vend\GetPaymentGatewayQR;
@@ -17,7 +18,6 @@ use App\Jobs\Vend\SyncVendParameter;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
 use App\Jobs\Vend\UpdateApkVersion;
 use App\Jobs\Vend\UpdateMqttLastUpdated;
-use App\Jobs\Vend\UpdateVendLastUpdated;
 use App\Jobs\Vend\UpdateVendStatistics;
 use Carbon\Carbon;
 use PhpMqtt\Client\Facades\MQTT;
@@ -215,7 +215,6 @@ class VendDataService
             break;
           case 'CHANNEL':
             SyncVendChannels::dispatch($processedInput, $vend)->onQueue('high');
-            // SyncDeliveryPlatformMenu::dispatch($vend)->onQueue('high');
             break;
           case 'CONFIRM':
             if(isset($processedInput['orderid'])) {
@@ -224,7 +223,6 @@ class VendDataService
             break;
           case 'PWRON':
             UpdateApkVersion::dispatch($processedInput, $vend)->onQueue('default');
-            // SyncIsMqttVend::dispatch($vend)->onQueue('default');
             break;
           case 'REFILL':
             break;
@@ -249,13 +247,15 @@ class VendDataService
             break;
           case 'VENDER':
             SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
-            // SyncVendParameter::dispatchSync($processedInput, $vend);
             break;
           default:
             $saveVendData = true;
         }
       }
-      UpdateVendLastUpdated::dispatch($vend)->onQueue('default');
+
+      if($vend->connection == 'http') {
+        UpdateHttpLastUpdated::dispatch($vend)->onQueue('default');
+      }
 
       if($connectionType == 'mqtt') {
         UpdateMqttLastUpdated::dispatch($vend)->onQueue('default');
@@ -264,6 +264,7 @@ class VendDataService
           PublishMqtt::dispatch('CM'.$vend->code, $response, 0)->onQueue('default');
         }
       }
+
     }
 
     if($saveVendData) {
