@@ -41,7 +41,7 @@ class VendResource extends JsonResource
             'serial_num' => isset($this->serial_num) ? $this->serial_num : null,
             // compare last_updated_at and mqtt_last_updated_at which time is nearer to current time, then show the shortRelativeDiffForHumans
             'last_online_at' => isset($this->last_updated_at) || isset($this->mqtt_last_updated_at)
-            ? $this->getNearestTime($this->last_updated_at, $this->mqtt_last_updated_at)->diffForHumans()
+            ? $this->getNearestTime($this->last_updated_at, $this->mqtt_last_updated_at)->shortRelativeDiffForHumans()
             : null,
             'last_updated_at' => isset($this->last_updated_at) ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'lcd_monitor_id' => isset($this->lcd_monitor_id) ? $this->lcd_monitor_id : null,
