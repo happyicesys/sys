@@ -253,7 +253,7 @@ class VendDataService
         }
       }
 
-      if($vend->connection == 'http') {
+      if($connectionType == 'http') {
         UpdateHttpLastUpdated::dispatch($vend)->onQueue('default');
       }
 
