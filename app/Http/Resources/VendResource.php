@@ -39,6 +39,10 @@ class VendResource extends JsonResource
             'begin_date' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'begin_date_short' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'serial_num' => isset($this->serial_num) ? $this->serial_num : null,
+            // compare last_updated_at and mqtt_last_updated_at which time is nearer to current time, then show the shortRelativeDiffForHumans
+            'last_online_at' => isset($this->last_updated_at) || isset($this->mqtt_last_updated_at)
+            ? $this->getNearestTime($this->last_updated_at, $this->mqtt_last_updated_at)->diffForHumans()
+            : null,
             'last_updated_at' => isset($this->last_updated_at) ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'lcd_monitor_id' => isset($this->lcd_monitor_id) ? $this->lcd_monitor_id : null,
             'menu_frame_id' => isset($this->menu_frame_id) ? $this->menu_frame_id : null,
@@ -190,5 +194,15 @@ class VendResource extends JsonResource
         return collect($this->resolve())
             ->only($attributes)
             ->toArray();
+    }
+
+    protected function getNearestTime($time1, $time2)
+    {
+        $now = Carbon::now();
+
+        $diff1 = $time1 ? $now->diffInSeconds(Carbon::parse($time1)) : PHP_INT_MAX;
+        $diff2 = $time2 ? $now->diffInSeconds(Carbon::parse($time2)) : PHP_INT_MAX;
+
+        return $diff1 <= $diff2 ? Carbon::parse($time1) : Carbon::parse($time2);
     }
 }

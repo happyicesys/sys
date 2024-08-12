@@ -14,6 +14,7 @@ class UpdateHttpLastUpdated implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    protected $vend;
     /**
      * Create a new job instance.
      */

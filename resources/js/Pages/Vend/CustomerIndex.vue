@@ -1209,8 +1209,8 @@
 												<span class="font-bold">
 														{{vend.is_online ? 'Online' : 'Offline'}}
 												</span>
-												<span v-if="vend.last_updated_at">
-														{{vend.last_updated_at}}
+												<span v-if="vend.last_online_at">
+														{{vend.last_online_at}}
 												</span>
 										</div>
 

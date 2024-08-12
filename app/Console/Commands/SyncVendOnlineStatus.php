@@ -37,6 +37,7 @@ class SyncVendOnlineStatus extends Command
         foreach($vends as $vend) {
             // sync online offline
             $vend->is_online = false;
+
             if($vend->last_updated_at and $vend->last_updated_at->diffInMinutes(Carbon::now()) < 5) {
                 $vend->is_online = true;
                 $vend->is_offline_notification_sent = false;
