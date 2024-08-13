@@ -92,6 +92,7 @@ class VendResource extends JsonResource
             'is_mqtt_offline_notified' => isset($this->is_mqtt_offline_notified) && $this->is_mqtt_offline_notified ? true : false,
             'is_online' => isset($this->is_online) ? $this->is_online : null,
             'is_sensor_normal' => isset($this->is_sensor_normal) && $this->is_sensor_normal ? 'Yes' : 'No',
+            'is_temp_active' => isset($this->is_temp_active) && $this->is_temp_active ? true : false,
             'is_temp_error' => isset($this->is_temp_error) && $this->is_temp_error ? true : false,
             'is_testing' => isset($this->is_testing) && $this->is_testing ? true : false,
             'key' => KeyResource::make($this->whenLoaded('key')),

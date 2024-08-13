@@ -6,6 +6,7 @@ use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Models\Vend;
 use App\Models\VendChannel;
+use App\Models\VendChannelRecord;
 use App\Models\VendTransaction;
 use App\Models\ProductMappingItem;
 use App\Services\DeliveryProductMappingService;
@@ -49,6 +50,50 @@ class SyncVendChannels
     {
         $vend = $this->vend;
         $input = $this->input;
+
+        // handle VendChannelRecord
+        if(isset($input) and isset($input['label'])) {
+            if($input['label'] == 'B') {
+                $lastRecord = VendChannelRecord::where('vend_id', $vend->id)->orderBy('before_data_created_at', 'desc')->first();
+
+                if($lastRecord && $lastRecord->after_data_created_at == null) {
+                    $lastRecord->update([
+                        'customer_id' => $vend->customer_id,
+                        'operator_id' => $vend->operator_id,
+                        'before_data_json' => $input,
+                        'before_data_created_at' => Carbon::now(),
+                    ]);
+                }else {
+                    VendChannelRecord::create([
+                        'customer_id' => $vend->customer_id,
+                        'operator_id' => $vend->operator_id,
+                        'vend_id' => $vend->id,
+                        'before_data_json' => $input,
+                        'before_data_created_at' => Carbon::now(),
+                    ]);
+                }
+            }
+
+            if($input['label'] == 'A') {
+                $vendChannelRecord = VendChannelRecord::where('vend_id', $vend->id)->where('before_data_created_at', '>=', Carbon::now()->subHour())->orderBy('before_data_created_at', 'desc')->first();
+                if($vendChannelRecord) {
+                    $vendChannelRecord->update([
+                        'after_data_json' => $input,
+                        'after_data_created_at' => Carbon::now(),
+                    ]);
+                }
+            }
+
+            if($input['label'] == 'S') {
+                $vendChannelRecord = VendChannelRecord::where('vend_id', $vend->id)->where('before_data_created_at', '>=', Carbon::now()->subHour())->orderBy('before_data_created_at', 'desc')->first();
+                if($vendChannelRecord && $vendChannelRecord->after_data_created_at == null) {
+                    $vendChannelRecord->update([
+                        'after_data_json' => $input,
+                        'after_data_created_at' => Carbon::now(),
+                    ]);
+                }
+            }
+        }
 
         if(isset($input) and isset($input['channels'])) {
             $channels = $input['channels'];

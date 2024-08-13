@@ -37,6 +37,7 @@ class SyncVendOnlineStatus extends Command
         foreach($vends as $vend) {
             // sync online offline
             $vend->is_online = false;
+            $vend->is_temp_active = false;
 
             if($vend->last_updated_at and $vend->last_updated_at->diffInMinutes(Carbon::now()) < 15) {
                 $vend->is_online = true;
@@ -83,6 +84,11 @@ class SyncVendOnlineStatus extends Command
                         $vend->is_mqtt_offline_notified = true;
                     }
                 }
+            }
+
+            // sync temperature active or not
+            if($vend->temp_updated_at and $vend->temp_updated_at->diffInMinutes(Carbon::now()) < 15) {
+                $vend->is_temp_active = true;
             }
 
             $vend->save();

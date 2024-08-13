@@ -119,6 +119,7 @@ class Vend extends Model
         'is_offline_notification_sent',
         'is_online',
         'is_sensor_normal',
+        'is_temp_active',
         'is_temp_error',
         'is_testing',
         'key_id',
