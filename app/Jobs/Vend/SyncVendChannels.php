@@ -54,7 +54,7 @@ class SyncVendChannels implements ShouldQueue
         // handle VendChannelRecord
         if(isset($input) and isset($input['label'])) {
 
-            $input['channels'] = array_values(array_filter($data['channels'], function($channel) {
+            $input['channels'] = array_values(array_filter($input['channels'], function($channel) {
                 return $channel['capacity'] > 0;
             }));
 
