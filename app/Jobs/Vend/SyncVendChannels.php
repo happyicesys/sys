@@ -169,16 +169,16 @@ class SyncVendChannels implements ShouldQueue
                 }
 
                 // handle vend channel record items
-                if($vendChannelRecord) {
-                    $vendChannelRecord->vendChannelRecordItems()->updateOrCreate([
-                        'vend_channel_id' => $vendChannel->id,
-                    ], [
-                        'amount' => $vendChannel->amount,
-                        'amount2' => $vendChannel->amount2,
-                        'capacity' => $vendChannel->capacity,
-                        'qty' => $vendChannel->qty,
-                    ]);
-                }
+                // if($vendChannelRecord) {
+                //     $vendChannelRecord->vendChannelRecordItems()->updateOrCreate([
+                //         'vend_channel_id' => $vendChannel->id,
+                //     ], [
+                //         'amount' => $vendChannel->amount,
+                //         'amount2' => $vendChannel->amount2,
+                //         'capacity' => $vendChannel->capacity,
+                //         'qty' => $vendChannel->qty,
+                //     ]);
+                // }
             }
             SaveVendChannelsJson::dispatch($vend->id, $this->input)->onQueue('default');
             $this->deliveryProductMappingService->syncVendChannels(null, $vend->id);
