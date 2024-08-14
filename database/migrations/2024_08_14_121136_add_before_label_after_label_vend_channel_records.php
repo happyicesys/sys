@@ -15,7 +15,7 @@ return new class extends Migration
             $table->char('before_label')->nullable()->after('before_data_created_at');
             $table->char('after_label')->nullable()->after('after_data_created_at');
             $table->json('stage_data_json')->nullable()->after('customer_id');
-            $table->json('stage_data_created_at')->nullable()->after('customer_id')->index();
+            $table->datetime('stage_data_created_at')->nullable()->after('customer_id')->index();
             $table->char('stage_label')->nullable()->after('customer_id');
         });
     }
