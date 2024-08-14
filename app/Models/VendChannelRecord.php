@@ -12,8 +12,10 @@ class VendChannelRecord extends Model
     protected $fillable = [
         'after_data_json',
         'after_data_created_at',
+        'after_label',
         'before_data_json',
         'before_data_created_at',
+        'before_label',
         'customer_id',
         'operator_id',
         'vend_id',
@@ -22,8 +24,10 @@ class VendChannelRecord extends Model
     protected $casts = [
         'after_data_json' => 'json',
         'before_data_json' => 'json',
+        'stage_data_json' => 'json',
         'after_data_created_at' => 'datetime',
         'before_data_created_at' => 'datetime',
+        'stage_data_created_at' => 'datetime',
     ];
 
     // relationships

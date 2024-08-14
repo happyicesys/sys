@@ -20,8 +20,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class SyncVendChannels
-//implements ShouldQueue
+class SyncVendChannels implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -50,9 +49,15 @@ class SyncVendChannels
     {
         $vend = $this->vend;
         $input = $this->input;
+        $vendChannelRecord = null;
 
         // handle VendChannelRecord
         if(isset($input) and isset($input['label'])) {
+
+            $input['channels'] = array_values(array_filter($data['channels'], function($channel) {
+                return $channel['capacity'] > 0;
+            }));
+
             if($input['label'] == 'B') {
                 $lastRecord = VendChannelRecord::where('vend_id', $vend->id)->orderBy('before_data_created_at', 'desc')->first();
 
@@ -62,34 +67,48 @@ class SyncVendChannels
                         'operator_id' => $vend->operator_id,
                         'before_data_json' => $input,
                         'before_data_created_at' => Carbon::now(),
+                        'before_label' => $input['label'],
                     ]);
                 }else {
-                    VendChannelRecord::create([
+                    $vendChannelRecord = VendChannelRecord::create([
                         'customer_id' => $vend->customer_id,
                         'operator_id' => $vend->operator_id,
                         'vend_id' => $vend->id,
                         'before_data_json' => $input,
                         'before_data_created_at' => Carbon::now(),
+                        'before_label' => $input['label'],
                     ]);
                 }
             }
 
             if($input['label'] == 'A') {
-                $vendChannelRecord = VendChannelRecord::where('vend_id', $vend->id)->where('before_data_created_at', '>=', Carbon::now()->subHour())->orderBy('before_data_created_at', 'desc')->first();
+                $vendChannelRecord = VendChannelRecord::query()
+                    ->where('vend_id', $vend->id)
+                    ->where('before_data_created_at', '>=', Carbon::now()->subHour())
+                    ->whereNull('after_data_created_at')
+                    ->orderBy('before_data_created_at', 'desc')
+                    ->first();
                 if($vendChannelRecord) {
                     $vendChannelRecord->update([
                         'after_data_json' => $input,
                         'after_data_created_at' => Carbon::now(),
+                        'after_label' => $input['label'],
                     ]);
                 }
             }
 
             if($input['label'] == 'S') {
-                $vendChannelRecord = VendChannelRecord::where('vend_id', $vend->id)->where('before_data_created_at', '>=', Carbon::now()->subHour())->orderBy('before_data_created_at', 'desc')->first();
-                if($vendChannelRecord && $vendChannelRecord->after_data_created_at == null) {
+                $vendChannelRecord = VendChannelRecord::query()
+                    ->where('vend_id', $vend->id)
+                    ->where('before_data_created_at', '>=', Carbon::now()->subHour())
+                    ->whereNull('after_data_created_at')
+                    ->orderBy('before_data_created_at', 'desc')
+                    ->first();
+                if($vendChannelRecord && $vendChannelRecord->stage_data_created_at == null) {
                     $vendChannelRecord->update([
-                        'after_data_json' => $input,
-                        'after_data_created_at' => Carbon::now(),
+                        'stage_data_json' => $input,
+                        'stage_data_created_at' => Carbon::now(),
+                        'stage_label' => $input['label'],
                     ]);
                 }
             }
@@ -148,6 +167,18 @@ class SyncVendChannels
                     $this->syncProductMappingItem($vendChannel, $channel);
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }
+
+                // handle vend channel record items
+                if($vendChannelRecord) {
+                    $vendChannelRecord->vendChannelRecordItems()->updateOrCreate([
+                        'vend_channel_id' => $vendChannel->id,
+                    ], [
+                        'amount' => $vendChannel->amount,
+                        'amount2' => $vendChannel->amount2,
+                        'capacity' => $vendChannel->capacity,
+                        'qty' => $vendChannel->qty,
+                    ]);
+                }
             }
             SaveVendChannelsJson::dispatch($vend->id, $this->input)->onQueue('default');
             $this->deliveryProductMappingService->syncVendChannels(null, $vend->id);
@@ -161,6 +192,13 @@ class SyncVendChannels
             return true;
         }else {
             return false;
+        }
+    }
+
+    private function getValidVendChanne($channel)
+    {
+        if($channel['capacity'] > 0 and $channel['channel_code'] >= 10 and $channel['channel_code'] <= 69) {
+            return true;
         }
     }
 
