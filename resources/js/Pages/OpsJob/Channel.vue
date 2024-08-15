@@ -167,7 +167,7 @@
                       </td>
                       <td class="whitespace-nowrap text-sm  font-semibold text-gray-800 text-center" v-if="channel.product">
                         <div class="flex justify-center items-center" >
-                          <img class="h-20 w-20 min-w-20 min-h-20 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product.is_available ? '' : 'opacity-50']"/>
+                          <img class="h-20 w-20 min-w-20 min-h-20 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
                         </div>
                       </td>
                       <td class="py-4 text-sm font-semibold text-center" :class="[(channel.product && channel.product.is_available) ? 'text-gray-800' : 'text-gray-400']" v-if="channel.product">
@@ -310,7 +310,7 @@ onMounted(() => {
     return {
       ...opsJobItemChannel.vendChannel,
       ops_job_item_channel_id: opsJobItemChannel.id,
-      picked: props.opsJobItem.status < 2 ? (opsJobItemChannel.vendChannel.product.is_available ? (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) : 0) : opsJobItemChannel.picked_qty,
+      picked: props.opsJobItem.status < 2 ? (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available ? (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) : 0) : opsJobItemChannel.picked_qty,
       refill: props.opsJobItem.status == 2 ? opsJobItemChannel.picked_qty : opsJobItemChannel.actual_qty,
       product: opsJobItemChannel.vendChannel.product ? {
         ...opsJobItemChannel.vendChannel.product,

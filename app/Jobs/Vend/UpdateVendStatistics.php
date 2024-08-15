@@ -59,7 +59,7 @@ class UpdateVendStatistics implements ShouldQueue
                         ->where('vend_id', $this->vend->id)
                         ->where('after_label', 'A')
                         ->whereNull('after_statis_json')
-                        ->orderByRaw('ABS(TIMESTAMPDIFF(SECOND, before_data_created_at, ?))', [Carbon::now()])
+                        ->orderByRaw('ABS(TIMESTAMPDIFF(SECOND, after_data_created_at, ?))', [Carbon::now()])
                         ->first();
 
                     if($vendChannelRecord) {
