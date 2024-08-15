@@ -18,6 +18,8 @@ class OpsJobItemResource extends JsonResource
         // return parent::toArray($request);
         return [
             'id' => $this->id,
+            'acc_total_amount' => $this->acc_total_amount,
+            'acc_total_count' => $this->acc_total_count,
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'cash_amount' => $this->cash_amount,
             'cashless_amount' => $this->cashless_amount,
@@ -39,11 +41,15 @@ class OpsJobItemResource extends JsonResource
             'picked_at' => isset($this->picked_at) ? $this->picked_at->format('ymd h:i a') : '',
             'picked_by' => $this->picked_by,
             'pickedBy' => UserResource::make($this->whenLoaded('pickedBy')),
+            'previous_ops_job_item' => $this->previous_ops_job_item,
+            'previousOpsJobItem' => OpsJobItemResource::make($this->whenLoaded('previousOpsJobItem')),
             'updated_by' => UserResource::make($this->whenLoaded('updatedBy')),
             'created_at' => isset($this->created_at) ? $this->created_at->format('ymd h:i a') : '',
             'updated_at' => isset($this->updated_at) ? $this->updated_at->format('ymd h:i a') : '',
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'vend_id' => $this->vend_id,
+            'vend_channel_record_id' => $this->vend_channel_record_id,
+            'vendChannelRecord' => VendChannelRecordResource::make($this->whenLoaded('vendChannelRecord')),
         ];
     }
 }

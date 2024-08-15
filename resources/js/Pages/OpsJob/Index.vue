@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Ops Job" />
+  <Head title="Daily Jobs" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Jobs
+        Daily Jobs
       </h2>
     </template>
 
@@ -22,11 +22,6 @@
           </Button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-            <div class="col-span-5 md:col-span-1">
-                <SearchInput placeholderStr="Job ID" v-model="filters.code" @keyup.enter="onSearchFilterUpdated()">
-                  Job ID
-                </SearchInput>
-            </div>
             <div class="col-span-5 md:col-span-1">
                 <DatePicker
                     v-model="filters.date_from"
@@ -131,9 +126,6 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
-                      Code
-                    </TableHeadSort>
                     <TableHeadSort modelName="date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('date')">
                       Date
                     </TableHeadSort>
@@ -141,18 +133,58 @@
                       Delivery By
                     </TableHead>
                     <TableHead>
-                      Machine Count
+                      Total Jobs
+                    </TableHead>
+                    <TableHead>
+                      <div class="flex flex-col space-y-2">
+                        <SingleSortItem modelName="ops_job_items_delivered_count_percentage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('ops_job_items_delivered_count_percentage')">
+                          Done(%)
+                        </SingleSortItem>
+                        <SingleSortItem modelName="ops_job_items_verified_count_percentage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('ops_job_items_verified_count_percentage')">
+                          Verified(%)
+                        </SingleSortItem>
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div class="flex flex-col space-y-2">
+                        <span>
+                          Stock In
+                        </span>
+                        <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
+                          Value$ (Qty)
+                        </SingleSortItem>
+                        <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
+                          Cash Amount$
+                        </SingleSortItem>
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div class="flex flex-col space-y-2">
+                        <span>
+                          Stock Out <br>
+                          (VMC, MDB)
+                        </span>
+                        <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
+                          Cash Amount$
+                        </SingleSortItem>
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div class="flex flex-col space-y-2">
+                        <span>
+                          Stock Out <br>
+                          (Transactions)
+                        </span>
+                        <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
+                          Amount$ (Qty)
+                        </SingleSortItem>
+                      </div>
                     </TableHead>
                     <TableHead>
                       Created By
                     </TableHead>
                     <TableHead>
                       Created At
-                    </TableHead>
-                    <!-- <TableHead>
-                      Count
-                    </TableHead> -->
-                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -162,25 +194,22 @@
                         {{ opsJobs.meta.from + opsJobIndex }}
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
-                        {{ opsJob.code }}
-                      </TableData>
-                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
-                        <div class="flex flex-col space-y-2">
-                          <span>
-                            {{ opsJob.date }}
-                          </span>
-                          <span>
-                            <div
-                              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
-                              :class="[(opsJob.date_diff_count < 1 &&  opsJob.date_diff_count > 0) ? 'bg-green-200' : ((opsJob.date_diff_count > -1 && opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
-                              v-if="opsJob.date_diff_human"
-                            >
+                        <Link :href="'/ops-jobs/' + opsJob.id + '/edit'">
+                          <div
+                            class="inline-flex justify-center items-center rounded px-2 py-2 text-xs font-medium border min-w-full text-blue-700 hover:cursor-pointer"
+                            :class="[(opsJob.date_diff_count < 1 &&  opsJob.date_diff_count > 0) ? 'bg-green-200' : ((opsJob.date_diff_count > -1 && opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
+                            v-if="opsJob.date"
+                          >
+                            <div class="flex flex-col space-y-1">
+                              <span>
+                                {{ opsJob.date }}
+                              </span>
                               <span>
                                 {{ opsJob.date_diff_human }}
                               </span>
                             </div>
-                          </span>
-                        </div>
+                          </div>
+                        </Link>
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
                         {{ opsJob.deliveredBy ? opsJob.deliveredBy.name : '' }}
@@ -189,24 +218,40 @@
                         {{ opsJob.ops_job_items_count }}
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
+                        <div class="flex flex-col space-y-2">
+                          <span>
+                            {{ opsJob.ops_job_items_delivered_count }} ({{ opsJob.ops_job_items_delivered_count_percentage }}%)
+                          </span>
+                          <span>
+                            {{ opsJob.ops_job_items_verified_count }} ({{ opsJob.ops_job_items_verified_count_percentage }}%)
+                          </span>
+                        </div>
+                      </TableData>
+                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
+                        <div class="flex flex-col space-y-2">
+                          <span>
+                            {{ opsJob.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{ opsJob.stock_in_count }})
+                          </span>
+                          <span>
+                            {{ opsJob.total_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span>
+                        </div>
+                      </TableData>
+                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
+                        {{ opsJob.createdBy ? opsJob.createdBy.name : '' }}
+                      </TableData>
+                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
+                        {{ opsJob.createdBy ? opsJob.createdBy.name : '' }}
+                      </TableData>
+                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
                         {{ opsJob.createdBy ? opsJob.createdBy.name : '' }}
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
                         {{ opsJob.created_at }}
                       </TableData>
+<!--
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="">
                         <div class="flex flex-col space-y-1 justify-items-center">
-                          <Link :href="'/ops-jobs/' + opsJob.id + '/edit'">
-                            <Button
-                              type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1 w-fit"
-                            >
-                              <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                              <span>
-                                  Edit
-                              </span>
-                            </Button>
-                          </Link>
-
                           <Button
                             type="button"
                             class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1 w-fit"
@@ -225,7 +270,7 @@
                             </span>
                           </Button>
                         </div>
-                      </TableData>
+                      </TableData> -->
                       </tr>
                 <tr v-if="!opsJobs.data.length">
                   <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
@@ -262,11 +307,12 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { BackspaceIcon, MagnifyingGlassIcon, PhotoIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import moment from 'moment';
 
 const props = defineProps({
@@ -287,6 +333,7 @@ const filters = ref({
 })
 const model = ref()
 const showModal = ref(false)
+const operatorCountry = usePage().props.auth.operatorCountry
 const opsJob = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])

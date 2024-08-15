@@ -12,6 +12,8 @@ class OpsJobItem extends Model
     use GetUserTimezone, HasFactory;
 
     protected $fillable = [
+        'acc_total_amount',
+        'acc_total_count',
         'cash_amount',
         'cashless_amount',
         'channels_json',
@@ -21,6 +23,7 @@ class OpsJobItem extends Model
         'customer_id',
         'notes',
         'ops_job_id',
+        'previous_ops_job_item_id',
         'remarks',
         'sequence',
         'status',
@@ -28,6 +31,7 @@ class OpsJobItem extends Model
         'picked_by',
         'updated_by',
         'vend_id',
+        'vend_channel_record_id',
     ];
 
     protected $casts = [
@@ -85,6 +89,11 @@ class OpsJobItem extends Model
         return $this->belongsTo(User::class, 'picked_by');
     }
 
+    public function previousOpsJobItem()
+    {
+        return $this->belongsTo(OpsJobItem::class, 'previous_ops_job_item_id');
+    }
+
     public function updatedBy()
     {
         return $this->belongsTo(User::class, 'updated_by');
@@ -93,6 +102,11 @@ class OpsJobItem extends Model
     public function vend()
     {
         return $this->belongsTo(Vend::class, 'vend_id');
+    }
+
+    public function vendChannelRecord()
+    {
+        return $this->belongsTo(VendChannelRecord::class);
     }
 
 }

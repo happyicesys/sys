@@ -20,19 +20,6 @@
           <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Job ID#
-              </label>
-              <div class="mt-1">
-                <input
-                  type="text"
-                  class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                  :value=" opsJob ? opsJob.code : ''"
-                  disabled
-                />
-              </div>
-            </div>
-            <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Date
               </label>
               <div class="mt-1">
