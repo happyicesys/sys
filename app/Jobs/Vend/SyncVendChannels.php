@@ -235,22 +235,37 @@ class SyncVendChannels implements ShouldQueue
 
     private function syncVendChannelRecordVMCBeforeQty(VendChannelRecord $vendChannelRecord)
     {
-        if($vendChannelRecord->opsJobItem && $vendChannelRecord->opsJobItem->opsJobItemChannels()->exists()) {
-            $vendChannelRecord->opsJobItem->opsJobItemChannels->each(function($opsJobItemChannel) {
-                $opsJobItemChannel->update([
-                    'vmc_before_qty' => $vendChannelRecord->before_data_json['channels'][$opsJobItemChannel->vend_channel_code]['qty'],
-                ]);
+        if ($vendChannelRecord->opsJobItem && $vendChannelRecord->opsJobItem->opsJobItemChannels()->exists()) {
+            $vendChannelRecord->opsJobItem->opsJobItemChannels->each(function($opsJobItemChannel) use ($vendChannelRecord) {
+                $channels = $vendChannelRecord->before_data_json['channels'] ?? [];
+
+                foreach ($channels as $channel) {
+                    if (isset($channel['channel_code']) && $channel['channel_code'] == $opsJobItemChannel->vend_channel_code) {
+                        $opsJobItemChannel->update([
+                            'vmc_before_qty' => $channel['qty'], // Update with the 'qty' value from the matched channel
+                        ]);
+                        break; // Exit the loop once the matching channel is found
+                    }
+                }
             });
         }
     }
 
+
     private function syncVendChannelRecordVMCAfterQty(VendChannelRecord $vendChannelRecord)
     {
-        if($vendChannelRecord->opsJobItem && $vendChannelRecord->opsJobItem->opsJobItemChannels()->exists()) {
-            $vendChannelRecord->opsJobItem->opsJobItemChannels->each(function($opsJobItemChannel) {
-                $opsJobItemChannel->update([
-                    'vmc_after_qty' => $vendChannelRecord->after_data_json['channels'][$opsJobItemChannel->vend_channel_code]['qty'],
-                ]);
+        if ($vendChannelRecord->opsJobItem && $vendChannelRecord->opsJobItem->opsJobItemChannels()->exists()) {
+            $vendChannelRecord->opsJobItem->opsJobItemChannels->each(function($opsJobItemChannel) use ($vendChannelRecord) {
+                $channels = $vendChannelRecord->after_data_json['channels'] ?? [];
+
+                foreach ($channels as $channel) {
+                    if (isset($channel['channel_code']) && $channel['channel_code'] == $opsJobItemChannel->vend_channel_code) {
+                        $opsJobItemChannel->update([
+                            'vmc_after_qty' => $channel['qty'], // Update with the 'qty' value from the matched channel
+                        ]);
+                        break; // Exit the loop once the matching channel is found
+                    }
+                }
             });
         }
     }

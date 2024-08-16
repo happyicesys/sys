@@ -129,7 +129,7 @@
               <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                 <table class="min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
-                    <tr>
+                    <tr v-if="opsJobItem.status >= 2">
                       <th scope="col" class="px-2 py-2 text-center text-xs font-semibold text-gray-900" colspan="6">
                       </th>
                       <th scope="col" class="px-2 py-2 text-center text-xs font-bold text-gray-900 bg-gray-200" colspan="4">
@@ -209,8 +209,22 @@
                           {{ channel.refill }}
                         </span>
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status >= 2">
+                      <td
+                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status >= 2"
+                        :class="[channel.vmc_after_qty && ((channel.capacity - (channel.capacity - channel.qty)) + channel.refill) != channel.vmc_after_qty ? 'text-red-500' : '']"
+                        >
                         {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 2">
+                        {{ channel.vmc_before_qty }}
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 2">
+                        {{ (channel.vmc_after_qty - channel.vmc_before_qty) ? (channel.vmc_after_qty - channel.vmc_before_qty) : 0 }}
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 2">
+                        {{ channel.vmc_after_qty }}
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 2">
                       </td>
                     </tr>
                   </tbody>
@@ -328,7 +342,9 @@ onMounted(() => {
       refill: props.opsJobItem.status == 2 ? opsJobItemChannel.picked_qty : opsJobItemChannel.actual_qty,
       product: opsJobItemChannel.vendChannel.product ? {
         ...opsJobItemChannel.vendChannel.product,
-      } : null
+      } : null,
+      vmc_before_qty: opsJobItemChannel.vmc_before_qty,
+      vmc_after_qty: opsJobItemChannel.vmc_after_qty,
     }
   })
 })
