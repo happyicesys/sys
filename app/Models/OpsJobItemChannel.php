@@ -19,6 +19,8 @@ class OpsJobItemChannel extends Model
         'vend_channel_id',
         'vend_channel_code',
         'vend_code',
+        'vmc_before_qty',
+        'vmc_after_qty',
     ];
 
     // relationships

@@ -48,6 +48,11 @@ class VendChannelRecord extends Model
         return $this->belongsTo(Operator::class);
     }
 
+    public function opsJobItem()
+    {
+        return $this->hasOne(OpsJobItem::class);
+    }
+
     public function vend()
     {
         return $this->belongsTo(Vend::class);

@@ -262,6 +262,22 @@
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             {{ opsJobItem.vend.customer ? opsJobItem.vend.customer.ops_note : '' }}
                           </td>
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                            <div class="flex flex-col space-y-2 text-center">
+                              <span>
+                                {{ opsJobItem.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{ opsJobItem.stock_in_count }})
+                              </span>
+                              <span>
+                                {{ opsJobItem.total_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                              </span>
+                            </div>
+                          </td>
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                              {{ opsJobItem.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </td>
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                            {{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{ opsJobItem.acc_vend_transactions_count }})
+                          </td>
                           <!-- <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button
                               class="bg-red-400 hover:bg-red-500 text-white"
@@ -397,6 +413,7 @@ const form = ref(
   useForm(getDefaultForm())
 )
 
+const operatorCountry = usePage().props.auth.operatorCountry
 const opsJob = ref([])
 const opsJobItemModel = ref([])
 const permissions = usePage().props.auth.permissions
@@ -414,8 +431,6 @@ onMounted(() => {
       full_name: vend.cust_full_name,
     }
   })
-
-  console.log(opsJob.value)
 })
 
 function getDefaultForm() {

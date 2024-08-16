@@ -222,6 +222,26 @@ class OpsJobController extends Controller
                     $opsJobItem->update([
                         'vend_channel_record_id' => $vendChannelRecord->id,
                     ]);
+
+                    if($vendChannelRecord->before_data_json || $vendChannelRecord->after_data_json) {
+                        $opsJobItem->opsJobItemChannels->each(function($opsJobItemChannel) use ($vendChannelRecord) {
+                            if($vendChannelRecord->before_data_json) {
+                                if($opsJobItemChannel->vend_channel_code == array_filter($vendChannelRecord->before_data_json['channels'][$opsJobItemChannel->vend_channel_code])) {
+                                    $opsJobItemChannel->update([
+                                        'vmc_before_qty' => $vendChannelRecord->before_data_json['channels'][$opsJobItemChannel->vend_channel_code],
+                                    ]);
+                                }
+                            }
+
+                            if($vendChannelRecord->after_data_json) {
+                                if($opsJobItemChannel->vend_channel_code == array_filter($vendChannelRecord->after_data_json['channels'][$opsJobItemChannel->vend_channel_code])) {
+                                    $opsJobItemChannel->update([
+                                        'vmc_after_qty' => $vendChannelRecord->after_data_json['channels'][$opsJobItemChannel->vend_channel_code],
+                                    ]);
+                                }
+                            }
+                        });
+                    }
                 }
 
                 break;
@@ -343,6 +363,8 @@ class OpsJobController extends Controller
             'updatedBy:id,name'
         ])
         ->findOrFail($id);
+
+        // dd($opsJob->toArray());
 
 
         $unbindedVendOptions = Vend::query()

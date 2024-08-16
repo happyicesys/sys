@@ -104,18 +104,6 @@ class SyncVendChannels implements ShouldQueue
                     $this->syncProductMappingItem($vendChannel, $channel);
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }
-
-                // handle vend channel record items
-                // if($vendChannelRecord) {
-                //     $vendChannelRecord->vendChannelRecordItems()->updateOrCreate([
-                //         'vend_channel_id' => $vendChannel->id,
-                //     ], [
-                //         'amount' => $vendChannel->amount,
-                //         'amount2' => $vendChannel->amount2,
-                //         'capacity' => $vendChannel->capacity,
-                //         'qty' => $vendChannel->qty,
-                //     ]);
-                // }
             }
             SaveVendChannelsJson::dispatch($vend->id, $this->input)->onQueue('default');
             $this->deliveryProductMappingService->syncVendChannels(null, $vend->id);
@@ -132,7 +120,7 @@ class SyncVendChannels implements ShouldQueue
                 $lastRecord = VendChannelRecord::where('vend_id', $vend->id)->orderBy('before_data_created_at', 'desc')->first();
 
                 if($lastRecord && $lastRecord->after_data_created_at == null) {
-                    $lastRecord->update([
+                    $vendChannelRecord = $lastRecord->update([
                         'customer_id' => $vend->customer_id,
                         'operator_id' => $vend->operator_id,
                         'before_data_json' => $input,
@@ -149,6 +137,8 @@ class SyncVendChannels implements ShouldQueue
                         'before_label' => $input['label'],
                     ]);
                 }
+
+                $this->syncVendChannelRecordVMCBeforeQty($vendChannelRecord);
             }
 
             if($input['label'] == 'A') {
@@ -164,6 +154,8 @@ class SyncVendChannels implements ShouldQueue
                         'after_data_created_at' => Carbon::now(),
                         'after_label' => $input['label'],
                     ]);
+
+                    $this->syncVendChannelRecordVMCAfterQty($vendChannelRecord);
                 }
             }
 
@@ -181,8 +173,35 @@ class SyncVendChannels implements ShouldQueue
                         'stage_label' => $input['label'],
                     ]);
                 }
+
+                $checkExpiredVendChannelRecord = VendChannelRecord::query()
+                    ->where('vend_id', $vend->id)
+                    ->where('before_data_created_at', '<', Carbon::now()->subHour())
+                    ->whereNull('after_data_created_at')
+                    ->whereNotNull('stage_data_created_at')
+                    ->orderBy('before_data_created_at', 'desc')
+                    ->first();
+
+                if($checkExpiredVendChannelRecord) {
+                    $this->convertStageVendChannelRecordToAfterVendChannelRecords($checkExpiredVendChannelRecord);
+                }
+
             }
         }
+    }
+
+    private function convertStageVendChannelRecordToAfterVendChannelRecords(VendChannelRecord $vendChannelRecord)
+    {
+        $vendChannelRecord->update([
+            'after_data_json' => $vendChannelRecord->stage_data_json,
+            'after_data_created_at' => $vendChannelRecord->stage_data_created_at,
+            'after_label' => $vendChannelRecord->stage_label,
+            'stage_data_json' => null,
+            'stage_data_created_at' => null,
+            'stage_label' => null,
+        ]);
+
+        $this->syncVendChannelRecordVMCAfterQty($vendChannelRecord);
     }
 
     // get vend channel status by custom logic
@@ -212,6 +231,28 @@ class SyncVendChannels implements ShouldQueue
             $vendChannel->vend->productMapping->productMappingItems()->where('channel_code', $input['channel_code'])->first()->product_id :
             null
         ]);
+    }
+
+    private function syncVendChannelRecordVMCBeforeQty(VendChannelRecord $vendChannelRecord)
+    {
+        if($vendChannelRecord->opsJobItem && $vendChannelRecord->opsJobItem->opsJobItemChannels()->exists()) {
+            $vendChannelRecord->opsJobItem->opsJobItemChannels->each(function($opsJobItemChannel) {
+                $opsJobItemChannel->update([
+                    'vmc_before_qty' => $vendChannelRecord->before_data_json['channels'][$opsJobItemChannel->vend_channel_code]['qty'],
+                ]);
+            });
+        }
+    }
+
+    private function syncVendChannelRecordVMCAfterQty(VendChannelRecord $vendChannelRecord)
+    {
+        if($vendChannelRecord->opsJobItem && $vendChannelRecord->opsJobItem->opsJobItemChannels()->exists()) {
+            $vendChannelRecord->opsJobItem->opsJobItemChannels->each(function($opsJobItemChannel) {
+                $opsJobItemChannel->update([
+                    'vmc_after_qty' => $vendChannelRecord->after_data_json['channels'][$opsJobItemChannel->vend_channel_code]['qty'],
+                ]);
+            });
+        }
     }
 
     private function getChannelErrorRates($vendChannelID)
