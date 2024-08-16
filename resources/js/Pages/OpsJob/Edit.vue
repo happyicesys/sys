@@ -4,12 +4,12 @@
     <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="opsJob && opsJob.id">
-            Editing Job
+            Daily Job for
 
           </span>
-          <span v-if="opsJob && opsJob.id">
+          <!-- <span v-if="opsJob && opsJob.id">
             {{ opsJob.code }}
-          </span>
+          </span> -->
         </div>
       </template>
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
@@ -52,14 +52,14 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Machine(s) </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Job(s) </span>
                   </div>
                 </div>
               </div>
 
               <div class="sm:col-span-5">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Add Machine
+                  Add More Job(s)
                 </label>
                 <MultiSelect
                   v-model="form.vend_id"
@@ -112,9 +112,9 @@
                           </th>
                         </tr>
                         <tr>
-                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            #
-                          </th>
+                          <TableHeadSort class="w-1/12" modelName="sequence" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sequence')">
+                            Sequence
+                          </TableHeadSort>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             <div class="flex flex-col space-y-2">
                               <span>
@@ -126,7 +126,7 @@
                             </div>
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Action
+                            Job ID#
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             <div class="flex flex-col space-y-2">
@@ -138,29 +138,61 @@
                               </span>
                             </div>
                           </th>
-
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Remarks
                           </th>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Ops Note
                           </th>
-                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900"
-                            v-if="permissions.includes('admin-access operations')">
-                            CMS Empty Inv
-                          </th>
+                          <TableHead>
+                            <div class="flex flex-col space-y-2">
+                              <span>
+                                Stock In
+                              </span>
+                              <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
+                                Value$ (Qty)
+                              </SingleSortItem>
+                              <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
+                                Cash Amount$
+                              </SingleSortItem>
+                            </div>
+                          </TableHead>
+                          <TableHead>
+                            <div class="flex flex-col space-y-2">
+                              <span>
+                                Stock Out <br>
+                                (VMC, MDB)
+                              </span>
+                              <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
+                                Cash Amount$
+                              </SingleSortItem>
+                            </div>
+                          </TableHead>
+                          <TableHead>
+                            <div class="flex flex-col space-y-2">
+                              <span>
+                                Stock Out <br>
+                                (Transactions)
+                              </span>
+                              <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
+                                Amount$ (Qty)
+                              </SingleSortItem>
+                            </div>
+                          </TableHead>
                         </tr>
 
                       </thead>
                       <tbody class="bg-white">
                         <tr v-for="(opsJobItem, opsJobItemIndex) in opsJob.opsJobItems" :key="opsJobItem.id" :class="opsJobItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                            {{ opsJobItemIndex + 1 }}
-                            <!-- <input
-                              type="text"
-                              class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-fit text-sm border-gray-300 rounded-md"
-                              v-model="opsJobItem.sequence"
-                              /> -->
+                            <!-- {{ opsJobItemIndex + 1 }} -->
+                            <div class="flex items-center justify-center">
+                              <input
+                                type="text"
+                                class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-fit text-sm border-gray-300 rounded-md max-w-20"
+                                v-model="opsJobItem.sequence"
+                                />
+                            </div>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             <div class="flex flex-col space-y-2">
@@ -173,16 +205,18 @@
                             </div>
                           </td>
                           <td class="whitespace-nowrap py-3 px-3 text-xs font-semibold text-gray-900 text-center">
-                            <Button
-                              class="bg-green-400 hover:bg-green-500 text-white"
-                              @click.prevent="onChannelClicked(opsJobItem)"
-                              v-if="permissions.includes('update operations')"
-                            >
-                              <ArrowRightCircleIcon class="w-4 h-4"></ArrowRightCircleIcon>
-                            </Button>
+                            <div>
+                              <Button
+                                class="bg-green-400 hover:bg-green-500 text-gray-800"
+                                @click.prevent="onChannelClicked(opsJobItem)"
+                                v-if="permissions.includes('update operations')"
+                              >
+                                {{ opsJobItem.ref_id }}
+                              </Button>
+                            </div>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                            <div class="flex flex-col space-y-1">
+                            <div class="flex flex-col space-y-2">
                               <span>
                                 <div
                                     class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs"
@@ -208,6 +242,18 @@
                                   {{ opsJobItem.vend.customer && opsJobItem.vend.customer.name ? opsJobItem.vend.customer.name : ''}}
                                 </span>
                               </span>
+                              <span>
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs bg-indigo-100 text-indigo-800"
+                                    v-if="opsJobItem.cms_transaction_id"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-normal grow-0">
+                                          CMS Inv
+                                        </span>
+                                    </div>
+                                </div>
+                              </span>
                             </div>
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
@@ -215,16 +261,6 @@
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             {{ opsJobItem.vend.customer ? opsJobItem.vend.customer.ops_note : '' }}
-                          </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center" v-if="permissions.includes('admin-access operations')">
-                            <div class="flex items-center justify-center">
-                              <span v-if="opsJobItem.cms_transaction_id">
-                                <CheckCircleIcon class="w-4 h-4 text-green-500"></CheckCircleIcon>
-                              </span>
-                              <span v-else>
-                                <XCircleIcon class="w-4 h-4 text-red-500"></XCircleIcon>
-                              </span>
-                            </div>
                           </td>
                           <!-- <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button
@@ -332,6 +368,9 @@ import Channel from '@/Pages/OpsJob/Channel.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
+import SingleSortItem from '@/Components/SingleSortItem.vue';
+import TableHead from '@/Components/TableHead.vue';
+import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, ClipboardDocumentCheckIcon, CheckCircleIcon, PlusCircleIcon, XCircleIcon, ArrowRightCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
@@ -375,6 +414,8 @@ onMounted(() => {
       full_name: vend.cust_full_name,
     }
   })
+
+  console.log(opsJob.value)
 })
 
 function getDefaultForm() {
@@ -486,6 +527,12 @@ function onSearchFilterUpdated() {
       opsJob.value = props.opsJob ? props.opsJob.data : null
     }
   })
+}
+
+function sortTable(sortKey) {
+  filters.value.sortKey = sortKey
+  filters.value.sortBy = !filters.value.sortBy
+  onSearchFilterUpdated()
 }
 
 function statusClass(status) {

@@ -42,7 +42,7 @@
                 <Button
                   type="submit"
                   class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
-                  v-if="permissions.includes('update vends')"
+                  v-if="permissions.includes('create vend-settings')"
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>

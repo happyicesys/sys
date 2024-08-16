@@ -18,7 +18,8 @@ class OpsJobItemResource extends JsonResource
         // return parent::toArray($request);
         return [
             'id' => $this->id,
-            'acc_total_amount' => $this->acc_total_amount,
+            'ref_id' => $this->id + 25000,
+            'acc_total_amount' => isset($this->acc_total_amount) ? $this->acc_total_amount / 100 : 0,
             'acc_total_count' => $this->acc_total_count,
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'cash_amount' => $this->cash_amount,

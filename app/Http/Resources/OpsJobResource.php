@@ -20,6 +20,8 @@ class OpsJobResource extends JsonResource
 
         return [
             'id' => $this->id,
+            'acc_vend_transactions_amount' => isset($this->acc_vend_transactions_amount) ? $this->acc_vend_transactions_amount/100 : 0,
+            'acc_vend_transactions_count' => isset($this->acc_vend_transactions_count) ? $this->acc_vend_transactions_count : 0,
             'code' => $this->code,
             'date' => $this->date->format('ymd'),
             'date_diff_human' => isset($this->date)
@@ -55,6 +57,7 @@ class OpsJobResource extends JsonResource
             'stock_in_amount' => isset($this->stock_in_amount) ? $this->stock_in_amount/100 : 0,
             'stock_in_count' => isset($this->stock_in_count) ? $this->stock_in_count : 0,
             'total_cash_amount' => isset($this->total_cash_amount) ? $this->total_cash_amount/100 : 0,
+            'total_cash_amount_from_vmc' => isset($this->total_cash_amount_from_vmc) ? $this->total_cash_amount_from_vmc/100 : 0,
             'updatedBy' => UserResource::make($this->whenLoaded('updatedBy')),
             'created_at' => isset($this->created_at) ? $this->created_at->format('ymd h:i a') : null,
             'updated_at' => isset($this->updated_at) ? $this->updated_at->format('ymd h:i a') : null,
