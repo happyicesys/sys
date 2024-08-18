@@ -133,9 +133,9 @@
                           <TableHead>
                               Phone Number
                           </TableHead>
-                          <TableHead>
-                              Role
-                          </TableHead>
+                          <TableHeadSort modelName="role_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('role_name')">
+                            Role
+                          </TableHeadSort>
                           <TableHeadSort modelName="operator_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_id')">
                               Belongs to Operator
                         </TableHeadSort>
@@ -176,7 +176,7 @@
                               {{ user.phoneCountry ? user.phoneCountry.code : null }} {{ user.phone_number }}
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
-                              {{ user.roles[0] ? user.roles[0].name : null }}
+                              {{ user.role_name }}
                           </TableData>
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
                               {{ user.operator ? user.operator.name : null }}

@@ -50,6 +50,8 @@ class UserController extends Controller
                     'vends:id,code,name',
                     'vends.customer:id,code,name',
                 ])
+                ->selectRaw('users.*')
+                ->selectRaw('(SELECT roles.name FROM roles JOIN model_has_roles ON model_has_roles.role_id = roles.id WHERE model_has_roles.model_id = users.id AND model_has_roles.model_type = "App\\\Models\\\User" LIMIT 1) as role_name')
                 ->when($request->is_active, function($query, $search) {
                     if($search != 'all') {
                         $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));

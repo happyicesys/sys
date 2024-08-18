@@ -87,9 +87,9 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHead>
+                    <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
                       Code
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHeadSort modelName="name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('name')">
                       Name
                     </TableHeadSort>
