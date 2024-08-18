@@ -18,6 +18,7 @@ class OpsJobItemChannelResource extends JsonResource
             'id' => $this->id,
             'actual_qty' => $this->actual_qty,
             'capacity' => $this->capacity,
+            'is_error_settle' => $this->is_error_settle,
             'ops_job_id' => $this->ops_job_id,
             'ops_job_item_id' => $this->ops_job_item_id,
             'picked_qty' => $this->picked_qty,

@@ -11,6 +11,7 @@ use App\Jobs\SyncOpsJobItemTransactionItemCMS;
 use App\Models\Operator;
 use App\Models\OpsJob;
 use App\Models\OpsJobItem;
+use App\Models\OpsJobItemChannel;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannelRecord;
@@ -21,6 +22,7 @@ use App\Services\OpsJobService;
 use App\Services\RunningNumberService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class OpsJobController extends Controller
@@ -83,10 +85,16 @@ class OpsJobController extends Controller
                 FROM ops_job_items
                 WHERE ops_job_items.ops_job_id = ops_jobs.id
                 ) as total_cash_amount')
+            // disabled due to most of vmc havent update apk
+            // ->selectRaw('(
+            //     SELECT SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(vend_channel_records.before_statis_json, "$.CashAmt")) AS DECIMAL(10, 2)))
+            //     FROM ops_job_items
+            //     JOIN vend_channel_records ON vend_channel_records.id = ops_job_items.vend_channel_record_id
+            //     WHERE ops_job_items.ops_job_id = ops_jobs.id
+            //     ) as total_cash_amount_from_vmc')
             ->selectRaw('(
-                SELECT SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(vend_channel_records.before_statis_json, "$.CashAmt")) AS DECIMAL(10, 2)))
+                SELECT SUM(ops_job_items.temp_cash_amount_from_vmc)
                 FROM ops_job_items
-                JOIN vend_channel_records ON vend_channel_records.id = ops_job_items.vend_channel_record_id
                 WHERE ops_job_items.ops_job_id = ops_jobs.id
                 ) as total_cash_amount_from_vmc')
             ->selectRaw('(
@@ -94,6 +102,21 @@ class OpsJobController extends Controller
                 FROM ops_job_items
                 WHERE ops_job_items.ops_job_id = ops_jobs.id
                 ) as acc_vend_transactions_amount')
+            ->selectRaw('(
+                SELECT SUM(ops_job_items.acc_total_cash_amount)
+                FROM ops_job_items
+                WHERE ops_job_items.ops_job_id = ops_jobs.id
+                ) as acc_vend_transactions_cash_amount')
+            ->selectRaw('(
+                SELECT SUM(ops_job_items.acc_total_cashless_amount)
+                FROM ops_job_items
+                WHERE ops_job_items.ops_job_id = ops_jobs.id
+                ) as acc_vend_transactions_cashless_amount')
+            ->selectRaw('(
+                SELECT SUM(ops_job_items.acc_total_promo_amount)
+                FROM ops_job_items
+                WHERE ops_job_items.ops_job_id = ops_jobs.id
+                ) as acc_vend_transactions_promo_amount')
             ->selectRaw('(
                 SELECT SUM(ops_job_items.acc_total_count)
                 FROM ops_job_items
@@ -175,6 +198,7 @@ class OpsJobController extends Controller
                     'completed_at' => Carbon::now(),
                     'cash_amount' => $request->cash_amount,
                     'cashless_amount' => $request->cashless_amount,
+                    'temp_cash_amount_from_vmc' => $request->temp_cash_amount_from_vmc,
                 ]);
 
                 SyncOpsJobItemTransactionItemCMS::dispatch($opsJobItem->id);
@@ -198,17 +222,26 @@ class OpsJobController extends Controller
 
                 if($previousOpsJobItem) {
                     $vendTransactions = VendTransaction::query()
+                        ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+                        ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
                         ->where('created_at', '>=', $previousOpsJobItem->completed_at)
                         ->where('created_at', '<=', $opsJobItem->completed_at)
                         ->where('vend_id', $opsJobItem->vend_id)
                         ->isSuccessful()
                         ->selectRaw('SUM(amount) as total_amount')
                         ->selectRaw('COUNT(*) as total_count')
+                        ->selectRaw('SUM(CASE WHEN payment_methods.code = 0 THEN amount ELSE 0 END) as total_cash_amount')
+                        ->selectRaw('SUM(CASE WHEN payment_methods.code <> 0 THEN amount ELSE 0 END) as total_cashless_amount')
+                        ->selectRaw('SUM(vend_channels.amount - vend_transactions.amount) as total_promo_amount')
+                        ->selectRaw()
                         ->first();
 
                     $opsJobItem->update([
                         'previous_ops_job_item_id' => $previousOpsJobItem->id,
                         'acc_total_amount' => $vendTransactions->total_amount,
+                        'acc_total_cash_amount' => $vendTransactions->total_cash_amount,
+                        'acc_total_cashless_amount' => $vendTransactions->total_cashless_amount,
+                        'acc_total_promo_amount' => $vendTransactions->total_promo_amount,
                         'acc_total_count' => $vendTransactions->total_count,
                     ]);
                 }
@@ -319,7 +352,9 @@ class OpsJobController extends Controller
                     'picked_by',
                     'completed_at',
                     'completed_by',
-                    'remarks'
+                    'remarks',
+                    'temp_cash_amount_from_vmc',
+                    'vend_channel_record_id',
                 ]);
 
                 // Adjust the selectRaw queries to correctly reference the opsJobItems relationship
@@ -361,22 +396,40 @@ class OpsJobController extends Controller
                 ) as acc_vend_transactions_amount');
 
                 $query->selectRaw('(
+                    SELECT SUM(oj_items.acc_total_cash_amount)
+                    FROM ops_job_items oj_items
+                    WHERE oj_items.id = ops_job_items.id
+                ) as acc_vend_transactions_cash_amount');
+
+                $query->selectRaw('(
+                    SELECT SUM(oj_items.acc_total_cashless_amount)
+                    FROM ops_job_items oj_items
+                    WHERE oj_items.id = ops_job_items.id
+                ) as acc_vend_transactions_cashless_amount');
+
+                $query->selectRaw('(
+                    SELECT SUM(oj_items.acc_total_promo_amount)
+                    FROM ops_job_items oj_items
+                    WHERE oj_items.id = ops_job_items.id
+                ) as acc_vend_transactions_promo_amount');
+
+                $query->selectRaw('(
                     SELECT SUM(oj_items.acc_total_count)
                     FROM ops_job_items oj_items
                     WHERE oj_items.id = ops_job_items.id
                 ) as acc_vend_transactions_count');
             },
+            'opsJobItems.attachments',
             'opsJobItems.vend:id,customer_id,code,vend_prefix_id',
             'opsJobItems.vend.customer:id,name,person_id,virtual_customer_prefix,virtual_customer_code,ops_note',
             'opsJobItems.opsJobItemChannels.vendChannel.product.thumbnail',
             'opsJobItems.vend.vendPrefix',
             'opsJobItems.pickedBy:id,name',
             'opsJobItems.completedBy:id,name',
+            'opsJobItems.vendChannelRecord',
             'updatedBy:id,name'
         ])
         ->findOrFail($id);
-
-        // dd($opsJob->toArray());
 
 
         $unbindedVendOptions = Vend::query()
@@ -420,6 +473,52 @@ class OpsJobController extends Controller
     public function createItem(Request $request, $id)
     {
         $this->createOpsJobItem($id, $request->vend_id);
+    }
+
+    public function changeItemStatus(Request $request, $id)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($id);
+
+        if($request->nextStatus) {
+            switch($request->nextStatus) {
+                case 99:
+                    $opsJobItem->status = OpsJob::STATUS_CANCELLED;
+                    $opsJobItem->save();
+                    break;
+                case -1:
+                    $opsJobItem->opsJobItemChannels()->delete();
+                    $opsJobItem->attachments()->delete();
+                    $opsJobItem->delete();
+                    break;
+            }
+        }
+
+        return redirect()->back();
+    }
+
+    public function renumberItems($id)
+    {
+        $opsJob = OpsJob::findOrFail($id);
+
+        $sequence = 1;
+        foreach($opsJob->opsJobItems as $opsJobItem) {
+            $opsJobItem->update([
+                'sequence' => $sequence,
+            ]);
+            $sequence++;
+        }
+
+        return redirect()->back();
+    }
+
+    public function settleItemChannelError($opsJobItemChannelID)
+    {
+        $opsJobItemChannel = OpsJobItemChannel::findOrFail($opsJobItemChannelID);
+        $opsJobItemChannel->update([
+            'is_error_settle' => true,
+        ]);
+
+        return redirect()->back();
     }
 
     public function store(Request $request)
@@ -493,13 +592,39 @@ class OpsJobController extends Controller
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
 
-        $opsJobItem->update([
-            'cash_amount' => $request->cash_amount,
-            'cashless_amount' => $request->cashless_amount,
-            'remarks' => $request->remarks,
-        ]);
+        if($request->cash_amount or $request->cashless_amount or $request->remarks) {
+            $opsJobItem->update([
+                'cash_amount' => $request->cash_amount,
+                'cashless_amount' => $request->cashless_amount,
+                'remarks' => $request->remarks,
+            ]);
+        }
+
+        if($request->sequence) {
+            $opsJobItem->update([
+                'sequence' => $request->sequence,
+            ]);
+        }
 
         return redirect()->back();
+    }
+
+    public function uploadItemAttachments(Request $request, $id)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($id);
+
+        if($request->hasFile('files')) {
+            $files = $request->file('files');
+            $dir = 'sys/ops-job-items';
+            $storedPath = $files->storePublicly('sys/ops-job-items');
+            $fileName = basename($storedPath);
+            $url = Storage::url($storedPath);
+            $opsJobItem->attachments()->create([
+                'full_url' => $url,
+                'local_url' => $dir.'/'.$fileName,
+            ]);
+        }
+        return true;
     }
 
     public function verifyItem(Request $request, $id)

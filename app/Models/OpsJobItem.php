@@ -13,7 +13,10 @@ class OpsJobItem extends Model
 
     protected $fillable = [
         'acc_total_amount',
+        'acc_total_cash_amount',
+        'acc_total_cashless_amount',
         'acc_total_count',
+        'acc_total_promo_amount',
         'cash_amount',
         'cashless_amount',
         'channels_json',
@@ -27,6 +30,8 @@ class OpsJobItem extends Model
         'remarks',
         'sequence',
         'status',
+        // temporary
+        'temp_cash_amount_from_vmc',
         'picked_at',
         'picked_by',
         'updated_by',
@@ -51,6 +56,14 @@ class OpsJobItem extends Model
 
     // cashless amount set x 100, get / 100
     public function cashlessAmount(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $value / 100,
+            set: fn ($value) => $value * 100,
+        );
+    }
+
+    public function tempCashAmountFromVmc(): Attribute
     {
         return Attribute::make(
             get: fn ($value) => $value / 100,

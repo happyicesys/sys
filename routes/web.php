@@ -264,8 +264,10 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/update', [OpsJobController::class, 'update']);
         Route::delete('/{id}', [OpsJobController::class, 'delete']);
         Route::post('/{id}/complete', [OpsJobController::class, 'complete']);
+        Route::post('/items/{itemID}/status', [OpsJobController::class, 'changeItemStatus']);
         Route::post('/{id}/pick', [OpsJobController::class, 'pick']);
         Route::post('/{id}/deliver', [OpsJobController::class, 'deliver']);
+        Route::post('/{id}/renumber', [OpsJobController::class, 'renumberItems']);
         Route::post('/assign', [OpsJobController::class, 'assign']);
         Route::post('/{id}/item/create', [OpsJobController::class, 'createItem']);
         Route::post('/items/{itemId}/update', [OpsJobController::class, 'updateItem']);
@@ -273,6 +275,8 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/items/{itemId}', [OpsJobController::class, 'deleteItem']);
         Route::post('/items/{itemId}/confirm', [OpsJobController::class, 'confirmItem']);
         Route::post('/items/{itemId}/verify', [OpsJobController::class, 'verifyItem']);
+        Route::post('/item-channels/{itemChannelId}/settle-error', [OpsJobController::class, 'settleItemChannelError']);
+        Route::post('/items/{itemID}/upload-attachments', [OpsJobController::class, 'uploadItemAttachments']);
     });
 
     Route::prefix('reports')->group(function() {

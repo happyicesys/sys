@@ -112,9 +112,24 @@
                           </th>
                         </tr>
                         <tr>
-                          <TableHeadSort class="w-1/12" modelName="sequence" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sequence')">
-                            Sequence
-                          </TableHeadSort>
+                          <TableHead>
+                            <div class="flex flex-col space-y-1">
+                              <SingleSortItem modelName="sequence" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sequence')">
+                                Sequence
+                              </SingleSortItem>
+                              <Button
+                                class="bg-yellow-400 hover:bg-yellow-500 text-gray-800 text-xs font-semibold"
+                                @click.prevent="onRenumberClicked()"
+                              >
+                                <div class="flex space-x-1 items-center">
+                                <ArrowsUpDownIcon class="h-3 w-3"></ArrowsUpDownIcon>
+                                <span>
+                                  Renumber
+                                </span>
+                                </div>
+                              </Button>
+                            </div>
+                          </TableHead>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             <div class="flex flex-col space-y-2">
                               <span>
@@ -186,11 +201,12 @@
                         <tr v-for="(opsJobItem, opsJobItemIndex) in opsJob.opsJobItems" :key="opsJobItem.id" :class="opsJobItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             <!-- {{ opsJobItemIndex + 1 }} -->
-                            <div class="flex items-center justify-center">
+                            <div class="flex items-center justify-center ">
                               <input
                                 type="text"
-                                class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-fit text-sm border-gray-300 rounded-md max-w-20"
+                                class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-fit text-sm border-gray-300 rounded-md max-w-20 text-center"
                                 v-model="opsJobItem.sequence"
+                                @change="updateSequence(opsJobItem)"
                                 />
                             </div>
                           </td>
@@ -272,10 +288,10 @@
                               </span>
                             </div>
                           </td>
-                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                               {{ opsJobItem.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                           </td>
-                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             {{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{ opsJobItem.acc_vend_transactions_count }})
                           </td>
                           <!-- <td class="whitespace-nowrap py-4 text-sm text-center">
@@ -363,6 +379,7 @@
 		:showModal="showChannelModal"
 		@modalClose="onChannelClosed"
     @statusUpdated="statusUpdated"
+    @updatedNoRefresh="onChannelUpdatedNoRefresh"
   >
   </Channel>
 
@@ -387,7 +404,7 @@ import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { ArrowUturnLeftIcon, BackspaceIcon, ClipboardDocumentCheckIcon, CheckCircleIcon, PlusCircleIcon, XCircleIcon, ArrowRightCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CheckCircleIcon, PlusCircleIcon, XCircleIcon, ArrowRightCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -511,6 +528,20 @@ function onChannelClosed() {
     showChannelModal.value = false
 }
 
+function onChannelUpdatedNoRefresh() {
+  router.reload({
+    only: ['opsJob'],
+    data: {
+      ...filters.value,
+    },
+    replace: true,
+    preserveState: true,
+    onSuccess: page => {
+      opsJob.value = props.opsJob ? props.opsJob.data : null
+    }
+  })
+}
+
 function onGeneratePickListClicked() {
     axios({
         method: 'POST',
@@ -529,6 +560,23 @@ function onPickListModalClose() {
   showPickListModal.value = false
 }
 
+function onRenumberClicked(opsJobItem) {
+  form.value.clearErrors()
+  form.value
+    .transform((data) => ({
+      ...data,
+    }))
+    .post('/ops-jobs/' + opsJob.value.id + '/renumber', {
+    onSuccess: () => {
+      toast.success("Successfully Renumbered", {
+        timeout: 3000
+      });
+      opsJob.value = props.opsJob.data
+    },
+    preserveState: true,
+    replace: true,
+  })
+}
 
 function onSearchFilterUpdated() {
   router.reload({
@@ -587,20 +635,20 @@ function statusUpdated() {
   })
 }
 
-function submit() {
+function updateSequence(opsJobItem, sequence) {
   form.value.clearErrors()
-    form.value
-      .transform((data) => ({
-        ...data,
-        vendPrefixes: vendPrefixes.value,
-      }))
-      .post('/vend-configs/' + form.value.id + '/update', {
-      onSuccess: () => {
-        emit('modalClose')
-      },
-      preserveState: true,
-      replace: true,
-    })
+  form.value
+    .transform((data) => ({
+      ...data,
+      sequence: opsJobItem.sequence,
+    }))
+    .post('/ops-jobs/items/' + opsJobItem.id + '/update', {
+    onSuccess: () => {
+      emit('modalClose')
+    },
+    preserveState: true,
+    replace: true,
+  })
 }
 
 </script>
