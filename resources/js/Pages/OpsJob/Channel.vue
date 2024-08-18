@@ -99,7 +99,7 @@
               <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                 <table class="min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
-                    <tr v-if="opsJobItem.status >= 2">
+                    <tr v-if="opsJobItem.status >= 3">
                       <th scope="col" class="px-2 py-1 text-center text-xs font-semibold text-gray-900" colspan="6">
                       </th>
                       <th scope="col" class="px-2 py-1 text-center text-xs font-bold text-gray-900 bg-gray-200" colspan="4">
@@ -230,16 +230,16 @@
                         >
                         {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 2">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3">
                         {{ channel.vmc_before_qty }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 2">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3">
                         {{ (channel.vmc_after_qty - channel.vmc_before_qty) ? (channel.vmc_after_qty - channel.vmc_before_qty) : 0 }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 2">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3">
                         {{ channel.vmc_after_qty }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 2">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 3">
                         <button type="button" class="rounded-full bg-green-600 p-1.5 text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
                         @click.prevent="isErrorSettleClicked(channel)"
                         v-if="channel.vmc_after_qty && ((channel.capacity - (channel.capacity - channel.qty)) + channel.refill) != channel.vmc_after_qty && channel.is_error_settle == 0"

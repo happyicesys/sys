@@ -233,7 +233,6 @@ class OpsJobController extends Controller
                         ->selectRaw('SUM(CASE WHEN payment_methods.code = 0 THEN amount ELSE 0 END) as total_cash_amount')
                         ->selectRaw('SUM(CASE WHEN payment_methods.code <> 0 THEN amount ELSE 0 END) as total_cashless_amount')
                         ->selectRaw('SUM(vend_channels.amount - vend_transactions.amount) as total_promo_amount')
-                        ->selectRaw()
                         ->first();
 
                     $opsJobItem->update([
