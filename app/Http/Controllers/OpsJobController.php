@@ -232,14 +232,14 @@ class OpsJobController extends Controller
                     $vendTransactions = VendTransaction::query()
                         ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
                         ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
-                        ->where('created_at', '>=', $previousOpsJobItem->completed_at)
-                        ->where('created_at', '<=', $opsJobItem->completed_at)
-                        ->where('vend_id', $opsJobItem->vend_id)
+                        ->where('vend_transactions.created_at', '>=', $previousOpsJobItem->completed_at)
+                        ->where('vend_transactions.created_at', '<=', $opsJobItem->completed_at)
+                        ->where('vend_transactions.vend_id', $opsJobItem->vend_id)
                         ->isSuccessful()
-                        ->selectRaw('SUM(amount) as total_amount')
+                        ->selectRaw('SUM(vend_transactions.amount) as total_amount')
                         ->selectRaw('COUNT(*) as total_count')
-                        ->selectRaw('SUM(CASE WHEN payment_methods.code = 0 THEN amount ELSE 0 END) as total_cash_amount')
-                        ->selectRaw('SUM(CASE WHEN payment_methods.code <> 0 THEN amount ELSE 0 END) as total_cashless_amount')
+                        ->selectRaw('SUM(CASE WHEN payment_methods.code = 0 THEN vend_transactions.amount ELSE 0 END) as total_cash_amount')
+                        ->selectRaw('SUM(CASE WHEN payment_methods.code <> 0 THEN vend_transactions.amount ELSE 0 END) as total_cashless_amount')
                         ->selectRaw('SUM(vend_channels.amount - vend_transactions.amount) as total_promo_amount')
                         ->first();
 
@@ -256,6 +256,7 @@ class OpsJobController extends Controller
                 $vendChannelRecord = VendChannelRecord::query()
                     ->orderByRaw('ABS(TIMESTAMPDIFF(SECOND, before_data_created_at, ?))', [$opsJobItem->completed_at])
                     ->where('vend_id', $opsJobItem->vend_id)
+                    ->doesntHave('opsJobItem')
                     ->first();
 
                 if($vendChannelRecord) {

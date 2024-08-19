@@ -308,11 +308,13 @@
                     Stock Out (Transactions)
                   </div>
                   <div
-                    class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit bg-red-500"
-                    v-if="!opsJobItem.previous_ops_job_item_id"
+                    class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
+                    :class="[opsJobItem.previous_ops_job_item_id ? 'bg-green-500' : 'bg-red-500']"
                   >
                     <div class="flex flex-col font-semibold grow-0">
-                      Not Detected
+                      <span>
+                        {{ opsJobItem.previous_ops_job_item_id ? 'Detected' : 'Not Detected' }}
+                      </span>
                     </div>
                   </div>
                 </div>

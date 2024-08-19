@@ -549,6 +549,7 @@ class VendController extends Controller
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends, 'customers');
 
+        // dd($vends->first()->toArray());
         $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
 

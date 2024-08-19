@@ -35,6 +35,7 @@ class OpsJobItemResource extends JsonResource
             'name' => $this->name,
             'picked_amount' => isset($this->picked_amount) ? $this->picked_amount/100 : 0,
             'picked_count' => isset($this->picked_count) ? $this->picked_count : 0,
+            'previous_ops_job_item_id' => $this->previous_ops_job_item_id,
             'qty' => $this->qty,
             'remarks' => $this->remarks,
             'sequence' => $this->sequence,
