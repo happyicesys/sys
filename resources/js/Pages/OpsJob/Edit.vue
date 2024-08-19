@@ -115,7 +115,7 @@
                           <TableHead>
                             <div class="flex flex-col space-y-1">
                               <SingleSortItem modelName="sequence" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sequence')">
-                                Sequence
+                                Job Sequence
                               </SingleSortItem>
                               <Button
                                 class="bg-yellow-400 hover:bg-yellow-500 text-gray-800 text-xs font-semibold"
@@ -162,10 +162,22 @@
                           <TableHead>
                             <div class="flex flex-col space-y-2">
                               <span>
+                                Picked
+                              </span>
+                              <SingleSortItem modelName="picked_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_amount')">
+                                Value$ <br>
+                                (Qty)
+                              </SingleSortItem>
+                            </div>
+                          </TableHead>
+                          <TableHead>
+                            <div class="flex flex-col space-y-2">
+                              <span>
                                 Stock In
                               </span>
                               <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
-                                Value$ (Qty)
+                                Value$ <br>
+                                (Qty)
                               </SingleSortItem>
                               <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
                                 Cash Amount$
@@ -190,7 +202,8 @@
                                 (Transactions)
                               </span>
                               <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
-                                Amount$ (Qty)
+                                Amount$ <br>
+                                (Qty)
                               </SingleSortItem>
                             </div>
                           </TableHead>
@@ -281,10 +294,19 @@
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <div class="flex flex-col space-y-2 text-center">
                               <span>
-                                {{ opsJobItem.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{ opsJobItem.stock_in_count }})
+                                {{ opsJobItem.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
+                                ({{ opsJobItem.picked_count }})
+                              </span>
+                            </div>
+                          </td>
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                            <div class="flex flex-col space-y-2 text-center">
+                              <span>
+                                {{ opsJobItem.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
+                                ({{ opsJobItem.stock_in_count }})
                               </span>
                               <span>
-                                {{ opsJobItem.total_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                {{ opsJobItem.cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                               </span>
                             </div>
                           </td>
@@ -292,7 +314,8 @@
                               {{ opsJobItem.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            {{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{ opsJobItem.acc_vend_transactions_count }})
+                            {{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
+                            ({{ opsJobItem.acc_vend_transactions_count }})
                           </td>
                           <!-- <td class="whitespace-nowrap py-4 text-sm text-center">
                             <Button

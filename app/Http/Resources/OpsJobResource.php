@@ -50,6 +50,8 @@ class OpsJobResource extends JsonResource
             'ops_job_items_count' => isset($this->ops_job_items_count) ? $this->ops_job_items_count : 0,
             'ops_job_items_delivered_count' => isset($this->ops_job_items_delivered_count) ? $this->ops_job_items_delivered_count : 0,
             'ops_job_items_delivered_count_percentage' => isset($this->ops_job_items_delivered_count_percentage) ? round($this->ops_job_items_delivered_count_percentage) : 0,
+            'ops_job_items_picked_count' => isset($this->ops_job_items_picked_count) ? $this->ops_job_items_picked_count : 0,
+            'ops_job_items_picked_count_percentage' => isset($this->ops_job_items_picked_count_percentage) ? round($this->ops_job_items_picked_count_percentage) : 0,
             'ops_job_items_verified_count' => isset($this->ops_job_items_verified_count) ? $this->ops_job_items_verified_count : 0,
             'ops_job_items_verified_count_percentage' => isset($this->ops_job_items_verified_count_percentage) ? round($this->ops_job_items_verified_count_percentage) : 0,
             'picked_at' => $this->picked_at,

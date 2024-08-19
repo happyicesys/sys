@@ -136,6 +136,7 @@ class VendResource extends JsonResource
             'operator_name' => isset($this->operator_name) ? $this->operator_name : null,
             'parameterJson' => isset($this->parameter_json) ? $this->parameter_json : null,
             'postcode' => isset($this->postcode) ? $this->postcode : null,
+            'preferred_visit_days_json' => isset($this->preferred_visit_days_json) ? $this->preferred_visit_days_json : null,
             'productMapping' => ProductMappingResource::make($this->whenLoaded('productMapping')),
             'product_mapping_id' => isset($this->product_mapping_id) ? $this->product_mapping_id : null,
             'product_mapping_name' => isset($this->product_mapping_name) ? $this->product_mapping_name : null,

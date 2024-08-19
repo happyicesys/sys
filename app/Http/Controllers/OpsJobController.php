@@ -51,6 +51,14 @@ class OpsJobController extends Controller
             ->selectRaw('ops_jobs.*,
                 (SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id) as ops_job_items_count')
             ->selectRaw('(SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id AND ops_job_items.status >= ? AND ops_job_items.status <> ?) as ops_job_items_delivered_count', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED])
+
+            ->selectRaw('(SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id AND ops_job_items.picked_at IS NOT NULL) as ops_job_items_picked_count')
+            ->selectRaw('
+                IFNULL(
+                    ((SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id AND ops_job_items.picked_at IS NOT NULL) / (SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id)) * 100,
+                    0
+                ) as ops_job_items_picked_count_percentage')
+
             ->selectRaw('(SELECT COUNT(*) FROM ops_job_items WHERE ops_job_items.ops_job_id = ops_jobs.id AND ops_job_items.status = ?) as ops_job_items_verified_count', [OpsJob::STATUS_VERIFIED])
             ->selectRaw('
                 IFNULL(
@@ -349,6 +357,7 @@ class OpsJobController extends Controller
                     'status',
                     'picked_at',
                     'picked_by',
+                    'previous_ops_job_item_id',
                     'completed_at',
                     'completed_by',
                     'remarks',
@@ -357,6 +366,20 @@ class OpsJobController extends Controller
                 ]);
 
                 // Adjust the selectRaw queries to correctly reference the opsJobItems relationship
+                $query->selectRaw('
+                    (SELECT SUM(ops_job_item_channels.picked_qty * vend_channels.amount)
+                    FROM ops_job_item_channels
+                    JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
+                    WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
+                    ) as picked_amount');
+
+                $query->selectRaw('
+                    (SELECT SUM(ops_job_item_channels.picked_qty)
+                    FROM ops_job_item_channels
+                    JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
+                    WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
+                    ) as picked_count');
+
                 $query->selectRaw('
                     (SELECT SUM(ops_job_item_channels.actual_qty * vend_channels.amount)
                      FROM ops_job_item_channels
@@ -379,12 +402,17 @@ class OpsJobController extends Controller
                     SELECT SUM(oj_items.cash_amount)
                     FROM ops_job_items oj_items
                     WHERE oj_items.id = ops_job_items.id
-                ) as total_cash_amount');
+                    ) as total_cash_amount');
 
+                // $query->selectRaw('(
+                //     SELECT SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(vend_channel_records.before_statis_json, "$.CashAmt")) AS DECIMAL(10, 2)))
+                //     FROM ops_job_items oj_items
+                //     JOIN vend_channel_records ON vend_channel_records.id = oj_items.vend_channel_record_id
+                //     WHERE oj_items.id = ops_job_items.id
+                // ) as total_cash_amount_from_vmc');
                 $query->selectRaw('(
-                    SELECT SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(vend_channel_records.before_statis_json, "$.CashAmt")) AS DECIMAL(10, 2)))
+                    SELECT SUM(oj_items.temp_cash_amount_from_vmc)
                     FROM ops_job_items oj_items
-                    JOIN vend_channel_records ON vend_channel_records.id = oj_items.vend_channel_record_id
                     WHERE oj_items.id = ops_job_items.id
                 ) as total_cash_amount_from_vmc');
 
@@ -678,9 +706,10 @@ class OpsJobController extends Controller
         }
 
         // sync next invoice date and next invoice driver
-        $vend->customer->update([
-            'next_invoice_date' => $opsJobItem->opsJob->date,
-            'next_invoice_driver_id' => $opsJobItem->opsJob->delivered_by,
-        ]);
+        // temporary disable to record ops job item without interffere with cms
+        // $vend->customer->update([
+        //     'next_invoice_date' => $opsJobItem->opsJob->date,
+        //     'next_invoice_driver_id' => $opsJobItem->opsJob->delivered_by,
+        // ]);
     }
 }

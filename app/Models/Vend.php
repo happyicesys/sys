@@ -469,6 +469,13 @@ class Vend extends Model
                 });
             }
         })
+        ->when($request->preferredDays, function($query, $search) {
+            $query->where(function($subQuery) use ($search) {
+                foreach ($search as $day) {
+                    $subQuery->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(customers.preferred_visit_days_json, '$.\"$day\"')) = 'true'");
+                }
+            });
+        })
         ->when($request->product_code, function($query, $search) {
             $query->where('products.code', 'LIKE', "%{$search}%");
         })

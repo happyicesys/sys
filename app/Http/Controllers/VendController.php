@@ -523,6 +523,7 @@ class VendController extends Controller
                 'customers.operator_id',
                 'customers.person_json',
                 'customers.person_id AS person_id',
+                'customers.preferred_visit_days_json',
                 'customers.selling_price_type',
                 'customers.termination_date',
                 'customers.virtual_customer_prefix',
@@ -574,6 +575,7 @@ class VendController extends Controller
             ),
             'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
+            'dayOptions' => Customer::DAYS_MAPPING,
             'deviceTypes' => Vend::DEVICE_TYPE_MAPPINGS,
             'driverOptions' => UserResource::collection(
                 User::whereHas('roles', function($query) use ($request) {

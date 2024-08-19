@@ -19,6 +19,7 @@ class Customer extends Model
         5 => 'Fri',
         6 => 'Sat',
         7 => 'Sun',
+        8 => 'Holiday Eve',
     ];
 
     const RUNNING_NUMBER_INIT = 20000;

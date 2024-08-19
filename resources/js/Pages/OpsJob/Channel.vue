@@ -134,7 +134,7 @@
                         Product
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Needed/ Cap
+                        Needed/ Capacity
                       </th>
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
                         Picked
@@ -142,10 +142,10 @@
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                         Stock In
                       </th>
-                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         VMC Inventory Count
                       </th>
-                      <th scope="col" class="w-2/12 px-1 py-2 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                      <th scope="col" class="w-2/12 px-1 py-2 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         <div class="flex flex-col space-y-1">
                           <span>
                             Before Refill
@@ -162,10 +162,10 @@
                           </div> -->
                         </div>
                       </th>
-                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         Stock In
                       </th>
-                      <th scope="col" class="w-2/12 px-1 py-2 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                      <th scope="col" class="w-2/12 px-1 py-2 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         <div>
                           <span>
                             After Refill
@@ -182,7 +182,7 @@
                           </div> -->
                         </div>
                       </th>
-                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         Error
                       </th>
                     </tr>
@@ -211,21 +211,28 @@
                         {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
-                        <FormInput inputType="number" v-model="channel.picked" :maxValue="channel.capacity" class="text-center min-w-12" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
-                        </FormInput>
+                        <!-- <FormInput inputType="number" v-model="channel.picked" :maxValue="channel.capacity" class="text-center min-w-12" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
+                        </FormInput> -->
+                        <select name="channel_picked" id="channel_picked" class="rounded" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
+                          <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
+                        </select>
                         <span v-if="opsJobItem.status >= 2">
                           {{ channel.picked }}
                         </span>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                        <FormInput inputType="number" v-model="channel.refill" :maxValue="channel.picked" class="text-center min-w-12" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
-                        </FormInput>
+                        <!-- <FormInput inputType="number" v-model="channel.refill" :maxValue="channel.capacity" class="text-center min-w-12" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
+                        </FormInput> -->
+                        <select name="channel_refill" id="channel_refill" class="rounded" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
+                          <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
+                        </select>
+
                         <span v-if="opsJobItem.status > 2">
                           {{ channel.refill }}
                         </span>
                       </td>
                       <td
-                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status >= 2"
+                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status > 2"
                         :class="[channel.vmc_after_qty && ((channel.capacity - (channel.capacity - channel.qty)) + channel.refill) != channel.vmc_after_qty ? 'text-red-500' : '']"
                         >
                         {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
@@ -294,9 +301,21 @@
                 </div>
               </dd>
             </div>
-            <div class="flex flex-col md:flex-row md:items-center px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-2 sm:px-0" v-if="opsJobItem.status >= 2">
+            <div class="flex flex-col md:flex-row md:items-center px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-2 sm:px-0" v-if="opsJobItem.status > 2">
               <dt class="text-sm font-medium leading-6 text-gray-900">
-                Stock Out (Transactions)
+                <div class="flex flex-col space-y-1 items-center">
+                  <div>
+                    Stock Out (Transactions)
+                  </div>
+                  <div
+                    class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit bg-red-500"
+                    v-if="!opsJobItem.previous_ops_job_item_id"
+                  >
+                    <div class="flex flex-col font-semibold grow-0">
+                      Not Detected
+                    </div>
+                  </div>
+                </div>
               </dt>
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 <div class="flex flex-col md:flex-row md:items-center space-x-2 justify-between">
@@ -362,7 +381,7 @@
                 type="button"
                 class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-red-500 hover:bg-red-700 text-white"
                 @click="onStatusClicked(99)"
-                v-if="opsJobItem.status < 3 && opsJobItem.status != 98"
+                v-if="(opsJobItem.status < 3 && opsJobItem.status != 98) || permissions.includes('delete operations')"
             >
               <span class="flex space-x-1 items-center">
                 <XCircleIcon class="w-4 h-4"></XCircleIcon>
@@ -375,7 +394,7 @@
                 type="button"
                 class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-red-500 hover:bg-red-700 text-white"
                 @click="onStatusClicked(-1)"
-                v-if="opsJobItem.status == 99"
+                v-if="opsJobItem.status == 99 && permissions.includes('delete operations')"
             >
               <span class="flex space-x-1 items-center">
                 <TrashIcon class="w-4 h-4"></TrashIcon>
@@ -474,6 +493,7 @@ const props = defineProps({
 })
 
 const channels = ref([])
+const permissions = usePage().props.auth.permissions
 const toast = useToast()
 const vend = ref([])
 
@@ -511,6 +531,7 @@ function getDefaultForm() {
   return {
     cash_amount: '',
     cashless_amount: '',
+    temp_cash_amount_from_vmc: '',
     remarks: '',
   }
 }
@@ -535,6 +556,26 @@ function isErrorSettleClicked(channel) {
 }
 
 function onConfirmClicked() {
+  let isConfirm = false;
+  let confirmText = 'Are you sure to Stock In? with ';
+
+  if(form.value.status == 2 && form.value.cash_amount == 0) {
+    confirmText += 'Cash Collected = 0; ';
+    isConfirm = true;
+  }
+
+  if(form.value.status == 2 && form.value.temp_cash_amount_from_vmc == 0) {
+    confirmText += 'VMC Cash Amount = 0; ';
+    isConfirm = true;
+  }
+
+  if(isConfirm) {
+    const approval = confirm(confirmText);
+    if (!approval) {
+        return;
+    }
+  }
+
   router.post('/ops-jobs/items/' + props.opsJobItem.id + '/confirm', {
     channels: channels.value.map((channel) => {
       return {

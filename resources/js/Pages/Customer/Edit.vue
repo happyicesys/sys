@@ -643,6 +643,7 @@ function getDefaultForm() {
       5: false,
       6: false,
       7: false,
+      8: false,
     },
     selling_price_type: '',
     termination_date: '',
@@ -702,6 +703,7 @@ onMounted(() => {
     5: false,
     6: false,
     7: false,
+    8: false,
   };
   form.value = props.customer ? useForm({
     ...JSON.parse(JSON.stringify(props.customer)),

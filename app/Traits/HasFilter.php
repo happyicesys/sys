@@ -227,6 +227,13 @@ trait HasFilter {
                 $query->where('parameter_json->fan', '<=', $search)->where('parameter_json->fan', '>', 0);
             }
         })
+        ->when($request->preferredDays, function($query, $search) {
+            $query->where(function($subQuery) use ($search) {
+                foreach ($search as $day) {
+                    $subQuery->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(customers.preferred_visit_days_json, '$.\"$day\"')) = 'true'");
+                }
+            });
+        })
         ->when($request->simcard_id, function($query, $search) {
             if($search != 'all') {
                 $query->where('vends.simcard_id', $search);
@@ -651,6 +658,13 @@ trait HasFilter {
         })
         ->when($request->paymentMethod, function($query, $search) {
             $query->where('payment_method_id', $search);
+        })
+        ->when($request->preferredDays, function($query, $search) {
+            $query->where(function($subQuery) use ($search) {
+                foreach ($search as $day) {
+                    $subQuery->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(customers.preferred_visit_days_json, '$.\"$day\"')) = 'true'");
+                }
+            });
         })
         ->when($request->categories, function($query, $search) {
             $query->whereIn('categories.id', $search);

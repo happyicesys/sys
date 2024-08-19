@@ -370,6 +370,23 @@
 						>
 						</MultiSelect>
 					</div>
+					<div v-if="permissions.includes('admin-access vend-customers')">
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Preferred Day(s)
+						</label>
+						<MultiSelect
+							v-model="filters.preferredDays"
+							:options="dayOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							class="mt-1"
+							mode="tags"
+						>
+						</MultiSelect>
+					</div>
 				</div>
 
 				<div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -712,6 +729,16 @@
 						</TableHead>
 						<TableHead v-if="!roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-2">
+								<span>
+									Last Job
+								</span>
+								<span>
+									Next Job
+								</span>
+							</div>
+						</TableHead>
+						<TableHead v-if="!roles.includes('operator_3pl')">
+							<div class="flex flex-col space-y-2">
 								<SingleSortItem modelName="vend_transaction_totals_json->vend_records_amount_latest" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->vend_records_amount_latest', true)">
 									Lifetime Sales
 								</SingleSortItem>
@@ -748,9 +775,16 @@
 								</SingleSortItem>
 							</div>
 						</TableHead>
-						<TableHeadSort modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
-							Zone
-						</TableHeadSort>
+						<TableHead v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
+							<div class="flex flex-col space-y-2">
+								<SingleSortItem modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')">
+									Zone
+								</SingleSortItem>
+								<div>
+									Preferred Day(s)
+								</div>
+							</div>
+						</TableHead>
 						<TableHead v-if="!roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-2">
 								<span>
@@ -1068,7 +1102,7 @@
 							</span>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
-							<div v-if="vend.vend && !vend.vend.lastOpsJobItem">
+							<!-- <div v-if="vend.vend && !vend.vend.lastOpsJobItem"> -->
 								<span v-if="vend.cms_invoice_history && 'last_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
 										{{ vend.cms_invoice_history['last_delivery_driver'] }} <br>
 								</span>
@@ -1084,40 +1118,10 @@
 											</span>
 										</div>
 								</span>
-							</div>
-							<div v-if="vend.vend && vend.vend.lastOpsJobItem" class="flex flex-col space-y-2">
-								<span>
-									{{ vend.vend.lastOpsJobItem.opsJob.deliveredBy.name }}
-								</span>
-								<span class="flex flex-col space-y-1">
-									<span>
-										{{ vend.vend.lastOpsJobItem.opsJob.date }}
-									</span>
-									<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
-										:class="[(vend.vend.lastOpsJobItem.opsJob.date_diff_count < 1 &&  vend.vend.lastOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.vend.lastOpsJobItem.opsJob.date_diff_count > -1 && vend.vend.lastOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
-										v-if="vend.vend.lastOpsJobItem.opsJob.date_diff_human"
-									>
-										<span>
-											{{ vend.vend.lastOpsJobItem.opsJob.date_diff_human }}
-										</span>
-									</div>
-								</span>
-								<span class="flex flex-col space-y-1"
-									v-if="vend.vend.lastOpsJobItem.status >= 3"
-									:class="[vend.vend.lastOpsJobItem.status == 4 ? 'text-green-700' : (vend.vend.lastOpsJobItem.status == 98 ? 'text-red-700' : '')]"
-								>
-									<span>
-										{{ operatorCountry.currency_symbol }}{{ vend.last_ops_job_amount ? vend.last_ops_job_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
-									</span>
-									<span>
-										{{ vend.last_ops_job_count ? vend.last_ops_job_count.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
-									</span>
-								</span>
-							</div>
+							<!-- </div> -->
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
-							<div v-if="vend.vend && !vend.vend.nextOpsJobItem">
+							<!-- <div v-if="vend.vend && !vend.vend.nextOpsJobItem"> -->
 								<span v-if="vend.cms_invoice_history && 'next_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
 											{{ vend.cms_invoice_history['next_delivery_driver'] }} <br>
 								</span>
@@ -1133,34 +1137,68 @@
 											</span>
 										</div>
 								</span>
-							</div>
-							<div v-if="vend.vend && vend.vend.nextOpsJobItem" class="flex flex-col space-y-2">
-								<span>
-									{{ vend.vend.nextOpsJobItem.opsJob.deliveredBy.name }}
-								</span>
-								<span class="flex flex-col space-y-1">
+							<!-- </div> -->
+						</TableData>
+						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_3pl')">
+							<div class="flex flex-col space-y-2">
+								<div v-if="vend.vend && vend.vend.lastOpsJobItem" class="flex flex-col space-y-1">
 									<span>
-										{{ vend.vend.nextOpsJobItem.opsJob.date }}
+										{{ vend.vend.lastOpsJobItem.opsJob.deliveredBy.name }}
 									</span>
-									<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
-										:class="[(vend.vend.nextOpsJobItem.opsJob.date_diff_count < 1 &&  vend.vend.nextOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.vend.nextOpsJobItem.opsJob.date_diff_count > -1 && vend.vend.nextOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
-										v-if="vend.vend.nextOpsJobItem.opsJob.date_diff_human"
+									<span class="flex flex-col space-y-1">
+										<span>
+											{{ vend.vend.lastOpsJobItem.opsJob.date }}
+										</span>
+										<div
+											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
+											:class="[(vend.vend.lastOpsJobItem.opsJob.date_diff_count < 1 &&  vend.vend.lastOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.vend.lastOpsJobItem.opsJob.date_diff_count > -1 && vend.vend.lastOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
+											v-if="vend.vend.lastOpsJobItem.opsJob.date_diff_human"
+										>
+											<span>
+												{{ vend.vend.lastOpsJobItem.opsJob.date_diff_human }}
+											</span>
+										</div>
+									</span>
+									<span class="flex flex-col space-y-1"
+										v-if="vend.vend.lastOpsJobItem.status >= 3"
+										:class="[vend.vend.lastOpsJobItem.status == 4 ? 'text-green-700' : (vend.vend.lastOpsJobItem.status == 98 ? 'text-red-700' : '')]"
 									>
 										<span>
-											{{ vend.vend.nextOpsJobItem.opsJob.date_diff_human }}
+											{{ operatorCountry.currency_symbol }}{{ vend.last_ops_job_amount ? vend.last_ops_job_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 										</span>
-									</div>
-								</span>
-								<span class="flex flex-col space-y-1" v-if="vend.vend.nextOpsJobItem.status == 2"
-									:class="[vend.vend.nextOpsJobItem.status == 4 ? 'text-green-700' : (vend.vend.nextOpsJobItem.status == 98 ? 'text-red-700' : '')]">
-									<span>
-										{{ operatorCountry.currency_symbol }}{{ vend.next_ops_job_amount ? vend.next_ops_job_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										<span>
+											{{ vend.last_ops_job_count ? vend.last_ops_job_count.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										</span>
 									</span>
+								</div>
+								<div v-if="vend.vend && vend.vend.nextOpsJobItem" class="flex flex-col space-y-1">
 									<span>
-										{{ vend.next_ops_job_count ? vend.next_ops_job_count.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										{{ vend.vend.nextOpsJobItem.opsJob.deliveredBy.name }}
 									</span>
-								</span>
+									<span class="flex flex-col space-y-1">
+										<span>
+											{{ vend.vend.nextOpsJobItem.opsJob.date }}
+										</span>
+										<div
+											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
+											:class="[(vend.vend.nextOpsJobItem.opsJob.date_diff_count < 1 &&  vend.vend.nextOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.vend.nextOpsJobItem.opsJob.date_diff_count > -1 && vend.vend.nextOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
+											v-if="vend.vend.nextOpsJobItem.opsJob.date_diff_human"
+										>
+											<span>
+												{{ vend.vend.nextOpsJobItem.opsJob.date_diff_human }}
+											</span>
+										</div>
+									</span>
+									<span class="flex flex-col space-y-1" v-if="vend.vend.nextOpsJobItem.status == 2"
+										:class="[vend.vend.nextOpsJobItem.status == 4 ? 'text-green-700' : (vend.vend.nextOpsJobItem.status == 98 ? 'text-red-700' : '')]">
+										<span>
+											{{ operatorCountry.currency_symbol }}{{ vend.next_ops_job_amount ? vend.next_ops_job_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										</span>
+										<span>
+											{{ vend.next_ops_job_count ? vend.next_ops_job_count.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										</span>
+									</span>
+								</div>
 							</div>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_3pl')">
@@ -1430,9 +1468,6 @@
 									<span>
 										{{ vend.location_type_name }}
 									</span>
-									<span>
-										{{ vend.zone_name }}
-									</span>
 								</div>
 							</span>
 						</TableData>
@@ -1442,6 +1477,17 @@
 									<span>
 										{{ vend.zone_name }}
 									</span>
+									<div class="flex flex-col space-y-1">
+										<span
+											v-for="(day, dayIndex) in dayOptions"
+											:key="dayIndex"
+											v-if="vend.preferred_visit_days_json"
+										>
+											<span v-if="vend.preferred_visit_days_json[dayIndex - 1] == true" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+												{{ day.value }}
+											</span>
+										</span>
+									</div>
 								</div>
 							</span>
 						</TableData>
@@ -1610,6 +1656,7 @@
         categoryGroups: Object,
         cmsEndpoint: String,
         constTempError: Number,
+				dayOptions: [Array, Object],
         deviceTypes: [Array, Object],
 				driverOptions: Object,
         indexType: String,
@@ -1656,6 +1703,7 @@
         is_sensor: '',
         //   is_testing: '',
         is_door_open: '',
+				preferredDays: [],
         fanSpeedLowerThan: '',
         balanceStockLessThan: '',
         remainingSkuLessThan: '',
@@ -1680,6 +1728,7 @@
     const categoryOptions = ref([])
     const categoryGroupOptions = ref([])
     const deviceTypeOptions = ref([])
+		const dayOptions = ref([])
     const doorOptions = ref([])
     const enableOptions = ref([])
     const isActiveFactoryOptions = ref([])
@@ -1749,6 +1798,10 @@ onMounted(() => {
       {id: 'true', value: 'Yes'},
       {id: 'false', value: 'No'},
   ]
+	dayOptions.value = [
+			{id: 'all', value: 'All'},
+			...Object.entries(props.dayOptions).map(([id, name]) => ({id: id, value: name}))
+	]
   enableOptions.value = [
       {id: 'all', value: 'All'},
       {id: 'true', value: 'Enabled'},
@@ -1953,6 +2006,7 @@ function getVendsField() {
         is_mqtt_active: filters.value.is_mqtt_active.id,
         is_online: filters.value.is_online.id,
         is_sensor: filters.value.is_sensor.id,
+				preferredDays: filters.value.preferredDays.map((preferredDay) => { return preferredDay.id }),
         // is_testing: filters.value.is_testing.id,
         status: filters.value.status.id,
         // vend_prefix_id: filters.value.vend_prefix_id.id,
@@ -2049,6 +2103,7 @@ function onExportChannelExcelClicked() {
           errors: filters.value.errors.map((error) => { return error.id }),
           location_type_id: filters.value.locationType.id,
           operators: filters.value.operators.map((operator) => { return operator.id }),
+					preferredDays: filters.value.preferredDays.map((preferredDay) => { return preferredDay.id }),
           is_active: filters.value.is_active.id,
           is_binded_customer: filters.value.is_binded_customer.id,
           is_door_open: filters.value.is_door_open.id,

@@ -1,6 +1,6 @@
 <template>
   <ul role="list" class="z-50 divide-y divide-gray-100 overflow-hidden bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-    <li v-for="(item, itemIndex) in items" :key="item.id" class="relative z-50 flex justify-between gap-x-6 px-3 py-3 hover:bg-gray-50 sm:px-6">
+    <li v-for="(item, itemIndex) in items" :key="item.id" class="relative z-50 flex flex-col md:flex-row justify-between gap-x-6 px-3 py-3 hover:bg-gray-50 sm:px-6 text-left md:text-center md:items-center">
       <div class="text-xs pt-4">
         {{ itemIndex + 1 }}
       </div>
@@ -23,10 +23,10 @@
           </a>
         </p>
       </div>
-      <span class="text-xs pt-3 text-gray-600 self-center">
+      <span class="text-xs pt-3 text-gray-600 text-left md:text-center">
         {{ item.created_at_formatted ? item.created_at_formatted : formatDatetime(item.created_at) }}
       </span>
-      <div class="flex space-x-2">
+      <div class="flex space-x-1 md:space-x-2">
         <div class="flex shrink-0 items-center gap-x-4">
           <button type="button" class="rounded-full bg-gray-600 p-1.5 text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600"
           @click.prevent="showInput(itemIndex)"
