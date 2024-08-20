@@ -4,7 +4,16 @@
       <template #header >
         <div class="flex flex-col space-y-2 md:flex-row md:space-x-3 md:space-y-0 text-left">
           <span>
-            Job ID# {{ opsJobItem.ref_id }}
+            Job ID#
+            <span class="text-blue-800">
+              {{ opsJobItem.ref_id }}
+            </span>
+          </span>
+          <span>
+            Machine ID#
+            <span class="text-blue-800">
+              {{ vend.code }}
+            </span>
           </span>
           <span v-if="vend.customer" class="text-gray-700">
             ({{ vend.customer.id + 20000 }})
@@ -213,7 +222,7 @@
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
                         <!-- <FormInput inputType="number" v-model="channel.picked" :maxValue="channel.capacity" class="text-center min-w-12" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                         </FormInput> -->
-                        <select name="channel_picked" id="channel_picked" class="rounded" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
+                        <select name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                           <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                         </select>
                         <span v-if="opsJobItem.status >= 2">
@@ -232,8 +241,8 @@
                         </span>
                       </td>
                       <td
-                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status > 2"
-                        :class="[channel.vmc_after_qty && ((channel.capacity - (channel.capacity - channel.qty)) + channel.refill) != channel.vmc_after_qty ? 'text-red-500' : '']"
+                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status >= 3"
+                        :class="[channel.vmc_after_qty && (channel.qty + channel.refill) != channel.vmc_after_qty ? 'text-red-500' : '']"
                         >
                         {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
                       </td>
@@ -249,7 +258,7 @@
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 3">
                         <button type="button" class="rounded-full bg-green-600 p-1.5 text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
                         @click.prevent="isErrorSettleClicked(channel)"
-                        v-if="channel.vmc_after_qty && ((channel.capacity - (channel.capacity - channel.qty)) + channel.refill) != channel.vmc_after_qty && channel.is_error_settle == 0"
+                        v-if="channel.vmc_after_qty && (channel.qty + channel.refill) != channel.vmc_after_qty && channel.is_error_settle == 0"
                         >
                           <CheckCircleIcon class="h-4 w-4" aria-hidden="true" />
                         </button>
@@ -265,6 +274,35 @@
                           </div>
                         </div>
                       </td>
+                    </tr>
+                    <tr v-if="channels && channels.length" class="bg-gray-200 shadow-lg rounded">
+                      <td class="py-6 text-sm font-bold text-center text-gray-800" colspan="3">
+                        <div class="flex justify-center">
+                          Total
+                        </div>
+                      </td>
+                      <td class="py-4 text-sm font-bold text-center text-gray-800">
+                        {{ getSubtotalNeeded() }}/ {{ getSubtotalCapacity() }}
+                      </td>
+                      <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status < 2">
+                        {{ getSubtotalPicked() }}
+                      </td>
+                      <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 2">
+                        {{ getSubtotalRefill() }}
+                      </td>
+                      <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3">
+                        {{ getSubtotalVMCInventoryCount() }}
+                      </td>
+                      <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3">
+                        {{ getSubtotalVMCBeforeQty() }}
+                      </td>
+                      <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3">
+                        {{ getSubtotalVMCQty() }}
+                      </td>
+                      <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3">
+                        {{ getSubtotalVMCAfterQty() }}
+                      </td>
+                      <td v-if="opsJobItem.status >= 3"></td>
                     </tr>
                   </tbody>
                 </table>
@@ -383,7 +421,7 @@
                 type="button"
                 class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-red-500 hover:bg-red-700 text-white"
                 @click="onStatusClicked(99)"
-                v-if="(opsJobItem.status < 3 && opsJobItem.status != 98) || permissions.includes('delete operations')"
+                v-if="(opsJobItem.status < 3 && opsJobItem.status != 99) && permissions.includes('delete operations')"
             >
               <span class="flex space-x-1 items-center">
                 <XCircleIcon class="w-4 h-4"></XCircleIcon>
@@ -520,6 +558,9 @@ onMounted(() => {
       } : null,
       vmc_before_qty: opsJobItemChannel.vmc_before_qty,
       vmc_after_qty: opsJobItemChannel.vmc_after_qty,
+      // set static capacity and qty once opsJobItem status is more than 3 (stocked in)
+      capatity: props.opsJobItem.status >= 3 ? opsJobItemChannel.capacity : opsJobItemChannel.vendChannel.capacity,
+      qty: props.opsJobItem.status >= 3 ? opsJobItemChannel.qty : opsJobItemChannel.vendChannel.qty,
     }
   })
 })
@@ -536,6 +577,55 @@ function getDefaultForm() {
     temp_cash_amount_from_vmc: '',
     remarks: '',
   }
+}
+
+// subtotals
+function getSubtotalCapacity() {
+  return channels.value.reduce((acc, channel) => {
+    return acc + channel.capacity
+  }, 0)
+}
+
+function getSubtotalNeeded() {
+  return channels.value.reduce((acc, channel) => {
+    return acc + (channel.capacity - channel.qty)
+  }, 0)
+}
+
+function getSubtotalPicked() {
+  return channels.value.reduce((acc, channel) => {
+    return acc + channel.picked
+  }, 0)
+}
+
+function getSubtotalRefill() {
+  return channels.value.reduce((acc, channel) => {
+    return acc + channel.refill
+  }, 0)
+}
+
+function getSubtotalVMCInventoryCount() {
+  return channels.value.reduce((acc, channel) => {
+    return acc + (channel.capacity - (channel.capacity - channel.qty)) + channel.refill
+  }, 0)
+}
+
+function getSubtotalVMCBeforeQty() {
+  return channels.value.reduce((acc, channel) => {
+    return acc + channel.vmc_before_qty
+  }, 0)
+}
+
+function getSubtotalVMCAfterQty() {
+  return channels.value.reduce((acc, channel) => {
+    return acc + channel.vmc_after_qty
+  }, 0)
+}
+
+function getSubtotalVMCQty() {
+  return channels.value.reduce((acc, channel) => {
+    return acc + (channel.vmc_after_qty - channel.vmc_before_qty)
+  }, 0)
 }
 
 function isErrorSettleClicked(channel) {
@@ -577,12 +667,23 @@ function onConfirmClicked() {
         return;
     }
   }
+  // console.log(channels.value.map((channel) => {
+  //     return {
+  //       id: channel.ops_job_item_channel_id,
+  //       capacity: channel.capacity,
+  //       picked: channel.picked,
+  //       qty: channel.qty,
+  //       refill: channel.refill,
+  //     }
+  //   }))
 
   router.post('/ops-jobs/items/' + props.opsJobItem.id + '/confirm', {
     channels: channels.value.map((channel) => {
       return {
         id: channel.ops_job_item_channel_id,
+        capacity: channel.capacity,
         picked: channel.picked,
+        qty: channel.qty,
         refill: channel.refill,
       }
     }),
@@ -594,6 +695,7 @@ function onConfirmClicked() {
         timeout: 3000
       });
       emit('statusUpdated')
+      emit('modalClose')
     }
   })
 }
@@ -620,6 +722,7 @@ function onStatusClicked(nextStatus) {
         timeout: 3000
       });
       emit('statusUpdated')
+      emit('modalClose')
     }
   })
 }
@@ -634,6 +737,7 @@ function onVerifyClicked(verify) {
         timeout: 3000
       });
       emit('statusUpdated')
+      emit('modalClose')
     }
   })
 }

@@ -17,6 +17,7 @@ class OpsJobItemChannel extends Model
         'ops_job_item_id',
         'picked_qty',
         'product_id',
+        'qty',
         'vend_channel_id',
         'vend_channel_code',
         'vend_code',

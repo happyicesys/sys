@@ -71,6 +71,33 @@ class OpsJobController extends Controller
                     0
                 ) as ops_job_items_verified_count_percentage', [OpsJob::STATUS_VERIFIED])
             ->selectRaw('
+                (SELECT SUM(ops_job_item_channels.picked_qty * vend_channels.amount)
+                FROM ops_job_item_channels
+                JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
+                JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
+                WHERE ops_job_items.ops_job_id = ops_jobs.id
+                ) as picked_amount')
+            ->selectRaw('
+                (SELECT SUM(ops_job_item_channels.picked_qty)
+                FROM ops_job_item_channels
+                JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
+                JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
+                WHERE ops_job_items.ops_job_id = ops_jobs.id
+                ) as picked_count')
+            ->selectRaw('
+                (
+                SELECT SUM(ops_job_item_channels.picked_qty * unit_costs.cost)
+                FROM ops_job_item_channels
+                JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
+                JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
+                JOIN products ON products.id = vend_channels.product_id
+                JOIN unit_costs ON unit_costs.product_id = products.id
+                WHERE ops_job_items.ops_job_id = ops_jobs.id
+                AND unit_costs.is_current = true
+                ORDER BY unit_costs.date_from DESC, unit_costs.created_at DESC
+                LIMIT 1
+                ) as picked_cost')
+            ->selectRaw('
                 (SELECT SUM(ops_job_item_channels.actual_qty * vend_channels.amount)
                 FROM ops_job_item_channels
                 JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
@@ -195,6 +222,7 @@ class OpsJobController extends Controller
                         $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
                         $opsJobItemChannel->update([
                             'picked_qty' => $channel['picked'],
+                            'qty' => $channel['qty'],
                         ]);
                     }
                 }
@@ -216,6 +244,8 @@ class OpsJobController extends Controller
                         $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
                         $opsJobItemChannel->update([
                             'actual_qty' => $channel['refill'],
+                            'capacity' => $channel['capacity'],
+                            'qty' => $channel['qty'],
                         ]);
                     }
                 }
@@ -473,6 +503,9 @@ class OpsJobController extends Controller
         return Inertia::render('OpsJob/Edit', [
             'opsJob' => new OpsJobResource($opsJob),
             'unbindedVendOptions' => VendResource::collection($unbindedVendOptions),
+            'userOptions' => UserResource::collection(
+                User::orderBy('name')->get()
+            ),
         ]);
     }
 
@@ -625,13 +658,38 @@ class OpsJobController extends Controller
                 'cash_amount' => $request->cash_amount,
                 'cashless_amount' => $request->cashless_amount,
                 'remarks' => $request->remarks,
+                'updated_at' => Carbon::now(),
+                'updated_by' => auth()->id(),
             ]);
         }
 
         if($request->sequence) {
             $opsJobItem->update([
                 'sequence' => $request->sequence,
+                'updated_at' => Carbon::now(),
+                'updated_by' => auth()->id(),
             ]);
+        }
+
+        if($request->delivered_by) {
+            if($request->delivered_by != $opsJobItem->opsJob->delivered_by) {
+                $opsJob = OpsJob::firstOrCreate([
+                    'date' => $opsJobItem->opsJob->date,
+                    'delivered_by' => $request->delivered_by,
+                ], [
+                    'code' => $this->runningNumberService->getRunningCode(new OpsJob()),
+                    'created_by' => auth()->id(),
+                    'operator_id' => auth()->user()->operator_id,
+                    'updated_by' => auth()->id(),
+                    'updated_at' => Carbon::now(),
+                ]);
+
+                $opsJobItem->update([
+                    'ops_job_id' => $opsJob->id,
+                    'updated_at' => Carbon::now(),
+                    'updated_by' => auth()->id(),
+                ]);
+            }
         }
 
         return redirect()->back();

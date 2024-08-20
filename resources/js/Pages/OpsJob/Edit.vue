@@ -100,7 +100,7 @@
                     <table class="min-w-full divide-y divide-gray-300">
                       <thead class="bg-gray-50">
                         <tr class="bg-gray-200">
-                          <th scope="col" colspan="10" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          <th scope="col" colspan="11" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             <span class="flex flex-col md:flex-row space-y-2 md:space-y-0 text-left md:space-x-2">
                               <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code" @input="onSearchFilterUpdated()">
                                   Machine ID
@@ -120,6 +120,7 @@
                               <Button
                                 class="bg-yellow-400 hover:bg-yellow-500 text-gray-800 text-xs font-semibold"
                                 @click.prevent="onRenumberClicked()"
+                                v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 3)"
                               >
                                 <div class="flex space-x-1 items-center">
                                 <ArrowsUpDownIcon class="h-3 w-3"></ArrowsUpDownIcon>
@@ -206,6 +207,9 @@
                                 (Qty)
                               </SingleSortItem>
                             </div>
+                          </TableHead>
+                          <TableHead>
+                            Action
                           </TableHead>
                         </tr>
 
@@ -317,20 +321,25 @@
                             {{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                             ({{ opsJobItem.acc_vend_transactions_count }})
                           </td>
-                          <!-- <td class="whitespace-nowrap py-4 text-sm text-center">
+                          <td class="whitespace-nowrap py-4 px-1 text-sm text-center">
                             <Button
-                              class="bg-red-400 hover:bg-red-500 text-white"
+                              class="bg-blue-500 hover:bg-blue-600 text-white"
                               :class="[opsJobItem.status >= 3 ? 'opacity-50 cursor-not-allowed' : '']"
-                              @click.prevent="deleteOpsJobItem(opsJobItem)"
-                              v-if="permissions.includes('update operations')"
+                              @click.prevent="onChangeDriverClicked(opsJobItem)"
+                              v-if="permissions.includes('update operations') && opsJobItem.status < 3"
                               :disabled="opsJobItem.status >= 3"
                             >
-                              <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                              <div class="flex space-x-2 items-center">
+                                <ArrowsRightLeftIcon class="h-3 w-3"></ArrowsRightLeftIcon>
+                                <span>
+                                  Driver
+                                </span>
+                              </div>
                             </Button>
-                          </td> -->
+                          </td>
                         </tr>
                         <tr v-if="!opsJob.opsJobItems || !opsJob.opsJobItems.length">
-                          <td colspan="10" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
+                          <td colspan="11" class="whitespace-nowrap py-4 text-sm font-medium text-black text-center">
                             No Records Found
                           </td>
                         </tr>
@@ -345,6 +354,19 @@
             <div class="sm:col-span-6 mt-5 ">
               <div class="flex flex-col space-y-1 md:space-y-0 md:flex-row md:justify-between">
                 <div class="flex flex-col space-y-1 md:space-y-0 md:flex-row md:space-x-1">
+                  <Button
+                      type="button"
+                      class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-red-500 hover:bg-red-700 text-white"
+                      @click="onDeleteClicked()"
+                      v-if="opsJob.opsJobItems && !opsJob.opsJobItems.length"
+                  >
+                    <span class="flex space-x-1 items-center">
+                      <TrashIcon class="w-4 h-4"></TrashIcon>
+                      <span>
+                        Delete
+                      </span>
+                    </span>
+                  </Button>
                   <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                   @click.prevent="onGeneratePickListClicked()"
                   v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 2)"
@@ -406,6 +428,17 @@
   >
   </Channel>
 
+  <ChangeDriver
+		v-if="showChangeDriverModal"
+    :opsJob="opsJob"
+		:opsJobItem="opsJobItemModel"
+		:showModal="showChangeDriverModal"
+    :userOptions="userOptions"
+		@modalClose="onChangeDriverModalClosed"
+    @statusUpdated="statusUpdated"
+  >
+  </ChangeDriver>
+
   <PickList
 		v-if="showPickListModal"
 		:pickLists="pickLists"
@@ -421,13 +454,13 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Channel from '@/Pages/OpsJob/Channel.vue';
+import ChangeDriver from '@/Pages/OpsJob/ChangeDriver.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { ArrowUturnLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CheckCircleIcon, PlusCircleIcon, XCircleIcon, ArrowRightCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -435,6 +468,7 @@ import { useToast } from "vue-toastification";
 const props = defineProps({
   opsJob: Object,
   unbindedVendOptions: [Array, Object],
+  userOptions: [Array, Object],
 })
 
 const booleanStrictOptions = ref([
@@ -459,9 +493,11 @@ const opsJobItemModel = ref([])
 const permissions = usePage().props.auth.permissions
 const pickLists = ref([])
 const showChannelModal = ref(false)
+const showChangeDriverModal = ref(false)
 const showPickListModal = ref(false)
 const toast = useToast()
 const unbindedVendOptions = ref([])
+const userOptions = ref([])
 
 onMounted(() => {
   opsJob.value = props.opsJob.data
@@ -471,6 +507,9 @@ onMounted(() => {
       full_name: vend.cust_full_name,
     }
   })
+  userOptions.value = [
+    ...props.userOptions.data.map((data) => {return {id: data.id, value: data.name}})
+  ]
 })
 
 function getDefaultForm() {
@@ -565,6 +604,32 @@ function onChannelUpdatedNoRefresh() {
   })
 }
 
+function onChangeDriverClicked(obj) {
+  opsJobItemModel.value = opsJob.value.opsJobItems.find(item => item.id === obj.id)
+  showChangeDriverModal.value = true
+}
+
+function onChangeDriverModalClosed() {
+  showChangeDriverModal.value = false
+}
+
+function onDeleteClicked() {
+  const approval = confirm('Are you sure to delete this entry?');
+  if (!approval) {
+      return;
+  }
+
+  form.value.delete('/ops-jobs/' + opsJob.value.id, {
+    onSuccess: () => {
+      toast.success("Successfully Deleted", {
+        timeout: 3000
+      });
+    },
+    preserveState: true,
+    replace: true,
+  })
+}
+
 function onGeneratePickListClicked() {
     axios({
         method: 'POST',
@@ -643,8 +708,6 @@ function statusClass(status) {
 }
 
 function statusUpdated() {
-  showChannelModal.value = false
-
   router.reload({
     only: ['opsJob'],
     data: {

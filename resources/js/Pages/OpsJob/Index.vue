@@ -151,6 +151,20 @@
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
+                          Picked
+                        </span>
+                        <SingleSortItem modelName="picked_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_amount')">
+                          Value$<br>
+                          (Qty)
+                        </SingleSortItem>
+                        <SingleSortItem modelName="picked_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_cost')">
+                          Cost$
+                        </SingleSortItem>
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div class="flex flex-col space-y-2">
+                        <span>
                           Stock In
                         </span>
                         <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
@@ -232,6 +246,17 @@
                           </span>
                           <span>
                             {{ opsJob.ops_job_items_verified_count }} ({{ opsJob.ops_job_items_verified_count_percentage }}%)
+                          </span>
+                        </div>
+                      </TableData>
+                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
+                        <div class="flex flex-col space-y-2">
+                          <span>
+                            {{ opsJob.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}<br>
+                            ({{ opsJob.picked_count }})
+                          </span>
+                          <span>
+                            {{ opsJob.picked_cost.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                           </span>
                         </div>
                       </TableData>
