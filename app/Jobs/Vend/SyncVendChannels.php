@@ -120,13 +120,14 @@ class SyncVendChannels implements ShouldQueue
                 $lastRecord = VendChannelRecord::where('vend_id', $vend->id)->orderBy('before_data_created_at', 'desc')->first();
 
                 if($lastRecord && $lastRecord->after_data_created_at == null) {
-                    $vendChannelRecord = $lastRecord->update([
+                    $lastRecord->update([
                         'customer_id' => $vend->customer_id,
                         'operator_id' => $vend->operator_id,
                         'before_data_json' => $input,
                         'before_data_created_at' => Carbon::now(),
                         'before_label' => $input['label'],
                     ]);
+                    $vendChannelRecord = $lastRecord;
                 }else {
                     $vendChannelRecord = VendChannelRecord::create([
                         'customer_id' => $vend->customer_id,
