@@ -704,7 +704,7 @@
 						<TableHead v-if="!roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-2">
 								<span>
-									Last Stock In
+									CMS Last Stock In
 								</span>
 								<SingleSortItem modelName="last_ops_job_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_ops_job_amount')">
 									Value
@@ -717,7 +717,7 @@
 						<TableHead v-if="!roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-2">
 								<span>
-									Next Picked
+									CMS Next Picked
 								</span>
 								<SingleSortItem modelName="next_ops_job_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_ops_job_amount')">
 									Value
@@ -730,10 +730,14 @@
 						<TableHead v-if="!roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-2">
 								<span>
-									Last Job
+									SYS Last Job
 								</span>
+							</div>
+						</TableHead>
+						<TableHead v-if="!roles.includes('operator_3pl')">
+							<div class="flex flex-col space-y-2">
 								<span>
-									Next Job
+									SYS Next Job
 								</span>
 							</div>
 						</TableHead>
@@ -1174,6 +1178,10 @@
 										</span>
 									</span>
 								</div>
+							</div>
+						</TableData>
+						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_3pl')">
+							<div class="flex flex-col space-y-2">
 								<div v-if="vend.vend && vend.vend.nextOpsJobItem" class="flex flex-col space-y-1">
 									<span>
 										{{ vend.vend.nextOpsJobItem.opsJob.deliveredBy.name }}

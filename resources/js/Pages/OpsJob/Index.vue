@@ -257,7 +257,7 @@
                         <div class="flex flex-col space-y-2">
                           <span>
                             {{ opsJob.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}<br>
-                            ({{ opsJob.picked_count }})
+                            ({{ opsJob.picked_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }})
                           </span>
                           <span>
                             {{ opsJob.picked_cost.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
@@ -268,7 +268,7 @@
                         <div class="flex flex-col space-y-2">
                           <span>
                             {{ opsJob.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}<br>
-                            ({{ opsJob.stock_in_count }})
+                            ({{ opsJob.stock_in_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }})
                           </span>
                           <span>
                             {{ opsJob.total_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
@@ -280,7 +280,7 @@
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
                         {{ opsJob.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}<br>
-                        ({{ opsJob.acc_vend_transactions_count }})
+                        ({{ opsJob.acc_vend_transactions_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }})
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
                         <div class="flex flex-col space-y-2">
