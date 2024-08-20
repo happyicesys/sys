@@ -200,10 +200,14 @@
                       </div>
                     </TableHead>
                     <TableHead>
-                      Created By
-                    </TableHead>
-                    <TableHead>
-                      Created At
+                      <div class="flex flex-col space-y-2">
+                        <span>
+                          Created By
+                        </span>
+                        <span>
+                          Created At
+                        </span>
+                      </div>
                     </TableHead>
                   </tr>
                 </thead>
@@ -279,10 +283,14 @@
                         ({{ opsJob.acc_vend_transactions_count }})
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
-                        {{ opsJob.createdBy ? opsJob.createdBy.name : '' }}
-                      </TableData>
-                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
-                        {{ opsJob.created_at }}
+                        <div class="flex flex-col space-y-2">
+                          <span>
+                            {{ opsJob.createdBy ? opsJob.createdBy.name : '' }}
+                          </span>
+                          <span>
+                            {{ opsJob.created_at }}
+                          </span>
+                        </div>
                       </TableData>
 <!--
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="">

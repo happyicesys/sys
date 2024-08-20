@@ -483,6 +483,7 @@ class OpsJobController extends Controller
             'opsJobItems.opsJobItemChannels.vendChannel.product.thumbnail',
             'opsJobItems.vend.vendPrefix',
             'opsJobItems.pickedBy:id,name',
+            'opsJobItems.previousOpsJobItem',
             'opsJobItems.completedBy:id,name',
             'opsJobItems.vendChannelRecord',
             'updatedBy:id,name'
@@ -736,34 +737,42 @@ class OpsJobController extends Controller
     private function createOpsJobItem($opsJobID, $vendID)
     {
         $vend = Vend::with('vendChannels')->find($vendID);
+        $opsJob = OpsJob::find($opsJobID);
 
-        $opsJobItem = OpsJobItem::updateOrCreate([
-            'customer_id' => $vend->customer_id,
-            'ops_job_id' => $opsJobID,
-            'vend_id' => $vendID,
-        ],[
-            'cash_amount' => 0,
-            'cashless_amount' => 0,
-            'status' => '1',
-            'created_by' => auth()->id(),
-            'updated_by' => auth()->id(),
-        ]);
+        $hasAnyUndoneOpsJobItem = OpsJobItem::query()
+            ->where('vend_id', $vendID)
+            ->whereHas('opsJob', function($query) use ($opsJob) {
+                $query->where('date', '>=', Carbon::today());
+            })
+            ->where('status', '<', OpsJob::STATUS_DELIVERED)
+            ->exists();
 
-        foreach($vend->vendChannels as $vendChannel) {
-            // dd($vendChannel->toArray());
-            $opsJobItem->opsJobItemChannels()->updateOrCreate([
-                'ops_job_id' => $opsJobItem->ops_job_id,
-                'product_id' => $vendChannel->product_id ?? 0,
-                'vend_channel_code' => $vendChannel->code,
-                'vend_channel_id' => $vendChannel->id,
-                'vend_code' => $vend->code,
-            ],[
-                'actual_qty' => 0,
-                'capacity' => $vendChannel->capacity,
-                'picked_qty' => 0,
+        if(!$hasAnyUndoneOpsJobItem) {
+            $opsJobItem = OpsJobItem::create([
+                'customer_id' => $vend->customer_id,
+                'ops_job_id' => $opsJobID,
+                'vend_id' => $vendID,
+                'cash_amount' => 0,
+                'cashless_amount' => 0,
+                'status' => '1',
+                'created_by' => auth()->id(),
+                'updated_by' => auth()->id(),
             ]);
-        }
 
+            foreach($vend->vendChannels as $vendChannel) {
+                // dd($vendChannel->toArray());
+                $opsJobItem->opsJobItemChannels()->create([
+                    'ops_job_id' => $opsJobItem->ops_job_id,
+                    'product_id' => $vendChannel->product_id ?? 0,
+                    'vend_channel_code' => $vendChannel->code,
+                    'vend_channel_id' => $vendChannel->id,
+                    'vend_code' => $vend->code,
+                    'actual_qty' => 0,
+                    'capacity' => $vendChannel->capacity,
+                    'picked_qty' => 0,
+                ]);
+            }
+        }
         // sync next invoice date and next invoice driver
         // temporary disable to record ops job item without interffere with cms
         // $vend->customer->update([

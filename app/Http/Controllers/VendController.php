@@ -142,7 +142,7 @@ class VendController extends Controller
 
         $vends = Vend::query()
             ->with([
-                'vendChannels',
+                'vendChannels.latestOpsJobItemChannel',
                 'vendChannels.product.thumbnail',
                 'vendChannels.product.sellingPrices',
                 'vendChannels.vendChannelErrorLogs' => function($query) {
@@ -323,7 +323,7 @@ class VendController extends Controller
                 'vend.nextOpsJobItem.opsJob:id,code,date,delivered_by',
                 'vend.nextOpsJobItem.opsJob.deliveredBy:id,name,username',
                 'vend.nextOpsJobItem.opsJobItemChannels.vendChannel',
-                'vend.vendChannels',
+                'vend.vendChannels.latestOpsJobItemChannel',
                 'vend.vendChannels.product.thumbnail',
                 'vend.vendChannels.product.sellingPrices',
                 'vend.vendChannels.vendChannelErrorLogs' => function($query) {

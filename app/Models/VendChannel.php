@@ -41,6 +41,16 @@ class VendChannel extends Model
         return $this->hasMany(DeliveryProductMappingVendChannel::class);
     }
 
+    public function latestOpsJobItemChannel()
+    {
+        return $this->hasOne(OpsJobItemChannel::class)->whereNotNull('actual_qty')->orderByDesc('created_at');
+    }
+
+    public function opsJobItemChannels()
+    {
+        return $this->hasMany(OpsJobItemChannel::class);
+    }
+
     public function product()
     {
         return $this->belongsTo(Product::class);

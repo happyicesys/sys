@@ -27,6 +27,7 @@ class VendChannelResource extends JsonResource
             'qty_sold_at_human_formatted' => $this->qty_sold_at ? $this->qty_sold_at->shortRelativeDiffForHumans() : '',
             'qty_restocked_at' => $this->qty_restocked_at,
             'qty_not_available_duration' => $this->qty_not_available_duration,
+            'latestOpsJobItemChannel' => OpsJobItemChannelResource::make($this->whenLoaded('latestOpsJobItemChannel')),
             'locked_qty' => $this->locked_qty,
             'capacity' => $this->capacity,
             'amount' => $this->amount ? $this->amount/ 100 : 0,

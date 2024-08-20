@@ -151,7 +151,7 @@
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                         Stock In
                       </th>
-                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                         VMC Inventory Count
                       </th>
                       <th scope="col" class="w-2/12 px-1 py-2 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
@@ -192,7 +192,7 @@
                         </div>
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
-                        Error
+                        VMC Inventory Not Tally, Fixed?
                       </th>
                     </tr>
                   </thead>
@@ -241,7 +241,7 @@
                         </span>
                       </td>
                       <td
-                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status >= 3"
+                        class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status >= 2"
                         :class="[channel.vmc_after_qty && (channel.qty + channel.refill) != channel.vmc_after_qty ? 'text-red-500' : '']"
                         >
                         {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
@@ -256,7 +256,7 @@
                         {{ channel.vmc_after_qty }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 3">
-                        <button type="button" class="rounded-full bg-green-600 p-1.5 text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+                        <button type="button" class="rounded-full bg-red-600 p-1.5 text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
                         @click.prevent="isErrorSettleClicked(channel)"
                         v-if="channel.vmc_after_qty && (channel.qty + channel.refill) != channel.vmc_after_qty && channel.is_error_settle == 0"
                         >
@@ -290,7 +290,7 @@
                       <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 2">
                         {{ getSubtotalRefill() }}
                       </td>
-                      <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3">
+                      <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 2">
                         {{ getSubtotalVMCInventoryCount() }}
                       </td>
                       <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3">
@@ -353,6 +353,9 @@
                       <span>
                         {{ opsJobItem.previous_ops_job_item_id ? 'Detected' : 'Not Detected' }}
                       </span>
+                      <span v-if="opsJobItem.previous_ops_job_item_id">
+                        #{{ opsJobItem.previousOpsJobItem.ref_id }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -362,36 +365,52 @@
                   <label for="acc_vend_transactions_count" class="font-semibold">
                     Total Qty
                   </label>
-                  <FormInput inputType="number" v-model="form.acc_vend_transactions_count" class="text-center" :disabled="true">
-                  </FormInput>
+                  <span class="py-3 px-2 font-semibold">
+                    {{form.acc_vend_transactions_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0 })}}
+                  </span>
+
+                  <!-- <FormInput inputType="number" v-model="form.acc_vend_transactions_count" class="text-center" :disabled="true">
+                  </FormInput> -->
                 </div>
                 <div class="flex flex-col md:flex-row md:items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_amount" class="font-semibold">
                     Total Amount
                   </label>
-                  <FormInput inputType="number" v-model="form.acc_vend_transactions_amount" class="text-center" :disabled="true">
-                  </FormInput>
+                  <span class="py-3 px-2 font-semibold">
+                    {{form.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                  </span>
+                  <!-- <FormInput inputType="number" v-model="form.acc_vend_transactions_amount" class="text-center" :disabled="true">
+                  </FormInput> -->
                 </div>
                 <div class="flex flex-col md:flex-row md:items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_cash_amount" class="font-semibold">
                     Cash Amount
                   </label>
-                  <FormInput inputType="number" v-model="form.acc_vend_transactions_cash_amount" class="text-center" :disabled="true">
-                  </FormInput>
+                  <span class="py-3 px-2 font-semibold">
+                    {{form.acc_vend_transactions_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                  </span>
+                  <!-- <FormInput inputType="number" v-model="form.acc_vend_transactions_cash_amount" class="text-center" :disabled="true">
+                  </FormInput> -->
                 </div>
                 <div class="flex flex-col md:flex-row md:items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_cashless_amount" class="font-semibold">
                     Cashless Amount
                   </label>
-                  <FormInput inputType="number" v-model="form.acc_vend_transactions_cashless_amount" class="text-center" :disabled="true">
-                  </FormInput>
+                  <span class="py-3 px-2 font-semibold">
+                    {{form.acc_vend_transactions_cashless_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                  </span>
+                  <!-- <FormInput inputType="number" v-model="form.acc_vend_transactions_cashless_amount" class="text-center" :disabled="true">
+                  </FormInput> -->
                 </div>
                 <div class="flex flex-col md:flex-row md:items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_promo_amount" class="font-semibold">
                     Discount Amount
                   </label>
-                  <FormInput inputType="number" v-model="form.acc_vend_transactions_promo_amount" class="text-center" :disabled="true">
-                  </FormInput>
+                  <span class="py-3 px-2 font-semibold">
+                    {{form.acc_vend_transactions_promo_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                  </span>
+                  <!-- <FormInput inputType="number" v-model="form.acc_vend_transactions_promo_amount" :step="[operatorCountry.currency_exponent == 2 && !operatorCountry.is_currency_exponent_hidden ? .01 : '' ]" class="text-center" :disabled="true">
+                  </FormInput> -->
                 </div>
               </dd>
             </div>
@@ -533,6 +552,7 @@ const props = defineProps({
 })
 
 const channels = ref([])
+const operatorCountry = usePage().props.auth.operatorCountry
 const permissions = usePage().props.auth.permissions
 const toast = useToast()
 const vend = ref([])

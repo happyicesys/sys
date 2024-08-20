@@ -640,7 +640,7 @@
 										Inventory Status
 									</span>
 									<span>
-										(#Channel, Sold, Balance/Capacity)
+										#Channel, Needed, Balance/Capacity (LastStockIn)
 									</span>
 								</span>
 								<SingleSortItem modelName="total_stock_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_cost')">
@@ -958,6 +958,9 @@
 												</span>
 												<span :class="[vend.is_active || vend.is_testing ? (channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700') : 'text-gray-400']">
 														{{channel['qty']}}/{{channel['capacity']}}
+												</span>
+												<span class="text-gray-500" v-if="channel.latestOpsJobItemChannel">
+														({{channel.latestOpsJobItemChannel.actual_qty}})
 												</span>
 										</span>
 									</li>

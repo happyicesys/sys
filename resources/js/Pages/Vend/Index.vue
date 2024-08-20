@@ -557,7 +557,7 @@
           </TableHead>
           <TableHead>
             Inventory Status <br>
-            (#Channel, Sold, Balance/Capacity)
+            #Channel, Needed, Balance/Capacity (LastStockIn)
           </TableHead>
           <TableHeadSort modelName="vend_channel_error_logs_json" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_error_logs_json')">
             Errors
