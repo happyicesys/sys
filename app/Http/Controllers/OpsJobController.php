@@ -396,6 +396,14 @@ class OpsJobController extends Controller
                     'vend_channel_record_id',
                 ]);
 
+                $query->selectRaw('
+                    (SELECT
+                        CASE
+                            WHEN ops_job_items.status = 1 THEN created_at
+                            WHEN ops_job_items.status = 2 THEN picked_at
+                            WHEN ops_job_items.status = 3 THEN completed_at
+                    ELSE NULL END) as status_at');
+
                 // Adjust the selectRaw queries to correctly reference the opsJobItems relationship
                 $query->selectRaw('
                     (SELECT SUM(ops_job_item_channels.picked_qty * vend_channels.amount)

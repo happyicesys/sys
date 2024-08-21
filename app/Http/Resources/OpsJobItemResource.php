@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\OpsJob;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -29,7 +30,7 @@ class OpsJobItemResource extends JsonResource
             'cashless_amount' => $this->cashless_amount,
             'cms_transaction_id' => $this->cms_transaction_id,
             'code' => $this->code,
-            'completed_at' => isset($this->completed_at) ? $this->completed_at->format('ymd h:i a') : '',
+            'completed_at' => isset($this->completed_at) ? $this->completed_at->format('ymd h:ia') : '',
             'completed_by' => $this->completed_by,
             'completedBy' => UserResource::make($this->whenLoaded('completedBy')),
             'name' => $this->name,
@@ -39,6 +40,7 @@ class OpsJobItemResource extends JsonResource
             'qty' => $this->qty,
             'remarks' => $this->remarks,
             'sequence' => $this->sequence,
+            'status_at' => isset($this->status_at) ? Carbon::parse($this->status_at)->format('ymd h:ia') : '',
             'status' => $this->status,
             'status_name' => OpsJob::STATUS_MAPPINGS[$this->status],
             'stock_in_amount' => isset($this->stock_in_amount) ? $this->stock_in_amount/100 : 0,

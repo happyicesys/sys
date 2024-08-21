@@ -356,6 +356,9 @@
                       <span v-if="opsJobItem.previous_ops_job_item_id">
                         #{{ opsJobItem.previousOpsJobItem.ref_id }}
                       </span>
+                      <span>
+                        {{ opsJobItem.previousOpsJobItem.completed_at }}
+                      </span>
                     </div>
                   </div>
                 </div>

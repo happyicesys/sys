@@ -250,9 +250,9 @@
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <div class="flex flex-col space-y-2">
-                              <span>
+                              <div class="flex flex-col space-y-1">
                                 <div
-                                    class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs"
+                                    class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
                                     :class="statusClass(opsJobItem.status)"
                                 >
                                     <div class="flex flex-col">
@@ -261,7 +261,10 @@
                                         </span>
                                     </div>
                                 </div>
-                              </span>
+                                <span v-if="opsJobItem.status_at" class="text-xs font-medium text-gray-600">
+                                  {{ opsJobItem.status_at }}
+                                </span>
+                              </div>
                               <span>
                                 <span v-if="opsJobItem.vend.customer && opsJobItem.vend.customer.person_id">
                                     {{ opsJobItem.vend.customer.virtual_customer_code }} ({{ opsJobItem.vend.customer.virtual_customer_prefix }})
