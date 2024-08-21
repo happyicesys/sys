@@ -106,7 +106,206 @@
           <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
             <div class="inline-block min-w-full py-2 align-middle md:px-3 lg:px-6">
               <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table class="min-w-full divide-y divide-gray-300">
+                <!-- mobile view -->
+                <table class="md:hidden min-w-full divide-y divide-gray-300">
+                  <thead class="bg-gray-50">
+                    <tr v-if="opsJobItem.status >= 3">
+                      <th scope="col" class="px-2 py-1 text-center text-xs font-semibold text-gray-900" colspan="2">
+                      </th>
+                      <th scope="col" class="px-2 py-1 text-center text-xs font-bold text-gray-900 bg-gray-200" colspan="4">
+                        <div class="flex flex-col space-y-1 items-center">
+                          <span>
+                            From VMC
+                          </span>
+                          <div
+                            class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
+                            :class="[opsJobItem.vendChannelRecord ? 'bg-green-500' : 'bg-red-500']"
+                          >
+                            <div class="flex flex-col font-semibold grow-0">
+                              <span v-if="opsJobItem.vendChannelRecord">
+                                {{ opsJobItem.vendChannelRecord.before_date_created_at_formatted }}
+                              </span>
+                              <span v-else>
+                                Not Detected
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </th>
+                    </tr>
+                    <tr>
+                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        <div class="flex flex-col space-y-2">
+                          <span>
+                            Channel
+                          </span>
+                          <span>
+                            Image
+                          </span>
+                          <span>
+                            Product
+                          </span>
+                        </div>
+                      </th>
+                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        <div class="flex flex-col space-y-2">
+                          <span>
+                            Needed/Capacity
+                          </span>
+                          <span :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
+                            Picked
+                          </span>
+                          <span :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                            Stock In
+                          </span>
+                          <span :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                            VMC Inventory Count
+                          </span>
+                        </div>
+                      </th>
+                      <th scope="col" class="px-1 py-2 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                        <div class="flex flex-col space-y-2">
+                          <span>
+                            Before Refill
+                          </span>
+                          <span>
+                            Stock In
+                          </span>
+                          <span>
+                            After Refill
+                          </span>
+                        </div>
+                      </th>
+                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                        VMC Inventory Not Tally, Fixed?
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white">
+                    <tr v-for="(channel, channelIndex) in channels" :key="channel.id" :class="channelIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                      <td class="whitespace py-5 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-left text-gray-800 text-center">
+                        <div class="flex flex-col space-y-1">
+                          <div>
+                            #{{ channel.code }}
+                          </div>
+                          <div class="flex items-center justify-center" >
+                            <img class="h-20 w-20 min-w-20 min-h-20 rounded-lg" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail" :class="[channel.product && channel.product.is_available ? '' : 'opacity-50']"/>
+                          </div>
+                          <div :class="[(channel.product && channel.product.is_available) ? 'text-gray-700' : 'text-gray-400']">
+                              <p class="break-words text-xs" v-if="channel.product && channel.product.name">
+                                {{ channel.product.name }}
+                              </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900">
+                        <div class="flex flex-col space-y-1">
+                          <div>
+                            {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
+                          </div>
+                          <div class="flex justify-center items-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
+                            <select name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
+                              <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
+                            </select>
+                            <span v-if="opsJobItem.status >= 2">
+                              {{ channel.picked }}
+                            </span>
+                          </div>
+                          <div class="flex justify-center items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                            <select name="channel_refill" id="channel_refill" class="rounded" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
+                              <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
+                            </select>
+                            <span v-if="opsJobItem.status > 2">
+                              {{ channel.refill }}
+                            </span>
+                          </div>
+                          <div class="flex justify-center items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                            {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
+                          </div>
+                        </div>
+                      </td>
+                      <td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3">
+                        <div class="flex flex-col space-y-1" >
+                          <span>
+                            {{ channel.vmc_before_qty }}
+                          </span>
+                          <span>
+                            {{ (channel.vmc_after_qty - channel.vmc_before_qty) ? (channel.vmc_after_qty - channel.vmc_before_qty) : 0 }}
+                          </span>
+                          <span>
+                            {{ channel.vmc_after_qty }}
+                          </span>
+                        </div>
+                      </td>
+                      <td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 3">
+                        <button type="button" class="rounded-full bg-red-500 p-1.5 text-white shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+                        @click.prevent="isErrorSettleClicked(channel)"
+                        v-if="channel.vmc_after_qty && (channel.qty + channel.refill) != channel.vmc_after_qty && channel.is_error_settle == 0"
+                        >
+                          <span class="text-white text-xs shadow-sm">
+                            Fix?
+                          </span>
+                        </button>
+
+                        <div class="flex flex-col space-y-1 items-center">
+                          <div
+                            class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit bg-green-500 text-white"
+                            v-if="channel.is_error_settle == 1"
+                          >
+                            <div class="flex flex-col">
+                                <span class="font-semibold grow-0">
+                                  Fixed
+                                </span>
+                            </div>
+                          </div>
+                          <span class="text-xs text-gray-600" v-if="channel.is_error_settle && channel.error_settled_at_formatted">
+                            {{ channel.error_settled_at_formatted }}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr v-if="channels && channels.length" class="bg-gray-200 shadow-lg rounded">
+                      <td class="py-6 text-sm font-bold text-center text-gray-800" colspan="1">
+                        <div class="flex justify-center">
+                          Total
+                        </div>
+                      </td>
+                      <td class="py-4 text-sm font-bold text-center text-gray-800">
+                        <div class="flex flex-col space-y-1">
+                          <span>
+                            {{ getSubtotalNeeded() }}/ {{ getSubtotalCapacity() }}
+                          </span>
+                          <span :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
+                            {{ getSubtotalPicked() }}
+                          </span>
+                          <span :class="[opsJobItem.status >= 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                            {{ getSubtotalRefill() }}
+                          </span>
+                          <span :class="[opsJobItem.status >= 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                            {{ getSubtotalVMCInventoryCount() }}
+                          </span>
+                        </div>
+                      </td>
+                      <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3">
+                        <div class="flex flex-col space-y-1" >
+                          <span>
+                            {{ getSubtotalVMCBeforeQty() }}
+                          </span>
+                          <span>
+                            {{ getSubtotalVMCQty() }}
+                          </span>
+                          <span>
+                            {{ getSubtotalVMCAfterQty() }}
+                          </span>
+                        </div>
+                      </td>
+                      <td v-if="opsJobItem.status >= 3"></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- desktop view -->
+                <table class="hidden md:block min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
                     <tr v-if="opsJobItem.status >= 3">
                       <th scope="col" class="px-2 py-1 text-center text-xs font-semibold text-gray-900" colspan="6">
@@ -256,22 +455,29 @@
                         {{ channel.vmc_after_qty }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 3">
-                        <button type="button" class="rounded-full bg-red-600 p-1.5 text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+                        <button type="button" class="rounded-full bg-red-500 p-1.5 text-white shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
                         @click.prevent="isErrorSettleClicked(channel)"
                         v-if="channel.vmc_after_qty && (channel.qty + channel.refill) != channel.vmc_after_qty && channel.is_error_settle == 0"
                         >
-                          <CheckCircleIcon class="h-4 w-4" aria-hidden="true" />
+                          <span class="text-white text-xs shadow-sm">
+                            Fix?
+                          </span>
                         </button>
 
-                        <div
-                          class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit bg-green-500 text-white"
-                          v-if="channel.is_error_settle == 1"
-                        >
-                          <div class="flex flex-col">
-                              <span class="font-semibold grow-0">
-                                Fixed
-                              </span>
+                        <div class="flex flex-col space-y-1 items-center">
+                          <div
+                            class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit bg-green-500 text-white"
+                            v-if="channel.is_error_settle == 1"
+                          >
+                            <div class="flex flex-col">
+                                <span class="font-semibold grow-0">
+                                  Fixed
+                                </span>
+                            </div>
                           </div>
+                          <span class="text-xs text-gray-600" v-if="channel.is_error_settle && channel.error_settled_at_formatted">
+                            {{ channel.error_settled_at_formatted }}
+                          </span>
                         </div>
                       </td>
                     </tr>
@@ -323,17 +529,12 @@
                   </FormInput>
                 </div>
               </dd>
-            </div>
-            <div class="flex flex-col md:flex-row md:items-center px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2">
               <dt class="text-sm font-medium leading-6 text-gray-900">
-                Stock Out (VMC)
+                Stock Out (VMC) Cash Amount
                 <span class="text-red-500">*</span>
               </dt>
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                <div class="flex flex-col md:flex-row md:items-center space-x-2 justify-between">
-                  <label for="temp_cash_amount_from_vmc" class="font-semibold">
-                    Cash Amount
-                  </label>
+                <div class="flex space-x-2">
                   <FormInput inputType="number" v-model="form.temp_cash_amount_from_vmc" class="text-center" :disabled="opsJobItem.status >= 3">
                   </FormInput>
                 </div>
@@ -350,21 +551,34 @@
                     :class="[opsJobItem.previous_ops_job_item_id ? 'bg-green-500' : 'bg-red-500']"
                   >
                     <div class="flex flex-col font-semibold grow-0">
-                      <span>
-                        {{ opsJobItem.previous_ops_job_item_id ? 'Detected' : 'Not Detected' }}
+                      <span v-if="!opsJobItem.previous_ops_job_item_id">
+                        Not Detected
                       </span>
                       <span v-if="opsJobItem.previous_ops_job_item_id">
                         #{{ opsJobItem.previousOpsJobItem.ref_id }}
                       </span>
-                      <span>
-                        {{ opsJobItem.previousOpsJobItem.completed_at }}
+                      <span class="flex space-x-2 justify-between" v-if="opsJobItem.previous_ops_job_item_id">
+                        <span>
+                          from
+                        </span>
+                        <span>
+                          {{ opsJobItem.previousOpsJobItem ? opsJobItem.previousOpsJobItem.completed_at : '' }}
+                        </span>
+                      </span>
+                      <span class="flex space-x-2 justify-between" v-if="opsJobItem.previous_ops_job_item_id">
+                        <span>
+                          to
+                        </span>
+                        <span>
+                          {{ opsJobItem.completed_at ? opsJobItem.completed_at : '' }}
+                        </span>
                       </span>
                     </div>
                   </div>
                 </div>
               </dt>
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                <div class="flex flex-col md:flex-row md:items-center space-x-2 justify-between">
+                <div class="flex items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_count" class="font-semibold">
                     Total Qty
                   </label>
@@ -375,42 +589,42 @@
                   <!-- <FormInput inputType="number" v-model="form.acc_vend_transactions_count" class="text-center" :disabled="true">
                   </FormInput> -->
                 </div>
-                <div class="flex flex-col md:flex-row md:items-center space-x-2 justify-between">
+                <div class="flex items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_amount" class="font-semibold">
                     Total Amount
                   </label>
                   <span class="py-3 px-2 font-semibold">
-                    {{form.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                    {{ operatorCountry.currency_symbol }}{{form.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                   </span>
                   <!-- <FormInput inputType="number" v-model="form.acc_vend_transactions_amount" class="text-center" :disabled="true">
                   </FormInput> -->
                 </div>
-                <div class="flex flex-col md:flex-row md:items-center space-x-2 justify-between">
+                <div class="flex items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_cash_amount" class="font-semibold">
                     Cash Amount
                   </label>
                   <span class="py-3 px-2 font-semibold">
-                    {{form.acc_vend_transactions_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                    {{ operatorCountry.currency_symbol }}{{form.acc_vend_transactions_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                   </span>
                   <!-- <FormInput inputType="number" v-model="form.acc_vend_transactions_cash_amount" class="text-center" :disabled="true">
                   </FormInput> -->
                 </div>
-                <div class="flex flex-col md:flex-row md:items-center space-x-2 justify-between">
+                <div class="flex items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_cashless_amount" class="font-semibold">
                     Cashless Amount
                   </label>
                   <span class="py-3 px-2 font-semibold">
-                    {{form.acc_vend_transactions_cashless_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                    {{ operatorCountry.currency_symbol }}{{form.acc_vend_transactions_cashless_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                   </span>
                   <!-- <FormInput inputType="number" v-model="form.acc_vend_transactions_cashless_amount" class="text-center" :disabled="true">
                   </FormInput> -->
                 </div>
-                <div class="flex flex-col md:flex-row md:items-center space-x-2 justify-between">
+                <div class="flex items-center space-x-2 justify-between">
                   <label for="acc_vend_transactions_promo_amount" class="font-semibold">
                     Discount Amount
                   </label>
                   <span class="py-3 px-2 font-semibold">
-                    {{form.acc_vend_transactions_promo_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                    {{ operatorCountry.currency_symbol }}{{form.acc_vend_transactions_promo_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                   </span>
                   <!-- <FormInput inputType="number" v-model="form.acc_vend_transactions_promo_amount" :step="[operatorCountry.currency_exponent == 2 && !operatorCountry.is_currency_exponent_hidden ? .01 : '' ]" class="text-center" :disabled="true">
                   </FormInput> -->
@@ -572,6 +786,7 @@ onMounted(() => {
     return {
       ...opsJobItemChannel.vendChannel,
       id: opsJobItemChannel.id,
+      error_settled_at_formatted: opsJobItemChannel.error_settled_at_formatted,
       is_error_settle: opsJobItemChannel.is_error_settle,
       ops_job_item_channel_id: opsJobItemChannel.id,
       picked: props.opsJobItem.status < 2 ? (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available ? (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) : 0) : opsJobItemChannel.picked_qty,

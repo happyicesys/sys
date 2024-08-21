@@ -585,6 +585,7 @@ class OpsJobController extends Controller
     {
         $opsJobItemChannel = OpsJobItemChannel::findOrFail($opsJobItemChannelID);
         $opsJobItemChannel->update([
+            'error_settled_at' => Carbon::now(),
             'is_error_settle' => true,
         ]);
 

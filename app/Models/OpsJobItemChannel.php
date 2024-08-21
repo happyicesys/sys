@@ -12,6 +12,7 @@ class OpsJobItemChannel extends Model
     protected $fillable = [
         'actual_qty',
         'capacity',
+        'error_settled_at',
         'is_error_settle',
         'ops_job_id',
         'ops_job_item_id',
@@ -23,6 +24,10 @@ class OpsJobItemChannel extends Model
         'vend_code',
         'vmc_before_qty',
         'vmc_after_qty',
+    ];
+
+    protected $casts = [
+        'error_settled_at' => 'datetime',
     ];
 
     // relationships

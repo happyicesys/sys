@@ -53,21 +53,29 @@ const navigation = [
         tagline: null,
     },
     {
-        name: 'Operations',
+        name: 'Operation Daily Jobs',
         icon: ArrowsPointingInIcon,
         current: false,
-        href: 'holidays',
+        href: 'ops-jobs',
         permission: 'read operations',
         tagline: null,
-        children: [
-            {name: 'Jobs', href: '/ops-jobs'},
-            // {name: 'Vend & Criteria Bindings', href: '/vend-criteria-bindings'},
-            // {name: 'Criteria', href: '/vend-criterias'},
-            // {name: 'Weightage (Location Type)', href: '/location-types'},
-            // {name: 'Weightage (Error Code)', href: '/vend-channel-errors'},
-            // {name: 'Holidays', href: '/holidays'},
-        ]
     },
+    // {
+    //     name: 'Operations',
+    //     icon: ArrowsPointingInIcon,
+    //     current: false,
+    //     href: 'holidays',
+    //     permission: 'read operations',
+    //     tagline: null,
+    //     children: [
+    //         {name: 'Jobs', href: '/ops-jobs'},
+    //         // {name: 'Vend & Criteria Bindings', href: '/vend-criteria-bindings'},
+    //         // {name: 'Criteria', href: '/vend-criterias'},
+    //         // {name: 'Weightage (Location Type)', href: '/location-types'},
+    //         // {name: 'Weightage (Error Code)', href: '/vend-channel-errors'},
+    //         // {name: 'Holidays', href: '/holidays'},
+    //     ]
+    // },
     // {
     //     name: 'Machine Management',
     //     icon: Cog8ToothIcon,
