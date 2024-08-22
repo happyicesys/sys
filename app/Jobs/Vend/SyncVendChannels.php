@@ -156,6 +156,14 @@ class SyncVendChannels implements ShouldQueue
                         'after_label' => $input['label'],
                     ]);
 
+                    if($vendChannelRecord->stage_data_created_at) {
+                        $vendChannelRecord->update([
+                            'stage_data_json' => null,
+                            'stage_data_created_at' => null,
+                            'stage_label' => null,
+                        ]);
+                    }
+
                     $this->syncVendChannelRecordVMCAfterQty($vendChannelRecord);
                 }
             }
