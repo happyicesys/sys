@@ -23,11 +23,9 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-5 md:col-span-1">
-                <DatePicker
-                    v-model="filters.date_from"
-                >
-                  From
-                </DatePicker>
+              <SearchInput placeholderStr="Job ID#" v-model="filters.ops_job_item_ref_id" class="block text-sm font-medium text-gray-700">
+                Job ID#
+					    </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
                 <DatePicker
@@ -370,11 +368,11 @@ const filters = ref({
   date_to: moment().add(1, 'week').format('YYYY-MM-DD'),
   delivered_by: '',
   created_by: '',
+  ops_job_item_ref_id: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
 })
-const model = ref()
 const showModal = ref(false)
 const operatorCountry = usePage().props.auth.operatorCountry
 const opsJob = ref()

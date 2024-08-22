@@ -232,7 +232,7 @@
                           <span>
                             {{ (channel.vmc_after_qty - channel.vmc_before_qty) ? (channel.vmc_after_qty - channel.vmc_before_qty) : 0 }}
                           </span>
-                          <span>
+                          <span :class="[channel.virtual_is_error && !channel.is_error_settle ? 'text-red-500' : (channel.virtual_is_error && channel.is_error_settle ? 'text-blue-500' : '')]">
                             {{ channel.vmc_after_qty }}
                           </span>
                         </div>
@@ -240,7 +240,7 @@
                       <td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 3">
                         <button type="button" class="rounded-full bg-red-500 p-1.5 text-white shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
                         @click.prevent="isErrorSettleClicked(channel)"
-                        v-if="channel.vmc_after_qty && (channel.qty + channel.refill) != channel.vmc_after_qty && channel.is_error_settle == 0"
+                        v-if="channel.virtual_is_error && !channel.is_error_settle"
                         >
                           <span class="text-white text-xs shadow-sm">
                             Fix?
@@ -441,7 +441,6 @@
                       </td>
                       <td
                         class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status >= 2"
-                        :class="[channel.vmc_after_qty && (channel.qty + channel.refill) != channel.vmc_after_qty ? 'text-red-500' : '']"
                         >
                         {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
                       </td>
@@ -452,12 +451,14 @@
                         {{ (channel.vmc_after_qty - channel.vmc_before_qty) ? (channel.vmc_after_qty - channel.vmc_before_qty) : 0 }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3">
-                        {{ channel.vmc_after_qty }}
+                        <span :class="[channel.virtual_is_error && !channel.is_error_settle ? 'text-red-500' : (channel.virtual_is_error && channel.is_error_settle ? 'text-blue-500' : '')]">
+                          {{ channel.vmc_after_qty }}
+                        </span>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100"  v-if="opsJobItem.status >= 3">
                         <button type="button" class="rounded-full bg-red-500 p-1.5 text-white shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
                         @click.prevent="isErrorSettleClicked(channel)"
-                        v-if="channel.vmc_after_qty && (channel.qty + channel.refill) != channel.vmc_after_qty && channel.is_error_settle == 0"
+                        v-if="channel.virtual_is_error && !channel.is_error_settle"
                         >
                           <span class="text-white text-xs shadow-sm">
                             Fix?
@@ -888,7 +889,16 @@ function isErrorSettleClicked(channel) {
 
 function onConfirmClicked() {
   let isConfirm = false;
-  let confirmText = 'Are you sure to Stock In? with ';
+
+  if(form.value.status == 1) {
+    confirmText = 'Are you sure you want to Picked? ';
+    isConfirm = true;
+  }
+
+  if(form.value.status == 2) {
+    confirmText = 'Are you sure you want to Stock In? ';
+    isConfirm = true;
+  }
 
   if(form.value.status == 2 && form.value.cash_amount == 0) {
     confirmText += 'Cash Collected = 0; ';

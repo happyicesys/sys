@@ -221,7 +221,7 @@
                             <div class="flex items-center justify-center ">
                               <input
                                 type="text"
-                                class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-fit text-sm border-gray-300 rounded-md max-w-20 text-center"
+                                class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-fit text-sm border-gray-300 rounded-md max-w-14 text-center"
                                 v-model="opsJobItem.sequence"
                                 @change="updateSequence(opsJobItem)"
                                 />
@@ -237,10 +237,10 @@
                               </span>
                             </div>
                           </td>
-                          <td class="whitespace-nowrap py-3 px-3 text-xs font-semibold text-gray-900 text-center">
+                          <td class="whitespace-nowrap py-3 px-2 text-xs font-semibold text-gray-900 text-center">
                             <div>
                               <Button
-                                class="bg-green-400 hover:bg-green-500 text-gray-800"
+                                class="bg-green-400 hover:bg-green-500 text-gray-800 text-xs font-semibold"
                                 @click.prevent="onChannelClicked(opsJobItem)"
                                 v-if="permissions.includes('update operations')"
                               >
@@ -250,7 +250,6 @@
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <div class="flex flex-col space-y-2">
-                              <div class="flex justify-between">
                               <div class="flex flex-col space-y-1">
                                 <div
                                     class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
@@ -268,21 +267,17 @@
                                     ({{ opsJobItem.statusBy.name }})
                                   </span>
                                 </span>
-
                               </div>
-                              <div class="flex flex-col space-y-1">
-                                <div
-                                    class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
-                                    :class="opsJobItemChannelErrorCheck(opsJobItem) == 1 ? 'bg-green-500 text-white' : 'bg-red-500 text-white'"
-                                    v-if="opsJobItemChannelErrorCheck(opsJobItem)"
-                                >
-                                    <div class="flex flex-col">
-                                        <span class="font-semibold grow-0">
-                                          {{ opsJobItemChannelErrorCheck(opsJobItem) == 1 ? 'Not tally fixed' : 'Not tally havent fix' }}
-                                        </span>
-                                    </div>
-                                </div>
-                              </div>
+                              <div
+                                  class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
+                                  :class="opsJobItemChannelErrorCheck(opsJobItem) == 2 ? 'bg-red-500 text-white' : (opsJobItemChannelErrorCheck(opsJobItem) == 1 ? 'bg-green-500 text-white' : '')"
+                                  v-if="opsJobItem.status >= 3"
+                              >
+                                  <div class="flex flex-col">
+                                      <span class="font-semibold grow-0">
+                                        {{ opsJobItemChannelErrorCheck(opsJobItem) == 2 ? 'Not tally havent fixed' : (opsJobItemChannelErrorCheck(opsJobItem) == 1 ? 'Not tally fixed' : 'All tally') }}
+                                      </span>
+                                  </div>
                               </div>
                               <span>
                                 <span v-if="opsJobItem.vend.customer && opsJobItem.vend.customer.person_id">

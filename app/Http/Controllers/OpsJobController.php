@@ -172,6 +172,11 @@ class OpsJobController extends Controller
             ->when($request->created_by, function($query, $search) {
                 $query->where('created_by', $search);
             })
+            ->when($request->ops_job_item_ref_id, function($query, $search) {
+                $query->whereHas('opsJobItems', function($query) use ($search) {
+                    $query->where('id', $search - 25000);
+                });
+            })
             ->when($request->sortKey, function($query, $search) use ($request) {
                 if (in_array($search, [
                     'ops_job_items_count',
@@ -283,10 +288,15 @@ class OpsJobController extends Controller
                     ]);
                 }
 
+                // search for B and A vend channel records within 30 mins
                 $vendChannelRecord = VendChannelRecord::query()
                     ->orderByRaw('ABS(TIMESTAMPDIFF(SECOND, before_data_created_at, ?))', [$opsJobItem->completed_at])
                     ->where('vend_id', $opsJobItem->vend_id)
                     ->doesntHave('opsJobItem')
+                    ->whereBetween('before_data_created_at', [
+                        Carbon::parse($opsJobItem->completed_at)->subMinutes(30),
+                        Carbon::parse($opsJobItem->completed_at)->addMinutes(30)
+                    ])
                     ->first();
 
                 if($vendChannelRecord) {
