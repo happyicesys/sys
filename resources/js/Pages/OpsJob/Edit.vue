@@ -250,6 +250,7 @@
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <div class="flex flex-col space-y-2">
+                              <div class="flex justify-between">
                               <div class="flex flex-col space-y-1">
                                 <div
                                     class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
@@ -263,7 +264,25 @@
                                 </div>
                                 <span v-if="opsJobItem.status_at" class="text-xs font-medium text-gray-600">
                                   {{ opsJobItem.status_at }}
+                                  <span v-if="opsJobItem.statusBy">
+                                    ({{ opsJobItem.statusBy.name }})
+                                  </span>
                                 </span>
+
+                              </div>
+                              <div class="flex flex-col space-y-1">
+                                <div
+                                    class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
+                                    :class="opsJobItemChannelErrorCheck(opsJobItem) == 1 ? 'bg-green-500 text-white' : 'bg-red-500 text-white'"
+                                    v-if="opsJobItemChannelErrorCheck(opsJobItem)"
+                                >
+                                    <div class="flex flex-col">
+                                        <span class="font-semibold grow-0">
+                                          {{ opsJobItemChannelErrorCheck(opsJobItem) == 1 ? 'Not tally fixed' : 'Not tally havent fix' }}
+                                        </span>
+                                    </div>
+                                </div>
+                              </div>
                               </div>
                               <span>
                                 <span v-if="opsJobItem.vend.customer && opsJobItem.vend.customer.person_id">
@@ -683,6 +702,28 @@ function onSearchFilterUpdated() {
   })
 }
 
+function opsJobItemChannelErrorCheck(opsJobItem) {
+  let status = 0;
+
+  opsJobItem.opsJobItemChannels.forEach(channel => {
+
+    if(opsJobItem.status >= 3) {
+      if (channel.virtual_is_error == 1 && channel.is_error_settle == 0) {
+        status = 2; // Highest status
+      } else if (channel.virtual_is_error == 1 && channel.is_error_settle == 1 && status < 2) {
+        status = 1; // Middle status
+      } else if (channel.virtual_is_error == 0 && status < 1) {
+        status = 0; // Lowest status
+      }
+    }else {
+      status = 0;
+    }
+
+  });
+
+  return status;
+}
+
 function sortTable(sortKey) {
   filters.value.sortKey = sortKey
   filters.value.sortBy = !filters.value.sortBy
@@ -699,8 +740,10 @@ function statusClass(status) {
       statusClass = 'bg-yellow-400 text-gray-800'
       break;
     case 3:
-    case 4:
       statusClass = 'bg-green-400 text-gray-800'
+      break;
+    case 4:
+      statusClass = 'bg-indigo-400 text-gray-800'
       break;
     case 98:
     case 99:

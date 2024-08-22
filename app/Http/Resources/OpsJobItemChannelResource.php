@@ -32,6 +32,7 @@ class OpsJobItemChannelResource extends JsonResource
             'vend_code' => $this->vend_code,
             'vmc_before_qty' => $this->vmc_before_qty,
             'vmc_after_qty' => $this->vmc_after_qty,
+            'virtual_is_error' => $this->virtual_is_error,
         ];
     }
 }

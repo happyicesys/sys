@@ -17,13 +17,16 @@ class OpsJobItem extends Model
         'acc_total_cashless_amount',
         'acc_total_count',
         'acc_total_promo_amount',
+        'cancelled_at',
         'cash_amount',
         'cashless_amount',
         'channels_json',
         'cms_transaction_id',
         'completed_at',
         'completed_by',
+        'created_by',
         'customer_id',
+        'flagged_at',
         'notes',
         'ops_job_id',
         'previous_ops_job_item_id',
@@ -37,11 +40,15 @@ class OpsJobItem extends Model
         'updated_by',
         'vend_id',
         'vend_channel_record_id',
+        'verified_at',
     ];
 
     protected $casts = [
         'completed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'flagged_at' => 'datetime',
         'picked_at' => 'datetime',
+        'verified_at' => 'datetime',
     ];
 
     // accessor and mutators
@@ -105,6 +112,11 @@ class OpsJobItem extends Model
     public function previousOpsJobItem()
     {
         return $this->belongsTo(OpsJobItem::class, 'previous_ops_job_item_id');
+    }
+
+    public function statusBy()
+    {
+        return $this->belongsTo(User::class, 'status_by');
     }
 
     public function updatedBy()

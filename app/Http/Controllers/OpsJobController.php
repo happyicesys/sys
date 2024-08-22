@@ -402,7 +402,21 @@ class OpsJobController extends Controller
                             WHEN ops_job_items.status = 1 THEN created_at
                             WHEN ops_job_items.status = 2 THEN picked_at
                             WHEN ops_job_items.status = 3 THEN completed_at
+                            WHEN ops_job_items.status = 4 THEN verified_at
+                            WHEN ops_job_items.status = 98 THEN flagged_at
+                            WHEN ops_job_items.status = 99 THEN cancelled_at
                     ELSE NULL END) as status_at');
+
+                $query->selectRaw('
+                    (SELECT
+                        CASE
+                            WHEN ops_job_items.status = 1 THEN created_by
+                            WHEN ops_job_items.status = 2 THEN picked_by
+                            WHEN ops_job_items.status = 3 THEN completed_by
+                            WHEN ops_job_items.status = 4 THEN verified_by
+                            WHEN ops_job_items.status = 98 THEN flagged_by
+                            WHEN ops_job_items.status = 99 THEN cancelled_by
+                    ELSE NULL END) as status_by');
 
                 // Adjust the selectRaw queries to correctly reference the opsJobItems relationship
                 $query->selectRaw('
@@ -492,6 +506,7 @@ class OpsJobController extends Controller
             'opsJobItems.vend.vendPrefix',
             'opsJobItems.pickedBy:id,name',
             'opsJobItems.previousOpsJobItem',
+            'opsJobItems.statusBy',
             'opsJobItems.completedBy:id,name',
             'opsJobItems.vendChannelRecord',
             'updatedBy:id,name'
@@ -553,6 +568,8 @@ class OpsJobController extends Controller
             switch($request->nextStatus) {
                 case 99:
                     $opsJobItem->status = OpsJob::STATUS_CANCELLED;
+                    $opsJobItem->cancelled_at = Carbon::now();
+                    $opsJobItem->cancelled_by = auth()->id();
                     $opsJobItem->save();
                     break;
                 case -1:
@@ -731,11 +748,15 @@ class OpsJobController extends Controller
             case 0:
                 $opsJobItem->update([
                     'status' => OpsJob::STATUS_FLAGGED,
+                    'flagged_by' => auth()->id(),
+                    'flagged_at' => Carbon::now(),
                 ]);
                 break;
             case 1:
                 $opsJobItem->update([
                     'status' => OpsJob::STATUS_VERIFIED,
+                    'verified_by' => auth()->id(),
+                    'verified_at' => Carbon::now(),
                 ]);
                 break;
         }

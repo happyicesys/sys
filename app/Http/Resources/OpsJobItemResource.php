@@ -41,6 +41,7 @@ class OpsJobItemResource extends JsonResource
             'remarks' => $this->remarks,
             'sequence' => $this->sequence,
             'status_at' => isset($this->status_at) ? Carbon::parse($this->status_at)->format('ymd h:ia') : '',
+            'statusBy' => UserResource::make($this->whenLoaded('statusBy')),
             'status' => $this->status,
             'status_name' => OpsJob::STATUS_MAPPINGS[$this->status],
             'stock_in_amount' => isset($this->stock_in_amount) ? $this->stock_in_amount/100 : 0,

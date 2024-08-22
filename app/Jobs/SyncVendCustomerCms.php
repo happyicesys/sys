@@ -36,7 +36,7 @@ class SyncVendCustomerCms implements ShouldQueue
 
     public function __construct($personID = null, $vendID = null)
     {
-        $this->callBackVendCodeEndPoint = env('CMS_URL') . '/api/person/' . $personID . '/vendcode/';
+        $this->callBackVendCodeEndPoint = env('CMS_URL') . '/api/sys/person/' . $personID . '/vendcode/';
         $this->endPointUrl = env('CMS_URL') . '/api/person/migrate/' .  $personID;
         $this->personID = $personID;
         $this->vendID = $vendID;
