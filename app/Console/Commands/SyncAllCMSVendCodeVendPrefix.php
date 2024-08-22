@@ -33,7 +33,6 @@ class SyncAllCMSVendCodeVendPrefix extends Command
             })
             ->where('is_active', true)
             ->orderBy('code', 'asc')
-            ->where('code', 2752)
             ->get();
 
         foreach ($vends as $vend) {
