@@ -889,6 +889,7 @@ function isErrorSettleClicked(channel) {
 
 function onConfirmClicked() {
   let isConfirm = false;
+  let confirmText = '';
 
   if(form.value.status == 1) {
     confirmText = 'Are you sure you want to Picked? ';
