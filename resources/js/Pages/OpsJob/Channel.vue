@@ -526,7 +526,7 @@
               </dt>
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 <div class="flex space-x-2">
-                  <FormInput inputType="number" v-model="form.cash_amount" class="text-center" :disabled="opsJobItem.status >= 3">
+                  <FormInput inputType="number" v-model="form.cash_amount" class="text-center" :disabled="opsJobItem.status > 3">
                   </FormInput>
                 </div>
               </dd>
@@ -536,7 +536,7 @@
               </dt>
               <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 <div class="flex space-x-2">
-                  <FormInput inputType="number" v-model="form.temp_cash_amount_from_vmc" class="text-center" :disabled="opsJobItem.status >= 3">
+                  <FormInput inputType="number" v-model="form.temp_cash_amount_from_vmc" class="text-center" :disabled="opsJobItem.status > 3">
                   </FormInput>
                 </div>
               </dd>
@@ -682,6 +682,19 @@
             </Button>
           </span>
           <span>
+            <Button
+                type="button"
+                class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800"
+                @click="onSaveFormClicked()"
+                v-if="opsJobItem.status <= 3"
+            >
+              <span class="flex space-x-1 items-center">
+                <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                <span>
+                  Save
+                </span>
+              </span>
+            </Button>
             <Button
                 type="button"
                 class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800"
