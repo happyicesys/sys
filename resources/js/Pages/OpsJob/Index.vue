@@ -28,6 +28,11 @@
 					    </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
+              <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code" class="block text-sm font-medium text-gray-700">
+                Vend ID#
+					    </SearchInput>
+            </div>
+            <div class="col-span-5 md:col-span-1">
                 <DatePicker
                     v-model="filters.date_to"
                     :minDate="filters.date_from"
@@ -369,6 +374,7 @@ const filters = ref({
   delivered_by: '',
   created_by: '',
   ops_job_item_ref_id: '',
+  vend_code: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,

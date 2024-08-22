@@ -177,6 +177,11 @@ class OpsJobController extends Controller
                     $query->where('id', $search - 25000);
                 });
             })
+            ->when($request->vend_code, function($query, $search) {
+                $query->whereHas('opsJobItems.vend', function($query) use ($search) {
+                    $query->where('code', $search);
+                });
+            })
             ->when($request->sortKey, function($query, $search) use ($request) {
                 if (in_array($search, [
                     'ops_job_items_count',
