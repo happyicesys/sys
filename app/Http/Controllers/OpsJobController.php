@@ -695,10 +695,11 @@ class OpsJobController extends Controller
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
 
-        if($request->cash_amount or $request->cashless_amount or $request->remarks) {
+        if($request->cash_amount or $request->temp_cash_amount_from_vmc or $request->cashless_amount or $request->remarks) {
             $opsJobItem->update([
                 'cash_amount' => $request->cash_amount,
                 'cashless_amount' => $request->cashless_amount,
+                'temp_cash_amount_from_vmc' => $request->temp_cash_amount_from_vmc,
                 'remarks' => $request->remarks,
                 'updated_at' => Carbon::now(),
                 'updated_by' => auth()->id(),

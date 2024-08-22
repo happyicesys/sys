@@ -680,8 +680,6 @@
                 </span>
               </span>
             </Button>
-          </span>
-          <span>
             <Button
                 type="button"
                 class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800"
@@ -695,6 +693,8 @@
                 </span>
               </span>
             </Button>
+          </span>
+          <span>
             <Button
                 type="button"
                 class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800"
@@ -970,6 +970,8 @@ function onSaveFormClicked() {
       toast.success("Successfully Saved", {
         timeout: 3000
       });
+      emit('statusUpdated')
+      emit('modalClose')
     }
   })
 }
