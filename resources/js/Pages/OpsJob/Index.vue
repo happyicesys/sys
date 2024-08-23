@@ -34,6 +34,13 @@
             </div>
             <div class="col-span-5 md:col-span-1">
                 <DatePicker
+                    v-model="filters.date_from"
+                >
+                  From
+                </DatePicker>
+            </div>
+            <div class="col-span-5 md:col-span-1">
+                <DatePicker
                     v-model="filters.date_to"
                     :minDate="filters.date_from"
                 >
