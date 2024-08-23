@@ -235,7 +235,7 @@
                           >
                             <div class="flex flex-col space-y-1">
                               <span>
-                                {{ opsJob.date }}
+                                {{ opsJob.date_formatted }}
                               </span>
                               <span>
                                 {{ opsJob.date_diff_human }}

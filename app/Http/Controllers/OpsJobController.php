@@ -729,10 +729,10 @@ class OpsJobController extends Controller
             ]);
         }
 
-        if($request->delivered_by) {
-            if($request->delivered_by != $opsJobItem->opsJob->delivered_by) {
+        if($request->delivered_by or $request->date) {
+            if(($request->delivered_by != $opsJobItem->opsJob->delivered_by) or ($request->date != $opsJobItem->opsJob->date)) {
                 $opsJob = OpsJob::firstOrCreate([
-                    'date' => $opsJobItem->opsJob->date,
+                    'date' => $request->date,
                     'delivered_by' => $request->delivered_by,
                 ], [
                     'code' => $this->runningNumberService->getRunningCode(new OpsJob()),

@@ -26,7 +26,7 @@
                 <input
                   type="text"
                   class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                  :value=" opsJob ? opsJob.date : ''"
+                  :value=" opsJob ? opsJob.date_formatted : ''"
                   disabled
                 />
               </div>
@@ -264,6 +264,7 @@
                                   </div>
                                   <button type="button" class="rounded-full p-1 shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                                   :class="[opsJobItem.is_cash_collected == 1 ? 'bg-green-500 text-white' : 'bg-red-500 text-white']"
+                                  v-if="opsJobItem.status > 1"
                                   >
                                     <CurrencyDollarIcon class="w-4 h-4"></CurrencyDollarIcon>
                                   </button>

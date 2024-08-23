@@ -26,19 +26,6 @@
         <div class="grid grid-cols-1 gap-y-3 gap-x-3 sm:grid-cols-6">
           <div class="sm:col-span-6">
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-              Date
-            </label>
-            <div class="mt-1">
-              <input
-                type="text"
-                class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                :value=" opsJob ? opsJob.date : ''"
-                disabled
-              />
-            </div>
-          </div>
-          <div class="sm:col-span-6">
-            <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
               Current Driver
             </label>
             <div class="mt-1">
@@ -49,6 +36,11 @@
                 disabled
               />
             </div>
+          </div>
+          <div class="sm:col-span-6">
+            <DatePicker v-model="form.date" :error="form.date">
+              Date
+            </DatePicker>
           </div>
           <div class="sm:col-span-6">
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -98,6 +90,7 @@
 <script setup>
 import {CheckCircleIcon, ClipboardDocumentCheckIcon, FlagIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import Button from '@/Components/Button.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue'
 import { onMounted, ref } from 'vue';
@@ -115,20 +108,23 @@ const channels = ref([])
 const permissions = usePage().props.auth.permissions
 const toast = useToast()
 const vend = ref([])
-
+const form = ref()
 
 onMounted(() => {
   vend.value = props.opsJobItem.vend
-  form.value = useForm(getDefaultForm())
+  form.value = {
+    ...useForm(getDefaultForm()),
+    date: props.opsJob.date,
+  }
+  console.log(form.value)
 })
-const form = ref(
-  useForm(getDefaultForm())
-)
+
 const profile = usePage().props.auth.profile
 const emit = defineEmits(['modalClose', 'statusUpdated'])
 
 function getDefaultForm() {
   return {
+    date: '',
     delivered_by: '',
   }
 }
