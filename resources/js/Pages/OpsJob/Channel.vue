@@ -816,7 +816,7 @@ onMounted(() => {
       vmc_after_qty: opsJobItemChannel.vmc_after_qty,
       // set static capacity and qty once opsJobItem status is more than 3 (stocked in)
       capatity: props.opsJobItem.status >= 3 ? opsJobItemChannel.capacity : opsJobItemChannel.vendChannel.capacity,
-      qty: props.opsJobItem.status >= 3 ? opsJobItemChannel.qty : opsJobItemChannel.vendChannel.qty,
+      qty: props.opsJobItem.vendChannelRecord ? opsJobItemChannel.vmc_before_qty : (props.opsJobItem.status >= 3 ? opsJobItemChannel.qty : opsJobItemChannel.vendChannel.qty),
       virtual_is_error: opsJobItemChannel.virtual_is_error,
     }
   })
