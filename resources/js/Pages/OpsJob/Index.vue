@@ -182,7 +182,7 @@
                           (Qty)
                         </SingleSortItem>
                         <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
-                          Cash Amount
+                          Cash Collected
                         </SingleSortItem>
                       </div>
                     </TableHead>
@@ -192,8 +192,8 @@
                           Stock Out <br>
                           (VMC, MDB)
                         </span>
-                        <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
-                          Cash Amount
+                        <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
+                          CashAmt$
                         </SingleSortItem>
                       </div>
                     </TableHead>

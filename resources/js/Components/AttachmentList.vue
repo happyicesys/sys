@@ -65,7 +65,7 @@
 <script setup>
 import { ArrowLeftCircleIcon, CheckCircleIcon, PencilSquareIcon, XCircleIcon } from '@heroicons/vue/20/solid'
 import { router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
@@ -82,6 +82,10 @@ const items = ref(props.items)
 watch(() => props.items, (newItems) => {
   items.value = newItems;
 })
+
+// onMounted(() => {
+//   console.log(props.isEditEnabled)
+// })
 
 function saveAttachment(itemIndex) {
   router.post('/attachments/' + items.value[itemIndex].id + '/update', {

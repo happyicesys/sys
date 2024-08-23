@@ -27,6 +27,7 @@ class OpsJobItem extends Model
         'created_by',
         'customer_id',
         'flagged_at',
+        'is_cash_collected',
         'notes',
         'ops_job_id',
         'previous_ops_job_item_id',

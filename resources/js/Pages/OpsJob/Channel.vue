@@ -123,11 +123,20 @@
                           >
                             <div class="flex flex-col font-semibold grow-0">
                               <span v-if="opsJobItem.vendChannelRecord">
-                                {{ opsJobItem.vendChannelRecord.before_date_created_at_formatted }}
+                               (b) {{ opsJobItem.vendChannelRecord.before_date_created_at_formatted }}
                               </span>
                               <span v-else>
-                                Not Detected
+                               Not Detected
                               </span>
+                            </div>
+                          </div>
+                          <div
+                            class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
+                            :class="[opsJobItem.vendChannelRecord ? 'bg-green-500' : 'bg-red-500']"
+                            v-if="opsJobItem.vendChannelRecord.after_data_created_at"
+                          >
+                            <div class="flex flex-col font-semibold grow-0">
+                              (a) {{ opsJobItem.vendChannelRecord.after_data_created_at_formatted }}
                             </div>
                           </div>
                         </div>
@@ -156,7 +165,21 @@
                             Picked
                           </span>
                           <span :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                            Stock In
+                            <div class="flex flex-col space-y-1">
+                              <span>
+                                Stock In
+                              </span>
+                              <span>
+                                <div
+                                  class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit bg-green-500"
+                                  v-if="opsJobItem.completed_at"
+                                >
+                                  <div class="flex flex-col font-semibold grow-0">
+                                    {{ opsJobItem.completed_at }}
+                                  </div>
+                                </div>
+                              </span>
+                            </div>
                           </span>
                           <span :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                             VMC Inventory Count
@@ -321,11 +344,20 @@
                           >
                             <div class="flex flex-col font-semibold grow-0">
                               <span v-if="opsJobItem.vendChannelRecord">
-                                {{ opsJobItem.vendChannelRecord.before_date_created_at_formatted }}
+                               (b) {{ opsJobItem.vendChannelRecord.before_date_created_at_formatted }}
                               </span>
                               <span v-else>
-                                Not Detected
+                               Not Detected
                               </span>
+                            </div>
+                          </div>
+                          <div
+                            class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
+                            :class="[opsJobItem.vendChannelRecord ? 'bg-green-500' : 'bg-red-500']"
+                            v-if="opsJobItem.vendChannelRecord.after_data_created_at"
+                          >
+                            <div class="flex flex-col font-semibold grow-0">
+                              (a) {{ opsJobItem.vendChannelRecord.after_data_created_at_formatted }}
                             </div>
                           </div>
                         </div>
@@ -348,7 +380,21 @@
                         Picked
                       </th>
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                        Stock In
+                        <div class="flex flex-col space-y-1">
+                          <span>
+                            Stock In
+                          </span>
+                          <span>
+                            <div
+                              class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit bg-green-500"
+                              v-if="opsJobItem.completed_at"
+                            >
+                              <div class="flex flex-col font-semibold grow-0">
+                                {{ opsJobItem.completed_at }}
+                              </div>
+                            </div>
+                          </span>
+                        </div>
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                         VMC Inventory Count
@@ -519,27 +565,44 @@
         </div>
         <div class="px-2 pt-3 border-b mb-2 border-gray-100 text-left">
           <dl class="divide-y divide-gray-100">
-            <div class="flex flex-col md:flex-row md:items-center px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2">
-              <dt class="text-sm font-medium leading-6 text-gray-900">
-                Cash Collected
-                <span class="text-red-500">*</span>
-              </dt>
-              <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                <div class="flex space-x-2">
-                  <FormInput inputType="number" v-model="form.cash_amount" class="text-center" :disabled="opsJobItem.status > 3">
-                  </FormInput>
-                </div>
-              </dd>
-              <dt class="text-sm font-medium leading-6 text-gray-900">
-                Stock Out (VMC) Cash Amount
-                <span class="text-red-500">*</span>
-              </dt>
-              <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                <div class="flex space-x-2">
-                  <FormInput inputType="number" v-model="form.temp_cash_amount_from_vmc" class="text-center" :disabled="opsJobItem.status > 3">
-                  </FormInput>
-                </div>
-              </dd>
+            <div class="flex justify-between">
+              <div class="flex flex-col md:flex-row md:items-center px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2">
+                <dt class="text-sm font-medium leading-6 text-gray-900">
+                  Cash Collected
+                  <span class="text-red-500">*</span>
+                </dt>
+                <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex space-x-2">
+                    <FormInput inputType="number" v-model="form.cash_amount" class="text-center" :disabled="opsJobItem.status > 3 || opsJobItem.is_cash_collected">
+                    </FormInput>
+                  </div>
+                </dd>
+                <dt class="text-sm font-medium leading-6 text-gray-900">
+                  Stock Out (VMC) CashAmt$
+                  <span class="text-red-500">*</span>
+                </dt>
+                <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex space-x-2">
+                    <FormInput inputType="number" v-model="form.temp_cash_amount_from_vmc" class="text-center" :disabled="opsJobItem.status > 3 || opsJobItem.is_cash_collected">
+                    </FormInput>
+                  </div>
+                </dd>
+              </div>
+              <div class="flex items-center">
+                <Button
+                    type="button"
+                    class=" px-2 py-2 mt-2 ml-1 text-md flex space-x-1 bg-green-500 hover:bg-green-600 text-white"
+                    @click="onCashCollectedClicked()"
+                    v-if="opsJobItem.status > 1 && opsJobItem.status <= 3 && !opsJobItem.is_cash_collected"
+                >
+                  <span class="flex space-x-1 items-center">
+                    <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                    <span>
+                      Cash Collected
+                    </span>
+                  </span>
+                </Button>
+              </div>
             </div>
             <div class="flex flex-col md:flex-row md:items-center px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-2 sm:px-0" v-if="opsJobItem.status > 2">
               <dt class="text-sm font-medium leading-6 text-gray-900">
@@ -646,7 +709,7 @@
           </div>
         </div>
         <div class="sm:col-span-6">
-          <AttachmentList :items="opsJobItem.attachments"></AttachmentList>
+          <AttachmentList :items="opsJobItem.attachments" :isEditEnabled="opsJobItem.status >= 3 && opsJobItem.is_cash_collected ? false : true"></AttachmentList>
         </div>
         <div class="sm:col-span-6">
           <UploadFileInput :endpoint="'/ops-jobs/items/' + opsJobItem.id + '/upload-attachments'"></UploadFileInput>
@@ -680,19 +743,6 @@
                 <TrashIcon class="w-4 h-4"></TrashIcon>
                 <span>
                   Delete
-                </span>
-              </span>
-            </Button>
-            <Button
-                type="button"
-                class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800"
-                @click="onSaveFormClicked()"
-                v-if="opsJobItem.status <= 3"
-            >
-              <span class="flex space-x-1 items-center">
-                <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                <span>
-                  Save
                 </span>
               </span>
             </Button>
@@ -967,15 +1017,21 @@ function onConfirmClicked() {
   })
 }
 
-function onSaveFormClicked() {
-  router.post('/ops-jobs/items/' + props.opsJobItem.id + '/update', form.value, {
+function onCashCollectedClicked() {
+  const approval = confirm('Are you sure to confirm Cash Collection?');
+  if (!approval) {
+      return;
+  }
+
+  router.post('/ops-jobs/items/' + props.opsJobItem.id + '/cash-collected', {
+    ...form.value,
+  }, {
     preserveScroll: true,
     onSuccess: () => {
       toast.success("Successfully Saved", {
         timeout: 3000
       });
       emit('statusUpdated')
-      emit('modalClose')
     }
   })
 }

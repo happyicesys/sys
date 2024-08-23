@@ -399,6 +399,7 @@ class OpsJobController extends Controller
                     'ops_job_id',
                     'vend_id',
                     'cms_transaction_id',
+                    'is_cash_collected',
                     'sequence',
                     'status',
                     'picked_at',
@@ -594,6 +595,20 @@ class OpsJobController extends Controller
                     break;
             }
         }
+
+        return redirect()->back();
+    }
+
+    public function itemCashCollected(Request $request, $opsJobItemID)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($opsJobItemID);
+
+        $opsJobItem->update([
+            'is_cash_collected' => true,
+            'cash_amount' => $request->cash_amount,
+            'cashless_amount' => $request->cashless_amount,
+            'temp_cash_amount_from_vmc' => $request->temp_cash_amount_from_vmc,
+        ]);
 
         return redirect()->back();
     }
