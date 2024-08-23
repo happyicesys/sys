@@ -742,7 +742,7 @@ class OpsJobController extends Controller
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
 
-        if($request->hasFile('files')) {
+        if($request->files) {
             $files = $request->file('files');
             $dir = 'sys/ops-job-items';
             $storedPath = $files->storePublicly('sys/ops-job-items');

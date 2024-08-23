@@ -651,6 +651,9 @@
         <div class="sm:col-span-6">
           <UploadFileInput :endpoint="'/ops-jobs/items/' + opsJobItem.id + '/upload-attachments'"></UploadFileInput>
         </div>
+        <div class="sm:col-span-6">
+          <DropzoneFileInput :endpoint="'/ops-jobs/items/' + opsJobItem.id + '/upload-attachments'"></DropzoneFileInput>
+        </div>
 
         <div class="flex justify-between">
           <span>
@@ -769,6 +772,7 @@
 import {CheckCircleIcon, ClipboardDocumentCheckIcon, FlagIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import AttachmentList from '@/Components/AttachmentList.vue';
 import Button from '@/Components/Button.vue';
+import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';

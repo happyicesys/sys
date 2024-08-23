@@ -45,7 +45,7 @@ function handleProcessFile() {
   const allFilesProcessed = pond.value.getFiles().every(file => file.serverId !== null);
 
   if (allFilesProcessed) {
-    // location.reload(); // Refresh the page
+    location.reload(); // Refresh the page
   }
 }
 </script>

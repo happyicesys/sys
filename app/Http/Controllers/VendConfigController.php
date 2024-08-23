@@ -139,8 +139,8 @@ class VendConfigController extends Controller
     {
         $customer = VendConfig::findOrFail($id);
 
-        if ($request->hasFile('files')) {
-            $files = $request->file('files');
+        if ($request->files) {
+            $files = $request->files;
             $dir = 'sys/vend-configs';
             $storedPath = $files->storePublicly($dir);
             $fileName = basename($storedPath);
