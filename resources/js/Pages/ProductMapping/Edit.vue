@@ -89,6 +89,9 @@
                   >
                   </UploadFileInput>
                 </div>
+                <div class="sm:col-span-6">
+                  <DropzoneFileInput :endpoint="'/product-mappings/' + productMapping.data.id + '/upload-attachments'"></DropzoneFileInput>
+                </div>
 
                 <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
                   <div class="relative">
@@ -270,6 +273,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import AttachmentListProductMapping from '@/Components/AttachmentListProductMapping.vue';
 import Button from '@/Components/Button.vue';
+import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';

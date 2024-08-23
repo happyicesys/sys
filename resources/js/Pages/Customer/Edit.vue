@@ -567,6 +567,9 @@
                 <div class="sm:col-span-6" v-if="customer.id">
                   <UploadFileInput :endpoint="'/customers/' + customer.id + '/upload-attachments'"></UploadFileInput>
                 </div>
+                <div class="sm:col-span-6" v-if="customer.id">
+                  <DropzoneFileInput :endpoint="'/customers/' + customer.id + '/upload-attachments'"></DropzoneFileInput>
+                </div>
               </div>
             </form>
           </div>
@@ -582,6 +585,7 @@ import AttachmentList from '@/Components/AttachmentList.vue';
 import AttachmentListProductMapping from '@/Components/AttachmentListProductMapping.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
