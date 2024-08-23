@@ -207,7 +207,7 @@ class ProductMappingController extends Controller
         $productMapping = ProductMapping::findOrFail($id);
 
         if($request->files) {
-            $files = $request->files;
+            $files = $request->file('files');
             $dir = 'sys/product-mappings';
             $storedPath = $files->storePublicly('sys/product-mappings');
             $fileName = basename($storedPath);

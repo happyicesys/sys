@@ -1719,7 +1719,7 @@ class VendController extends Controller
         $vend = Vend::findOrFail($id);
 
         if ($request->files) {
-            $files = $request->files;
+            $files = $request->file('files');
             $dir = 'sys/vends';
             $storedPath = $files->storePublicly($dir);
             $fileName = basename($storedPath);

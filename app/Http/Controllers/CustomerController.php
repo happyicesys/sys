@@ -533,7 +533,7 @@ class CustomerController extends Controller
         $customer = Customer::findOrFail($id);
 
         if ($request->files) {
-            $files = $request->files;
+            $files = $request->file('files');
             $dir = 'sys/customers';
             $storedPath = $files->storePublicly($dir);
             $fileName = basename($storedPath);
