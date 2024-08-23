@@ -181,7 +181,7 @@
                                 (Qty)
                               </SingleSortItem>
                               <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
-                                Cash Amount
+                                Cash Collected
                               </SingleSortItem>
                             </div>
                           </TableHead>
@@ -192,7 +192,7 @@
                                 (VMC, MDB)
                               </span>
                               <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
-                                Cash Amount
+                                CashAmt$
                               </SingleSortItem>
                             </div>
                           </TableHead>
@@ -251,15 +251,22 @@
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <div class="flex flex-col space-y-2">
                               <div class="flex flex-col space-y-1">
-                                <div
-                                    class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
-                                    :class="statusClass(opsJobItem.status)"
-                                >
-                                    <div class="flex flex-col">
-                                        <span class="font-semibold grow-0">
-                                          {{ opsJobItem.status_name }}
-                                        </span>
-                                    </div>
+                                <div class="flex justify-between">
+                                  <div
+                                      class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
+                                      :class="statusClass(opsJobItem.status)"
+                                  >
+                                      <div class="flex flex-col">
+                                          <span class="font-semibold grow-0">
+                                            {{ opsJobItem.status_name }}
+                                          </span>
+                                      </div>
+                                  </div>
+                                  <button type="button" class="rounded-full p-1 shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                                  :class="[opsJobItem.is_cash_collected == 1 ? 'bg-green-500 text-white' : 'bg-red-500 text-white']"
+                                  >
+                                    <CurrencyDollarIcon class="w-4 h-4"></CurrencyDollarIcon>
+                                  </button>
                                 </div>
                                 <span v-if="opsJobItem.status_at" class="text-xs font-medium text-gray-600">
                                   {{ opsJobItem.status_at }}
@@ -477,7 +484,7 @@ import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import { ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";

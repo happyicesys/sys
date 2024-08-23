@@ -1032,6 +1032,7 @@ function onCashCollectedClicked() {
         timeout: 3000
       });
       emit('statusUpdated')
+      emit('modalClose')
     }
   })
 }
