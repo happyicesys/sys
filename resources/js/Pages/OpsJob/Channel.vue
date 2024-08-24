@@ -234,7 +234,9 @@
                               {{ channel.picked }}
                             </span>
                           </div>
-                          <div class="flex justify-center items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                          <div class="flex justify-center space-x-1 items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                            <ArrowRightEndOnRectangleIcon class="w-3 h-3 text-blue-600">
+                            </ArrowRightEndOnRectangleIcon>
                             <select name="channel_refill" id="channel_refill" class="rounded" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                               <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                             </select>
@@ -242,8 +244,12 @@
                               {{ channel.refill }}
                             </span>
                           </div>
-                          <div class="flex justify-center items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                            {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
+                          <div class="flex justify-center space-x-1 items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                            <ComputerDesktopIcon class="w-3 h-3 text-blue-600">
+                            </ComputerDesktopIcon>
+                            <span>
+                              {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
+                            </span>
                           </div>
                         </div>
                       </td>
@@ -294,7 +300,7 @@
                         </div>
                       </td>
                       <td class="py-4 text-sm font-bold text-center text-gray-800">
-                        <div class="flex flex-col space-y-1">
+                        <div class="flex flex-col space-y-1 items-center">
                           <span>
                             {{ getSubtotalNeeded() }}/ {{ getSubtotalCapacity() }}
                           </span>
@@ -302,10 +308,22 @@
                             {{ getSubtotalPicked() }}
                           </span>
                           <span :class="[opsJobItem.status >= 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                            {{ getSubtotalRefill() }}
+                            <div class="flex space-x-1 items-center text-center">
+                              <ArrowRightEndOnRectangleIcon class="w-3 h-3 text-blue-600">
+                              </ArrowRightEndOnRectangleIcon>
+                              <span>
+                                {{ getSubtotalRefill() }}
+                              </span>
+                            </div>
                           </span>
                           <span :class="[opsJobItem.status >= 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                            {{ getSubtotalVMCInventoryCount() }}
+                            <div class="flex space-x-1 items-center text-center">
+                              <ComputerDesktopIcon class="w-3 h-3 text-blue-600">
+                              </ComputerDesktopIcon>
+                              <span>
+                                {{ getSubtotalVMCInventoryCount() }}
+                              </span>
+                            </div>
                           </span>
                         </div>
                       </td>
@@ -568,7 +586,7 @@
             <div class="flex justify-between">
               <div class="flex flex-col md:flex-row md:items-center px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Cash Collected
+                  Cash Collected (Machine)
                   <span class="text-red-500">*</span>
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
@@ -578,13 +596,23 @@
                   </div>
                 </dd>
                 <dt class="text-sm font-medium leading-6 text-gray-900">
-                  Stock Out (VMC) CashAmt$
+                  CashAmt$ (VMC)
                   <span class="text-red-500">*</span>
                 </dt>
                 <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                   <div class="flex space-x-2">
                     <FormInput inputType="number" v-model="form.temp_cash_amount_from_vmc" class="text-center" :disabled="opsJobItem.status > 3 || opsJobItem.is_cash_collected">
                     </FormInput>
+                  </div>
+                </dd>
+                <dt class="text-sm font-medium leading-6 text-gray-900">
+                  Cash Adjustment
+                </dt>
+                <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex space-x-2">
+                    <span class="py-2 px-1" :class="[(form.cash_amount - form.temp_cash_amount_from_vmc) > 0 ? 'text-green-600' : ((form.cash_amount - form.temp_cash_amount_from_vmc) < 0 ? 'text-red-600' : '')]">
+                      {{ (form.cash_amount - form.temp_cash_amount_from_vmc).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                    </span>
                   </div>
                 </dd>
               </div>
@@ -819,7 +847,7 @@
 </template>
 
 <script setup>
-import {CheckCircleIcon, ClipboardDocumentCheckIcon, FlagIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import {ArrowRightEndOnRectangleIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ComputerDesktopIcon, FlagIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import AttachmentList from '@/Components/AttachmentList.vue';
 import Button from '@/Components/Button.vue';
 import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';

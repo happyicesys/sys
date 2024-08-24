@@ -33,6 +33,7 @@ class OpsJobItemResource extends JsonResource
             'completed_at' => isset($this->completed_at) ? $this->completed_at->format('ymd h:i:sa') : '',
             'completed_by' => $this->completed_by,
             'completedBy' => UserResource::make($this->whenLoaded('completedBy')),
+            'delta_cash_amount' => isset($this->delta_cash_amount) ? $this->delta_cash_amount / 100 : 0,
             'is_cash_collected' => $this->is_cash_collected,
             'name' => $this->name,
             'picked_amount' => isset($this->picked_amount) ? $this->picked_amount/100 : 0,

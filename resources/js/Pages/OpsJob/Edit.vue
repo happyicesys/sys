@@ -101,14 +101,23 @@
                       <thead class="bg-gray-50">
                         <tr class="bg-gray-200">
                           <th scope="col" colspan="11" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            <span class="flex flex-col md:flex-row space-y-2 md:space-y-0 text-left md:space-x-2">
-                              <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code" @input="onSearchFilterUpdated()">
-                                  Machine ID
-                              </SearchInput>
-                              <SearchInput placeholderStr="Customer" v-model="filters.customer" @input="onSearchFilterUpdated()">
-                                  Customer
-                              </SearchInput>
-                            </span>
+                            <div class="flex justify-between items-center">
+                              <span class="flex flex-col md:flex-row space-y-2 md:space-y-0 text-left md:space-x-2">
+                                <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code" @input="onSearchFilterUpdated()">
+                                    Machine ID
+                                </SearchInput>
+                                <SearchInput placeholderStr="Customer" v-model="filters.customer" @input="onSearchFilterUpdated()">
+                                    Customer
+                                </SearchInput>
+                              </span>
+                              <span class="text-gray-500">
+                                Total of
+                                <span class="text-gray-800">
+                                  {{ opsJob.opsJobItems ? opsJob.opsJobItems.length : 0 }}
+                                </span>
+                                Job(s)
+                              </span>
+                            </div>
                           </th>
                         </tr>
                         <tr>
@@ -163,48 +172,34 @@
                           <TableHead>
                             <div class="flex flex-col space-y-2">
                               <span>
-                                Picked
+                                Value <br>
+                                (Qty)
                               </span>
                               <SingleSortItem modelName="picked_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_amount')">
-                                Value <br>
-                                (Qty)
+                                Picked
                               </SingleSortItem>
-                            </div>
-                          </TableHead>
-                          <TableHead>
-                            <div class="flex flex-col space-y-2">
-                              <span>
+                              <SingleSortItem modelName="picked_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_amount')">
                                 Stock In
-                              </span>
-                              <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
-                                Value <br>
-                                (Qty)
                               </SingleSortItem>
                               <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
-                                Cash Collected
-                              </SingleSortItem>
-                            </div>
-                          </TableHead>
-                          <TableHead>
-                            <div class="flex flex-col space-y-2">
-                              <span>
-                                Stock Out <br>
-                                (VMC, MDB)
-                              </span>
-                              <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
-                                CashAmt$
-                              </SingleSortItem>
-                            </div>
-                          </TableHead>
-                          <TableHead>
-                            <div class="flex flex-col space-y-2">
-                              <span>
                                 Stock Out <br>
                                 (Transactions)
+                              </SingleSortItem>
+                            </div>
+                          </TableHead>
+                          <TableHead>
+                            <div class="flex flex-col space-y-2">
+                              <span>
+                                Cash Amount
                               </span>
-                              <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
-                                Amount <br>
-                                (Qty)
+                              <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
+                                Cash Collected (Machine)
+                              </SingleSortItem>
+                              <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
+                                CashAmt$ (VMC)
+                              </SingleSortItem>
+                              <SingleSortItem modelName="delta_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delta_cash_amount')">
+                                Cash Adjustment
                               </SingleSortItem>
                             </div>
                           </TableHead>
@@ -237,7 +232,7 @@
                               </span>
                               <div>
                                 <Button
-                                  class="bg-green-400 hover:bg-green-500 text-gray-800 text-xs font-medium"
+                                  class="bg-indigo-400 hover:bg-indigo-500 text-white text-xs font-medium"
                                   @click.prevent="onChannelClicked(opsJobItem)"
                                   v-if="permissions.includes('update operations')"
                                 >
@@ -249,7 +244,7 @@
                               </div>
                             </div>
                           </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                          <td class="whitespace py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <div class="flex flex-col space-y-2">
                               <div class="flex flex-col space-y-1">
                                 <div class="flex space-x-2">
@@ -324,25 +319,28 @@
                                 {{ operatorCountry.currency_symbol }}{{ opsJobItem.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                                 ({{ opsJobItem.picked_count }})
                               </span>
-                            </div>
-                          </td>
-                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left align-top">
-                            <div class="flex flex-col space-y-2 text-center">
                               <span>
                                 {{ operatorCountry.currency_symbol }}{{ opsJobItem.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                                 ({{ opsJobItem.stock_in_count }})
                               </span>
                               <span>
-                                {{ operatorCountry.currency_symbol }}{{ opsJobItem.cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                {{ operatorCountry.currency_symbol }}{{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
+                                ({{ opsJobItem.acc_vend_transactions_count }})
                               </span>
                             </div>
                           </td>
-                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center align-top">
-                            {{ operatorCountry.currency_symbol }}{{ opsJobItem.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-                          </td>
-                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center align-top">
-                            {{ operatorCountry.currency_symbol }}{{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
-                            ({{ opsJobItem.acc_vend_transactions_count }})
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left align-top">
+                            <div class="flex flex-col space-y-2 text-center">
+                              <span>
+                                {{ operatorCountry.currency_symbol }}{{ opsJobItem.cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                              </span>
+                              <span>
+                                {{ operatorCountry.currency_symbol }}{{ opsJobItem.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                              </span>
+                              <span :class="[opsJobItem.delta_cash_amount > 0 ? 'text-green-600' : (opsJobItem.delta_cash_amount < 0 ? 'text-red-600' : '')]">
+                                {{ operatorCountry.currency_symbol }}{{ opsJobItem.delta_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                              </span>
+                            </div>
                           </td>
                           <td class="whitespace-nowrap py-4 px-1 text-sm text-center">
                             <Button
@@ -483,7 +481,7 @@ import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import { ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowRightEndOnRectangleIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";

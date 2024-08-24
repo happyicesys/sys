@@ -42,7 +42,7 @@ class OpsJobController extends Controller
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'sortKey' => $request->sortKey ? $request->sortKey : 'date',
             'sortBy' => $request->sortBy ? $request->sortBy : false,
-            'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay(),
+            'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->subDay()->setTimezone($this->getUserTimezone())->startOfDay(),
             'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->addWeek()->setTimezone($this->getUserTimezone())->endOfDay(),
         ]);
 
@@ -133,6 +133,11 @@ class OpsJobController extends Controller
                 WHERE ops_job_items.ops_job_id = ops_jobs.id
                 ) as total_cash_amount_from_vmc')
             ->selectRaw('(
+                SELECT SUM(ops_job_items.cash_amount) - SUM(ops_job_items.temp_cash_amount_from_vmc)
+                FROM ops_job_items
+                WHERE ops_job_items.ops_job_id = ops_jobs.id
+                ) as delta_cash_amount')
+            ->selectRaw('(
                 SELECT SUM(ops_job_items.acc_total_amount)
                 FROM ops_job_items
                 WHERE ops_job_items.ops_job_id = ops_jobs.id
@@ -189,7 +194,8 @@ class OpsJobController extends Controller
                     'ops_job_items_verified_count',
                     'ops_job_items_delivered_count_percentage',
                     'ops_job_items_verified_count_percentage',
-                    'total_cash_amount_from_vmc' // Adding this to the list of sortable columns
+                    'total_cash_amount_from_vmc',
+                    'delta_cash_amount',
                 ])) {
                     $query->orderByRaw("{$search} " . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                 } else {
@@ -484,6 +490,12 @@ class OpsJobController extends Controller
                     FROM ops_job_items oj_items
                     WHERE oj_items.id = ops_job_items.id
                 ) as total_cash_amount_from_vmc');
+
+                $query->selectRaw('(
+                    SELECT SUM(oj_items.cash_amount) - SUM(oj_items.temp_cash_amount_from_vmc)
+                    FROM ops_job_items oj_items
+                    WHERE oj_items.id = ops_job_items.id
+                ) as delta_cash_amount');
 
                 $query->selectRaw('(
                     SELECT SUM(oj_items.acc_total_amount)

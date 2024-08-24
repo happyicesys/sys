@@ -38,11 +38,12 @@ class OpsJobResource extends JsonResource
                         && Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 0
                     )
                     ? 'tomorrow'
-                    : (Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 0 ? ('Next ' . ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days') : ('Last ' . ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days'))
+                    : (Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 0 ? ('Next ' . ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days') : ((Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() > 1 && Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 2) ? 'yesterday' : ('Last ' . ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days')))
                 )
             )
             : null,
             'date_diff_count' => isset($this->date) ? Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() : null,
+            'delta_cash_amount' => isset($this->delta_cash_amount) ? $this->delta_cash_amount/100 : 0,
             'status' => $this->status,
             'createdBy' => UserResource::make($this->whenLoaded('createdBy')),
             'deliveredBy' => UserResource::make($this->whenLoaded('deliveredBy')),
