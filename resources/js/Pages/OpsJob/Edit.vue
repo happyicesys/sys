@@ -113,12 +113,12 @@
                         </tr>
                         <tr>
                           <TableHead>
-                            <div class="flex flex-col space-y-1">
+                            <div class="flex flex-col space-y-1 max-w-20 items-center">
                               <SingleSortItem modelName="sequence" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sequence')">
                                 Job Sequence
                               </SingleSortItem>
                               <Button
-                                class="bg-yellow-400 hover:bg-yellow-500 text-gray-800 text-xs font-semibold"
+                                class="bg-yellow-400 hover:bg-yellow-500 text-gray-800 text-xs font-semibold mx-w-20 mx-1"
                                 @click.prevent="onRenumberClicked()"
                                 v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 3)"
                               >
@@ -139,12 +139,15 @@
                               <span>
                                 Machine Prefix
                               </span>
+                              <span>
+                                Job ID#
+                              </span>
+                              <span>
+                                Remarks
+                              </span>
                             </div>
                           </th>
-                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Job ID#
-                          </th>
-                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          <TableHead>
                             <div class="flex flex-col space-y-2">
                               <span>
                                 Status
@@ -152,14 +155,11 @@
                               <span>
                                 Customer
                               </span>
+                              <span>
+                                Ops Note
+                              </span>
                             </div>
-                          </th>
-                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Remarks
-                          </th>
-                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Ops Note
-                          </th>
+                          </TableHead>
                           <TableHead>
                             <div class="flex flex-col space-y-2">
                               <span>
@@ -218,7 +218,7 @@
                         <tr v-for="(opsJobItem, opsJobItemIndex) in opsJob.opsJobItems" :key="opsJobItem.id" :class="opsJobItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                             <!-- {{ opsJobItemIndex + 1 }} -->
-                            <div class="flex items-center justify-center ">
+                            <div class="flex items-center justify-center">
                               <input
                                 type="text"
                                 class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-fit text-sm border-gray-300 rounded-md max-w-14 text-center"
@@ -235,23 +235,24 @@
                               <span>
                                 {{ opsJobItem.vend && opsJobItem.vend.vendPrefix ? opsJobItem.vend.vendPrefix.name : '' }}
                               </span>
-                            </div>
-                          </td>
-                          <td class="whitespace-nowrap py-3 px-2 text-xs font-semibold text-gray-900 text-center">
-                            <div>
-                              <Button
-                                class="bg-green-400 hover:bg-green-500 text-gray-800 text-xs font-semibold"
-                                @click.prevent="onChannelClicked(opsJobItem)"
-                                v-if="permissions.includes('update operations')"
-                              >
-                                {{ opsJobItem.ref_id }}
-                              </Button>
+                              <div>
+                                <Button
+                                  class="bg-green-400 hover:bg-green-500 text-gray-800 text-xs font-medium"
+                                  @click.prevent="onChannelClicked(opsJobItem)"
+                                  v-if="permissions.includes('update operations')"
+                                >
+                                  {{ opsJobItem.ref_id }}
+                                </Button>
+                              </div>
+                              <div class="text-left">
+                                {{ opsJobItem.remarks }}
+                              </div>
                             </div>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <div class="flex flex-col space-y-2">
                               <div class="flex flex-col space-y-1">
-                                <div class="flex justify-between">
+                                <div class="flex space-x-2">
                                   <div
                                       class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
                                       :class="statusClass(opsJobItem.status)"
@@ -262,7 +263,7 @@
                                           </span>
                                       </div>
                                   </div>
-                                  <button type="button" class="rounded-full p-1 shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                                  <button type="button" class="rounded-full p-1 shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
                                   :class="[opsJobItem.is_cash_collected == 1 ? 'bg-green-500 text-white' : 'bg-red-500 text-white']"
                                   v-if="opsJobItem.status > 1"
                                   >
@@ -312,13 +313,10 @@
                                     </div>
                                 </div>
                               </span>
+                              <span class="text-left">
+                                {{ opsJobItem.ops_note }}
+                              </span>
                             </div>
-                          </td>
-                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                            {{ opsJobItem.remarks }}
-                          </td>
-                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                            {{ opsJobItem.vend.customer ? opsJobItem.vend.customer.ops_note : '' }}
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left align-top">
                             <div class="flex flex-col space-y-2 text-center">

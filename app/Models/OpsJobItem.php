@@ -18,6 +18,7 @@ class OpsJobItem extends Model
         'acc_total_count',
         'acc_total_promo_amount',
         'cancelled_at',
+        'cancelled_by',
         'cash_amount',
         'cashless_amount',
         'channels_json',
@@ -27,6 +28,7 @@ class OpsJobItem extends Model
         'created_by',
         'customer_id',
         'flagged_at',
+        'flagged_by',
         'is_cash_collected',
         'notes',
         'ops_job_id',
@@ -42,6 +44,7 @@ class OpsJobItem extends Model
         'vend_id',
         'vend_channel_record_id',
         'verified_at',
+        'verified_by',
     ];
 
     protected $casts = [

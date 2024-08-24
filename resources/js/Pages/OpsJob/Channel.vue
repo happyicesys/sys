@@ -123,7 +123,7 @@
                           >
                             <div class="flex flex-col font-semibold grow-0">
                               <span v-if="opsJobItem.vendChannelRecord">
-                               (b) {{ opsJobItem.vendChannelRecord.before_date_created_at_formatted }}
+                               (B) {{ opsJobItem.vendChannelRecord.before_date_created_at_formatted }}
                               </span>
                               <span v-else>
                                Not Detected
@@ -133,10 +133,10 @@
                           <div
                             class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
                             :class="[opsJobItem.vendChannelRecord ? 'bg-green-500' : 'bg-red-500']"
-                            v-if="opsJobItem.vendChannelRecord.after_data_created_at"
+                            v-if="opsJobItem.vendChannelRecord && opsJobItem.vendChannelRecord.after_data_created_at"
                           >
                             <div class="flex flex-col font-semibold grow-0">
-                              (a) {{ opsJobItem.vendChannelRecord.after_data_created_at_formatted }}
+                              (A) {{ opsJobItem.vendChannelRecord.after_data_created_at_formatted }}
                             </div>
                           </div>
                         </div>
@@ -248,7 +248,7 @@
                         </div>
                       </td>
                       <td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3">
-                        <div class="flex flex-col space-y-1" >
+                        <div class="flex flex-col space-y-1" v-if="opsJobItem.vendChannelRecord">
                           <span>
                             {{ channel.vmc_before_qty }}
                           </span>
@@ -344,7 +344,7 @@
                           >
                             <div class="flex flex-col font-semibold grow-0">
                               <span v-if="opsJobItem.vendChannelRecord">
-                               (b) {{ opsJobItem.vendChannelRecord.before_date_created_at_formatted }}
+                               (B) {{ opsJobItem.vendChannelRecord.before_date_created_at_formatted }}
                               </span>
                               <span v-else>
                                Not Detected
@@ -354,10 +354,10 @@
                           <div
                             class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs text-white w-fit"
                             :class="[opsJobItem.vendChannelRecord ? 'bg-green-500' : 'bg-red-500']"
-                            v-if="opsJobItem.vendChannelRecord.after_data_created_at"
+                            v-if="opsJobItem.vendChannelRecord && opsJobItem.vendChannelRecord.after_data_created_at"
                           >
                             <div class="flex flex-col font-semibold grow-0">
-                              (a) {{ opsJobItem.vendChannelRecord.after_data_created_at_formatted }}
+                              (A) {{ opsJobItem.vendChannelRecord.after_data_created_at_formatted }}
                             </div>
                           </div>
                         </div>
@@ -1033,6 +1033,17 @@ function onCashCollectedClicked() {
       });
       emit('statusUpdated')
       emit('modalClose')
+    }
+  })
+}
+
+function onSaveFormClicked() {
+  router.post('/ops-jobs/items/' + props.opsJobItem.id + '/update', form.value, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success("Successfully Saved", {
+        timeout: 3000
+      });
     }
   })
 }

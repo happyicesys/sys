@@ -12,7 +12,7 @@ defineProps({
 
 <template>
     <button :type="type"
-        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm"
+        class="inline-flex items-center px-2 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm"
         :class="class">
         <slot />
     </button>

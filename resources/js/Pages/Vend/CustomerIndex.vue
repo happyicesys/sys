@@ -1154,7 +1154,7 @@
 									</span>
 									<span class="flex flex-col space-y-1">
 										<span>
-											{{ vend.vend.lastOpsJobItem.opsJob.date }}
+											{{ vend.vend.lastOpsJobItem.opsJob.date_formatted }}
 										</span>
 										<div
 											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
@@ -1188,7 +1188,7 @@
 									</span>
 									<span class="flex flex-col space-y-1">
 										<span>
-											{{ vend.vend.nextOpsJobItem.opsJob.date }}
+											{{ vend.vend.nextOpsJobItem.opsJob.date_formatted }}
 										</span>
 										<div
 											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
