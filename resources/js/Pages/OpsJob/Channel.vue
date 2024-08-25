@@ -1055,6 +1055,13 @@ function onCashCollectedClicked() {
       return;
   }
 
+  if(form.value.cash_amount == 0 && form.value.temp_cash_amount_from_vmc == 0) {
+    const zeroApproval = confirm('Are you sure to confirm Cash Collection with 0 amount?');
+    if (!zeroApproval) {
+        return;
+    }
+  }
+
   router.post('/ops-jobs/items/' + props.opsJobItem.id + '/cash-collected', {
     ...form.value,
   }, {

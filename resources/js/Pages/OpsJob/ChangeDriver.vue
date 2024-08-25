@@ -116,7 +116,6 @@ onMounted(() => {
     ...useForm(getDefaultForm()),
     date: props.opsJob.date,
   }
-  console.log(form.value)
 })
 
 const profile = usePage().props.auth.profile

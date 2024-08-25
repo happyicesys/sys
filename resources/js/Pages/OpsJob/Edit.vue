@@ -176,10 +176,10 @@
                                 Picked
                               </SingleSortItem>
                               <SingleSortItem modelName="picked_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_amount')">
-                                Stock In
+                                Stock-in
                               </SingleSortItem>
                               <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
-                                Stock Out <br>
+                                Stock-out <br>
                                 (Transactions)
                               </SingleSortItem>
                             </div>
@@ -255,13 +255,13 @@
                                           </span>
                                       </div>
                                   </div>
-                                  <span class="rounded-full p-1 shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                  <span class="rounded-full p-1 shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 h-fit"
                                   :class="[opsJobItem.is_cash_collected == 1 ? 'bg-green-500 text-white' : 'bg-red-500 text-white']"
                                   v-if="opsJobItem.status > 1"
                                   >
                                     <CurrencyDollarIcon class="w-4 h-4"></CurrencyDollarIcon>
                                   </span>
-                                  <span class="rounded-full p-1 shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 bg-green-500 text-white"
+                                  <span class="rounded-full p-1 shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 bg-green-500 text-white h-fit"
                                   v-if="opsJobItem.attachments && opsJobItem.attachments.length"
                                   >
                                     <PaperClipIcon class="w-4 h-4"></PaperClipIcon>
@@ -321,7 +321,7 @@
                                 {{ operatorCountry.currency_symbol }}{{ opsJobItem.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                                 ({{ opsJobItem.picked_count }})
                               </span>
-                              <span>
+                              <span :class="[opsJobItem.stock_in_amount >= opsJobItem.picked_amount ? 'text-green-600' : 'text-red-600']">
                                 {{ operatorCountry.currency_symbol }}{{ opsJobItem.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                                 ({{ opsJobItem.stock_in_count }})
                               </span>
@@ -332,14 +332,14 @@
                             </div>
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left align-top">
-                            <div class="flex flex-col space-y-2 text-center">
+                            <div class="flex flex-col space-y-2 text-center" v-if="opsJobItem.status >= 3">
                               <span>
                                 {{ operatorCountry.currency_symbol }}{{ opsJobItem.cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                               </span>
                               <span>
                                 {{ operatorCountry.currency_symbol }}{{ opsJobItem.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                               </span>
-                              <span :class="[opsJobItem.delta_cash_amount > 0 ? 'text-green-600' : (opsJobItem.delta_cash_amount < 0 ? 'text-red-600' : '')]">
+                              <span :class="[opsJobItem.delta_cash_amount >= 0 ? 'text-green-600' : (opsJobItem.delta_cash_amount < 0 ? 'text-red-600' : '')]">
                                 {{ operatorCountry.currency_symbol }}{{ opsJobItem.delta_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                               </span>
                             </div>

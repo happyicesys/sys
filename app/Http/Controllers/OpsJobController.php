@@ -718,8 +718,8 @@ class OpsJobController extends Controller
         $opsJobItem->update([
             'is_cash_collected' => true,
             'cash_amount' => $request->cash_amount,
-            'cashless_amount' => $request->cashless_amount,
-            'temp_cash_amount_from_vmc' => $request->temp_cash_amount_from_vmc,
+            'cashless_amount' => $request->cashless_amount ? $request->cashless_amount : 0,
+            'temp_cash_amount_from_vmc' => $request->temp_cash_amount_from_vmc ? $request->temp_cash_amount_from_vmc : 0,
         ]);
 
         return redirect()->back();
