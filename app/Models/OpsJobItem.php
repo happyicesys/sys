@@ -34,6 +34,8 @@ class OpsJobItem extends Model
         'ops_job_id',
         'previous_ops_job_item_id',
         'remarks',
+        'remarks_updated_at',
+        'remarks_updated_by',
         'sequence',
         'status',
         // temporary
@@ -52,6 +54,7 @@ class OpsJobItem extends Model
         'cancelled_at' => 'datetime',
         'flagged_at' => 'datetime',
         'picked_at' => 'datetime',
+        'remarks_updated_at' => 'datetime',
         'verified_at' => 'datetime',
     ];
 
@@ -116,6 +119,11 @@ class OpsJobItem extends Model
     public function previousOpsJobItem()
     {
         return $this->belongsTo(OpsJobItem::class, 'previous_ops_job_item_id');
+    }
+
+    public function remarksUpdatedBy()
+    {
+        return $this->belongsTo(User::class, 'remarks_updated_by');
     }
 
     public function statusBy()

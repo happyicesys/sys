@@ -83,6 +83,9 @@
               <dd class="text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                 <FormTextarea v-model="form.remarks" class="w-full" rows="3">
                 </FormTextarea>
+                <span v-if="opsJobItem.remarks_updated_at" class="text-gray-500 text-xs">
+                  Last {{ opsJobItem.remarks_updated_at }} ({{ opsJobItem.remarksUpdatedBy.name }})
+                </span>
               </dd>
             </div>
           </dl>
@@ -91,12 +94,12 @@
         <Button
             type="button"
             class="px-2 py-2 ml-1 text-xs md:text-md flex space-x-1 bg-green-500 hover:bg-green-600 text-white w-full md:w-fit"
-            @click.prevent="onSaveFormClicked()"
+            @click.prevent="onSaveRemarksClicked()"
         >
           <span class="flex space-x-1 items-center">
             <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
             <span>
-              Save
+              Save Remarks
             </span>
           </span>
         </Button>
@@ -234,8 +237,8 @@
                               {{ channel.picked }}
                             </span>
                           </div>
-                          <div class="flex justify-center space-x-1 items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                            <ArrowRightEndOnRectangleIcon class="w-3 h-3 text-blue-600">
+                          <div class="flex justify-between space-x-1 items-center px-10" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                            <ArrowRightEndOnRectangleIcon class="w-5 h-5 text-blue-600">
                             </ArrowRightEndOnRectangleIcon>
                             <select name="channel_refill" id="channel_refill" class="rounded" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                               <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
@@ -244,9 +247,10 @@
                               {{ channel.refill }}
                             </span>
                           </div>
-                          <div class="flex justify-center space-x-1 items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                            <ComputerDesktopIcon class="w-3 h-3 text-blue-600">
-                            </ComputerDesktopIcon>
+                          <div class="flex justify-between space-x-1 items-center px-10" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                            <!-- <ComputerDesktopIcon class="w-3 h-3 text-blue-600"> -->
+                            <!-- </ComputerDesktopIcon> -->
+                            <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">VMC</span>
                             <span>
                               {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
                             </span>
@@ -309,7 +313,7 @@
                           </span>
                           <span :class="[opsJobItem.status >= 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                             <div class="flex space-x-1 items-center text-center">
-                              <ArrowRightEndOnRectangleIcon class="w-3 h-3 text-blue-600">
+                              <ArrowRightEndOnRectangleIcon class="w-4 h-4 text-blue-600">
                               </ArrowRightEndOnRectangleIcon>
                               <span>
                                 {{ getSubtotalRefill() }}
@@ -1067,6 +1071,17 @@ function onCashCollectedClicked() {
 
 function onSaveFormClicked() {
   router.post('/ops-jobs/items/' + props.opsJobItem.id + '/update', form.value, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success("Successfully Saved", {
+        timeout: 3000
+      });
+    }
+  })
+}
+
+function onSaveRemarksClicked() {
+  router.post('/ops-jobs/items/' + props.opsJobItem.id + '/update/remarks', {remarks: form.value.remarks}, {
     preserveScroll: true,
     onSuccess: () => {
       toast.success("Successfully Saved", {

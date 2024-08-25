@@ -749,7 +749,7 @@
 								<SingleSortItem modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date', false)">
 									Begin Dt
 								</SingleSortItem>
-								<SingleSortItem modelName="amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('amount_average_day', true)">
+								<SingleSortItem modelName="vend_transaction_totals_json->vend_records_amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_records_amount_average_day', true)">
 									Avg Sales/ Day
 								</SingleSortItem>
 								<SingleSortItem modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">

@@ -136,14 +136,21 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHeadSort modelName="date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('date')">
-                      Date
-                    </TableHeadSort>
                     <TableHead>
-                      Delivery By
-                    </TableHead>
-                    <TableHead>
-                      Total Jobs
+                      <div class="flex flex-col space-y-2">
+                        <SingleSortItem modelName="date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('date')">
+                          Date
+                        </SingleSortItem>
+                        <span>
+                          Deliver By
+                        </span>
+                        <span>
+                          Total Jobs
+                        </span>
+                        <SingleSortItem modelName="ops_job_items_verified_count_percentage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('ops_job_items_verified_count_percentage')">
+                          Verified(%)
+                        </SingleSortItem>
+                      </div>
                     </TableHead>
                     <TableHead>
                       <div class="flex flex-col space-y-2">
@@ -170,6 +177,9 @@
                         <SingleSortItem modelName="picked_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_cost')">
                           Cost
                         </SingleSortItem>
+                        <!-- <SingleSortItem modelName="picked_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_cost')">
+                          Gross Margin
+                        </SingleSortItem> -->
                       </div>
                     </TableHead>
                     <TableHead>
@@ -178,23 +188,18 @@
                           Stock In
                         </span>
                         <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
+                          <span class="text-gray-500">
+                            % of Picked/ Stock In
+                          </span><br>
                           Value<br>
                           (Qty)
                         </SingleSortItem>
-                        <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
-                          Cash Collected
+                        <SingleSortItem modelName="stock_in_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_cost')">
+                          Cost
                         </SingleSortItem>
-                      </div>
-                    </TableHead>
-                    <TableHead>
-                      <div class="flex flex-col space-y-2">
-                        <span>
-                          Stock Out <br>
-                          (VMC, MDB)
-                        </span>
-                        <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
-                          CashAmt$
-                        </SingleSortItem>
+                        <!-- <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
+                          Gross Margin
+                        </SingleSortItem> -->
                       </div>
                     </TableHead>
                     <TableHead>
@@ -203,9 +208,36 @@
                           Stock Out <br>
                           (Transactions)
                         </span>
+                        <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
+                          Total Amount$
+                        </SingleSortItem>
+                        <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
+                          Qty
+                        </SingleSortItem>
+                        <!-- <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
+                          Cost
+                        </SingleSortItem> -->
+                        <!-- <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
+                          Gross Margin
+                        </SingleSortItem> -->
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div class="flex flex-col space-y-2">
+                        <span>
+                          Cash Amount
+                        </span>
                         <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
-                          Amount<br>
-                          (Qty)
+                          Cash Collected (Machine)
+                        </SingleSortItem>
+                        <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
+                          CashAmt$ (VMC)
+                        </SingleSortItem>
+                        <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
+                          % Cash Collected/ CashAmt$
+                        </SingleSortItem>
+                        <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
+                          Cash Adjustment
                         </SingleSortItem>
                       </div>
                     </TableHead>
@@ -227,28 +259,30 @@
                         {{ opsJobs.meta.from + opsJobIndex }}
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
-                        <Link :href="'/ops-jobs/' + opsJob.id + '/edit'">
-                          <div
-                            class="inline-flex justify-center items-center rounded px-2 py-2 text-xs font-medium border min-w-full text-blue-700 hover:cursor-pointer"
-                            :class="[(opsJob.date_diff_count < 1 &&  opsJob.date_diff_count > 0) ? 'bg-green-200' : ((opsJob.date_diff_count > -1 && opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
-                            v-if="opsJob.date"
-                          >
-                            <div class="flex flex-col space-y-1">
-                              <span>
-                                {{ opsJob.date_formatted }}
-                              </span>
-                              <span>
-                                {{ opsJob.date_diff_human }}
-                              </span>
+                        <div class="flex flex-col space-y-2">
+                          <Link :href="'/ops-jobs/' + opsJob.id + '/edit'">
+                            <div
+                              class="inline-flex justify-center items-center rounded px-2 py-2 text-xs font-medium border min-w-fit text-blue-700 hover:cursor-pointer"
+                              :class="[(opsJob.date_diff_count < 1 &&  opsJob.date_diff_count > 0) ? 'bg-green-200' : ((opsJob.date_diff_count > -1 && opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
+                              v-if="opsJob.date"
+                            >
+                              <div class="flex flex-col space-y-1">
+                                <span>
+                                  {{ opsJob.date_formatted }}
+                                </span>
+                                <span>
+                                  {{ opsJob.date_diff_human }}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        </Link>
-                      </TableData>
-                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
-                        {{ opsJob.deliveredBy ? opsJob.deliveredBy.name : '' }}
-                      </TableData>
-                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
-                        {{ opsJob.ops_job_items_count }}
+                          </Link>
+                          <span>
+                            {{ opsJob.deliveredBy ? opsJob.deliveredBy.name : '' }}
+                          </span>
+                          <span>
+                            {{ opsJob.ops_job_items_count }}
+                          </span>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
                         <div class="flex flex-col space-y-2">
@@ -272,25 +306,52 @@
                           <span>
                             {{ operatorCountry.currency_symbol }}{{ opsJob.picked_cost.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                           </span>
+                          <!-- <span v-if="opsJob.picked_gross_margin_amount">
+                            {{ operatorCountry.currency_symbol }}{{ opsJob.picked_gross_margin_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{ opsJob.picked_gross_margin_percentage }}%)
+                          </span> -->
+                        </div>
+                      </TableData>
+                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center align-top">
+                        <div class="flex flex-col space-y-2 min-w-24">
+                          <span>
+                            {{ operatorCountry.currency_symbol }}{{ opsJob.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            ({{ opsJob.stock_in_amount > 0 ? (opsJob.picked_amount/opsJob.stock_in_amount * 100).toFixed(0) : 0 }}%)
+                            <br>
+                            ({{ opsJob.stock_in_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }})
+                            ({{ opsJob.stock_in_count > 0 ? (opsJob.picked_count/opsJob.stock_in_count * 100).toFixed(0) : 0 }}%)
+                          </span>
+                          <span>
+                            {{ operatorCountry.currency_symbol }}{{ opsJob.stock_in_cost.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span>
+                        </div>
+                      </TableData>
+                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center align-top">
+                        <div class="flex flex-col space-y-2 min-w-24">
+                          <span>
+                            {{ operatorCountry.currency_symbol }}{{ opsJob.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            <br>
+                            ({{ opsJob.acc_vend_transactions_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }})
+                          </span>
+                          <!-- <span>
+                            {{ operatorCountry.currency_symbol }}{{ opsJob.stock_in_cost.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span> -->
                         </div>
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center align-top">
                         <div class="flex flex-col space-y-2">
                           <span>
-                            {{ operatorCountry.currency_symbol }}{{ opsJob.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}<br>
-                            ({{ opsJob.stock_in_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }})
-                          </span>
-                          <span>
                             {{ operatorCountry.currency_symbol }}{{ opsJob.total_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                           </span>
+                          <span>
+                            {{ operatorCountry.currency_symbol }}{{ opsJob.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span>
+                          <span>
+                            {{ (opsJob.total_cash_amount/(opsJob.total_cash_amount_from_vmc > 0 ? opsJob.total_cash_amount_from_vmc : 1) * 100).toFixed(0) }}%
+                          </span>
+                          <span :class="[opsJob.delta_cash_amount > 0 ? 'text-green-600' : (opsJob.delta_cash_amount < 0 ? 'text-red-600' : '')]">
+                            {{ operatorCountry.currency_symbol }}{{ opsJob.delta_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span>
                         </div>
-                      </TableData>
-                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center align-top">
-                        {{ operatorCountry.currency_symbol }}{{ opsJob.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-                      </TableData>
-                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center align-top">
-                        {{ operatorCountry.currency_symbol }}{{ opsJob.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}<br>
-                        ({{ opsJob.acc_vend_transactions_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }})
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
                         <div class="flex flex-col space-y-2">
@@ -395,6 +456,7 @@ const userOptions = ref([])
 
 onMounted(() => {
 
+  console.log(props.opsJobs)
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },

@@ -132,16 +132,13 @@
                                 v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 3)"
                               >
                                 <div class="flex space-x-1 items-center">
-                                <ArrowsUpDownIcon class="h-3 w-3"></ArrowsUpDownIcon>
-                                <span>
-                                  Renumber
-                                </span>
+                                  <ArrowsUpDownIcon class="h-4 w-4"></ArrowsUpDownIcon>
                                 </div>
                               </Button>
                             </div>
                           </TableHead>
                           <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            <div class="flex flex-col space-y-2">
+                            <div class="flex flex-col space-y-2 max-w-20">
                               <span>
                                 Machine ID
                               </span>
@@ -247,7 +244,7 @@
                           <td class="whitespace py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                             <div class="flex flex-col space-y-2">
                               <div class="flex flex-col space-y-1">
-                                <div class="flex space-x-2">
+                                <div class="flex space-x-1">
                                   <div
                                       class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
                                       :class="statusClass(opsJobItem.status)"
@@ -258,12 +255,17 @@
                                           </span>
                                       </div>
                                   </div>
-                                  <button type="button" class="rounded-full p-1 shadow-sm hover:bg-red-400 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                  <span class="rounded-full p-1 shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
                                   :class="[opsJobItem.is_cash_collected == 1 ? 'bg-green-500 text-white' : 'bg-red-500 text-white']"
                                   v-if="opsJobItem.status > 1"
                                   >
                                     <CurrencyDollarIcon class="w-4 h-4"></CurrencyDollarIcon>
-                                  </button>
+                                  </span>
+                                  <span class="rounded-full p-1 shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 bg-green-500 text-white"
+                                  v-if="opsJobItem.attachments && opsJobItem.attachments.length"
+                                  >
+                                    <PaperClipIcon class="w-4 h-4"></PaperClipIcon>
+                                  </span>
                                 </div>
                                 <span v-if="opsJobItem.status_at" class="text-xs font-medium text-gray-600">
                                   {{ opsJobItem.status_at }}
@@ -481,7 +483,7 @@ import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import { ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowRightEndOnRectangleIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, PaperClipIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";

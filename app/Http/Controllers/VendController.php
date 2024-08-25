@@ -451,30 +451,6 @@ class VendController extends Controller
                     WHERE next_ops_jobs_inner.rn = 1
                 ) AS next_ops_jobs
             '), 'next_ops_jobs.vend_id', '=', 'vends.id')
-
-            // ->leftJoin(DB::raw('
-            //     (
-            //         SELECT
-            //             ops_job_items.vend_id,
-            //             SUM(
-            //                 CASE
-            //                     WHEN ops_job_items.status = 2 THEN ops_job_item_channels.picked_qty * vend_channels.amount
-            //                     WHEN ops_job_items.status = 3 THEN ops_job_item_channels.actual_qty * vend_channels.amount
-            //                     ELSE 0
-            //                 END
-            //             ) AS total_ops_job_stock_amount
-            //         FROM
-            //             ops_job_item_channels
-            //         INNER JOIN
-            //             vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
-            //         INNER JOIN
-            //             ops_job_items ON ops_job_item_channels.ops_job_item_id = ops_job_items.id
-            //         INNER JOIN
-            //             ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
-            //         GROUP BY
-            //             ops_job_items.vend_id
-            //     ) AS ops_job_amount
-            // '), 'ops_job_amount.vend_id', '=', 'vends.id')
             ->select(
                 'customers.id AS id',
                 'vends.id AS vend_id',
@@ -505,7 +481,6 @@ class VendController extends Controller
                 DB::raw('CASE WHEN customers.is_active THEN vends.parameter_json ELSE customers.snap_parameter_json END AS parameter_json'),
                 'vends.product_mapping_id',
                 'vends.private_key',
-                // DB::raw('CASE WHEN customers.is_active THEN vends.vend_channels_json ELSE customers.snap_vend_channels_json END AS vend_channels_json'),
                 'vends.vend_channel_totals_json',
                 DB::raw('CASE WHEN customers.is_active THEN vends.vend_channel_error_logs_json ELSE customers.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
                 'customers.totals_json AS vend_transaction_totals_json',
@@ -537,7 +512,6 @@ class VendController extends Controller
                 'product_mappings.remarks AS product_mapping_remarks',
                 'operators.code AS operator_code',
                 'operators.name AS operator_name',
-                // 'ops_job_amount.total_ops_job_stock_amount',
                 'addresses.postcode AS postcode',
                 'vend_prefixes.name AS vend_prefix_name',
                 'vc.total_stock_amount',
@@ -549,10 +523,8 @@ class VendController extends Controller
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends, 'customers');
 
-        // dd($vends->first()->toArray());
         $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
-
 
         $totals = [
             'thirtyDays' => collect((clone $vends)
