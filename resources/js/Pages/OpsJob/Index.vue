@@ -188,9 +188,6 @@
                           Stock In
                         </span>
                         <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
-                          <span class="text-gray-500">
-                            % of Picked/ Stock In
-                          </span><br>
                           Value<br>
                           (Qty)
                         </SingleSortItem>
@@ -301,7 +298,7 @@
                         <div class="flex flex-col space-y-2">
                           <span>
                             {{ operatorCountry.currency_symbol }}{{ opsJob.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}<br>
-                            ({{ opsJob.picked_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }})
+                            {{ opsJob.picked_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                           </span>
                           <span>
                             {{ operatorCountry.currency_symbol }}{{ opsJob.picked_cost.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
@@ -313,12 +310,10 @@
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center align-top">
                         <div class="flex flex-col space-y-2 min-w-24">
-                          <span>
+                          <span :class="[opsJob.stock_in_amount < opsJob.picked_amount ? 'text-red-600' : 'text-green-600']">
                             {{ operatorCountry.currency_symbol }}{{ opsJob.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-                            ({{ opsJob.stock_in_amount > 0 ? (opsJob.picked_amount/opsJob.stock_in_amount * 100).toFixed(0) : 0 }}%)
                             <br>
-                            ({{ opsJob.stock_in_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }})
-                            ({{ opsJob.stock_in_count > 0 ? (opsJob.picked_count/opsJob.stock_in_count * 100).toFixed(0) : 0 }}%)
+                            {{ opsJob.stock_in_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                           </span>
                           <span>
                             {{ operatorCountry.currency_symbol }}{{ opsJob.stock_in_cost.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
@@ -330,7 +325,7 @@
                           <span>
                             {{ operatorCountry.currency_symbol }}{{ opsJob.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                             <br>
-                            ({{ opsJob.acc_vend_transactions_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }})
+                            {{ opsJob.acc_vend_transactions_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                           </span>
                           <!-- <span>
                             {{ operatorCountry.currency_symbol }}{{ opsJob.stock_in_cost.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}

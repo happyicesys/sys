@@ -38,7 +38,7 @@ class OpsJobResource extends JsonResource
                         && Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 0
                     )
                     ? 'tomorrow'
-                    : (Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 0 ? ('Next ' . ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days') : ((Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() > 1 && Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 2) ? 'yesterday' : ('Last ' . ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days')))
+                    : (Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 0 ? ('Next ' . ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())) . ' days') : ((Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() > 1 && Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays() < 2) ? 'yesterday' : ('Last ' . ceil(abs(Carbon::parse($this->date)->setTimezone($this->getUserTimezone())->diffInDays())) - 1 . ' days')))
                 )
             )
             : null,
