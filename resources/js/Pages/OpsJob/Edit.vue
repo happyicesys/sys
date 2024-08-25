@@ -257,7 +257,7 @@
                                   </div>
                                   <span class="rounded-full p-1 shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 h-fit"
                                   :class="[opsJobItem.is_cash_collected == 1 ? 'bg-green-500 text-white' : 'bg-red-500 text-white']"
-                                  v-if="opsJobItem.status > 1"
+                                  v-if="opsJobItem.status >= 3"
                                   >
                                     <CurrencyDollarIcon class="w-4 h-4"></CurrencyDollarIcon>
                                   </span>
@@ -321,11 +321,11 @@
                                 {{ operatorCountry.currency_symbol }}{{ opsJobItem.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                                 ({{ opsJobItem.picked_count }})
                               </span>
-                              <span :class="[opsJobItem.stock_in_amount >= opsJobItem.picked_amount ? 'text-green-600' : 'text-red-600']">
+                              <span :class="[opsJobItem.stock_in_amount >= opsJobItem.picked_amount ? 'text-green-600' : 'text-red-600']" v-if="opsJobItem.status >= 3">
                                 {{ operatorCountry.currency_symbol }}{{ opsJobItem.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                                 ({{ opsJobItem.stock_in_count }})
                               </span>
-                              <span>
+                              <span v-if="opsJobItem.status >= 3">
                                 {{ operatorCountry.currency_symbol }}{{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                                 ({{ opsJobItem.acc_vend_transactions_count }})
                               </span>

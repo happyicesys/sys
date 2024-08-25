@@ -174,8 +174,10 @@
                           Picked
                         </span>
                         <SingleSortItem modelName="picked_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_amount')">
-                          Value<br>
-                          (Qty)
+                          Value
+                        </SingleSortItem>
+                        <SingleSortItem modelName="picked_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_count')">
+                          Qty
                         </SingleSortItem>
                         <SingleSortItem modelName="picked_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_cost')">
                           Cost
@@ -191,8 +193,10 @@
                           Stock-in
                         </span>
                         <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
-                          Value<br>
-                          (Qty)
+                          Value
+                        </SingleSortItem>
+                        <SingleSortItem modelName="stock_in_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_count')">
+                          Qty
                         </SingleSortItem>
                         <SingleSortItem modelName="stock_in_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_cost')">
                           Cost
@@ -227,16 +231,16 @@
                         <span>
                           Cash Amount
                         </span>
-                        <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
+                        <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
                           Cash Collected (fr VM)
                         </SingleSortItem>
-                        <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
+                        <SingleSortItem modelName="total_cash_amount_from_vmc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount_from_vmc')">
                           CashAmt$ (VMC)
                         </SingleSortItem>
-                        <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
+                        <span>
                           % Cash Collected/ CashAmt$
-                        </SingleSortItem>
-                        <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
+                        </span>
+                        <SingleSortItem modelName="delta_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delta_cash_amount')">
                           Cash Adjustment
                         </SingleSortItem>
                       </div>
@@ -284,7 +288,7 @@
                           </span>
                         </div>
                       </TableData>
-                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
+                      <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center align-top">
                         <div class="flex flex-col space-y-2">
                           <span :class="[opsJob.ops_job_items_picked_count_percentage == 100 ? 'text-green-700' : '']">
                             {{ opsJob.ops_job_items_picked_count }} ({{ opsJob.ops_job_items_picked_count_percentage }}%)
@@ -300,7 +304,9 @@
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center align-top">
                         <div class="flex flex-col space-y-2">
                           <span>
-                            {{ operatorCountry.currency_symbol }}{{ opsJob.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}<br>
+                            {{ operatorCountry.currency_symbol }}{{ opsJob.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          </span>
+                          <span>
                             {{ opsJob.picked_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                           </span>
                           <span>
@@ -315,7 +321,8 @@
                         <div class="flex flex-col space-y-2 min-w-24">
                           <span :class="[opsJob.stock_in_amount < opsJob.picked_amount ? 'text-red-700' : 'text-green-700']">
                             {{ operatorCountry.currency_symbol }}{{ opsJob.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-                            <br>
+                          </span>
+                          <span>
                             {{ opsJob.stock_in_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                           </span>
                           <span>
@@ -327,7 +334,8 @@
                         <div class="flex flex-col space-y-2 min-w-24">
                           <span>
                             {{ operatorCountry.currency_symbol }}{{ opsJob.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-                            <br>
+                          </span>
+                          <span>
                             {{ opsJob.acc_vend_transactions_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                           </span>
                           <!-- <span>
