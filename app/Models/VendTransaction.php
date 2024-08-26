@@ -250,7 +250,7 @@ class VendTransaction extends Model
             }
         })
         ->when($request->order_id, function($query, $search) {
-            $query->where('order_id', 'LIKE', "%{$search}%");
+            $query->where('vend_transactions.order_id', 'LIKE', "%{$search}%");
         })
         ->when($request->paymentMethod, function($query, $search) {
             $query->where('payment_method_id', $search);

@@ -1035,6 +1035,7 @@ class VendController extends Controller
                     ->where('is_testing', true);
             })
             ->select(
+                'vend_transactions.order_id',
                 DB::raw('CAST(ROUND(COALESCE(SUM(vend_transactions.amount), 0), 2) AS SIGNED) AS amount'),
                 DB::raw('CAST(COUNT(*) AS SIGNED) AS count'),
                 DB::raw('CAST(SUM(CASE WHEN is_multiple = 1 AND delivery_platform_orders.id IS NOT NULL THEN 1 ELSE 0 END) AS SIGNED) AS multiple_count_delivery_platform'),
