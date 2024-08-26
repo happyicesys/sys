@@ -317,30 +317,56 @@
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left align-top">
                             <div class="flex flex-col space-y-2 text-center">
-                              <span>
-                                {{ operatorCountry.currency_symbol }}{{ opsJobItem.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
-                                ({{ opsJobItem.picked_count }})
-                              </span>
+                              <div class="flex space-x-1 px-5 justify-between">
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">P</span>
+                                <span>
+                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
+                                  ({{ opsJobItem.picked_count }})
+                                </span>
+                              </div>
                               <span :class="[opsJobItem.stock_in_amount >= opsJobItem.picked_amount ? 'text-green-600' : 'text-red-600']" v-if="opsJobItem.status >= 3">
-                                {{ operatorCountry.currency_symbol }}{{ opsJobItem.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
+                                <div class="flex space-x-1 px-5 justify-between">
+                                  <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">SI</span>
+                                <span>
+                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                                 ({{ opsJobItem.stock_in_count }})
+                                </span>
+                                </div>
                               </span>
                               <span v-if="opsJobItem.status >= 3">
-                                {{ operatorCountry.currency_symbol }}{{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
-                                ({{ opsJobItem.acc_vend_transactions_count }})
+                                <div class="flex space-x-1 px-5 justify-between">
+                                  <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">SO</span>
+                                  <span>
+                                    {{ operatorCountry.currency_symbol }}{{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
+                                  ({{ opsJobItem.acc_vend_transactions_count }})
+                                  </span>
+                                </div>
                               </span>
                             </div>
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left align-top">
                             <div class="flex flex-col space-y-2 text-center" v-if="opsJobItem.status >= 3">
+                              <div class="flex space-x-1 px-5 justify-between">
+                                <span class="text-blue-600 flex items-center">
+                                  $
+                                  <ArrowLeftEndOnRectangleIcon class="w-4 h-4 text-blue-600">
+                                  </ArrowLeftEndOnRectangleIcon>
+                                </span>
+                                <span>
+                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                </span>
+                              </div>
                               <span>
-                                {{ operatorCountry.currency_symbol }}{{ opsJobItem.cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-                              </span>
-                              <span>
-                                {{ operatorCountry.currency_symbol }}{{ opsJobItem.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                <div class="flex space-x-1 px-5 justify-between">
+                                  <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">$VMC</span>
+                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                </div>
                               </span>
                               <span :class="[opsJobItem.delta_cash_amount >= 0 ? 'text-green-600' : (opsJobItem.delta_cash_amount < 0 ? 'text-red-600' : '')]">
-                                {{ operatorCountry.currency_symbol }}{{ opsJobItem.delta_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                <div class="flex space-x-1 px-5 justify-between">
+                                  <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">$Adj</span>
+                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.delta_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                </div>
                               </span>
                             </div>
                           </td>
@@ -483,7 +509,7 @@ import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import { ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, PaperClipIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { ArrowLeftEndOnRectangleIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, PaperClipIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
