@@ -340,7 +340,7 @@
                   </table>
 
                   <!-- desktop view -->
-                  <table class="min-w-full divide-y divide-gray-300">
+                  <table class="hidden md:table min-w-full divide-y divide-gray-300">
                     <thead class="bg-gray-50">
                       <tr v-if="opsJobItem.status >= 3">
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" colspan="6">
