@@ -324,7 +324,7 @@
                                   ({{ opsJobItem.picked_count }})
                                 </span>
                               </div>
-                              <span :class="[opsJobItem.stock_in_amount >= opsJobItem.picked_amount ? 'text-green-600' : 'text-red-600']" v-if="opsJobItem.status >= 3">
+                              <span :class="[opsJobItem.stock_in_amount == opsJobItem.picked_amount ? 'text-green-600' : (opsJobItem.stock_in_amount < opsJobItem.picked_amount ? 'text-red-600' : 'text-blue-600')]" v-if="opsJobItem.status >= 3">
                                 <div class="flex space-x-1 px-5 justify-between md:justify-center">
                                   <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">SI</span>
                                 <span>
@@ -362,7 +362,7 @@
                                   {{ operatorCountry.currency_symbol }}{{ opsJobItem.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                 </div>
                               </span>
-                              <span :class="[opsJobItem.delta_cash_amount >= 0 ? 'text-green-600' : (opsJobItem.delta_cash_amount < 0 ? 'text-red-600' : '')]">
+                              <span :class="[opsJobItem.delta_cash_amount == 0 ? 'text-green-600' : (opsJobItem.delta_cash_amount < 0 ? 'text-red-600' : 'text-blue-600')]">
                                 <div class="flex space-x-2 px-6 justify-between md:justify-center">
                                   <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">$Adj</span>
                                   {{ operatorCountry.currency_symbol }}{{ opsJobItem.delta_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
