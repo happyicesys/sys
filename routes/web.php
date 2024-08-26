@@ -274,6 +274,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/items/{itemId}/update/remarks', [OpsJobController::class, 'updateItemRemarks']);
         Route::post('/{id}/create-cms-empty-invoices', [OpsJobController::class, 'createCmsEmptyInvoices']);
         Route::delete('/items/{itemId}', [OpsJobController::class, 'deleteItem']);
+        Route::get('/items/{itemID}/edit', [OpsJobController::class, 'editItem']);
         Route::post('/items/{itemId}/confirm', [OpsJobController::class, 'confirmItem']);
         Route::post('/items/{itemId}/verify', [OpsJobController::class, 'verifyItem']);
         Route::post('/item-channels/{itemChannelId}/settle-error', [OpsJobController::class, 'settleItemChannelError']);

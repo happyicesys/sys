@@ -96,13 +96,13 @@
               <div class="sm:col-span-6 flex flex-col mt-3">
               <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                 <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
-                  <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                  <div class="overflow-scroll max-h-[600px] md:max-h-[700px] shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                     <table class="min-w-full divide-y divide-gray-300">
                       <thead class="bg-gray-50">
                         <tr class="bg-gray-200">
                           <th scope="col" colspan="11" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             <div class="flex justify-between items-center">
-                              <span class="flex flex-col md:flex-row space-y-2 md:space-y-0 text-left md:space-x-2">
+                              <span class="flex flex-row space-x-2 text-left">
                                 <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code" @input="onSearchFilterUpdated()">
                                     Machine ID
                                 </SearchInput>
@@ -120,7 +120,7 @@
                             </div>
                           </th>
                         </tr>
-                        <tr>
+                        <tr class="">
                           <TableHead>
                             <div class="flex flex-col space-y-1 max-w-20 items-center">
                               <SingleSortItem modelName="sequence" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sequence')">
@@ -137,7 +137,7 @@
                               </Button>
                             </div>
                           </TableHead>
-                          <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          <TableHead>
                             <div class="flex flex-col space-y-2 max-w-20">
                               <span>
                                 Machine ID
@@ -152,7 +152,7 @@
                                 Remarks
                               </span>
                             </div>
-                          </th>
+                          </TableHead>
                           <TableHead>
                             <div class="flex flex-col space-y-2">
                               <span>
@@ -228,13 +228,21 @@
                                 {{ opsJobItem.vend && opsJobItem.vend.vendPrefix ? opsJobItem.vend.vendPrefix.name : '' }}
                               </span>
                               <div>
-                                <Button
+                                <!-- <Button
                                   class="bg-indigo-400 hover:bg-indigo-500 text-white text-xs font-medium"
                                   @click.prevent="onChannelClicked(opsJobItem)"
                                   v-if="permissions.includes('update operations')"
                                 >
                                   {{ opsJobItem.ref_id }}
-                                </Button>
+                                </Button> -->
+                                <Link :href="'/ops-jobs/items/' + opsJobItem.id + '/edit'">
+                                  <Button
+                                    class="bg-indigo-400 hover:bg-indigo-500 text-white text-xs font-medium"
+                                    v-if="permissions.includes('update operations')"
+                                  >
+                                    {{ opsJobItem.ref_id }}
+                                  </Button>
+                                </Link>
                               </div>
                               <div class="text-left">
                                 {{ opsJobItem.remarks }}
@@ -318,16 +326,16 @@
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left align-top">
                             <div class="flex flex-col space-y-2 text-center">
-                              <div class="flex space-x-1 px-5 justify-between md:justify-center">
-                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">P</span>
+                              <div class="flex space-x-1 px-5 justify-center">
+                                <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">P</span> -->
                                 <span>
                                   {{ operatorCountry.currency_symbol }}{{ opsJobItem.picked_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                                   ({{ opsJobItem.picked_count }})
                                 </span>
                               </div>
                               <span :class="[opsJobItem.stock_in_amount == opsJobItem.picked_amount ? 'text-green-600' : (opsJobItem.stock_in_amount < opsJobItem.picked_amount ? 'text-red-600' : 'text-blue-600')]" v-if="opsJobItem.status >= 3">
-                                <div class="flex space-x-1 px-5 justify-between md:justify-center">
-                                  <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">SI</span>
+                                <div class="flex space-x-1 px-5 justify-center">
+                                  <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">SI</span> -->
                                 <span>
                                   {{ operatorCountry.currency_symbol }}{{ opsJobItem.stock_in_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                                 ({{ opsJobItem.stock_in_count }})
@@ -335,8 +343,8 @@
                                 </div>
                               </span>
                               <span v-if="opsJobItem.status >= 3">
-                                <div class="flex space-x-1 px-5 justify-between md:justify-center">
-                                  <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">SO</span>
+                                <div class="flex space-x-1 px-5 justify-center">
+                                  <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">SO</span> -->
                                   <span>
                                     {{ operatorCountry.currency_symbol }}{{ opsJobItem.acc_vend_transactions_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} <br>
                                   ({{ opsJobItem.acc_vend_transactions_count }})
@@ -347,25 +355,25 @@
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left align-top">
                             <div class="flex flex-col space-y-2 text-center" v-if="opsJobItem.status >= 3">
-                              <div class="flex space-x-2 px-6 justify-between md:justify-center">
-                                <span class="text-blue-600 flex items-center">
+                              <div class="flex space-x-2 px-6 justify-center">
+                                <!-- <span class="text-blue-600 flex items-center">
                                   $
                                   <ArrowLeftEndOnRectangleIcon class="w-4 h-4 text-blue-600">
                                   </ArrowLeftEndOnRectangleIcon>
-                                </span>
+                                </span> -->
                                 <span>
                                   {{ operatorCountry.currency_symbol }}{{ opsJobItem.cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                 </span>
                               </div>
                               <span>
-                                <div class="flex space-x-2 px-6 justify-between md:justify-center">
-                                  <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">$VMC</span>
+                                <div class="flex space-x-2 px-6 justify-center">
+                                  <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">$VMC</span> -->
                                   {{ operatorCountry.currency_symbol }}{{ opsJobItem.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                 </div>
                               </span>
                               <span :class="[opsJobItem.delta_cash_amount == 0 ? 'text-green-600' : (opsJobItem.delta_cash_amount < 0 ? 'text-red-600' : 'text-blue-600')]">
-                                <div class="flex space-x-2 px-6 justify-between md:justify-center">
-                                  <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">$Adj</span>
+                                <div class="flex space-x-2 px-6 justify-center">
+                                  <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">$Adj</span> -->
                                   {{ operatorCountry.currency_symbol }}{{ opsJobItem.delta_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                 </div>
                               </span>

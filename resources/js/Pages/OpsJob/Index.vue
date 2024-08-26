@@ -352,7 +352,7 @@
                             {{ operatorCountry.currency_symbol }}{{ opsJob.total_cash_amount_from_vmc.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                           </span>
                           <span>
-                            {{ (opsJob.total_cash_amount/(opsJob.total_cash_amount_from_vmc > 0 ? opsJob.total_cash_amount_from_vmc : 1) * 100).toFixed(0) }}%
+                            {{ (opsJob.total_cash_amount/(opsJob.total_cash_amount_from_vmc > 0 ? opsJob.total_cash_amount_from_vmc : 1) * 100).toFixed(2) }}%
                           </span>
                           <span :class="[opsJob.delta_cash_amount > 0 ? 'text-green-600' : (opsJob.delta_cash_amount < 0 ? 'text-red-600' : '')]">
                             {{ operatorCountry.currency_symbol }}{{ opsJob.delta_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}

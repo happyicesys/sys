@@ -36,6 +36,7 @@ class OpsJobItemResource extends JsonResource
             'delta_cash_amount' => isset($this->delta_cash_amount) ? $this->delta_cash_amount / 100 : 0,
             'is_cash_collected' => $this->is_cash_collected,
             'name' => $this->name,
+            'ops_job_id' => $this->ops_job_id,
             'picked_amount' => isset($this->picked_amount) ? $this->picked_amount/100 : 0,
             'picked_count' => isset($this->picked_count) ? $this->picked_count : 0,
             'previous_ops_job_item_id' => $this->previous_ops_job_item_id,

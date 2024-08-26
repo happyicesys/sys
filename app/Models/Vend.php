@@ -276,6 +276,7 @@ class Vend extends Model
                         $query->where('date', '<=', Carbon::today()->endOfDay());
                     })
                     ->where('status', '>=', OpsJob::STATUS_DELIVERED)
+                    ->where('status', '<>', OpsJob::STATUS_CANCELLED)
                     ->latest();
     }
 
@@ -286,6 +287,7 @@ class Vend extends Model
                         $query->where('date', '>=', Carbon::today()->startOfDay());
                     })
                     ->where('status', '<', OpsJob::STATUS_DELIVERED)
+                    ->where('status', '<>', OpsJob::STATUS_CANCELLED)
                     ->oldest();
     }
 

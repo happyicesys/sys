@@ -64,18 +64,6 @@
                 </div>
               </dd>
             </div>
-            <!-- <div class="px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2">
-              <dt class="text-sm font-medium leading-6 text-gray-900">
-                Cashless Collected
-                <span class="text-red-500">*</span>
-              </dt>
-              <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
-                <div class="flex space-x-2">
-                  <FormInput inputType="number" v-model="form.cashless_amount" class="text-center" :disabled="opsJobItem.status >= 3">
-                  </FormInput>
-                </div>
-              </dd>
-            </div> -->
             <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
               <dt class="text-sm font-medium leading-6 text-gray-900">
                 Remarks
@@ -108,14 +96,14 @@
         <div class="flex flex-col">
           <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
             <div class="inline-block min-w-full py-2 align-middle md:px-3 lg:px-6">
-              <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+              <div class="overflow-scroll max-h-[700px] shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                 <!-- mobile view -->
                 <table class="md:hidden min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
                     <tr v-if="opsJobItem.status >= 3">
-                      <th scope="col" class="px-2 py-1 text-center text-xs font-semibold text-gray-900" colspan="2">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" colspan="2">
                       </th>
-                      <th scope="col" class="px-2 py-1 text-center text-xs font-bold text-gray-900 bg-gray-200" colspan="4">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" colspan="4">
                         <div class="flex flex-col space-y-1 items-center">
                           <span>
                             From VMC
@@ -146,7 +134,7 @@
                       </th>
                     </tr>
                     <tr>
-                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2">
                         <div class="flex flex-col space-y-2">
                           <span>
                             Channel
@@ -159,7 +147,7 @@
                           </span>
                         </div>
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2">
                         <div class="flex flex-col space-y-2">
                           <span>
                             Needed/Capacity
@@ -189,7 +177,7 @@
                           </span>
                         </div>
                       </th>
-                      <th scope="col" class="px-1 py-2 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         <div class="flex flex-col space-y-2">
                           <span>
                             Before Refill
@@ -202,7 +190,7 @@
                           </span>
                         </div>
                       </th>
-                      <th scope="col" class="px-3 py-3.5 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         VMC Inventory Not Tally, Fixed?
                       </th>
                     </tr>
@@ -227,7 +215,7 @@
                       <td class="whitespace py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900">
                         <div class="flex flex-col space-y-1">
                           <div>
-                            <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">need</span>
+                            <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">need</span> -->
                             {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
                           </div>
                           <div class="flex justify-center items-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
@@ -239,8 +227,8 @@
                             </span>
                           </div>
                           <div class="flex justify-between space-x-1 items-center px-10" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                            <ArrowRightEndOnRectangleIcon class="w-5 h-5 text-blue-600">
-                            </ArrowRightEndOnRectangleIcon>
+                            <!-- <ArrowRightEndOnRectangleIcon class="w-5 h-5 text-blue-600"> -->
+                            <!-- </ArrowRightEndOnRectangleIcon> -->
                             <select name="channel_refill" id="channel_refill" class="rounded" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                               <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                             </select>
@@ -249,9 +237,7 @@
                             </span>
                           </div>
                           <div class="flex justify-between space-x-1 items-center px-10" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                            <!-- <ComputerDesktopIcon class="w-3 h-3 text-blue-600"> -->
-                            <!-- </ComputerDesktopIcon> -->
-                            <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">VMC</span>
+                            <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">VMC</span> -->
                             <span>
                               {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
                             </span>
@@ -354,9 +340,9 @@
                 <table class="hidden md:block min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
                     <tr v-if="opsJobItem.status >= 3">
-                      <th scope="col" class="px-2 py-1 text-center text-xs font-semibold text-gray-900" colspan="6">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" colspan="6">
                       </th>
-                      <th scope="col" class="px-2 py-1 text-center text-xs font-bold text-gray-900 bg-gray-200" colspan="4">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" colspan="4">
                         <div class="flex flex-col space-y-1 items-center">
                           <span>
                             From VMC
@@ -387,22 +373,22 @@
                       </th>
                     </tr>
                     <tr>
-                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2">
                         #
                       </th>
-                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2">
                         Image
                       </th>
-                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2">
                         Product
                       </th>
-                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2">
                         Needed/ Capacity
                       </th>
-                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
                         Picked
                       </th>
-                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                         <div class="flex flex-col space-y-1">
                           <span>
                             Stock In
@@ -419,10 +405,10 @@
                           </span>
                         </div>
                       </th>
-                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                         VMC Inventory Count
                       </th>
-                      <th scope="col" class="w-2/12 px-1 py-2 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         <div class="flex flex-col space-y-1">
                           <span>
                             Before Refill
@@ -439,10 +425,10 @@
                           </div> -->
                         </div>
                       </th>
-                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         Stock In
                       </th>
-                      <th scope="col" class="w-2/12 px-1 py-2 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         <div>
                           <span>
                             After Refill
@@ -459,7 +445,7 @@
                           </div> -->
                         </div>
                       </th>
-                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold bg-gray-200" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
+                      <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 2">
                         VMC Inventory Not Tally, Fixed?
                       </th>
                     </tr>
@@ -859,6 +845,7 @@ import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';
+import TableHead from '@/Components/TableHead.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { onMounted, ref } from 'vue';
 import { router, usePage, useForm } from '@inertiajs/vue3';
@@ -1017,15 +1004,6 @@ function onConfirmClicked() {
         return;
     }
   }
-  // console.log(channels.value.map((channel) => {
-  //     return {
-  //       id: channel.ops_job_item_channel_id,
-  //       capacity: channel.capacity,
-  //       picked: channel.picked,
-  //       qty: channel.qty,
-  //       refill: channel.refill,
-  //     }
-  //   }))
 
   router.post('/ops-jobs/items/' + props.opsJobItem.id + '/confirm', {
     channels: channels.value.map((channel) => {
