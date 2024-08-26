@@ -679,7 +679,6 @@ class OpsJobController extends Controller
             ) as acc_vend_transactions_count')
             ->findOrFail($id);
 
-
         return Inertia::render('OpsJob/EditItem', [
             'opsJobItem' => OpsJobItemResource::make($opsJobItem),
         ]);
@@ -962,8 +961,6 @@ class OpsJobController extends Controller
                 'customer_id' => $vend->customer_id,
                 'ops_job_id' => $opsJobID,
                 'vend_id' => $vendID,
-                'cash_amount' => 0,
-                'cashless_amount' => 0,
                 'status' => '1',
                 'created_by' => auth()->id(),
                 'updated_by' => auth()->id(),

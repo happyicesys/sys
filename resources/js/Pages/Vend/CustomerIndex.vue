@@ -75,23 +75,6 @@
 						>
 						</MultiSelect>
 					</div>
-					<div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  v-if="permissions.includes('admin-access vend-customers') && indexType === 'customers'">
-						<label for="text" class="block text-sm font-medium text-gray-700">
-								Group
-						</label>
-						<MultiSelect
-							v-model="filters.categoryGroups"
-							:options="categoryGroupOptions"
-							trackBy="id"
-							valueProp="id"
-							label="name"
-							mode="tags"
-							placeholder="Select"
-							open-direction="bottom"
-							class="mt-1"
-						>
-						</MultiSelect>
-					</div>
 					<div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
 							Is Online?
@@ -1664,7 +1647,6 @@
 
     const props = defineProps({
         categories: Object,
-        categoryGroups: Object,
         cmsEndpoint: String,
         constTempError: Number,
 				dayOptions: [Array, Object],
@@ -1693,7 +1675,6 @@
         serialNum: '',
         customer: '',
         categories: [],
-        categoryGroups: [],
         deviceType: '',
         errors: [],
         firmware_ver: '',
@@ -1794,7 +1775,6 @@ onMounted(() => {
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 
   categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
-  categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
     deviceTypeOptions.value =
     [
         {id: 'all', value: 'All'},
@@ -2003,7 +1983,6 @@ function getVendsField() {
     router.get(baseUrl.value, {
         ...filters.value,
         categories: filters.value.categories.map((category) => { return category.id }),
-        categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
         deviceType: filters.value.deviceType.id,
         errors: filters.value.errors.map((error) => { return error.id }),
         location_type_id: filters.value.locationType.id,
@@ -2109,7 +2088,6 @@ function onExportChannelExcelClicked() {
       params: {
           ...filters.value,
           categories: filters.value.categories.map((category) => { return category.id }),
-          categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
           deviceType: filters.value.deviceType.id,
           errors: filters.value.errors.map((error) => { return error.id }),
           location_type_id: filters.value.locationType.id,

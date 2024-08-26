@@ -586,7 +586,7 @@
                   </dt>
                   <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                     <div class="flex space-x-2">
-                      <FormInput inputType="number" v-model="form.cash_amount" class="text-center" :disabled="opsJobItem.status > 3 || opsJobItem.is_cash_collected">
+                      <FormInput inputType="text" v-model="form.cash_amount" class="text-center" :disabled="opsJobItem.status > 3 || opsJobItem.is_cash_collected">
                       </FormInput>
                     </div>
                   </dd>
@@ -596,7 +596,7 @@
                   </dt>
                   <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
                     <div class="flex space-x-2">
-                      <FormInput inputType="number" v-model="form.temp_cash_amount_from_vmc" class="text-center" :disabled="opsJobItem.status > 3 || opsJobItem.is_cash_collected">
+                      <FormInput inputType="text" v-model="form.temp_cash_amount_from_vmc" class="text-center" :disabled="opsJobItem.status > 3 || opsJobItem.is_cash_collected">
                       </FormInput>
                     </div>
                   </dd>
@@ -621,7 +621,7 @@
                     <span class="flex space-x-1 items-center">
                       <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                       <span>
-                        Cash Collected
+                        Update Cash
                       </span>
                     </span>
                   </Button>
@@ -878,11 +878,6 @@ const opsJobItem = ref([])
 const permissions = usePage().props.auth.permissions
 const toast = useToast()
 const vend = ref([])
-
-const filters = ref({
-    vend_code: '',
-    customer: '',
-  })
 
 const form = ref(
   useForm(getDefaultForm())
