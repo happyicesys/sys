@@ -261,8 +261,9 @@
                                   >
                                     <CurrencyDollarIcon class="w-4 h-4"></CurrencyDollarIcon>
                                   </span>
-                                  <span class="rounded-full p-1 shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 bg-green-500 text-white h-fit"
-                                  v-if="opsJobItem.attachments && opsJobItem.attachments.length"
+                                  <span class="rounded-full p-1 shadow-sm focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 h-fit"
+                                  :class="[opsJobItem.attachments && opsJobItem.attachments.length ? 'bg-green-500 text-white' : 'bg-red-500 text-white']"
+                                  v-if="opsJobItem.status >= 3"
                                   >
                                     <PaperClipIcon class="w-4 h-4"></PaperClipIcon>
                                   </span>
