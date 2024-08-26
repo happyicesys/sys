@@ -638,8 +638,10 @@ class OpsJobController extends Controller
             ->with([
                 'vend:id,customer_id,code,vend_prefix_id',
                 'vend.productMapping',
-                'customer:id,name,person_id,virtual_customer_prefix,virtual_customer_code,ops_note',
+                'createdBy',
+                'customer',
                 'vend.vendPrefix',
+                'opsJob',
                 'opsJobItemChannels.vendChannel.product.thumbnail',
                 'attachments',
                 'remarksUpdatedBy:id,name',
@@ -793,6 +795,27 @@ class OpsJobController extends Controller
         ]);
 
         return redirect()->route('ops-jobs');
+    }
+
+    public function syncCmsInvoices($id)
+    {
+        $opsJob = OpsJob::findOrFail($id);
+
+        foreach($opsJob->opsJobItems as $opsJobItem) {
+            if($opsJobItem->cms_transaction_id) {
+                continue;
+            }
+
+            $dataArr[] = [
+                'ops_job_item_id' => $opsJobItem->id,
+                'customer_id' => $opsJobItem->customer_id,
+                'person_id' => $opsJobItem->customer?->person_id,
+            ];
+        }
+
+        $this->opsJobService->createCMSEmptyInvoicesByOpsJobItem($dataArr, $opsJob->date, $opsJob->deliveredBy);
+
+        return redirect()->back();
     }
 
     public function delete($id)

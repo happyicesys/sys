@@ -96,6 +96,11 @@ class OpsJobItem extends Model
         return $this->belongsTo(User::class, 'completed_by');
     }
 
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function customer()
     {
         return $this->belongsTo(Customer::class);

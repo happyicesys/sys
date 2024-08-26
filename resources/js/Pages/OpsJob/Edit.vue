@@ -436,14 +436,15 @@
                       </span>
                     </span>
                   </Button>
-                  <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-black shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                  @click.prevent="createCMSEmptyInvoices()"
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-black shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 hover:cursor-not-allowed"
+                  @click.prevent="syncCMSInvoices()"
+                  :disabled="true"
                   v-if="!opsJob.opsJobItems || opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.cms_transaction_id == null)"
                   >
                     <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
                     <span class="flex flex-col space-y-1">
                       <span>
-                          Create CMS Empty Invoice(s)
+                          Sync CMS Invoice(s)
                       </span>
                     </span>
                   </Button>
@@ -596,8 +597,8 @@ function addOpsJobItem() {
     })
 }
 
-function createCMSEmptyInvoices() {
-  form.value.post('/ops-jobs/' + opsJob.value.id + '/create-cms-empty-invoices', {
+function syncCMSInvoices() {
+  form.value.post('/ops-jobs/' + opsJob.value.id + '/sync-cms-invoices', {
     onSuccess: () => {
       toast.success("Data Sent to CMS", {
         timeout: 3000

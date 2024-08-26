@@ -15,10 +15,10 @@
               {{ opsJobItem.vend.code }}
             </span>
           </span>
-          <span v-if="opsJobItem.customer" class="text-gray-700">
+          <!-- <span v-if="opsJobItem.customer" class="text-gray-700">
             ({{ opsJobItem.customer.id + 20000 }})
             {{ opsJobItem.customer.name }}
-          </span>
+          </span> -->
           <div
             class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-fit"
             :class="statusClass(opsJobItem.status)"
@@ -37,6 +37,31 @@
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll p-5">
             <div class="px-2 border-b mb-2 border-gray-100 text-left">
             <dl class="divide-y divide-gray-100">
+              <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.opsJob">
+                <dt class="text-sm font-medium leading-6 text-gray-900">
+                  Date
+                </dt>
+                <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex space-x-2">
+                    <span>
+                      {{ opsJobItem.opsJob.date_formatted }}
+                    </span>
+                  </div>
+                </dd>
+              </div>
+              <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.customer">
+                <dt class="text-sm font-medium leading-6 text-gray-900">
+                  Customer
+                </dt>
+                <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex space-x-2">
+                    <span>
+                      ({{ opsJobItem.customer.id + 20000 }})
+                      {{ opsJobItem.customer.name }}
+                    </span>
+                  </div>
+                </dd>
+              </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 2  && opsJobItem.pickedBy">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
                   Picked By
