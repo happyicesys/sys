@@ -43,7 +43,6 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
             'cms_person_id' => $opsJob->customer->person_id,
             'created_by' => auth()->user()->username,
             'status' => 'Delivered',
-            'transaction_id' => $opsJob->cms_transaction_id,
             'items' => [],
         ];
 

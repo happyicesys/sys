@@ -215,7 +215,7 @@
                       Order ID
                     </TableHead>
                     <TableHead>
-                      (Channel) Item x Qty
+                      (Channel) Item x Qt2
                     </TableHead>
                     <TableHeadSort modelName="subtotal_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('subtotal_amount', true)">
                       Subtotal
@@ -232,8 +232,8 @@
                   </tr>
                 </thead>
                 <tbody class="bg-white">
-                  <tr v-for="(deliveryPlatformOrder, deliveryPlatformOrderIndex) in deliveryPlatformOrders.data" :key="deliveryPlatformOrder.id" class="divide-x divide-gray-200">
-                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
+                  <tr v-for="(deliveryPlatformOrder, deliveryPlatformOrderIndex) in deliveryPlatformOrders.data" :key="deliveryPlatformOrder.id" class="divide-x divide-y-2 divide-gray-300">
+                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center divide-y-2">
                       {{ deliveryPlatformOrders.meta.from + deliveryPlatformOrderIndex }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
