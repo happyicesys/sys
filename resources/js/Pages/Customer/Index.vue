@@ -65,7 +65,7 @@
             </label>
             <MultiSelect
               v-model="filters.is_active"
-              :options="booleanOptions"
+              :options="activeOptions"
               trackBy="id"
               valueProp="id"
               label="value"
@@ -607,6 +607,7 @@ const filters = ref({
   numberPerPage: 100,
   zones: [],
 });
+const activeOptions = ref([]);
 const authOperator = usePage().props.auth.operator;
 const showModal = ref(false);
 const booleanOptions = ref([]);
@@ -627,6 +628,11 @@ const numberPerPageOptions = ref([]);
 const vendModelOptions = ref([]);
 
 onMounted(() => {
+  activeOptions.value = [
+    { id: 'all', value: 'All' },
+    { id: 'true', value: 'Active' },
+    { id: 'false', value: 'Not Active' },
+  ];
   booleanOptions.value = [
     { id: 'all', value: 'All' },
     { id: 'true', value: 'Yes' },

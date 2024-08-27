@@ -147,9 +147,6 @@
                         <span>
                           # of Job
                         </span>
-                        <SingleSortItem modelName="ops_job_items_verified_count_percentage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('ops_job_items_verified_count_percentage')">
-                          Verified(%)
-                        </SingleSortItem>
                       </div>
                     </TableHead>
                     <TableHead>

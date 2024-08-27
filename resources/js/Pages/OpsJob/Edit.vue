@@ -138,7 +138,7 @@
                             </div>
                           </TableHead>
                           <TableHead>
-                            <div class="flex flex-col space-y-2 max-w-20">
+                            <div class="flex flex-col space-y-2">
                               <span>
                                 Machine ID
                               </span>
@@ -220,10 +220,12 @@
                             </div>
                           </td>
                           <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            <div class="flex flex-col space-y-2">
-                              <span>
-                                {{ opsJobItem.vend.code }}
-                              </span>
+                            <div class="flex flex-col space-y-2 max-w-20">
+                              <Link :href="'/vends/customers?codes=' + opsJobItem.vend.code" class="text-blue-700">
+                                <span>
+                                  {{ opsJobItem.vend.code }}
+                                </span>
+                              </Link>
                               <span>
                                 {{ opsJobItem.vend && opsJobItem.vend.vendPrefix ? opsJobItem.vend.vendPrefix.name : '' }}
                               </span>
