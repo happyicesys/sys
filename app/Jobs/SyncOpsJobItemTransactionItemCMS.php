@@ -22,7 +22,7 @@ class SyncOpsJobItemTransactionItemCMS implements ShouldQueue
     public function __construct($opsJobItemID)
     {
         $this->opsJobItemID = $opsJobItemID;
-        $this->endpoint = env('CMS_URL') . '/api/transactions/deals';
+        $this->endpoint = env('CMS_URL') . '/api/sys/transactions/create';
     }
 
     /**
@@ -30,6 +30,9 @@ class SyncOpsJobItemTransactionItemCMS implements ShouldQueue
      */
     public function handle(): void
     {
+        $this->endpoint = env('CMS_URL') . '/api/sys/transactions/create';
+
+
         $opsJobItem = OpsJobItem::with(['customer', 'opsJobItemChannels.vendChannel.product'])->find($this->opsJobItemID);
 
         if($opsJobItem->cms_transaction_id) {
