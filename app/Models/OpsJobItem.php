@@ -63,8 +63,10 @@ class OpsJobItem extends Model
     public function cashAmount(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value != null ? $value / 100 : null,
-            set: fn ($value) => $value != null ? $value * 100 : null,
+            // get: fn ($value) => $value != null ? $value / 100 : null,
+            // set: fn ($value) => $value != null ? $value * 100 : null,
+            get: fn ($value) => $value / 100,
+            set: fn ($value) => $value * 100,
         );
     }
 
@@ -72,16 +74,16 @@ class OpsJobItem extends Model
     public function cashlessAmount(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value != null ? $value / 100 : null,
-            set: fn ($value) => $value != null ? $value * 100 : null,
+            get: fn ($value) => $value / 100,
+            set: fn ($value) => $value * 100,
         );
     }
 
     public function tempCashAmountFromVmc(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value != null ? $value / 100 : null,
-            set: fn ($value) => $value != null ? $value * 100 : null,
+            get: fn ($value) => $value / 100,
+            set: fn ($value) => $value * 100,
         );
     }
 
