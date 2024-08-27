@@ -52,6 +52,11 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
                     continue;
                 }
 
+                $data['items'][$opsJobItem->id] = [
+                    'transaction_id' => $opsJobItem->cms_transaction_id,
+                    'deals' => [],
+                ];
+
                 $data = [
                     'date' => Carbon::parse($date)->format('Y-m-d'),
                     'driver' => $driver->username,
@@ -65,7 +70,7 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
                 if($opsJobItem->opsJobItemChannels) {
                     foreach($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
                         if($opsJobItemChannel->actual_qty > 0) {
-                            $data['items'][$opsJobItemChannel->vend_channel_code] = [
+                            $data['deals'][$opsJobItemChannel->vend_channel_code] = [
                                 'product_code' => $opsJobItemChannel->vendChannel->product->code,
                                 'capacity' => $opsJobItemChannel->capacity,
                                 'qty' => $opsJobItemChannel->vendChannel->qty,
