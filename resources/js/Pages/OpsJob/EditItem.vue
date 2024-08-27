@@ -3,7 +3,7 @@
   <BreezeAuthenticatedLayout>
     <template #header >
       <div class="flex flex-col space-y-1 md:flex-row md:space-x-3 md:space-y-0 text-left">
-          <span class="font-semibold">
+          <span class="font-semibold" v-if="opsJobItem.sequence">
             ({{ opsJobItem.sequence }})
           </span>
           <span>
