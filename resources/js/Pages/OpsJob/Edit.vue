@@ -362,8 +362,8 @@
                                   </ArrowLeftEndOnRectangleIcon>
                                 </span> -->
                                 <span>
-                                  <!-- {{ operatorCountry.currency_symbol }}{{ opsJobItem.cash_amount !== null ? opsJobItem.cash_amount.toLocaleString(undefined, { minimumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent, maximumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent }) : null }} -->
-                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.total_cash_amount.toLocaleString(undefined, { minimumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent, maximumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent }) }}
+                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.cash_amount !== null ? opsJobItem.cash_amount.toLocaleString(undefined, { minimumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent, maximumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent }) : 0 }}
+                                  <!-- {{ operatorCountry.currency_symbol }}{{ opsJobItem.total_cash_amount.toLocaleString(undefined, { minimumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent, maximumFractionDigits: operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent }) }} -->
                                 </span>
                               </div>
                               <span>
