@@ -44,17 +44,16 @@
               class="mt-1"
             ></MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access customers')">
+          <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Category Group
+              Attached to Machine?
             </label>
             <MultiSelect
-              v-model="filters.categoryGroups"
-              :options="categoryGroupOptions"
+              v-model="filters.is_binded_vend"
+              :options="booleanOptions"
               trackBy="id"
               valueProp="id"
-              label="name"
-              mode="tags"
+              label="value"
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
@@ -62,7 +61,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Is Active?
+              Status
             </label>
             <MultiSelect
               v-model="filters.is_active"
@@ -579,7 +578,6 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 const props = defineProps({
   customers: Object,
   categories: Object,
-  categoryGroups: Object,
   cmsEndpoint: String,
   days: [Array, Object],
   locationTypeOptions: [Array, Object],
@@ -596,6 +594,7 @@ const props = defineProps({
 
 const filters = ref({
   customer: '',
+  is_binded_vend: '',
   location_types: [],
   name: '',
   operators: [],
@@ -613,7 +612,6 @@ const showModal = ref(false);
 const booleanOptions = ref([]);
 const customer = ref();
 const categoryOptions = ref([]);
-const categoryGroupOptions = ref([]);
 const locationTypeOptions = ref([]);
 const operatorOptions = ref([]);
 const permissions = usePage().props.auth.permissions;
@@ -642,9 +640,6 @@ onMounted(() => {
   ];
   filters.value.numberPerPage = numberPerPageOptions.value[0];
   categoryOptions.value = props.categories.data.map((data) => {
-    return { id: data.id, name: data.name };
-  });
-  categoryGroupOptions.value = props.categoryGroups.data.map((data) => {
     return { id: data.id, name: data.name };
   });
   locationTypeOptions.value = [
@@ -687,6 +682,7 @@ onMounted(() => {
     }),
   ];
   filters.value.is_active = booleanOptions.value[0];
+  filters.value.is_binded_vend = booleanOptions.value[0];
   filters.value.is_cms = booleanOptions.value[0];
   filters.value.location_types = [locationTypeOptions.value.find((locationType) => locationType.id == 'all')];
   filters.value.operators = [operatorOptions.value.find((operator) => operator.id == 'all')];
@@ -710,6 +706,7 @@ function onSearchFilterUpdated() {
     '/customers',
     {
       ...filters.value,
+      is_binded_vend: filters.value.is_binded_vend.id,
       is_cms: filters.value.is_cms.id,
       is_active: filters.value.is_active.id,
       location_types: filters.value.location_types.map((locationType) => locationType.id),

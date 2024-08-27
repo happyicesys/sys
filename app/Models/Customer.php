@@ -285,6 +285,16 @@ class Customer extends Model
                 $query->where('customers.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
             }
         })
+        ->when($request->is_binded_vend, function($query, $search) {
+            if($search != 'all') {
+                $searchBoolean = filter_var($search, FILTER_VALIDATE_BOOLEAN);
+                if($searchBoolean)
+                    $query->whereHas('vend');
+                else {
+                    $query->doesntHave('vend');
+                }
+            }
+        })
         ->when($request->is_cms, function($query, $search) {
             if($search != 'all') {
                 $searchBoolean = filter_var($search, FILTER_VALIDATE_BOOLEAN);
