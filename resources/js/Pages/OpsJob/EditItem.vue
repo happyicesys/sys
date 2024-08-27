@@ -527,13 +527,13 @@
                           >
                           {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           {{ channel.vmc_before_qty }}
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           {{ (channel.vmc_after_qty - channel.vmc_before_qty) ? (channel.vmc_after_qty - channel.vmc_before_qty) : 0 }}
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           <span :class="[channel.virtual_is_error && !channel.is_error_settle ? 'text-red-500' : (channel.virtual_is_error && channel.is_error_settle ? 'text-blue-500' : '')]">
                             {{ channel.vmc_after_qty }}
                           </span>
@@ -583,13 +583,13 @@
                         <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 2">
                           {{ getSubtotalVMCInventoryCount() }}
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           {{ getSubtotalVMCBeforeQty() }}
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           {{ getSubtotalVMCQty() }}
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           {{ getSubtotalVMCAfterQty() }}
                         </td>
                         <td v-if="opsJobItem.status >= 3"></td>
@@ -1084,9 +1084,16 @@ function onCashCollectedClicked() {
       return;
   }
 
-  if(form.value.cash_amount == 0 && form.value.temp_cash_amount_from_vmc == 0) {
+  if(form.value.cash_amount == 0 || form.value.temp_cash_amount_from_vmc == 0) {
     const zeroApproval = confirm('Are you sure to confirm Cash Collection with 0 amount?');
     if (!zeroApproval) {
+        return;
+    }
+  }
+
+  if(form.value.cash_amount == null || form.value.temp_cash_amount_from_vmc == null) {
+    const nullApproval = confirm('Are you sure to confirm Cash Collection with 0 amount?');
+    if (!nullApproval) {
         return;
     }
   }
