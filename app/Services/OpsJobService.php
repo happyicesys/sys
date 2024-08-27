@@ -33,10 +33,10 @@ class OpsJobService
             $opsJobItem->cms_transaction_id = $cmsCustomer['transaction_id'];
             $opsJobItem->save();
 
-            $opsJobItem->customer()->update([
-              'cms_invoice_history->next_transaction_id' => $cmsCustomer['transaction_id'],
-              'cms_invoice_history->next_delivery_driver' => $opsJobItem->opsJob->deliveredBy->name,
-            ]);
+            // $opsJobItem->customer()->update([
+            //   'cms_invoice_history->next_transaction_id' => $cmsCustomer['transaction_id'],
+            //   'cms_invoice_history->next_delivery_driver' => $opsJobItem->opsJob->deliveredBy->name,
+            // ]);
         }
       }
     }

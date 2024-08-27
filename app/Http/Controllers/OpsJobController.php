@@ -350,8 +350,6 @@ class OpsJobController extends Controller
                     'temp_cash_amount_from_vmc' => $request->temp_cash_amount_from_vmc,
                 ]);
 
-                SyncOpsJobItemTransactionItemCMS::dispatch($opsJobItem->id);
-
                 if($request->channels) {
                     foreach($request->channels as $channel) {
                         $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
@@ -742,7 +740,7 @@ class OpsJobController extends Controller
 
         $opsJobItem->update([
             'is_cash_collected' => true,
-            'cash_amount' => $request->cash_amount ? $request->cashless_amount : 0,
+            'cash_amount' => $request->cash_amount ? $request->cash_amount : 0,
             'cashless_amount' => $request->cashless_amount ? $request->cashless_amount : 0,
             'temp_cash_amount_from_vmc' => $request->temp_cash_amount_from_vmc ? $request->temp_cash_amount_from_vmc : 0,
         ]);
@@ -814,6 +812,8 @@ class OpsJobController extends Controller
         }
 
         $this->opsJobService->createCMSEmptyInvoicesByOpsJobItem($dataArr, $opsJob->date, $opsJob->deliveredBy);
+
+        SyncOpsJobItemTransactionItemCMS::dispatch($opsJobItem->id);
 
         return redirect()->back();
     }
