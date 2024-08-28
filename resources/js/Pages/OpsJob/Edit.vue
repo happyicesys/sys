@@ -93,33 +93,21 @@
                 </Button>
               </div>
 
-              <div class="sm:col-span-6 flex flex-col mt-3">
+              <div class="sm:col-span-6 flex justify-end text-sm mt-3">
+                <span class="text-gray-500">
+                  Total of
+                  <span class="text-gray-800">
+                    {{ opsJob.opsJobItems ? opsJob.opsJobItems.length : 0 }}
+                  </span>
+                  Job(s)
+                </span>
+              </div>
+              <div class="sm:col-span-6 flex flex-col">
               <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                 <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                   <div class="overflow-scroll max-h-[600px] md:max-h-[700px] shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                     <table class="min-w-full divide-y divide-gray-300">
                       <thead class="bg-gray-50">
-                        <tr class="bg-gray-200">
-                          <th scope="col" colspan="11" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            <div class="flex justify-between items-center">
-                              <span class="flex flex-row space-x-2 text-left">
-                                <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code" @input="onSearchFilterUpdated()">
-                                    Machine ID
-                                </SearchInput>
-                                <SearchInput placeholderStr="Customer" v-model="filters.customer" @input="onSearchFilterUpdated()">
-                                    Customer
-                                </SearchInput>
-                              </span>
-                              <span class="text-gray-500">
-                                Total of
-                                <span class="text-gray-800">
-                                  {{ opsJob.opsJobItems ? opsJob.opsJobItems.length : 0 }}
-                                </span>
-                                Job(s)
-                              </span>
-                            </div>
-                          </th>
-                        </tr>
                         <tr class="">
                           <TableHead>
                             <div class="flex flex-col space-y-1 max-w-20 items-center">
@@ -222,8 +210,8 @@
                                 />
                             </div>
                           </td>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                            <div class="flex flex-col space-y-2 max-w-20">
+                          <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            <div class="flex flex-col space-y-2 max-w-24">
                               <Link :href="'/vends/customers?codes=' + opsJobItem.vend.code" class="text-blue-700">
                                 <span>
                                   {{ opsJobItem.vend.code }}
@@ -255,7 +243,7 @@
                             </div>
                           </td>
                           <td class="whitespace py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                            <div class="flex flex-col space-y-2 max-w-40">
+                            <div class="flex flex-col space-y-1 max-w-40">
                               <div class="flex flex-col space-y-1">
                                 <div class="flex space-x-1">
                                   <div
@@ -322,6 +310,18 @@
                                           CMS Inv
                                         </span>
                                     </div>
+                                </div>
+                              </span>
+                              <span v-if="opsJobItem.customer && opsJobItem.customer.deliveryAddress">
+                                <div class="flex space-x-2 items-center font-medium text-xs">
+                                  <span v-if="opsJobItem.customer.deliveryAddress.map_url">
+                                    <a :href="opsJobItem.customer.deliveryAddress.map_url" target="_blank">
+                                      <MapIcon class="w-5 h-5 text-blue-500 h-fit" ></MapIcon>
+                                    </a>
+                                  </span>
+                                  <span>
+                                    {{ opsJobItem.customer.deliveryAddress.postcode }}
+                                  </span>
                                 </div>
                               </span>
                               <span class="text-left">
@@ -545,7 +545,7 @@ import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import { ArrowLeftEndOnRectangleIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, PaperClipIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import {ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, PaperClipIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
