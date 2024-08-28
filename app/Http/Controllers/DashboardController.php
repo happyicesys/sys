@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\MonthResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\OptionResource;
+use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendTransactionGraphResource;
 use App\Models\Category;
 use App\Models\CategoryGroup;
@@ -13,6 +14,7 @@ use App\Models\LocationType;
 use App\Models\Month;
 use App\Models\Operator;
 use App\Models\Vend;
+use App\Models\VendPrefix;
 use App\Models\VendRecord;
 use App\Models\VendTransaction;
 use App\Traits\GetUserTimezone;
@@ -43,12 +45,6 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'activeMachineGraphData' => $activeMachineGraphData,
-            'categories' => OptionResource::collection(
-                Category::toBase()->select('id', 'name')->orderBy('name')->get()
-            ),
-            'categoryGroups' => OptionResource::collection(
-                CategoryGroup::toBase()->select('id', 'name')->orderBy('name')->get()
-            ),
             'dayGraphData' => VendTransactionGraphResource::collection($dayGraph),
             'locationTypeOptions' => OptionResource::collection(
                 LocationType::toBase()->select('id', 'name')->orderBy('sequence')->get()
@@ -62,6 +58,9 @@ class DashboardController extends Controller
             'productGraphData' => VendTransactionGraphResource::collection($productGraph),
             'performerGraphData' => VendTransactionGraphResource::collection($bestPerformer),
             'vendCount' => $vendCount,
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
         ]);
     }
 
@@ -350,8 +349,8 @@ class DashboardController extends Controller
     private function getModelName($monthlyTypeName)
     {
         switch ($monthlyTypeName) {
-            case 'category':
-                return 'categories';
+            // case 'category':
+            //     return 'categories';
             case 'location-type':
                 return 'location_types';
             case 'operator':
@@ -367,8 +366,8 @@ class DashboardController extends Controller
             ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'customers.id', '=', 'vend_records.customer_id')
             ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
-            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            // ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+            // ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_records.operator_id')
             ->whereBetween('vend_records.date', [Carbon::parse($request->monthlyDateFrom), Carbon::parse($request->monthlyDateTo)])
             ->filterIndex($request)
@@ -378,9 +377,9 @@ class DashboardController extends Controller
             ->select('vend_records.date', DB::raw('COUNT(DISTINCT(vend_records.vend_id)) as count'));
 
         switch ($className) {
-            case 'categories':
-                $vendRecords->selectRaw('categories.id as id');
-                break;
+            // case 'categories':
+            //     $vendRecords->selectRaw('categories.id as id');
+            //     break;
             case 'location_types':
                 $vendRecords->selectRaw('location_types.id as id');
                 break;
@@ -395,14 +394,14 @@ class DashboardController extends Controller
             ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'customers.id', '=', 'vend_records.customer_id')
             ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
-            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            // ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+            // ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_records.operator_id')
             ->leftJoinSub($vendRecords, 'x', function ($join) use ($className) {
                 switch ($className) {
-                    case 'categories':
-                        $join->on('categories.id', '=', 'x.id');
-                        break;
+                    // case 'categories':
+                    //     $join->on('categories.id', '=', 'x.id');
+                    //     break;
                     case 'location_types':
                         $join->on('location_types.id', '=', 'x.id');
                         break;
@@ -419,9 +418,9 @@ class DashboardController extends Controller
             });
 
         switch ($className) {
-            case 'categories':
-                $query->selectRaw('categories.id as id')->selectRaw('categories.name as name');
-                break;
+            // case 'categories':
+            //     $query->selectRaw('categories.id as id')->selectRaw('categories.name as name');
+            //     break;
             case 'location_types':
                 $query->selectRaw('location_types.id as id')->selectRaw('location_types.name as name');
                 break;

@@ -36,39 +36,39 @@
                         <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
                             Customer
                         </SearchInput>
-                        <div v-if="permissions.includes('admin-access dashboard')">
+                        <div>
                             <label for="text" class="block text-sm font-medium text-gray-700">
-                                Category
+                                Machine Prefix
                             </label>
                             <MultiSelect
-                                v-model="filters.categories"
-                                :options="categoryOptions"
+                                v-model="filters.vendPrefixes"
+                                :options="vendPrefixOptions"
                                 trackBy="id"
                                 valueProp="id"
-                                label="name"
-                                mode="tags"
+                                label="value"
                                 placeholder="Select"
                                 open-direction="bottom"
+                                mode="tags"
                                 class="mt-1"
                             >
                             </MultiSelect>
                         </div>
                         <div v-if="permissions.includes('admin-access dashboard')">
-                        <label for="text" class="block text-sm font-medium text-gray-700">
-                            Operator
-                        </label>
-                        <MultiSelect
-                            v-model="filters.operators"
-                            :options="operatorOptions"
-                            trackBy="id"
-                            valueProp="id"
-                            label="full_name"
-                            placeholder="Select"
-                            open-direction="bottom"
-                            class="mt-1"
-                            mode="tags"
-                        >
-                        </MultiSelect>
+                            <label for="text" class="block text-sm font-medium text-gray-700">
+                                Operator
+                            </label>
+                            <MultiSelect
+                                v-model="filters.operators"
+                                :options="operatorOptions"
+                                trackBy="id"
+                                valueProp="id"
+                                label="full_name"
+                                placeholder="Select"
+                                open-direction="bottom"
+                                class="mt-1"
+                                mode="tags"
+                            >
+                            </MultiSelect>
                         </div>
                         <div>
                             <label for="text" class="block text-sm font-medium text-gray-700">
@@ -370,8 +370,6 @@
 
     const props = defineProps({
         activeMachineGraphData: Object,
-        categories: Object,
-        categoryGroups: Object,
         dayGraphData: Object,
         locationTypeOptions: Object,
         monthGraphData: Object,
@@ -381,10 +379,9 @@
         productGraphData: Object,
         performerGraphData: Object,
         vendCount: Number,
+        vendPrefixOptions: Object,
     });
     const filters = ref({
-        categories: [],
-        categoryGroups: [],
         codes: '',
         customer: '',
         day_date_from: '',
@@ -394,8 +391,6 @@
         monthlyTypeName: 'location-type',
     })
     const authOperator = usePage().props.auth.operator
-    const categoryOptions = ref([])
-    const categoryGroupOptions = ref([])
     const componentKey1 = ref(0);
     const componentKey2 = ref(0);
     const componentKey3 = ref(0);
@@ -420,7 +415,6 @@
     const showFilters = ref(false)
     const tabs = ref([
         { name: 'Location Type', slug: 'location-type', current: true, href: '#' },
-        { name: 'Category', slug: 'category', current: false, href: '#' },
         { name: 'Operator', slug: 'operator', current: false, href: '#' },
     ])
 
@@ -564,11 +558,10 @@
             },
         }
     })
+    const vendPrefixOptions = ref([])
 
 
     onBeforeMount(() => {
-        categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
-        categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
         locationTypeOptions.value = [
             {id: 'all', name: 'All'},
             ...props.locationTypeOptions.data.map((data) => {return {id: data.id, name: data.name}})
@@ -577,6 +570,9 @@
             {id: 'all', full_name: 'All'},
             ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
         ]
+        vendPrefixOptions.value = [
+			...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
+	    ]
         syncDashboardData()
     })
 
@@ -600,10 +596,9 @@
         router.visit(
             route('dashboard', {
                 ...filters.value,
-                categories: filters.value.categories.map((category) => { return category.id }),
-                categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
                 location_type_id: filters.value.locationType.id,
                 operators: filters.value.operators.map((operator) => { return operator.id }),
+                vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
             }),{
                 only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'vendCount'],
                 preserveState: true,

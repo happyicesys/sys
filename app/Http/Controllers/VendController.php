@@ -239,12 +239,6 @@ class VendController extends Controller
         ];
 
         return Inertia::render('Vend/Index', [
-            'categories' => CategoryResource::collection(
-                Category::where('classname', $className)->orderBy('name')->get()
-            ),
-            'categoryGroups' => CategoryGroupResource::collection(
-                CategoryGroup::where('classname', $className)->orderBy('name')->get()
-            ),
             'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
             'deviceTypes' => Vend::DEVICE_TYPE_MAPPINGS,
@@ -540,12 +534,6 @@ class VendController extends Controller
         ];
 
         return Inertia::render('Vend/CustomerIndex', [
-            'categories' => CategoryResource::collection(
-                Category::where('classname', $className)->orderBy('name')->get()
-            ),
-            'categoryGroups' => CategoryGroupResource::collection(
-                CategoryGroup::where('classname', $className)->orderBy('name')->get()
-            ),
             'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
             'dayOptions' => Customer::DAYS_MAPPING,
