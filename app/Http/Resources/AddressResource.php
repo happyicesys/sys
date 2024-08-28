@@ -23,8 +23,7 @@ class AddressResource extends JsonResource
             'full_address' => ($this->unit_num ? '#'.$this->unit_num.', ' : '')
                                 .($this->block_num ? 'Blk '.ucwords(strtolower($this->block_num)).', ' : '')
                                 .($this->building ? ucwords(strtolower($this->building)).', ' : '')
-                                .($this->street_name ? ucwords(strtolower($this->street_name)).', ' : '')
-                                .$this->postcode,
+                                .($this->street_name ? ucwords(strtolower($this->street_name)).', ' : ''),
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
             'map_url' => $this->map_url,

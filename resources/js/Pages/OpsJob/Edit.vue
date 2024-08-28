@@ -201,6 +201,9 @@
                             </div>
                           </TableHead>
                           <TableHead>
+                            Address
+                          </TableHead>
+                          <TableHead>
                             Action
                           </TableHead>
                         </tr>
@@ -252,7 +255,7 @@
                             </div>
                           </td>
                           <td class="whitespace py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                            <div class="flex flex-col space-y-2">
+                            <div class="flex flex-col space-y-2 max-w-40">
                               <div class="flex flex-col space-y-1">
                                 <div class="flex space-x-1">
                                   <div
@@ -297,16 +300,16 @@
                                   </div>
                               </div>
                               <span>
-                                <span v-if="opsJobItem.vend.customer && opsJobItem.vend.customer.person_id">
-                                    {{ opsJobItem.vend.customer.virtual_customer_code }} ({{ opsJobItem.vend.customer.virtual_customer_prefix }})
+                                <span v-if="opsJobItem.customer && opsJobItem.customer.person_id">
+                                    {{ opsJobItem.customer.virtual_customer_code }} ({{ opsJobItem.customer.virtual_customer_prefix }})
                                     <br>
-                                    {{ opsJobItem.vend.customer.name }}
+                                    {{ opsJobItem.customer.name }}
                                 </span>
                                 <span v-else>
-                                  <span v-if="opsJobItem.vend.customer && opsJobItem.vend.customer.code">
-                                    {{ opsJobItem.vend.customer.code }} <br>
+                                  <span v-if="opsJobItem.customer && opsJobItem.customer.code">
+                                    {{ opsJobItem.customer.code }} <br>
                                   </span>
-                                  {{ opsJobItem.vend.customer && opsJobItem.vend.customer.name ? opsJobItem.vend.customer.name : ''}}
+                                  {{ opsJobItem.customer && opsJobItem.customer.name ? opsJobItem.customer.name : ''}}
                                 </span>
                               </span>
                               <span>
@@ -379,6 +382,26 @@
                                   <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">$Adj</span> -->
                                   {{ operatorCountry.currency_symbol }}{{ opsJobItem.delta_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                 </div>
+                              </span>
+                            </div>
+                          </td>
+                          <td class="whitespace-pre-line py-4 px-1 text-sm text-left">
+                            <div class="flex flex-col space-y-2 break-words max-w-32 md:max-w-52" v-if="opsJobItem.customer && opsJobItem.customer.deliveryAddress">
+                              <span>
+                                <a :href="opsJobItem.customer.deliveryAddress.map_url" v-if="opsJobItem.customer.deliveryAddress.map_url" class="text-blue-700" target="_blank">
+                                  {{ opsJobItem.customer.deliveryAddress.full_address }}
+                                </a>
+                                <span v-else>
+                                  {{ opsJobItem.customer.deliveryAddress.full_address }}
+                                </span>
+                              </span>
+                              <span v-if="!opsJobItem.customer.deliveryAddress.full_address">
+                                <a :href="opsJobItem.customer.deliveryAddress.map_url" v-if="opsJobItem.customer.deliveryAddress.map_url" class="text-blue-700" target="_blank">
+                                  {{ opsJobItem.customer.deliveryAddress.postcode }}
+                                </a>
+                                <span v-else>
+                                  {{ opsJobItem.customer.deliveryAddress.postcode }}
+                                </span>
                               </span>
                             </div>
                           </td>
