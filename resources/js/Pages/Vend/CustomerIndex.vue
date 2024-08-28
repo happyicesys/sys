@@ -548,7 +548,7 @@
 
 		<div class="mt-6 flex flex-col">
 		<div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
-		<div class="overflow-scroll max-h-[700px] md:max-h-[1500px] shadow-sm ring-1 ring-black ring-opacity-5">
+		<div class="overflow-scroll max-h-[900px] md:max-h-[1500px] shadow-sm ring-1 ring-black ring-opacity-5">
 			<table class="min-w-full border-separate" style="border-spacing: 0">
 				<thead class="bg-gray-100">
 					<tr class="divide-x divide-gray-200">
@@ -1513,7 +1513,9 @@
 				</tbody>
 			</table>
 		</div>
-		<Paginator v-if="vends.data.length" :links="vends.links" :meta="vends.meta"></Paginator>
+		<!-- <div class="py-5"> -->
+			<Paginator class="py-14" v-if="vends.data.length" :links="vends.links" :meta="vends.meta"></Paginator>
+		<!-- </div> -->
 </div>
 </div>
 </div>
