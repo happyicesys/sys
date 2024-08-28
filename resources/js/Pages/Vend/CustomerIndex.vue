@@ -74,7 +74,7 @@
 						>
 						</MultiSelect>
 					</div>
-					<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers') && indexType === 'customers'">
+					<div v-if="permissions.includes('admin-access vend-customers') && indexType === 'customers'">
 							<label for="text" class="block text-sm font-medium text-gray-700">
 								Customer Active?
 							</label>
@@ -90,7 +90,7 @@
 							>
 							</MultiSelect>
 					</div>
-					<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+					<div v-if="permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">
 							Machine Status
 						</label>
