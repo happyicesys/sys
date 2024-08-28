@@ -475,6 +475,9 @@ const smallLogoUrl = usePage().props.smallLogoUrl
                 <!-- Page Content -->
                 <main class="bg-gray-100">
                     <slot />
+                    <div class="flex bg-gray-100 items-center px-3 py-6 text-sm">
+                        © Copyright 2024 Happy Ice Pte Ltd. All Rights Reserved.
+                    </div>
                 </main>
             </div>
         </div>
