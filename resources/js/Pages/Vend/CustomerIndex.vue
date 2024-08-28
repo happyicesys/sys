@@ -74,6 +74,23 @@
 						>
 						</MultiSelect>
 					</div>
+					<div>
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Machine Prefix
+						</label>
+						<MultiSelect
+							v-model="filters.vendPrefixes"
+							:options="vendPrefixOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							mode="tags"
+							class="mt-1"
+						>
+						</MultiSelect>
+					</div>
 					<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers') && indexType === 'customers'">
 							<label for="text" class="block text-sm font-medium text-gray-700">
 								Customer Active?
@@ -268,23 +285,6 @@
 						>
 							Next Planned Date
 						</DatePicker>
-					</div>
-					<div>
-						<label for="text" class="block text-sm font-medium text-gray-700">
-							Machine Prefix
-						</label>
-						<MultiSelect
-							v-model="filters.vendPrefixes"
-							:options="vendPrefixOptions"
-							trackBy="id"
-							valueProp="id"
-							label="value"
-							placeholder="Select"
-							open-direction="bottom"
-							mode="tags"
-							class="mt-1"
-						>
-						</MultiSelect>
 					</div>
 					<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
 						<label for="text" class="block text-sm font-medium text-gray-700">

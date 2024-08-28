@@ -123,7 +123,7 @@
           </div> -->
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-                Status
+              Machine Status
             </label>
             <MultiSelect
                 v-model="filters.status"

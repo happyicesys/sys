@@ -285,7 +285,10 @@ class DashboardController extends Controller
             })
             ->filterIndex($request)
             ->whereNotIn('vend_id', function ($query) {
-                $query->select('id')->from('vends')->where('is_testing', true);
+                $query->select('id')->from('vends')->where(function ($query) {
+                    $query->where('is_testing', true)
+                        ->orWhereNull('customer_id');
+                });
             })
             ->select(
                 'date',

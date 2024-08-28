@@ -61,7 +61,7 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Status
+              Customer Status
             </label>
             <MultiSelect
               v-model="filters.is_active"
