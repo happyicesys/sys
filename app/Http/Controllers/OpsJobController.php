@@ -7,6 +7,7 @@ use App\Http\Resources\OpsJobResource;
 use App\Http\Resources\OpsJobItemResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendResource;
+use App\Jobs\SyncOpsJobTransactionCMS;
 use App\Jobs\SyncOpsJobItemTransactionItemCMS;
 use App\Models\Operator;
 use App\Models\OpsJob;
@@ -449,23 +450,11 @@ class OpsJobController extends Controller
         return redirect()->back();
     }
 
-    public function createCmsEmptyInvoices($id)
+    public function syncCmsInvoices($id)
     {
         $opsJob = OpsJob::findOrFail($id);
 
-        foreach($opsJob->opsJobItems as $opsJobItem) {
-            if($opsJobItem->cms_transaction_id) {
-                continue;
-            }
-
-            $dataArr[] = [
-                'ops_job_item_id' => $opsJobItem->id,
-                'customer_id' => $opsJobItem->customer_id,
-                'person_id' => $opsJobItem->customer?->person_id,
-            ];
-        }
-
-        $this->opsJobService->createCMSEmptyInvoicesByOpsJobItem($dataArr, $opsJob->date, $opsJob->deliveredBy);
+        SyncOpsJobTransactionCMS::dispatch($opsJob->id);
 
         return redirect()->back();
     }
@@ -728,6 +717,7 @@ class OpsJobController extends Controller
                     $opsJobItem->opsJobItemChannels()->delete();
                     $opsJobItem->attachments()->delete();
                     $opsJobItem->delete();
+                    return redirect()->route('ops-jobs');
                     break;
             }
         }
@@ -796,28 +786,28 @@ class OpsJobController extends Controller
         return redirect()->route('ops-jobs');
     }
 
-    public function syncCmsInvoices($id)
-    {
-        $opsJob = OpsJob::findOrFail($id);
+    // public function syncCmsInvoices($id)
+    // {
+    //     $opsJob = OpsJob::findOrFail($id);
 
-        foreach($opsJob->opsJobItems as $opsJobItem) {
-            if($opsJobItem->cms_transaction_id) {
-                continue;
-            }
+    //     foreach($opsJob->opsJobItems as $opsJobItem) {
+    //         if($opsJobItem->cms_transaction_id) {
+    //             continue;
+    //         }
 
-            $dataArr[] = [
-                'ops_job_item_id' => $opsJobItem->id,
-                'customer_id' => $opsJobItem->customer_id,
-                'person_id' => $opsJobItem->customer?->person_id,
-            ];
-        }
+    //         $dataArr[] = [
+    //             'ops_job_item_id' => $opsJobItem->id,
+    //             'customer_id' => $opsJobItem->customer_id,
+    //             'person_id' => $opsJobItem->customer?->person_id,
+    //         ];
+    //     }
 
-        $this->opsJobService->createCMSEmptyInvoicesByOpsJobItem($dataArr, $opsJob->date, $opsJob->deliveredBy);
+    //     $this->opsJobService->createCMSEmptyInvoicesByOpsJobItem($dataArr, $opsJob->date, $opsJob->deliveredBy);
 
-        SyncOpsJobItemTransactionItemCMS::dispatch($opsJobItem->id);
+    //     SyncOpsJobItemTransactionItemCMS::dispatch($opsJobItem->id);
 
-        return redirect()->back();
-    }
+    //     return redirect()->back();
+    // }
 
     public function delete($id)
     {

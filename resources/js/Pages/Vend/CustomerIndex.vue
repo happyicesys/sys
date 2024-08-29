@@ -1211,7 +1211,10 @@
 								>
 										<div class="flex flex-col">
 												<span class="font-bold">
-														{{vend.is_testing ? 'Factory' : (vend.is_active ? 'Active' : 'Not Active')}}
+													Machine
+												</span>
+												<span>
+														{{vend.is_testing ? 'Testing' : (vend.is_active ? 'Active' : 'Not Active')}}
 												</span>
 										</div>
 
@@ -1331,7 +1334,7 @@
 												</span>
 										</div>
 								</div>
-								<div
+								<!-- <div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 										:class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['BILL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
 										v-if="vend.acbVmcPaJson && 'BILL_MFG' in vend.acbVmcPaJson"
@@ -1344,7 +1347,7 @@
 														{{vend.acbVmcPaJson['BILL_MFG'] ? vend.acbVmcPaJson['BILL_MFG'] : 'NA' }}
 												</span>
 										</div>
-								</div>
+								</div> -->
 								<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 										:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CHGEStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CHGEStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
@@ -1373,7 +1376,7 @@
 												</span>
 										</div>
 								</div>
-								<div
+								<!-- <div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-green-200 text-gray-800"
 										v-if="vend.acbVmcPaJson && 'CoinLimit' in vend.acbVmcPaJson"
 								>
@@ -1385,8 +1388,8 @@
 														{{vend.acbVmcPaJson['CoinLimit']}}
 												</span>
 										</div>
-								</div>
-								<div
+								</div> -->
+								<!-- <div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 										:class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['COIN_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
 										v-if="vend.acbVmcPaJson && 'COIN_MFG' in vend.acbVmcPaJson"
@@ -1399,7 +1402,7 @@
 														{{vend.acbVmcPaJson['COIN_MFG'] ? vend.acbVmcPaJson['COIN_MFG'] : 'NA' }}
 												</span>
 										</div>
-								</div>
+								</div> -->
 								<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 										:class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CSHLStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CSHLStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
@@ -1414,7 +1417,7 @@
 												</span>
 										</div>
 								</div>
-								<div
+								<!-- <div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 										:class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
 										v-if="vend.acbVmcPaJson && 'CSHL_MFG' in vend.acbVmcPaJson"
@@ -1427,7 +1430,7 @@
 														{{vend.acbVmcPaJson['CSHL_MFG'] ? vend.acbVmcPaJson['CSHL_MFG'] : 'NA' }}
 												</span>
 										</div>
-								</div>
+								</div> -->
 							</div>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">

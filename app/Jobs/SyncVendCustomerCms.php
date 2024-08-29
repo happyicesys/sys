@@ -67,28 +67,28 @@ class SyncVendCustomerCms implements ShouldQueue
                     $locationTypeId = $locationType->id;
                 }
 
-                if(isset($customerCollection['custcategory'])) {
-                    $categoryData = $customerCollection['custcategory'];
-                    if($categoryGroupData = $categoryData['custcategory_group']) {
-                        $categoryGroup = CategoryGroup::updateOrCreate([
-                            'name' => $categoryGroupData['name'],
-                            'classname' => $className,
-                        ], [
-                            'desc' => isset($categoryGroupData['desc']) ?  $categoryGroupData['desc'] : null,
-                        ]);
-                        $categoryGroupId = $categoryGroup->id;
-                    }
+                // if(isset($customerCollection['custcategory'])) {
+                //     $categoryData = $customerCollection['custcategory'];
+                //     if($categoryGroupData = $categoryData['custcategory_group']) {
+                //         $categoryGroup = CategoryGroup::updateOrCreate([
+                //             'name' => $categoryGroupData['name'],
+                //             'classname' => $className,
+                //         ], [
+                //             'desc' => isset($categoryGroupData['desc']) ?  $categoryGroupData['desc'] : null,
+                //         ]);
+                //         $categoryGroupId = $categoryGroup->id;
+                //     }
 
-                    $category = Category::updateOrCreate([
-                        'name' => $categoryData['name'],
-                        'classname' => $className,
-                    ], [
-                        'desc' => $categoryData['desc'],
-                        'category_group_id' => $categoryGroup ? $categoryGroup->id : null,
-                        'remarks' => $categoryData['map_icon_file'],
-                    ]);
-                    $categoryId = $category->id;
-                }
+                //     $category = Category::updateOrCreate([
+                //         'name' => $categoryData['name'],
+                //         'classname' => $className,
+                //     ], [
+                //         'desc' => $categoryData['desc'],
+                //         'category_group_id' => $categoryGroup ? $categoryGroup->id : null,
+                //         'remarks' => $categoryData['map_icon_file'],
+                //     ]);
+                //     $categoryId = $category->id;
+                // }
 
                 if(isset($customerCollection['profile'])) {
                     $profileData = $customerCollection['profile'];
@@ -186,7 +186,7 @@ class SyncVendCustomerCms implements ShouldQueue
                     'name' => isset($customerCollection['company']) ? $customerCollection['company'] : null,
                     'profile_id' => $profileId,
                     'status_id' => Customer::STATUS_ACTIVE,
-                    'category_id' => $categoryId,
+                    // 'category_id' => $categoryId,
                     'location_type_id' => isset($locationTypeId) ? $locationTypeId : null,
                 ]);
                 // dd($customerCollection['delivery_country'], $customerCollection['del_postcode'], $customerCollection);

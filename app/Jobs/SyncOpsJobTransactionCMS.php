@@ -3,11 +3,13 @@
 namespace App\Jobs;
 
 use App\Models\OpsJob;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Http;
 
 class SyncOpsJobTransactionCMS implements ShouldQueue
 {
@@ -31,8 +33,9 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
     {
         $opsJob = OpsJob::query()
             ->with([
-                'customer',
+                'createdBy',
                 'deliveredBy',
+                'opsJobItems.customer',
                 'opsJobItems.opsJobItemChannels.vendChannel.product'
             ])
             ->find($this->opsJobID);
@@ -40,48 +43,33 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
         $data = [
             'date' => Carbon::parse($opsJob->date)->format('Y-m-d'),
             'driver' => $opsJob->deliveredBy->username,
-            'cms_person_id' => $opsJob->customer->person_id,
-            'created_by' => auth()->user()->username,
+            'created_by' => $opsJob->createdBy->username,
             'status' => 'Delivered',
-            'items' => [],
+            'customers' => [],
         ];
 
         if($opsJob->opsJobItems) {
             foreach($opsJob->opsJobItems as $opsJobItem) {
-                if($opsJobItem->cms_transaction_id) {
-                    continue;
-                }
-
-                $data['items'][$opsJobItem->id] = [
-                    'transaction_id' => $opsJobItem->cms_transaction_id,
-                    'deals' => [],
-                ];
-
-                $data = [
-                    'date' => Carbon::parse($date)->format('Y-m-d'),
-                    'driver' => $driver->username,
-                    'cms_person_id' => $opsJobItem->customer->person_id,
-                    'created_by' => auth()->user()->username,
-                    'status' => 'Delivered',
-                    'transaction_id' => $opsJobItem->cms_transaction_id,
-                    'items' => [],
-                ];
-
-                if($opsJobItem->opsJobItemChannels) {
-                    foreach($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
-                        if($opsJobItemChannel->actual_qty > 0) {
-                            $data['deals'][$opsJobItemChannel->vend_channel_code] = [
-                                'product_code' => $opsJobItemChannel->vendChannel->product->code,
-                                'capacity' => $opsJobItemChannel->capacity,
-                                'qty' => $opsJobItemChannel->vendChannel->qty,
-                                'needed' => $opsJobItemChannel->actual_qty,
-                            ];
+                if($opsJobItem->customer && $opsJobItem->customer->person_id) {
+                    if($opsJobItem->opsJobItemChannels) {
+                        foreach($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
+                            if($opsJobItemChannel->actual_qty > 0) {
+                                $data['customers'][$opsJobItem->customer->person_id][$opsJobItemChannel->vend_channel_code] = [
+                                    'ops_job_item_id' => $opsJobItem->id,
+                                    'product_code' => $opsJobItemChannel->vendChannel->product->code,
+                                    'capacity' => $opsJobItemChannel->capacity,
+                                    'qty' => $opsJobItemChannel->vendChannel->qty,
+                                    'needed' => $opsJobItemChannel->actual_qty,
+                                ];
+                            }
                         }
                     }
                 }
-
-                $response = Http::post($this->endpoint, $data);
             }
         }
+
+        $response = Http::post($this->endpoint, $data);
+
+        dd($data, $response->body());
     }
 }
