@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\OpsJob;
+use App\Services\OpsJobService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -16,6 +17,7 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $opsJobID;
+    protected $opsJobService;
     protected $endpoint;
     /**
      * Create a new job instance.
@@ -23,6 +25,7 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
     public function __construct($opsJobID)
     {
         $this->opsJobID = $opsJobID;
+        $this->opsJobService = new OpsJobService();
         $this->endpoint = env('CMS_URL') . '/api/transactions/deals';
     }
 
@@ -50,12 +53,22 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
 
         if($opsJob->opsJobItems) {
             foreach($opsJob->opsJobItems as $opsJobItem) {
+                if(($opsJobItem->status < OpsJob::STATUS_DELIVERED) or $opsJobItem->status == OpsJob::STATUS_CANCELLED or $opsJobItem->status == OpsJob::STATUS_FLAGGED) {
+                    continue;
+                }
                 if($opsJobItem->customer && $opsJobItem->customer->person_id) {
+                    $data['customers'][$opsJobItem->customer->person_id] = [
+                        'ops_job_item_id' => $opsJobItem->id,
+                        'attachments' => [],
+                        'cash_collected' => $opsJobItem->cash_amount ? $opsJobItem->cash_amount : 0,
+                        'channels' => [],
+                        'sequence' => $opsJobItem->sequence,
+                    ];
+
                     if($opsJobItem->opsJobItemChannels) {
                         foreach($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
                             if($opsJobItemChannel->actual_qty > 0) {
-                                $data['customers'][$opsJobItem->customer->person_id][$opsJobItemChannel->vend_channel_code] = [
-                                    'ops_job_item_id' => $opsJobItem->id,
+                                $data['customers'][$opsJobItem->customer->person_id]['channels'][$opsJobItemChannel->vend_channel_code] = [
                                     'product_code' => $opsJobItemChannel->vendChannel->product->code,
                                     'capacity' => $opsJobItemChannel->capacity,
                                     'qty' => $opsJobItemChannel->vendChannel->qty,
@@ -64,12 +77,25 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
                             }
                         }
                     }
+
+                    if($opsJobItem->attachments) {
+                        foreach($opsJobItem->attachments as $attachment) {
+                            $data['customers'][$opsJobItem->customer->person_id]['attachments'][$attachment->id] = [
+                                'created_at' => $attachment->created_at,
+                                'name' => $attachment->name,
+                                'sequence' => $attachment->sequence,
+                                'url' => $attachment->full_url,
+                            ];
+                        }
+                    }
                 }
             }
         }
 
         $response = Http::post($this->endpoint, $data);
 
-        dd($data, $response->body());
+        if($response->successful()) {
+            $this->opsJobService->updateJobItemCMSTransactionID($response->json());
+        }
     }
 }

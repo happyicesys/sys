@@ -301,16 +301,17 @@
                                 </span>
                               </span>
                               <span>
-                                <div
-                                    class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs bg-indigo-100 text-indigo-800"
-                                    v-if="opsJobItem.cms_transaction_id"
-                                >
-                                    <div class="flex flex-col">
-                                        <span class="font-normal grow-0">
-                                          CMS Inv
-                                        </span>
-                                    </div>
-                                </div>
+                                <a :href="cmsBaseUrl + '/transaction/' + opsJobItem.cms_transaction_id + '/edit'" v-if="opsJobItem.cms_transaction_id">
+                                  <div
+                                      class="inline-flex justify-center items-center rounded px-1 py-0.5 text-xs font-medium border w-xs bg-indigo-100 text-indigo-800"
+                                  >
+                                      <div class="flex flex-col">
+                                          <span class="font-normal grow-0">
+                                            CMS Inv
+                                          </span>
+                                      </div>
+                                  </div>
+                                </a>
                               </span>
                               <span v-if="opsJobItem.customer && opsJobItem.customer.deliveryAddress">
                                 <div class="flex space-x-2 items-center font-medium text-xs">
@@ -462,7 +463,7 @@
                       </span>
                     </span>
                   </Button>
-                  <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 hover:cursor-not-allowed"
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 hover:cursor-pointer"
                   @click.prevent="syncCMSInvoices()"
                   v-if="!opsJob.opsJobItems || opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.cms_transaction_id == null)"
                   >
@@ -550,6 +551,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
+  cmsBaseUrl: String,
   opsJob: Object,
   unbindedVendOptions: [Array, Object],
   userOptions: [Array, Object],

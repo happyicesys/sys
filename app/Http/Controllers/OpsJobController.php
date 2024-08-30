@@ -612,6 +612,7 @@ class OpsJobController extends Controller
             ->get();
 
         return Inertia::render('OpsJob/Edit', [
+            'cmsBaseUrl' => env('CMS_URL'),
             'opsJob' => new OpsJobResource($opsJob),
             'unbindedVendOptions' => VendResource::collection($unbindedVendOptions),
             'userOptions' => UserResource::collection(
