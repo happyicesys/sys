@@ -53,7 +53,7 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
 
         if($opsJob->opsJobItems) {
             foreach($opsJob->opsJobItems as $opsJobItem) {
-                if(($opsJobItem->status < OpsJob::STATUS_DELIVERED) or $opsJobItem->status == OpsJob::STATUS_CANCELLED or $opsJobItem->status == OpsJob::STATUS_FLAGGED) {
+                if(($opsJobItem->status < OpsJob::STATUS_DELIVERED) or $opsJobItem->status == OpsJob::STATUS_CANCELLED) {
                     continue;
                 }
                 if($opsJobItem->customer && $opsJobItem->customer->person_id) {
