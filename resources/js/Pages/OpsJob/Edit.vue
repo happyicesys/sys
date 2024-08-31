@@ -237,7 +237,7 @@
                                   </Button>
                                 </Link>
                               </div>
-                              <div class="text-left">
+                              <div class="text-left text-red-800">
                                 {{ opsJobItem.remarks }}
                               </div>
                             </div>
@@ -465,7 +465,7 @@
                   </Button>
                   <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 hover:cursor-pointer"
                   @click.prevent="syncCMSInvoices()"
-                  v-if="!opsJob.opsJobItems || opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.cms_transaction_id == null)"
+                  v-if="!opsJob.opsJobItems || opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.cms_transaction_id == null) && (opsJob.opsJobItems.some(item => item.status >= 3 && item.status != 99))"
                   >
                     <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
                     <span class="flex flex-col space-y-1">

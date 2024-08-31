@@ -41,7 +41,6 @@ const navigation = [
         tagline: null,
         children: [
             {name: 'View By Customers', href: '/vends/customers', permission: 'read vend-customers'},
-            {name: 'View By Machines', href: '/vends', permission: 'read vend-machines'},
         ]
     },
     {
@@ -92,7 +91,8 @@ const navigation = [
         permission: 'read vend-settings',
         tagline: null,
         children: [
-            {name: 'Machines', href: '/settings'},
+            {name: 'Sales By Machines', href: '/vends'},
+            {name: 'Machines Settings', href: '/settings'},
             {name: 'Setting Charts', href: '/vend-configs'},
             {name: 'Machine Prefix', href: '/vend-prefixes'},
             {name: 'Cashless Terminals', href: '/cashless-terminals'},

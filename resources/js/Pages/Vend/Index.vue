@@ -5,7 +5,7 @@
 <BreezeAuthenticatedLayout>
   <template #header>
     <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Vending Machines (Machine View)
+        Sales By Machines
     </h2>
   </template>
 

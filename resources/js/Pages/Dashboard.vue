@@ -389,6 +389,7 @@
         locationType: '',
         operators: [],
         monthlyTypeName: 'location-type',
+        vendPrefixes: [],
     })
     const authOperator = usePage().props.auth.operator
     const componentKey1 = ref(0);
