@@ -16,15 +16,17 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected $opsJobID;
+    protected $data;
+    protected $opsJobItem;
     protected $opsJobService;
     protected $endpoint;
     /**
      * Create a new job instance.
      */
-    public function __construct($opsJobID)
+    public function __construct($opsJobItem, $data)
     {
-        $this->opsJobID = $opsJobID;
+        $this->data = $data;
+        $this->opsJobItem = $opsJobItem;
         $this->opsJobService = new OpsJobService();
         $this->endpoint = env('CMS_URL') . '/api/transactions/deals';
     }
@@ -34,66 +36,44 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
      */
     public function handle(): void
     {
-        $opsJob = OpsJob::query()
-            ->with([
-                'createdBy',
-                'deliveredBy',
-                'opsJobItems.customer',
-                'opsJobItems.opsJobItemChannels.vendChannel.product'
-            ])
-            ->find($this->opsJobID);
+        $data = $this->data;
+        $opsJobItem = $this->opsJobItem;
 
-        $data = [
-            'date' => Carbon::parse($opsJob->date)->format('Y-m-d'),
-            'driver' => $opsJob->deliveredBy->username,
-            'created_by' => $opsJob->createdBy->username,
-            'status' => 'Delivered',
-            'customers' => [],
-        ];
+        if($opsJobItem->customer && $opsJobItem->customer->person_id) {
+            $data['customers'][$opsJobItem->customer->person_id] = [
+                'ops_job_item_id' => $opsJobItem->id,
+                'attachments' => [],
+                'cash_collected' => $opsJobItem->cash_amount ? $opsJobItem->cash_amount : 0,
+                'channels' => [],
+                'sequence' => $opsJobItem->sequence,
+            ];
 
-        if($opsJob->opsJobItems) {
-            foreach($opsJob->opsJobItems as $opsJobItem) {
-                if(($opsJobItem->status < OpsJob::STATUS_DELIVERED) or $opsJobItem->status == OpsJob::STATUS_CANCELLED) {
-                    continue;
-                }
-                if($opsJobItem->customer && $opsJobItem->customer->person_id) {
-                    $data['customers'][$opsJobItem->customer->person_id] = [
-                        'ops_job_item_id' => $opsJobItem->id,
-                        'attachments' => [],
-                        'cash_collected' => $opsJobItem->cash_amount ? $opsJobItem->cash_amount : 0,
-                        'channels' => [],
-                        'sequence' => $opsJobItem->sequence,
-                    ];
-
-                    if($opsJobItem->opsJobItemChannels) {
-                        foreach($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
-                            if($opsJobItemChannel->actual_qty > 0) {
-                                $data['customers'][$opsJobItem->customer->person_id]['channels'][$opsJobItemChannel->vend_channel_code] = [
-                                    'amount' => $opsJobItemChannel->vendChannel->qty * $opsJobItemChannel->vendChannel->amount,
-                                    'unit_price' => $opsJobItemChannel->vendChannel->amount,
-                                    'product_code' => $opsJobItemChannel->vendChannel->product->code,
-                                    'capacity' => $opsJobItemChannel->capacity,
-                                    'qty' => $opsJobItemChannel->vendChannel->qty,
-                                    'needed' => $opsJobItemChannel->actual_qty,
-                                ];
-                            }
-                        }
-                    }
-
-                    if($opsJobItem->attachments) {
-                        foreach($opsJobItem->attachments as $attachment) {
-                            $data['customers'][$opsJobItem->customer->person_id]['attachments'][$attachment->id] = [
-                                'created_at' => $attachment->created_at,
-                                'name' => $attachment->name,
-                                'sequence' => $attachment->sequence,
-                                'url' => $attachment->full_url,
-                            ];
-                        }
+            if($opsJobItem->opsJobItemChannels) {
+                foreach($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
+                    if($opsJobItemChannel->actual_qty > 0) {
+                        $data['customers'][$opsJobItem->customer->person_id]['channels'][$opsJobItemChannel->vend_channel_code] = [
+                            'amount' => $opsJobItemChannel->vendChannel->qty * $opsJobItemChannel->vendChannel->amount,
+                            'unit_price' => $opsJobItemChannel->vendChannel->amount,
+                            'product_code' => $opsJobItemChannel->vendChannel->product->code,
+                            'capacity' => $opsJobItemChannel->capacity,
+                            'qty' => $opsJobItemChannel->vendChannel->qty,
+                            'needed' => $opsJobItemChannel->actual_qty,
+                        ];
                     }
                 }
             }
+
+            if($opsJobItem->attachments) {
+                foreach($opsJobItem->attachments as $attachment) {
+                    $data['customers'][$opsJobItem->customer->person_id]['attachments'][$attachment->id] = [
+                        'created_at' => $attachment->created_at,
+                        'name' => $attachment->name,
+                        'sequence' => $attachment->sequence,
+                        'url' => $attachment->full_url,
+                    ];
+                }
+            }
         }
-        // dd($data);
 
         $response = Http::post($this->endpoint, $data);
 

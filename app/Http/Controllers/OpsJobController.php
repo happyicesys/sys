@@ -454,7 +454,35 @@ class OpsJobController extends Controller
     {
         $opsJob = OpsJob::findOrFail($id);
 
-        SyncOpsJobTransactionCMS::dispatch($opsJob->id);
+        $opsJob = OpsJob::query()
+        ->with([
+            'createdBy',
+            'deliveredBy',
+            'opsJobItems.customer',
+            'opsJobItems.opsJobItemChannels.vendChannel.product'
+        ])
+        ->find($id);
+
+        $data = [
+            'date' => Carbon::parse($opsJob->date)->format('Y-m-d'),
+            'driver' => $opsJob->deliveredBy->username,
+            'created_by' => $opsJob->createdBy->username,
+            'status' => 'Delivered',
+            'customers' => [],
+        ];
+
+        if($opsJob->opsJobItems) {
+            foreach($opsJob->opsJobItems as $opsJobItem) {
+                if(($opsJobItem->status < OpsJob::STATUS_DELIVERED) or $opsJobItem->status == OpsJob::STATUS_CANCELLED) {
+                    continue;
+                }
+                if($opsJobItem->customer && $opsJobItem->customer->person_id) {
+                    SyncOpsJobTransactionCMS::dispatch($opsJobItem, $data);
+                }
+            }
+        }
+
+
 
         return redirect()->back();
     }
