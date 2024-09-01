@@ -585,36 +585,57 @@
 						</TableHead>
 						<TableHead>
 							<div class="flex flex-col space-y-2">
-								<SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
-									T1: Machine Temp
-								</SingleSortItem>
-								<SingleSortItem modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2', true)">
+								<div class="flex justify-center items-center">
+									<SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
+										T1: Machine Temp
+									</SingleSortItem>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Temp Probe Located at the Top of the Freezer <br> Red > -12C <br> Blue -12C to -18C <br> Green < -18C', html: true }"></ExclamationCircleIcon>
+								</div>
+								<div class="flex justify-center items-center">
+									<SingleSortItem modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2', true)">
 									T2: Evaporator Temp
-								</SingleSortItem>
-								<SingleSortItem modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at', true)">
-									Updated
-								</SingleSortItem>
-								<span>
-									&Delta;T1-T2
-								</span>
+									</SingleSortItem>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Temp Probe Located at the Top of the Evaporator <br> Red > -12C <br> Blue -12C to -18C <br> Green < -18C', html: true }"></ExclamationCircleIcon>
+								</div>
+								<div class="flex justify-center items-center">
+									<SingleSortItem modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at', true)">
+										Updated
+									</SingleSortItem>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last Updated Timestamp <br> (every 3 mins)', html: true }"></ExclamationCircleIcon>
+								</div>
+								<div class="flex justify-center items-center">
+									<SingleSortItem modelName="temp_diff" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_diff', true)">
+										&Delta;T1-T2
+									</SingleSortItem>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Delta of T1 and T2 <br> Under normal condition, 1.5C to 3.5C', html: true }"></ExclamationCircleIcon>
+								</div>
 							</div>
 						</TableHead>
 						<TableHead>
 							<div class="flex flex-col space-y-2">
-								<span class="flex flex-col space-y-1">
-									<span>
-										Inventory Status
+								<div class="flex justify-center items-center">
+									<span class="flex flex-col space-y-1">
+										<span>
+											Inventory Status
+										</span>
+										<span>
+											#Channel, Required, Balance/Capacity (LastStockIn)
+										</span>
 									</span>
-									<span>
-										#Channel, Needed, Balance/Capacity (LastStockIn)
-									</span>
-								</span>
-								<SingleSortItem modelName="total_stock_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_cost')">
-									Stock Cost
-								</SingleSortItem>
-								<SingleSortItem modelName="total_stock_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_amount')">
-									Stock Value
-								</SingleSortItem>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: '#Channel <br> Black = Normal <br> Red = P1 not same with RP <br> <br>  Required <br> Blue = Normal <br> <br>  Balance/Capacity <br> Green = Normal <br> Blue = Balance < 2 <br> Red = 0', html: true }"></ExclamationCircleIcon>
+								</div>
+								<div class="flex justify-center items-center">
+									<SingleSortItem modelName="total_stock_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_cost')">
+										Stock Cost
+									</SingleSortItem>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Exclusive GST/VAT', html: true }"></ExclamationCircleIcon>
+								</div>
+								<div class="flex justify-center items-center">
+									<SingleSortItem modelName="total_stock_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_amount')">
+										Stock Value
+									</SingleSortItem>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Inclusive GST/VAT', html: true }"></ExclamationCircleIcon>
+								</div>
 							</div>
 						</TableHead>
 						<TableHead>
@@ -622,15 +643,24 @@
 								<span>
 									Error
 								</span>
-								<SingleSortItem modelName="vend_channel_error_logs_json" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_error_logs_json')">
-									Uncleared Error(s)
-								</SingleSortItem>
-								<SingleSortItem modelName="totals_json->three_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->three_days_error_rate', false)">
-									3d Rate
-								</SingleSortItem>
-								<SingleSortItem modelName="totals_json->seven_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_error_rate', false)">
-									7d Rate
-								</SingleSortItem>
+								<div class="flex justify-center items-center">
+									<SingleSortItem modelName="vend_channel_error_logs_json" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_channel_error_logs_json')">
+										Uncleared Error(s)
+									</SingleSortItem>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Error(s) occurred before and need to be cleared in VMC', html: true }"></ExclamationCircleIcon>
+								</div>
+								<div class="flex justify-center items-center">
+									<SingleSortItem modelName="totals_json->three_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->three_days_error_rate', false)">
+										3d Rate
+									</SingleSortItem>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last 3 days error rates <br> Green < 2% <br> Red >= 2%', html: true }"></ExclamationCircleIcon>
+								</div>
+								<div class="flex justify-center items-center">
+									<SingleSortItem modelName="totals_json->seven_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_error_rate', false)">
+										7d Rate
+									</SingleSortItem>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last 7 days error rates <br> Green < 2% <br> Red >= 2%', html: true }"></ExclamationCircleIcon>
+								</div>
 							</div>
 						</TableHead>
 						<TableHead v-if="!roles.includes('operator_3pl')">
@@ -638,12 +668,18 @@
 								<span>
 									Stock
 								</span>
-								<SingleSortItem modelName="balance_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('balance_percent', true)">
-									Balance Qty
-								</SingleSortItem>
-								<SingleSortItem modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent', false)">
-									Remaining SKU#
-								</SingleSortItem>
+								<div class="flex justify-center items-center">
+									<SingleSortItem modelName="balance_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('balance_percent', true)">
+										Balance Qty
+									</SingleSortItem>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Balance Qty % <br> Red < 30% <br> Blue >= 30% and < 50% <br> Green >= 50%', html: true }"></ExclamationCircleIcon>
+								</div>
+								<div class="flex justify-center items-center">
+									<SingleSortItem modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent', false)">
+										Remaining SKU#
+									</SingleSortItem>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Remaining SKU % <br> Red < 50% <br> Blue >= 50% and < 75% <br> Green >= 75%', html: true }"></ExclamationCircleIcon>
+								</div>
 								<SingleSortItem modelName="actual_stock_in_value" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('actual_stock_in_value')">
 									Refillable Value
 								</SingleSortItem>
@@ -1623,13 +1659,14 @@
     import SearchInput from '@/Components/SearchInput.vue';
 		import Toast from '@/Components/Toast.vue';
     import MultiSelect from '@/Components/MultiSelect.vue';
-    import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon} from '@heroicons/vue/20/solid';
+    import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon} from '@heroicons/vue/20/solid';
     import TableHead from '@/Components/TableHead.vue';
     import TableData from '@/Components/TableData.vue';
     import TableHeadSort from '@/Components/TableHeadSort.vue';
     import SingleSortItem from '@/Components/SingleSortItem.vue';
     import { ref, onMounted } from 'vue';
     import { router, Link, Head, usePage } from '@inertiajs/vue3';
+		import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
     import moment from 'moment';
     import axios from 'axios';
 

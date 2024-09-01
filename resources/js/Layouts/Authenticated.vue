@@ -91,7 +91,7 @@ const navigation = [
         permission: 'read vend-settings',
         tagline: null,
         children: [
-            {name: 'Sales By Machines', href: '/vends'},
+            {name: 'Machines View', href: '/vends'},
             {name: 'Machines Settings', href: '/settings'},
             {name: 'Setting Charts', href: '/vend-configs'},
             {name: 'Machine Prefix', href: '/vend-prefixes'},

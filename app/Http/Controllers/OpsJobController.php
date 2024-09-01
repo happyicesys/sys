@@ -696,6 +696,20 @@ class OpsJobController extends Controller
                 FROM ops_job_items oj_items
                 WHERE oj_items.id = ops_job_items.id
             ) as acc_vend_transactions_count')
+            ->selectRaw('
+            (SELECT SUM(ops_job_item_channels.actual_qty * vend_channels.amount)
+             FROM ops_job_item_channels
+             JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
+            WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
+             AND ops_job_items.status >= ?
+             AND ops_job_items.status <> ?
+            ) as stock_in_amount', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED])
+            ->selectRaw('
+            (SELECT SUM(ops_job_item_channels.picked_qty * vend_channels.amount)
+            FROM ops_job_item_channels
+            JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
+            WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
+            ) as picked_amount')
             ->findOrFail($id);
 
         return Inertia::render('OpsJob/EditItem', [

@@ -63,6 +63,7 @@ class OpsJobResource extends JsonResource
             'picked_cost' => isset($this->picked_cost) ? $this->picked_cost/100 : 0,
             'picked_gross_margin_amount' => isset($picked_gross_margin_amount) ? $this->picked_gross_margin_amount : 0,
             'picked_gross_margin_percentage' => isset($picked_gross_margin_percentage) ? $this->picked_gross_margin_percentage : 0,
+            'refill_amount' => isset($this->refill_amount) ? $this->refill_amount/100 : 0,
             'stock_in_amount' => isset($this->stock_in_amount) ? $this->stock_in_amount/100 : 0,
             'stock_in_count' => isset($this->stock_in_count) ? (int) $this->stock_in_count : 0,
             'stock_in_cost' => isset($this->stock_in_cost) ? $this->stock_in_cost/100 : 0,

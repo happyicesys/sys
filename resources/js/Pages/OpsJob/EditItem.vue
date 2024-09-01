@@ -297,6 +297,7 @@
                               Fix?
                             </span>
                           </button>
+                          {{ channel }}
 
                           <div class="flex flex-col space-y-1 items-center">
                             <div
@@ -574,25 +575,27 @@
                             Total
                           </div>
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top">
                           {{ getSubtotalNeeded() }}/ {{ getSubtotalCapacity() }}
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status < 2">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status < 2">
                           {{ getSubtotalPicked() }}
+                          <br>({{ operatorCountry.currency_symbol }}{{ getSubtotalPickedAmount().toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 2">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 2">
                           {{ getSubtotalRefill() }}
+                          <br>({{ operatorCountry.currency_symbol }}{{ getSubtotalRefillAmount().toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 2">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 2">
                           {{ getSubtotalVMCInventoryCount() }}
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           {{ getSubtotalVMCBeforeQty() }}
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           {{ getSubtotalVMCQty() }}
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           {{ getSubtotalVMCAfterQty() }}
                         </td>
                         <td v-if="opsJobItem.status >= 3"></td>
@@ -927,6 +930,7 @@ function loadingData() {
     return {
       ...opsJobItemChannel.vendChannel,
       id: opsJobItemChannel.id,
+      amount: opsJobItemChannel.vendChannel.amount,
       error_settled_at_formatted: opsJobItemChannel.error_settled_at_formatted,
       is_error_settle: opsJobItemChannel.is_error_settle,
       ops_job_item_channel_id: opsJobItemChannel.id,
@@ -972,10 +976,21 @@ function getSubtotalPicked() {
     return acc + channel.picked
   }, 0)
 }
+function getSubtotalPickedAmount() {
+  return channels.value.reduce((acc, channel) => {
+    return acc + (channel.picked * channel.amount)
+  }, 0)
+}
 
 function getSubtotalRefill() {
   return channels.value.reduce((acc, channel) => {
     return acc + channel.refill
+  }, 0)
+}
+
+function getSubtotalRefillAmount() {
+  return channels.value.reduce((acc, channel) => {
+    return acc + (channel.refill * channel.amount)
   }, 0)
 }
 
