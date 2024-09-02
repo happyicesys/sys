@@ -486,7 +486,7 @@ class OpsJobController extends Controller
             ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
             ->leftJoin('ops_job_item_channels', 'ops_job_item_channels.vend_channel_id', '=', 'vend_channels.id')
             ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
-            ->where('ops_job_items.id', '=', $input->pluck('id')->toArray())
+            ->whereIn('ops_job_items.id', $input->pluck('id')->toArray())
             ->where('ops_job_items.status', '>=', OpsJob::STATUS_DELIVERED)
             ->where('ops_job_items.status', '<>', OpsJob::STATUS_CANCELLED)
             ->select(
