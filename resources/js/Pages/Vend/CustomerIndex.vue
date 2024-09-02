@@ -589,13 +589,13 @@
 									<SingleSortItem modelName="temp" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp', true)">
 										T1: Machine Temp
 									</SingleSortItem>
-									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Temp Probe Located at the Top of the Freezer <br> Red > -12C <br> Blue -12C to -18C <br> Green < -18C', html: true }"></ExclamationCircleIcon>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Temp Probe Located at the Top of the Freezer <br> Red: > -12c <br> Blue: -12c to -18c <br> Green: < -18c', html: true }"></ExclamationCircleIcon>
 								</div>
 								<div class="flex justify-center items-center">
 									<SingleSortItem modelName="parameter_json->t2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('parameter_json->t2', true)">
 									T2: Evaporator Temp
 									</SingleSortItem>
-									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Temp Probe Located at the Top of the Evaporator <br> Red > -12C <br> Blue -12C to -18C <br> Green < -18C', html: true }"></ExclamationCircleIcon>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Temp Probe Located at the Top of the Evaporator <br> Red: > -12c <br> Blue: -12c to -18c <br> Green: < -18c', html: true }"></ExclamationCircleIcon>
 								</div>
 								<div class="flex justify-center items-center">
 									<SingleSortItem modelName="temp_updated_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('temp_updated_at', true)">
@@ -622,19 +622,19 @@
 											#Channel, Required, Balance/Capacity (LastStockIn)
 										</span>
 									</span>
-									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: '#Channel <br> Black = Normal <br> Red = P1 not same with RP <br> <br>  Required <br> Blue = Normal <br> <br>  Balance/Capacity <br> Green = Normal <br> Blue = Balance < 2 <br> Red = 0', html: true }"></ExclamationCircleIcon>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: '#Channel <br> Black = P1 same as RP, correct <br> Red = P1 not same with RP <br><br> Balance/Capacity <br> Green = Balance > 2 <br> Blue = Balance 1 & 2 <br> Red = Balance = 0', html: true }"></ExclamationCircleIcon>
 								</div>
 								<div class="flex justify-center items-center">
 									<SingleSortItem modelName="total_stock_cost" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_cost')">
 										Stock Cost
 									</SingleSortItem>
-									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Exclusive GST/VAT', html: true }"></ExclamationCircleIcon>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Exclusive GST or VAT', html: true }"></ExclamationCircleIcon>
 								</div>
 								<div class="flex justify-center items-center">
 									<SingleSortItem modelName="total_stock_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_stock_amount')">
 										Stock Value
 									</SingleSortItem>
-									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Inclusive GST/VAT', html: true }"></ExclamationCircleIcon>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Inclusive GST or VAT', html: true }"></ExclamationCircleIcon>
 								</div>
 							</div>
 						</TableHead>
@@ -653,13 +653,13 @@
 									<SingleSortItem modelName="totals_json->three_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->three_days_error_rate', false)">
 										3d Rate
 									</SingleSortItem>
-									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last 3 days error rates <br> Green < 2% <br> Red >= 2%', html: true }"></ExclamationCircleIcon>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last 3 days error rates <br> Green: < 2% <br> Red: >= 2%', html: true }"></ExclamationCircleIcon>
 								</div>
 								<div class="flex justify-center items-center">
 									<SingleSortItem modelName="totals_json->seven_days_error_rate" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->seven_days_error_rate', false)">
 										7d Rate
 									</SingleSortItem>
-									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last 7 days error rates <br> Green < 2% <br> Red >= 2%', html: true }"></ExclamationCircleIcon>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Last 7 days error rates <br> Green: < 2% <br> Red: >= 2%', html: true }"></ExclamationCircleIcon>
 								</div>
 							</div>
 						</TableHead>
@@ -672,13 +672,13 @@
 									<SingleSortItem modelName="balance_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('balance_percent', true)">
 										Balance Qty
 									</SingleSortItem>
-									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Balance Qty % <br> Red < 30% <br> Blue >= 30% and < 50% <br> Green >= 50%', html: true }"></ExclamationCircleIcon>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Balance Qty % <br> Red: < 30% <br> Blue: >= 30% and < 50% <br> Green: >= 50%', html: true }"></ExclamationCircleIcon>
 								</div>
 								<div class="flex justify-center items-center">
 									<SingleSortItem modelName="out_of_stock_sku_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('out_of_stock_sku_percent', false)">
 										Remaining SKU#
 									</SingleSortItem>
-									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Remaining SKU % <br> Red < 50% <br> Blue >= 50% and < 75% <br> Green >= 75%', html: true }"></ExclamationCircleIcon>
+									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Remaining SKU % <br> Red: < 50% <br> Blue: >= 50% and < 75% <br> Green: >= 75%', html: true }"></ExclamationCircleIcon>
 								</div>
 								<SingleSortItem modelName="actual_stock_in_value" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('actual_stock_in_value')">
 									Refillable Value
@@ -796,7 +796,7 @@
 								<span>
 									VMC Board
 								</span>
-								<span>
+								<span class="text-blue-600">
 									Firmware Rev
 								</span>
 								<span>
@@ -805,7 +805,7 @@
 								<span>
 									APK Ver
 								</span>
-								<span>
+								<span class="text-green-600">
 									ACB Rev
 								</span>
 							</div>
@@ -962,7 +962,7 @@
 												<span :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-500']">
 														{{channel['capacity'] - channel['qty']}},
 												</span>
-												<span :class="[vend.is_active || vend.is_testing ? (channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700') : 'text-gray-400']">
+												<span :class="[vend.is_active || vend.is_testing ? (channel['qty'] <= 2 && channel['qty'] > 0 ? 'text-blue-700' : (channel['qty'] == 0 ? 'text-red-700' : 'text-green-700')) : 'text-gray-400']">
 														{{channel['qty']}}/{{channel['capacity']}}
 												</span>
 												<span class="text-gray-500" v-if="channel.latestOpsJobItemChannel">
@@ -1526,7 +1526,7 @@
 													{{ moment(new Date(vend.apkVerJson['buildtime'])).format('YYMMDD HH:mm:ss')  }}
 											</span>
 										</span>
-										<span class="text-blue-600" v-if="vend.acbVmcPaJson && 'ACBVer' in vend.acbVmcPaJson">
+										<span class="text-green-600" v-if="vend.acbVmcPaJson && 'ACBVer' in vend.acbVmcPaJson">
 											{{ vend.acbVmcPaJson['ACBVer'] }}
 										</span>
 									</span>

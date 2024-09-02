@@ -62,6 +62,14 @@ class Vend extends Model
         4 => 'Huawei 3G',
     ];
 
+    const PICK_TYPE_PICK_LIST = 1;
+    const PICK_TYPE_DELIVERED = 2;
+
+    const PICK_TYPE_MAPPINGS = [
+        self::PICK_TYPE_PICK_LIST => 'Pick List',
+        self::PICK_TYPE_DELIVERED => 'Stock In',
+    ];
+
     protected static function booted()
     {
         static::addGlobalScope(new OperatorVendFilterScope);

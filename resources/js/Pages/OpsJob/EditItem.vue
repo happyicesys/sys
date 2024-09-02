@@ -570,21 +570,38 @@
                         </td>
                       </tr>
                       <tr v-if="channels && channels.length" class="bg-gray-200 shadow-lg rounded">
-                        <td class="py-6 text-sm font-bold text-center text-gray-800" colspan="3">
-                          <div class="flex justify-center">
-                            Total
+                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" colspan="3">
+                          <div class="flex flex-col space-y-2">
+                            <span>
+                              Total Qty
+                            </span>
+                            <span>
+                              Stock Value
+                            </span>
                           </div>
                         </td>
                         <td class="py-4 text-sm font-bold text-center text-gray-800 align-top">
                           {{ getSubtotalNeeded() }}/ {{ getSubtotalCapacity() }}
                         </td>
                         <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status < 2">
-                          {{ getSubtotalPicked() }}
-                          <br>({{ operatorCountry.currency_symbol }}{{ getSubtotalPickedAmount().toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})
+                          <div class="flex flex-col space-y-2">
+                            <span>
+                              {{ getSubtotalPicked() }}
+                            </span>
+                            <span>
+                              {{ operatorCountry.currency_symbol }}{{ getSubtotalPickedAmount().toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            </span>
+                          </div>
                         </td>
                         <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 2">
-                          {{ getSubtotalRefill() }}
-                          <br>({{ operatorCountry.currency_symbol }}{{ getSubtotalRefillAmount().toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }})
+                          <div class="flex flex-col space-y-2">
+                            <span>
+                              {{ getSubtotalRefill() }}
+                            </span>
+                            <span>
+                              {{ operatorCountry.currency_symbol }}{{ getSubtotalRefillAmount().toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            </span>
+                          </div>
                         </td>
                         <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status >= 2">
                           {{ getSubtotalVMCInventoryCount() }}

@@ -36,12 +36,12 @@ const navigation = [
         name: 'Vending Machines',
         icon: CommandLineIcon,
         current: false,
-        href: 'vends',
+        href: 'vends.customer',
         permission: 'read vends',
         tagline: null,
-        children: [
-            {name: 'View By Customers', href: '/vends/customers', permission: 'read vend-customers'},
-        ]
+        // children: [
+        //     {name: 'View By Customers', href: '/vends/customers', permission: 'read vend-customers'},
+        // ]
     },
     {
         name: 'Transactions',

@@ -307,7 +307,7 @@
                                   >
                                       <div class="flex flex-col">
                                           <span class="font-normal grow-0">
-                                            CMS Inv
+                                            API Inv
                                           </span>
                                       </div>
                                   </div>
@@ -463,6 +463,17 @@
                       </span>
                     </span>
                   </Button>
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  @click.prevent="onGenerateDeliveredListClicked()"
+                  v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status >= 3)"
+                  >
+                    <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
+                    <span class="flex flex-col space-y-1">
+                      <span>
+                          Stocked In Qty List
+                      </span>
+                    </span>
+                  </Button>
                   <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 hover:cursor-pointer"
                   @click.prevent="syncCMSInvoices()"
                   v-if="!opsJob.opsJobItems || opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.cms_transaction_id == null) && (opsJob.opsJobItems.some(item => item.status >= 3 && item.status != 99))"
@@ -470,7 +481,7 @@
                     <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
                     <span class="flex flex-col space-y-1">
                       <span>
-                          Create CMS Invoice(s)
+                          Create API Invoice(s)
                       </span>
                     </span>
                   </Button>
@@ -527,6 +538,7 @@
   <PickList
 		v-if="showPickListModal"
 		:pickLists="pickLists"
+    :type="pickListType"
 		:showModal="showPickListModal"
 		@modalClose="onPickListModalClose"
   >
@@ -578,6 +590,7 @@ const opsJob = ref([])
 const opsJobItemModel = ref([])
 const permissions = usePage().props.auth.permissions
 const pickLists = ref([])
+const pickListType = ref(1)
 const showChannelModal = ref(false)
 const showChangeDriverModal = ref(false)
 const showPickListModal = ref(false)
@@ -724,6 +737,22 @@ function onGeneratePickListClicked() {
         data: opsJob.value.opsJobItems,
     }).then(response => {
         pickLists.value = response.data
+        pickListType.value = 1
+    }).catch(error => {
+    }).finally(() => {
+        showPickListModal.value = true
+    })
+}
+
+function onGenerateDeliveredListClicked() {
+  axios({
+        method: 'POST',
+        url: '/ops-jobs/delivered-lists',
+        // get all the vends from the opsJobItems
+        data: opsJob.value.opsJobItems,
+    }).then(response => {
+        pickLists.value = response.data
+        pickListType.value = 2
     }).catch(error => {
     }).finally(() => {
         showPickListModal.value = true

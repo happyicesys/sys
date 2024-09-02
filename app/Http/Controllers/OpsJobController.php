@@ -15,6 +15,7 @@ use App\Models\OpsJobItem;
 use App\Models\OpsJobItemChannel;
 use App\Models\User;
 use App\Models\Vend;
+use App\Models\VendChannel;
 use App\Models\VendChannelRecord;
 use App\Models\VendData;
 use App\Models\VendTransaction;
@@ -22,6 +23,7 @@ use App\Traits\GetUserTimezone;
 use App\Services\OpsJobService;
 use App\Services\RunningNumberService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -260,6 +262,28 @@ class OpsJobController extends Controller
                 FROM ops_job_items
                 WHERE ops_job_items.ops_job_id = ops_jobs.id
                 ) as acc_vend_transactions_count')
+            ->selectRaw('(
+                SELECT COUNT(ops_job_items.id)
+                FROM ops_job_items
+                WHERE ops_job_items.ops_job_id = ops_jobs.id
+                AND ops_job_items.cms_transaction_id IS NOT NULL
+                ) as cms_transaction_count')
+            ->selectRaw('(
+                (SELECT COUNT(ops_job_items.id)
+                FROM ops_job_items
+                WHERE ops_job_items.ops_job_id = ops_jobs.id
+                AND ops_job_items.cms_transaction_id IS NOT NULL) * 100.0
+                /
+                NULLIF(
+                    (SELECT COUNT(*)
+                    FROM ops_job_items
+                    WHERE ops_job_items.ops_job_id = ops_jobs.id
+                    AND ops_job_items.status >= ?
+                    AND ops_job_items.status <> ?),
+                    0
+                )
+            ) as cms_transaction_percentage', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED])
+
             ->when($request->code, function($query, $search) {
                 $query->where('code', 'LIKE', "%{$search}%");
             })
@@ -450,6 +474,46 @@ class OpsJobController extends Controller
         return redirect()->back();
     }
 
+    public function deliveredLists(Request $request)
+    {
+        $dataArr = [];
+        $input = collect($request->all());
+        $items = VendChannel::query()
+            ->with([
+                'product:id,code,name,desc,is_available',
+                'product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
+            ])
+            ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
+            ->leftJoin('ops_job_item_channels', 'ops_job_item_channels.vend_channel_id', '=', 'vend_channels.id')
+            ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+            ->where('ops_job_items.id', '=', $input->pluck('id')->toArray())
+            ->where('ops_job_items.status', '>=', OpsJob::STATUS_DELIVERED)
+            ->where('ops_job_items.status', '<>', OpsJob::STATUS_CANCELLED)
+            ->select(
+                'vend_channels.product_id',
+                DB::raw('CAST(SUM(ops_job_item_channels.actual_qty) AS UNSIGNED) as topup_qty'),
+            )
+            ->groupBy('vend_channels.product_id')
+            ->orderBy('products.code')
+            ->having('topup_qty', '>', 0)
+            ->get();
+
+        $dataArr = [
+            'items' => $items->toArray(),
+            'vends' => $input->map(function ($item) {
+                return [
+                    'code' => $item['code'] ?? null,
+                    'customer_id' => $item['customer_id'] ?? null,
+                    'customer_code' => $item['customer_code'] ?? null,
+                    'customer_name' => $item['customer_name'] ?? null,
+                    'person_id' => $item['person_id'] ?? null,
+                ];
+            }),
+        ];
+
+        return $dataArr;
+    }
+
     public function syncCmsInvoices($id)
     {
         $opsJob = OpsJob::findOrFail($id);
@@ -473,7 +537,7 @@ class OpsJobController extends Controller
 
         if($opsJob->opsJobItems) {
             foreach($opsJob->opsJobItems as $opsJobItem) {
-                if(($opsJobItem->status < OpsJob::STATUS_DELIVERED) or $opsJobItem->status == OpsJob::STATUS_CANCELLED) {
+                if(($opsJobItem->status < OpsJob::STATUS_DELIVERED) or ($opsJobItem->status == OpsJob::STATUS_CANCELLED) or ($opsJobItem->cms_transaction_id)) {
                     continue;
                 }
                 if($opsJobItem->customer && $opsJobItem->customer->person_id) {

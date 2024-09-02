@@ -23,6 +23,8 @@ class OpsJobResource extends JsonResource
             'acc_vend_transactions_amount' => isset($this->acc_vend_transactions_amount) ? $this->acc_vend_transactions_amount/100 : 0,
             'acc_vend_transactions_count' => isset($this->acc_vend_transactions_count) ? (int) $this->acc_vend_transactions_count : 0,
             'code' => $this->code,
+            'cms_transaction_count' => isset($this->cms_transaction_count) ? (int) $this->cms_transaction_count : 0,
+            'cms_transaction_percentage' => isset($this->cms_transaction_percentage) ? round($this->cms_transaction_percentage) : 0,
             'date' => $this->date,
             'date_formatted' => $this->date->format('ymd'),
             'date_diff_human' => isset($this->date)

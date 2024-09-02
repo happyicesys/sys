@@ -163,6 +163,9 @@
                         <SingleSortItem modelName="ops_job_items_verified_count_percentage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('ops_job_items_verified_count_percentage')">
                           Verified(%)
                         </SingleSortItem>
+                        <SingleSortItem modelName="cms_transaction_percentage" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('cms_transaction_percentage')">
+                          API Invoices(%)
+                        </SingleSortItem>
                       </div>
                     </TableHead>
                     <TableHead>
@@ -295,6 +298,9 @@
                           </span>
                           <span :class="[opsJob.ops_job_items_verified_count_percentage == 100 ? 'text-green-700' : '']">
                             {{ opsJob.ops_job_items_verified_count }} ({{ opsJob.ops_job_items_verified_count_percentage }}%)
+                          </span>
+                          <span :class="[opsJob.cms_transaction_percentage == 100 ? 'text-green-700' : '']">
+                            {{ opsJob.cms_transaction_count }} ({{ opsJob.cms_transaction_percentage }}%)
                           </span>
                         </div>
                       </TableData>

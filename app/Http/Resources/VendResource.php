@@ -78,7 +78,7 @@ class VendResource extends JsonResource
             'key_name' => isset($this->key_name) ? $this->key_name : null,
             'person_id' => isset($this->person_id) ? $this->person_id : null,
             'temp' => isset($this->temp) ? ((int)$this->temp)/ 10 : null,
-            'temp_updated_at' => isset($this->temp_updated_at) ? Carbon::parse($this->temp_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
+            'temp_updated_at' => isset($this->temp_updated_at) ? Carbon::parse($this->temp_updated_at)->setTimezone($this->getUserTimezone())->diffForHumans() : null,
             'termination_date' => isset($this->termination_date) ? Carbon::parse($this->termination_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'termination_date_short' => isset($this->termination_date) ? Carbon::parse($this->termination_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'coin_amount' => isset($this->coin_amount) ? $this->coin_amount/ 100 : null,

@@ -9,6 +9,16 @@ class Setting extends Model
 {
     use HasFactory;
 
+    // customer index view
+    const CUSTOMER_INDEX = [
+        'actual_stock_in_value' => [
+            'red' => [
+                'operator' => '<',
+                'value' => 150
+            ]
+        ]
+    ];
+
     protected $fillable = [
         'customer_index_json'
     ];

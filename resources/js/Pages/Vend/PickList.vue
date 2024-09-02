@@ -3,8 +3,11 @@
     <Modal :open="showModal" @modalClose="$emit('modalClose')">
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2 text-gray-800">
-          <span class="text-gray-600">
+          <span class="text-gray-600" v-if="type == 1">
             Pick List
+          </span>
+          <span class="text-gray-600" v-if="type == 2">
+            Stocked In Qty
           </span>
         </div>
       </template>
@@ -61,7 +64,12 @@
                         Product
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Needed Qty
+                        <span v-if="type == 1">
+                          Needed
+                        </span>
+                        <span v-if="type == 2">
+                          Stocked In
+                        </span>
                       </th>
                     </tr>
                   </thead>
@@ -108,6 +116,10 @@ import { router, usePage } from '@inertiajs/vue3';
 const props = defineProps({
   pickLists: Object,
   showModal: Boolean,
+  type: {
+    type: String,
+    default: 1
+  }
 })
 
 const authUser = usePage().props.auth.user
