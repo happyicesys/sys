@@ -1149,8 +1149,17 @@
 							<!-- </div> -->
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_3pl')">
-							<div class="flex flex-col space-y-2">
+							<div class="flex flex-col space-y-1">
 								<div v-if="vend.vend && vend.vend.lastOpsJobItem" class="flex flex-col space-y-1">
+									<a :href="'/ops-jobs/items/' + vend.vend.lastOpsJobItem.id + '/edit'">
+										<div
+											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
+										>
+											<span>
+												{{ vend.vend.lastOpsJobItem.ref_id }}
+											</span>
+										</div>
+									</a>
 									<span>
 										{{ vend.vend.lastOpsJobItem.opsJob.deliveredBy.name }}
 									</span>
@@ -1183,8 +1192,17 @@
 							</div>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_3pl')">
-							<div class="flex flex-col space-y-2">
+							<div class="flex flex-col space-y-1">
 								<div v-if="vend.vend && vend.vend.nextOpsJobItem" class="flex flex-col space-y-1">
+									<a :href="'/ops-jobs/items/' + vend.vend.nextOpsJobItem.id + '/edit'">
+										<div
+											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
+										>
+											<span>
+												{{ vend.vend.nextOpsJobItem.ref_id }}
+											</span>
+										</div>
+									</a>
 									<span>
 										{{ vend.vend.nextOpsJobItem.opsJob.deliveredBy.name }}
 									</span>
