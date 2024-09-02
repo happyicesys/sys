@@ -171,18 +171,34 @@
                                         </span>
                                     </span> -->
                                 </div>
-                                <div
-                                    class="inline-flex justify-center items-center rounded mx-2 px-2 px-2 py-2 text-xs font-medium border w-fit"
-                                    :class="[vend.is_active || vend.is_testing ? (vend.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
-                            >
+                                <div class="flex space-x-2 px-2">
+                                  <div
+                                      class="inline-flex justify-center items-center rounded px-2 py-2 text-xs font-medium border w-fit"
+                                      :class="[vend.is_active || vend.is_testing ? (vend.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
+                                  >
+                                      <div class="flex flex-col">
+                                              <span class="font-bold">
+                                                      {{vend.is_online ? 'Online' : 'Offline'}}
+                                              </span>
+                                              <span v-if="vend.last_updated_at">
+                                                      {{vend.last_updated_at}}
+                                              </span>
+                                      </div>
+                                  </div>
+                                  <div
+                                      class="inline-flex justify-center items-center rounded px-2 py-2 text-xs font-medium border w-fit"
+                                      :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['door'] == 'close' ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
+                                      v-if="vend.parameterJson && vend.parameterJson['door']"
+                                  >
                                     <div class="flex flex-col">
-                                            <span class="font-bold">
-                                                    {{vend.is_online ? 'Online' : 'Offline'}}
-                                            </span>
-                                            <span v-if="vend.last_updated_at">
-                                                    {{vend.last_updated_at}}
-                                            </span>
+                                        <span class="font-bold">
+                                            Door
+                                        </span>
+                                        <span>
+                                            {{vend.parameterJson['door'] == 'open' ? 'Open' : 'Close'}}
+                                        </span>
                                     </div>
+                                  </div>
                                 </div>
                             </div>
                             <Graph
