@@ -697,7 +697,6 @@ class OpsJobController extends Controller
             ->select(['id', 'customer_id', 'operator_id', 'code']) // Select necessary columns
             ->with(['customer:id,name']) // Select necessary columns
             ->has('customer')
-            ->where('operator_id', $opsJob->operator_id)
             ->whereDoesntHave('opsJobItems', function($query) use ($opsJob) {
                 $query->where('ops_job_id', $opsJob->id);
             })
@@ -877,7 +876,6 @@ class OpsJobController extends Controller
         $request->validate([
             'date' => 'required',
             'delivered_by' => 'required',
-            'operator_id' => 'required',
         ]);
 
         $opsJob = OpsJob::create([
@@ -885,7 +883,7 @@ class OpsJobController extends Controller
             'created_by' => auth()->id(),
             'date' => $request->date,
             'delivered_by' => $request->delivered_by,
-            'operator_id' => $request->operator_id,
+            'operator_id' => auth()->user()->operator_id,
             'updated_by' => null,
             'updated_at' => null,
         ]);

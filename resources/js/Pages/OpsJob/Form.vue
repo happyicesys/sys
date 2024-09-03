@@ -41,7 +41,7 @@
                 {{ form.errors.delivered_by }}
               </div>
             </div>
-            <div class="sm:col-span-6">
+            <!-- <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Operator
                 <span class="text-red-500">
@@ -62,7 +62,7 @@
               <div class="text-sm text-red-600" v-if="form.errors.operator_id">
                 {{ form.errors.operator_id }}
               </div>
-            </div>
+            </div> -->
             <div class="sm:col-span-6">
               <div class="flex space-x-1 mt-5 justify-end">
                 <Button
