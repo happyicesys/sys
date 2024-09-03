@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Customer;
 use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -25,6 +26,8 @@ class CustomerResource extends JsonResource
             'person_json' => $this->person_json,
             'name' => $this->name,
             'first_transaction_id' => $this->first_transaction_id,
+            'frequency_per_week_status' => $this->frequency_per_week_status,
+            'frequency_per_week_status_name' => $this->frequency_per_week_status ? Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING[$this->frequency_per_week_status] : null,
             'is_active' => $this->is_active,
             'location_type_id' => $this->location_type_id,
             'nextInvoiceDriver' => UserResource::make($this->whenLoaded('nextInvoiceDriver')),

@@ -213,6 +213,21 @@
               mode="tags"
             ></MultiSelect>
           </div>
+          <div v-if="permissions.includes('admin-access customers')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              #Refill per Week
+            </label>
+            <MultiSelect
+              v-model="filters.frequency_per_week_status"
+              :options="frequencyPerWeekOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            ></MultiSelect>
+          </div>
         </div>
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -319,6 +334,14 @@
                   </TableHeadSort>
                   <TableHead>Ops Note</TableHead>
                   <TableHead>Preferred Visit Days</TableHead>
+                  <TableHeadSort
+                    modelName="frequency_per_week_status"
+                    :sortKey="filters.sortKey"
+                    :sortBy="filters.sortBy"
+                    @sort-table="sortTable('frequency_per_week_status')"
+                  >
+                    #Refill per Week
+                  </TableHeadSort>
                   <TableHead>Status</TableHead>
                   <TableHeadSort
                     modelName="operator_code"
@@ -486,6 +509,13 @@
                     :totalLength="customers.length"
                     inputClass="text-center"
                   >
+                    {{ customer.frequency_per_week_status_name }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
                     <div
                       class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-green-300"
                       v-if="customer.is_active"
@@ -580,6 +610,7 @@ const props = defineProps({
   categories: Object,
   cmsEndpoint: String,
   days: [Array, Object],
+  frequencyPerWeekOptions: [Array, Object],
   locationTypeOptions: [Array, Object],
   operatorOptions: Object,
   priceTemplates: Object,
@@ -594,6 +625,7 @@ const props = defineProps({
 
 const filters = ref({
   customer: '',
+  frequency_per_week_status: '',
   is_binded_vend: '',
   location_types: [],
   name: '',
@@ -613,6 +645,7 @@ const showModal = ref(false);
 const booleanOptions = ref([]);
 const customer = ref();
 const categoryOptions = ref([]);
+const frequencyPerWeekOptions = ref([]);
 const locationTypeOptions = ref([]);
 const operatorOptions = ref([]);
 const permissions = usePage().props.auth.permissions;
@@ -638,6 +671,15 @@ onMounted(() => {
     { id: 'true', value: 'Yes' },
     { id: 'false', value: 'No' },
   ];
+  frequencyPerWeekOptions.value = [
+    { id: 'all', value: 'All' },
+    ...Object.entries(props.frequencyPerWeekOptions).map(([id, value]) => {
+      return {
+        id: id,
+        value: value,
+      };
+    })
+  ]
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },
@@ -687,6 +729,7 @@ onMounted(() => {
       return { id: data.id, value: data.name };
     }),
   ];
+  filters.value.frequency_per_week_status = frequencyPerWeekOptions.value[0];
   filters.value.is_active = booleanOptions.value[0];
   filters.value.is_binded_vend = booleanOptions.value[0];
   filters.value.is_cms = booleanOptions.value[0];
@@ -712,6 +755,7 @@ function onSearchFilterUpdated() {
     '/customers',
     {
       ...filters.value,
+      frequency_per_week_status: filters.value.frequency_per_week_status.id,
       is_binded_vend: filters.value.is_binded_vend.id,
       is_cms: filters.value.is_cms.id,
       is_active: filters.value.is_active.id,

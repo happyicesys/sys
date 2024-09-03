@@ -188,6 +188,11 @@ trait HasFilter {
                 $query->where('apk_ver_json->deviceType', $search);
             }
         })
+        ->when($request->frequency_per_week_status, function($query, $search) {
+            if($search != 'all') {
+                $query->where('customers.frequency_per_week_status', $search);
+            }
+        })
         ->when($request->serialNum, function($query, $search) {
             $query->where('serial_num', 'LIKE', "%{$search}%");
         })

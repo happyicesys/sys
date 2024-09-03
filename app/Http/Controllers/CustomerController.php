@@ -98,6 +98,7 @@ class CustomerController extends Controller
                 'customers.*',
                 'customers.id',
                 'customers.begin_date as begin_date',
+                'customers.frequency_per_week_status',
                 'customers.operator_id',
                 'customers.preferred_visit_days_json',
                 'customers.zone_id',
@@ -136,6 +137,7 @@ class CustomerController extends Controller
             ),
             'cmsEndpoint' => env('CMS_URL'),
             'days' => Customer::DAYS_MAPPING,
+            'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('name')->get()
             ),
@@ -284,6 +286,7 @@ class CustomerController extends Controller
         return Inertia::render('Customer/Edit', [
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
             'days' => Customer::DAYS_MAPPING,
+            'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('name')->get()
             ),

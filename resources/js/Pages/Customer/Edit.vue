@@ -400,7 +400,7 @@
                       </div>
                     </div>
                   </div>
-                  <div class="sm:col-span-3">
+                  <div class="sm:col-span-4">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                       Zone
                     </label>
@@ -418,10 +418,28 @@
                       {{ form.errors['customer.zone_id'] }}
                     </div>
                   </div>
-                  <div class="sm:col-span-3">
+                  <div class="sm:col-span-5">
                     <FormTextarea v-model="form.ops_note" :error="form.errors.ops_note" rows="3">
                       Ops Note
                     </FormTextarea>
+                  </div>
+                  <div class="sm:col-span-4">
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                      #Refill per Week
+                    </label>
+                    <MultiSelect
+                      v-model="form.frequency_per_week_status"
+                      :options="frequencyPerWeekOptions"
+                      trackBy="id"
+                      valueProp="id"
+                      label="value"
+                      placeholder="Select"
+                      open-direction="bottom"
+                      class="mt-1"
+                    ></MultiSelect>
+                    <div class="text-sm text-red-600" v-if="form.errors['customer.zone_id']">
+                      {{ form.errors['customer.zone_id'] }}
+                    </div>
                   </div>
                   <div class="sm:col-span-6">
                       <label>Preferred Visit Days:</label>
@@ -434,6 +452,7 @@
                         </label>
                       </div>
                   </div>
+
                 </div>
 
                   <div class="sm:col-span-6 pt-2 mt-2 md:pt-5 pb-3">
@@ -601,6 +620,7 @@ const props = defineProps({
   vendOptions: Object,
   countries: Object,
   days: Object,
+  frequencyPerWeekOptions: [Array, Object],
   locationTypeOptions: [Array, Object],
   operatorOptions: Object,
   customer: Object,
@@ -618,6 +638,7 @@ const booleanStrictOptions = ref([
 
 const countryOptions = ref([]);
 const customer = ref([]);
+const frequencyPerWeekOptions = ref([]);
 const isExisting = ref(1);
 const locationTypeOptions = ref([]);
 const operatorCountry = usePage().props.auth.operatorCountry;
@@ -637,6 +658,7 @@ function getDefaultForm() {
     person_id: '',
     operator_id: '',
     begin_date: '',
+    frequency_per_week_status: '',
     location_type_id: '',
     ops_note: '',
     preferred_visit_days_json:  {
@@ -677,6 +699,16 @@ function getDefaultForm() {
 onMounted(() => {
   countryOptions.value = props.countries.data;
   customer.value = props.customer;
+  frequencyPerWeekOptions.value = [
+    { id: '', value: '--- Clear ---' },
+    ...Object.entries(props.frequencyPerWeekOptions).map(([id, value]) => {
+      return {
+        id: id,
+        value: value,
+      };
+    })
+  ]
+
   locationTypeOptions.value = [
     { id: '', value: '--- Clear ---' },
     ...props.locationTypeOptions.data.map(locationType => ({
@@ -712,6 +744,7 @@ onMounted(() => {
   form.value = props.customer ? useForm({
     ...JSON.parse(JSON.stringify(props.customer)),
     code: props.customer && props.customer.person_id ? props.customer.virtual_customer_code + ' (' + props.customer.virtual_customer_prefix + ')' : (props.customer ? props.customer.code : null),
+    frequency_per_week_status: props.customer && props.customer.frequency_per_week_status ? frequencyPerWeekOptions.value.find(frequencyPerWeek => frequencyPerWeek.id == props.customer.frequency_per_week_status) : null,
     location_type_id: props.customer ? props.customer.location_type_id ? locationTypeOptions.value.find(locationType => locationType.id === props.customer.location_type_id) : null : null,
     operator_id: props.customer ? props.customer.operator_id ? operatorOptions.value.find(operator => operator.id === props.customer.operator_id) : null : null,
     vend_id: '',
@@ -813,6 +846,7 @@ function saveCustomer(customerID) {
       ...data,
       begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
+      frequency_per_week_status: data.frequency_per_week_status ? data.frequency_per_week_status.id : null,
       location_type_id: data.location_type_id ? data.location_type_id.id : null,
       operator_id: data.operator_id ? data.operator_id.id : null,
       contact: {

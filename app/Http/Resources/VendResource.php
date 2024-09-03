@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Customer;
 use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -56,6 +57,8 @@ class VendResource extends JsonResource
             'customer_code' => isset($this->customer_code) ? $this->customer_code : null,
             'customer_id' => isset($this->customer_id) ? $this->customer_id : null,
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,
+            'frequency_per_week_status' => isset($this->frequency_per_week_status) ? $this->frequency_per_week_status : null,
+            'frequency_per_week_status_name' => isset($this->frequency_per_week_status) ? Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING[$this->frequency_per_week_status] : null,
             'full_name' => $this->when($this->relationLoaded('customer'), function() {
                 if($this->customer && $this->customer->person_id) {
                     return $this->customer->virtual_customer_code . ' - ' . $this->customer->name;

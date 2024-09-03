@@ -22,6 +22,12 @@ class Customer extends Model
         8 => 'Holiday Eve',
     ];
 
+    const FREQUENCY_PER_WEEK_STATUSES_MAPPING = [
+        1 => 'Less Than 1 Time',
+        2 => '1 Time',
+        3 => 'More Than 1 Time',
+    ];
+
     const RUNNING_NUMBER_INIT = 20000;
 
     const STATUS_NEW = 4;
@@ -86,6 +92,7 @@ class Customer extends Model
         'created_at',
         'person_json',
         'first_transaction_id',
+        'frequency_per_week_status',
         'name',
         'is_active',
         'last_invoice_date',
@@ -279,6 +286,11 @@ class Customer extends Model
                         ->orWhere('customers.virtual_customer_code', 'LIKE', "{$search}%")
                         ->orWhere('customers.name', 'LIKE', "%{$search}%");
                 });
+        })
+        ->when($request->frequency_per_week_status, function($query, $search) {
+            if($search != 'all') {
+                $query->where('frequency_per_week_status', $search);
+            }
         })
         ->when($request->is_active, function($query, $search) use ($request) {
             if($search != 'all') {

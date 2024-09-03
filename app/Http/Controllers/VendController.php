@@ -485,6 +485,7 @@ class VendController extends Controller
                 'customers.begin_date',
                 'customers.cms_invoice_history',
                 'customers.code AS customer_code',
+                'customers.frequency_per_week_status',
                 'customers.is_active AS is_active',
                 'customers.is_active AS customer_is_active',
                 'customers.location_type_id',
@@ -544,6 +545,7 @@ class VendController extends Controller
                         ->whereIn('name', ['admin', 'driver', 'supervisor', 'technician']);
                 })->orderBy('name')->get()
             ),
+            'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
             'indexType' => $request->indexType,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()

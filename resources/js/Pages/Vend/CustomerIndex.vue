@@ -353,6 +353,21 @@
 						>
 						</MultiSelect>
 					</div>
+					<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              #Refill per Week
+            </label>
+            <MultiSelect
+              v-model="filters.frequency_per_week_status"
+              :options="frequencyPerWeekOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            ></MultiSelect>
+          </div>
 				</div>
 
 				<div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -789,6 +804,9 @@
 								<div>
 									Preferred Day(s)
 								</div>
+								<SingleSortItem modelName="frequency_per_week_status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('frequency_per_week_status')">
+									#Refill per Week
+								</SingleSortItem>
 							</div>
 						</TableHead>
 						<TableHead v-if="!roles.includes('operator_3pl')">
@@ -1523,6 +1541,9 @@
 										</span>
 									</div>
 								</div>
+								<span>
+									{{ vend.frequency_per_week_status_name }}
+								</span>
 							</span>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
@@ -1694,6 +1715,7 @@
 				dayOptions: [Array, Object],
         deviceTypes: [Array, Object],
 				driverOptions: Object,
+				frequencyPerWeekOptions: [Array, Object],
         indexType: String,
         locationTypeOptions: Object,
         nextDeliveryDriverOptions: [Array, Object],
@@ -1719,6 +1741,7 @@
         deviceType: '',
         errors: [],
         firmware_ver: '',
+				frequency_per_week_status: '',
         locationType: '',
         is_active: true,
         is_binded_customer: '',
@@ -1762,6 +1785,7 @@
 		const dayOptions = ref([])
     const doorOptions = ref([])
     const enableOptions = ref([])
+		const frequencyPerWeekOptions = ref([])
     const isActiveFactoryOptions = ref([])
     const isShowOperationDiv = ref(false)
     const isSelectedAll = ref(false)
@@ -1841,6 +1865,15 @@ onMounted(() => {
       {id: 'open', value: 'Open'},
       {id: 'close', value: 'Close'},
   ]
+  frequencyPerWeekOptions.value = [
+    { id: 'all', value: 'All' },
+    ...Object.entries(props.frequencyPerWeekOptions).map(([id, value]) => {
+      return {
+        id: id,
+        value: value,
+      };
+    })
+  ]
   isActiveFactoryOptions.value = [
       {id: 'all', value: 'All'},
       {id: '1', value: 'Factory'},
@@ -1883,6 +1916,7 @@ onMounted(() => {
 
   filters.value.is_active = booleanOptions.value[1]
   filters.value.deviceType = deviceTypeOptions.value[0]
+	filters.value.frequency_per_week_status = frequencyPerWeekOptions.value[0]
   filters.value.is_door_open = doorOptions.value[0]
   filters.value.is_mqtt = booleanOptions.value[0]
   filters.value.is_mqtt_active = booleanOptions.value[0]
@@ -2022,6 +2056,7 @@ function getVendsField() {
         ...filters.value,
         deviceType: filters.value.deviceType.id,
         errors: filters.value.errors.map((error) => { return error.id }),
+				frequency_per_week_status: filters.value.frequency_per_week_status.id,
         location_type_id: filters.value.locationType.id,
         next_planned_date: filters.value.next_planned_date,
         next_planned_driver: filters.value.next_planned_driver.id,
@@ -2126,6 +2161,7 @@ function onExportChannelExcelClicked() {
           ...filters.value,
           deviceType: filters.value.deviceType.id,
           errors: filters.value.errors.map((error) => { return error.id }),
+					frequency_per_week_status: filters.value.frequency_per_week_status.id,
           location_type_id: filters.value.locationType.id,
           operators: filters.value.operators.map((operator) => { return operator.id }),
 					preferredDays: filters.value.preferredDays.map((preferredDay) => { return preferredDay.id }),
