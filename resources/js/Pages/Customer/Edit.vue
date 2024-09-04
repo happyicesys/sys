@@ -423,6 +423,17 @@
                       Ops Note
                     </FormTextarea>
                   </div>
+                  <div class="sm:col-span-6">
+                      <label>Preferred Visit Days:</label>
+                      <div class="flex flex-wrap gap-2 mt-2 space-x-3">
+                        <label v-for="(day, index) in days" :key="index" class="flex items-center">
+                          <input type="checkbox" v-model="form.preferred_visit_days_json[index]" class="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                          <span>
+                            {{ day }}
+                          </span>
+                        </label>
+                      </div>
+                  </div>
                   <div class="sm:col-span-4">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                       #Refill per Week
@@ -440,17 +451,6 @@
                     <div class="text-sm text-red-600" v-if="form.errors['customer.zone_id']">
                       {{ form.errors['customer.zone_id'] }}
                     </div>
-                  </div>
-                  <div class="sm:col-span-6">
-                      <label>Preferred Visit Days:</label>
-                      <div class="flex flex-wrap gap-2 mt-2 space-x-3">
-                        <label v-for="(day, index) in days" :key="index" class="flex items-center">
-                          <input type="checkbox" v-model="form.preferred_visit_days_json[index]" class="mr-2 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
-                          <span>
-                            {{ day }}
-                          </span>
-                        </label>
-                      </div>
                   </div>
 
                 </div>
