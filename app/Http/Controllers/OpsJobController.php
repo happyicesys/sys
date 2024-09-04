@@ -530,18 +530,18 @@ class OpsJobController extends Controller
         $data = [
             'date' => Carbon::parse($opsJob->date)->format('Y-m-d'),
             'driver' => $opsJob->deliveredBy->username,
-            'created_by' => $opsJob->createdBy->username,
+            'created_by' => auth()->user()->username,
             'status' => 'Delivered',
             'customers' => [],
         ];
 
         if($opsJob->opsJobItems) {
             foreach($opsJob->opsJobItems as $opsJobItem) {
-                if(($opsJobItem->status < OpsJob::STATUS_DELIVERED) or ($opsJobItem->status == OpsJob::STATUS_CANCELLED) or ($opsJobItem->cms_transaction_id)) {
+                if(($opsJobItem->status < OpsJob::STATUS_DELIVERED) or ($opsJobItem->status == OpsJob::STATUS_CANCELLED) or ($opsJobItem->cms_transaction_id)){
                     continue;
                 }
                 if($opsJobItem->customer && $opsJobItem->customer->person_id) {
-                    SyncOpsJobTransactionCMS::dispatch($opsJobItem, $data);
+                    SyncOpsJobTransactionCMS::dispatch($opsJobItem, $data, auth()->user()->id);
                 }
             }
         }
@@ -581,6 +581,8 @@ class OpsJobController extends Controller
                     'customer_id',
                     'ops_job_id',
                     'vend_id',
+                    'cms_transaction_at',
+                    'cms_transaction_by',
                     'cms_transaction_id',
                     'is_cash_collected',
                     'sequence',
@@ -595,6 +597,8 @@ class OpsJobController extends Controller
                     'remarks_updated_by',
                     'temp_cash_amount_from_vmc',
                     'vend_channel_record_id',
+                    'verified_at',
+                    'verified_by',
                 ]);
 
                 $query->selectRaw('
@@ -679,6 +683,7 @@ class OpsJobController extends Controller
             },
             'opsJobItems.attachments',
             'opsJobItems.vend:id,customer_id,code,vend_prefix_id',
+            'opsJobItems.cmsTransactionBy',
             'opsJobItems.customer.deliveryAddress',
             'opsJobItems.opsJobItemChannels.vendChannel.product.thumbnail',
             'opsJobItems.remarksUpdatedBy:id,name',
@@ -688,6 +693,7 @@ class OpsJobController extends Controller
             'opsJobItems.statusBy',
             'opsJobItems.completedBy:id,name',
             'opsJobItems.vendChannelRecord',
+            'opsJobItems.verifiedBy',
             'updatedBy:id,name'
         ])
         ->findOrFail($id);
@@ -718,6 +724,7 @@ class OpsJobController extends Controller
             ->with([
                 'vend:id,customer_id,code,vend_prefix_id',
                 'vend.productMapping',
+                'cmsTransactionBy',
                 'createdBy',
                 'customer.deliveryAddress',
                 'vend.vendPrefix',
@@ -730,6 +737,7 @@ class OpsJobController extends Controller
                 'statusBy',
                 'completedBy:id,name',
                 'vendChannelRecord',
+                'verifiedBy',
             ])
             ->select(
                 '*'

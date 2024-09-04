@@ -186,6 +186,20 @@
                                       </div>
                                   </div>
                                   <div
+                                      class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-fit"
+                                      :class="[vend.is_active || vend.is_testing ? (vend.is_mqtt_active ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+                                      v-if="vend.is_mqtt"
+                                  >
+                                      <div class="flex flex-col">
+                                          <span class="font-bold">
+                                              MQTT
+                                          </span>
+                                          <span v-if="vend.mqtt_last_updated_at">
+                                              {{ vend.mqtt_last_updated_at }}
+                                          </span>
+                                      </div>
+                                  </div>
+                                  <div
                                       class="inline-flex justify-center items-center rounded px-2 py-2 text-xs font-medium border w-fit"
                                       :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['door'] == 'close' ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
                                       v-if="vend.parameterJson && vend.parameterJson['door']"

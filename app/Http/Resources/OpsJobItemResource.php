@@ -28,7 +28,10 @@ class OpsJobItemResource extends JsonResource
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'cash_amount' => isset($this->cash_amount) ? $this->cash_amount : null,
             'cashless_amount' => $this->cashless_amount,
+            'cms_transaction_at' => isset($this->cms_transaction_at) ? $this->cms_transaction_at->format('ymd h:i:sa') : '',
             'cms_transaction_id' => $this->cms_transaction_id,
+            'cms_transaction_by' => $this->cms_transaction_by,
+            'cmsTransactionBy' => UserResource::make($this->whenLoaded('cmsTransactionBy')),
             'code' => $this->code,
             'completed_at' => isset($this->completed_at) ? $this->completed_at->format('ymd h:i:sa') : '',
             'completed_by' => $this->completed_by,
@@ -77,6 +80,9 @@ class OpsJobItemResource extends JsonResource
             'vend_id' => $this->vend_id,
             'vend_channel_record_id' => $this->vend_channel_record_id,
             'vendChannelRecord' => VendChannelRecordResource::make($this->whenLoaded('vendChannelRecord')),
+            'verified_at' => isset($this->verified_at) ? $this->verified_at->format('ymd h:i:sa') : '',
+            'verified_by' => $this->verified_by,
+            'verifiedBy' => UserResource::make($this->whenLoaded('verifiedBy')),
         ];
     }
 }

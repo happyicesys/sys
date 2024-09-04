@@ -749,12 +749,27 @@
 								<span>
 									SYS Last Job
 								</span>
+								<span>
+									Stock In Value{{ operatorCountry.currency_symbol }}
+								</span>
+								<span>
+									Qty
+								</span>
+								<span>
+									{{ operatorCountry.currency_symbol }}Collected
+								</span>
 							</div>
 						</TableHead>
 						<TableHead v-if="!roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-2">
 								<span>
 									SYS Next Job
+								</span>
+								<span>
+									Picked Value{{ operatorCountry.currency_symbol }}
+								</span>
+								<span>
+									Qty
 								</span>
 							</div>
 						</TableHead>
@@ -1205,6 +1220,9 @@
 										<span>
 											{{ vend.last_ops_job_count ? vend.last_ops_job_count.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 										</span>
+									</span>
+									<span>
+										{{ operatorCountry.currency_symbol }}{{ vend.last_ops_job_cash_amount ? vend.last_ops_job_cash_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 									</span>
 								</div>
 							</div>

@@ -299,7 +299,7 @@
                           <span :class="[opsJob.ops_job_items_verified_count_percentage == 100 ? 'text-green-700' : '']">
                             {{ opsJob.ops_job_items_verified_count }} ({{ opsJob.ops_job_items_verified_count_percentage }}%)
                           </span>
-                          <span :class="[opsJob.cms_transaction_percentage == 100 ? 'text-green-700' : '']">
+                          <span :class="[opsJob.cms_transaction_percentage == 100 ? 'text-green-700 font-bold' : '']">
                             {{ opsJob.cms_transaction_count }} ({{ opsJob.cms_transaction_percentage }}%)
                           </span>
                         </div>

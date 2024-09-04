@@ -390,11 +390,13 @@ class VendController extends Controller
                     SELECT
                         last_ops_jobs_inner.vend_id,
                         last_ops_jobs_inner.amount,
+                        last_ops_jobs_inner.cash_amount,
                         last_ops_jobs_inner.count
                     FROM
                     (
                         SELECT
                             ops_job_items.vend_id,
+                            ops_job_items.cash_amount,
                             SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount,
                             SUM(ops_job_item_channels.actual_qty) AS count,
                             ROW_NUMBER() OVER (PARTITION BY ops_job_items.vend_id ORDER BY ops_job_items.created_at DESC) AS rn
@@ -420,11 +422,13 @@ class VendController extends Controller
                     SELECT
                         next_ops_jobs_inner.vend_id,
                         next_ops_jobs_inner.amount,
+                        next_ops_jobs_inner.cash_amount,
                         next_ops_jobs_inner.count
                     FROM
                     (
                         SELECT
                             ops_job_items.vend_id,
+                            ops_job_items.cash_amount,
                             SUM(ops_job_item_channels.picked_qty * vend_channels.amount) AS amount,
                             SUM(ops_job_item_channels.picked_qty) AS count,
                             ROW_NUMBER() OVER (PARTITION BY ops_job_items.vend_id ORDER BY ops_job_items.created_at ASC) AS rn
@@ -500,8 +504,10 @@ class VendController extends Controller
                 'customers.virtual_customer_code',
                 'location_types.name AS location_type_name',
                 'last_ops_jobs.amount AS last_ops_job_amount',
+                'last_ops_jobs.cash_amount AS last_ops_job_cash_amount',
                 'last_ops_jobs.count AS last_ops_job_count',
                 'next_ops_jobs.amount AS next_ops_job_amount',
+                'next_ops_jobs.cash_amount AS next_ops_job_cash_amount',
                 'next_ops_jobs.count AS next_ops_job_count',
                 'product_mappings.name AS product_mapping_name',
                 'product_mappings.remarks AS product_mapping_remarks',
@@ -706,7 +712,10 @@ class VendController extends Controller
                 'vends.code',
                 'vends.name',
                 'vends.last_updated_at',
+                'vends.mqtt_last_updated_at',
                 'vends.is_active',
+                'vends.is_mqtt',
+                'vends.is_mqtt_active',
                 'vends.is_online',
                 'vends.is_testing',
                 'customers.virtual_customer_prefix',

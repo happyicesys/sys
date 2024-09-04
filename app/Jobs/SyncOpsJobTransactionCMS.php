@@ -16,19 +16,24 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $tries = 3;  // Number of attempts
+    public $retryAfter = 5; // Retry after 10 seconds
+
     protected $data;
     protected $opsJobItem;
     protected $opsJobService;
     protected $endpoint;
+    protected $userID;
     /**
      * Create a new job instance.
      */
-    public function __construct($opsJobItem, $data)
+    public function __construct($opsJobItem, $data, $userID)
     {
         $this->data = $data;
         $this->opsJobItem = $opsJobItem;
         $this->opsJobService = new OpsJobService();
         $this->endpoint = env('CMS_URL') . '/api/transactions/deals';
+        $this->userID = $userID;
     }
 
     /**
@@ -41,10 +46,10 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
 
         if($opsJobItem->customer && $opsJobItem->customer->person_id) {
             $data['customers'][$opsJobItem->customer->person_id] = [
-                'ops_job_item_id' => $opsJobItem->id,
                 'attachments' => [],
                 'cash_collected' => $opsJobItem->cash_amount ? $opsJobItem->cash_amount : 0,
                 'channels' => [],
+                'ops_job_item_id' => $opsJobItem->id,
                 'sequence' => $opsJobItem->sequence,
             ];
 
@@ -73,6 +78,10 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
                     ];
                 }
             }
+
+            $opsJobItem->update([
+                'cms_transaction_by' => $this->userID,
+            ]);
         }
 
         $response = Http::post($this->endpoint, $data);

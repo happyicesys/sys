@@ -95,6 +95,36 @@
                   </div>
                 </dd>
               </div>
+              <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status == 4 && opsJobItem.verifiedBy">
+                <dt class="text-sm font-medium leading-6 text-gray-900">
+                  Verified By
+                </dt>
+                <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex space-x-2">
+                    <span>
+                      {{ opsJobItem.verifiedBy.name }}
+                    </span>
+                    <span>
+                      ({{ opsJobItem.verified_at }})
+                    </span>
+                  </div>
+                </dd>
+              </div>
+              <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.cms_transaction_id && opsJobItem.cmsTransactionBy">
+                <dt class="text-sm font-medium leading-6 text-gray-900">
+                  API Inv By
+                </dt>
+                <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex space-x-2">
+                    <span>
+                      {{ opsJobItem.cmsTransactionBy.name }}
+                    </span>
+                    <span>
+                      ({{ opsJobItem.cms_transaction_at }})
+                    </span>
+                  </div>
+                </dd>
+              </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
                   Remarks
@@ -249,8 +279,12 @@
                               <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">need</span>
                               {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
                             </div>
+                            <div class="flex justify-between items-center"  v-if="opsJobItem.status > 1">
+                              <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">picked</span>
+                              {{ channel.picked }}
+                            </div>
                             <div class="flex justify-between items-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
-                              <select name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
+                              <select name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : 'text-black']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                                 <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                               </select>
                               <span v-if="opsJobItem.status >= 2">
@@ -260,10 +294,10 @@
                             <div class="flex space-x-1 items-center justify-between" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                               <ArrowRightEndOnRectangleIcon class="w-5 h-5 text-blue-600">
                               </ArrowRightEndOnRectangleIcon>
-                              <select name="channel_refill" id="channel_refill" class="rounded" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
+                              <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                                 <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                               </select>
-                              <span v-if="opsJobItem.status > 2">
+                              <span v-if="opsJobItem.status > 2" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]">
                                 {{ channel.refill }}
                               </span>
                             </div>
@@ -297,7 +331,6 @@
                               Fix?
                             </span>
                           </button>
-                          {{ channel }}
 
                           <div class="flex flex-col space-y-1 items-center">
                             <div
@@ -372,7 +405,7 @@
                   <table class="hidden md:table min-w-full divide-y divide-gray-300">
                     <thead class="bg-gray-50">
                       <tr v-if="opsJobItem.status >= 3">
-                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" colspan="6">
+                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" colspan="7">
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-200 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" colspan="4">
                           <div class="flex flex-col space-y-1 items-center">
@@ -417,7 +450,7 @@
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
                           Needed/ Capacity
                         </th>
-                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
+                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 1">
                           Picked
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
@@ -505,6 +538,9 @@
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900">
                           {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
                         </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status > 1">
+                          {{ channel.picked }}
+                        </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
                           <!-- <FormInput inputType="number" v-model="channel.picked" :maxValue="channel.capacity" class="text-center min-w-12" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                           </FormInput> -->
@@ -518,11 +554,11 @@
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                           <!-- <FormInput inputType="number" v-model="channel.refill" :maxValue="channel.capacity" class="text-center min-w-12" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                           </FormInput> -->
-                          <select name="channel_refill" id="channel_refill" class="rounded" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
+                          <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                             <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                           </select>
 
-                          <span v-if="opsJobItem.status > 2">
+                          <span v-if="opsJobItem.status > 2" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]">
                             {{ channel.refill }}
                           </span>
                         </td>

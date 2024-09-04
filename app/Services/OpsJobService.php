@@ -31,6 +31,7 @@ class OpsJobService
 
         if($opsJobItem) {
             $opsJobItem->cms_transaction_id = $cmsCustomer['transaction_id'];
+            $opsJobItem->cms_transaction_at = Carbon::now();
             $opsJobItem->save();
 
             // $opsJobItem->customer()->update([

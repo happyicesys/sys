@@ -22,6 +22,8 @@ class OpsJobItem extends Model
         'cash_amount',
         'cashless_amount',
         'channels_json',
+        'cms_transaction_at',
+        'cms_transaction_by',
         'cms_transaction_id',
         'completed_at',
         'completed_by',
@@ -52,6 +54,7 @@ class OpsJobItem extends Model
     protected $casts = [
         'completed_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'cms_transaction_at' => 'datetime',
         'flagged_at' => 'datetime',
         'picked_at' => 'datetime',
         'remarks_updated_at' => 'datetime',
@@ -91,6 +94,11 @@ class OpsJobItem extends Model
     public function attachments()
     {
         return $this->morphMany(Attachment::class, 'modelable')->oldest();
+    }
+
+    public function cmsTransactionBy()
+    {
+        return $this->belongsTo(User::class, 'cms_transaction_by');
     }
 
     public function completedBy()
@@ -151,6 +159,11 @@ class OpsJobItem extends Model
     public function vendChannelRecord()
     {
         return $this->belongsTo(VendChannelRecord::class);
+    }
+
+    public function verifiedBy()
+    {
+        return $this->belongsTo(User::class, 'verified_by');
     }
 
 }
