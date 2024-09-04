@@ -446,7 +446,7 @@ const props = defineProps({
 
 const filters = ref({
   code: '',
-  date_from: moment().subtract(1, 'day').format('YYYY-MM-DD'),
+  date_from: moment().subtract(3, 'days').format('YYYY-MM-DD'),
   date_to: moment().add(1, 'week').format('YYYY-MM-DD'),
   delivered_by: '',
   created_by: '',

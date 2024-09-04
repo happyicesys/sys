@@ -45,7 +45,7 @@ class OpsJobController extends Controller
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'sortKey' => $request->sortKey ? $request->sortKey : 'date',
             'sortBy' => $request->sortBy ? $request->sortBy : false,
-            'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->subDay()->setTimezone($this->getUserTimezone())->startOfDay(),
+            'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->subDays(3)->setTimezone($this->getUserTimezone())->startOfDay(),
             'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->addWeek()->setTimezone($this->getUserTimezone())->endOfDay(),
         ]);
 
