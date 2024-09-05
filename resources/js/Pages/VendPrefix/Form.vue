@@ -169,7 +169,7 @@ onMounted(() => {
     ...props.vendPrefix,
     // product_mapping_id: productMappingOptions.value.find(productMapping => productMapping.id === props.vendPrefix.product_mapping_id),
     productMappings: props.vendPrefix.productMappings.map(productMapping => productMappingOptions.value.find(productMappingOption => productMappingOption.id === productMapping.id)),
-    operator_id: form.value.operator_id ? operatorOptions.value.find(operator => operator.id === props.vendPrefix.operator_id) : operatorOptions.value.find(operator => operator.id === authOperator.id),
+    operator_id: props.vendPrefix.operator_id ? operatorOptions.value.find(operator => operator.id == props.vendPrefix.operator_id) : operatorOptions.value.find(operator => operator.id == authOperator.id),
     // vend_config_id: vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vendPrefix.vend_config_id),
   }) : useForm(getDefaultForm())
 })

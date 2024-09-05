@@ -410,7 +410,7 @@ class VendController extends Controller
                             ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
                         WHERE
                             ops_job_items.status >= 3
-                            AND ops_job_items.created_at < CURDATE() + INTERVAL 1 DAY
+                            AND ops_jobs.date < CURDATE() + INTERVAL 1 DAY
                         GROUP BY
                             ops_job_items.vend_id, ops_job_items.created_at
                     ) AS last_ops_jobs_inner
@@ -441,8 +441,8 @@ class VendController extends Controller
                         INNER JOIN
                             ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
                         WHERE
-                            ops_job_items.status = 2
-                            AND ops_job_items.created_at >= CURDATE()
+                            ops_job_items.status >= 2
+                            AND ops_jobs.date >= CURDATE()
                         GROUP BY
                             ops_job_items.vend_id, ops_job_items.created_at
                     ) AS next_ops_jobs_inner
