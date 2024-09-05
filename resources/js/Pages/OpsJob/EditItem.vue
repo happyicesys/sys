@@ -825,11 +825,11 @@
             <DropzoneFileInput :endpoint="'/ops-jobs/items/' + props.opsJobItem.data.id + '/upload-attachments'"></DropzoneFileInput>
           </div>
 
-          <div class="flex justify-between">
+          <div class="flex flex-col md:flex-row space-y-3 md:space-y-0 sm:col-span-6 md:justify-between">
             <span>
               <Link :href="'/ops-jobs/' + opsJobItem.ops_job_id + '/edit'">
                 <Button
-                  type="button" class="px-2 py-2 mt-2 bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 "
+                  type="button" class="px-2 py-2 mt-2 bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 w-full md:w-fit"
                 >
                   <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                   <span>
@@ -839,7 +839,7 @@
               </Link>
               <Button
                   type="button"
-                  class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-red-500 hover:bg-red-700 text-white"
+                  class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-red-500 hover:bg-red-700 text-white w-full md:w-fit"
                   @click="onStatusClicked(99)"
                   v-if="(opsJobItem.status < 3 && opsJobItem.status != 99) && permissions.includes('delete operations')"
               >
@@ -852,7 +852,7 @@
               </Button>
               <Button
                   type="button"
-                  class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-red-500 hover:bg-red-700 text-white"
+                  class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-red-500 hover:bg-red-700 text-white w-full md:w-fit"
                   @click="onStatusClicked(-1)"
                   v-if="opsJobItem.status == 99 && permissions.includes('delete operations')"
               >
@@ -867,7 +867,7 @@
             <span>
               <Button
                   type="button"
-                  class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800"
+                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
                   @click="onConfirmClicked()"
                   v-if="opsJobItem.status < 2 && opsJobItem.status < 3"
               >
@@ -880,7 +880,7 @@
               </Button>
               <Button
                   type="button"
-                  class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-green-400 hover:bg-green-500 text-gray-800"
+                  class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-green-400 hover:bg-green-500 text-gray-800 w-full md:w-fit"
                   @click="onConfirmClicked()"
                   v-if="opsJobItem.status == 2 && opsJobItem.status < 3"
               >
@@ -894,7 +894,7 @@
 
               <Button
                   type="button"
-                  class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-green-500 hover:bg-green-600 text-white"
+                  class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-green-500 hover:bg-green-600 text-white w-full md:w-fit"
                   @click="onVerifyClicked(1)"
                   v-if="opsJobItem.status >= 3 && opsJobItem.status != 4"
               >
@@ -907,7 +907,7 @@
               </Button>
               <Button
                   type="button"
-                  class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-red-500 hover:bg-red-700 text-white"
+                  class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-red-500 hover:bg-red-700 text-white w-full md:w-fit"
                   @click="onVerifyClicked(0)"
                   v-if="opsJobItem.status >= 3 && opsJobItem.status != 98"
               >
