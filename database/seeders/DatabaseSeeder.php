@@ -91,7 +91,8 @@ class DatabaseSeeder extends Seeder
             // SyncVendTransactionsProduct::class,
             // LogisticsRoleSeeder::class,
             // ZoneSeeder::class,
-            FirstOpsJobItems::class,
+            // FirstOpsJobItems::class,
+            ObserverRoleSeeder::class,
         ]);
     }
 }
