@@ -76,14 +76,14 @@ class User extends Authenticatable
     public function getRedirectRoute()
     {
         // dd($this->toArray(), $this->roles()->first()->toArray());
-        return '/vends/customers';
-        // $currentRole = (int)$this->roles()->first()->id;
+        // return '/vends/customers';
+        $currentRole = (int)$this->roles()->first()->id;
 
-        // if($currentRole == 14) {
-        //     return '/dashboard';
-        // }else {
-        //     return '/vends';
-        // }
+        if($currentRole == 19) {
+            return '/dashboard';
+        }else {
+            return '/vends/customers';
+        }
         // return match((int)$this->roles()->first()->id) {
         //     1 => '/vends',
         //     2 => '/vends',
