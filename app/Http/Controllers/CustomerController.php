@@ -54,8 +54,9 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         $request->merge([
+            'is_binded_vend' => $request->is_binded_vend ? $request->is_binded_vend : 'all',
             'is_cms' => $request->is_cms ? $request->is_cms : 'all',
-            'is_active' => $request->is_active ? $request->is_active : 'all',
+            'is_active' => $request->is_active ? $request->is_active : 'true',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'sortKey' => $request->sortKey ? $request->sortKey : 'customers.id',
             'sortBy' => $request->sortBy ? $request->sortBy : 'false',

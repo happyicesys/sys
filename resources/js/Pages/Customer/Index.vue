@@ -730,7 +730,7 @@ onMounted(() => {
     }),
   ];
   filters.value.frequency_per_week_status = frequencyPerWeekOptions.value[0];
-  filters.value.is_active = booleanOptions.value[0];
+  filters.value.is_active = booleanOptions.value[1];
   filters.value.is_binded_vend = booleanOptions.value[0];
   filters.value.is_cms = booleanOptions.value[0];
   filters.value.location_types = [locationTypeOptions.value.find((locationType) => locationType.id == 'all')];

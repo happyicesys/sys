@@ -16,6 +16,15 @@ class RunningNumberService
     return Carbon::now()->setTimeZone($operatorTimezone)->format('ymdhis').sprintf('%05d', $vend->code);
   }
 
+  public function getVendOrderIDBasedOnDate(Vend $vend, $date)
+  {
+    $operatorTimezone = 'Asia/Singapore';
+    if($vend->operator) {
+        $operatorTimezone = $vend->operator->timezone;
+    }
+    return Carbon::parse($date)->setTimeZone($operatorTimezone)->format('ymdhis').sprintf('%05d', $vend->code);
+  }
+
   public function getCustomerRunningCode($operatorID = null)
   {
     if(!$operatorID) {
