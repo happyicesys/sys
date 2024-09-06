@@ -15,24 +15,12 @@ class ObserverRoleSeeder extends Seeder
      */
     public function run(): void
     {
-        $readDashboard = Permission::updateOrCreate([
-            'name' => 'read dashboard',
-            'guard_name' => 'api'
+        $role = Role::create([
+            'name' => 'observer',
+            'guard_name' => 'web',
         ]);
 
-        Role::create([
-            'name' => 'vc_observer',
-            'guard_name' => 'api',
-        ]);
-
-        $roles = Role::all();
-
-        foreach($roles as $role) {
-            $role->givePermissionTo($readDashboard);
-        }
-
-
-
-
+        $role->givePermissionTo('read dashboard');
+        $role->givePermissionTo('export dashboard');
     }
 }
