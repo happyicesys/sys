@@ -441,7 +441,7 @@
                   {{ form.errors.claw_machine_board_id }}
                 </div>
             </div>
-            <div class="sm:col-span-3" v-if="form.vend_model_id && form.vend_model_id.id == 5">
+            <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   LCD Monitor
                 </label>

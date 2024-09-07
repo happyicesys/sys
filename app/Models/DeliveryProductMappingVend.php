@@ -88,10 +88,10 @@ class DeliveryProductMappingVend extends Model
                     });
                 }
             })
-            ->when($request->operator_id, function($query, $search) {
-                if($search != 'all') {
+            ->when($request->operators, function($query, $search) {
+                if(!in_array('all', $search)){
                     $query->whereHas('deliveryProductMapping', function($query) use ($search) {
-                        $query->where('operator_id', $search);
+                        $query->whereIn('operator_id', $search);
                     });
                 }
             })

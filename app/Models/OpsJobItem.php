@@ -44,6 +44,14 @@ class OpsJobItem extends Model
         'temp_cash_amount_from_vmc',
         'picked_at',
         'picked_by',
+        'undo_completed_at',
+        'undo_completed_by',
+        'undo_flagged_at',
+        'undo_flagged_by',
+        'undo_picked_at',
+        'undo_picked_by',
+        'undo_verified_at',
+        'undo_verified_by',
         'updated_by',
         'vend_id',
         'vend_channel_record_id',
@@ -59,6 +67,10 @@ class OpsJobItem extends Model
         'picked_at' => 'datetime',
         'remarks_updated_at' => 'datetime',
         'verified_at' => 'datetime',
+        'undo_completed_at' => 'datetime',
+        'undo_flagged_at' => 'datetime',
+        'undo_picked_at' => 'datetime',
+        'undo_verified_at' => 'datetime',
     ];
 
     // accessor and mutators
@@ -144,6 +156,26 @@ class OpsJobItem extends Model
     public function statusBy()
     {
         return $this->belongsTo(User::class, 'status_by');
+    }
+
+    public function undoCompletedBy()
+    {
+        return $this->belongsTo(User::class, 'undo_completed_by');
+    }
+
+    public function undoFlaggedBy()
+    {
+        return $this->belongsTo(User::class, 'undo_flagged_by');
+    }
+
+    public function undoPickedBy()
+    {
+        return $this->belongsTo(User::class, 'undo_picked_by');
+    }
+
+    public function undoVerifiedBy()
+    {
+        return $this->belongsTo(User::class, 'undo_verified_by');
     }
 
     public function updatedBy()

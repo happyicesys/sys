@@ -265,6 +265,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [OpsJobController::class, 'delete']);
         Route::post('/{id}/complete', [OpsJobController::class, 'complete']);
         Route::post('/items/{itemID}/status', [OpsJobController::class, 'changeItemStatus']);
+        Route::post('/items/{itemID}/undo-status', [OpsJobController::class, 'undoItemStatus']);
         Route::post('/{id}/pick', [OpsJobController::class, 'pick']);
         Route::post('/{id}/deliver', [OpsJobController::class, 'deliver']);
         Route::post('/{id}/renumber', [OpsJobController::class, 'renumberItems']);

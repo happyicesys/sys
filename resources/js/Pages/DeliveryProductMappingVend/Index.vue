@@ -25,6 +25,7 @@
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
+              mode="tags"
             >
             </MultiSelect>
           </div>
@@ -386,7 +387,7 @@ const filters = ref({
   date_to: moment().format('YYYY-MM-DD'),
   delivery_product_mapping_id: '',
   delivery_platform_type_id: '',
-  operator_id: '',
+  operators: [],
   platform_ref_id: '',
   sortKey: '',
   sortBy: false,
@@ -428,14 +429,15 @@ onMounted(() => {
     ...Object.keys(props.deliveryPlatformTypeOptions).map((deliveryPlatformType, index) => {return {id: deliveryPlatformType, name: deliveryPlatformType}})
   ]
   operatorOptions.value = [
-    {id: 'all', full_name: 'All'},
+    // {id: 'all', full_name: 'All'},
     ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
+
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   filters.value.is_active = booleanOptions.value[1]
   filters.value.delivery_platform_type_id = deliveryPlatformTypeOptions.value.find(deliveryPlatformType => deliveryPlatformType.id === 'all')
   filters.value.delivery_product_mapping_id = deliveryProductMappingOptions.value[0]
-  filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+  filters.value.operators = authOperator ? [operatorOptions.value.find(operator => operator.id === authOperator.id)] : [operatorOptions.value[0]]
 })
 
 
@@ -453,7 +455,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
       delivery_product_mapping_id: filters.value.delivery_product_mapping_id.id,
-      operator_id: filters.value.operator_id.id,
+      operators: filters.value.operator_id.map(operator => operator.id),
       is_active: filters.value.is_active.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {

@@ -353,6 +353,8 @@ class OpsJobController extends Controller
                     'status' => OpsJob::STATUS_PICKED,
                     'picked_by' => auth()->id(),
                     'picked_at' => Carbon::now(),
+                    'unfo_picked_at' => null,
+                    'undo_picked_by' => null,
                 ]);
 
                 if($request->channels) {
@@ -373,6 +375,8 @@ class OpsJobController extends Controller
                     'cash_amount' => $request->cash_amount,
                     'cashless_amount' => $request->cashless_amount,
                     'temp_cash_amount_from_vmc' => $request->temp_cash_amount_from_vmc,
+                    'undo_completed_at' => null,
+                    'undo_completed_by' => null,
                 ]);
 
                 if($request->channels) {
@@ -736,6 +740,10 @@ class OpsJobController extends Controller
                 'previousOpsJobItem',
                 'statusBy',
                 'completedBy:id,name',
+                'undoCompletedBy:id,name',
+                'undoFlaggedBy:id,name',
+                'undoPickedBy:id,name',
+                'undoVerifiedBy:id,name',
                 'vendChannelRecord',
                 'verifiedBy',
             ])
@@ -968,6 +976,48 @@ class OpsJobController extends Controller
         return redirect()->back();
     }
 
+    public function undoItemStatus($id)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($id);
+
+        switch($opsJobItem->status) {
+            case OpsJob::STATUS_PICKED:
+                $opsJobItem->status = OpsJob::STATUS_PENDING;
+                $opsJobItem->picked_at = null;
+                $opsJobItem->picked_by = null;
+                $opsJobItem->undo_picked_at = Carbon::now();
+                $opsJobItem->undo_picked_by = auth()->id();
+                $opsJobItem->save();
+                break;
+            case OpsJob::STATUS_DELIVERED:
+                $opsJobItem->status = OpsJob::STATUS_PICKED;
+                $opsJobItem->completed_at = null;
+                $opsJobItem->completed_by = null;
+                $opsJobItem->undo_completed_at = Carbon::now();
+                $opsJobItem->undo_completed_by = auth()->id();
+                $opsJobItem->save();
+                break;
+            case OpsJob::STATUS_VERIFIED:
+                $opsJobItem->status = OpsJob::STATUS_DELIVERED;
+                $opsJobItem->verified_at = null;
+                $opsJobItem->verified_by = null;
+                $opsJobItem->undo_verified_at = Carbon::now();
+                $opsJobItem->undo_verified_by = auth()->id();
+                $opsJobItem->save();
+                break;
+            case OpsJob::STATUS_FLAGGED:
+                $opsJobItem->status = OpsJob::STATUS_DELIVERED;
+                $opsJobItem->flagged_at = null;
+                $opsJobItem->flagged_by = null;
+                $opsJobItem->undo_flagged_at = Carbon::now();
+                $opsJobItem->undo_flagged_by = auth()->id();
+                $opsJobItem->save();
+                break;
+        }
+
+        return redirect()->back();
+    }
+
     public function updateItem(Request $request, $id)
     {
         $opsJobItem = OpsJobItem::findOrFail($id);
@@ -1056,6 +1106,8 @@ class OpsJobController extends Controller
                     'status' => OpsJob::STATUS_FLAGGED,
                     'flagged_by' => auth()->id(),
                     'flagged_at' => Carbon::now(),
+                    'undo_flagged_at' => null,
+                    'undo_flagged_by' => null,
                 ]);
                 break;
             case 1:
@@ -1063,6 +1115,8 @@ class OpsJobController extends Controller
                     'status' => OpsJob::STATUS_VERIFIED,
                     'verified_by' => auth()->id(),
                     'verified_at' => Carbon::now(),
+                    'undo_verified_at' => null,
+                    'undo_verified_by' => null,
                 ]);
                 break;
         }

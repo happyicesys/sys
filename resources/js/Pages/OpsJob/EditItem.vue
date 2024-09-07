@@ -80,6 +80,21 @@
                   </div>
                 </dd>
               </div>
+              <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status == 1  && opsJobItem.undoPickedBy">
+                <dt class="text-sm font-medium leading-6 text-gray-900">
+                  Undo Picked By
+                </dt>
+                <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex space-x-2">
+                    <span>
+                      {{ opsJobItem.undoPickedBy.name }}
+                    </span>
+                    <span>
+                      ({{ opsJobItem.undo_picked_at }})
+                    </span>
+                  </div>
+                </dd>
+              </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status >= 3 && opsJobItem.completedBy">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
                   Stock In By
@@ -95,6 +110,21 @@
                   </div>
                 </dd>
               </div>
+              <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status == 2 && opsJobItem.undoCompletedBy">
+                <dt class="text-sm font-medium leading-6 text-gray-900">
+                  Undo Stock In By
+                </dt>
+                <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex space-x-2">
+                    <span>
+                      {{ opsJobItem.undoCompletedBy.name }}
+                    </span>
+                    <span>
+                      ({{ opsJobItem.undo_completed_at }})
+                    </span>
+                  </div>
+                </dd>
+              </div>
               <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status == 4 && opsJobItem.verifiedBy">
                 <dt class="text-sm font-medium leading-6 text-gray-900">
                   Verified By
@@ -106,6 +136,51 @@
                     </span>
                     <span>
                       ({{ opsJobItem.verified_at }})
+                    </span>
+                  </div>
+                </dd>
+              </div>
+              <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status == 3 && opsJobItem.undoVerifiedBy">
+                <dt class="text-sm font-medium leading-6 text-gray-900">
+                  Undo Verified By
+                </dt>
+                <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex space-x-2">
+                    <span>
+                      {{ opsJobItem.undoVerifiedBy.name }}
+                    </span>
+                    <span>
+                      ({{ opsJobItem.undo_verified_at }})
+                    </span>
+                  </div>
+                </dd>
+              </div>
+              <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status == 98 && opsJobItem.flaggedBy">
+                <dt class="text-sm font-medium leading-6 text-gray-900">
+                  Flagged By
+                </dt>
+                <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex space-x-2">
+                    <span>
+                      {{ opsJobItem.flaggedBy.name }}
+                    </span>
+                    <span>
+                      ({{ opsJobItem.flagged_at }})
+                    </span>
+                  </div>
+                </dd>
+              </div>
+              <div class="px-4 py-2 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0" v-if="opsJobItem.status == 3 && opsJobItem.undoFlaggedBy">
+                <dt class="text-sm font-medium leading-6 text-gray-900">
+                  Undo Flagged By
+                </dt>
+                <dd class="mt-1 text-sm leading-6 text-gray-700 sm:col-span-2 sm:mt-0">
+                  <div class="flex space-x-2">
+                    <span>
+                      {{ opsJobItem.undoFlaggedBy.name }}
+                    </span>
+                    <span>
+                      ({{ opsJobItem.undo_flagged_at }})
                     </span>
                   </div>
                 </dd>
@@ -863,13 +938,65 @@
                   </span>
                 </span>
               </Button>
+              <Button
+                  type="button"
+                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
+                  @click="onUndoStatusClicked(opsJobItem.id)"
+                  v-if="opsJobItem.status == 3 && permissions.includes('admin-access operations')"
+              >
+                <span class="flex space-x-1 items-center">
+                  <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
+                  <span>
+                    Undo Stock In
+                  </span>
+                </span>
+              </Button>
+              <Button
+                  type="button"
+                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
+                  @click="onUndoStatusClicked(opsJobItem.id)"
+                  v-if="opsJobItem.status == 2 && permissions.includes('admin-access operations')"
+              >
+                <span class="flex space-x-1 items-center">
+                  <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
+                  <span>
+                    Undo Picked
+                  </span>
+                </span>
+              </Button>
+              <Button
+                  type="button"
+                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
+                  @click="onUndoStatusClicked(opsJobItem.id)"
+                  v-if="opsJobItem.status == 4 && permissions.includes('admin-access operations')"
+              >
+                <span class="flex space-x-1 items-center">
+                  <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
+                  <span>
+                    Undo Verified
+                  </span>
+                </span>
+              </Button>
+              <Button
+                  type="button"
+                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
+                  @click="onUndoStatusClicked(opsJobItem.id)"
+                  v-if="opsJobItem.status == 98 && permissions.includes('admin-access operations')"
+              >
+                <span class="flex space-x-1 items-center">
+                  <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
+                  <span>
+                    Undo Flagged
+                  </span>
+                </span>
+              </Button>
             </span>
             <span>
               <Button
                   type="button"
                   class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
                   @click="onConfirmClicked()"
-                  v-if="opsJobItem.status < 2 && opsJobItem.status < 3"
+                  v-if="opsJobItem.status == 1"
               >
                 <span class="flex space-x-1 items-center">
                   <ClipboardDocumentCheckIcon class="w-4 h-4"></ClipboardDocumentCheckIcon>
@@ -882,7 +1009,7 @@
                   type="button"
                   class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-green-400 hover:bg-green-500 text-gray-800 w-full md:w-fit"
                   @click="onConfirmClicked()"
-                  v-if="opsJobItem.status == 2 && opsJobItem.status < 3"
+                  v-if="opsJobItem.status == 2"
               >
               <span class="flex space-x-1 items-center">
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
@@ -896,7 +1023,7 @@
                   type="button"
                   class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-green-500 hover:bg-green-600 text-white w-full md:w-fit"
                   @click="onVerifyClicked(1)"
-                  v-if="opsJobItem.status >= 3 && opsJobItem.status != 4"
+                  v-if="opsJobItem.status >= 3 && opsJobItem.status != 4 && permissions.includes('admin-access operations')"
               >
                 <span class="flex space-x-1 items-center">
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
@@ -909,7 +1036,7 @@
                   type="button"
                   class=" px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-red-500 hover:bg-red-700 text-white w-full md:w-fit"
                   @click="onVerifyClicked(0)"
-                  v-if="opsJobItem.status >= 3 && opsJobItem.status != 98"
+                  v-if="opsJobItem.status >= 3 && opsJobItem.status != 98 && permissions.includes('admin-access operations')"
               >
                 <span class="flex space-x-1 items-center">
                   <FlagIcon class="w-4 h-4"></FlagIcon>
@@ -952,6 +1079,7 @@ import {ArrowUturnLeftIcon, ArrowRightEndOnRectangleIcon, CheckCircleIcon, Clipb
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { ArrowPathRoundedSquareIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
   opsJobItem: Object,
@@ -1215,6 +1343,30 @@ function onStatusClicked(nextStatus) {
   router.post('/ops-jobs/items/' + opsJobItem.value.id + '/status', {
     ...form.value,
     nextStatus: nextStatus,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success("Successfully Updated", {
+        timeout: 3000
+      });
+      router.reload({
+        only: ['opsJobItem'],
+        replace: true,
+        preserveState: true,
+        onSuccess: page => {
+          loadingData()
+        }
+      })
+    }
+  })
+}
+
+function onUndoStatusClicked(opsJobItemID) {
+  const approval = confirm('Are you sure to undo this status?');
+  if (!approval) {
+      return;
+  }
+  router.post('/ops-jobs/items/' + opsJobItemID + '/undo-status', {
   }, {
     preserveScroll: true,
     onSuccess: () => {
