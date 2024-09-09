@@ -404,6 +404,15 @@
                                   {{ opsJobItem.customer.deliveryAddress.postcode }}
                                 </span>
                               </span>
+                              <!-- <span>
+                                <Button
+                                type="button" class="bg-sky-300 hover:bg-sky-400 px-3 py-2 text-xs text-sky-800 flex space-x-1 w-fit"
+                                @click="onMapMarkerClicked(opsJobItem.customer.id)"
+                                v-if="opsJobItem.customer && opsJobItem.customer.deliveryAddress && opsJobItem.customer.deliveryAddress.latitude && opsJobItem.customer.deliveryAddress.longitude"
+                                >
+                                  <MapPinIcon class="h-4 w-4" aria-hidden="true"/>
+                                </Button>
+                              </span> -->
                             </div>
                           </td>
                           <td class="whitespace-nowrap py-4 px-1 text-sm text-center">
@@ -535,6 +544,15 @@
   >
   </ChangeDriver>
 
+  <MapMarker
+    v-if="showMapMarkerModal"
+    :customer="customerModel"
+    :api-key="mapApiKey"
+    :showModal="showMapMarkerModal"
+    @modalClose="onMapMarkerModalClose"
+  >
+  </MapMarker>
+
   <PickList
 		v-if="showPickListModal"
 		:pickLists="pickLists"
@@ -552,18 +570,20 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Channel from '@/Pages/OpsJob/Channel.vue';
 import ChangeDriver from '@/Pages/OpsJob/ChangeDriver.vue';
+import MapMarker from '@/Components/MapMarker.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import {ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, PaperClipIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import {ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, MapPinIcon, PaperClipIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
   cmsBaseUrl: String,
+  mapApiKey: String,
   opsJob: Object,
   unbindedVendOptions: [Array, Object],
   userOptions: [Array, Object],
@@ -585,6 +605,7 @@ const form = ref(
   useForm(getDefaultForm())
 )
 
+const customerModel = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
 const opsJob = ref([])
 const opsJobItemModel = ref([])
@@ -593,6 +614,7 @@ const pickLists = ref([])
 const pickListType = ref(1)
 const showChannelModal = ref(false)
 const showChangeDriverModal = ref(false)
+const showMapMarkerModal = ref(false)
 const showPickListModal = ref(false)
 const toast = useToast()
 const unbindedVendOptions = ref([])
@@ -757,6 +779,27 @@ function onGenerateDeliveredListClicked() {
     }).finally(() => {
         showPickListModal.value = true
     })
+}
+
+function onMapMarkerClicked(customerID) {
+  console.log(customerID)
+  axios({
+    method: 'GET',
+    url: '/customers/' + customerID + '/address',
+  })
+    .then((response) => {
+      console.log('API Response:', response.data);  // Add this line
+      customerModel.value = response.data;
+      showMapMarkerModal.value = true;
+    })
+    .catch((error) => {
+      console.error('API Error:', error);  // Add this line to log errors
+    });
+}
+
+
+function onMapMarkerModalClose() {
+  showMapMarkerModal.value = false
 }
 
 function onPickListModalClose() {

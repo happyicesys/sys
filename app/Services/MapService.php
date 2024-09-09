@@ -8,6 +8,14 @@ use Carbon\Carbon;
 
 class MapService
 {
+    public function getMapApiKeyByUser($user)
+    {
+        // $apiKey = $user->operator?->map_api_key;
+        $apiKey = env('GOOGLE_MAPS_API_KEY');
+
+        return $apiKey;
+    }
+
     public function getMapService(string $name): Map
     {
         $map = Map::where('name', $name)->first();

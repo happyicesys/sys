@@ -25,19 +25,13 @@ class DeliveryPlatformOrderItem extends Model
         'product_json' => 'json'
     ];
 
-    protected $with = ['deliveryProductMappingItem.deliveryProductMapping.operator.country'];
+    // protected $with = ['deliveryProductMappingItem.deliveryProductMapping.operator.country'];
 
     // getter and setter
     protected function amount(): Attribute
     {
-        // return Attribute::make(
-        //     get: fn (string $value) => $value/ ($this->deliveryProductMappingItem and $this->deliveryProductMappingItem->deliveryProductMapping and $this->deliveryProductMappingItem->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMappingItem->deliveryProductMapping->operator->country->currency_exponent) : 100),
-        // );
         return Attribute::make(
-            get: fn (string $value) => $value/ (
-                $this->deliveryProductMappingItem && $this->deliveryProductMappingItem->deliveryProductMapping &&
-                $this->deliveryProductMappingItem->deliveryProductMapping->operator ?
-                pow(10, $this->deliveryProductMappingItem->deliveryProductMapping->operator->country->currency_exponent) : 100) ,
+            get: fn (string $value) => $value/ 100 ,
         );
     }
 

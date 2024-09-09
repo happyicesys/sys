@@ -12,7 +12,7 @@ class DeliveryProductMapping extends Model
 
     protected static function booted()
     {
-        static::addGlobalScope(new OperatorVendFilterScope);
+        // static::addGlobalScope(new OperatorVendFilterScope);
     }
 
 
@@ -34,7 +34,7 @@ class DeliveryProductMapping extends Model
         'delivery_product_mapping_items_json' => 'json',
     ];
 
-    protected $with = ['operator.country'];
+    // protected $with = ['operator.country'];
 
     // relationships
     public function deliveryPlatformOperator()

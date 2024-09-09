@@ -311,6 +311,19 @@ class CustomerController extends Controller
         ]);
     }
 
+    public function getAddress($customerID)
+    {
+        $customer = Customer::query()
+            ->with([
+                'contact',
+                'vend:id,code,customer_id',
+                'deliveryAddress'
+                ])
+            ->find($customerID);
+
+        return CustomerResource::make($customer);
+    }
+
     // retrieve all or single vendcodes from sys.happyice
     public function getCustomersByPersonID($personID = null)
     {

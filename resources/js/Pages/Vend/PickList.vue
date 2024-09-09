@@ -96,6 +96,25 @@
                         {{ item.topup_qty }}
                       </td>
                     </tr>
+                    <tr>
+                      <td colspan="3" class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-800">
+                        <span >
+                          Total
+                        </span>
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-blue-600">
+                        <span >
+                          {{ getTotalTopupQty() }}
+                        </span>
+                      </td>
+                    </tr>
+                    <tr v-if="items.length == 0">
+                      <td colspan="5" class="text-center text-gray-400 py-4">
+                        <span >
+                          No items found
+                        </span>
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -137,5 +156,9 @@ const emit = defineEmits(['modalClose'])
 
 function formatDatetime(value) {
   return moment(value).format('YYMMDD hh:mm A');
+}
+
+function getTotalTopupQty() {
+  return items.value.reduce((acc, item) => acc + item.topup_qty, 0)
 }
 </script>

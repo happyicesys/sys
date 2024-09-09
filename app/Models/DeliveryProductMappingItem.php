@@ -28,14 +28,14 @@ class DeliveryProductMappingItem extends Model
         'sub_category_json' => 'json',
     ];
 
-    protected $with = ['deliveryProductMapping.operator.country'];
+    // protected $with = ['deliveryProductMapping.operator.country'];
 
     // getter and setter
     protected function amount(): Attribute
     {
         return Attribute::make(
-            get: fn (string $value) => $value/ ($this->deliveryProductMapping && $this->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMapping->operator->country->currency_exponent) : 100) ,
-            set: fn (string $value) => $value * ($this->deliveryProductMapping && $this->deliveryProductMapping->operator ? pow(10, $this->deliveryProductMapping->operator->country->currency_exponent) : 100),
+            get: fn (string $value) => $value/ 100 ,
+            set: fn (string $value) => $value * 100,
         );
     }
 

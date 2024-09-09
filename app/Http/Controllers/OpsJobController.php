@@ -20,6 +20,7 @@ use App\Models\VendChannelRecord;
 use App\Models\VendData;
 use App\Models\VendTransaction;
 use App\Traits\GetUserTimezone;
+use App\Services\MapService;
 use App\Services\OpsJobService;
 use App\Services\RunningNumberService;
 use Carbon\Carbon;
@@ -32,9 +33,14 @@ class OpsJobController extends Controller
 {
     use GetUserTimezone;
 
+    protected $mapService;
+    protected $opsJobService;
+    protected $runningNumberService;
+
     public function __construct()
     {
         $this->middleware('auth');
+        $this->mapService = new MapService();
         $this->opsJobService = new OpsJobService();
         $this->runningNumberService = new RunningNumberService();
     }
@@ -714,6 +720,7 @@ class OpsJobController extends Controller
 
         return Inertia::render('OpsJob/Edit', [
             'cmsBaseUrl' => env('CMS_URL'),
+            'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'opsJob' => new OpsJobResource($opsJob),
             'unbindedVendOptions' => VendResource::collection($unbindedVendOptions),
             'userOptions' => UserResource::collection(

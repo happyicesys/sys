@@ -128,8 +128,7 @@ class DeliveryPlatformOrderController extends Controller
         ]);
 
         $query = $this->getDeliveryPlatformOrderQuery($request);
-        $query = $query->filterIndex($request)
-            ->when($request->sortKey, function($query, $search) use ($request) {
+        $query = $query->when($request->sortKey, function($query, $search) use ($request) {
                 $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
             })
             ->get();
@@ -176,7 +175,7 @@ class DeliveryPlatformOrderController extends Controller
 
     private function getDeliveryPlatformOrderQuery($request)
     {
-        return DeliveryPlatformOrder::query()
+        $query = DeliveryPlatformOrder::query()
         ->with([
             'deliveryPlatform:id,name,country_id,slug',
             'deliveryPlatformOrderItems',
@@ -195,6 +194,8 @@ class DeliveryPlatformOrderController extends Controller
         ->when($request->sortKey, function($query, $search) use ($request) {
             $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
         });
+// dd($query->get()->toArray());
+        return $query;
     }
 
     private function yieldOneByOne($items) {

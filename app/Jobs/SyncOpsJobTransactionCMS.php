@@ -56,6 +56,10 @@ class SyncOpsJobTransactionCMS implements ShouldQueue
             if($opsJobItem->opsJobItemChannels) {
                 foreach($opsJobItem->opsJobItemChannels as $opsJobItemChannel) {
                     if($opsJobItemChannel->actual_qty > 0) {
+                        if(!$opsJobItemChannel->vendChannel->product || !$opsJobItemChannel->vendChannel->product->code) {
+                            throw new \Exception('Product code is missing, please check bindings: ' . $opsJobItemChannel->vend_channel_code);
+                        }
+
                         $data['customers'][$opsJobItem->customer->person_id]['channels'][$opsJobItemChannel->vend_channel_code] = [
                             'amount' => $opsJobItemChannel->actual_qty * $opsJobItemChannel->vendChannel->amount,
                             'unit_price' => $opsJobItemChannel->vendChannel->amount,
