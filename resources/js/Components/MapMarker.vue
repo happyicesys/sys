@@ -9,7 +9,8 @@
 
       <template #default>
         <div>
-          <!-- <div class="flex justify-end p-2">
+          <div class="flex justify-end p-2" v-if="props.customers.length > 1">
+            <!-- Button to show directions -->
             <Button
               type="button"
               class="bg-sky-300 hover:bg-sky-400 px-3 py-2 text-xs text-sky-800 flex space-x-1 w-fit"
@@ -18,7 +19,7 @@
               <MapPinIcon class="h-4 w-4" aria-hidden="true" />
               <span>Show Directions</span>
             </Button>
-          </div> -->
+          </div>
           <div id="map" style="width: 100%; height: 500px;"></div>
         </div>
       </template>

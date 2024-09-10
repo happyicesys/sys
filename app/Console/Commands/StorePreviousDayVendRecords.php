@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Vend;
+use App\Jobs\RemoveEmptyOpsJob;
 use App\Jobs\RemoveOddTransactions;
 use App\Jobs\StoreVendsRecord;
 use Carbon\Carbon;
@@ -32,6 +33,7 @@ class StorePreviousDayVendRecords extends Command
         // store yesterday sales into vend records table
         $yesterday = Carbon::yesterday();
         RemoveOddTransactions::dispatch($yesterday->toDateString(), $yesterday->toDateString());
+        RemoveEmptyOpsJob::dispatch($yesterday->toDateString());
         StoreVendsRecord::dispatch($yesterday->toDateString(), $yesterday->toDateString(), true);
     }
 }
