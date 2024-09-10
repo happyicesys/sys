@@ -311,17 +311,24 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function getAddress($customerID)
+    public function getMap(Request $request)
     {
-        $customer = Customer::query()
+        $input = collect($request->all());
+
+        $customers = Customer::query()
             ->with([
                 'contact',
                 'vend:id,code,customer_id',
                 'deliveryAddress'
-                ])
-            ->find($customerID);
+            ])
+            ->whereIn('id', $input->pluck('customer_id'))
+            ->get()
+            ->sortBy(function ($customer) use ($input) {
+                return $input->firstWhere('customer_id', $customer->id)['sequence'];
+            })->values(); // Resetting the keys of the collection
 
-        return CustomerResource::make($customer);
+
+        return CustomerResource::collection($customers);
     }
 
     // retrieve all or single vendcodes from sys.happyice

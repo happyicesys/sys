@@ -404,15 +404,15 @@
                                   {{ opsJobItem.customer.deliveryAddress.postcode }}
                                 </span>
                               </span>
-                              <!-- <span>
+                              <span>
                                 <Button
                                 type="button" class="bg-sky-300 hover:bg-sky-400 px-3 py-2 text-xs text-sky-800 flex space-x-1 w-fit"
-                                @click="onMapMarkerClicked(opsJobItem.customer.id)"
+                                @click="onMapMarkerClicked(opsJobItem)"
                                 v-if="opsJobItem.customer && opsJobItem.customer.deliveryAddress && opsJobItem.customer.deliveryAddress.latitude && opsJobItem.customer.deliveryAddress.longitude"
                                 >
                                   <MapPinIcon class="h-4 w-4" aria-hidden="true"/>
                                 </Button>
-                              </span> -->
+                              </span>
                             </div>
                           </td>
                           <td class="whitespace-nowrap py-4 px-1 text-sm text-center">
@@ -494,6 +494,15 @@
                       </span>
                     </span>
                   </Button>
+                  <!-- <Button
+                    type="button"
+                    class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 hover:cursor-pointer"
+                    @click="onMapAllMarkerClicked"
+                    v-if="opsJob.opsJobItems && opsJob.opsJobItems.some(item => item.customer && item.customer.deliveryAddress && item.customer.deliveryAddress.latitude && item.customer.deliveryAddress.longitude)"
+                  >
+                    <MapPinIcon class="h-4 w-4" aria-hidden="true" />
+                    <span>Show All Markers</span>
+                  </Button> -->
                 </div>
                 <div class="flex space-x-1 md:justify-end">
                   <Link :href="'/ops-jobs'">
@@ -546,7 +555,7 @@
 
   <MapMarker
     v-if="showMapMarkerModal"
-    :customer="customerModel"
+    :customers="customerModel"
     :api-key="mapApiKey"
     :showModal="showMapMarkerModal"
     @modalClose="onMapMarkerModalClose"
@@ -781,21 +790,56 @@ function onGenerateDeliveredListClicked() {
     })
 }
 
-function onMapMarkerClicked(customerID) {
-  console.log(customerID)
+function onMapMarkerClicked(opsJobItem) {
   axios({
-    method: 'GET',
-    url: '/customers/' + customerID + '/address',
+    method: 'POST',
+    url: '/customers/map',
+    data: [{
+      ops_job_item_id: opsJobItem.id,
+      sequence: opsJobItem.sequence,
+      customer_id: opsJobItem.customer.id,
+    }],
   })
-    .then((response) => {
-      console.log('API Response:', response.data);  // Add this line
-      customerModel.value = response.data;
-      showMapMarkerModal.value = true;
-    })
-    .catch((error) => {
-      console.error('API Error:', error);  // Add this line to log errors
-    });
+  .then((response) => {
+    customerModel.value = [{
+      ops_job_item_id: opsJobItem.id,
+      sequence: opsJobItem.sequence,
+      ...response.data.data[0],
+    }];
+    showMapMarkerModal.value = true; // Open the modal to show the map
+  })
+  .catch((error) => {
+    console.error('API Error:', error);  // Log errors to debug
+  });
 }
+
+function onMapAllMarkerClicked() {
+  // Extract all the opsJobItems' customer information and send the request
+  const opsJobItems = opsJob.value.opsJobItems.map((item) => ({
+    ops_job_item_id: item.id,
+    sequence: item.sequence,
+    customer_id: item.customer.id,
+  }));
+
+  axios({
+    method: 'POST',
+    url: '/customers/map',
+    data: opsJobItems,  // Send all opsJobItems for mapping
+  })
+  .then((response) => {
+    customerModel.value = response.data.data.map((customerData, index) => ({
+      ...customerData,
+      sequence: opsJobItems[index].sequence,  // Maintain the correct sequence for each customer
+      ops_job_item_id: opsJobItems[index].ops_job_item_id,  // Add ops_job_item_id
+    }));
+    showMapMarkerModal.value = true;  // Open the map modal with all markers
+  })
+  .catch((error) => {
+    console.error('API Error:', error);  // Handle the API error
+  });
+}
+
+
 
 
 function onMapMarkerModalClose() {

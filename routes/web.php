@@ -139,7 +139,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/{id}/selling-prices/type/{type}', [CustomerController::class, 'getProductSellingPrices']);
         Route::post('/sync-cms-invoice-items', [CustomerController::class, 'syncCmsInvoiceItems']);
         Route::post('/{id}/disconnect-cms', [CustomerController::class, 'disconnectCms']);
-        Route::get('/{id}/address', [CustomerController::class, 'getAddress']);
+        Route::post('/map', [CustomerController::class, 'getMap']);
     });
 
     Route::prefix('dashboard')->group(function() {
