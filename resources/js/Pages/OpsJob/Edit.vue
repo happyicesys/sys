@@ -501,7 +501,7 @@
                     v-if="opsJob.opsJobItems && opsJob.opsJobItems.some(item => item.customer && item.customer.deliveryAddress && item.customer.deliveryAddress.latitude && item.customer.deliveryAddress.longitude)"
                   >
                     <MapPinIcon class="h-4 w-4" aria-hidden="true" />
-                    <span>Show All Markers</span>
+                    <span>Show Map Markers</span>
                   </Button>
                 </div>
                 <div class="flex space-x-1 md:justify-end">
@@ -558,6 +558,7 @@
     :customers="customerModel"
     :api-key="mapApiKey"
     :showModal="showMapMarkerModal"
+    isShowDirectionButton=true
     @modalClose="onMapMarkerModalClose"
   >
   </MapMarker>

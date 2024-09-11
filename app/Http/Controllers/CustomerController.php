@@ -32,6 +32,7 @@ use App\Models\Vend;
 use App\Models\VendModel;
 use App\Models\Zone;
 use App\Services\HistoryService;
+use App\Services\MapService;
 use App\Traits\HasFilter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -43,12 +44,12 @@ class CustomerController extends Controller
     use HasFilter;
 
     protected $historyService;
+    protected $mapService;
 
-    public function __construct(
-        HistoryService $historyService,
-    )
+    public function __construct(HistoryService $historyService)
     {
         $this->historyService = $historyService;
+        $this->mapService = new MapService();
     }
 
     public function index(Request $request)
@@ -72,7 +73,6 @@ class CustomerController extends Controller
 
         $customers = Customer::with([
                 'attachments',
-                'billingAddress',
                 'category',
                 'category.categoryGroup',
                 'contact',
@@ -142,6 +142,7 @@ class CustomerController extends Controller
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('name')->get()
             ),
+            'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),

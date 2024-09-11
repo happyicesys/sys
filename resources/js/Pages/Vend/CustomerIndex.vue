@@ -417,6 +417,14 @@
 										</span>
 								</div>
 							</Button>
+							<Button
+                class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                @click.prevent="onMapAllMarkerClicked"
+                v-if="vends.data && vends.data.some(vend => vend.deliveryAddress && vend.deliveryAddress.latitude && vend.deliveryAddress.longitude)"
+              >
+                <MapPinIcon class="h-4 w-4" aria-hidden="true" />
+                <span>Show Map Markers</span>
+              </Button>
 						</div>
 					</div>
 					<div class="flex flex-col space-y-1">
@@ -1664,6 +1672,14 @@
 	:vends="vends.data.filter(vend => vend.is_selected)"
 >
 </AssignJob>
+<MapMarker
+	v-if="showMapMarkerModal"
+	:customers="customerModel"
+	:api-key="mapApiKey"
+	:showModal="showMapMarkerModal"
+	@modalClose="onMapMarkerModalClose"
+>
+</MapMarker>
 
 	</BreezeAuthenticatedLayout>
 </template>
@@ -1710,13 +1726,14 @@
     import Create from '@/Pages/Vend/Create.vue';
     import DatePicker from '@/Components/DatePicker.vue';
     import Form from '@/Pages/Vend/Form.vue';
+		import MapMarker from '@/Components/MapMarker.vue';
     import Paginator from '@/Components/Paginator.vue';
     import PickList from '@/Pages/Vend/PickList.vue';
 		import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
     import SearchInput from '@/Components/SearchInput.vue';
 		import Toast from '@/Components/Toast.vue';
     import MultiSelect from '@/Components/MultiSelect.vue';
-    import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon} from '@heroicons/vue/20/solid';
+    import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon} from '@heroicons/vue/20/solid';
     import TableHead from '@/Components/TableHead.vue';
     import TableData from '@/Components/TableData.vue';
     import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -1728,6 +1745,7 @@
     import axios from 'axios';
 
     const props = defineProps({
+
         cmsEndpoint: String,
         constTempError: Number,
 				dayOptions: [Array, Object],
@@ -1736,6 +1754,7 @@
 				frequencyPerWeekOptions: [Array, Object],
         indexType: String,
         locationTypeOptions: Object,
+				mapApiKey: String,
         nextDeliveryDriverOptions: [Array, Object],
         operatorOptions: Object,
         productOptions: Object,
@@ -1799,6 +1818,7 @@
     const baseUrl = ref(props.indexType === 'customers' ? '/vends/customers' : '/vends')
     const booleanOptions = ref([])
     const booleanStrictOptions = ref([])
+		const customerModel = ref([])
     const deviceTypeOptions = ref([])
 		const dayOptions = ref([])
     const doorOptions = ref([])
@@ -1819,6 +1839,7 @@
     const showChannelOverviewModal = ref(false)
     const showCreateModal = ref(false)
     const showEditModal = ref(false)
+		const showMapMarkerModal = ref(false)
     const showPickListModal = ref(false)
 		const showProductAvailabilityModal = ref(false)
     const statusOptions = ref([])
@@ -2042,6 +2063,19 @@ function getVendsField() {
 
 	function onAssignJobModalClose() {
 		showAssignJobModal.value = false
+	}
+
+	function onMapAllMarkerClicked() {
+		// Extract all the opsJobItems' customer information and send the request
+		customerModel.value = props.vends.data.map((customer, index) => ({
+			sequence: index + 1,
+			...customer
+		}));
+		showMapMarkerModal.value = true;
+	}
+
+	function onMapMarkerModalClose() {
+		showMapMarkerModal.value = false
 	}
 
 	function onJobAssigned() {

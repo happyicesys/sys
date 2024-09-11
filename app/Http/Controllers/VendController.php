@@ -55,6 +55,7 @@ use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
 use App\Models\Zone;
 use App\Services\HistoryService;
+use App\Services\MapService;
 use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use App\Services\RunningNumberService;
@@ -81,6 +82,7 @@ class VendController extends Controller
     use GetUserTimezone, HasFilter;
 
     protected $historyService;
+    protected $mapService;
     protected $mqttService;
     protected $paymentGatewayService;
     protected $runningNumberService;
@@ -101,6 +103,7 @@ class VendController extends Controller
         $this->middleware(['permission:read vend-machines'])->only('index');
         $this->middleware(['permission:read transactions'])->only('transactionIndex');
         $this->historyService = $historyService;
+        $this->mapService = new MapService();
         $this->mqttService = $mqttService;
         $this->paymentGatewayService = $paymentGatewayService;
         $this->runningNumberService = $runningNumberService;
@@ -309,6 +312,7 @@ class VendController extends Controller
 
         $vends = Customer::query()
             ->with([
+                'deliveryAddress',
                 'nextInvoiceDriver:id,name,username',
                 'vend.lastOpsJobItem:id,ops_job_id,status,vend_id',
                 'vend.lastOpsJobItem.opsJob:id,code,date,delivered_by',
@@ -493,6 +497,7 @@ class VendController extends Controller
                 'customers.is_active AS is_active',
                 'customers.is_active AS customer_is_active',
                 'customers.location_type_id',
+                'customers.name',
                 'customers.name AS customer_name',
                 'customers.operator_id',
                 'customers.person_json',
@@ -528,6 +533,7 @@ class VendController extends Controller
             ->withQueryString();
 
         $totals = [
+            'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'thirtyDays' => collect((clone $vends)
                             ->items())
                             ->sum(function($vend) {
@@ -556,6 +562,7 @@ class VendController extends Controller
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
+            'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'nextDeliveryDriverOptions' => Customer::query()
                 ->where('cms_invoice_history->next_delivery_driver', '!=', null)
                 ->select('cms_invoice_history->next_delivery_driver AS name')

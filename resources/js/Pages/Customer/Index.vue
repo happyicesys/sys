@@ -241,6 +241,14 @@
                 <span>Search</span>
               </Button>
               <Button
+                class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                @click.prevent="onMapAllMarkerClicked"
+                v-if="customers.data && customers.data.some(customer => customer.deliveryAddress && customer.deliveryAddress.latitude && customer.deliveryAddress.longitude)"
+              >
+                <MapPinIcon class="h-4 w-4" aria-hidden="true" />
+                <span>Show Map Markers</span>
+              </Button>
+              <Button
                 class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 @click="resetFilters"
               >
@@ -448,9 +456,23 @@
                     :totalLength="customers.length"
                     inputClass="text-left"
                   >
-                    {{ customer.deliveryAddress
-                      ? customer.deliveryAddress.full_address
-                      : null }}
+                    <div class="flex flex-col space-y-1">
+                      <span>
+                        {{ customer.deliveryAddress
+                          ? customer.deliveryAddress.full_address
+                          : null }}
+                      </span>
+                      <span>
+                        <Button
+                        type="button" class="bg-sky-300 hover:bg-sky-400 px-2 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
+                        @click="onMapMarkerClicked(customer)"
+                        v-if="customer.deliveryAddress && customer.deliveryAddress.latitude && customer.deliveryAddress.longitude"
+                        >
+                          <MapPinIcon class="h-4 w-4" aria-hidden="true"/>
+                        </Button>
+                      </span>
+                    </div>
+
                   </TableData>
                   <TableData
                     :currentIndex="customerIndex"
@@ -588,6 +610,14 @@
       @modalClose="onModalClose"
     >
     </Form>
+    <MapMarker
+      v-if="showMapMarkerModal"
+      :customers="customerModel"
+      :api-key="mapApiKey"
+      :showModal="showMapMarkerModal"
+      @modalClose="onMapMarkerModalClose"
+    >
+    </MapMarker>
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -595,10 +625,11 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import Form from '@/Pages/Customer/Form.vue';
+import MapMarker from '@/Components/MapMarker.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, PlusIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -612,6 +643,7 @@ const props = defineProps({
   days: [Array, Object],
   frequencyPerWeekOptions: [Array, Object],
   locationTypeOptions: [Array, Object],
+  mapApiKey: String,
   operatorOptions: Object,
   priceTemplates: Object,
   profiles: Object,
@@ -644,6 +676,7 @@ const authOperator = usePage().props.auth.operator;
 const showModal = ref(false);
 const booleanOptions = ref([]);
 const customer = ref();
+const customerModel = ref([]);
 const categoryOptions = ref([]);
 const frequencyPerWeekOptions = ref([]);
 const locationTypeOptions = ref([]);
@@ -651,6 +684,7 @@ const operatorOptions = ref([]);
 const permissions = usePage().props.auth.permissions;
 const priceTemplateOptions = ref([]);
 const profileOptions = ref([]);
+const showMapMarkerModal = ref(false);
 const sellingPriceTypeOptions = ref([]);
 const statusOptions = ref([]);
 const tagOptions = ref([]);
@@ -738,6 +772,7 @@ onMounted(() => {
   filters.value.vend_model_id = vendModelOptions.value[0];
 });
 
+
 function onCreateClicked() {
   type.value = 'create';
   customer.value = null;
@@ -748,6 +783,27 @@ function onEditClicked(customerValue) {
   type.value = 'update';
   customer.value = customerValue;
   showModal.value = true;
+}
+
+function onMapMarkerClicked(customer) {
+  customerModel.value = [{
+    sequence: props.customers.data.findIndex((data) => data.id === customer.id) + 1,
+    ...customer
+  }];
+  showMapMarkerModal.value = true;
+}
+
+function onMapAllMarkerClicked() {
+  // Extract all the opsJobItems' customer information and send the request
+  customerModel.value = props.customers.data.map((customer, index) => ({
+    sequence: index + 1,
+    ...customer,
+  }));
+  showMapMarkerModal.value = true;
+}
+
+function onMapMarkerModalClose() {
+  showMapMarkerModal.value = false
 }
 
 function onSearchFilterUpdated() {

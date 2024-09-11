@@ -15,6 +15,7 @@
               type="button"
               class="bg-sky-300 hover:bg-sky-400 px-3 py-2 text-xs text-sky-800 flex space-x-1 w-fit"
               @click="showDirections"
+              v-if="isShowDirectionButton"
             >
               <MapPinIcon class="h-4 w-4" aria-hidden="true" />
               <span>Show Directions</span>
@@ -31,12 +32,16 @@
 import { ref, onMounted } from 'vue';
 import Button from '@/Components/Button.vue';
 import Modal from '@/Components/Modal.vue';
-import {MapPinIcon } from '@heroicons/vue/20/solid';
+import { MapPinIcon } from '@heroicons/vue/20/solid';
 
 const props = defineProps({
   customers: Array,  // Array of customer objects
   apiKey: String,    // API key passed from the parent component or environment
   showModal: Boolean, // Modal visibility control
+  isShowDirectionButton: {
+    type: Boolean,
+    default: false,
+  }, // Function to show directions
 });
 
 const emit = defineEmits(['modalClose']);
@@ -57,24 +62,26 @@ const showDirections = () => {
   let firstMarker = true;
 
   props.customers.forEach((customer, index) => {
-    const lat = parseFloat(customer.deliveryAddress.latitude);
-    const lng = parseFloat(customer.deliveryAddress.longitude);
+    if(customer.deliveryAddress) {
+      const lat = parseFloat(customer.deliveryAddress.latitude);
+      const lng = parseFloat(customer.deliveryAddress.longitude);
 
-    if (!isNaN(lat) && !isNaN(lng)) {
-      const pos = { lat, lng };
-      const markerPosition = new google.maps.LatLng(lat, lng);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        const pos = { lat, lng };
+        const markerPosition = new google.maps.LatLng(lat, lng);
 
-      // Set origin, waypoints, and destination
-      if (firstMarker) {
-        request.origin = markerPosition;
-        firstMarker = false;
-      } else if (index === props.customers.length - 1) {
-        request.destination = markerPosition;
-      } else {
-        request.waypoints.push({
-          location: markerPosition,
-          stopover: true,
-        });
+        // Set origin, waypoints, and destination
+        if (firstMarker) {
+          request.origin = markerPosition;
+          firstMarker = false;
+        } else if (index === props.customers.length - 1) {
+          request.destination = markerPosition;
+        } else {
+          request.waypoints.push({
+            location: markerPosition,
+            stopover: true,
+          });
+        }
       }
     }
   });
@@ -126,13 +133,15 @@ onMounted(() => {
 
     // Validate and sum lat/lng for multiple customers
     props.customers.forEach(customer => {
-      const lat = parseFloat(customer.deliveryAddress.latitude);
-      const lng = parseFloat(customer.deliveryAddress.longitude);
+      if(customer.deliveryAddress) {
+        const lat = parseFloat(customer.deliveryAddress.latitude);
+        const lng = parseFloat(customer.deliveryAddress.longitude);
 
-      if (!isNaN(lat) && !isNaN(lng)) {
-        latSum += lat;
-        lngSum += lng;
-        validCoordsCount += 1;
+        if (!isNaN(lat) && !isNaN(lng)) {
+          latSum += lat;
+          lngSum += lng;
+          validCoordsCount += 1;
+        }
       }
     });
 
@@ -162,42 +171,44 @@ onMounted(() => {
 
     // Loop through the customers array and create markers
     props.customers.forEach((customer) => {
+      if(customer.deliveryAddress) {
       const lat = parseFloat(customer.deliveryAddress.latitude);
       const lng = parseFloat(customer.deliveryAddress.longitude);
 
-      // Only create marker if coordinates are valid
-      if (!isNaN(lat) && !isNaN(lng)) {
-        const pos = { lat, lng };
+        // Only create marker if coordinates are valid
+        if (!isNaN(lat) && !isNaN(lng)) {
+          const pos = { lat, lng };
 
-        const marker = new google.maps.Marker({
-          position: pos,
-          map: map,
-          label: {
-            text: String(customer.sequence),
-            color: "#ffffff",
-            fontSize: "14px",
-            fontWeight: "bold",
-          },
-        });
-
-        const googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${pos.lat},${pos.lng}`;
-
-        const infoWindow = new google.maps.InfoWindow({
-          content: `<div>
-              <span class="font-bold">${customer.vend.code}</span><br>
-              <span class="font-medium">${customer.name}</span><br>
-              <p>${customer.deliveryAddress.full_address ? customer.deliveryAddress.full_address : customer.deliveryAddress.postcode}</p>
-              <a href="${googleMapsLink}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>
-            </div>`,
-        });
-
-        marker.addListener('click', () => {
-          infoWindow.open({
-            anchor: marker,
-            map,
-            shouldFocus: false,
+          const marker = new google.maps.Marker({
+            position: pos,
+            map: map,
+            label: {
+              text: String(customer.sequence),
+              color: "#ffffff",
+              fontSize: "14px",
+              fontWeight: "bold",
+            },
           });
-        });
+
+          const googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${pos.lat},${pos.lng}`;
+
+          const infoWindow = new google.maps.InfoWindow({
+            content: `<div>
+                <span class="font-bold">${customer.vend.code}</span><br>
+                <span class="font-medium">${customer.name}</span><br>
+                <p>${customer.deliveryAddress.full_address ? customer.deliveryAddress.full_address : customer.deliveryAddress.postcode}</p>
+                <a href="${googleMapsLink}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>
+              </div>`,
+          });
+
+          marker.addListener('click', () => {
+            infoWindow.open({
+              anchor: marker,
+              map,
+              shouldFocus: false,
+            });
+          });
+        }
       }
     });
   }
