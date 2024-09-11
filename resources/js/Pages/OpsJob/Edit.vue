@@ -494,7 +494,7 @@
                       </span>
                     </span>
                   </Button>
-                  <!-- <Button
+                  <Button
                     type="button"
                     class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 hover:cursor-pointer"
                     @click="onMapAllMarkerClicked"
@@ -502,7 +502,7 @@
                   >
                     <MapPinIcon class="h-4 w-4" aria-hidden="true" />
                     <span>Show All Markers</span>
-                  </Button> -->
+                  </Button>
                 </div>
                 <div class="flex space-x-1 md:justify-end">
                   <Link :href="'/ops-jobs'">

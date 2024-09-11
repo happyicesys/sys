@@ -46,13 +46,13 @@ class SyncVendCustomerCms implements ShouldQueue
     {
         $response = Http::get($this->endPointUrl);
         $customerCollection = $response->collect();
-
         $className = get_class(new Customer());
         $baseCurrencyCountryId = null;
         $categoryId = null;
         $categoryGroupId = null;
         $profileId = null;
 
+        // dd($customerCollection);
         if($customerCollection and isset($customerCollection[0])) {
             $customerCollection = collect($customerCollection[0]);
                 if(isset($customerCollection['location_type'])) {
@@ -66,29 +66,6 @@ class SyncVendCustomerCms implements ShouldQueue
                     ]);
                     $locationTypeId = $locationType->id;
                 }
-
-                // if(isset($customerCollection['custcategory'])) {
-                //     $categoryData = $customerCollection['custcategory'];
-                //     if($categoryGroupData = $categoryData['custcategory_group']) {
-                //         $categoryGroup = CategoryGroup::updateOrCreate([
-                //             'name' => $categoryGroupData['name'],
-                //             'classname' => $className,
-                //         ], [
-                //             'desc' => isset($categoryGroupData['desc']) ?  $categoryGroupData['desc'] : null,
-                //         ]);
-                //         $categoryGroupId = $categoryGroup->id;
-                //     }
-
-                //     $category = Category::updateOrCreate([
-                //         'name' => $categoryData['name'],
-                //         'classname' => $className,
-                //     ], [
-                //         'desc' => $categoryData['desc'],
-                //         'category_group_id' => $categoryGroup ? $categoryGroup->id : null,
-                //         'remarks' => $categoryData['map_icon_file'],
-                //     ]);
-                //     $categoryId = $category->id;
-                // }
 
                 if(isset($customerCollection['profile'])) {
                     $profileData = $customerCollection['profile'];
@@ -184,10 +161,9 @@ class SyncVendCustomerCms implements ShouldQueue
                     'account_manager_json' => isset($customerCollection['account_manager']) ? $customerCollection['account_manager'] : null,
                     'first_transaction_id' => isset($customerCollection['first_transaction_id']) ? $customerCollection['first_transaction_id'] : null,
                     'name' => isset($customerCollection['company']) ? $customerCollection['company'] : null,
-                    'ops_note' => isset($customerCollection['ops_note']) ? $customerCollection['ops_note'] : null,
+                    'ops_note' => isset($customerCollection['operation_note']) ? $customerCollection['operation_note'] : null,
                     'profile_id' => $profileId,
                     'status_id' => Customer::STATUS_ACTIVE,
-                    // 'category_id' => $categoryId,
                     'location_type_id' => isset($locationTypeId) ? $locationTypeId : null,
                 ]);
                 // dd($customerCollection['delivery_country'], $customerCollection['del_postcode'], $customerCollection);
@@ -200,10 +176,26 @@ class SyncVendCustomerCms implements ShouldQueue
                         $customer->addresses()->updateOrCreate([
                             'type' => 2,
                         ], [
+                            'latitude' => isset($customerCollection['del_lat']) ? $customerCollection['del_lat'] : null,
+                            'longitude' => isset($customerCollection['del_lng']) ? $customerCollection['del_lng'] : null,
+                            'street_name' => $customerCollection['del_address'],
                             'postcode' => $deliveryPostcode,
                             'country_id' => $deliveryCountryCol->id,
                         ]);
                     }
+                }
+
+                if(isset($customerCollection['name']) and isset($customerCollection['contact'])) {
+                    $countryID = Country::where('name', $deliveryCountry['name'])->first();
+
+                    $customer->contact()->updateOrCreate([
+                        'name' => $customerCollection['name'],
+                        'email' => isset($customerCollection['email']) ? $customerCollection['email'] : null,
+                        'phone_num' => $customerCollection['contact'] ? $customerCollection['contact'] : null,
+                        'phone_country_id' => $countryID,
+                        'alt_phone_num' => isset($customerCollection['alt_contact']) && $customerCollection['alt_contact'] ? $customerCollection['alt_contact'] : null,
+                        'alt_phone_country_id' => isset($customerCollection['alt_contact']) && $customerCollection['alt_contact'] ? $countryID : null,
+                    ]);
                 }
 
                 if($this->vendID) {
