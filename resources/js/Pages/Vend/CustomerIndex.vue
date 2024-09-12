@@ -729,19 +729,6 @@
 						<TableHead v-if="!roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-2">
 								<span>
-									CMS Last Stock In
-								</span>
-								<SingleSortItem modelName="last_ops_job_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_ops_job_amount')">
-									Value
-								</SingleSortItem>
-								<SingleSortItem modelName="last_ops_job_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('last_ops_job_count')">
-									Qty
-								</SingleSortItem>
-							</div>
-						</TableHead>
-						<TableHead v-if="!roles.includes('operator_3pl')">
-							<div class="flex flex-col space-y-2">
-								<span>
 									CMS Next Picked
 								</span>
 								<SingleSortItem modelName="next_ops_job_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('next_ops_job_amount')">
@@ -781,6 +768,19 @@
 								</span>
 							</div>
 						</TableHead>
+						<TableHead v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
+							<div class="flex flex-col space-y-2">
+								<SingleSortItem modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')">
+									Zone
+								</SingleSortItem>
+								<div>
+									Preferred Day(s)
+								</div>
+								<SingleSortItem modelName="frequency_per_week_status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('frequency_per_week_status')">
+									#Refill per Week
+								</SingleSortItem>
+							</div>
+						</TableHead>
 						<TableHead v-if="!roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-2">
 								<SingleSortItem modelName="vend_transaction_totals_json->vend_records_amount_latest" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->vend_records_amount_latest', true)">
@@ -816,19 +816,6 @@
 								</SingleSortItem>
 								<SingleSortItem modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
 									Location
-								</SingleSortItem>
-							</div>
-						</TableHead>
-						<TableHead v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
-							<div class="flex flex-col space-y-2">
-								<SingleSortItem modelName="zone_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('zone_name')">
-									Zone
-								</SingleSortItem>
-								<div>
-									Preferred Day(s)
-								</div>
-								<SingleSortItem modelName="frequency_per_week_status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('frequency_per_week_status')">
-									#Refill per Week
 								</SingleSortItem>
 							</div>
 						</TableHead>
@@ -1152,25 +1139,6 @@
 							</span>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
-							<!-- <div v-if="vend.vend && !vend.vend.lastOpsJobItem"> -->
-								<span v-if="vend.cms_invoice_history && 'last_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
-										{{ vend.cms_invoice_history['last_delivery_driver'] }} <br>
-								</span>
-								<span :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
-										{{ vend.last_invoice_date }}
-										<div
-											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
-											:class="[(vend.last_invoice_diff_count >= 5 && vend.last_invoice_diff_count < 7) ? 'bg-yellow-200' : (vend.last_invoice_diff_count >= 7 ? 'bg-red-200' : '') ]"
-											v-if="vend.last_invoice_diff"
-										>
-											<span>
-												{{ vend.last_invoice_diff }}
-											</span>
-										</div>
-								</span>
-							<!-- </div> -->
-						</TableData>
-						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
 							<!-- <div v-if="vend.vend && !vend.vend.nextOpsJobItem"> -->
 								<span v-if="vend.cms_invoice_history && 'next_delivery_driver' in vend.cms_invoice_history" :class="[vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400']">
 											{{ vend.cms_invoice_history['next_delivery_driver'] }} <br>
@@ -1275,6 +1243,29 @@
 									</span>
 								</div>
 							</div>
+						</TableData>
+						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
+							<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
+								<div class="flex flex-col space-y-2">
+									<span>
+										{{ vend.zone_name }}
+									</span>
+									<div class="flex flex-col space-y-1">
+										<span
+											v-for="(day, dayIndex) in dayOptions"
+											:key="dayIndex"
+											v-if="vend.preferred_visit_days_json"
+										>
+											<span v-if="vend.preferred_visit_days_json[dayIndex - 1] == true" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+												{{ day.value }}
+											</span>
+										</span>
+									</div>
+								</div>
+								<span>
+									{{ vend.frequency_per_week_status_name }}
+								</span>
+							</span>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="!roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-2">
@@ -1547,29 +1538,6 @@
 										{{ vend.location_type_name }}
 									</span>
 								</div>
-							</span>
-						</TableData>
-						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
-							<span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
-								<div class="flex flex-col space-y-2">
-									<span>
-										{{ vend.zone_name }}
-									</span>
-									<div class="flex flex-col space-y-1">
-										<span
-											v-for="(day, dayIndex) in dayOptions"
-											:key="dayIndex"
-											v-if="vend.preferred_visit_days_json"
-										>
-											<span v-if="vend.preferred_visit_days_json[dayIndex - 1] == true" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-												{{ day.value }}
-											</span>
-										</span>
-									</div>
-								</div>
-								<span>
-									{{ vend.frequency_per_week_status_name }}
-								</span>
 							</span>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
