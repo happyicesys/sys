@@ -274,9 +274,9 @@ const smallLogoUrl = usePage().props.smallLogoUrl
 
 <template>
     <div>
-        <div class="min-h-screen md:flex bg-gray-100">
+        <div class="min-h-screen w-full md:flex bg-gray-100">
             <div
-                class="hidden md:block flex-none flex-col border-r border-gray-200 pt-5 pb-4 bg-white md:w-1/6 xl:w-2/12 2xl:w-1/12">
+                class="hidden md:block flex-none flex-col border-r border-gray-200 pt-5 pb-4 bg-white md:w-1/6 xl:w-2/12 2xl:w-1/12 2xl:min-w-48">
 
                 <div class="flex items-center justify-center flex-shrink-0 px-1 object-scale-down">
                     <Link href="/">
@@ -343,7 +343,7 @@ const smallLogoUrl = usePage().props.smallLogoUrl
             </div>
 
             <!-- <div class="flex-auto mx-auto"> -->
-            <div class="md:w-5/6 xl:w-10/12">
+            <div class="md:w-5/6 xl:w-10/12 2xl:w-11/12">
                 <!-- Page Heading -->
                 <header class="bg-white shadow flex justify-between" v-if="$slots.header">
                     <span class="md:hidden">
