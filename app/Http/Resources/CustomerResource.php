@@ -5,9 +5,11 @@ namespace App\Http\Resources;
 use App\Models\Customer;
 use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Traits\GetUserTimezone;
 
 class CustomerResource extends JsonResource
 {
+    use GetUserTimezone;
     /**
      * Transform the resource into an array.
      *
@@ -20,6 +22,7 @@ class CustomerResource extends JsonResource
             'id' => $this->id,
             'ref_id' => $this->id + 20000,
             'begin_date' => Carbon::parse($this->begin_date)->toDateString(),
+            'begin_date_short' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'category_id' => CategoryResource::make($this->whenLoaded('category')),
             'code' => $this->code,
             'created_at' => Carbon::parse($this->created_at)->toDateString(),
@@ -61,6 +64,7 @@ class CustomerResource extends JsonResource
             'tags' => TagResource::collection($this->whenLoaded('tagBindings')),
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'vends' => VendResource::collection($this->whenLoaded('vends')),
+            'vendTransactionTotalsJson' => $this->totals_json,
         ];
     }
 }

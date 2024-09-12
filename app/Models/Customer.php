@@ -333,6 +333,13 @@ class Customer extends Model
                 $query->whereIn('customers.operator_id', $search);
             }
         })
+        ->when($request->preferredDays, function($query, $search) {
+            $query->where(function($subQuery) use ($search) {
+                foreach ($search as $day) {
+                    $subQuery->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(customers.preferred_visit_days_json, '$.\"$day\"')) = 'true'");
+                }
+            });
+        })
         ->when($request->price_template_id, fn($query, $input) => $query->where('price_template_id', $input))
         ->when($request->profile_id, fn($query, $input) => $query->where('profile_id', $input))
         ->when($request->ref_id, function($query, $search) {

@@ -214,6 +214,23 @@
             ></MultiSelect>
           </div>
           <div v-if="permissions.includes('admin-access customers')">
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Preferred Day(s)
+						</label>
+						<MultiSelect
+							v-model="filters.preferredDays"
+							:options="dayOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							class="mt-1"
+							mode="tags"
+						>
+						</MultiSelect>
+					</div>
+          <div v-if="permissions.includes('admin-access customers')">
             <label for="text" class="block text-sm font-medium text-gray-700">
               #Refill per Week
             </label>
@@ -340,7 +357,6 @@
                   >
                     Zone
                   </TableHeadSort>
-                  <TableHead>Ops Note</TableHead>
                   <TableHead>Preferred Visit Days</TableHead>
                   <TableHeadSort
                     modelName="frequency_per_week_status"
@@ -350,24 +366,36 @@
                   >
                     #Refill per Week
                   </TableHeadSort>
-                  <TableHead>Status</TableHead>
-                  <TableHeadSort
-                    modelName="operator_code"
-                    :sortKey="filters.sortKey"
-                    :sortBy="filters.sortBy"
-                    @sort-table="sortTable('operator_code')"
-                  >
-                    Operator
-                  </TableHeadSort>
-                  <TableHeadSort
-                    modelName="begin_date"
-                    :sortKey="filters.sortKey"
-                    :sortBy="filters.sortBy"
-                    @sort-table="sortTable('begin_date')"
-                  >
-                    Begin Date
-                  </TableHeadSort>
-                  <TableHead>Action</TableHead>
+                  <TableHead>Ops Note</TableHead>
+                  <TableHead>
+                    <div class="flex flex-col space-y-2">
+                      <SingleSortItem modelName="vend_transaction_totals_json->vend_records_amount_latest" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->vend_records_amount_latest', true)">
+                        Lifetime Sales
+                      </SingleSortItem>
+                      <SingleSortItem modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date', false)">
+                        Begin Date
+                      </SingleSortItem>
+                      <SingleSortItem modelName="vend_transaction_totals_json->vend_records_amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_records_amount_average_day', true)">
+                        Avg Sales/ Day
+                      </SingleSortItem>
+                      <SingleSortItem modelName="vend_transaction_totals_json->vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_transaction_totals_json', true)">
+                        Avg Sales (Last30d)
+                      </SingleSortItem>
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div class="flex flex-col space-y-2">
+                      <span>
+                        Status
+                      </span>
+                      <SingleSortItem modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
+                        Operator
+                      </SingleSortItem>
+                      <span>
+                        Action
+                      </span>
+                    </div>
+                  </TableHead>
                 </tr>
               </thead>
               <tbody class="bg-white">
@@ -498,16 +526,9 @@
                   <TableData
                     :currentIndex="customerIndex"
                     :totalLength="customers.length"
-                    inputClass="text-center"
+                    inputClass="text-center min-w-20"
                   >
                     {{ customer.zone_id ? customer.zone_name : null }}
-                  </TableData>
-                  <TableData
-                    :currentIndex="customerIndex"
-                    :totalLength="customers.length"
-                    inputClass="text-left whitespace-pre-line"
-                  >
-                    {{ customer.ops_note }}
                   </TableData>
                   <TableData
                     :currentIndex="customerIndex"
@@ -536,50 +557,73 @@
                   <TableData
                     :currentIndex="customerIndex"
                     :totalLength="customers.length"
+                    inputClass="text-left whitespace-pre-line"
+                  >
+                    {{ customer.ops_note }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
                     inputClass="text-center"
                   >
-                    <div
-                      class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-green-300"
-                      v-if="customer.is_active"
-                    >
-                      Active
+                    <div class="flex flex-col space-y-2">
+                      <span
+                      v-if="customer.vendTransactionTotalsJson && 'vend_records_amount_latest' in customer.vendTransactionTotalsJson"
+                      >
+                        {{ operatorCountry.currency_symbol }}{{(customer.vendTransactionTotalsJson['vend_records_amount_latest'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                      </span>
+                      <span
+                        v-if="customer.begin_date"
+                      >
+                        {{ customer.begin_date_short }}
+                      </span>
+                      <span
+                      v-if="customer.vendTransactionTotalsJson && 'vend_records_amount_average_day' in customer.vendTransactionTotalsJson"
+                      :class="getVendRecordsAmountAverageDayClass(customer.vendTransactionTotalsJson['vend_records_amount_average_day'])"
+                      >
+                        {{ operatorCountry.currency_symbol }}{{(customer.vendTransactionTotalsJson['vend_records_amount_average_day'] / (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                      </span>
+                      <span
+                      v-if="customer.vendTransactionTotalsJson"
+                      :class="[ customer.vendTransactionTotalsJson && 'vend_records_amount_average_day' in customer.vendTransactionTotalsJson ? (customer.vendTransactionTotalsJson['vend_records_thirty_days_amount_average'] >= customer.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
+                          {{ operatorCountry.currency_symbol }}{{ customer.vendTransactionTotalsJson['vend_records_thirty_days_amount_average'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                      </span>
                     </div>
-                    <div
-                      class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-red-300"
-                      v-if="!customer.is_active"
-                    >
-                      Not Active
-                    </div>
                   </TableData>
                   <TableData
                     :currentIndex="customerIndex"
                     :totalLength="customers.length"
                     inputClass="text-center"
                   >
-                    {{ customer.operator_code }}
-                  </TableData>
-                  <TableData
-                    :currentIndex="customerIndex"
-                    :totalLength="customers.length"
-                    inputClass="text-center"
-                  >
-                    {{ customer.begin_date }}
-                  </TableData>
-                  <TableData
-                    :currentIndex="customerIndex"
-                    :totalLength="customers.length"
-                    inputClass="text-center"
-                  >
-                    <div class="flex justify-center space-x-1">
-                      <Link :href="'/customers/' + customer.id + '/edit'">
-                        <Button
-                          type="button"
-                          class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800 flex space-x-1"
+                    <div class="flex flex-col space-y-2">
+                      <span>
+                        <div
+                          class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-green-300"
+                          v-if="customer.is_active"
                         >
-                          <PencilSquareIcon class="w-4 h-4" />
-                          <span>Edit</span>
-                        </Button>
-                      </Link>
+                          Active
+                        </div>
+                        <div
+                          class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[12px] font-small border min-w-full bg-red-300"
+                          v-if="!customer.is_active"
+                        >
+                          Not Active
+                        </div>
+                      </span>
+                      <span>
+                        {{ customer.operator_code }}
+                      </span>
+                      <div class="flex justify-center space-x-1">
+                        <Link :href="'/customers/' + customer.id + '/edit'">
+                          <Button
+                            type="button"
+                            class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800 flex space-x-1"
+                          >
+                            <PencilSquareIcon class="w-4 h-4" />
+                            <span>Edit</span>
+                          </Button>
+                        </Link>
+                      </div>
                     </div>
                   </TableData>
                 </tr>
@@ -628,6 +672,7 @@ import Form from '@/Pages/Customer/Form.vue';
 import MapMarker from '@/Components/MapMarker.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
+import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { BackspaceIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, PlusIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
@@ -662,6 +707,7 @@ const filters = ref({
   location_types: [],
   name: '',
   operators: [],
+  preferredDays: [],
   ref_id: '',
   status: '',
   vend_code: '',
@@ -673,6 +719,7 @@ const filters = ref({
 });
 const activeOptions = ref([]);
 const authOperator = usePage().props.auth.operator;
+const dayOptions = ref([]);
 const showModal = ref(false);
 const booleanOptions = ref([]);
 const customer = ref();
@@ -680,6 +727,7 @@ const customerModel = ref([]);
 const categoryOptions = ref([]);
 const frequencyPerWeekOptions = ref([]);
 const locationTypeOptions = ref([]);
+const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([]);
 const permissions = usePage().props.auth.permissions;
 const priceTemplateOptions = ref([]);
@@ -695,6 +743,7 @@ const numberPerPageOptions = ref([]);
 const vendModelOptions = ref([]);
 
 onMounted(() => {
+  console.log(props.customers)
   activeOptions.value = [
     { id: 'all', value: 'All' },
     { id: 'true', value: 'Active' },
@@ -705,6 +754,10 @@ onMounted(() => {
     { id: 'true', value: 'Yes' },
     { id: 'false', value: 'No' },
   ];
+  dayOptions.value = [
+			{id: 'all', value: 'All'},
+			...Object.entries(props.days).map(([id, name]) => ({id: id, value: name}))
+	]
   frequencyPerWeekOptions.value = [
     { id: 'all', value: 'All' },
     ...Object.entries(props.frequencyPerWeekOptions).map(([id, value]) => {
@@ -772,6 +825,20 @@ onMounted(() => {
   filters.value.vend_model_id = vendModelOptions.value[0];
 });
 
+  function getVendRecordsAmountAverageDayClass(amount) {
+    if(amount >= 3000) {
+        return 'text-green-700'
+    } else if(amount >= 2000 && amount < 3000) {
+        return 'text-blue-700'
+    } else if(amount >= 1500 && amount < 2000) {
+        return 'text-gray-700'
+    } else if(amount >= 1000 && amount < 1500) {
+        return 'text-red-700'
+    }else {
+        return 'text-gray-700 bg-red-300 px-1 rounded-sm'
+    }
+}
+
 
 function onCreateClicked() {
   type.value = 'create';
@@ -817,6 +884,7 @@ function onSearchFilterUpdated() {
       is_active: filters.value.is_active.id,
       location_types: filters.value.location_types.map((locationType) => locationType.id),
       operators: filters.value.operators.map((operator) => operator.id),
+      preferredDays: filters.value.preferredDays.map((preferredDay) => { return preferredDay.id }),
       selling_price_type: filters.value.selling_price_type ? filters.value.selling_price_type.id : '',
       vend_model_id: filters.value.vend_model_id.id,
       numberPerPage: filters.value.numberPerPage.id,
