@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Delivery Platform Vend" />
+  <Head title="Delivery Platform Machine" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Delivery Platform Vend
+        Delivery Platform Machine
       </h2>
     </template>
 
@@ -14,20 +14,20 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Operator
-            </label>
-            <MultiSelect
-              v-model="filters.operator_id"
-              :options="operatorOptions"
-              trackBy="id"
-              valueProp="id"
-              label="full_name"
-              placeholder="Select"
-              open-direction="bottom"
-              class="mt-1"
-              mode="tags"
-            >
-            </MultiSelect>
+								Operator
+							</label>
+							<MultiSelect
+								v-model="filters.operators"
+								:options="operatorOptions"
+								trackBy="id"
+								valueProp="id"
+								label="full_name"
+								placeholder="Select"
+								open-direction="bottom"
+								class="mt-1"
+								mode="tags"
+							>
+							</MultiSelect>
           </div>
           <div>
             <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -429,17 +429,19 @@ onMounted(() => {
     ...Object.keys(props.deliveryPlatformTypeOptions).map((deliveryPlatformType, index) => {return {id: deliveryPlatformType, name: deliveryPlatformType}})
   ]
   operatorOptions.value = [
-    // {id: 'all', full_name: 'All'},
-    ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+		{id: 'all', full_name: 'All'},
+    ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
 
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   filters.value.is_active = booleanOptions.value[1]
   filters.value.delivery_platform_type_id = deliveryPlatformTypeOptions.value.find(deliveryPlatformType => deliveryPlatformType.id === 'all')
   filters.value.delivery_product_mapping_id = deliveryProductMappingOptions.value[0]
-  filters.value.operators = authOperator ? [operatorOptions.value.find(operator => operator.id === authOperator.id)] : [operatorOptions.value[0]]
+  filters.value.operators = authOperator ? [
+		operatorOptions.value.find(operator => operator.id === authOperator.id),
+		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
+	] : operatorOptions.value[0]
 })
-
 
 function onChannelOverviewClicked(deliveryProductMappingVend) {
   deliveryProductMappingVendModel.value = deliveryProductMappingVend
@@ -455,7 +457,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
       delivery_product_mapping_id: filters.value.delivery_product_mapping_id.id,
-      operators: filters.value.operator_id.map(operator => operator.id),
+      operators: filters.value.operators.map((operator) => { return operator.id }),
       is_active: filters.value.is_active.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {

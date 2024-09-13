@@ -378,8 +378,11 @@
                       <SingleSortItem modelName="vend_transaction_totals_json->vend_records_amount_average_day" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_records_amount_average_day', true)">
                         Avg Sales/ Day
                       </SingleSortItem>
-                      <SingleSortItem modelName="vend_transaction_totals_json->vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_transaction_totals_json', true)">
+                      <SingleSortItem modelName="vend_transaction_totals_json->vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_records_thirty_days_amount_average', true)">
                         Avg Sales (Last30d)
+                      </SingleSortItem>
+                      <SingleSortItem modelName="vend_transaction_totals_json->vend_records_thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_records_thirty_days_amount', true)">
+                        Sales (Last30d)
                       </SingleSortItem>
                     </div>
                   </TableHead>
@@ -587,6 +590,13 @@
                       v-if="customer.vendTransactionTotalsJson"
                       :class="[ customer.vendTransactionTotalsJson && 'vend_records_amount_average_day' in customer.vendTransactionTotalsJson ? (customer.vendTransactionTotalsJson['vend_records_thirty_days_amount_average'] >= customer.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
                           {{ operatorCountry.currency_symbol }}{{ customer.vendTransactionTotalsJson['vend_records_thirty_days_amount_average'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                      </span>
+                      <span
+                        v-if="customer.vendTransactionTotalsJson && 'vend_records_thirty_days_amount' in customer.vendTransactionTotalsJson"
+                        :class="[
+                            customer.vendTransactionTotalsJson ? ((customer.vendTransactionTotalsJson['vend_records_thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) > 1000 ? 'text-green-700' : 'text-red-700') : 'text-gray-800'
+                        ]">
+                            {{ operatorCountry.currency_symbol }}{{ customer.vendTransactionTotalsJson['vend_records_thirty_days_amount'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                       </span>
                     </div>
                   </TableData>

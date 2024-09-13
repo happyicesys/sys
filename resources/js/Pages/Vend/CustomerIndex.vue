@@ -902,6 +902,25 @@
 								>
 									RP{{ vend.selling_price_type }}
 								</div>
+								<span>
+									<span>
+										<Button
+										type="button" class="bg-sky-300 hover:bg-sky-400 px-2 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
+										@click="onMapMarkerClicked(vend)"
+										v-if="vend.deliveryAddress && vend.deliveryAddress.latitude && vend.deliveryAddress.longitude"
+										>
+											<MapPinIcon class="h-3 w-3" aria-hidden="true"/>
+										</Button>
+									</span>
+									<div class="flex space-x-2 items-center font-medium text-xs">
+										<span v-if="vend.deliveryAddress.map_url">
+											<a :href="vend.deliveryAddress.map_url" target="_blank">
+												<MapIcon class="w-5 h-5 text-green-500 h-fit" ></MapIcon>
+											</a>
+										</span>
+									</div>
+								</span>
+
 							</div>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -2032,6 +2051,14 @@ function getVendsField() {
 	function onAssignJobModalClose() {
 		showAssignJobModal.value = false
 	}
+
+	function onMapMarkerClicked(customer) {
+  customerModel.value = [{
+    sequence: props.vends.data.findIndex((data) => data.customer_id == customer.id) + 1,
+    ...customer
+  }];
+  showMapMarkerModal.value = true;
+}
 
 	function onMapAllMarkerClicked() {
 		// Extract all the opsJobItems' customer information and send the request

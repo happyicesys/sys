@@ -223,10 +223,15 @@
 
                     <Button type="button" v-if="form.id" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
                       <div>
-                        <span class="flex space-x-1 items-center" v-if="form.is_active">
-                          <FolderMinusIcon class="w-4 h-4"></FolderMinusIcon>
+                        <span class="flex flex-col space-y-1" v-if="form.is_active">
+                          <span class="flex space-x-1 items-center">
+                            <FolderMinusIcon class="w-4 h-4"></FolderMinusIcon>
+                            <span>
+                              Deactivate
+                            </span>
+                          </span>
                           <span>
-                            Deactivate
+                            (Product Mapping(s) still Binded)
                           </span>
                         </span>
                         <span class="flex space-x-1 items-center" v-else>

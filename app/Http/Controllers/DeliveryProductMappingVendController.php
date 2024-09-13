@@ -24,19 +24,23 @@ class DeliveryProductMappingVendController extends Controller
     public function index(Request $request)
     {
         $request->merge([
-            'date_from' => $request->date_from ? $request->date_from : Carbon::now()->setTimezone($this->getUserTimezone())->startOfWeek(),
-            'date_to' => $request->date_to ? $request->date_to : Carbon::now()->setTimezone($this->getUserTimezone()),
+            'date_from' => $request->date_from ? $request->date_from : Carbon::today()->setTimezone($this->getUserTimezone())->startOfWeek(Carbon::SUNDAY)->toDateString(),
+            'date_to' => $request->date_to ? $request->date_to : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString(),
             'delivery_product_mapping_id' => $request->delivery_product_mapping_id ? $request->delivery_product_mapping_id : 'all',
             'delivery_platform_type_id' => $request->delivery_platform_type_id ? $request->delivery_platform_type_id : 'all',
             'is_active' => $request->is_active ? $request->is_active : 'true',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : '100',
-            'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
             'status' => $request->status ? $request->status : 'all',
             'sortBy' => $request->sortBy ? $request->sortBy : false,
             'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
         ]);
-// dd($request->all());
-        // dd($request->date_from);
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id]]);
+            }else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
 
         $deliveryProductMappingVends = DeliveryProductMappingVend::query()
         ->with([

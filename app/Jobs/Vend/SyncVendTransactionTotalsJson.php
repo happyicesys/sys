@@ -84,7 +84,9 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
                     ((int)$vend->lifetimeVendRecords->sum('total_amount') + $todayAmount) / (($days = (int)($vend->begin_date ? Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?: Carbon::now())) : 1)) == 0 ? 1 : $days),
                     'vend_records_thirty_days_amount' => (int)$vend->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
                     'vend_records_thirty_days_amount_average' =>
-                        ((int)$vend->daysVendRecords(29,0)->sum('total_amount') + $todayAmount)/
+                        ((int)$vend->daysVendRecords(($vend->begin_date && Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) < 29 ?
+                        (Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($vend->begin_date)->diffInDays(Carbon::now())) :
+                        29),0)->sum('total_amount') + $todayAmount)/
                         (
                             $vend->begin_date && Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) < 30 ?
                             (Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($vend->begin_date)->diffInDays(Carbon::now())) :
@@ -131,7 +133,9 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
                         ((int)$customer->lifetimeVendRecords->sum('total_amount') + $todayAmount) / (($days = ($customer->begin_date ? Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?: Carbon::now())) : 1)) == 0 ? 1 : $days),
                     'vend_records_thirty_days_amount' => (int)$customer->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
                     'vend_records_thirty_days_amount_average' =>
-                        ((int)$customer->daysVendRecords(29,0)->sum('total_amount') + $todayAmount)/
+                        ((int)$customer->daysVendRecords(($customer->begin_date && Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) < 29 ?
+                        (Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($customer->begin_date)->diffInDays(Carbon::now())) :
+                        29),0)->sum('total_amount') + $todayAmount)/
                         (
                             $customer->begin_date && Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) < 30 ?
                             (Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($customer->begin_date)->diffInDays(Carbon::now())) :

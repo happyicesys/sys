@@ -317,7 +317,7 @@
                                 <div class="flex space-x-2 items-center font-medium text-xs">
                                   <span v-if="opsJobItem.customer.deliveryAddress.map_url">
                                     <a :href="opsJobItem.customer.deliveryAddress.map_url" target="_blank">
-                                      <MapIcon class="w-5 h-5 text-blue-500 h-fit" ></MapIcon>
+                                      <MapIcon class="w-5 h-5 text-green-500 h-fit" ></MapIcon>
                                     </a>
                                   </span>
                                   <span>
