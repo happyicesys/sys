@@ -596,7 +596,7 @@
                         :class="[
                             customer.vendTransactionTotalsJson ? ((customer.vendTransactionTotalsJson['vend_records_thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))) > 1000 ? 'text-green-700' : 'text-red-700') : 'text-gray-800'
                         ]">
-                            {{ operatorCountry.currency_symbol }}{{ customer.vendTransactionTotalsJson['vend_records_thirty_days_amount'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            {{ operatorCountry.currency_symbol }}{{ (customer.vendTransactionTotalsJson['vend_records_thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                       </span>
                     </div>
                   </TableData>
