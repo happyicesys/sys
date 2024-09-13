@@ -589,7 +589,7 @@
                       <span
                       v-if="customer.vendTransactionTotalsJson"
                       :class="[ customer.vendTransactionTotalsJson && 'vend_records_amount_average_day' in customer.vendTransactionTotalsJson ? (customer.vendTransactionTotalsJson['vend_records_thirty_days_amount_average'] >= customer.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
-                          {{ operatorCountry.currency_symbol }}{{ customer.vendTransactionTotalsJson['vend_records_thirty_days_amount_average'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                          {{ operatorCountry.currency_symbol }}{{ (customer.vendTransactionTotalsJson['vend_records_thirty_days_amount_average']/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                       </span>
                       <span
                         v-if="customer.vendTransactionTotalsJson && 'vend_records_thirty_days_amount' in customer.vendTransactionTotalsJson"
@@ -753,7 +753,6 @@ const numberPerPageOptions = ref([]);
 const vendModelOptions = ref([]);
 
 onMounted(() => {
-  console.log(props.customers)
   activeOptions.value = [
     { id: 'all', value: 'All' },
     { id: 'true', value: 'Active' },
