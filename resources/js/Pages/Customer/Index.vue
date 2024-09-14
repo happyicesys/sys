@@ -357,7 +357,6 @@
                   >
                     Zone
                   </TableHeadSort>
-                  <TableHead>Preferred Visit Days</TableHead>
                   <TableHeadSort
                     modelName="frequency_per_week_status"
                     :sortKey="filters.sortKey"
@@ -366,6 +365,7 @@
                   >
                     #Refill per Week
                   </TableHeadSort>
+                  <TableHead>Preferred Visit Days</TableHead>
                   <TableHead>Ops Note</TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-2">
@@ -557,6 +557,13 @@
                     :totalLength="customers.length"
                     inputClass="text-center"
                   >
+                    {{ customer.frequency_per_week_status_name }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
                     <div class="flex flex-col space-y-1">
                       <span
                         v-for="(day, dayIndex) in days"
@@ -568,13 +575,6 @@
                         </span>
                       </span>
                     </div>
-                  </TableData>
-                  <TableData
-                    :currentIndex="customerIndex"
-                    :totalLength="customers.length"
-                    inputClass="text-center"
-                  >
-                    {{ customer.frequency_per_week_status_name }}
                   </TableData>
                   <TableData
                     :currentIndex="customerIndex"

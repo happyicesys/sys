@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\OpsJob;
 use App\Events\VendChannelSaved;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -43,7 +44,10 @@ class VendChannel extends Model
 
     public function latestOpsJobItemChannel()
     {
-        return $this->hasOne(OpsJobItemChannel::class)->whereNotNull('actual_qty')->orderByDesc('created_at');
+        return $this->hasOne(OpsJobItemChannel::class)->whereNotNull('actual_qty')->whereHas('opsJobItem', function($query) {
+            $query->where('status', '>=', OpsJob::STATUS_DELIVERED)
+                ->where('status', '<>', OpsJob::STATUS_CANCELLED);
+        })->orderByDesc('created_at');
     }
 
     public function opsJobItemChannels()

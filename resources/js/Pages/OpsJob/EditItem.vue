@@ -232,7 +232,7 @@
           <div class="flex flex-col">
             <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
               <div class="inline-block min-w-full py-2 align-middle md:px-3 lg:px-6">
-                <div class="overflow-scroll max-h-[900px] md:max-h-[1500px] shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                <div class="overflow-scroll max-h-[600px] md:max-h-[800px] shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                   <!-- mobile view -->
                   <table class="md:hidden min-w-full divide-y divide-gray-300">
                     <thead class="bg-gray-50">

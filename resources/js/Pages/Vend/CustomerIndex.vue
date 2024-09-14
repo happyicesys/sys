@@ -1203,7 +1203,7 @@
 										</span>
 										<div
 											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
-											:class="[(vend.vend.lastOpsJobItem.opsJob.date_diff_count < 1 &&  vend.vend.lastOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.vend.lastOpsJobItem.opsJob.date_diff_count > -1 && vend.vend.lastOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
+											:class="[(vend.vend.lastOpsJobItem.opsJob.date_diff_count < 1 && vend.vend.lastOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.vend.lastOpsJobItem.opsJob.date_diff_count > -1 && vend.vend.lastOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : vend.vend.lastOpsJobItem.opsJob.date_diff_count > 10 ? 'bg-red-300' : '') ]"
 											v-if="vend.vend.lastOpsJobItem.opsJob.date_diff_human"
 										>
 											<span>

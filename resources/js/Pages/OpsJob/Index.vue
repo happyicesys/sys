@@ -129,7 +129,7 @@
 
       <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
-          <div class="overflow-scroll max-h-[700px] md:max-h-[1000px] shadow-sm ring-1 ring-black ring-opacity-5">
+          <div class="overflow-scroll max-h-[600px] md:max-h-[800px] shadow-sm ring-1 ring-black ring-opacity-5">
             <table class="min-w-full border-separate" style="border-spacing: 0">
                 <thead class="bg-gray-100">
                   <tr class="divide-x divide-gray-200">
@@ -290,18 +290,38 @@
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center align-top">
                         <div class="flex flex-col space-y-2">
-                          <span :class="[opsJob.ops_job_items_picked_count_percentage == 100 ? 'text-green-700' : '']">
-                            {{ opsJob.ops_job_items_picked_count }} ({{ opsJob.ops_job_items_picked_count_percentage }}%)
-                          </span>
-                          <span :class="[opsJob.ops_job_items_delivered_count_percentage == 100 ? 'text-green-700' : '']">
-                            {{ opsJob.ops_job_items_delivered_count }} ({{ opsJob.ops_job_items_delivered_count_percentage }}%)
-                          </span>
-                          <span :class="[opsJob.ops_job_items_verified_count_percentage == 100 ? 'text-green-700' : '']">
-                            {{ opsJob.ops_job_items_verified_count }} ({{ opsJob.ops_job_items_verified_count_percentage }}%)
-                          </span>
-                          <span :class="[opsJob.cms_transaction_percentage == 100 ? 'text-green-700 font-bold' : '']">
-                            {{ opsJob.cms_transaction_count }} ({{ opsJob.cms_transaction_percentage }}%)
-                          </span>
+                          <div
+                            class="inline-flex justify-center items-center rounded px-1.5 text-xs font-medium border min-w-full text-gray-900"
+                            :class="[opsJob.ops_job_items_picked_count_percentage == 100 ? 'text-green-700 bg-green-200' : '']"
+                          >
+                            <span>
+                              {{ opsJob.ops_job_items_picked_count }} ({{ opsJob.ops_job_items_picked_count_percentage }}%)
+                            </span>
+                          </div>
+                          <div
+                            class="inline-flex justify-center items-center rounded px-1.5 text-xs font-medium border min-w-full text-gray-900"
+                            :class="[opsJob.ops_job_items_delivered_count_percentage == 100 ? 'text-green-700 bg-green-200' : '']"
+                          >
+                            <span>
+                              {{ opsJob.ops_job_items_delivered_count }} ({{ opsJob.ops_job_items_delivered_count_percentage }}%)
+                            </span>
+                          </div>
+                          <div
+                            class="inline-flex justify-center items-center rounded px-1.5 text-xs font-medium border min-w-full text-gray-900"
+                            :class="[opsJob.ops_job_items_verified_count_percentage == 100 ? 'text-green-700 bg-green-200' : '']"
+                          >
+                            <span>
+                              {{ opsJob.ops_job_items_verified_count }} ({{ opsJob.ops_job_items_verified_count_percentage }}%)
+                            </span>
+                          </div>
+                          <div
+                            class="inline-flex justify-center items-center rounded px-1.5 text-xs font-medium border min-w-full text-gray-900"
+                            :class="[opsJob.cms_transaction_percentage == 100 ? 'text-green-700 bg-green-200' : '']"
+                          >
+                            <span>
+                              {{ opsJob.cms_transaction_count }} ({{ opsJob.cms_transaction_percentage }}%)
+                            </span>
+                          </div>
                         </div>
                       </TableData>
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center align-top">

@@ -20,6 +20,17 @@
               <MapPinIcon class="h-4 w-4" aria-hidden="true" />
               <span>Show Directions</span>
             </Button>
+
+            <!-- New button for auto arrange sequence -->
+            <!-- <Button
+              type="button"
+              class="bg-yellow-300 hover:bg-yellow-400 px-3 py-2 text-xs text-yellow-800 flex space-x-1 w-fit ml-2"
+              @click="autoArrangeSequence"
+              v-if="isShowDirectionButton"
+            >
+              <MapPinIcon class="h-4 w-4" aria-hidden="true" />
+              <span>Auto Arrange Sequence</span>
+            </Button> -->
           </div>
           <div id="map" style="width: 100%; height: 500px;"></div>
         </div>
@@ -39,14 +50,14 @@ const props = defineProps({
   apiKey: String,    // API key passed from the parent component or environment
   showModal: Boolean, // Modal visibility control
   isShowDirectionButton: {
-    type: Boolean,
+    type: [Boolean, String],
     default: false,
   }, // Function to show directions
 });
 
 const emit = defineEmits(['modalClose']);
 
-let map, directionsService, directionsRenderer;
+let map, directionsService, directionsRenderer, distanceMatrixService;
 
 // Function to show directions on the map
 const showDirections = () => {
@@ -67,7 +78,6 @@ const showDirections = () => {
       const lng = parseFloat(customer.deliveryAddress.longitude);
 
       if (!isNaN(lat) && !isNaN(lng)) {
-        const pos = { lat, lng };
         const markerPosition = new google.maps.LatLng(lat, lng);
 
         // Set origin, waypoints, and destination
@@ -93,6 +103,54 @@ const showDirections = () => {
       }
     });
   }
+};
+
+// Function to auto-arrange sequence based on shortest distance
+const autoArrangeSequence = () => {
+  if (!distanceMatrixService) return;
+
+  const positions = props.customers.map(customer => new google.maps.LatLng(
+    parseFloat(customer.deliveryAddress.latitude),
+    parseFloat(customer.deliveryAddress.longitude)
+  ));
+
+  // Request for calculating distances
+  const distanceRequest = {
+    origins: positions,
+    destinations: positions,
+    travelMode: google.maps.TravelMode.DRIVING,
+    avoidHighways: false,
+    avoidTolls: false,
+  };
+
+  // Call Distance Matrix API to calculate distances
+  distanceMatrixService.getDistanceMatrix(distanceRequest, (response, status) => {
+    if (status === google.maps.DistanceMatrixStatus.OK) {
+      const distances = response.rows.map((row, index) => {
+        return {
+          customer: props.customers[index],
+          distance: row.elements.map(el => el.distance.value),
+        };
+      });
+
+      // Sort the customers by the shortest total distance
+      const sortedCustomers = props.customers.slice().sort((a, b) => {
+        const indexA = props.customers.indexOf(a);
+        const indexB = props.customers.indexOf(b);
+        const totalDistanceA = distances[indexA].distance.reduce((acc, val) => acc + val, 0);
+        const totalDistanceB = distances[indexB].distance.reduce((acc, val) => acc + val, 0);
+        return totalDistanceA - totalDistanceB;
+      });
+
+      // Update customers with sorted sequence
+      sortedCustomers.forEach((customer, index) => {
+        customer.sequence = index + 1;
+      });
+
+      // Reinitialize the map and markers
+      initMap();
+    }
+  });
 };
 
 onMounted(() => {
@@ -123,9 +181,10 @@ onMounted(() => {
   async function initMap() {
     const { Map } = await google.maps.importLibrary("maps");
 
-    // Initialize DirectionsService and DirectionsRenderer directly from google.maps
+    // Initialize DirectionsService, DirectionsRenderer, and DistanceMatrixService
     directionsService = new google.maps.DirectionsService();
     directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true });
+    distanceMatrixService = new google.maps.DistanceMatrixService();
 
     let latSum = 0;
     let lngSum = 0;
