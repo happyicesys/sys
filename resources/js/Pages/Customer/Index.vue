@@ -369,7 +369,7 @@
                   <TableHead>Ops Note</TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-2">
-                      <SingleSortItem modelName="vend_transaction_totals_json->vend_records_amount_latest" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('totals_json->vend_records_amount_latest', true)">
+                      <SingleSortItem modelName="vend_transaction_totals_json->vend_records_amount_latest" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_records_amount_latest', true)">
                         Lifetime Sales
                       </SingleSortItem>
                       <SingleSortItem modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date', false)">
@@ -426,7 +426,11 @@
                     :totalLength="customers.length"
                     inputClass="text-center"
                   >
-                    {{ customer.vend ? customer.vend.code : null }}
+                    <Link v-if="customer.vend && customer.vend.id" :href="'/settings/vend/' + customer.vend.id + '/update'" >
+                      <span class="text-blue-600">
+                        {{ customer.vend.code }}
+                      </span>
+                    </Link>
                   </TableData>
                   <TableData
                     :currentIndex="customerIndex"
@@ -493,14 +497,29 @@
                           ? customer.deliveryAddress.full_address
                           : null }}
                       </span>
-                      <span>
-                        <Button
-                        type="button" class="bg-sky-300 hover:bg-sky-400 px-2 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
-                        @click="onMapMarkerClicked(customer)"
-                        v-if="customer.deliveryAddress && customer.deliveryAddress.latitude && customer.deliveryAddress.longitude"
+                      <span class="flex space-x-1 items-center" v-if="customer.deliveryAddress">
+                        <span>
+                          <Button
+                          type="button" class="bg-sky-300 hover:bg-sky-400 px-3 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
+                          @click="onMapMarkerClicked(customer)"
+                          v-if="customer.deliveryAddress && customer.deliveryAddress.latitude && customer.deliveryAddress.longitude"
+                          >
+                            <MapPinIcon class="h-3 w-3" aria-hidden="true"/>
+                          </Button>
+                        </span>
+                        <a
+                          :href="customer.deliveryAddress && customer.deliveryAddress.map_url
+                            ? customer.deliveryAddress.map_url
+                            : (customer.deliveryAddress.latitude && customer.deliveryAddress.longitude
+                              ? 'https://www.google.com/maps/search/?api=1&query=' + customer.deliveryAddress.latitude + ',' + customer.deliveryAddress.longitude
+                              : '')"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          type="button"
+                          class="bg-green-300 hover:bg-green-400 px-3 py-2 text-xs text-green-800 flex space-x-1 w-fit rounded shadow font-bold"
                         >
-                          <MapPinIcon class="h-4 w-4" aria-hidden="true"/>
-                        </Button>
+                          GPS
+                        </a>
                       </span>
                     </div>
 

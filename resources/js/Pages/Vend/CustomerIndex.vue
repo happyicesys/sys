@@ -902,23 +902,29 @@
 								>
 									RP{{ vend.selling_price_type }}
 								</div>
-								<span>
+								<span class="flex space-x-1 items-center">
 									<span>
 										<Button
-										type="button" class="bg-sky-300 hover:bg-sky-400 px-2 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
+										type="button" class="bg-sky-300 hover:bg-sky-400 px-3 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
 										@click="onMapMarkerClicked(vend)"
 										v-if="vend.deliveryAddress && vend.deliveryAddress.latitude && vend.deliveryAddress.longitude"
 										>
 											<MapPinIcon class="h-3 w-3" aria-hidden="true"/>
 										</Button>
 									</span>
-									<div class="flex space-x-2 items-center font-medium text-xs">
-										<span v-if="vend.deliveryAddress.map_url">
-											<a :href="vend.deliveryAddress.map_url" target="_blank">
-												<MapIcon class="w-5 h-5 text-green-500 h-fit" ></MapIcon>
-											</a>
-										</span>
-									</div>
+									<a
+										:href="vend.deliveryAddress && vend.deliveryAddress.map_url
+											? vend.deliveryAddress.map_url
+											: (vend.deliveryAddress.latitude && vend.deliveryAddress.longitude
+												? 'https://www.google.com/maps/search/?api=1&query=' + vend.deliveryAddress.latitude + ',' + vend.deliveryAddress.longitude
+												: '')"
+										target="_blank"
+										rel="noopener noreferrer"
+										type="button"
+										class="bg-green-300 hover:bg-green-400 px-3 py-2 text-xs text-green-800 flex space-x-1 w-fit rounded shadow font-bold"
+									>
+										GPS
+									</a>
 								</span>
 
 							</div>

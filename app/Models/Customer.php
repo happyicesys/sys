@@ -366,7 +366,23 @@ class Customer extends Model
             }
         })
         ->when($request->sortKey, function($query, $search) use ($request) {
-            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            if(strpos($search, '->')) {
+                $inputSearch = explode("->", $search);
+                if(
+                    $search == 'vend_transaction_totals_json->vend_records_amount_latest' or
+                    $search == 'vend_transaction_totals_json->vend_records_amount_average_day' or
+                    $search == 'vend_transaction_totals_json->vend_records_thirty_days_amount_average' or
+                    $search == 'vend_transaction_totals_json->vend_records_thirty_days_amount'
+                ) {
+                    $query->orderByRaw('(CAST(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                }else {
+                    $query->orderByRaw('LENGTH(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")))'.(filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                }
+
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            }else {
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            }
         });
     }
 }

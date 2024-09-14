@@ -93,7 +93,18 @@
                 </Button>
               </div>
 
-              <div class="sm:col-span-6 flex justify-end text-sm mt-3">
+              <div class="sm:col-span-6 flex justify-between text-sm mt-3">
+                <div>
+                  <Button
+                    type="button"
+                    class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-sky-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 hover:cursor-pointer ml-1"
+                    @click="onMapAllMarkerClicked"
+                    v-if="opsJob.opsJobItems && opsJob.opsJobItems.some(item => item.customer && item.customer.deliveryAddress && item.customer.deliveryAddress.latitude && item.customer.deliveryAddress.longitude)"
+                  >
+                    <MapPinIcon class="h-4 w-4" aria-hidden="true" />
+                    <span>Show Map Markers</span>
+                  </Button>
+                </div>
                 <span class="text-gray-500">
                   Total of
                   <span class="text-gray-800">
@@ -315,9 +326,28 @@
                               </span>
                               <span v-if="opsJobItem.customer && opsJobItem.customer.deliveryAddress">
                                 <div class="flex space-x-2 items-center font-medium text-xs">
-                                  <span v-if="opsJobItem.customer.deliveryAddress.map_url">
-                                    <a :href="opsJobItem.customer.deliveryAddress.map_url" target="_blank">
-                                      <MapIcon class="w-5 h-5 text-green-500 h-fit" ></MapIcon>
+                                  <span class="flex space-x-1 items-center" v-if="opsJobItem.customer && opsJobItem.customer.deliveryAddress">
+                                    <span>
+                                      <Button
+                                      type="button" class="bg-sky-300 hover:bg-sky-400 px-3 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
+                                      @click="onMapMarkerClicked(opsJobItem)"
+                                      v-if="opsJobItem.customer.deliveryAddress && opsJobItem.customer.deliveryAddress.latitude && opsJobItem.customer.deliveryAddress.longitude"
+                                      >
+                                        <MapPinIcon class="h-3 w-3" aria-hidden="true"/>
+                                      </Button>
+                                    </span>
+                                    <a
+                                      :href="opsJobItem.customer && opsJobItem.customer.deliveryAddress && opsJobItem.customer.deliveryAddress.map_url
+                                        ? opsJobItem.customer.deliveryAddress.map_url
+                                        : (opsJobItem.customer.deliveryAddress.latitude && opsJobItem.customer.deliveryAddress.longitude
+                                          ? 'https://www.google.com/maps/search/?api=1&query=' + opsJobItem.customer.deliveryAddress.latitude + ',' + opsJobItem.customer.deliveryAddress.longitude
+                                          : '')"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      type="button"
+                                      class="bg-green-300 hover:bg-green-400 px-3 py-2 text-xs text-green-800 flex space-x-1 w-fit rounded shadow font-bold"
+                                    >
+                                      GPS
                                     </a>
                                   </span>
                                   <span>
@@ -404,7 +434,7 @@
                                   {{ opsJobItem.customer.deliveryAddress.postcode }}
                                 </span>
                               </span>
-                              <span>
+                              <!-- <span>
                                 <Button
                                 type="button" class="bg-sky-300 hover:bg-sky-400 px-3 py-2 text-xs text-sky-800 flex space-x-1 w-fit"
                                 @click="onMapMarkerClicked(opsJobItem)"
@@ -412,7 +442,7 @@
                                 >
                                   <MapPinIcon class="h-4 w-4" aria-hidden="true"/>
                                 </Button>
-                              </span>
+                              </span> -->
                             </div>
                           </td>
                           <td class="whitespace-nowrap py-4 px-1 text-sm text-center">
@@ -493,15 +523,6 @@
                           Create API Invoice(s)
                       </span>
                     </span>
-                  </Button>
-                  <Button
-                    type="button"
-                    class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 hover:cursor-pointer"
-                    @click="onMapAllMarkerClicked"
-                    v-if="opsJob.opsJobItems && opsJob.opsJobItems.some(item => item.customer && item.customer.deliveryAddress && item.customer.deliveryAddress.latitude && item.customer.deliveryAddress.longitude)"
-                  >
-                    <MapPinIcon class="h-4 w-4" aria-hidden="true" />
-                    <span>Show Map Markers</span>
                   </Button>
                 </div>
                 <div class="flex space-x-1 md:justify-end">

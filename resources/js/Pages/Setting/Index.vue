@@ -373,12 +373,16 @@
                     <TableHeadSort modelName="vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefix_name')">
                       Prefix
                     </TableHeadSort>
-                    <TableHeadSort modelName="customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customer_code')">
-                      Customer
-                    </TableHeadSort>
-                    <TableHeadSort modelName="selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('selling_price_type')">
-                      Ref Price
-                    </TableHeadSort>
+                    <TableHead>
+                      <div class="flex flex-col space-y-1">
+                        <SingleSortItem modelName="customer_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customer_code')">
+                          Customer
+                        </SingleSortItem>
+                        <SingleSortItem modelName="selling_price_type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('selling_price_type', false)">
+                          Ref Price
+                        </SingleSortItem>
+                      </div>
+                    </TableHead>
                     <TableHeadSort modelName="product_mapping_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('product_mapping_name')">
                       Product Mapping <br>
                       (Current)
@@ -388,7 +392,14 @@
                       (Upcoming)
                     </TableHeadSort>
                     <TableHead>
-                      Status
+                      <div class="flex flex-col space-y-2">
+                        <span>
+                          Machine Status
+                        </span>
+                        <SingleSortItem modelName="key_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('key_name')">
+                          Machine Key
+                        </SingleSortItem>
+                      </div>
                     </TableHead>
                     <TableHead>
                       Bill Acceptor
@@ -405,15 +416,16 @@
                     <TableHead>
                       Simcard
                     </TableHead>
-                    <TableHeadSort modelName="key_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('key_name')">
-                      Machine Key
-                    </TableHeadSort>
-                    <TableHeadSort modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
-                      Operator
-                    </TableHeadSort>
-                    <TableHeadSort modelName="vend_serial_number_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_serial_number_code')">
-                      Serial Num
-                    </TableHeadSort>
+                    <TableHead>
+                      <div class="flex flex-col space-y-2">
+                        <SingleSortItem modelName="vend_serial_number_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_serial_number_code')">
+                          Serial Num
+                        </SingleSortItem>
+                        <SingleSortItem modelName="operator_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_code')">
+                          Operator
+                        </SingleSortItem>
+                      </div>
+                    </TableHead>
                     <TableHeadSort modelName="begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('begin_date')">
                       Deploy Date
                     </TableHeadSort>
@@ -458,43 +470,33 @@
                         {{ vend.vendPrefix ? vend.vendPrefix.name : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-                        <a :class="[vend && vend.customer && vend.customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="'/customers/' + vend.customer.id + '/edit'" v-if="vend.customer">
-                          <span v-if="vend.customer.person_id && (vend.customer.virtual_customer_code || vend.customer.virtual_customer_prefix)">
-                            <span v-if="vend.customer.virtual_customer_code">
-                              {{ vend.customer.virtual_customer_code }}
+                        <div class="flex flex-col space-y-2">
+                          <a :class="[vend && vend.customer && vend.customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="'/customers/' + vend.customer.id + '/edit'" v-if="vend.customer">
+                            <span v-if="vend.customer.person_id && (vend.customer.virtual_customer_code || vend.customer.virtual_customer_prefix)">
+                              <span v-if="vend.customer.virtual_customer_code">
+                                {{ vend.customer.virtual_customer_code }}
+                              </span>
+                              <!-- <span v-if="vend.customer.virtual_customer_prefix">
+                                ({{ vend.customer.virtual_customer_prefix }})
+                              </span> -->
+                              <br>
                             </span>
-                            <!-- <span v-if="vend.customer.virtual_customer_prefix">
-                              ({{ vend.customer.virtual_customer_prefix }})
-                            </span> -->
-                             <br>
-                          </span>
-                          <span v-else>
-                            <span v-if="vend.customer && vend.customer.code">
-                              {{ vend.customer.code }} <br>
+                            <span v-else>
+                              <span v-if="vend.customer && vend.customer.code">
+                                {{ vend.customer.code }} <br>
+                              </span>
                             </span>
-                          </span>
-                          <span v-if="vend.customer">
-                            {{ vend.customer.name }}
-                          </span>
-                        </a>
-                        <!-- <span v-if="vend && vend.customer && vend.customer.person_id">
-                          <a :class="[vend && vend.customer && vend.customer.person_id ? 'text-blue-700' : 'text-purple-700']" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.customer.person_id + '/edit'">
-                            {{ vend.customer.virtual_customer_code }} ({{ vend.customer.virtual_customer_prefix }})
-                            <br>
-                            {{ vend.customer.name }}
+                            <span v-if="vend.customer">
+                              {{ vend.customer.name }}
+                            </span>
                           </a>
-                        </span>
-                        <span v-else-if="vend && vend.customer && !vend.customer.person_id">
-                            {{ vend.customer.code }}
-                            <br>
-                            {{ vend.customer.name }}
-                        </span>
-                        <span v-else>
-                          {{ vend.name }}
-                        </span> -->
-                      </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.customer ? vend.customer.selling_price_type : '' }}
+                          <div
+                            class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-indigo-100 text-indigo-800 border-indigo-300"
+                            v-if="vend.customer"
+                          >
+                            RP{{ vend.customer.selling_price_type }}
+                          </div>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <span v-if="vend.productMapping">
@@ -535,6 +537,9 @@
                               </span>
                             </div>
                           </div>
+                          <span>
+                            {{ vend.key_name }}
+                          </span>
                         </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -751,13 +756,14 @@
                         {{ vend.simcard ? vend.simcard.code : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.key_name }}
-                      </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.operator_code }}
-                      </TableData>
-                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.vend_serial_number_code }}
+                        <div class="flex flex-col space-y-2">
+                          <span>
+                            {{ vend.vend_serial_number_code }}
+                          </span>
+                          <span>
+                            {{ vend.operator_code }}
+                          </span>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.begin_date_short }}
@@ -821,6 +827,7 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
