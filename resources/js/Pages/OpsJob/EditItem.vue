@@ -288,7 +288,7 @@
                             <span>
                               Needed/Capacity
                             </span>
-                            <span :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
+                            <span :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']">
                               Picked
                             </span>
                             <span :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
@@ -356,7 +356,9 @@
                             </div>
                             <div class="flex justify-between items-center"  v-if="opsJobItem.status > 1">
                               <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">picked</span>
-                              {{ channel.picked }}
+                              <span :class="[channel.picked < (channel.capacity - channel.before_picked) ? 'text-red-500' : (channel.picked > (channel.capacity - channel.before_picked) ? 'text-blue-500' : 'text-black')]">
+                                {{ channel.picked }}
+                              </span>
                             </div>
                             <div class="flex justify-between items-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
                               <select name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : 'text-black']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
@@ -430,27 +432,28 @@
                             Total
                           </div>
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800">
-                          <div class="flex flex-col space-y-1 items-center">
-                            <span>
+                        <td class="py-4 pl-3 pr-3 text-sm font-bold text-center text-gray-800">
+                          <div class="flex flex-col space-y-1">
+                            <span class="flex justify-between space-x-1 items-center">
+                              <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">need</span>
                               {{ getSubtotalNeeded() }}/ {{ getSubtotalCapacity() }}
                             </span>
-                            <span :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
+                            <span class="flex justify-between space-x-1 items-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']">
+                              <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">picked</span>
                               {{ getSubtotalPicked() }}
                             </span>
                             <span :class="[opsJobItem.status >= 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                              <div class="flex space-x-1 items-center text-center">
-                                <!-- <ArrowRightEndOnRectangleIcon class="w-4 h-4 text-blue-600">
-                                </ArrowRightEndOnRectangleIcon> -->
+                              <div class="flex justify-between space-x-1 items-center text-center">
+                                <ArrowRightEndOnRectangleIcon class="w-5 h-5 text-blue-600">
+                                </ArrowRightEndOnRectangleIcon>
                                 <span>
                                   {{ getSubtotalRefill() }}
                                 </span>
                               </div>
                             </span>
                             <span :class="[opsJobItem.status >= 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
-                              <div class="flex space-x-1 items-center text-center">
-                                <!-- <ComputerDesktopIcon class="w-3 h-3 text-blue-600">
-                                </ComputerDesktopIcon> -->
+                              <div class="flex justify-between space-x-1 items-center text-center">
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">VMC</span>
                                 <span>
                                   {{ getSubtotalVMCInventoryCount() }}
                                 </span>
@@ -525,7 +528,7 @@
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2">
                           Needed/ Capacity
                         </th>
-                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status > 1">
+                        <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']">
                           Picked
                         </th>
                         <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-3 pr-3 text-center text-xs font-semibold text-gray-900 backdrop-blur-3xl backdrop-filter sm:pl-2 lg:pl-2" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
@@ -613,7 +616,7 @@
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900">
                           {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status > 1">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status > 1" :class="[channel.picked < (channel.capacity - channel.before_picked) ? 'text-red-500' : (channel.picked > (channel.capacity - channel.before_picked) ? 'text-blue-500' : 'text-black')]">
                           {{ channel.picked }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
@@ -694,7 +697,7 @@
                         <td class="py-4 text-sm font-bold text-center text-gray-800 align-top">
                           {{ getSubtotalNeeded() }}/ {{ getSubtotalCapacity() }}
                         </td>
-                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top" v-if="opsJobItem.status < 2">
+                        <td class="py-4 text-sm font-bold text-center text-gray-800 align-top">
                           <div class="flex flex-col space-y-2">
                             <span>
                               {{ getSubtotalPicked() }}
@@ -1115,7 +1118,9 @@ function loadingData() {
       error_settled_at_formatted: opsJobItemChannel.error_settled_at_formatted,
       is_error_settle: opsJobItemChannel.is_error_settle,
       ops_job_item_channel_id: opsJobItemChannel.id,
+      before_picked: opsJobItemChannel.picked_before_qty,
       picked: props.opsJobItem.data.status < 2 ? (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available ? (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) : 0) : opsJobItemChannel.picked_qty,
+      before_refill: opsJobItemChannel.actual_before_qty,
       refill: props.opsJobItem.data.status == 2 ? opsJobItemChannel.picked_qty : opsJobItemChannel.actual_qty,
       product: opsJobItemChannel.vendChannel.product ? {
         ...opsJobItemChannel.vendChannel.product,

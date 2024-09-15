@@ -142,7 +142,7 @@
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-blue-600' : 'text-gray-400']">
                         {{ channel.capacity - channel.qty }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? (channel.qty == 0 ? 'text-red-500 font-bold' : 'text-gray-900') : 'text-gray-400']">
                         {{ channel.qty }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">

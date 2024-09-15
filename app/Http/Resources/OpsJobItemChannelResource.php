@@ -16,6 +16,7 @@ class OpsJobItemChannelResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'actual_before_qty' => $this->actual_before_qty,
             'actual_qty' => $this->actual_qty,
             'capacity' => $this->capacity,
             'error_settled_at' => $this->error_settled_at,
@@ -23,6 +24,7 @@ class OpsJobItemChannelResource extends JsonResource
             'is_error_settle' => $this->is_error_settle,
             'ops_job_id' => $this->ops_job_id,
             'ops_job_item_id' => $this->ops_job_item_id,
+            'picked_before_qty' => $this->picked_before_qty,
             'picked_qty' => $this->picked_qty,
             'product_id' => $this->product_id,
             'qty' => $this->qty,

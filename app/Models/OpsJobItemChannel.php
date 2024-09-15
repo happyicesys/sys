@@ -10,12 +10,14 @@ class OpsJobItemChannel extends Model
     use HasFactory;
 
     protected $fillable = [
+        'actual_before_qty',
         'actual_qty',
         'capacity',
         'error_settled_at',
         'is_error_settle',
         'ops_job_id',
         'ops_job_item_id',
+        'picked_before_qty',
         'picked_qty',
         'product_id',
         'qty',

@@ -367,6 +367,7 @@ class OpsJobController extends Controller
                     foreach($request->channels as $channel) {
                         $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
                         $opsJobItemChannel->update([
+                            'picked_before_qty' => $channel['qty'],
                             'picked_qty' => $channel['picked'],
                             'qty' => $channel['qty'],
                         ]);
@@ -389,6 +390,7 @@ class OpsJobController extends Controller
                     foreach($request->channels as $channel) {
                         $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
                         $opsJobItemChannel->update([
+                            'actual_before_qty' => $channel['qty'],
                             'actual_qty' => $channel['refill'],
                             'capacity' => $channel['capacity'],
                             'qty' => $channel['qty'],
@@ -881,6 +883,24 @@ class OpsJobController extends Controller
         }
 
         return redirect()->back();
+    }
+
+    public function route($id)
+    {
+        $opsJob = OpsJob::query()
+            ->with([
+                'deliveredBy',
+                'opsJobItems.customer.deliveryAddress',
+                'opsJobItems.opsJobItemChannels',
+                'opsJobItems.statusBy',
+                'opsJobItems.vend.vendPrefix'
+            ])
+            ->find($id);
+
+        return Inertia::render('OpsJob/Route', [
+            'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
+            'opsJob' => OpsJobResource::make($opsJob),
+        ]);
     }
 
     public function settleItemChannelError($opsJobItemChannelID)

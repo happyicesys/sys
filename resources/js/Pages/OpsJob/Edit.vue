@@ -93,8 +93,8 @@
                 </Button>
               </div>
 
-              <div class="sm:col-span-6 flex justify-between text-sm mt-3">
-                <div>
+              <div class="sm:col-span-6 flex justify-between space-x-1 text-sm mt-3">
+                <div class="flex space-x-1">
                   <Button
                     type="button"
                     class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-sky-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 hover:cursor-pointer ml-1"
@@ -104,6 +104,12 @@
                     <MapPinIcon class="h-4 w-4" aria-hidden="true" />
                     <span>Show Map Markers</span>
                   </Button>
+                  <!-- <Link :href="'/ops-jobs/' + opsJob.id + '/route' " class="text-blue-700" v-if="opsJob.opsJobItems">
+                    <span class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 hover:cursor-pointer ml-1">
+                      <PlayIcon class="h-4 w-4" aria-hidden="true" />
+                      <span>Route Planning</span>
+                    </span>
+                  </Link> -->
                 </div>
                 <span class="text-gray-500">
                   Total of
@@ -607,7 +613,7 @@ import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import {ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, MapPinIcon, PaperClipIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import {ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, MapPinIcon, PaperClipIcon, PlayIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -978,8 +984,8 @@ function updateSequence(opsJobItem, sequence) {
     }))
     .post('/ops-jobs/items/' + opsJobItem.id + '/update', {
     onSuccess: () => {
-      emit('modalClose')
     },
+    preserveScroll: true,
     preserveState: true,
     replace: true,
   })
