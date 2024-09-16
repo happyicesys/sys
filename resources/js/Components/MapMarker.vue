@@ -253,7 +253,7 @@ onMounted(() => {
 
           const infoWindow = new google.maps.InfoWindow({
             content: `<div>
-                <span class="font-bold">${customer.vend.code}</span><br>
+                <span class="font-bold">${customer.vend ? customer.vend.code : ''}</span><br>
                 <span class="font-medium">${customer.name}</span><br>
                 <p>${customer.deliveryAddress.full_address ? customer.deliveryAddress.full_address : customer.deliveryAddress.postcode}</p>
                 <a href="${googleMapsLink}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>

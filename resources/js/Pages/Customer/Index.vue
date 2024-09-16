@@ -444,11 +444,16 @@
                     :totalLength="customers.length"
                     inputClass="text-center"
                   >
-                    <Link v-if="customer.vend && customer.vend.id" :href="'/settings/vend/' + customer.vend.id + '/update'" >
-                      <span class="text-blue-600">
-                        {{ customer.vend.code }}
+                    <div class="flex flex-col space-y-2">
+                      <Link v-if="customer.vend && customer.vend.id" :href="'/settings/vend/' + customer.vend.id + '/update'" >
+                        <span class="text-blue-600">
+                          {{ customer.vend.code }}
+                        </span>
+                      </Link>
+                      <span v-if="customer.vend && customer.vend.vendPrefix">
+                        {{ customer.vend.vendPrefix.name }}
                       </span>
-                    </Link>
+                    </div>
                   </TableData>
                   <TableData
                     :currentIndex="customerIndex"
@@ -471,9 +476,6 @@
                         </span>
                         {{ customer.name }}
                       </a>
-                      <span v-if="customer.vend && customer.vend.vendPrefix">
-                        {{ customer.vend.vendPrefix.name }}
-                      </span>
                       <a
                         target="_blank"
                         :href="cmsEndpoint + '/person/' + customer.person_id + '/edit'"
