@@ -74,7 +74,7 @@
               class="mt-1"
             ></MultiSelect>
           </div>
-          <div v-if="permissions.includes('admin-access customers')">
+          <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Zone
             </label>

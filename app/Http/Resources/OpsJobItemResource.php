@@ -42,6 +42,7 @@ class OpsJobItemResource extends JsonResource
             'customer_id' => $this->customer_id,
             'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'delta_cash_amount' => isset($this->delta_cash_amount) ? $this->delta_cash_amount / 100 : 0,
+            'delivery_postcode' => isset($this->delivery_postcode) ? $this->delivery_postcode : null,
             'is_cash_collected' => $this->is_cash_collected,
             'name' => $this->name,
             'ops_job_id' => $this->ops_job_id,

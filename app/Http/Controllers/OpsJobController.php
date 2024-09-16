@@ -669,6 +669,12 @@ class OpsJobController extends Controller
                     ) as stock_in_count', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED]);
 
                 $query->selectRaw('(
+                    SELECT SUM(oj_items.acc_total_amount)
+                    FROM ops_job_items oj_items
+                    WHERE oj_items.id = ops_job_items.id
+                    ) as acc_vend_transactions_amount');
+
+                $query->selectRaw('(
                     SELECT SUM(oj_items.cash_amount)
                     FROM ops_job_items oj_items
                     WHERE oj_items.id = ops_job_items.id
@@ -692,6 +698,31 @@ class OpsJobController extends Controller
                     WHERE oj_items.id = ops_job_items.id
                 ) as delta_cash_amount');
 
+                $query->selectRaw('
+                    (SELECT delivery_address.postcode
+                    FROM addresses AS delivery_address
+                    WHERE delivery_address.modelable_id = ops_job_items.customer_id
+                    AND delivery_address.modelable_type = "App\\\Models\\\Customer"
+                    AND delivery_address.type = 2
+                    LIMIT 1) as delivery_postcode'
+                );
+
+                $query->when($request->sortKey, function($query, $search) use ($request) {
+                    if (in_array($search, [
+                        'picked_amount',
+                        'stock_in_amount',
+                        'acc_vend_transactions_amount',
+                        'total_cash_amount',
+                        'total_cash_amount_from_vmc',
+                        'delta_cash_amount',
+                    ])) {
+                        $query->orderByRaw("{$search} " . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
+                    } else {
+                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                    }
+                }, function($query) {
+                    $query->orderByRaw('ISNULL(sequence), sequence ASC')->orderBy('created_at');
+                });
             },
             'opsJobItems.attachments',
             'opsJobItems.vend:id,customer_id,code,vend_prefix_id',
@@ -709,7 +740,6 @@ class OpsJobController extends Controller
             'updatedBy:id,name'
         ])
         ->findOrFail($id);
-
 
         $unbindedVendOptions = Vend::query()
             ->select(['id', 'customer_id', 'operator_id', 'code']) // Select necessary columns

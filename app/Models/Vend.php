@@ -288,6 +288,20 @@ class Vend extends Model
                     ->latest();
     }
 
+    public function lastSecondOpsJobItem()
+    {
+        return $this->hasOne(OpsJobItem::class)
+                    ->whereHas('opsJob', function ($query) {
+                        $query->where('date', '<=', Carbon::today()->endOfDay());
+                    })
+                    ->where('status', '>=', OpsJob::STATUS_DELIVERED)
+                    ->where('status', '<>', OpsJob::STATUS_CANCELLED)
+                    ->latest()    // Order by the latest date
+                    ->skip(1)     // Skip the most recent (latest) entry
+                    ->take(1);    // Take the second-to-last entry
+    }
+
+
     public function nextOpsJobItem()
     {
         return $this->hasOne(OpsJobItem::class)

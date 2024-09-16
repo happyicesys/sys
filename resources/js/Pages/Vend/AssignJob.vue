@@ -4,7 +4,11 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2 text-gray-800">
           <span class="text-gray-600">
-            Assign Job(s)
+            <div class="flex space-x-2">
+              <span>
+                Assign {{ vends.length }} Job(s)
+              </span>
+            </div>
           </span>
         </div>
       </template>

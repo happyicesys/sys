@@ -169,6 +169,9 @@
                               <span>
                                 Ops Note
                               </span>
+                              <SingleSortItem modelName="delivery_postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_postcode')">
+                                Postcode
+                              </SingleSortItem>
                             </div>
                           </TableHead>
                           <TableHead>
@@ -180,10 +183,10 @@
                               <SingleSortItem modelName="picked_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_amount')">
                                 Picked
                               </SingleSortItem>
-                              <SingleSortItem modelName="picked_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('picked_amount')">
+                              <SingleSortItem modelName="stock_in_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_in_amount')">
                                 Stock-in
                               </SingleSortItem>
-                              <SingleSortItem modelName="total_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_cash_amount')">
+                              <SingleSortItem modelName="acc_vend_transactions_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('acc_vend_transactions_amount')">
                                 Stock-out <br>
                                 (Transactions)
                               </SingleSortItem>
@@ -357,7 +360,8 @@
                                     </a>
                                   </span>
                                   <span>
-                                    {{ opsJobItem.customer.deliveryAddress.postcode }}
+                                    <!-- {{ opsJobItem.customer.deliveryAddress.postcode }} -->
+                                    {{ opsJobItem.delivery_postcode }}
                                   </span>
                                 </div>
                               </span>
@@ -659,6 +663,7 @@ const userOptions = ref([])
 
 onMounted(() => {
   opsJob.value = props.opsJob.data
+
   unbindedVendOptions.value = props.unbindedVendOptions.data.map(vend => {
     return {
       id: vend.id,
@@ -904,6 +909,7 @@ function onSearchFilterUpdated() {
     },
     replace: true,
     preserveState: true,
+    preserveScroll: true,
     onSuccess: page => {
       opsJob.value = props.opsJob ? props.opsJob.data : null
     }

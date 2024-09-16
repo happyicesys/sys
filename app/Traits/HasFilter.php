@@ -389,11 +389,15 @@ trait HasFilter {
         })
         ->when($request->next_planned_driver, function($query, $search) {
             if($search != 'all') {
-                $query->where('cms_invoice_history->next_delivery_driver', 'LIKE', $search);
+                $query->whereHas('vend.nextOpsJobItem.opsJob', function($query) use ($search) {
+                    $query->where('delivered_by', $search);
+                });
             }
         })
         ->when($request->next_planned_date, function($query, $search) {
-            $query->whereDate('next_invoice_date', '=', $search);
+            $query->whereHas('vend.nextOpsJobItem.opsJob', function($query) use ($search) {
+                $query->whereDate('date', $search);
+            });
         })
         ->when($request->vendRecordsThirtyDaysAmountAverageLessThan, function($query, $search) {
             $query->where('virtual_vend_records_thirty_days_amount_average', '<=', $search*100);
