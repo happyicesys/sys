@@ -697,7 +697,7 @@
                 </div>
 
             <div class="sm:col-span-6 pt-3">
-                <span class="flex justify-between">
+                <span class="flex space-x-1">
                   <span class="flex space-x-1">
                     <Button
                       type="button"
@@ -729,7 +729,18 @@
                   >
                     <XCircleIcon class="w-4 h-4"></XCircleIcon>
                     <span>
-                      Unbind VM & Customer
+                      Unbind Machine & Customer
+                    </span>
+                  </Button>
+                  <Button
+                    type="button"
+                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                    v-if="vend && vend.customer && permissions.includes('update vend-settings')"
+                    @click.prevent="unbindCustomerDeactivate(form.id)"
+                  >
+                    <XCircleIcon class="w-4 h-4"></XCircleIcon>
+                    <span>
+                      Unbind Machine & Deactivate Customer
                     </span>
                   </Button>
                 </span>
@@ -1387,8 +1398,27 @@ function onAddressSelected(address) {
 }
 
 function unbindCustomer(vendID) {
+  const approval = confirm('Are you sure to unbind this customer?');
+  if (!approval) {
+    return;
+  }
   form.value
       .post('/vends/' + vendID + '/unbind-customer/settings', {
+        onSuccess: () => {
+        },
+        preserveState: true,
+        replace: true,
+      })
+}
+
+function unbindCustomerDeactivate(vendID) {
+  const approval = confirm('Are you sure to unbind this customer and deactivate it ?');
+  if (!approval) {
+    return;
+  }
+
+  form.value
+      .post('/vends/' + vendID + '/unbind-customer-deactivate/settings', {
         onSuccess: () => {
         },
         preserveState: true,

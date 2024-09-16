@@ -240,7 +240,7 @@
                   ></MultiSelect>
                 </div>
                 <div class="sm:col-span-6 mt-1">
-                  <span class="flex justify-between">
+                  <span class="flex space-x-1">
                     <Button
                       type="button"
                       class="text-white flex space-x-1"
@@ -260,6 +260,17 @@
                     >
                       <XCircleIcon class="w-4 h-4"></XCircleIcon>
                       <span> Unbind Machine </span>
+                    </Button>
+                    <Button
+                      type="button"
+                      class="bg-red-500 hover:bg-red-600 text-white flex space-x-1 w-full md:w-fit my-1"
+                      v-if="customer.vend && permissions.includes('update customers')"
+                      @click.prevent="unbindCustomerDeactivate(customer.vend.id)"
+                    >
+                      <XCircleIcon class="w-4 h-4"></XCircleIcon>
+                      <span>
+                        Unbind Machine & Deactivate Customer
+                      </span>
                     </Button>
                   </span>
                 </div>
@@ -961,6 +972,10 @@ function bindVend(customerID) {
 }
 
 function unbindCustomer(vendID) {
+  const approval = confirm('Are you sure to unbind this customer?');
+  if (!approval) {
+    return;
+  }
   form.value.clearErrors();
 
   form.value.post('/vends/' + vendID + '/unbind-customer/customers', {
@@ -979,6 +994,34 @@ function unbindCustomer(vendID) {
       });
     },
   });
+}
+
+function unbindCustomerDeactivate(vendID) {
+  const approval = confirm('Are you sure to unbind this customer and deactivate it ?');
+  if (!approval) {
+    return;
+  }
+
+  form.value.clearErrors();
+  form.value
+      .post('/vends/' + vendID + '/unbind-customer-deactivate/settings', {
+        onSuccess: () => {
+          router.reload({
+            only: ['customer'],
+            data: {
+              id: form.value.id,
+            },
+            replace: true,
+            preserveState: true,
+            onSuccess: (page) => {
+              customer.value = props.customer;
+              vendChannels.value = props.customer.vend ? props.customer.vend.vend_channels : [];
+            },
+          });
+        },
+        preserveState: true,
+        replace: true,
+      })
 }
 
 function downloadVendSnapshot(vendSnapshotId) {

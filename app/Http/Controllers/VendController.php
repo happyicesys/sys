@@ -1512,6 +1512,62 @@ class VendController extends Controller
         }
     }
 
+    public function unbindCustomerDeactivate($vendID, $returnUrl = null)
+    {
+        $vend = Vend::findOrFail($vendID);
+        $customerID = $vend->customer_id;
+
+        $vend->customer->update([
+            'is_active' => false,
+            'termination_date' => Carbon::now()->toDateString(),
+            'snap_parameter_json' => $vend->parameter_json,
+            'snap_vend_channels_json' => $vend->vend_channels_json,
+            'snap_vend_channel_error_logs_json' => $vend->vend_channel_error_logs_json,
+            'snap_vend_status_json' => [
+                'coin_count' => $vend->parameter_json && isset($vend->parameter_json['CoinCnt']) ? $vend->parameter_json['CoinCnt']/ 100 : null,
+                'is_door_open' => $vend->parameter_json && isset($vend->parameter_json['door']) ? ($vend->parameter_json['door'] == 'open' ? true : false) : false,
+                'is_mqtt' => $vend->is_mqtt,
+                'is_mqtt_active' => $vend->is_mqtt_active,
+                'mqtt_last_updated_at' => $vend->mqtt_last_updated_at,
+                'is_online' => $vend->is_online,
+                'is_sensor' => $vend->parameter_json && isset($vend->parameter_json['Sensor']) ? ($vend->parameter_json['Sensor'] % 2 == 0 ?  true : false) : false,
+                'fan_speed' => $vend->parameter_json && isset($vend->parameter_json['fan']) ? $vend->parameter_json['fan'] : null,
+                'is_temp_error' => $vend->is_temp_error,
+                'last_updated_at' => $vend->last_updated_at,
+                't1' => $vend->temp,
+                'temp_updated_at' => $vend->temp_updated_at,
+                't2' => $vend->parameter_json && isset($vend->parameter_json['t2']) ? $vend->parameter_json['t2'] : null,
+                't3' => $vend->parameter_json && isset($vend->parameter_json['t3']) ? $vend->parameter_json['t3'] : null,
+                't4' => $vend->parameter_json && isset($vend->parameter_json['t4']) ? $vend->parameter_json['t4'] : null,
+                'firmware_ver' => $vend->parameter_json && isset($vend->parameter_json['Ver']) ? $vend->parameter_json['Ver'] : null,
+                'apk_ver' => $vend->apk_ver_json && isset($vend->apk_ver_json['apkver']) ? $vend->apk_ver_json['apkver'] : null,
+                'apk_ver_build_time' => $vend->apk_ver_json && isset($vend->apk_ver_json['buildtime']) ? $vend->apk_ver_json['buildtime'] : null,
+                'location_type_name' => $vend->customer && $vend->customer->locationType ? $vend->customer->locationType->name : null,
+                'account_manager_name' => $vend->customer->account_manager_json && isset($vend->customer->account_manager_json['name']) ? $vend->customer->account_manager_json['name'] : null,
+            ]
+        ]);
+
+        $this->historyService->syncVendCustomerMovement($vend, $vend->customer, false);
+
+        // callback to cms to unbind vendcode
+        if($vend->customer && $vend->customer->person_id) {
+            Http::get(env('CMS_URL') . '/api/person/' . $vend->customer->person_id . '/detach-vendcode');
+        }
+
+        $vend->customer_id = null;
+        $vend->save();
+
+        if($returnUrl == 'vends') {
+            return redirect()->route('vends.edit', [$vendID]);
+        }else if ($returnUrl == 'settings') {
+            return redirect()->route('settings.edit', [$vendID]);
+        }else if ($returnUrl == 'customers') {
+            return redirect()->route('customers.edit', [$customerID]);
+        }else {
+            return redirect()->back();
+        }
+    }
+
     public function exportChannelExcel(Request $request)
     {
         $vendChannels = DB::table('vend_channels')
