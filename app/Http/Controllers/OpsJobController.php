@@ -898,6 +898,13 @@ class OpsJobController extends Controller
             ->find($id);
 
         return Inertia::render('OpsJob/Route', [
+            'operatorsWithAddress' => OperatorResource::collection(
+                Operator::query()
+                    ->with(['address'])
+                    ->has('address')
+                    ->orderBy('name')
+                    ->get()
+            ),
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'opsJob' => OpsJobResource::make($opsJob),
         ]);

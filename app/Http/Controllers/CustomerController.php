@@ -13,6 +13,7 @@ use App\Http\Resources\ProfileResource;
 use App\Http\Resources\TagResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendModelResource;
+use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\ZoneResource;
 use App\Jobs\SyncVendCustomerCms;
 use App\Jobs\SyncTransactionItemCMS;
@@ -30,6 +31,7 @@ use App\Models\Tag;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendModel;
+use App\Models\VendPrefix;
 use App\Models\Zone;
 use App\Services\HistoryService;
 use App\Services\MapService;
@@ -83,7 +85,7 @@ class CustomerController extends Controller
                 'profile',
                 'status',
                 'tagBindings',
-                'vend',
+                'vend.vendPrefix',
                 'zone'
             ])
             ->leftJoin('addresses', function($query) {
@@ -182,6 +184,9 @@ class CustomerController extends Controller
             ),
             'vendModelOptions' => VendModelResource::collection(
                 VendModel::orderBy('name')->get()
+            ),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
             ),
             'zoneOptions' => ZoneResource::collection(
                 Zone::query()

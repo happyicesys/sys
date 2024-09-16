@@ -356,7 +356,7 @@
                             </div>
                             <div class="flex justify-between items-center"  v-if="opsJobItem.status > 1">
                               <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">picked</span>
-                              <span :class="[channel.picked < (channel.capacity - channel.before_picked) ? 'text-red-500' : (channel.picked > (channel.capacity - channel.before_picked) ? 'text-blue-500' : 'text-black')]">
+                              <span :class="[channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked) ? 'text-red-500' : (channel.picked > (channel.capacity - channel.before_picked) ? 'text-blue-500' : 'text-black')]">
                                 {{ channel.picked }}
                               </span>
                             </div>
@@ -616,10 +616,11 @@
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900">
                           {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status > 1" :class="[channel.picked < (channel.capacity - channel.before_picked) ? 'text-red-500' : (channel.picked > (channel.capacity - channel.before_picked) ? 'text-blue-500' : 'text-black')]">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status > 1" :class="[(channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked)) ? 'text-red-500' : ((channel.picked > (channel.capacity - channel.before_picked)) ? 'text-sky-600' : 'text-gray-900')]">
+
                           {{ channel.picked }}
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-900" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
                           <!-- <FormInput inputType="number" v-model="channel.picked" :maxValue="channel.capacity" class="text-center min-w-12" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                           </FormInput> -->
                           <select name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">

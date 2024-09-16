@@ -360,6 +360,11 @@ class Customer extends Model
                 });
             }
         })
+        ->when($request->vendPrefixes, function($query, $search) {
+            $query->whereHas('vend', function($query) use ($search) {
+                $query->whereIn('vend_prefix_id', $search);
+            });
+        })
         ->when($request->zones, function($query, $search) {
             if(!in_array('all', $search)){
                 $query->whereIn('zone_id', $search);

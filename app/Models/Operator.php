@@ -33,7 +33,7 @@ class Operator extends Model
     // relationships
     public function address()
     {
-        return $this->morphOne(Address::class, 'modelable');
+        return $this->morphOne(Address::class, 'modelable')->whereNull('type');
     }
 
     public function contact()

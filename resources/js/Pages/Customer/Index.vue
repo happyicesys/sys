@@ -181,6 +181,23 @@
               class="mt-1"
             ></MultiSelect>
           </div>
+          <div>
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Machine Prefix
+						</label>
+						<MultiSelect
+							v-model="filters.vendPrefixes"
+							:options="vendPrefixOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							mode="tags"
+							class="mt-1"
+						>
+						</MultiSelect>
+					</div>
           <div v-if="permissions.includes('admin-access customers')">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Location Type
@@ -322,14 +339,16 @@
                   >
                     Machine ID
                   </TableHeadSort>
-                  <TableHeadSort
-                    modelName="name"
-                    :sortKey="filters.sortKey"
-                    :sortBy="filters.sortBy"
-                    @sort-table="sortTable('name')"
-                  >
-                    Customer
-                  </TableHeadSort>
+                  <TableHead>
+                    <div class="flex flex-col space-y-2">
+                      <SingleSortItem modelName="id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('id', true)">
+                        Customer
+                      </SingleSortItem>
+                      <span>
+                        Machine Prefix
+                      </span>
+                    </div>
+                  </TableHead>
                   <TableHeadSort
                     modelName="selling_price_type"
                     :sortKey="filters.sortKey"
@@ -338,7 +357,6 @@
                   >
                     Ref Price
                   </TableHeadSort>
-                  <TableHead>Label</TableHead>
                   <TableHead>Del Address</TableHead>
                   <TableHeadSort
                     modelName="postcode"
@@ -453,6 +471,9 @@
                         </span>
                         {{ customer.name }}
                       </a>
+                      <span v-if="customer.vend && customer.vend.vendPrefix">
+                        {{ customer.vend.vendPrefix.name }}
+                      </span>
                       <a
                         target="_blank"
                         :href="cmsEndpoint + '/person/' + customer.person_id + '/edit'"
@@ -473,18 +494,6 @@
                     inputClass="text-center"
                   >
                     {{ customer.selling_price_type }}
-                  </TableData>
-                  <TableData
-                    :currentIndex="customerIndex"
-                    :totalLength="customers.length"
-                    inputClass="text-center"
-                  >
-                    <div
-                      class="inline-flex justify-center items-center rounded px-1 py-0.5 text-[10px] font-small border min-w-full bg-green-200"
-                      v-if="customer.person_id"
-                    >
-                      From CMS
-                    </div>
                   </TableData>
                   <TableData
                     :currentIndex="customerIndex"
@@ -726,6 +735,7 @@ const props = defineProps({
   tags: Object,
   users: Object,
   vendModelOptions: Object,
+  vendPrefixOptions: Object,
   zoneOptions: Object,
 });
 
@@ -741,6 +751,7 @@ const filters = ref({
   status: '',
   vend_code: '',
   vend_model_id: '',
+  vendPrefixes: [],
   sortKey: '',
   sortBy: false,
   numberPerPage: 100,
@@ -770,6 +781,7 @@ const zoneOptions = ref([]);
 const type = ref('');
 const numberPerPageOptions = ref([]);
 const vendModelOptions = ref([]);
+const vendPrefixOptions = ref([])
 
 onMounted(() => {
   activeOptions.value = [
@@ -829,6 +841,9 @@ onMounted(() => {
   userOptions.value = props.users.data.map((data) => {
     return { id: data.id, name: data.name };
   });
+  vendPrefixOptions.value = [
+			...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
+	]
   tagOptions.value = props.tags.data.map((data) => {
     return { id: data.id, name: data.name };
   });
@@ -915,6 +930,7 @@ function onSearchFilterUpdated() {
       preferredDays: filters.value.preferredDays.map((preferredDay) => { return preferredDay.id }),
       selling_price_type: filters.value.selling_price_type ? filters.value.selling_price_type.id : '',
       vend_model_id: filters.value.vend_model_id.id,
+      vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       numberPerPage: filters.value.numberPerPage.id,
       zones: filters.value.zones.map((zone) => zone.id),
     },

@@ -53,6 +53,24 @@
                 />
               </div>
             </div>
+<!--
+            <div class="sm:col-span-3">
+              <label for="text" class="block text-sm font-medium text-gray-700">
+                Machine Prefix
+              </label>
+              <MultiSelect
+                v-model="filters.vendPrefixes"
+                :options="vendPrefixOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                mode="tags"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div> -->
 
 
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
@@ -222,10 +240,10 @@
               </div>
 
 
-            <div class="sm:col-span-6 mt-5 ">
+            <div class="sm:col-span-6 mt-4 px-1">
               <div class="flex flex-col space-y-1 md:space-y-0 md:flex-row md:justify-between">
                 <div class="flex space-x-1 md:justify-end">
-                  <Link :href="'/ops-jobs'">
+                  <Link :href="'/ops-jobs/' + opsJob.id + '/edit'">
                     <Button
                       type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 "
                     >
@@ -235,13 +253,6 @@
                       </span>
                     </Button>
                   </Link>
-
-                  <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
-                    <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                    <span>
-                      Auto Arrange Route
-                    </span>
-                  </Button>
                 </div>
               </div>
             </div>
@@ -302,6 +313,7 @@ import { useToast } from "vue-toastification";
 
 const props = defineProps({
   mapApiKey: String,
+  operatorsWithAddress: [Array, Object],
   opsJob: Object,
 })
 
@@ -323,6 +335,7 @@ const form = ref(
 
 const customerModel = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
+const operatorsWithAddress = ref([])
 const opsJob = ref([])
 const opsJobItemModel = ref([])
 const permissions = usePage().props.auth.permissions
@@ -336,6 +349,12 @@ const toast = useToast()
 
 onMounted(() => {
   opsJob.value = props.opsJob.data
+  operatorsWithAddress.value = props.operatorsWithAddress.data.map(operator => ({
+    id: operator.id,
+    name: operator.name,
+    address: operator.address.full_address,
+    value: '(' + operator.name + ')' + ' - ' + operator.address.full_address,
+  }))
 })
 
 function getDefaultForm() {

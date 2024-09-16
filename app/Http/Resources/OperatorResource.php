@@ -17,6 +17,7 @@ class OperatorResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'address' => AddressResource::make($this->whenLoaded('address')),
             'code' => $this->code,
             'customers' => CustomerResource::collection($this->whenLoaded('customers')),
             'deliveryPlatformOperators' => DeliveryPlatformOperatorResource::collection($this->whenLoaded('deliveryPlatformOperators')),
