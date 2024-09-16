@@ -151,7 +151,7 @@ class VendResource extends JsonResource
             'simcard' => SimcardResource::make($this->whenLoaded('simcard')),
             'simcard_id' => isset($this->simcard_id) ? $this->simcard_id : null,
             'selling_price_type' => isset($this->selling_price_type) ? $this->selling_price_type : null,
-
+            'total_full_load_amount' => isset($this->total_full_load_amount) ? $this->total_full_load_amount/100 : null,
             'total_ops_job_stock_amount' => isset($this->total_ops_job_stock_amount) ? $this->total_ops_job_stock_amount/100 : null,
             'total_ops_job_stock_cost' => isset($this->total_ops_job_stock_cost) ? $this->total_ops_job_stock_cost/100 : null,
 

@@ -659,6 +659,11 @@
 									</SingleSortItem>
 									<ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Inclusive GST or VAT', html: true }"></ExclamationCircleIcon>
 								</div>
+								<div class="flex justify-center items-center">
+									<SingleSortItem modelName="total_full_load_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_full_load_amount')">
+										Full Load Value
+									</SingleSortItem>
+								</div>
 							</div>
 						</TableHead>
 						<TableHead>
@@ -793,7 +798,7 @@
 									Avg Sales/ Day
 								</SingleSortItem>
 								<SingleSortItem modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
-									Avg Sales (Last30d)
+									AvgDailySales (Last30d)
 								</SingleSortItem>
 							</div>
 						</TableHead>
@@ -1037,6 +1042,13 @@
 											class="text-gray-800"
 										>
 											Value: {{ operatorCountry.currency_symbol }}{{ vend.total_stock_amount ? vend.total_stock_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										</div>
+									</span>
+									<span>
+										<div
+											class="text-gray-800"
+										>
+											Full Load: {{ operatorCountry.currency_symbol }}{{ vend.total_full_load_amount ? vend.total_full_load_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 										</div>
 									</span>
 								</div>

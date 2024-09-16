@@ -37,6 +37,7 @@ use App\Services\HistoryService;
 use App\Services\MapService;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
+use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -97,6 +98,15 @@ class CustomerController extends Controller
             ->leftJoin('operators', 'customers.operator_id', '=', 'operators.id')
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('zones', 'zones.id', '=', 'customers.zone_id')
+            ->leftJoin(DB::raw('
+                (
+                    SELECT vend_id, SUM(amount * qty) AS total_stock_amount, SUM(amount * capacity) AS total_full_load_amount
+                    FROM vend_channels
+                    WHERE is_active = true
+                    AND capacity > 0
+                    GROUP BY vend_id
+                ) AS vc
+            '), 'vc.vend_id', '=', 'vends.id')
             ->select(
                 'addresses.postcode as postcode',
                 'customers.*',
@@ -108,8 +118,13 @@ class CustomerController extends Controller
                 'customers.zone_id',
                 'operators.code as operator_code',
                 'operators.name as operator_name',
+                'vc.total_full_load_amount',
                 'vends.code as vend_code',
-                'zones.name as zone_name'
+                'zones.name as zone_name',
+                DB::raw('
+                    (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.vend_records_thirty_days_amount_average")) *30 /100)/
+                    (vc.total_full_load_amount / 100) AS thirty_days_over_full_load_ratio
+                ')
             )
             ->filterIndex($request);
 

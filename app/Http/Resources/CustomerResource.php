@@ -46,6 +46,8 @@ class CustomerResource extends JsonResource
             'profile_id' => $this->profile_id,
             'selling_price_type' => $this->selling_price_type,
             'status_id' => $this->status_id,
+            'thirty_days_over_full_load_ratio' => isset($this->thirty_days_over_full_load_ratio) ? $this->thirty_days_over_full_load_ratio : 0,
+            'total_full_load_amount' => isset($this->total_full_load_amount) ? $this->total_full_load_amount/100 : 0,
             'updated_at' => Carbon::parse($this->updated_at)->toDateString(),
             'virtual_customer_code' => $this->virtual_customer_code,
             'virtual_customer_prefix' => $this->virtual_customer_prefix,

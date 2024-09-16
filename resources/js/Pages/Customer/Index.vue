@@ -331,32 +331,23 @@
                   >
                     Customer ID
                   </TableHeadSort>
-                  <TableHeadSort
-                    modelName="vend_code"
-                    :sortKey="filters.sortKey"
-                    :sortBy="filters.sortBy"
-                    @sort-table="sortTable('vend_code')"
-                  >
-                    Machine ID
-                  </TableHeadSort>
                   <TableHead>
                     <div class="flex flex-col space-y-2">
-                      <SingleSortItem modelName="id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('id', true)">
-                        Customer
+                      <SingleSortItem modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
+                        Machine ID
                       </SingleSortItem>
                       <span>
                         Machine Prefix
                       </span>
                     </div>
                   </TableHead>
-                  <TableHeadSort
-                    modelName="selling_price_type"
-                    :sortKey="filters.sortKey"
-                    :sortBy="filters.sortBy"
-                    @sort-table="sortTable('selling_price_type')"
-                  >
-                    Ref Price
-                  </TableHeadSort>
+                  <TableHead>
+                    <div class="flex flex-col space-y-2">
+                      <SingleSortItem modelName="id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('id', true)">
+                        Customer
+                      </SingleSortItem>
+                    </div>
+                  </TableHead>
                   <TableHead>Del Address</TableHead>
                   <TableHeadSort
                     modelName="postcode"
@@ -387,6 +378,19 @@
                   <TableHead>Ops Note</TableHead>
                   <TableHead>
                     <div class="flex flex-col space-y-2">
+                      <SingleSortItem modelName="total_full_load_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('total_full_load_amount', true)">
+                        Full Load Value
+                      </SingleSortItem>
+                      <div class="flex justify-center items-center">
+                        <SingleSortItem modelName="thirty_days_over_full_load_ratio" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_over_full_load_ratio', false)">
+                          Avg30dSales/ Full Load
+                        </SingleSortItem>
+                        <ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: '30dSales = 30 x Avg Daily Sales (Last30d) <br> Red: < 1 <br> Green: > 2', html: true }"></ExclamationCircleIcon>
+                      </div>
+                    </div>
+                  </TableHead>
+                  <TableHead>
+                    <div class="flex flex-col space-y-2">
                       <SingleSortItem modelName="vend_transaction_totals_json->vend_records_amount_latest" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_records_amount_latest', true)">
                         Lifetime Sales
                       </SingleSortItem>
@@ -397,7 +401,7 @@
                         Avg Sales/ Day
                       </SingleSortItem>
                       <SingleSortItem modelName="vend_transaction_totals_json->vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_records_thirty_days_amount_average', true)">
-                        Avg Sales (Last30d)
+                        AvgDailySales (Last30d)
                       </SingleSortItem>
                       <SingleSortItem modelName="vend_transaction_totals_json->vend_records_thirty_days_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_transaction_totals_json->vend_records_thirty_days_amount', true)">
                         Sales (Last30d)
@@ -476,26 +480,26 @@
                         </span>
                         {{ customer.name }}
                       </a>
-                      <a
-                        target="_blank"
-                        :href="cmsEndpoint + '/person/' + customer.person_id + '/edit'"
-                        class=""
-                        v-if="customer.person_id"
-                      >
-                        <div
-                          class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
+                      <div class="flex space-x-1">
+                        <a
+                          target="_blank"
+                          :href="cmsEndpoint + '/person/' + customer.person_id + '/edit'"
+                          class=""
+                          v-if="customer.person_id"
                         >
-                          CMS
+                          <div
+                            class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
+                          >
+                            CMS
+                          </div>
+                        </a>
+                        <div
+                          class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit h-fit bg-indigo-100 text-indigo-800 border-indigo-300"
+                        >
+                          RP{{ customer.selling_price_type }}
                         </div>
-                      </a>
+                      </div>
                     </div>
-                  </TableData>
-                  <TableData
-                    :currentIndex="customerIndex"
-                    :totalLength="customers.length"
-                    inputClass="text-center"
-                  >
-                    {{ customer.selling_price_type }}
                   </TableData>
                   <TableData
                     :currentIndex="customerIndex"
@@ -593,6 +597,20 @@
                     inputClass="text-left whitespace-pre-line"
                   >
                     {{ customer.ops_note }}
+                  </TableData>
+                  <TableData
+                    :currentIndex="customerIndex"
+                    :totalLength="customers.length"
+                    inputClass="text-center"
+                  >
+                    <div class="flex flex-col space-y-2">
+                      <span>
+                        {{ operatorCountry.currency_symbol }}{{(customer.total_full_load_amount).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
+                      </span>
+                      <span :class="[customer.thirty_days_over_full_load_ratio < 1 ? 'text-red-600' : (customer.thirty_days_over_full_load_ratio > 2 ? 'text-green-600' : 'text-gray-800')]">
+                        {{(customer.thirty_days_over_full_load_ratio).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
+                      </span>
+                    </div>
                   </TableData>
                   <TableData
                     :currentIndex="customerIndex"
@@ -714,12 +732,13 @@ import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, PlusIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, ExclamationCircleIcon, MagnifyingGlassIcon, MapPinIcon, PencilSquareIcon, PlusIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 
 const props = defineProps({
   customers: Object,

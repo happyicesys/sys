@@ -345,7 +345,7 @@ class VendController extends Controller
             })
             ->leftJoin(DB::raw('
                 (
-                    SELECT vend_id, SUM(amount * qty) AS total_stock_amount
+                    SELECT vend_id, SUM(amount * qty) AS total_stock_amount, SUM(amount * capacity) AS total_full_load_amount
                     FROM vend_channels
                     WHERE is_active = true
                     AND capacity > 0
@@ -520,6 +520,7 @@ class VendController extends Controller
                 'operators.name AS operator_name',
                 'addresses.postcode AS postcode',
                 'vend_prefixes.name AS vend_prefix_name',
+                'vc.total_full_load_amount',
                 'vc.total_stock_amount',
                 'vc_cost.total_stock_cost',
                 'vc_stock.actual_stock_in_value',
