@@ -86,8 +86,10 @@ class DashboardController extends Controller
             ->filterIndex($request)
             ->whereNotIn('vend_id', function ($query) {
                 $query->select('id')->from('vends')->where('is_testing', true);
-            })
-            ->groupBy('date')
+            });
+
+            // dd($dayGraph->get()->toArray());
+            $dayGraph->groupBy('date')
             ->select(
                 DB::raw('MONTH(date) as month'),
                 DB::raw('MONTHNAME(date) as month_name'),
