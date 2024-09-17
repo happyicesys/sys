@@ -36,6 +36,11 @@ class VendConfig extends Model
     //     return $this->belongsToMany(VendConfig::class);
     // }
 
+    public function vends()
+    {
+        return $this->hasMany(Vend::class);
+    }
+
     public function vendPrefixes() : BelongsToMany
     {
         return $this->belongsToMany(VendPrefix::class);

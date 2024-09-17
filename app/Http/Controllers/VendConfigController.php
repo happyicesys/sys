@@ -37,6 +37,7 @@ class VendConfigController extends Controller
                         'vendConfigCompatibles',
                         'vendPrefixes'
                     ])
+                    ->withCount('vends')
                     ->when($request->is_active, function($query, $search) {
                         // dd(filter_var($search, FILTER_VALIDATE_BOOLEAN));
                         $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));

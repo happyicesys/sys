@@ -22,6 +22,8 @@ class VendConfigResource extends JsonResource
             'name' => $this->name,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'operator_id' => $this->operator_id,
+            'vends' => VendResource::collection($this->whenLoaded('vends')),
+            'vends_count' => isset($this->vends_count) ? $this->vends_count : 0,
             'vendConfigCompatibles' => VendConfigResource::collection($this->whenLoaded('vendConfigCompatibles')),
             'vendConfigCompatibleWith' => VendConfigResource::collection($this->whenLoaded('vendConfigCompatibleWith')),
             'vendPrefixes' => VendPrefixResource::collection($this->whenLoaded('vendPrefixes')),

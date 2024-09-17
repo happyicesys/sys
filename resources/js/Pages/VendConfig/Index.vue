@@ -146,6 +146,9 @@
                       Compatible
                     </TableHead>
                     <TableHead>
+                      Machine Count
+                    </TableHead>
+                    <TableHead>
                       Latest Attachment
                     </TableHead>
                     <TableHead>
@@ -191,6 +194,9 @@
                             </li>
                           </ul>
                         </div>
+                      </TableData>
+                      <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-center">
+                        {{ vendConfig.vends_count }}
                       </TableData>
                       <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-left">
                         <span v-if="vendConfig.attachments && vendConfig.attachments.length > 0">
