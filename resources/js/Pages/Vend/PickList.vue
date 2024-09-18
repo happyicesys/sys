@@ -136,7 +136,7 @@ const props = defineProps({
   pickLists: Object,
   showModal: Boolean,
   type: {
-    type: String,
+    type: [String, Number],
     default: 1
   }
 })

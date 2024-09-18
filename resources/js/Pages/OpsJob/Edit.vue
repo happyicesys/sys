@@ -104,6 +104,39 @@
                     <MapPinIcon class="h-4 w-4" aria-hidden="true" />
                     <span>Show Map Markers</span>
                   </Button>
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-blue bg-blue-400 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+                  @click.prevent="onGeneratePickListClicked()"
+                  v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 2)"
+                  >
+                    <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
+                    <span class="flex flex-col space-y-1">
+                      <span>
+                          Qty List (Live)
+                      </span>
+                    </span>
+                  </Button>
+                  <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 w-fit"
+                  @click.prevent="onGenerateQtyListClicked(2)"
+                  v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status == 2)"
+                  >
+                    <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
+                    <span class="flex flex-col space-y-1">
+                      <span>
+                        Qty List (Picked)
+                      </span>
+                    </span>
+                  </Button> -->
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 w-fit"
+                  @click.prevent="onGenerateQtyListClicked(3)"
+                  v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status >= 3)"
+                  >
+                    <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
+                    <span class="flex flex-col space-y-1">
+                      <span>
+                        Qty List (Stocked In)
+                      </span>
+                    </span>
+                  </Button>
                   <!-- <Link :href="'/ops-jobs/' + opsJob.id + '/route' " class="text-blue-700" v-if="opsJob.opsJobItems">
                     <span class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 hover:cursor-pointer ml-1">
                       <PlayIcon class="h-4 w-4" aria-hidden="true" />
@@ -131,13 +164,31 @@
                               <SingleSortItem modelName="sequence" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sequence')">
                                 Job Sequence
                               </SingleSortItem>
-                              <Button
-                                class="bg-yellow-400 hover:bg-yellow-500 text-gray-800 text-xs font-semibold mx-w-20 mx-1"
-                                @click.prevent="onRenumberClicked()"
-                                v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 3)"
+                              <!-- <span>
+                                Job Sequence
+                              </span> -->
+                              <!-- <Button
+                                class="bg-yellow-300 hover:bg-yellow-400 text-gray-800 text-[11px] font-medium"
+                                @click.prevent="sortTable('sequence')"
+                                v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 3) && permissions.includes('admin-access operations')"
                               >
                                 <div class="flex space-x-1 items-center">
-                                  <ArrowsUpDownIcon class="h-4 w-4"></ArrowsUpDownIcon>
+                                  <ArrowPathIcon class="h-3 w-3"></ArrowPathIcon>
+                                  <span>
+                                    Sort
+                                  </span>
+                                </div>
+                              </Button> -->
+                              <Button
+                                class="bg-yellow-300 hover:bg-yellow-400 text-gray-800 text-[11px] font-medium"
+                                @click.prevent="onRenumberItemsClicked()"
+                                v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 3) && permissions.includes('admin-access operations')"
+                              >
+                                <div class="flex space-x-1 items-center">
+                                  <BarsArrowDownIcon class="h-3 w-3"></BarsArrowDownIcon>
+                                  <span>
+                                    Renumber
+                                  </span>
                                 </div>
                               </Button>
                             </div>
@@ -226,7 +277,7 @@
                                 type="text"
                                 class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-fit text-sm border-gray-300 rounded-md max-w-14 text-center"
                                 v-model="opsJobItem.sequence"
-                                @change="updateSequence(opsJobItem)"
+                                @input="updateSequence(opsJobItem)"
                                 />
                             </div>
                           </td>
@@ -501,29 +552,7 @@
                       </span>
                     </span>
                   </Button>
-                  <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                  @click.prevent="onGeneratePickListClicked()"
-                  v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 2)"
-                  >
-                    <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
-                    <span class="flex flex-col space-y-1">
-                      <span>
-                          Generate Live Pick List
-                      </span>
-                    </span>
-                  </Button>
-                  <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-                  @click.prevent="onGenerateDeliveredListClicked()"
-                  v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status >= 3)"
-                  >
-                    <ClipboardDocumentCheckIcon class="h-4 w-4" aria-hidden="true"/>
-                    <span class="flex flex-col space-y-1">
-                      <span>
-                          Stocked In Qty List
-                      </span>
-                    </span>
-                  </Button>
-                  <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 hover:cursor-pointer"
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 hover:cursor-pointer w-fit"
                   @click.prevent="syncCMSInvoices()"
                   v-if="!opsJob.opsJobItems || opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.cms_transaction_id == null) && (opsJob.opsJobItems.some(item => item.status >= 3 && item.status != 99))"
                   >
@@ -617,7 +646,7 @@ import PickList from '@/Pages/Vend/PickList.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
-import {ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, MapPinIcon, PaperClipIcon, PlayIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import {ArrowPathIcon, ArrowUturnLeftIcon, ArrowsRightLeftIcon, ArrowsUpDownIcon, BarsArrowDownIcon, ClipboardDocumentCheckIcon, CurrencyDollarIcon, MapIcon, MapPinIcon, PaperClipIcon, PlayIcon, PlusCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -702,6 +731,10 @@ function addOpsJobItem() {
 }
 
 function syncCMSInvoices() {
+  const approval = confirm('Are you sure to send the data to CMS?');
+  if (!approval) {
+      return;
+  }
   form.value.post('/ops-jobs/' + opsJob.value.id + '/sync-cms-invoices', {
     onSuccess: () => {
       toast.success("Data Sent to CMS", {
@@ -808,10 +841,10 @@ function onGeneratePickListClicked() {
     })
 }
 
-function onGenerateDeliveredListClicked() {
+function onGenerateQtyListClicked(status) {
   axios({
         method: 'POST',
-        url: '/ops-jobs/delivered-lists',
+        url: '/ops-jobs/qty-list/status/' + status,
         // get all the vends from the opsJobItems
         data: opsJob.value.opsJobItems,
     }).then(response => {
@@ -883,11 +916,12 @@ function onPickListModalClose() {
   showPickListModal.value = false
 }
 
-function onRenumberClicked(opsJobItem) {
+function onRenumberItemsClicked() {
   form.value.clearErrors()
   form.value
     .transform((data) => ({
       ...data,
+      opsJobItems: opsJob.value.opsJobItems,
     }))
     .post('/ops-jobs/' + opsJob.value.id + '/renumber', {
     onSuccess: () => {
@@ -897,6 +931,26 @@ function onRenumberClicked(opsJobItem) {
       opsJob.value = props.opsJob.data
     },
     preserveState: true,
+    preserveScroll: true,
+    replace: true,
+  })
+}
+
+function onSortClicked() {
+  form.value.clearErrors()
+  form.value
+    .transform((data) => ({
+      ...data,
+    }))
+    .post('/ops-jobs/' + opsJob.value.id + '/sort', {
+    onSuccess: () => {
+      toast.success("Successfully Sort", {
+        timeout: 3000
+      });
+      opsJob.value = props.opsJob.data
+    },
+    preserveState: true,
+    preserveScroll: true,
     replace: true,
   })
 }

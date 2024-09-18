@@ -486,7 +486,7 @@ class OpsJobController extends Controller
         return redirect()->back();
     }
 
-    public function deliveredLists(Request $request)
+    public function qtyList(Request $request, $status = 3)
     {
         $dataArr = [];
         $input = collect($request->all());
@@ -498,9 +498,18 @@ class OpsJobController extends Controller
             ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
             ->leftJoin('ops_job_item_channels', 'ops_job_item_channels.vend_channel_id', '=', 'vend_channels.id')
             ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
-            ->whereIn('ops_job_items.id', $input->pluck('id')->toArray())
-            ->where('ops_job_items.status', '>=', OpsJob::STATUS_DELIVERED)
-            ->where('ops_job_items.status', '<>', OpsJob::STATUS_CANCELLED)
+            ->whereIn('ops_job_items.id', $input->pluck('id')->toArray());
+
+            switch($status) {
+                case OpsJob::STATUS_PICKED:
+                    $items = $items->where('ops_job_items.status', OpsJob::STATUS_PICKED);
+                    break;
+                case OpsJob::STATUS_DELIVERED:
+                    $items = $items->where('ops_job_items.status', '>=', OpsJob::STATUS_DELIVERED);
+                    break;
+            }
+
+            $items = $items->where('ops_job_items.status', '<>', OpsJob::STATUS_CANCELLED)
             ->select(
                 'vend_channels.product_id',
                 DB::raw('CAST(SUM(ops_job_item_channels.actual_qty) AS UNSIGNED) as topup_qty'),
@@ -900,17 +909,31 @@ class OpsJobController extends Controller
         return redirect()->back();
     }
 
-    public function renumberItems($id)
+    public function renumberItems(Request $request, $id)
     {
+
+
         $opsJob = OpsJob::findOrFail($id);
 
-        $sequence = 1;
-        foreach($opsJob->opsJobItems as $opsJobItem) {
-            $opsJobItem->update([
-                'sequence' => $sequence,
-            ]);
-            $sequence++;
-        }
+        $opsJobItems = collect($request->opsJobItems);
+        $ids = $opsJobItems->pluck('id')->toArray(); // Extract the ids in the provided order
+
+        $opsJob->opsJobItems()
+            ->orderByRaw('FIELD(id, ' . implode(',', $ids) . ')') // Use FIELD to order by the provided id sequence
+            ->get()
+            ->each(function($opsJobItem, $index) {
+                $opsJobItem->update([
+                    'sequence' => $index + 1,
+                ]);
+            });
+
+        // $sequence = 1;
+        // foreach($opsJob->opsJobItems as $opsJobItem) {
+        //     $opsJobItem->update([
+        //         'sequence' => $sequence,
+        //     ]);
+        //     $sequence++;
+        // }
 
         return redirect()->back();
     }
@@ -920,6 +943,11 @@ class OpsJobController extends Controller
         $opsJob = OpsJob::query()
             ->with([
                 'deliveredBy',
+                'opsJobItems' => function($query) {
+                    $query
+                        ->orderBy('sequence')
+                        ->orderBy('created_at');
+                },
                 'opsJobItems.customer.deliveryAddress',
                 'opsJobItems.opsJobItemChannels',
                 'opsJobItems.statusBy',

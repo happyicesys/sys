@@ -433,7 +433,7 @@
                             Channel
                         </TableHead>
                         <TableHead>
-                            Product Code
+                            Product ID
                         </TableHead>
                         <TableHead>
                             Product Name

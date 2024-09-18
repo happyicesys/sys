@@ -271,6 +271,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/deliver', [OpsJobController::class, 'deliver']);
         Route::post('/{id}/renumber', [OpsJobController::class, 'renumberItems']);
         Route::get('/{id}/route', [OpsJobController::class, 'route']);
+        Route::post('/{id}/sort', [OpsJobController::class, 'sortItems']);
         Route::post('/assign', [OpsJobController::class, 'assign']);
         Route::post('/{id}/item/create', [OpsJobController::class, 'createItem']);
         Route::post('/items/{itemId}/update', [OpsJobController::class, 'updateItem']);
@@ -284,7 +285,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/item-channels/{itemChannelId}/settle-error', [OpsJobController::class, 'settleItemChannelError']);
         Route::post('/items/{itemID}/upload-attachments', [OpsJobController::class, 'uploadItemAttachments']);
         Route::post('/items/{itemID}/cash-collected', [OpsJobController::class, 'itemCashCollected']);
-        Route::post('/delivered-lists', [OpsJobController::class, 'deliveredLists']);
+        Route::post('/qty-list/status/{status}', [OpsJobController::class, 'qtyList']);
     });
 
     Route::prefix('reports')->group(function() {
