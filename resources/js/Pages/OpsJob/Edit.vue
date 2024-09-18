@@ -180,7 +180,7 @@
                                 </div>
                               </Button> -->
                               <Button
-                                class="bg-yellow-300 hover:bg-yellow-400 text-gray-800 text-[11px] font-medium"
+                                class="bg-yellow-300 hover:bg-yellow-400 text-gray-800 text-xs font-medium"
                                 @click.prevent="onRenumberItemsClicked()"
                                 v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 3) && permissions.includes('admin-access operations')"
                               >
