@@ -4,10 +4,13 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2 text-gray-800">
           <span class="text-gray-600" v-if="type == 1">
-            Pick List
+            Qty List (Live)
           </span>
           <span class="text-gray-600" v-if="type == 2">
-            Stocked In Qty
+            Qty List (Picked)
+          </span>
+          <span class="text-gray-600" v-if="type == 3">
+            Qty List (Stocked In)
           </span>
         </div>
       </template>

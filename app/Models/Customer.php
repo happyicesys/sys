@@ -288,9 +288,7 @@ class Customer extends Model
                 });
         })
         ->when($request->frequency_per_week_status, function($query, $search) {
-            if($search != 'all') {
-                $query->where('frequency_per_week_status', $search);
-            }
+            $query->whereIn('frequency_per_week_status', $search);
         })
         ->when($request->is_active, function($query, $search) use ($request) {
             if($search != 'all') {

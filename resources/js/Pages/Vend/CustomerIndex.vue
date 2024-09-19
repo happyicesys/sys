@@ -366,6 +366,7 @@
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
+							mode="tags"
             ></MultiSelect>
           </div>
 				</div>
@@ -1828,7 +1829,7 @@
         deviceType: '',
         errors: [],
         firmware_ver: '',
-				frequency_per_week_status: '',
+				frequency_per_week_status: [],
         locationType: '',
         is_active: true,
         is_binded_customer: '',
@@ -1955,7 +1956,6 @@ onMounted(() => {
       {id: 'close', value: 'Close'},
   ]
   frequencyPerWeekOptions.value = [
-    { id: 'all', value: 'All' },
     ...Object.entries(props.frequencyPerWeekOptions).map(([id, value]) => {
       return {
         id: id,
@@ -2005,7 +2005,7 @@ onMounted(() => {
 
   filters.value.is_active = booleanOptions.value[1]
   filters.value.deviceType = deviceTypeOptions.value[0]
-	filters.value.frequency_per_week_status = frequencyPerWeekOptions.value[0]
+	// filters.value.frequency_per_week_status = frequencyPerWeekOptions.value[0]
   filters.value.is_door_open = doorOptions.value[0]
   filters.value.is_mqtt = booleanOptions.value[0]
   filters.value.is_mqtt_active = booleanOptions.value[0]
@@ -2169,7 +2169,7 @@ function getVendsField() {
         ...filters.value,
         deviceType: filters.value.deviceType.id,
         errors: filters.value.errors.map((error) => { return error.id }),
-				frequency_per_week_status: filters.value.frequency_per_week_status.id,
+				frequency_per_week_status: filters.value.frequency_per_week_status.map((frequency) => { return frequency.id }),
         location_type_id: filters.value.locationType.id,
         next_planned_date: filters.value.next_planned_date,
         next_planned_driver: filters.value.next_planned_driver.id,

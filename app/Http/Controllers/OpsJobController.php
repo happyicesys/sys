@@ -491,33 +491,44 @@ class OpsJobController extends Controller
         $dataArr = [];
         $input = collect($request->all());
         $items = VendChannel::query()
-            ->with([
-                'product:id,code,name,desc,is_available',
-                'product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
-            ])
-            ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
-            ->leftJoin('ops_job_item_channels', 'ops_job_item_channels.vend_channel_id', '=', 'vend_channels.id')
-            ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
-            ->whereIn('ops_job_items.id', $input->pluck('id')->toArray());
+        ->with([
+            'product:id,code,name,desc,is_available',
+            'product.thumbnail:id,full_url,attachments.modelable_id,attachments.modelable_type',
+        ])
+        ->leftJoin('products', 'products.id', '=', 'vend_channels.product_id')
+        ->leftJoin('ops_job_item_channels', 'ops_job_item_channels.vend_channel_id', '=', 'vend_channels.id')
+        ->leftJoin('ops_job_items', 'ops_job_items.id', '=', 'ops_job_item_channels.ops_job_item_id')
+        ->whereIn('ops_job_items.id', $input->pluck('id')->toArray());
 
-            switch($status) {
-                case OpsJob::STATUS_PICKED:
-                    $items = $items->where('ops_job_items.status', OpsJob::STATUS_PICKED);
-                    break;
-                case OpsJob::STATUS_DELIVERED:
-                    $items = $items->where('ops_job_items.status', '>=', OpsJob::STATUS_DELIVERED);
-                    break;
-            }
+        switch ($status) {
+            case OpsJob::STATUS_PICKED:
+                $items = $items->where('ops_job_items.status', OpsJob::STATUS_PICKED);
+                break;
+            case OpsJob::STATUS_DELIVERED:
+                $items = $items->where('ops_job_items.status', '>=', OpsJob::STATUS_DELIVERED);
+                break;
+        }
 
-            $items = $items->where('ops_job_items.status', '<>', OpsJob::STATUS_CANCELLED)
+        $items = $items->where('ops_job_items.status', '<>', OpsJob::STATUS_CANCELLED)
             ->select(
                 'vend_channels.product_id',
-                DB::raw('CAST(SUM(ops_job_item_channels.actual_qty) AS UNSIGNED) as topup_qty'),
+                DB::raw("
+                    CAST(
+                        SUM(
+                            CASE
+                                WHEN ops_job_items.status = " . OpsJob::STATUS_PICKED . " THEN ops_job_item_channels.picked_qty
+                                WHEN ops_job_items.status >= " . OpsJob::STATUS_DELIVERED . " THEN ops_job_item_channels.actual_qty
+                                ELSE 0
+                            END
+                        ) AS UNSIGNED
+                    ) as topup_qty
+                ")
             )
             ->groupBy('vend_channels.product_id')
             ->orderBy('products.code')
             ->having('topup_qty', '>', 0)
             ->get();
+
 
         $dataArr = [
             'items' => $items->toArray(),

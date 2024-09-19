@@ -432,6 +432,26 @@ class CustomerController extends Controller
         return redirect()->route('customers.edit', [$customer->id]);
     }
 
+    public function syncFromCms(Request $request)
+    {
+        $response = Http::get(env('CMS_URL') . '/api/people');
+        $people = $response->collect();
+
+        if ($people) {
+            foreach ($people as $person) {
+                $customer = Customer::where('person_id', $person['id'])->first();
+
+                if ($customer) {
+                    $customer->update([
+                        'cms_customer' => $person,
+                    ]);
+                }
+            }
+        }
+
+        return true;
+    }
+
     public function syncCmsInvoiceItems(Request $request)
     {
         $customers = Customer::query()

@@ -115,7 +115,7 @@
                       </span>
                     </span>
                   </Button>
-                  <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 w-fit"
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 w-fit"
                   @click.prevent="onGenerateQtyListClicked(2)"
                   v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status == 2)"
                   >
@@ -125,7 +125,7 @@
                         Qty List (Picked)
                       </span>
                     </span>
-                  </Button> -->
+                  </Button>
                   <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 w-fit"
                   @click.prevent="onGenerateQtyListClicked(3)"
                   v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status >= 3)"
@@ -849,7 +849,7 @@ function onGenerateQtyListClicked(status) {
         data: opsJob.value.opsJobItems,
     }).then(response => {
         pickLists.value = response.data
-        pickListType.value = 2
+        pickListType.value = status
     }).catch(error => {
     }).finally(() => {
         showPickListModal.value = true
