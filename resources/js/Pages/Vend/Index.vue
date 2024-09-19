@@ -1546,10 +1546,6 @@ filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || ro
 filters.value.locationType = locationTypeOptions.value[0]
   filters.value.next_planned_driver = nextDeliveryDriverOptions.value[0]
 //   filters.value.operator = operatorOptions.value[0]
-filters.value.operators = authOperator ? [
-		operatorOptions.value.find(operator => operator.id === authOperator.id),
-		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
-	] : operatorOptions.value[0]
 filters.value.status = statusOptions.value[2]
 // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
 })

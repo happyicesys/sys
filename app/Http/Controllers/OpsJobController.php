@@ -600,6 +600,7 @@ class OpsJobController extends Controller
                     'cash_amount',
                     'cashless_amount',
                     'customer_id',
+                    'notes',
                     'ops_job_id',
                     'vend_id',
                     'cms_transaction_at',

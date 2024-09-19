@@ -217,12 +217,12 @@
                               <span>
                                 Customer
                               </span>
-                              <span>
-                                Ops Note
-                              </span>
                               <SingleSortItem modelName="delivery_postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_postcode')">
                                 Postcode
                               </SingleSortItem>
+                              <span>
+                                Ops Note
+                              </span>
                             </div>
                           </TableHead>
                           <TableHead>
@@ -416,8 +416,8 @@
                                   </span>
                                 </div>
                               </span>
-                              <span class="text-left">
-                                {{ opsJobItem.ops_note }}
+                              <span class="text-left font-medium bg-gray-200 py-1 px-1 rounded">
+                                {{ opsJobItem.customer ? opsJobItem.customer.ops_note : '' }}
                               </span>
                             </div>
                           </td>

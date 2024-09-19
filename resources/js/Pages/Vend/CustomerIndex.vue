@@ -2019,7 +2019,10 @@ onMounted(() => {
 //   filters.value.operator = operatorOptions.value[0]
   filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
-		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
+		...authOperator.code == 'HIPL' ? [
+			operatorOptions.value.find(operator => operator.code == 'HIMD'),
+			operatorOptions.value.find(operator => operator.code == 'LEA'),
+		] : [],
 	] : operatorOptions.value[0]
   filters.value.status = statusOptions.value[2]
     // filters.value.vend_prefix_id = vendPrefixOptions.value[0]

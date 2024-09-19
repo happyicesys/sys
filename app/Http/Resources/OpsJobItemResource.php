@@ -66,6 +66,7 @@ class OpsJobItemResource extends JsonResource
             'total_cash_amount_from_vmc' => isset($this->total_cash_amount_from_vmc) ? $this->total_cash_amount_from_vmc/100 : 0,
             'created_by' => UserResource::make($this->whenLoaded('createdBy')),
             'delivered_by' => UserResource::make($this->whenLoaded('deliveredBy')),
+            'notes' => $this->notes,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'opsJob' => OpsJobResource::make($this->whenLoaded('opsJob')),
             'opsJobItemChannels' => OpsJobItemChannelResource::collection($this->whenLoaded('opsJobItemChannels')),
