@@ -11,7 +11,7 @@
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
-        <div class="flex justify-end">
+        <div class="flex space-x-1 justify-end">
           <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           @click="onCreateClicked()"
           >
@@ -20,6 +20,14 @@
               Create
             </span>
           </Button>
+          <!-- <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          @click="onCreateAddressClicked()"
+          >
+            <PlusIcon class="h-4 w-4" aria-hidden="true"/>
+            <span>
+              Create Start or Finish Point
+            </span>
+          </Button> -->
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2 mt-2">
             <div class="col-span-5 md:col-span-1">
@@ -437,7 +445,12 @@
       :userOptions="userOptions"
       @modalClose="onModalClose"
   >
-</Form>
+  </Form>
+  <!-- <AddressForm
+    v-if="showAddressModal"
+    :startAddresses =
+  >
+  </AddressForm> -->
   </BreezeAuthenticatedLayout>
 </template>
 
@@ -476,6 +489,7 @@ const filters = ref({
   sortBy: false,
   numberPerPage: 100,
 })
+const showAddressModal = ref(false)
 const showModal = ref(false)
 const operatorCountry = usePage().props.auth.operatorCountry
 const opsJob = ref()
@@ -500,6 +514,10 @@ function onCreateClicked() {
   type.value = 'create'
   opsJob.value = null
   showModal.value = true
+}
+
+function onCreateAddressClicked() {
+  showAddressModal.value = true
 }
 
 function onDeleteClicked(opsJob) {

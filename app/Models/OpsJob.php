@@ -54,6 +54,11 @@ class OpsJob extends Model
         return $this->belongsTo(User::class, 'delivered_by');
     }
 
+    public function finishAddresses()
+    {
+        return $this->morphMany(Address::class, 'modelable')->ofMany('type', '2');
+    }
+
     public function operator()
     {
         return $this->belongsTo(Operator::class);
@@ -67,6 +72,11 @@ class OpsJob extends Model
     public function pickedBy()
     {
         return $this->belongsTo(User::class, 'picked_by');
+    }
+
+    public function startAddresses()
+    {
+        return $this->morphMany(Address::class, 'modelable')->ofMany('type', '1');
     }
 
     public function updatedBy()
