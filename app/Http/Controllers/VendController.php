@@ -54,6 +54,7 @@ use App\Models\VendTransactionItem;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
 use App\Models\Zone;
+use App\Services\CmsService;
 use App\Services\HistoryService;
 use App\Services\MapService;
 use App\Services\MqttService;
@@ -81,6 +82,7 @@ class VendController extends Controller
 {
     use GetUserTimezone, HasFilter;
 
+    protected $cmsService;
     protected $historyService;
     protected $mapService;
     protected $mqttService;
@@ -91,6 +93,7 @@ class VendController extends Controller
 
 
     public function __construct(
+        CmsService $cmsService,
         HistoryService $historyService,
         MqttService $mqttService,
         PaymentGatewayService $paymentGatewayService,
@@ -102,6 +105,7 @@ class VendController extends Controller
         $this->middleware(['permission:read vend-customers'])->only('indexCustomer');
         $this->middleware(['permission:read vend-machines'])->only('index');
         $this->middleware(['permission:read transactions'])->only('transactionIndex');
+        $this->cmsService = $cmsService;
         $this->historyService = $historyService;
         $this->mapService = new MapService();
         $this->mqttService = $mqttService;
@@ -302,6 +306,7 @@ class VendController extends Controller
             'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
             'sortKey' => isset($request->sortKey) ? $request->sortKey : 'balance_percent',
             'sortBy' => isset($request->sortBy) ? $request->sortBy : true,
+            'productAvailableDate' => isset($request->productFilters['productAvailableDate']) ? Carbon::parse($request->productFilters['productAvailableDate'])->toDateString() : Carbon::today()->addDay()->toDateString()
         ]);
         $className = get_class(new Customer());
 
@@ -571,6 +576,49 @@ class VendController extends Controller
         $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
 
+        $cmsQtyAvailableProducts = $this->cmsService->getCMSQtyAvailableApi();
+        // dd($cmsQtyAvailableProducts);
+
+        // dd($request->productAvailableDate);
+        $products = Product::query()
+            ->with(['thumbnail', 'isAvailableUpdatedBy'])
+            ->when($request->operators, function($query, $search) {
+                $query->whereIn('operator_id', $search);
+            })
+            ->select(
+                'id',
+                'code',
+                'desc',
+                'max_ops_job_pick_limit',
+                'name',
+                'is_available',
+                'is_available_updated_at',
+                'is_available_updated_by',
+            )
+            ->selectRaw('(
+                SELECT SUM(vend_channels.capacity - vend_channels.qty)
+                FROM ops_job_item_channels
+                LEFT JOIN ops_jobs ON ops_jobs.id = ops_job_item_channels.ops_job_id
+                LEFT JOIN vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
+                WHERE ops_job_item_channels.product_id = products.id
+                AND DATE(ops_jobs.date) = ?
+                AND DATE(ops_jobs.date) >= ?
+            ) AS needed_qty', [$request->productAvailableDate, Carbon::today()->toDateString()])
+            ->where('is_active', true)
+            ->where('is_inventory', true)
+            ->orderBy('code')
+            ->get();
+
+        foreach($products as $product) {
+            if($cmsQtyAvailableProducts) {
+                foreach($cmsQtyAvailableProducts as $cmsQtyAvailableProduct) {
+                    if($product->code == $cmsQtyAvailableProduct['code']) {
+                        $product->qty_available_pcs_api = $cmsQtyAvailableProduct['qty'];
+                    }
+                }
+            }
+        }
+
         $totals = [
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'thirtyDays' => collect((clone $vends)
@@ -612,16 +660,7 @@ class VendController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'productOptions' => ProductResource::collection(
-                Product::query()
-                    ->with(['thumbnail', 'isAvailableUpdatedBy'])
-                    ->when($request->operators, function($query, $search) {
-                        $query->whereIn('operator_id', $search);
-                    })
-                    ->select('id', 'code', 'desc', 'name', 'is_available', 'is_available_updated_at', 'is_available_updated_by')
-                    ->where('is_active', true)
-                    ->where('is_inventory', true)
-                    ->orderBy('code')
-                    ->get()
+                $products
             ),
             'sellingPriceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'totals' => $totals,

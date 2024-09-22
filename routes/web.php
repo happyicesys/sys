@@ -338,6 +338,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [ProductController::class, 'delete']);
         Route::delete('/selling-prices/{sellingPriceId}', [ProductController::class, 'deleteSellingPrice']);
         Route::post('/toggle-is-available', [ProductController::class, 'toggleIsAvailable']);
+        Route::post('/{id}/max-ops-job-pick-limit', [ProductController::class, 'updateMaxOpsJobPickLimit']);
     });
 
     Route::prefix('product-mappings')->group(function() {

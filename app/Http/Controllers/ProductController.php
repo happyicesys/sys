@@ -264,4 +264,14 @@ class ProductController extends Controller
 
         return redirect()->route('products');
     }
+
+    public function updateMaxOpsJobPickLimit(Request $request, $productID)
+    {
+        $product = Product::findOrFail($productID);
+        $product->update([
+            'max_ops_job_pick_limit' => $request->max_ops_job_pick_limit,
+        ]);
+
+        return redirect()->back();
+    }
 }

@@ -73,13 +73,22 @@ const showDirections = () => {
     batchCustomers.forEach((customer, index) => {
       const lat = parseFloat(customer.deliveryAddress.latitude);
       const lng = parseFloat(customer.deliveryAddress.longitude);
+
+      // Check for valid lat/lng
+      if (isNaN(lat) || isNaN(lng)) return; // Skip customer if lat/lng is invalid
+
       const markerPosition = new google.maps.LatLng(lat, lng);
 
+      // Set the first customer as the origin
       if (index === 0) {
-        request.origin = markerPosition;  // First customer in batch is the origin
-      } else if (index === batchCustomers.length - 1) {
-        request.destination = markerPosition;  // Last customer in batch is the destination
-      } else {
+        request.origin = markerPosition;
+      }
+      // Set the last customer as the destination
+      else if (index === batchCustomers.length - 1) {
+        request.destination = markerPosition;
+      }
+      // Add all other customers as waypoints
+      else {
         request.waypoints.push({
           location: markerPosition,
           stopover: true,
@@ -87,6 +96,7 @@ const showDirections = () => {
       }
     });
 
+    // Add the request if both origin and destination are valid
     if (request.origin && request.destination) {
       requests.push(request);
     }

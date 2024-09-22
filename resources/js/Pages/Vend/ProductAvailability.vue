@@ -37,7 +37,7 @@
         <div class="flex flex-col">
           <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
             <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
-              <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+              <div class="overflow-scroll max-h-[600px] md:max-h-[800px] shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                 <table class="table-fixed min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
                     <tr>
@@ -52,6 +52,25 @@
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Available?
+                      </th>
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        Available Qty <br>
+                        (from API)
+                      </th>
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        Needed Qty <br>
+                        <DatePicker
+                          v-model="filters.productAvailableDate"
+                          :isPreviousNextButton=false
+                          :clearable="false"
+                          @update:modelValue="onSearchFilterUpdated"
+                          :minDate="today"
+                        >
+                        </DatePicker>
+                      </th>
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        Qty Limit <br>
+                        (per Job)
                       </th>
                     </tr>
                   </thead>
@@ -89,6 +108,20 @@
                           </span>
                         </div>
                       </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-blue-600' : 'text-gray-400']">
+                        {{ product.qty_available_pcs_api }}
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
+                        {{ product.needed_qty }}
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800">
+                        <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded text-gray-800" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
+                          <option :value="null">
+                            No
+                          </option>
+                          <option v-for="n in 15 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
+                        </select>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -103,8 +136,9 @@
 
 <script setup>
 import { ChevronDoubleDownIcon, ChevronDoubleUpIcon, CheckCircleIcon, PencilSquareIcon, XCircleIcon } from '@heroicons/vue/20/solid';
-import Button from '@/Components/Button.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import Modal from '@/Components/Modal.vue';
+import moment from 'moment';
 import { onMounted, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 const props = defineProps({
@@ -118,9 +152,12 @@ const filters = ref({
   name: '',
   code: '',
   is_available: '',
+  productAvailableDate: moment().add(1, 'days').format('YYYY-MM-DD'),
 })
+const today = moment().format('YYYY-MM-DD')
 
 onMounted(() => {
+
 })
 const emit = defineEmits(['modalClose', 'productUpdated'])
 
@@ -133,6 +170,19 @@ function onIsAvailableClicked(product) {
   }).then(response => {
     emit('productUpdated')
   })
+}
+
+function onMaxOpsJobPickLimitSelected(id, max_ops_job_pick_limit) {
+  axios({
+      method: 'POST',
+      url: '/products/' + id + '/max-ops-job-pick-limit',
+      data: {max_ops_job_pick_limit: max_ops_job_pick_limit},
+  }).then(response => {
+  })
+}
+
+function onSearchFilterUpdated() {
+  emit('productUpdated', {productAvailableDate: filters.value.productAvailableDate})
 }
 
 // function onSearchFilterUpdated() {

@@ -2236,8 +2236,14 @@ function getVendsField() {
         isShowOperationDiv.value = !isShowOperationDiv.value
   }
 
-	function refreshProductOptions() {
-		router.reload({ only: ['productOptions'] });
+	function refreshProductOptions(data) {
+
+		router.reload({
+			only: ['productOptions'],
+			data: {
+				productFilters: data
+			}
+		});
 	}
 
   function resetFilters() {

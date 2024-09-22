@@ -1,40 +1,43 @@
 <template #dp-input="value">
   <div>
     <label for="text" class="block text-sm font-medium text-gray-700">
-        <slot></slot>
+      <slot></slot>
     </label>
-    <div class="mt-1 flex rounded-md">
+    <div class="mt-1 flex items-center rounded-md">
       <Datepicker
         :modelValue="modelValue"
         @update:modelValue="onSelected"
         format="yyyy-MM-dd"
-        :clearable="true"
+        :clearable="clearable"
         :monthChangeOnScroll="false"
         autoApply
         :closeOnAutoApply="true"
         :minDate="minDate"
         :maxDate="maxDate"
         :enableTimePicker="enableTimePicker"
-        class="grow"
+        class="flex-grow"
+        style="min-width: 150px; width: auto;"
+      />
+      <button
+        type="button"
+        class="border border-gray-300 bg-gray-50 px-2 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        @click="onPreviousDateClicked"
+        v-if="isPreviousNextButton"
       >
-      </Datepicker>
-      <button type="button" class="border border-gray-300 bg-gray-50 px-2 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-        @click="onPreviousDateClicked()"
-      >
-        <span>
-          <ChevronDoubleLeftIcon class="h-4 w-4" aria-hidden="true"/>
-        </span>
+        <ChevronDoubleLeftIcon class="h-4 w-4" aria-hidden="true" />
       </button>
-      <button type="button" class="rounded-r-md border border-gray-300 bg-gray-50 px-2 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-      @click="onNextDateClicked()"
+      <button
+        type="button"
+        class="rounded-r-md border border-gray-300 bg-gray-50 px-2 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        @click="onNextDateClicked"
+        v-if="isPreviousNextButton"
       >
-        <span>
-          <ChevronDoubleRightIcon class="h-4 w-4" aria-hidden="true"/>
-        </span>
+        <ChevronDoubleRightIcon class="h-4 w-4" aria-hidden="true" />
       </button>
     </div>
   </div>
 </template>
+
 
 <script setup>
   import Datepicker from '@vuepic/vue-datepicker';
@@ -45,6 +48,10 @@
   const emit = defineEmits(['update:modelValue'])
 
   const props = defineProps({
+    clearable: {
+      type: [Boolean, String],
+      default: true,
+    },
     disabled: [Boolean, String],
     modelValue: [Date, String, Object],
     minDate: [Date, String, Object],
@@ -52,6 +59,10 @@
     enableTimePicker: {
       type: Boolean,
       default: false,
+    },
+    isPreviousNextButton: {
+      type: [Boolean, String],
+      default: true,
     },
   })
 

@@ -42,6 +42,7 @@ class Product extends Model
         'is_commission',
         'is_inventory',
         'is_supermarket_fee',
+        'max_ops_job_pick_limit',
         'measurement_count',
         'measurement_unit',
         'measurement_value',

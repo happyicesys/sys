@@ -1120,7 +1120,13 @@ function loadingData() {
       is_error_settle: opsJobItemChannel.is_error_settle,
       ops_job_item_channel_id: opsJobItemChannel.id,
       before_picked: opsJobItemChannel.picked_before_qty,
-      picked: props.opsJobItem.data.status < 2 ? (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available ? (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) : 0) : opsJobItemChannel.picked_qty,
+      picked: props.opsJobItem.data.status < 2 ?
+        (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available ?
+        (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null ? (
+          opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit < (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) ? opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit :
+          (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty))
+          : opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) : 0) :
+        opsJobItemChannel.picked_qty,
       before_refill: opsJobItemChannel.actual_before_qty,
       refill: props.opsJobItem.data.status == 2 ? opsJobItemChannel.picked_qty : opsJobItemChannel.actual_qty,
       product: opsJobItemChannel.vendChannel.product ? {
