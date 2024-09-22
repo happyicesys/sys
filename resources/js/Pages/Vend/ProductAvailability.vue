@@ -109,10 +109,10 @@
                         </div>
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-blue-600' : 'text-gray-400']">
-                        {{ product.qty_available_pcs_api }}
+                        {{ Number(product.qty_available_pcs_api)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
-                        {{ product.needed_qty }}
+                        {{ Number(product.needed_qty)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800">
                         <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded text-gray-800" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
@@ -121,6 +121,39 @@
                           </option>
                           <option v-for="n in 15 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                         </select>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="3"></td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800">
+                        <div class="flex flex-col space-y-1">
+                          <span>
+                            Total Pcs
+                          </span>
+                          <span>
+                            Total Cost$
+                          </span>
+                        </div>
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600">
+                        <div class="flex flex-col space-y-1">
+                          <span>
+                            {{ getProductAvailablePcsApiTotal().toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                          </span>
+                          <span>
+                            {{ operatorCountry.currency_symbol }}{{ getProductAvailablePcsApiTotalCost().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                          </span>
+                        </div>
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800">
+                        <div class="flex flex-col space-y-1">
+                          <span>
+                            {{ getProductNeededQtyTotal().toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                          </span>
+                          <span>
+                            {{ operatorCountry.currency_symbol }}{{ getProductNeededQtyTotalCost().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -161,6 +194,41 @@ onMounted(() => {
 })
 const emit = defineEmits(['modalClose', 'productUpdated'])
 
+// Function to calculate total available pieces, ensuring values are treated as numbers
+function getProductAvailablePcsApiTotal() {
+  return props.products.data.reduce((acc, product) => {
+    const qtyAvailable = Number(product.qty_available_pcs_api) || 0; // Convert to number and default to 0 if it's NaN
+    return acc + qtyAvailable;
+  }, 0);
+}
+
+// Function to calculate total cost of available pieces, ensuring values are treated as numbers
+function getProductAvailablePcsApiTotalCost() {
+  return props.products.data.reduce((acc, product) => {
+    const qtyAvailable = Number(product.qty_available_pcs_api) || 0; // Convert to number and default to 0
+    const unitCost = Number(product.latestUnitCost?.cost) || 0; // Convert to number and default to 0
+    return acc + (qtyAvailable * unitCost);
+  }, 0);
+}
+
+// Function to calculate total needed quantity, ensuring values are treated as numbers
+function getProductNeededQtyTotal() {
+  return props.products.data.reduce((acc, product) => {
+    const neededQty = Number(product.needed_qty) || 0; // Convert to number and default to 0
+    return acc + neededQty;
+  }, 0);
+}
+
+// Function to calculate total cost of needed quantity, ensuring values are treated as numbers
+function getProductNeededQtyTotalCost() {
+  return props.products.data.reduce((acc, product) => {
+    const neededQty = Number(product.needed_qty) || 0; // Convert to number and default to 0
+    const unitCost = Number(product.latestUnitCost?.cost) || 0; // Convert to number and default to 0
+    return acc + (neededQty * unitCost);
+  }, 0);
+}
+
+
 
 function onIsAvailableClicked(product) {
   axios({
@@ -168,7 +236,7 @@ function onIsAvailableClicked(product) {
       url: '/products/toggle-is-available',
       data: {product_id: product.id},
   }).then(response => {
-    emit('productUpdated')
+    emit('productUpdated', {productAvailableDate: filters.value.productAvailableDate})
   })
 }
 

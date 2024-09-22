@@ -581,7 +581,11 @@ class VendController extends Controller
 
         // dd($request->productAvailableDate);
         $products = Product::query()
-            ->with(['thumbnail', 'isAvailableUpdatedBy'])
+            ->with([
+                'isAvailableUpdatedBy',
+                'latestUnitCost',
+                'thumbnail',
+                ])
             ->when($request->operators, function($query, $search) {
                 $query->whereIn('operator_id', $search);
             })
