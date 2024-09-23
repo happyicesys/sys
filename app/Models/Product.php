@@ -42,7 +42,7 @@ class Product extends Model
         'is_commission',
         'is_inventory',
         'is_supermarket_fee',
-        'max_ops_job_pick_limit',
+        'max_ops_job_pick_limit_json',
         'measurement_count',
         'measurement_unit',
         'measurement_value',
@@ -53,6 +53,7 @@ class Product extends Model
     ];
 
     protected $casts = [
+        'max_ops_job_pick_limit_json' => 'json',
         'translated_names_json' => 'json',
         'is_available_updated_at' => 'datetime'
     ];

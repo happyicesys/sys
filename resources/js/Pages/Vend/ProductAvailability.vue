@@ -38,13 +38,13 @@
           <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
             <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
               <div class="overflow-scroll max-h-[600px] md:max-h-[800px] shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table class="table-fixed min-w-full divide-y divide-gray-300">
+                <table class="min-w-full divide-y divide-gray-300">
                   <thead class="bg-gray-50">
                     <tr>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         #
                       </th>
-                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Image
                       </th>
                       <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
@@ -54,8 +54,16 @@
                         Available?
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        Available Qty <br>
+                        Warehouse Qty <br>
                         (from API)
+                      </th>
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        Job(s) Qty <br>
+                        (not yet sync API)
+                      </th>
+                      <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        Net Available Qty <br>
+                        (based on API)
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Needed Qty <br>
@@ -111,7 +119,15 @@
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-blue-600' : 'text-gray-400']">
                         {{ Number(product.qty_available_pcs_api)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                       </td>
-                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-800' : 'text-gray-400']">
+                        {{ Number(product.not_yet_sync_api_qty)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-800' : 'text-gray-400']">
+                        <span :class="product.is_available ? (product.net_available_qty_pcs_api < product.needed_qty ? 'text-red-800 bg-red-200 rounded px-1 py-1' : '') : 'text-gray-400'">
+                          {{ Number(product.net_available_qty_pcs_api)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                        </span>
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-800' : 'text-gray-400']">
                         {{ Number(product.needed_qty)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800">
@@ -142,6 +158,26 @@
                           </span>
                           <span>
                             {{ operatorCountry.currency_symbol }}{{ getProductAvailablePcsApiTotalCost().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                          </span>
+                        </div>
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600">
+                        <div class="flex flex-col space-y-1">
+                          <span>
+                            {{ getProductNotYetSyncApiQtyTotal().toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                          </span>
+                          <span>
+                            {{ operatorCountry.currency_symbol }}{{ getProductNotYetSyncApiQtyTotalCost().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
+                          </span>
+                        </div>
+                      </td>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600">
+                        <div class="flex flex-col space-y-1">
+                          <span>
+                            {{ getProductNetAvailableQtyPcsApiTotal().toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
+                          </span>
+                          <span>
+                            {{ operatorCountry.currency_symbol }}{{ getProductNetAvailableQtyPcsApiTotalCost().toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                           </span>
                         </div>
                       </td>
@@ -211,6 +247,40 @@ function getProductAvailablePcsApiTotalCost() {
   }, 0);
 }
 
+// Function to calculate total not yet sync API quantity, ensuring values are treated as numbers
+function getProductNotYetSyncApiQtyTotal() {
+  return props.products.data.reduce((acc, product) => {
+    const notYetSyncApiQty = Number(product.not_yet_sync_api_qty) || 0; // Convert to number and default to 0
+    return acc + notYetSyncApiQty;
+  }, 0);
+}
+
+// Function to calculate total cost of not yet sync API quantity, ensuring values are treated as numbers
+function getProductNotYetSyncApiQtyTotalCost() {
+  return props.products.data.reduce((acc, product) => {
+    const notYetSyncApiQty = Number(product.not_yet_sync_api_qty) || 0; // Convert to number and default to 0
+    const unitCost = Number(product.latestUnitCost?.cost) || 0; // Convert to number and default to 0
+    return acc + (notYetSyncApiQty * unitCost);
+  }, 0);
+}
+
+// Function to calculate total net available quantity, ensuring values are treated as numbers
+function getProductNetAvailableQtyPcsApiTotal() {
+  return props.products.data.reduce((acc, product) => {
+    const netAvailableQty = Number(product.net_available_qty_pcs_api) || 0; // Convert to number and default to 0
+    return acc + netAvailableQty;
+  }, 0);
+}
+
+// Function to calculate total cost of net available quantity, ensuring values are treated as numbers
+function getProductNetAvailableQtyPcsApiTotalCost() {
+  return props.products.data.reduce((acc, product) => {
+    const netAvailableQty = Number(product.net_available_qty_pcs_api) || 0; // Convert to number and default to 0
+    const unitCost = Number(product.latestUnitCost?.cost) || 0; // Convert to number and default to 0
+    return acc + (netAvailableQty * unitCost);
+  }, 0);
+}
+
 // Function to calculate total needed quantity, ensuring values are treated as numbers
 function getProductNeededQtyTotal() {
   return props.products.data.reduce((acc, product) => {
@@ -244,7 +314,7 @@ function onMaxOpsJobPickLimitSelected(id, max_ops_job_pick_limit) {
   axios({
       method: 'POST',
       url: '/products/' + id + '/max-ops-job-pick-limit',
-      data: {max_ops_job_pick_limit: max_ops_job_pick_limit},
+      data: {date: filters.value.productAvailableDate, max_ops_job_pick_limit: max_ops_job_pick_limit},
   }).then(response => {
   })
 }

@@ -65,6 +65,7 @@ class SyncVendOnlineStatus extends Command
             }
 
             // sync mqtt if offline
+            $vend->is_mqtt_active = false;
             if($vend->is_mqtt) {
                 if($vend->mqtt_last_updated_at and $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) < 15) {
                     $vend->is_mqtt_active = true;
@@ -72,7 +73,6 @@ class SyncVendOnlineStatus extends Command
                 }
 
                 if($vend->mqtt_last_updated_at and $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) > 60) {
-                    $vend->is_mqtt_active = false;
                     if(!$vend->is_mqtt_offline_notified) {
                         Mail::to([
                             'daniel.ma@happyice.com.sg',

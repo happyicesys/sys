@@ -436,7 +436,7 @@ trait HasFilter {
                 if(
                     $search === 'totals_json->three_days_error_rate' or
                     $search === 'totals_json->seven_days_error_rate' or
-                    $search === 'vend_transaction_totals_json->vend_records_amount_average_day'
+                    $search === 'totals_json->vend_records_amount_average_day'
                 ) {
                     $query->orderByRaw('(CAST(json_unquote(json_extract(`'.$inputSearch[0].'`, "$.'.$inputSearch[1].'")) AS DECIMAL(10,2))) ' . (filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc'));
                 }else {

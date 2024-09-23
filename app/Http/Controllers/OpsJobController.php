@@ -784,6 +784,7 @@ class OpsJobController extends Controller
 
     public function editItem(Request $request, $id)
     {
+        $opsJob = OpsJobItem::findOrFail($id)->opsJob;
         $opsJobItem = OpsJobItem::query()
             ->with([
                 'vend:id,customer_id,code,vend_prefix_id',
@@ -793,6 +794,18 @@ class OpsJobController extends Controller
                 'customer.deliveryAddress',
                 'vend.vendPrefix',
                 'opsJob',
+                'opsJobItemChannels.vendChannel.product' => function($query) use ($opsJob) {
+                    $query->select('*')
+                    ->selectRaw('
+                        (
+                            SELECT JSON_UNQUOTE(JSON_EXTRACT(p1.max_ops_job_pick_limit_json, CONCAT(\'$."\', ?, \'"\')))
+                            FROM products AS p1
+                            WHERE p1.id = products.id
+                            LIMIT 1
+                        ) as max_ops_job_pick_limit
+                    ', [$opsJob->date->toDateString()]);
+
+                },
                 'opsJobItemChannels.vendChannel.product.thumbnail',
                 'attachments',
                 'remarksUpdatedBy:id,name',
@@ -836,20 +849,24 @@ class OpsJobController extends Controller
                 WHERE oj_items.id = ops_job_items.id
             ) as acc_vend_transactions_count')
             ->selectRaw('
-            (SELECT SUM(ops_job_item_channels.actual_qty * vend_channels.amount)
-             FROM ops_job_item_channels
-             JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
-            WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
-             AND ops_job_items.status >= ?
-             AND ops_job_items.status <> ?
-            ) as stock_in_amount', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED])
+                (SELECT SUM(ops_job_item_channels.actual_qty * vend_channels.amount)
+                FROM ops_job_item_channels
+                JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
+                JOIN ops_jobs ON ops_jobs.id = ops_job_item_channels.ops_job_id
+                WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
+                AND ops_job_items.status >= ?
+                AND ops_job_items.status <> ?
+                AND ops_jobs.id = ops_job_item_channels.ops_job_id
+                ) as stock_in_amount', [OpsJob::STATUS_DELIVERED, OpsJob::STATUS_CANCELLED])
             ->selectRaw('
-            (SELECT SUM(ops_job_item_channels.picked_qty * vend_channels.amount)
-            FROM ops_job_item_channels
-            JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
-            WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
-            ) as picked_amount')
+                (SELECT SUM(ops_job_item_channels.picked_qty * vend_channels.amount)
+                FROM ops_job_item_channels
+                JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
+                WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
+                ) as picked_amount')
             ->findOrFail($id);
+
+
 
         return Inertia::render('OpsJob/EditItem', [
             'opsJobItem' => OpsJobItemResource::make($opsJobItem),

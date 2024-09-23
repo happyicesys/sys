@@ -42,6 +42,8 @@ class ProductResource extends JsonResource
             'measurement_count' => $this->measurement_count,
             'measurement_unit' => ['id' => $this->measurement_unit, 'name' => $this->measurement_unit],
             'measurement_value' => $this->measurement_value,
+            'net_available_qty_pcs_api' => isset($this->net_available_qty_pcs_api) ? $this->net_available_qty_pcs_api : null,
+            'not_yet_sync_api_qty' => isset($this->not_yet_sync_api_qty) ? $this->not_yet_sync_api_qty : null,
             'thumbnail' => AttachmentResource::make($this->whenLoaded('thumbnail')),
             'latestUnitCost' => UnitCostResource::make($this->whenLoaded('latestUnitCost')),
             'needed_qty' => isset($this->needed_qty) ? $this->needed_qty : null,

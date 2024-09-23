@@ -268,9 +268,29 @@ class ProductController extends Controller
     public function updateMaxOpsJobPickLimit(Request $request, $productID)
     {
         $product = Product::findOrFail($productID);
-        $product->update([
-            'max_ops_job_pick_limit' => $request->max_ops_job_pick_limit,
-        ]);
+
+        // Retrieve the current `max_ops_job_pick_limit_json` as an associative array
+        $maxOpsJobPickLimitJson = $product->max_ops_job_pick_limit_json;
+
+        // Loop through the existing array and remove entries where the date is in the past
+        if (!empty($maxOpsJobPickLimitJson)) {
+            foreach ($maxOpsJobPickLimitJson as $date => $value) {
+                if (Carbon::parse($date)->lt(Carbon::today())) {
+                    // Remove this entry if the date is in the past
+                    unset($maxOpsJobPickLimitJson[$date]);
+                }
+            }
+        }
+
+        // Check if new data is provided in the request, then add it to the array
+        if ($request->date && $request->max_ops_job_pick_limit) {
+            // Add or update the entry for the new date
+            $maxOpsJobPickLimitJson[$request->date] = $request->max_ops_job_pick_limit;
+        }
+
+        // Encode the updated array back to JSON and save it
+        $product->max_ops_job_pick_limit_json = $maxOpsJobPickLimitJson;
+        $product->save();
 
         return redirect()->back();
     }

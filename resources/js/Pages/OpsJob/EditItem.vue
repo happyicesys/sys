@@ -349,26 +349,28 @@
                           </div>
                         </td>
                         <td class="whitespace py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900">
-                          <div class="flex flex-col space-y-1 justify-center px-1.5">
-                            <div class="flex justify-between items-center">
+                          <div class="flex flex-col space-y-2 items-center justify-center px-1.5">
+                            <div class="flex space-x-2 items-center">
                               <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">need</span>
-                              {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
+                              <span>
+                                {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
+                              </span>
                             </div>
-                            <div class="flex justify-between items-center"  v-if="opsJobItem.status > 1">
+                            <div class="flex space-x-2 items-center"  v-if="opsJobItem.status > 1">
                               <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">picked</span>
                               <span :class="[channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked) ? 'text-red-500' : (channel.picked > (channel.capacity - channel.before_picked) ? 'text-blue-500' : 'text-black')]">
                                 {{ channel.picked }}
                               </span>
                             </div>
-                            <div class="flex justify-between items-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
+                            <div class="flex flex-col items-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
                               <select name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : 'text-black']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                                 <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                               </select>
-                              <span v-if="opsJobItem.status >= 2">
-                                {{ channel.picked }}
+                              <span class="text-xs text-red-500" v-if="channel.picked_limit != null">
+                                limited ({{ channel.picked_limit }})
                               </span>
                             </div>
-                            <div class="flex space-x-1 items-center justify-between" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                            <div class="flex space-x-2 items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                               <ArrowRightEndOnRectangleIcon class="w-5 h-5 text-blue-600">
                               </ArrowRightEndOnRectangleIcon>
                               <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
@@ -378,7 +380,7 @@
                                 {{ channel.refill }}
                               </span>
                             </div>
-                            <div class="flex justify-between space-x-1 items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                            <div class="flex space-x-2 items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                               <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">VMC</span>
                               <span>
                                 {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
@@ -621,15 +623,16 @@
                           {{ channel.picked }}
                         </td>
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-900" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
-                          <!-- <FormInput inputType="number" v-model="channel.picked" :maxValue="channel.capacity" class="text-center min-w-12" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
-                          </FormInput> -->
-                          <select name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
-                            <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
-                          </select>
-                          <span v-if="opsJobItem.status >= 2">
-                            {{ channel.picked }}
-                          </span>
+                          <div class="flex flex-col items-center justify-center">
+                            <select name="channel_picked" id="channel_picked" class="rounded w-fit" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
+                              <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
+                            </select>
+                            <span class="text-xs text-red-500" v-if="channel.picked_limit != null">
+                              limited ({{ channel.picked_limit }})
+                            </span>
+                          </div>
                         </td>
+
                         <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
                           <!-- <FormInput inputType="number" v-model="channel.refill" :maxValue="channel.capacity" class="text-center min-w-12" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                           </FormInput> -->
@@ -1119,6 +1122,7 @@ function loadingData() {
       error_settled_at_formatted: opsJobItemChannel.error_settled_at_formatted,
       is_error_settle: opsJobItemChannel.is_error_settle,
       ops_job_item_channel_id: opsJobItemChannel.id,
+      picked_limit: opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null ? opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit : null,
       before_picked: opsJobItemChannel.picked_before_qty,
       picked: props.opsJobItem.data.status < 2 ?
         (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available ?
