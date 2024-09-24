@@ -110,6 +110,7 @@ class Vend extends Model
         'code',
         'customer_id',
         'customer_movement_history_json',
+        'label_name',
         'lcd_monitor_id',
         'modem_type_id',
         'menu_frame_id',
@@ -563,7 +564,11 @@ class Vend extends Model
         })
         ->when($request->modem_type_id, function($query, $search) {
             if($search != 'all') {
-                $query->where('vends.modem_type_id', $search);
+                if($search == 'undefined') {
+                    $query->whereNull('modem_type_id');
+                }else {
+                    $query->where('modem_type_id', $search);
+                }
             }
         })
         ->when($request->simcard_id, function($query, $search) {
@@ -619,6 +624,15 @@ class Vend extends Model
         ->when($request->key_id, function($query, $search) {
             if($search != 'all') {
                 $query->where('key_id', $search);
+            }
+        })
+        ->when($request->lcd_monitor_id, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'undefined') {
+                    $query->whereNull('lcd_monitor_id');
+                }else {
+                    $query->where('lcd_monitor_id', $search);
+                }
             }
         })
         ->when($request->location_type_id, function($query, $search) {

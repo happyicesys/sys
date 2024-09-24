@@ -868,9 +868,17 @@
 							{{ vends.meta.from + vendIndex }}
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">
-							<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
-							{{ vend.code }}
-							</Link>
+							<div class="flex flex-col space-y-2 items-center">
+								<Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
+								{{ vend.code }}
+								</Link>
+								<div
+									class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-yellow-100 text-yellow-800 border-yellow-300 max-w-48"
+									v-if="vend.label_name"
+								>
+									{{ vend.label_name }}
+								</div>
+							</div>
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
 							<div class="flex flex-col space-y-1">
@@ -917,6 +925,7 @@
 								</span>
 								<div
 									class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-indigo-100 text-indigo-800 border-indigo-300"
+									v-if="vend.selling_price_type"
 								>
 									RP{{ vend.selling_price_type }}
 								</div>

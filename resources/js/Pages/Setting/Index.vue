@@ -205,6 +205,22 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
+                LCD Monitor
+            </label>
+            <MultiSelect
+                v-model="filters.lcd_monitor_id"
+                :options="lcdMonitorOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
                 Simcard
             </label>
             <MultiSelect
@@ -414,6 +430,9 @@
                       Modem Type
                     </TableHead>
                     <TableHead>
+                      LCD Monitor
+                    </TableHead>
+                    <TableHead>
                       Simcard
                     </TableHead>
                     <TableHead>
@@ -445,11 +464,19 @@
                         {{ vend.vendModel ? vend.vendModel.name : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        <Link :href="'/settings/vend/' + vend.id + '/update'">
-                          <span class="text-blue-600">
-                            {{ vend.code }}
-                          </span>
-                        </Link>
+                        <div class="flex flex-col space-y-2 items-center">
+                          <Link :href="'/settings/vend/' + vend.id + '/update'">
+                            <span class="text-blue-600">
+                              {{ vend.code }}
+                            </span>
+                          </Link>
+                          <div
+                            class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-yellow-100 text-yellow-800 border-yellow-300 max-w-48"
+                            v-if="vend.label_name"
+                          >
+                            {{ vend.label_name }}
+                          </div>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         <span v-if="vend.vendConfig" class="flex flex-col space-y-1">
@@ -492,7 +519,7 @@
                           </a>
                           <div
                             class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-indigo-100 text-indigo-800 border-indigo-300"
-                            v-if="vend.customer"
+                            v-if="vend.customer && vend.customer.selling_price_type"
                           >
                             RP{{ vend.customer.selling_price_type }}
                           </div>
@@ -753,6 +780,9 @@
                         {{ vend.modem_type }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+                        {{ vend.lcd_monitor }}
+                      </TableData>
+                      <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.simcard ? vend.simcard.code : '' }}
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
@@ -840,6 +870,7 @@ const props = defineProps({
     categoryGroups: Object,
     cmsEndpoint: String,
     keyOptions: Object,
+    lcdMonitorOptions: Object,
     locationTypeOptions: Object,
     modemTypeOptions: [Array, Object],
     operatorOptions: Object,
@@ -859,6 +890,7 @@ const filters = ref({
     categories: [],
     categoryGroups: [],
     key_id: '',
+    lcd_monitor_id: '',
     locationTypes: [],
     modem_type_id: '',
     operators: [],
@@ -890,6 +922,7 @@ const filters = ref({
   const operatorOptions = ref([])
   const type = ref('')
   const vend = ref()
+  const lcdMonitorOptions = ref([])
   const operatorCountry = usePage().props.auth.operatorCountry
   const operatorRole = usePage().props.auth.operatorRole
   const sellingPriceTypeOptions = ref([])
@@ -931,11 +964,18 @@ onMounted(() => {
         {id: 'all', value: 'All'},
         ...props.keyOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
+    lcdMonitorOptions.value = [
+        { id: 'undefined', value: 'Undefined'},
+        ...Object.entries(props.lcdMonitorOptions).map(([id, name]) => ({id: id, value: name}))
+    ]
     locationTypeOptions.value = [
         {id: 'all', value: 'All'},
         ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
-    modemTypeOptions.value = Object.entries(props.modemTypeOptions).map(([id, name]) => ({id: id, value: name}))
+    modemTypeOptions.value = [
+        { id: 'undefined', value: 'Undefined'},
+        ...Object.entries(props.modemTypeOptions).map(([id, name]) => ({id: id, value: name}))
+    ]
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
@@ -996,6 +1036,7 @@ function onSearchFilterUpdated() {
       categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
       cashless_terminal_id: filters.value.cashless_terminal_id.id,
       // location_type_id: filters.value.locationType.id,
+      lcd_monitor_id: filters.value.lcd_monitor_id.id,
       locationTypes: filters.value.locationTypes.map((locationType) => { return locationType.id }),
       modem_type_id: filters.value.modem_type_id.id,
       operators: filters.value.operators.map((operator) => { return operator.id }),

@@ -42,7 +42,7 @@
               </div>
             </div>
 
-            <div class="sm:col-span-5" v-if="vend">
+            <div class="sm:col-span-2" v-if="vend">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Vend ID#
               </label>
@@ -54,6 +54,11 @@
                   disabled
                 />
               </div>
+            </div>
+            <div class="sm:col-span-4">
+              <FormInput v-model="form.label_name" :error="form.errors.label_name">
+                Label
+              </FormInput>
             </div>
 
             <div class="sm:col-span-2">
@@ -1036,6 +1041,7 @@ function getDefaultForm() {
     claw_machine_body_id: '',
     code: '',
     customer_id: '',
+    label_name: '',
     lcd_monitor_id: '',
     customer: {
       begin_date: '',
@@ -1098,7 +1104,6 @@ onMounted(() => {
     { id: '', name: '--- Clear ---'},
     ...Object.entries(props.lcdMonitorOptions).map(([id, name]) => ({ id: id, name: name }))
   ];
-
   keyOptions.value = [
     { id: '', name: '--- Clear ---'},
     ...props.keyOptions.data,

@@ -215,6 +215,24 @@ trait HasFilter {
                 });
             // }
         })
+        ->when($request->lcd_monitor_id, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'undefined') {
+                    $query->whereNull('vends.lcd_monitor_id');
+                }else {
+                    $query->where('vends.lcd_monitor_id', $search);
+                }
+            }
+        })
+        ->when($request->modem_type_id, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'undefined') {
+                    $query->whereNull('vends.modem_type_id');
+                }else {
+                    $query->where('vends.modem_type_id', $search);
+                }
+            }
+        })
         ->when($request->product_code, function($query, $search) {
             $query->where('products.code', 'LIKE', "%{$search}%");
         })

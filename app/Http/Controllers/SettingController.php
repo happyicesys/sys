@@ -122,6 +122,8 @@ class SettingController extends Controller
                 'vends.serial_num',
                 'vends.is_active',
                 'vends.is_testing',
+                'vends.label_name',
+                'vends.lcd_monitor_id',
                 'vends.last_updated_at',
                 'vends.modem_type_id',
                 'vends.parameter_json',
@@ -164,6 +166,7 @@ class SettingController extends Controller
             'keyOptions' => KeyResource::collection(
                 Key::orderBy('name')->get()
             ),
+            'lcdMonitorOptions' => Vend::LCD_MONITOR_MAPPINGS,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
@@ -252,6 +255,7 @@ class SettingController extends Controller
             'vends.begin_date',
             'vends.simcard_id',
             'vends.termination_date',
+            'vends.label_name',
             'vends.menu_frame_id',
             'vends.modem_type_id',
             'vends.operator_id',

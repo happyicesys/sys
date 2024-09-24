@@ -42,10 +42,12 @@ class VendResource extends JsonResource
             'begin_date_short' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'serial_num' => isset($this->serial_num) ? $this->serial_num : null,
             // compare last_updated_at and mqtt_last_updated_at which time is nearer to current time, then show the shortRelativeDiffForHumans
+            'label_name' => isset($this->label_name) ? $this->label_name : null,
             'last_online_at' => isset($this->last_updated_at) || isset($this->mqtt_last_updated_at)
             ? $this->getNearestTime($this->last_updated_at, $this->mqtt_last_updated_at)->shortRelativeDiffForHumans()
             : null,
             'last_updated_at' => isset($this->last_updated_at) ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
+            'lcd_monitor' => isset($this->lcd_monitor_id) ? Vend::LCD_MONITOR_MAPPINGS[$this->lcd_monitor_id] : null,
             'lcd_monitor_id' => isset($this->lcd_monitor_id) ? $this->lcd_monitor_id : null,
             'menu_frame_id' => isset($this->menu_frame_id) ? $this->menu_frame_id : null,
             'modem_type' => isset($this->modem_type_id) ? Vend::MODEM_TYPE_MAPPINGS[$this->modem_type_id] : null,

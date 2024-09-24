@@ -180,7 +180,10 @@ class VendController extends Controller
                 'vends.is_temp_active',
                 'vends.is_temp_error',
                 'vends.is_testing',
+                'vends.label_name',
+                'vends.lcd_monitor_id',
                 'vends.last_updated_at',
+                'vends.modem_type_id',
                 'vends.mqtt_last_updated_at',
                 'vends.operator_id',
                 'vends.out_of_stock_sku_percent',
@@ -243,9 +246,11 @@ class VendController extends Controller
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
             'deviceTypes' => Vend::DEVICE_TYPE_MAPPINGS,
             'indexType' => $request->indexType,
+            'lcdMonitorOptions' => Vend::LCD_MONITOR_MAPPINGS,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
+            'modemTypeOptions' => Vend::MODEM_TYPE_MAPPINGS,
             'nextDeliveryDriverOptions' => Customer::query()
                 ->where('cms_invoice_history->next_delivery_driver', '!=', null)
                 ->select('cms_invoice_history->next_delivery_driver AS name')
@@ -513,6 +518,7 @@ class VendController extends Controller
                 DB::raw('DATE(customers.last_invoice_date) AS last_invoice_date'),
                 DB::raw('DATE(customers.next_invoice_date) AS next_invoice_date'),
                 'customers.next_invoice_driver_id',
+                'vends.label_name',
                 'vends.last_updated_at',
                 'vends.mqtt_last_updated_at',
                 'vends.out_of_stock_sku_percent',
@@ -1520,6 +1526,7 @@ class VendController extends Controller
                 'upcoming_product_mapping_id' => null,
             ]);
         }
+        // dd($request->all());
         $vend->update([
             'name' => $request->name,
             'begin_date' => $request->begin_date,
@@ -1527,6 +1534,7 @@ class VendController extends Controller
             'cashless_terminal_id' => $request->cashless_terminal_id,
             'claw_machine_board_id' => $request->claw_machine_board_id,
             'claw_machine_body_id' => $request->claw_machine_body_id,
+            'label_name' => $request->label_name,
             'lcd_monitor_id' => $request->lcd_monitor_id,
             'menu_frame_id' => $request->menu_frame_id,
             'modem_type_id' => $request->modem_type_id,

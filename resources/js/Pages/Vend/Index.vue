@@ -319,6 +319,38 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Modem Type
+            </label>
+            <MultiSelect
+                v-model="filters.modem_type_id"
+                :options="modemTypeOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                LCD Monitor
+            </label>
+            <MultiSelect
+                v-model="filters.lcd_monitor_id"
+                :options="lcdMonitorOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
       </div>
 
       <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -587,6 +619,16 @@
           <TableHead>
             Payment Device
           </TableHead>
+          <TableHead>
+            <div class="flex flex-col space-y-2">
+              <span>
+                Modem
+              </span>
+              <span>
+                LCD Monitor
+              </span>
+            </div>
+          </TableHead>
           <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')" v-if="indexType === 'customers'">
             Location
           </TableHeadSort>
@@ -653,9 +695,17 @@
             </span>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
-            <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
-              {{ vend.code }}
-            </Link>
+            <div class="flex flex-col space-y-2 items-center">
+              <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
+                {{ vend.code }}
+              </Link>
+              <div
+                class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-yellow-100 text-yellow-800 border-yellow-300 max-w-48"
+                v-if="vend.label_name"
+              >
+                {{ vend.label_name }}
+              </div>
+            </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             <div class="flex flex-col space-y-1 text-center justify-center items-center">
@@ -1237,6 +1287,16 @@
             </span>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+            <div class="flex flex-col space-y-2" :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
+              <span>
+                {{ vend.modem_type }}
+              </span>
+              <span>
+                {{ vend.lcd_monitor }}
+              </span>
+            </div>
+          </TableData>
+          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             <span :class="vend.is_active || vend.is_testing ? 'text-gray-900' : 'text-gray-400'">
                 {{ vend.operator_code }}
             </span>
@@ -1364,7 +1424,9 @@ font-size:13px;
       constTempError: Number,
       deviceTypes: [Array, Object],
       indexType: String,
+      lcdMonitorOptions: Object,
       locationTypeOptions: Object,
+      modemTypeOptions: Object,
       nextDeliveryDriverOptions: [Array, Object],
       operatorOptions: Object,
       productOptions: Object,
@@ -1395,7 +1457,9 @@ font-size:13px;
       t2HigherThan: '',
       tempDeltaHigherThan: '',
       vend_channel_error_id: '',
+      lcd_monitor_id: '',
       lastVisitedGreaterThan: '',
+      modem_type_id: '',
       next_planned_date: '',
       next_planned_driver: '',
       is_mqtt: '',
@@ -1428,9 +1492,11 @@ font-size:13px;
   const isActiveFactoryOptions = ref([])
   const isShowOperationDiv = ref(false)
   const isSelectedAll = ref(false)
+  const lcdMonitorOptions = ref([])
   const loading = ref(false)
   const loadingSyncNextDeliveryDate = ref(false)
   const locationTypeOptions = ref([])
+  const modemTypeOptions = ref([])
   const nextDeliveryDriverOptions = ref([])
   const numberPerPageOptions = ref([])
   const operatorOptions = ref([])
@@ -1504,9 +1570,17 @@ isActiveFactoryOptions.value = [
     {id: '2', value: 'Active'},
     {id: '3', value: 'Not Active'},
 ]
+lcdMonitorOptions.value = [
+    { id: 'undefined', value: 'Undefined'},
+    ...Object.entries(props.lcdMonitorOptions).map(([id, name]) => ({id: id, value: name}))
+]
 locationTypeOptions.value = [
     {id: 'all', value: 'All'},
     ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
+]
+modemTypeOptions.value = [
+    { id: 'undefined', value: 'Undefined'},
+    ...Object.entries(props.modemTypeOptions).map(([id, name]) => ({id: id, value: name}))
 ]
 nextDeliveryDriverOptions.value = [
     {id: 'all', value: 'All'},
@@ -1631,7 +1705,9 @@ function onSearchFilterUpdated() {
       ...filters.value,
       deviceType: filters.value.deviceType.id,
       errors: filters.value.errors.map((error) => { return error.id }),
+      lcd_monitor_id: filters.value.lcd_monitor_id.id,
       location_type_id: filters.value.locationType.id,
+      modem_type_id: filters.value.modem_type_id.id,
       next_planned_date: filters.value.next_planned_date,
       next_planned_driver: filters.value.next_planned_driver.id,
       operators: filters.value.operators.map((operator) => { return operator.id }),
@@ -1716,7 +1792,9 @@ axios({
         ...filters.value,
         deviceType: filters.value.deviceType.id,
         errors: filters.value.errors.map((error) => { return error.id }),
+        lcd_monitor_id: filters.value.lcd_monitor_id.id,
         location_type_id: filters.value.locationType.id,
+        modem_type_id: filters.value.modem_type_id.id,
         operators: filters.value.operators.map((operator) => { return operator.id }),
         is_active: filters.value.is_active.id,
         is_binded_customer: filters.value.is_binded_customer.id,
