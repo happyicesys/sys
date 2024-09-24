@@ -27,6 +27,7 @@ class OpsJobResource extends JsonResource
             'cms_transaction_percentage' => isset($this->cms_transaction_percentage) ? round($this->cms_transaction_percentage) : 0,
             'date' => $this->date,
             'date_formatted' => $this->date->format('ymd'),
+            'date_day' => $this->date->format('D'),
             'date_diff_human' => isset($this->date)
             ? (
                 (

@@ -348,19 +348,25 @@
                             </div>
                           </div>
                         </td>
-                        <td class="whitespace py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900">
+                        <td class="whitespace py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center">
                           <div class="flex flex-col space-y-2 items-center justify-center px-1.5">
                             <div class="flex space-x-2 items-center">
                               <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">need</span>
-                              <span>
+                              <span :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']">
                                 {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
                               </span>
                             </div>
                             <div class="flex space-x-2 items-center"  v-if="opsJobItem.status > 1">
                               <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">picked</span>
-                              <span :class="[channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked) ? 'text-red-500' : (channel.picked > (channel.capacity - channel.before_picked) ? 'text-blue-500' : 'text-black')]">
-                                {{ channel.picked }}
+                              <span class="flex flex-col space-y-1" :class="[channel.product && channel.product.is_available ? (channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked) ? 'text-red-500' : (channel.picked > (channel.capacity - channel.before_picked) ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
+                                <span>
+                                  {{ channel.picked }}
+                                </span>
+                                <span class="text-xs text-red-500" v-if="channel.picked_limit != null">
+                                  limited ({{ channel.picked_limit }})
+                                </span>
                               </span>
+
                             </div>
                             <div class="flex flex-col items-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
                               <select name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : 'text-black']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
@@ -376,11 +382,11 @@
                               <select name="channel_refill" id="channel_refill" class="rounded" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]" v-model="channel.refill" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status >= 2 && opsJobItem.status < 3">
                                 <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                               </select>
-                              <span v-if="opsJobItem.status > 2" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]">
+                              <span v-if="opsJobItem.status > 2" :class="[channel.product && channel.product.is_available ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
                                 {{ channel.refill }}
                               </span>
                             </div>
-                            <div class="flex space-x-2 items-center" :class="[opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status >= 2">
+                            <div class="flex space-x-2 items-center" :class="[channel.product && channel.product.is_available ? (opsJobItem.status == 2 ? 'text-blue-700' : 'text-gray-900') : 'text-gray-400']" v-if="opsJobItem.status >= 2">
                               <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">VMC</span>
                               <span>
                                 {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
@@ -388,7 +394,7 @@
                             </div>
                           </div>
                         </td>
-                        <td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3">
+                        <td class="whitespace-nowrap py-5 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3">
                           <div class="flex flex-col space-y-1" v-if="opsJobItem.vendChannelRecord">
                             <span>
                               {{ channel.vmc_before_qty }}
@@ -615,14 +621,20 @@
                             </span>
                           </span>
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']">
                           {{ channel.capacity - channel.qty }}/ {{ channel.capacity }}
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status > 1" :class="[(channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked)) ? 'text-red-500' : ((channel.picked > (channel.capacity - channel.before_picked)) ? 'text-sky-600' : 'text-gray-900')]">
-
-                          {{ channel.picked }}
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" v-if="opsJobItem.status > 1" :class="[channel.product && channel.product.is_available ? ((channel.before_picked != null && channel.picked < (channel.capacity - channel.before_picked)) ? 'text-red-500' : ((channel.picked > (channel.capacity - channel.before_picked)) ? 'text-sky-600' : 'text-gray-900')) : 'text-gray-400']">
+                          <div class="flex flex-col space-y-1 items-center">
+                            <span>
+                              {{ channel.picked }}
+                            </span>
+                            <span class="text-xs text-red-500" v-if="channel.picked_limit != null">
+                              limited ({{ channel.picked_limit }})
+                            </span>
+                          </div>
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-900" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[opsJobItem.status < 2 ? 'text-blue-700' : 'text-gray-900']" v-if="opsJobItem.status < 2">
                           <div class="flex flex-col items-center justify-center">
                             <select name="channel_picked" id="channel_picked" class="rounded w-fit" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                               <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
@@ -640,22 +652,22 @@
                             <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                           </select>
 
-                          <span v-if="opsJobItem.status > 2" :class="[channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')]">
+                          <span v-if="opsJobItem.status > 2" :class="[channel.product && channel.product.is_available ? (channel.refill < channel.picked ? 'text-red-500' : (channel.refill > channel.picked ? 'text-blue-500' : 'text-black')) : 'text-gray-400']">
                             {{ channel.refill }}
                           </span>
                         </td>
                         <td
-                          class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900" v-if="opsJobItem.status >= 2"
+                          class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 2"
                           >
                           {{ (channel.capacity - (channel.capacity - channel.qty)) + channel.refill }}
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           {{ channel.vmc_before_qty }}
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           {{ (channel.vmc_after_qty - channel.vmc_before_qty) ? (channel.vmc_after_qty - channel.vmc_before_qty) : 0 }}
                         </td>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center text-gray-900 bg-gray-100" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-bold sm:pl-6 text-center bg-gray-100" :class="[channel.product && channel.product.is_available ? 'text-gray-800' : 'text-gray-400']" v-if="opsJobItem.status >= 3 && opsJobItem.vendChannelRecord">
                           <span :class="[channel.virtual_is_error && !channel.is_error_settle ? 'text-red-500' : (channel.virtual_is_error && channel.is_error_settle ? 'text-blue-500' : '')]">
                             {{ channel.vmc_after_qty }}
                           </span>
@@ -1158,62 +1170,64 @@ function getDefaultForm() {
 // subtotals
 function getSubtotalCapacity() {
   return channels.value.reduce((acc, channel) => {
-    return acc + channel.capacity
-  }, 0)
+    return acc + Number(channel.capacity);
+  }, 0);
 }
 
 function getSubtotalNeeded() {
   return channels.value.reduce((acc, channel) => {
-    return acc + (channel.capacity - channel.qty)
-  }, 0)
+    return acc + (Number(channel.capacity) - Number(channel.qty));
+  }, 0);
 }
 
 function getSubtotalPicked() {
   return channels.value.reduce((acc, channel) => {
-    return acc + channel.picked
-  }, 0)
+    return acc + Number(channel.picked);
+  }, 0);
 }
+
 function getSubtotalPickedAmount() {
   return channels.value.reduce((acc, channel) => {
-    return acc + (channel.picked * channel.amount)
-  }, 0)
+    return acc + (Number(channel.picked) * Number(channel.amount));
+  }, 0);
 }
 
 function getSubtotalRefill() {
   return channels.value.reduce((acc, channel) => {
-    return acc + channel.refill
-  }, 0)
+    return acc + Number(channel.refill);
+  }, 0);
 }
 
 function getSubtotalRefillAmount() {
   return channels.value.reduce((acc, channel) => {
-    return acc + (channel.refill * channel.amount)
-  }, 0)
+    return acc + (Number(channel.refill) * Number(channel.amount));
+  }, 0);
 }
 
 function getSubtotalVMCInventoryCount() {
   return channels.value.reduce((acc, channel) => {
-    return acc + (channel.capacity - (channel.capacity - channel.qty)) + channel.refill
-  }, 0)
+    return acc + (Number(channel.capacity) - (Number(channel.capacity) - Number(channel.qty))) + Number(channel.refill);
+  }, 0);
 }
 
 function getSubtotalVMCBeforeQty() {
   return channels.value.reduce((acc, channel) => {
-    return acc + channel.vmc_before_qty
-  }, 0)
+    return acc + Number(channel.vmc_before_qty);
+  }, 0);
 }
 
 function getSubtotalVMCAfterQty() {
   return channels.value.reduce((acc, channel) => {
-    return acc + channel.vmc_after_qty
-  }, 0)
+    return acc + Number(channel.vmc_after_qty);
+  }, 0);
 }
 
 function getSubtotalVMCQty() {
   return channels.value.reduce((acc, channel) => {
-    return acc + (channel.vmc_after_qty - channel.vmc_before_qty)
-  }, 0)
+    return acc + (Number(channel.vmc_after_qty) - Number(channel.vmc_before_qty));
+  }, 0);
 }
+
 
 function isErrorSettleClicked(channel) {
   router.post('/ops-jobs/item-channels/' + channel.id + '/settle-error', {

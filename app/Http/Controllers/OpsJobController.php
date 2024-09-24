@@ -696,6 +696,12 @@ class OpsJobController extends Controller
                     ) as acc_vend_transactions_amount');
 
                 $query->selectRaw('(
+                        SELECT SUM(oj_items.acc_total_cash_amount)
+                        FROM ops_job_items oj_items
+                        WHERE oj_items.id = ops_job_items.id
+                    ) as acc_vend_transactions_cash_amount');
+
+                $query->selectRaw('(
                     SELECT SUM(oj_items.cash_amount)
                     FROM ops_job_items oj_items
                     WHERE oj_items.id = ops_job_items.id

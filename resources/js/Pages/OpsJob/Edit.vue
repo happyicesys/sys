@@ -144,13 +144,22 @@
                     </span>
                   </Link> -->
                 </div>
-                <span class="text-gray-500">
-                  Total of
-                  <span class="text-gray-800">
-                    {{ opsJob.opsJobItems ? opsJob.opsJobItems.length : 0 }}
+                <div class="flex flex-col space-y-1">
+                  <span class="text-gray-500">
+                    Total of
+                    <span class="text-gray-800">
+                      {{ opsJob.opsJobItems ? opsJob.opsJobItems.length : 0 }}
+                    </span>
+                    Job(s)
                   </span>
-                  Job(s)
-                </span>
+                  <span class="text-gray-500">
+                    Total of
+                    <span class="text-gray-800">
+                      {{ opsJob.opsJobItems ? getApiInvCount() : 0 }}
+                    </span>
+                    API Inv(s)
+                  </span>
+                </div>
               </div>
               <div class="sm:col-span-6 flex flex-col">
               <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
@@ -256,6 +265,9 @@
                               </SingleSortItem>
                               <SingleSortItem modelName="delta_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delta_cash_amount')">
                                 Cash Adjustment
+                              </SingleSortItem>
+                              <SingleSortItem modelName="acc_vend_transactions_cash_amount" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('acc_vend_transactions_cash_amount')">
+                                CashAmt$ (Trans)
                               </SingleSortItem>
                             </div>
                           </TableHead>
@@ -473,6 +485,13 @@
                                 <div class="flex space-x-2 px-6 justify-center">
                                   <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">$Adj</span> -->
                                   {{ operatorCountry.currency_symbol }}{{ opsJobItem.delta_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                                </div>
+                              </span>
+
+                              <span :class="[opsJobItem.acc_vend_transactions_cash_amount == opsJobItem.cash_amount ? 'text-green-600' : 'text-red-600']">
+                                <div class="flex space-x-2 px-6 justify-center">
+                                  <!-- <span class="inline-flex items-center rounded-full bg-blue-50 px-1 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10 h-fit">$Adj</span> -->
+                                  {{ operatorCountry.currency_symbol }}{{ opsJobItem.acc_vend_transactions_cash_amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                                 </div>
                               </span>
                             </div>
@@ -740,6 +759,7 @@ function syncCMSInvoices() {
       toast.success("Data Sent to CMS", {
         timeout: 3000
       });
+      location.reload()
     },
     preserveState: true,
     replace: true,
@@ -762,6 +782,10 @@ function deleteOpsJobItem(opsJobItem) {
     preserveState: true,
     replace: true,
   })
+}
+
+function getApiInvCount() {
+  return opsJob.value.opsJobItems.filter(item => item.cms_transaction_id != null).length
 }
 
 // reload opsJob when modal opened

@@ -283,6 +283,9 @@
                                   {{ opsJob.date_formatted }}
                                 </span>
                                 <span>
+                                  ({{ opsJob.date_day }})
+                                </span>
+                                <span>
                                   {{ opsJob.date_diff_human }}
                                 </span>
                               </div>

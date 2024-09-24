@@ -78,7 +78,7 @@
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Qty Limit <br>
-                        (per Job)
+                        (per Job, on selected date)
                       </th>
                     </tr>
                   </thead>
