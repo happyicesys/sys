@@ -16,7 +16,7 @@ use App\Models\ProductUom;
 use App\Models\SellingPrice;
 use App\Models\Uom;
 use App\Traits\GetUserTimezone;
-use App\Services\CMSService;
+use App\Services\CmsService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
