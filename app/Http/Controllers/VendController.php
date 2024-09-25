@@ -583,74 +583,6 @@ class VendController extends Controller
         $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
 
-        $cmsQtyAvailableProducts = $this->cmsService->getCMSQtyAvailableApi();
-        // dd($cmsQtyAvailableProducts);
-
-        // dd($request->productAvailableDate);
-        $products = Product::query()
-            ->with([
-                'isAvailableUpdatedBy',
-                'latestUnitCost',
-                'thumbnail',
-            ])
-            ->when($request->operators, function($query, $search) {
-                $query->whereIn('operator_id', $search);
-            })
-            ->select(
-                'id',
-                'code',
-                'desc',
-                'name',
-                'is_available',
-                'is_available_updated_at',
-                'is_available_updated_by',
-            )
-            ->selectRaw('
-                JSON_UNQUOTE(JSON_EXTRACT(max_ops_job_pick_limit_json, ?)) AS max_ops_job_pick_limit',
-                ['$."'.$request->productAvailableDate.'"']
-            )
-            ->selectRaw('(
-                SELECT SUM(vend_channels.capacity - vend_channels.qty)
-                FROM ops_job_item_channels
-                LEFT JOIN ops_jobs ON ops_jobs.id = ops_job_item_channels.ops_job_id
-                LEFT JOIN vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
-                WHERE ops_job_item_channels.product_id = products.id
-                AND DATE(ops_jobs.date) = ?
-                AND DATE(ops_jobs.date) >= ?
-            ) AS needed_qty', [$request->productAvailableDate, Carbon::today()->toDateString()])
-            ->selectRaw('(
-                SELECT SUM(ops_job_item_channels.actual_qty)
-                FROM ops_job_item_channels
-                LEFT JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
-                LEFT JOIN ops_jobs ON ops_jobs.id = ops_job_item_channels.ops_job_id
-                LEFT JOIN vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
-                WHERE ops_job_item_channels.product_id = products.id
-                AND ops_job_items.status >= ?
-                AND ops_job_items.status <> ?
-                AND DATE(ops_jobs.date) >= ?
-                AND ops_job_items.cms_transaction_id IS NULL
-            ) AS not_yet_sync_api_qty', [
-                OpsJob::STATUS_PICKED,
-                OpsJob::STATUS_CANCELLED,
-                Carbon::today()->toDateString()
-            ])
-            ->where('is_active', true)
-            ->where('is_inventory', true)
-            ->orderBy('code')
-            ->get();
-
-
-        foreach($products as $product) {
-            if($cmsQtyAvailableProducts) {
-                foreach($cmsQtyAvailableProducts as $cmsQtyAvailableProduct) {
-                    if($product->code == $cmsQtyAvailableProduct['code']) {
-                        $product->qty_available_pcs_api = $cmsQtyAvailableProduct['qty'];
-                        $product->net_available_qty_pcs_api = $cmsQtyAvailableProduct['qty'] - $product->not_yet_sync_api_qty;
-                    }
-                }
-            }
-        }
-
         $totals = [
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'thirtyDays' => collect((clone $vends)
@@ -692,7 +624,16 @@ class VendController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'productOptions' => ProductResource::collection(
-                $products
+                Product::query()
+                    ->with(['thumbnail', 'isAvailableUpdatedBy'])
+                    ->when($request->operators, function($query, $search) {
+                        $query->whereIn('operator_id', $search);
+                    })
+                    ->select('id', 'code', 'desc', 'name', 'is_available', 'is_available_updated_at', 'is_available_updated_by')
+                    ->where('is_active', true)
+                    ->where('is_inventory', true)
+                    ->orderBy('code')
+                    ->get()
             ),
             'sellingPriceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'totals' => $totals,

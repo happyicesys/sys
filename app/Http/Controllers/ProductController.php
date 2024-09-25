@@ -10,11 +10,13 @@ use App\Http\Resources\UomResource;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Operator;
+use App\Models\OpsJob;
 use App\Models\Product;
 use App\Models\ProductUom;
 use App\Models\SellingPrice;
 use App\Models\Uom;
 use App\Traits\GetUserTimezone;
+use App\Services\CMSService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -26,6 +28,7 @@ class ProductController extends Controller
 
     public function __construct()
     {
+        $this->cmsService = new CmsService();
         $this->middleware(['permission:read products']);
     }
 
@@ -111,6 +114,84 @@ class ProductController extends Controller
         }
 
         return redirect()->route('products');
+    }
+
+    public function availability(Request $request)
+    {
+        $request->merge([
+            'productAvailableDate' => $request->productAvailableDate ? $request->productAvailableDate : Carbon::today()->addDay()->toDateString(),
+        ]);
+
+        $products = Product::query()
+            ->with([
+                'isAvailableUpdatedBy',
+                'latestUnitCost',
+                'thumbnail',
+            ])
+            ->when($request->operators, function($query, $search) {
+                $query->whereIn('operator_id', $search);
+            })
+            ->select(
+                'id',
+                'code',
+                'desc',
+                'name',
+                'is_available',
+                'is_available_updated_at',
+                'is_available_updated_by',
+            )
+            ->selectRaw('
+                JSON_UNQUOTE(JSON_EXTRACT(max_ops_job_pick_limit_json, ?)) AS max_ops_job_pick_limit',
+                ['$."'.$request->productAvailableDate.'"']
+            )
+            ->selectRaw('(
+                SELECT SUM(vend_channels.capacity - vend_channels.qty)
+                FROM ops_job_item_channels
+                LEFT JOIN ops_jobs ON ops_jobs.id = ops_job_item_channels.ops_job_id
+                LEFT JOIN vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
+                WHERE ops_job_item_channels.product_id = products.id
+                AND DATE(ops_jobs.date) = ?
+                AND DATE(ops_jobs.date) >= ?
+            ) AS needed_qty', [$request->productAvailableDate, Carbon::today()->toDateString()])
+            ->selectRaw('(
+                SELECT SUM(ops_job_item_channels.actual_qty)
+                FROM ops_job_item_channels
+                LEFT JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
+                LEFT JOIN ops_jobs ON ops_jobs.id = ops_job_item_channels.ops_job_id
+                LEFT JOIN vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
+                WHERE ops_job_item_channels.product_id = products.id
+                AND ops_job_items.status >= ?
+                AND ops_job_items.status <> ?
+                AND DATE(ops_jobs.date) >= ?
+                AND ops_job_items.cms_transaction_id IS NULL
+            ) AS not_yet_sync_api_qty', [
+                OpsJob::STATUS_PICKED,
+                OpsJob::STATUS_CANCELLED,
+                Carbon::today()->toDateString()
+            ])
+            ->where('is_active', true)
+            ->where('is_inventory', true)
+            ->orderBy('code')
+            ->get();
+
+        $cmsQtyAvailableProducts = $this->cmsService->getCMSQtyAvailableApi();
+
+        foreach($products as $product) {
+            if($cmsQtyAvailableProducts) {
+                foreach($cmsQtyAvailableProducts as $cmsQtyAvailableProduct) {
+                    if($product->code == $cmsQtyAvailableProduct['code']) {
+                        $product->qty_available_pcs_api = $cmsQtyAvailableProduct['qty'];
+                        $product->net_available_qty_pcs_api = $cmsQtyAvailableProduct['qty'] - $product->not_yet_sync_api_qty;
+                    }
+                }
+            }
+        }
+
+        return Inertia::render('Vend/ProductAvailability', [
+            'products' => ProductResource::collection(
+                $products
+            ),
+        ]);
     }
 
     public function update(Request $request, $productId)
@@ -273,14 +354,13 @@ class ProductController extends Controller
         $maxOpsJobPickLimitJson = $product->max_ops_job_pick_limit_json;
 
         // Loop through the existing array and remove entries where the date is in the past
-        if (!empty($maxOpsJobPickLimitJson)) {
-            foreach ($maxOpsJobPickLimitJson as $date => $value) {
-                if (Carbon::parse($date)->lt(Carbon::today())) {
-                    // Remove this entry if the date is in the past
-                    unset($maxOpsJobPickLimitJson[$date]);
-                }
-            }
-        }
+        // if (!empty($maxOpsJobPickLimitJson)) {
+        //     foreach ($maxOpsJobPickLimitJson as $date => $value) {
+        //         if (Carbon::parse($date)->lt(Carbon::today())) {
+        //             unset($maxOpsJobPickLimitJson[$date]);
+        //         }
+        //     }
+        // }
 
         // Check if new data is provided in the request, then add it to the array
         if ($request->date && $request->max_ops_job_pick_limit) {

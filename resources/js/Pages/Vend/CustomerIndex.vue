@@ -506,16 +506,16 @@
 								</span>
 							</span>
 						</Button>
-						<Button class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-						@click="onProductAvailableModalClicked()"
+						<Link :href="'/products/availability'" class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
 						>
+						<!-- @click="onProductAvailableModalClicked()" -->
 							<PlayCircleIcon class="h-4 w-4" aria-hidden="true"/>
 							<span class="flex flex-col space-y-1">
 								<span>
 										Set Product Availability
 								</span>
 							</span>
-						</Button>
+						</Link>
 
 						<!-- if there is any checkbox selected (vend.is_selected) -->
 						<Button class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-black shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -1715,14 +1715,14 @@
 		@modalClose="onPickListModalClose"
 >
 </PickList>
-<ProductAvailability
+<!-- <ProductAvailability
 	v-if="showProductAvailabilityModal"
 	:products="productOptions"
 	:showModal="showProductAvailabilityModal"
 	@modalClose="onProductAvailabilityModalClose"
 	@productUpdated="refreshProductOptions"
 >
-</ProductAvailability>
+</ProductAvailability> -->
 <AssignJob
 	v-if="showAssignJobModal"
 	:driverOptions="driverOptions"
@@ -1789,7 +1789,7 @@
 		import MapMarker from '@/Components/MapMarker.vue';
     import Paginator from '@/Components/Paginator.vue';
     import PickList from '@/Pages/Vend/PickList.vue';
-		import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
+		// import ProductAvailability from '@/Pages/Vend/ProductAvailability.vue';
     import SearchInput from '@/Components/SearchInput.vue';
 		import Toast from '@/Components/Toast.vue';
     import MultiSelect from '@/Components/MultiSelect.vue';
@@ -2161,13 +2161,13 @@ function getVendsField() {
       showPickListModal.value = false
   }
 
-	function onProductAvailableModalClicked() {
-		showProductAvailabilityModal.value = true
-	}
+	// function onProductAvailableModalClicked() {
+	// 	showProductAvailabilityModal.value = true
+	// }
 
-	function onProductAvailabilityModalClose() {
-		showProductAvailabilityModal.value = false
-	}
+	// function onProductAvailabilityModalClose() {
+	// 	showProductAvailabilityModal.value = false
+	// }
 
   function onShowAllFiltersClicked() {
       showAllFilters.value = !showAllFilters.value

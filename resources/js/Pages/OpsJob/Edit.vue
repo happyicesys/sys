@@ -759,7 +759,6 @@ function syncCMSInvoices() {
       toast.success("Data Sent to CMS", {
         timeout: 3000
       });
-      location.reload()
     },
     preserveState: true,
     replace: true,
