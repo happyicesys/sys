@@ -1140,7 +1140,7 @@ function loadingData() {
         (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available ?
         (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null ? (
 
-          opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) ? opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit :
+          opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= opsJobItemChannel.vendChannel.qty ? (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit - opsJobItemChannel.vendChannel.qty) :
           0
         )
           : opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) : 0) :

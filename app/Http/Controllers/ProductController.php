@@ -118,6 +118,14 @@ class ProductController extends Controller
 
     public function availability(Request $request)
     {
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [auth()->user()->operator_id, Operator::where('code', 'HIMD')->first() ? Operator::where('code', 'HIMD')->first()->id : null]]);
+            }else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+
         $request->merge([
             'productAvailableDate' => $request->productAvailableDate ? $request->productAvailableDate : Carbon::today()->addDay()->toDateString(),
         ]);
@@ -188,6 +196,9 @@ class ProductController extends Controller
         }
 
         return Inertia::render('Vend/ProductAvailability', [
+            'operatorOptions' => OperatorResource::collection(
+                Operator::all()
+            ),
             'products' => ProductResource::collection(
                 $products
             ),
