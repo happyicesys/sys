@@ -137,12 +137,12 @@
                       </span>
                     </span>
                   </Button>
-                  <!-- <Link :href="'/ops-jobs/' + opsJob.id + '/route' " class="text-blue-700" v-if="opsJob.opsJobItems">
-                    <span class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 hover:cursor-pointer ml-1">
+                  <!-- <a :href="'/ops-jobs/' + opsJob.id + '/route'" target="_blank" class="text-blue-700" v-if="opsJob.opsJobItems">
+                    <span class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 hover:cursor-pointer">
                       <PlayIcon class="h-4 w-4" aria-hidden="true" />
                       <span>Route Planning</span>
                     </span>
-                  </Link> -->
+                  </a> -->
                 </div>
                 <div class="flex flex-col space-y-1">
                   <span class="text-gray-500">

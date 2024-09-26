@@ -61,6 +61,11 @@ class Operator extends Model
         return $this->hasMany(DeliveryPlatformOperator::class);
     }
 
+    public function destinationAddresses()
+    {
+        return $this->hasMany(Address::class, 'modelable_id')->where('type', '2')->oldest();
+    }
+
     public function externalOauthTokens()
     {
         return $this->morphMany(ExternalOauthToken::class, 'modelable');
@@ -74,6 +79,11 @@ class Operator extends Model
     public function profile()
     {
         return $this->belongsTo(Profile::class);
+    }
+
+    public function startAddresses()
+    {
+        return $this->hasMany(Address::class, 'modelable_id')->where('type', '1')->oldest();
     }
 
     public function vends()

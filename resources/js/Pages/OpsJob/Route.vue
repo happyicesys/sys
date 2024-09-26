@@ -23,7 +23,7 @@
                     <input
                       type="text"
                       class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                      :value="opsJob?.date_formatted || 'N/A'"
+                      :value="opsJob ? opsJob.date_formatted : ''"
                       disabled
                     />
                   </div>
@@ -34,7 +34,7 @@
                     <input
                       type="text"
                       class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                      :value="opsJob?.deliveredBy?.name || 'N/A'"
+                      :value="opsJob && opsJob.deliveredBy ? opsJob.deliveredBy.name : ''"
                       disabled
                     />
                   </div>
@@ -47,7 +47,7 @@
                     <input
                       type="text"
                       class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                      :value="opsJob?.opsJobItems?.length || 0"
+                      :value="opsJob.opsJobItems ? opsJob.opsJobItems.length : 0"
                       disabled
                     />
                   </div>
@@ -95,7 +95,7 @@
                             </tr>
                           </thead>
                           <tbody class="bg-white">
-                            <tr v-for="(opsJobItem, opsJobItemIndex) in opsJob?.opsJobItems" :key="opsJobItem.id" :class="opsJobItemIndex % 2 === 0 ? undefined : 'bg-gray-100'">
+                            <tr v-for="(opsJobItem, opsJobItemIndex) in opsJob.opsJobItems" :key="opsJobItem.id" :class="opsJobItemIndex % 2 === 0 ? undefined : 'bg-gray-100'">
                               <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                                 {{ opsJobItem.sequence }}
                               </td>
@@ -174,7 +174,7 @@
                             </tr>
 
                             <!-- Fallback for no records -->
-                            <tr v-if="!opsJob?.opsJobItems || !opsJob?.opsJobItems.length">
+                            <tr v-if="!opsJob.opsJobItems || !opsJob.opsJobItems.length">
                               <td colspan="11" class="whitespace-nowrap py-2 text-sm font-medium text-black text-center">
                                 No Records Found
                               </td>
@@ -199,9 +199,9 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import TableHead from '@/Components/TableHead.vue';
-import { MapPinIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, MapPinIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
@@ -217,35 +217,52 @@ const filters = ref({
   customer: '',
 });
 
+const form = ref(useForm(getDefaultForm()));
 const customerModel = ref([]);
-const permissions = ref([]);
+const operatorCountry = usePage().props.auth.operatorCountry;
+const operatorsWithAddress = ref([]);
+const opsJob = ref([]);
+const opsJobItemModel = ref([]);
+const permissions = usePage().props.auth.permissions;
+const pickLists = ref([]);
+const pickListType = ref(1);
+const showChannelModal = ref(false);
 const showMapMarkerModal = ref(false);
+const showPickListModal = ref(false);
 const toast = useToast();
 let map;
 let directionsService;
 
 onMounted(() => {
-  console.log(props.opsJob)
-  // Ensure opsJob data is available
-  if (!props.opsJob) {
-    console.error("opsJob data is missing.");
-    return;
-  }
+  opsJob.value = props.opsJob?.data || {};
+  operatorsWithAddress.value = props.operatorsWithAddress?.data?.map(operator => ({
+    id: operator.id,
+    name: operator.name,
+    address: operator.address.full_address,
+    value: '(' + operator.name + ')' + ' - ' + operator.address.full_address,
+  })) || [];
 
   // Initialize Google Maps
   loadGoogleMapsApi();
 });
 
-// Function to initialize Google Maps API and load the map
+function getDefaultForm() {
+  return {
+    id: '',
+    vend_id: '',
+  };
+}
+
+// Google Maps API loading
 function loadGoogleMapsApi() {
-  let defaultPos = { lat: 1.3521, lng: 103.8198 }; // Singapore as default position
+  let defaultPos = { lat: 1.3521, lng: 103.8198 };
 
   // Load Google Maps API dynamically
   return new Promise((resolve, reject) => {
     (g => {
       var h, a, k, p = "The Google Maps JavaScript API", c = "google", l = "importLibrary", q = "__ib__", m = document, b = window;
       b = b[c] || (b[c] = {});
-      var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams(), u = () => h || (h = new Promise(async (f, n) => {
+      var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams, u = () => h || (h = new Promise(async (f, n) => {
         await (a = m.createElement("script"));
         e.set("libraries", [...r] + "");
         for (k in g) e.set(k.replace(/[A-Z]/g, t => "_" + t[0].toLowerCase()), g[k]);
@@ -269,7 +286,7 @@ function loadGoogleMapsApi() {
   });
 }
 
-// Initialize the map and markers
+
 async function initMap() {
   const { Map } = await google.maps.importLibrary("maps");
   directionsService = new google.maps.DirectionsService();
@@ -278,9 +295,9 @@ async function initMap() {
   let lngSum = 0;
   let validCoordsCount = 0;
 
-  // Check if opsJobItems are present
-  if (props.opsJob?.data.opsJobItems) {
-    props.opsJob.data.opsJobItems.forEach((jobItem) => {
+  // Calculate center based on customer locations
+  if (props.opsJob?.opsJobItems) {
+    props.opsJob.opsJobItems.forEach((jobItem) => {
       if (jobItem.customer && jobItem.customer.deliveryAddress) {
         const lat = parseFloat(jobItem.customer.deliveryAddress.latitude);
         const lng = parseFloat(jobItem.customer.deliveryAddress.longitude);
@@ -295,36 +312,36 @@ async function initMap() {
   }
 
   // Set default or calculated map position
-  let centerPos = validCoordsCount > 0
-    ? { lat: latSum / validCoordsCount, lng: lngSum / validCoordsCount }
-    : { lat: 1.3521, lng: 103.8198 }; // Default to Singapore
+  if (validCoordsCount > 0) {
+    defaultPos = {
+      lat: latSum / validCoordsCount,
+      lng: lngSum / validCoordsCount,
+    };
+  }
 
   // Initialize the map
   map = new Map(document.getElementById("map"), {
     zoom: 12,
-    center: centerPos,
+    center: defaultPos,
     mapId: "MAP_ID", // Optional custom map ID
   });
 
-  // Add markers to the map
+  // Add markers
   addMarkers();
 }
 
-// Add markers to the map
 function addMarkers() {
-  if (props.opsJob?.data.opsJobItems) {
-    props.opsJob.data.opsJobItems.forEach((jobItem) => {
+  if (props.opsJob?.opsJobItems) {
+    props.opsJob.opsJobItems.forEach((jobItem) => {
       if (jobItem.customer && jobItem.customer.deliveryAddress) {
-        const lat = parseFloat(jobItem.customer.deliveryAddress.latitude);
-        const lng = parseFloat(jobItem.customer.deliveryAddress.longitude);
-
-        if (!isNaN(lat) && !isNaN(lng)) {
-          const marker = new google.maps.Marker({
-            position: { lat, lng },
-            map: map,
-            title: jobItem.customer.name,
-          });
-        }
+        const marker = new google.maps.Marker({
+          position: {
+            lat: parseFloat(jobItem.customer.deliveryAddress.latitude),
+            lng: parseFloat(jobItem.customer.deliveryAddress.longitude),
+          },
+          map: map,
+          title: jobItem.customer.name,
+        });
       }
     });
   }
