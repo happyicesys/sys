@@ -76,7 +76,8 @@
                         <table class="min-w-full divide-y divide-gray-300">
                           <thead class="bg-gray-50">
                             <tr>
-                              <TableHead> <span> Job Sequence </span> </TableHead>
+                              <TableHead> <span> Prev Sequence </span> </TableHead>
+                              <TableHead> <span> Generated Sequence </span> </TableHead>
                               <TableHead>
                                 <div class="flex flex-col space-y-2">
                                   <span> Machine ID </span>
@@ -98,6 +99,9 @@
                             <tr v-for="(opsJobItem, opsJobItemIndex) in opsJob.opsJobItems" :key="opsJobItem.id" :class="opsJobItemIndex % 2 === 0 ? undefined : 'bg-gray-100'">
                               <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                                 {{ opsJobItem.sequence }}
+                              </td>
+                              <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                                {{ opsJobItemIndex + 1 }}
                               </td>
                               <td class="whitespace-pre-line py-2 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                                 <div class="flex flex-col space-y-2 max-w-24">
@@ -201,7 +205,7 @@ import Button from '@/Components/Button.vue';
 import TableHead from '@/Components/TableHead.vue';
 import { ArrowUturnLeftIcon, MapPinIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
@@ -221,7 +225,7 @@ const form = ref(useForm(getDefaultForm()));
 const customerModel = ref([]);
 const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorsWithAddress = ref([]);
-const opsJob = ref([]);
+const opsJob = ref(props.opsJob?.data || {});
 const opsJobItemModel = ref([]);
 const permissions = usePage().props.auth.permissions;
 const pickLists = ref([]);
@@ -230,11 +234,10 @@ const showChannelModal = ref(false);
 const showMapMarkerModal = ref(false);
 const showPickListModal = ref(false);
 const toast = useToast();
-let map;
-let directionsService;
+let map, directionsService, directionsRenderer;
+let defaultPos = { lat: 1.3521, lng: 103.8198 };
 
 onMounted(() => {
-  opsJob.value = props.opsJob?.data || {};
   operatorsWithAddress.value = props.operatorsWithAddress?.data?.map(operator => ({
     id: operator.id,
     name: operator.name,
@@ -255,49 +258,42 @@ function getDefaultForm() {
 
 // Google Maps API loading
 function loadGoogleMapsApi() {
-  let defaultPos = { lat: 1.3521, lng: 103.8198 };
-
   // Load Google Maps API dynamically
-  return new Promise((resolve, reject) => {
-    (g => {
-      var h, a, k, p = "The Google Maps JavaScript API", c = "google", l = "importLibrary", q = "__ib__", m = document, b = window;
-      b = b[c] || (b[c] = {});
-      var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams, u = () => h || (h = new Promise(async (f, n) => {
-        await (a = m.createElement("script"));
-        e.set("libraries", [...r] + "");
-        for (k in g) e.set(k.replace(/[A-Z]/g, t => "_" + t[0].toLowerCase()), g[k]);
-        e.set("callback", c + ".maps." + q);
-        a.src = `https://maps.${c}apis.com/maps/api/js?` + e;
-        d[q] = f;
-        a.onerror = () => h = n(Error(p + " could not load."));
-        a.nonce = m.querySelector("script[nonce]")?.nonce || "";
-        m.head.append(a);
-      }));
-      d[l] ? console.warn(p + " only loads once. Ignoring:", g) : d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n));
-    })({
-      key: props.mapApiKey,
-      v: "weekly",
-    });
-
-    // Resolve the promise after the API is fully loaded
-    window.google.maps.__ib__ = resolve;
-  }).then(initMap).catch(error => {
-    console.error("Error loading Google Maps API:", error);
+  (g => {
+    var h, a, k, p = "The Google Maps JavaScript API", c = "google", l = "importLibrary", q = "__ib__", m = document, b = window;
+    b = b[c] || (b[c] = {});
+    var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams, u = () => h || (h = new Promise(async (f, n) => {
+      await (a = m.createElement("script"));
+      e.set("libraries", [...r] + "");
+      for (k in g) e.set(k.replace(/[A-Z]/g, t => "_" + t[0].toLowerCase()), g[k]);
+      e.set("callback", c + ".maps." + q);
+      a.src = `https://maps.${c}apis.com/maps/api/js?` + e;
+      d[q] = f;
+      a.onerror = () => h = n(Error(p + " could not load."));
+      a.nonce = m.querySelector("script[nonce]")?.nonce || "";
+      m.head.append(a);
+    }));
+    d[l] ? console.warn(p + " only loads once. Ignoring:", g) : d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n));
+  })({
+    key: props.mapApiKey,
+    v: "weekly",
   });
+
+  initMap();
 }
 
-
 async function initMap() {
-  const { Map } = await google.maps.importLibrary("maps");
+  const { Map, DirectionsService, DirectionsRenderer } = await google.maps.importLibrary("maps");
   directionsService = new google.maps.DirectionsService();
+  directionsRenderer = new google.maps.DirectionsRenderer();
 
   let latSum = 0;
   let lngSum = 0;
   let validCoordsCount = 0;
 
   // Calculate center based on customer locations
-  if (props.opsJob?.opsJobItems) {
-    props.opsJob.opsJobItems.forEach((jobItem) => {
+  if (opsJob.value.opsJobItems) {
+    opsJob.value.opsJobItems.forEach((jobItem) => {
       if (jobItem.customer && jobItem.customer.deliveryAddress) {
         const lat = parseFloat(jobItem.customer.deliveryAddress.latitude);
         const lng = parseFloat(jobItem.customer.deliveryAddress.longitude);
@@ -326,24 +322,149 @@ async function initMap() {
     mapId: "MAP_ID", // Optional custom map ID
   });
 
+  directionsRenderer.setMap(map);
+
+  showDirections();
   // Add markers
   addMarkers();
+
+
 }
 
 function addMarkers() {
-  if (props.opsJob?.opsJobItems) {
-    props.opsJob.opsJobItems.forEach((jobItem) => {
+  if (opsJob.value.opsJobItems) {
+    opsJob.value.opsJobItems.forEach((jobItem) => {
       if (jobItem.customer && jobItem.customer.deliveryAddress) {
-        const marker = new google.maps.Marker({
-          position: {
-            lat: parseFloat(jobItem.customer.deliveryAddress.latitude),
-            lng: parseFloat(jobItem.customer.deliveryAddress.longitude),
-          },
-          map: map,
-          title: jobItem.customer.name,
-        });
+        const lat = parseFloat(jobItem.customer.deliveryAddress.latitude);
+        const lng = parseFloat(jobItem.customer.deliveryAddress.longitude);
+
+        if (!isNaN(lat) && !isNaN(lng)) {
+          const position = new google.maps.LatLng(lat, lng);
+
+          // jobItem = JSON.parse(JSON.stringify(jobItem));
+          const marker = new google.maps.Marker({
+            position,
+            map,
+            label: {
+              text: String(jobItem.sequence), // Using custom sequence
+              color: "#ffffff",
+              fontSize: "14px",
+              fontWeight: "bold",
+            },
+          });
+
+          const infoWindow = new google.maps.InfoWindow({
+            content: `<div>
+              <span class="font-bold">${jobItem.vend ? jobItem.vend.code : ''}</span><br>
+              <span class="font-medium">${jobItem.customer?.name}</span><br>
+              <p>${jobItem.customer.deliveryAddress.full_address ? jobItem.customer.deliveryAddress.full_address : jobItem.customer.deliveryAddress.postcode}</p>
+              <a href="https://www.google.com/maps/search/?api=1&query=${position.lat()},${position.lng()}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>
+            </div>`,
+          });
+
+          marker.addListener('click', () => {
+            infoWindow.open({
+              anchor: marker,
+              map,
+              shouldFocus: false,
+            });
+          });
+        }
       }
     });
   }
 }
+
+const showDirections = () => {
+  if (!directionsService) return;
+
+  const batchSize = 23; // Max 23 waypoints + origin and destination = 25
+  let customersWithValidAddresses = opsJob.value.opsJobItems.filter(opsJobItem => opsJobItem.customer.deliveryAddress);
+  let totalBatches = Math.ceil(customersWithValidAddresses.length / batchSize);
+
+  // Initialize request batches
+  const requests = [];
+
+  for (let i = 0; i < totalBatches; i++) {
+    const batchStartIndex = i * batchSize;
+    const batchCustomers = customersWithValidAddresses.slice(batchStartIndex, batchStartIndex + batchSize);
+
+    let request = {
+      travelMode: google.maps.TravelMode.DRIVING,
+      waypoints: [],
+      origin: null,
+      destination: null,
+      optimizeWaypoints: true, // Enable optimization of waypoints
+    };
+
+    batchCustomers.forEach((opsJobItem, index) => {
+      const lat = parseFloat(opsJobItem.customer.deliveryAddress.latitude);
+      const lng = parseFloat(opsJobItem.customer.deliveryAddress.longitude);
+
+      if (isNaN(lat) || isNaN(lng)) return;
+
+      const markerPosition = new google.maps.LatLng(lat, lng);
+
+      // Set the first customer as the origin
+      if (index === 0) {
+        request.origin = markerPosition;
+      }
+      // Set the last customer as the destination
+      else if (index === batchCustomers.length - 1) {
+        request.destination = markerPosition;
+      }
+      // Add all other customers as waypoints
+      else {
+        request.waypoints.push({
+          location: markerPosition,
+          stopover: true,
+        });
+      }
+    });
+
+    if (request.origin && request.destination) {
+      requests.push(request);
+    }
+  }
+
+  // Process batches
+  const processBatch = (index) => {
+    if (index >= requests.length) return;
+
+    const currentRequest = requests[index];
+    const batchRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true });
+    batchRenderer.setMap(map);
+
+    directionsService.route(currentRequest, (result, status) => {
+      if (status === google.maps.DirectionsStatus.OK) {
+        batchRenderer.setDirections(result);
+
+        // Get the optimized order of waypoints
+        const optimizedOrder = result.routes[0].waypoint_order;
+
+        // Use the optimized order to reorder the current batch of customers
+        const optimizedCustomers = optimizedOrder.map(orderIndex => {
+          return customersWithValidAddresses[index * batchSize + orderIndex + 1]; // Adjust for 1-based indexing in your `waypoints` array
+        });
+
+        // Insert the optimized customers into the original list at the correct positions
+        opsJob.value.opsJobItems.splice(
+          index * batchSize + 1, // Position in the original array
+          optimizedCustomers.length, // Number of items to replace
+          ...optimizedCustomers // Insert optimized customers
+        );
+
+        processBatch(index + 1); // Process the next batch
+      } else {
+        console.error('Directions request failed due to ' + status);
+      }
+    });
+  };
+
+  processBatch(0); // Start processing the first batch
+
+};
+
+
 </script>
+
