@@ -651,7 +651,7 @@
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             {{ vends.meta.from + vendIndex }}
           </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">\
+          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">
             <div class="flex flex-col space-y-2 items-center">
               <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
                 {{ vend.code }}
