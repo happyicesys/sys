@@ -196,12 +196,23 @@
         </div>
       </div>
     </div>
+
+  <MapMarker
+    v-if="showMapMarkerModal"
+    :customers="customerModel"
+    :api-key="mapApiKey"
+    :showModal="showMapMarkerModal"
+    isShowDirectionButton=true
+    @modalClose="onMapMarkerModalClose"
+  >
+  </MapMarker>
   </BreezeAuthenticatedLayout>
 </template>
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import MapMarker from '@/Components/MapMarker.vue';
 import TableHead from '@/Components/TableHead.vue';
 import { ArrowUturnLeftIcon, MapPinIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
@@ -333,7 +344,7 @@ async function initMap() {
 
 function addMarkers() {
   if (opsJob.value.opsJobItems) {
-    opsJob.value.opsJobItems.forEach((jobItem) => {
+    opsJob.value.opsJobItems.forEach((jobItem, index) => {
       if (jobItem.customer && jobItem.customer.deliveryAddress) {
         const lat = parseFloat(jobItem.customer.deliveryAddress.latitude);
         const lng = parseFloat(jobItem.customer.deliveryAddress.longitude);
@@ -341,12 +352,12 @@ function addMarkers() {
         if (!isNaN(lat) && !isNaN(lng)) {
           const position = new google.maps.LatLng(lat, lng);
 
-          // jobItem = JSON.parse(JSON.stringify(jobItem));
+          // Only showing the generated sequence number (index + 1)
           const marker = new google.maps.Marker({
             position,
             map,
             label: {
-              text: String(jobItem.sequence), // Using custom sequence
+              text: String(index + 1), // Display the generated sequence number
               color: "#ffffff",
               fontSize: "14px",
               fontWeight: "bold",
@@ -374,6 +385,34 @@ function addMarkers() {
     });
   }
 }
+
+function onMapMarkerClicked(opsJobItem) {
+  axios({
+    method: 'POST',
+    url: '/customers/map',
+    data: [{
+      ops_job_item_id: opsJobItem.id,
+      sequence: opsJobItem.sequence,
+      customer_id: opsJobItem.customer.id,
+    }],
+  })
+  .then((response) => {
+    customerModel.value = [{
+      ops_job_item_id: opsJobItem.id,
+      sequence: opsJobItem.sequence,
+      ...response.data.data[0],
+    }];
+    showMapMarkerModal.value = true; // Open the modal to show the map
+  })
+  .catch((error) => {
+    console.error('API Error:', error);  // Log errors to debug
+  });
+}
+
+function onMapMarkerModalClose() {
+  showMapMarkerModal.value = false
+}
+
 
 const showDirections = () => {
   if (!directionsService) return;
