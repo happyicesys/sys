@@ -651,10 +651,18 @@
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             {{ vends.meta.from + vendIndex }}
           </TableData>
-          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">
-            <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
-            {{ vend.code }}
-            </Link>
+          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType !== 'customers'">\
+            <div class="flex flex-col space-y-2 items-center">
+              <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
+                {{ vend.code }}
+              </Link>
+              <div
+                class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-yellow-100 text-yellow-800 border-yellow-300 max-w-48"
+                v-if="vend.label_name"
+              >
+                {{ vend.label_name }}
+              </div>
+            </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
             <span v-if="vend.person_id" class="flex flex-col space-y-1">
@@ -672,20 +680,14 @@
                     <br>
                     {{ vend.customer_name }}
                 </span>
-                <div
-                  class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-yellow-100 text-yellow-800 border-yellow-300 max-w-48"
-                  v-if="vend.label_name"
-                >
-                  {{ vend.label_name }}
-                </div>
 
-                    <a target="_blank" :href="cmsEndpoint + '/person/' + vend.person_id + '/edit'" class="">
-                        <div
-                            class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
-                        >
-                            CMS
-                        </div>
-                    </a>
+                <a target="_blank" :href="cmsEndpoint + '/person/' + vend.person_id + '/edit'" class="">
+                    <div
+                        class="inline-flex justify-center items-center rounded px-2 py-1 text-[10px] font-small border bg-blue-200 text-gray-800"
+                    >
+                        CMS
+                    </div>
+                </a>
             </span>
             <span v-else-if="!vend.person_id">
                 <span v-if="permissions.includes('admin-access vend-machines')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
@@ -705,6 +707,12 @@
               <Link :href="'/settings/vend/' + vend.vend_id + '/update'" :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-400']">
                 {{ vend.code }}
               </Link>
+              <div
+                class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-yellow-100 text-yellow-800 border-yellow-300 max-w-48"
+                v-if="vend.label_name"
+              >
+                {{ vend.label_name }}
+              </div>
             </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
