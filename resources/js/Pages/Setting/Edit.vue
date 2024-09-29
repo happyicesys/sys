@@ -359,7 +359,7 @@
 
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Modem Type
+                  Modem Model
                   <span class="text-red-500">
                     *
                   </span>
@@ -377,6 +377,25 @@
                 </MultiSelect>
                 <div class="text-sm text-red-600" v-if="form.errors.modem_type_id">
                   {{ form.errors.modem_type_id }}
+                </div>
+            </div>
+            <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Modem IMEI
+                </label>
+                <MultiSelect
+                  v-model="form.modem_unit_id"
+                  :options="modemUnitOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.modem_unit_id">
+                  {{ form.errors.modem_unit_id }}
                 </div>
             </div>
             <div class="sm:col-span-3">
@@ -982,6 +1001,7 @@ const props = defineProps({
     lcdMonitorOptions: [Array, Object],
     menuFrameOptions: [Array, Object],
     modemTypeOptions: [Array, Object],
+    modemUnitOptions: [Array, Object],
     operatorOptions: Object,
     productMappingOptions: Object,
     simcardOptions: Object,
@@ -1018,6 +1038,7 @@ const countryOptions = ref([])
 const lcdMonitorOptions = ref([])
 const menuFrameOptions = ref([])
 const modemTypeOptions = ref([])
+const modemUnitOptions = ref([])
 const keyOptions = ref([])
 const isExisting = ref(1)
 const operatorOptions = ref([])
@@ -1068,6 +1089,7 @@ function getDefaultForm() {
     },
     menu_frame_id: '',
     modem_type_id: '',
+    modem_unit_id: '',
     operator_id: '',
     key_id: '',
     product_mapping_id: '',
@@ -1114,7 +1136,10 @@ onMounted(() => {
   ];
   modemTypeOptions.value = [
     { id: '', name: '--- Clear ---'},
-    ...Object.entries(props.modemTypeOptions).map(([id, name]) => ({ id: id, name: name }))
+    ...props.modemTypeOptions.data.map(modemType => ({
+      id: modemType.id,
+      name: modemType.name,
+    }))
   ];
   operatorOptions.value = props.operatorOptions.data
   productMappingOptions.value = [
@@ -1166,6 +1191,7 @@ onMounted(() => {
     key_id: props.vend.key_id ? keyOptions.value.find(keyModel => keyModel.id === props.vend.key_id) : null,
     menu_frame_id: props.vend.menu_frame_id ? menuFrameOptions.value.find(menuFrame => menuFrame.id == props.vend.menu_frame_id) : null,
     modem_type_id: props.vend.modem_type_id ? modemTypeOptions.value.find(modemType => modemType.id == props.vend.modem_type_id) : null,
+    modem_unit_id: props.vend.modem_unit_id ? modemUnitOptions.value.find(modemUnit => modemUnit.id == props.vend.modem_unit_id) : null,
     product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping =>    productMapping.id === props.vend.product_mapping_id) : null,
     simcard_id: props.vend.simcard_id ? props.vend.simcard_id : null,
     status: statusOptions.value.find(status => status.id === (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')),
@@ -1208,6 +1234,14 @@ onMounted(() => {
     id: customer.id,
     full_name: customer.person_id && customer.virtual_customer_code ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name + ' [cms]'  : customer.name,
   }))
+  modemUnitOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...props.modemUnitOptions.data.filter(modemUnit => modemUnit.modem_type_id == form.value.modem_type_id?.id).map(modemUnit => ({
+      id: modemUnit.id,
+      name: modemUnit.imei,
+      modem_type_id: modemUnit.modem_type_id
+    }))
+  ];
 })
 
 function formatDatetime(datetime) {

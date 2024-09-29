@@ -54,7 +54,7 @@
                 </div>
 
                 <!-- Map Section -->
-                <div id="map" class="sm:col-span-6" style="width: 100%; height: 500px;"></div>
+                <div id="map" class="sm:col-span-6" style="width: 100%; height: 600px;"></div>
 
                 <!-- Generated Sequence Header -->
                 <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
@@ -137,14 +137,14 @@
                                   <span v-if="opsJobItem.customer && opsJobItem.customer.deliveryAddress">
                                     <div class="flex space-x-2 items-center font-medium text-xs">
                                       <span class="flex space-x-1 items-center">
-                                        <Button
+                                        <!-- <Button
                                           type="button"
                                           class="bg-sky-300 hover:bg-sky-400 px-3 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
                                           @click="onMapMarkerClicked(opsJobItem)"
                                           v-if="opsJobItem.customer.deliveryAddress && opsJobItem.customer.deliveryAddress.latitude && opsJobItem.customer.deliveryAddress.longitude"
                                         >
                                           <MapPinIcon class="h-3 w-3" aria-hidden="true" />
-                                        </Button>
+                                        </Button> -->
                                         <a
                                           :href="opsJobItem.customer.deliveryAddress.map_url ||
                                             ('https://www.google.com/maps/search/?api=1&query='
@@ -196,23 +196,12 @@
         </div>
       </div>
     </div>
-
-  <MapMarker
-    v-if="showMapMarkerModal"
-    :customers="customerModel"
-    :api-key="mapApiKey"
-    :showModal="showMapMarkerModal"
-    isShowDirectionButton=true
-    @modalClose="onMapMarkerModalClose"
-  >
-  </MapMarker>
   </BreezeAuthenticatedLayout>
 </template>
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-import MapMarker from '@/Components/MapMarker.vue';
 import TableHead from '@/Components/TableHead.vue';
 import { ArrowUturnLeftIcon, MapPinIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
@@ -352,13 +341,13 @@ function addMarkers() {
         if (!isNaN(lat) && !isNaN(lng)) {
           const position = new google.maps.LatLng(lat, lng);
 
-          // Only showing the generated sequence number (index + 1)
+          // jobItem = JSON.parse(JSON.stringify(jobItem));
           const marker = new google.maps.Marker({
             position,
             map,
             label: {
-              text: String(index + 1), // Display the generated sequence number
-              color: "#ffffff",
+              text: '(' + String(index + 1) + ') ' + jobItem.vend.code, // Using custom sequence
+              color: "#000000",
               fontSize: "14px",
               fontWeight: "bold",
             },
@@ -386,56 +375,30 @@ function addMarkers() {
   }
 }
 
-function onMapMarkerClicked(opsJobItem) {
-  axios({
-    method: 'POST',
-    url: '/customers/map',
-    data: [{
-      ops_job_item_id: opsJobItem.id,
-      sequence: opsJobItem.sequence,
-      customer_id: opsJobItem.customer.id,
-    }],
-  })
-  .then((response) => {
-    customerModel.value = [{
-      ops_job_item_id: opsJobItem.id,
-      sequence: opsJobItem.sequence,
-      ...response.data.data[0],
-    }];
-    showMapMarkerModal.value = true; // Open the modal to show the map
-  })
-  .catch((error) => {
-    console.error('API Error:', error);  // Log errors to debug
-  });
-}
-
-function onMapMarkerModalClose() {
-  showMapMarkerModal.value = false
-}
-
-
 const showDirections = () => {
   if (!directionsService) return;
 
   const batchSize = 23; // Max 23 waypoints + origin and destination = 25
   let customersWithValidAddresses = opsJob.value.opsJobItems.filter(opsJobItem => opsJobItem.customer.deliveryAddress);
-  let totalBatches = Math.ceil(customersWithValidAddresses.length / batchSize);
+  let totalBatches = Math.ceil(customersWithValidAddresses.length / batchSize); // Calculate number of batches
 
   // Initialize request batches
   const requests = [];
 
+  // Prepare batches of customers
   for (let i = 0; i < totalBatches; i++) {
     const batchStartIndex = i * batchSize;
     const batchCustomers = customersWithValidAddresses.slice(batchStartIndex, batchStartIndex + batchSize);
 
     let request = {
-      travelMode: google.maps.TravelMode.DRIVING,
+      travelMode: google.maps.TravelMode.DRIVING, // Travel mode
       waypoints: [],
       origin: null,
       destination: null,
-      optimizeWaypoints: true, // Enable optimization of waypoints
+      optimizeWaypoints: true, // Enable distance-based optimization for waypoints
     };
 
+    // Assign origin, waypoints, and destination for each batch
     batchCustomers.forEach((opsJobItem, index) => {
       const lat = parseFloat(opsJobItem.customer.deliveryAddress.latitude);
       const lng = parseFloat(opsJobItem.customer.deliveryAddress.longitude);
@@ -456,19 +419,19 @@ const showDirections = () => {
       else {
         request.waypoints.push({
           location: markerPosition,
-          stopover: true,
+          stopover: true, // Indicates that the route will stop at this waypoint
         });
       }
     });
 
     if (request.origin && request.destination) {
-      requests.push(request);
+      requests.push(request); // Store the request for each batch
     }
   }
 
-  // Process batches
+  // Function to process each batch sequentially
   const processBatch = (index) => {
-    if (index >= requests.length) return;
+    if (index >= requests.length) return; // Stop if all batches have been processed
 
     const currentRequest = requests[index];
     const batchRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true });
@@ -478,12 +441,12 @@ const showDirections = () => {
       if (status === google.maps.DirectionsStatus.OK) {
         batchRenderer.setDirections(result);
 
-        // Get the optimized order of waypoints
+        // Get the optimized order of waypoints based on distance
         const optimizedOrder = result.routes[0].waypoint_order;
 
         // Use the optimized order to reorder the current batch of customers
         const optimizedCustomers = optimizedOrder.map(orderIndex => {
-          return customersWithValidAddresses[index * batchSize + orderIndex + 1]; // Adjust for 1-based indexing in your `waypoints` array
+          return customersWithValidAddresses[index * batchSize + orderIndex + 1]; // Adjust for 1-based indexing in `waypoints` array
         });
 
         // Insert the optimized customers into the original list at the correct positions
@@ -493,17 +456,19 @@ const showDirections = () => {
           ...optimizedCustomers // Insert optimized customers
         );
 
-        processBatch(index + 1); // Process the next batch
+        // Continue processing the next batch
+        processBatch(index + 1);
       } else {
         console.error('Directions request failed due to ' + status);
       }
     });
   };
 
-  processBatch(0); // Start processing the first batch
-
+  // Start processing the first batch
+  processBatch(0);
 };
 
 
-</script>
 
+
+</script>

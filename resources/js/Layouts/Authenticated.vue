@@ -141,6 +141,8 @@ const navigation = [
             // {name: 'UOM', href: '/uoms'},
             {name: 'Location Types', href: '/location-types'},
             {name: 'Machine Models', href: '/vend-models'},
+            {name: 'Modem Models', href: '/modem-types'},
+            {name: 'Modem IMEI', href: '/modem-units'},
             {name: 'Keys', href: '/keys'},
             {name: 'Serial Numbers', href: '/vend-serial-numbers'},
             {name: 'Telco', href: '/telcos'},

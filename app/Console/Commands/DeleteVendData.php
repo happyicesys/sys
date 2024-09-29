@@ -29,6 +29,6 @@ class DeleteVendData extends Command
      */
     public function handle()
     {
-        VendData::whereDate('created_at', '<=', Carbon::today()->subDays(2))->delete();
+        VendData::whereDate('created_at', '<=', Carbon::today()->subDays(2))->where('is_keep', false)->delete();
     }
 }

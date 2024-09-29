@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\AddressResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\OpsJobResource;
 use App\Http\Resources\OpsJobItemResource;
@@ -9,6 +10,7 @@ use App\Http\Resources\UserResource;
 use App\Http\Resources\VendResource;
 use App\Jobs\SyncOpsJobTransactionCMS;
 use App\Jobs\SyncOpsJobItemTransactionItemCMS;
+use App\Models\Address;
 use App\Models\Operator;
 use App\Models\OpsJob;
 use App\Models\OpsJobItem;
@@ -332,8 +334,6 @@ class OpsJobController extends Controller
             })
             ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();
-
-
 
 
         return Inertia::render('OpsJob/Index', [
@@ -778,6 +778,16 @@ class OpsJobController extends Controller
             ->get();
 
         return Inertia::render('OpsJob/Edit', [
+            'addressDestination' => AddressResource::collection(
+                Address::where('type', 'destination')
+                    ->latest()
+                    ->get()
+            ),
+            'addressStart' => AddressResource::collection(
+                Address::where('type', 'start')
+                    ->latest()
+                    ->get()
+            ),
             'cmsBaseUrl' => env('CMS_URL'),
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'opsJob' => new OpsJobResource($opsJob),

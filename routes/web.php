@@ -18,6 +18,8 @@ use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\KeyController;
 use App\Http\Controllers\LocationTypeController;
 use App\Http\Controllers\MapController;
+use App\Http\Controllers\ModemTypeController;
+use App\Http\Controllers\ModemUnitController;
 use App\Http\Controllers\OauthController;
 use App\Http\Controllers\OperatorController;
 use App\Http\Controllers\OpsJobController;
@@ -318,6 +320,20 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/create', [LocationTypeController::class, 'create']);
         Route::post('/{id}/update', [LocationTypeController::class, 'update']);
         Route::delete('/{id}', [LocationTypeController::class, 'delete']);
+    });
+
+    Route::prefix('modem-types')->group(function() {
+        Route::get('/', [ModemTypeController::class, 'index'])->name('modem-types');
+        Route::post('/store', [ModemTypeController::class, 'store']);
+        Route::post('/{id}/update', [ModemTypeController::class, 'update']);
+        Route::delete('/{id}', [ModemTypeController::class, 'delete']);
+    });
+
+    Route::prefix('modem-units')->group(function() {
+        Route::get('/', [ModemUnitController::class, 'index'])->name('modem-units');
+        Route::post('/store', [ModemUnitController::class, 'store']);
+        Route::post('/{id}/update', [ModemUnitController::class, 'update']);
+        Route::delete('/{id}', [ModemUnitController::class, 'delete']);
     });
 
     Route::prefix('payment-methods')->group(function() {

@@ -11,7 +11,18 @@ class ModemUnit extends Model
 
     protected $fillable = [
         'imei',
-        'modem_id',
+        'modem_type_id',
         'is_active',
     ];
+
+    // relationships
+    public function modemType()
+    {
+        return $this->belongsTo(ModemType::class);
+    }
+
+    public function vend()
+    {
+        return $this->hasOne(Vend::class);
+    }
 }

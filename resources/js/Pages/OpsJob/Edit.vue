@@ -52,7 +52,7 @@
                     <div class="w-full border-t border-gray-300"></div>
                   </div>
                   <div class="relative flex justify-center">
-                    <span class="px-3 bg-white text-lg font-medium text-gray-900"> Job(s) </span>
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Job(s) </span>
                   </div>
                 </div>
               </div>
@@ -671,6 +671,8 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
+  addressDestination: [Array, Object],
+  addressStart: [Array, Object],
   cmsBaseUrl: String,
   mapApiKey: String,
   opsJob: Object,

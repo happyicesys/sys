@@ -10,6 +10,8 @@ use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CountryResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LocationTypeResource;
+use App\Http\Resources\ModemTypeResource;
+use App\Http\Resources\ModemUnitResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\ProductResource;
@@ -33,6 +35,8 @@ use App\Models\CategoryGroup;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\LocationType;
+use App\Models\ModemType;
+use App\Models\ModemUnit;
 use App\Models\Operator;
 use App\Models\OpsJob;
 use App\Models\PaymentMethod;
@@ -250,7 +254,12 @@ class VendController extends Controller
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
-            'modemTypeOptions' => Vend::MODEM_TYPE_MAPPINGS,
+            'modemTypeOptions' => ModemTypeResource::collection(
+                ModemType::orderBy('id')->get()
+            ),
+            'modemUnitOptions' => ModemUnitResource::collection(
+                ModemUnit::orderBy('imei')->get()
+            ),
             'nextDeliveryDriverOptions' => Customer::query()
                 ->where('cms_invoice_history->next_delivery_driver', '!=', null)
                 ->select('cms_invoice_history->next_delivery_driver AS name')
@@ -1479,6 +1488,7 @@ class VendController extends Controller
             'lcd_monitor_id' => $request->lcd_monitor_id,
             'menu_frame_id' => $request->menu_frame_id,
             'modem_type_id' => $request->modem_type_id,
+            'modem_unit_id' => $request->modem_unit_id,
             'is_active' => $request->is_active,
             'is_testing' => $request->is_testing,
             'product_mapping_id' => $request->product_mapping_id,
@@ -1493,7 +1503,12 @@ class VendController extends Controller
             'vend_vend_config_version' => $request->vend_vend_config_version,
         ]);
 
-
+        // if($request->modem_unit_imei) {
+        //     $vend->modemUnit()->update([
+        //         'imei' => $request->modem_unit_imei,
+        //         'modem_type_id' => $vend->modem_type_id,
+        //     ]);
+        // }
 
         if($request->operator_id != $vend->operator_id) {
             $vend->update([

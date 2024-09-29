@@ -14,6 +14,7 @@ use App\Models\UnitCost;
 use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
+use App\Models\VendData;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
 use App\Jobs\HandleFailedVendTransaction;
@@ -73,6 +74,14 @@ class CreateVendTransaction implements ShouldQueue
 
             // exit once found duplicated order id
             if($duplicatedVendTransaction) {
+                // log the replicated and ori in vend data
+                VendData::create([
+                    'value' => $input,
+                    'processed' => $duplicatedVendTransaction->vend_transaction_json,
+                    'is_keep' => true,
+                    'vend_code' => $vend->code,
+                    'type' => 'duplicated_order_id',
+                ]);
                 return;
             }
 

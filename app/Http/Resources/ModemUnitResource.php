@@ -14,6 +14,14 @@ class ModemUnitResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'id' => $this->id,
+            'imei' => $this->imei,
+            'modem_type_id' => $this->modem_type_id,
+            'is_active' => $this->is_active ? true : false,
+            'modemType' => new ModemTypeResource($this->whenLoaded('modemType')),
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+        ];
     }
 }

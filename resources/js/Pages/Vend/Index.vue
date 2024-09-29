@@ -328,7 +328,23 @@
                 :options="modemTypeOptions"
                 trackBy="id"
                 valueProp="id"
-                label="value"
+                label="name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Modem IMEI
+            </label>
+            <MultiSelect
+                v-model="filters.modem_unit_id"
+                :options="modemUnitOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
@@ -1435,6 +1451,7 @@ font-size:13px;
       lcdMonitorOptions: Object,
       locationTypeOptions: Object,
       modemTypeOptions: Object,
+      modemUnitOptions: Object,
       nextDeliveryDriverOptions: [Array, Object],
       operatorOptions: Object,
       productOptions: Object,
@@ -1505,6 +1522,7 @@ font-size:13px;
   const loadingSyncNextDeliveryDate = ref(false)
   const locationTypeOptions = ref([])
   const modemTypeOptions = ref([])
+  const modemUnitOptions = ref([])
   const nextDeliveryDriverOptions = ref([])
   const numberPerPageOptions = ref([])
   const operatorOptions = ref([])
@@ -1587,9 +1605,19 @@ locationTypeOptions.value = [
     ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 modemTypeOptions.value = [
-    { id: 'undefined', value: 'Undefined'},
-    ...Object.entries(props.modemTypeOptions).map(([id, name]) => ({id: id, value: name}))
-]
+  { id: 'undefined', name: 'Undefined'},
+  ...props.modemTypeOptions.data.map(modemType => ({
+    id: modemType.id,
+    name: modemType.name,
+  }))
+];
+modemUnitOptions.value = [
+  { id: 'undefined', name: 'Undefined'},
+  ...props.modemUnitOptions.data.map(modemUnit => ({
+    id: modemUnit.id,
+    name: modemUnit.imei,
+  }))
+];
 nextDeliveryDriverOptions.value = [
     {id: 'all', value: 'All'},
     ...props.nextDeliveryDriverOptions.map((data) => {return {id: data.name, value: data.name}})

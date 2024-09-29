@@ -138,7 +138,8 @@ class Customer extends Model
 
     public function billingAddress()
     {
-        return $this->morphOne(Address::class, 'modelable')->ofMany('type', 'min');
+        // return $this->morphOne(Address::class, 'modelable')->ofMany('type', 'min');
+        return $this->morphOne(Address::class, 'modelable')->where('type', 1);
     }
 
     public function category()
@@ -158,7 +159,8 @@ class Customer extends Model
 
     public function deliveryAddress()
     {
-        return $this->morphOne(Address::class, 'modelable')->ofMany('type', 'max');
+        // return $this->morphOne(Address::class, 'modelable')->ofMany('type', 'max');
+        return $this->morphOne(Address::class, 'modelable')->where('type', 2);
     }
 
     public function handledBy()

@@ -9,6 +9,8 @@ use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\KeyResource;
 use App\Http\Resources\LocationTypeResource;
+use App\Http\Resources\ModemTypeResource;
+use App\Http\Resources\ModemUnitResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\SellingPriceResource;
@@ -26,6 +28,8 @@ use App\Models\Customer;
 use App\Models\CategoryGroup;
 use App\Models\Key;
 use App\Models\LocationType;
+use App\Models\ModemType;
+use App\Models\ModemUnit;
 use App\Models\Operator;
 use App\Models\ProductMapping;
 use App\Models\SellingPrice;
@@ -170,7 +174,12 @@ class SettingController extends Controller
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
-            'modemTypeOptions' => Vend::MODEM_TYPE_MAPPINGS,
+            'modemTypeOptions' => ModemTypeResource::collection(
+                ModemType::orderBy('id')->get()
+            ),
+            'modemUnitOptions' => ModemUnitResource::collection(
+                ModemUnit::orderBy('imei')->get()
+            ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
@@ -214,6 +223,7 @@ class SettingController extends Controller
             'customer.contact',
             'key',
             'logs',
+            'modemUnit',
             'operator',
             'productMapping',
             'simcard',
@@ -258,6 +268,7 @@ class SettingController extends Controller
             'vends.label_name',
             'vends.menu_frame_id',
             'vends.modem_type_id',
+            'vends.modem_unit_id',
             'vends.operator_id',
             'vends.product_mapping_id',
             // 'vends.serial_num',
@@ -314,7 +325,12 @@ class SettingController extends Controller
                 Key::orderBy('name')->get()
             ),
             'lcdMonitorOptions' => Vend::LCD_MONITOR_MAPPINGS,
-            'modemTypeOptions' => Vend::MODEM_TYPE_MAPPINGS,
+            'modemTypeOptions' => ModemTypeResource::collection(
+                ModemType::orderBy('id')->get()
+            ),
+            'modemUnitOptions' => ModemUnitResource::collection(
+                ModemUnit::orderBy('imei')->get()
+            ),
             'menuFrameOptions' => Vend::MENU_FRAME_MAPPINGS,
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()

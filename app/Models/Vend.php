@@ -113,6 +113,7 @@ class Vend extends Model
         'label_name',
         'lcd_monitor_id',
         'modem_type_id',
+        'modem_unit_id',
         'menu_frame_id',
         'name',
         'temp',
@@ -198,6 +199,16 @@ class Vend extends Model
     public function latestVendBinding()
     {
         return $this->hasOne(VendBinding::class)->where('is_active', true)->latest('begin_date');
+    }
+
+    public function modemType()
+    {
+        return $this->belongsTo(ModemType::class);
+    }
+
+    public function modemUnit()
+    {
+        return $this->belongsTo(ModemUnit::class);
     }
 
     public function simcard()

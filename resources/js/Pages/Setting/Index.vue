@@ -196,7 +196,23 @@
                 :options="modemTypeOptions"
                 trackBy="id"
                 valueProp="id"
-                label="value"
+                label="name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Modem IMEI
+            </label>
+            <MultiSelect
+                v-model="filters.modem_unit_id"
+                :options="modemUnitOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
@@ -873,6 +889,7 @@ const props = defineProps({
     lcdMonitorOptions: Object,
     locationTypeOptions: Object,
     modemTypeOptions: [Array, Object],
+    modemUnitOptions: [Array, Object],
     operatorOptions: Object,
     sellingPriceTypeOptions: [Array, Object],
     simcardOptions: Object,
@@ -893,6 +910,7 @@ const filters = ref({
     lcd_monitor_id: '',
     locationTypes: [],
     modem_type_id: '',
+    modem_unit_id: '',
     operators: [],
     selling_price_type: '',
     simcard_id: '',
@@ -918,6 +936,7 @@ const filters = ref({
   const loading = ref(false)
   const locationTypeOptions = ref([])
   const modemTypeOptions = ref([])
+  const modemUnitOptions = ref([])
   const numberPerPageOptions = ref([])
   const operatorOptions = ref([])
   const type = ref('')
@@ -973,9 +992,17 @@ onMounted(() => {
         ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
     modemTypeOptions.value = [
-        { id: 'undefined', value: 'Undefined'},
-        ...Object.entries(props.modemTypeOptions).map(([id, name]) => ({id: id, value: name}))
-    ]
+      ...props.modemTypeOptions.data.map(modemType => ({
+        id: modemType.id,
+        name: modemType.name,
+      }))
+    ];
+    modemUnitOptions.value = [
+      ...props.modemUnitOptions.data.map(modemUnit => ({
+        id: modemUnit.id,
+        name: modemUnit.imei,
+      }))
+    ];
     operatorOptions.value = [
         {id: 'all', full_name: 'All'},
         ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
@@ -1039,6 +1066,7 @@ function onSearchFilterUpdated() {
       lcd_monitor_id: filters.value.lcd_monitor_id.id,
       locationTypes: filters.value.locationTypes.map((locationType) => { return locationType.id }),
       modem_type_id: filters.value.modem_type_id.id,
+      modem_unit_id: filters.value.modem_unit_id.id,
       operators: filters.value.operators.map((operator) => { return operator.id }),
       is_binded_customer: filters.value.is_binded_customer.id,
       key_id: filters.value.key_id.id,

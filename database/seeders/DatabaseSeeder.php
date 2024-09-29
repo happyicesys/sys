@@ -93,7 +93,9 @@ class DatabaseSeeder extends Seeder
             // ZoneSeeder::class,
             // FirstOpsJobItems::class,
             // ObserverRoleSeeder::class,
-            SyncCurrentCustomerSeeder::class,
+            // SyncCurrentCustomerSeeder::class,
+            StartDestinationAddressSeeder::class,
+            ModemSeeder::class,
         ]);
     }
 }
