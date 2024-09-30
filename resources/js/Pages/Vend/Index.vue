@@ -367,6 +367,22 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Has Customer
+            </label>
+            <MultiSelect
+                v-model="filters.has_customer"
+                :options="booleanOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
       </div>
 
       <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -1474,6 +1490,7 @@ font-size:13px;
       deviceType: '',
       errors: [],
       firmware_ver: '',
+      has_customer: '',
       locationType: '',
       operators: [],
       is_active: true,
@@ -1643,6 +1660,7 @@ vendPrefixOptions.value = [
   ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
 ]
 
+filters.value.has_customer = booleanOptions.value[0]
 filters.value.is_active = booleanOptions.value[1]
 filters.value.deviceType = deviceTypeOptions.value[0]
 filters.value.is_door_open = doorOptions.value[0]
@@ -1741,6 +1759,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       deviceType: filters.value.deviceType.id,
       errors: filters.value.errors.map((error) => { return error.id }),
+      has_customer: filters.value.has_customer.id,
       lcd_monitor_id: filters.value.lcd_monitor_id.id,
       location_type_id: filters.value.locationType.id,
       modem_type_id: filters.value.modem_type_id.id,
@@ -1828,6 +1847,7 @@ axios({
         ...filters.value,
         deviceType: filters.value.deviceType.id,
         errors: filters.value.errors.map((error) => { return error.id }),
+        has_customer: filters.value.has_customer.id,
         lcd_monitor_id: filters.value.lcd_monitor_id.id,
         location_type_id: filters.value.locationType.id,
         modem_type_id: filters.value.modem_type_id.id,

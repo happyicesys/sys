@@ -92,7 +92,7 @@
 
                 <!-- Buttons to Set Origin & Destination and Regenerate Route -->
                 <div class="sm:col-span-6 flex justify-between mt-4">
-                  <Link :href="'/ops-jobs/' + opsJob.id + '/edit'">
+                  <a :href="'/ops-jobs/' + opsJob.id + '/edit'">
                     <Button
                       type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 "
                     >
@@ -101,7 +101,7 @@
                         Back
                       </span>
                     </Button>
-                  </Link>
+                  </a>
                   <div class="flex space-x-1">
                     <button
                       type="button"
@@ -304,14 +304,14 @@ onMounted(() => {
   destinationAddressOptions.value = props.destinationAddresses?.data?.map(address => ({
     id: address.id,
     name: address.name,
-    full_address: '(' + address.name + ') ' + address.full_address,
+    full_address: (address.name ? '(' + address.name + ') ' : '') + address.full_address,
     latitude: address.latitude,
     longitude: address.longitude,
   })) || [];
   originAddressOptions.value = props.originAddresses?.data?.map(address => ({
     id: address.id,
     name: address.name,
-    full_address: '(' + address.name + ') ' + address.full_address,
+    full_address: (address.name ? '(' + address.name + ') ' : '') + address.full_address,
     latitude: address.latitude,
     longitude: address.longitude,
   })) || [];
@@ -336,11 +336,6 @@ function clearRoute() {
   renderers.forEach(renderer => renderer.setMap(null)); // Clear all existing routes
   renderers = []; // Reset the renderers array
 }
-
-const regenerateRoute = () => {
-  clearRoute(); // Clear the existing route
-  showDirections(); // Call the function to regenerate the directions
-};
 
 function getDefaultForm() {
   return {
@@ -433,7 +428,7 @@ function addMarkers() {
             position,
             map,
             label: {
-              text: String(index + 1), // Using custom sequence
+              text: String(jobItem.vend.code), // Using custom sequence
               color: "#000000",
               fontSize: "14px",
               fontWeight: "bold",
@@ -465,18 +460,19 @@ function addMarkers() {
 }
 
 function setOriginDestination() {
-  if (!form.value.origin_address_id || !form.value.destination_address_id) {
-    toast.error('Please select both Origin and Destination addresses.');
-    return;
+  let origin = null
+  let destination = null
+
+  if(form.value.origin_address_id){
+    origin = originAddressOptions.value.find(address => address.id === form.value.origin_address_id.id);
+  }else {
+    origin = opsJob.value.opsJobItems[0].customer.deliveryAddress;
   }
 
-  // Find the selected origin and destination addresses from the options
-  const origin = originAddressOptions.value.find(address => address.id === form.value.origin_address_id.id);
-  const destination = destinationAddressOptions.value.find(address => address.id === form.value.destination_address_id.id);
-
-  if (!origin || !destination) {
-    toast.error('Invalid Origin or Destination address.');
-    return;
+  if(form.value.destination_address_id) {
+    destination = destinationAddressOptions.value.find(address => address.id === form.value.destination_address_id.id);
+  }else {
+    destination = opsJob.value.opsJobItems[opsJob.value.opsJobItems.length - 1].customer.deliveryAddress;
   }
 
   // Convert origin and destination to Google Maps LatLng format
@@ -621,7 +617,7 @@ function addCustomMarkers(originLatLng, destinationLatLng, waypoints, startLabel
     position: originLatLng,
     map: map,
     label: {
-      text: '0', // Using custom sequence for the origin
+      text: ' ', // Using custom sequence for the origin
       color: "#000000",
       fontSize: "14px",
       fontWeight: "bold",
@@ -672,7 +668,7 @@ function addCustomMarkers(originLatLng, destinationLatLng, waypoints, startLabel
     position: destinationLatLng,
     map: map,
     label: {
-      text: String(startLabel + waypoints.length), // Continue marker label for the destination
+      text: ' ', // Continue marker label for the destination
       color: "#000000",
       fontSize: "14px",
       fontWeight: "bold",

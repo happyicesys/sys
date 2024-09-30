@@ -1060,7 +1060,7 @@ function statusUpdated() {
   })
 }
 
-function updateSequence(opsJobItem, sequence) {
+function updateSequence(opsJobItem) {
   form.value.clearErrors()
   form.value
     .transform((data) => ({

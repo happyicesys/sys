@@ -215,6 +215,15 @@ trait HasFilter {
                 });
             // }
         })
+        ->when($request->has_customer, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->whereNotNull('customers.id');
+                }else {
+                    $query->whereNull('customers.id');
+                }
+            }
+        })
         ->when($request->lcd_monitor_id, function($query, $search) {
             if($search != 'all') {
                 if($search == 'undefined') {

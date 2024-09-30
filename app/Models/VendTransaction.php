@@ -203,9 +203,9 @@ class VendTransaction extends Model
                 });
             }
         })
-        ->when($request->interface_type, function($query, $search) {
-            if($search != 'all') {
-                $query->where('interface_type', $search);
+        ->when($request->has('interface_type'), function($query, $search) use ($request) {
+            if($request->interface_type != 'all') {
+                $query->where('interface_type', $request->interface_type);
             }
         })
         // ->where(function($query) use ($request) {

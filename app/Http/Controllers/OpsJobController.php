@@ -980,8 +980,16 @@ class OpsJobController extends Controller
                 'deliveredBy',
                 'opsJobItems' => function($query) {
                     $query
-                        ->orderBy('created_at')
-                        ->orderBy('sequence');
+                        ->leftJoin('customers', 'customers.id', '=', 'ops_job_items.customer_id')
+                        ->leftJoin('addresses', function($query) {
+                            $query->on('addresses.modelable_id', '=', 'customers.id')
+                                    ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                                    ->where('addresses.type', '=', 2)
+                                    ->limit(1);
+                        })
+                        ->select('ops_job_items.*')
+                        ->orderBy('ops_job_items.sequence')
+                        ->orderBy('postcode');
                 },
                 'opsJobItems.customer.deliveryAddress',
                 'opsJobItems.opsJobItemChannels',
@@ -990,16 +998,22 @@ class OpsJobController extends Controller
             ])
             ->find($id);
 
+        $opsJobAddresses = $opsJob->opsJobItems->pluck('customer.deliveryAddress')->filter()->unique('id');
+
         return Inertia::render('OpsJob/Route', [
             'destinationAddresses' => AddressResource::collection(
                 Address::where('type', '100')
                     ->latest()
                     ->get()
+                    ->merge($opsJobAddresses)
+                    ->unique('id')
             ),
             'originAddresses' => AddressResource::collection(
                 Address::where('type', '90')
                     ->latest()
                     ->get()
+                    ->merge($opsJobAddresses)
+                    ->unique('id')
             ),
             'operatorsWithAddress' => OperatorResource::collection(
                 Operator::query()
@@ -1189,7 +1203,7 @@ class OpsJobController extends Controller
             ]);
         }
 
-        if($request->sequence) {
+        if($request->has('sequence')) {
             $opsJobItem->update([
                 'sequence' => $request->sequence,
                 'updated_at' => Carbon::now(),
