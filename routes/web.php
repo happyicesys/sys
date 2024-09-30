@@ -288,6 +288,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/items/{itemID}/upload-attachments', [OpsJobController::class, 'uploadItemAttachments']);
         Route::post('/items/{itemID}/cash-collected', [OpsJobController::class, 'itemCashCollected']);
         Route::post('/qty-list/status/{status}', [OpsJobController::class, 'qtyList']);
+        Route::post('/{id}/sequence', [OpsJobController::class, 'saveSequence']);
     });
 
     Route::prefix('reports')->group(function() {

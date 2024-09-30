@@ -778,16 +778,6 @@ class OpsJobController extends Controller
             ->get();
 
         return Inertia::render('OpsJob/Edit', [
-            'addressDestination' => AddressResource::collection(
-                Address::where('type', 'destination')
-                    ->latest()
-                    ->get()
-            ),
-            'addressStart' => AddressResource::collection(
-                Address::where('type', 'start')
-                    ->latest()
-                    ->get()
-            ),
             'cmsBaseUrl' => env('CMS_URL'),
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'opsJob' => new OpsJobResource($opsJob),
@@ -990,8 +980,8 @@ class OpsJobController extends Controller
                 'deliveredBy',
                 'opsJobItems' => function($query) {
                     $query
-                        ->orderBy('sequence')
-                        ->orderBy('created_at');
+                        ->orderBy('created_at')
+                        ->orderBy('sequence');
                 },
                 'opsJobItems.customer.deliveryAddress',
                 'opsJobItems.opsJobItemChannels',
@@ -1001,6 +991,16 @@ class OpsJobController extends Controller
             ->find($id);
 
         return Inertia::render('OpsJob/Route', [
+            'destinationAddresses' => AddressResource::collection(
+                Address::where('type', 'destination')
+                    ->latest()
+                    ->get()
+            ),
+            'originAddresses' => AddressResource::collection(
+                Address::where('type', 'start')
+                    ->latest()
+                    ->get()
+            ),
             'operatorsWithAddress' => OperatorResource::collection(
                 Operator::query()
                     ->with(['address'])
@@ -1011,6 +1011,25 @@ class OpsJobController extends Controller
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'opsJob' => OpsJobResource::make($opsJob),
         ]);
+    }
+
+    public function saveSequence(Request $request, $id)
+    {
+        $opsJob = OpsJob::findOrFail($id);
+
+        $sequence = 1;
+        foreach($request->opsJobItems as $opsJobItem) {
+            if(isset($opsJobItem['isOrigin']) or isset($opsJobItem['isDestination'])) {
+                continue;
+            }
+            $opsJobItem = OpsJobItem::findOrFail($opsJobItem['id']);
+            $opsJobItem->update([
+                'sequence' => $sequence,
+            ]);
+            $sequence++;
+        }
+
+        return redirect()->back();
     }
 
     public function settleItemChannelError($opsJobItemChannelID)

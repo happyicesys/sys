@@ -47,14 +47,89 @@
                     <input
                       type="text"
                       class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-sm border-gray-300 rounded-md bg-gray-200 hover:cursor-not-allowed"
-                      :value="opsJob.opsJobItems ? opsJob.opsJobItems.length : 0"
+                      :value="opsJob.opsJobItems ? opsJob.opsJobItems.filter((opsJobItem) => { return !opsJobItem.isOrigin && !opsJobItem.isDestination}).length : 0"
                       disabled
                     />
                   </div>
                 </div>
 
                 <!-- Map Section -->
-                <div id="map" class="sm:col-span-6" style="width: 100%; height: 600px;"></div>
+                <div id="map" class="sm:col-span-6 mb-3" style="width: 100%; height: 600px;"></div>
+
+                <!-- Origin and Destination Select -->
+                <div class="sm:col-span-3">
+                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                    Origin
+                  </label>
+                  <MultiSelect
+                    v-model="form.origin_address_id"
+                    :options="originAddressOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="full_address"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                    ref="multiselect"
+                  />
+                </div>
+                <div class="sm:col-span-3">
+                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                    Destination
+                  </label>
+                  <MultiSelect
+                    v-model="form.destination_address_id"
+                    :options="destinationAddressOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="full_address"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                    ref="multiselect"
+                  />
+                </div>
+
+                <!-- Buttons to Set Origin & Destination and Regenerate Route -->
+                <div class="sm:col-span-6 flex justify-between mt-4">
+                  <Link :href="'/ops-jobs/' + opsJob.id + '/edit'">
+                    <Button
+                      type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 "
+                    >
+                      <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                      <span>
+                        Back
+                      </span>
+                    </Button>
+                  </Link>
+                  <div class="flex space-x-1">
+                    <button
+                      type="button"
+                      @click.prevent="setOriginDestination"
+                      class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded text-sm"
+                    >
+                      <div class="flex space-x-1 items-center">
+                        <ArrowRightCircleIcon class="h-4 w-4" />
+                        <span>
+                          Generate Route
+                        </span>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      @click.prevent="applySequenceJobs"
+                      class="bg-yellow-500 hover:bg-yellow-600 text-gray-800 font-medium py-2 px-4 rounded text-sm"
+                      v-if="isSequenceGenerated"
+                    >
+                      <div class="flex space-x-1 items-center">
+                        <BarsArrowDownIcon class="h-4 w-4" />
+                        <span>
+                          Apply Sequence to Job(s)
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
 
                 <!-- Generated Sequence Header -->
                 <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
@@ -101,18 +176,20 @@
                                 {{ opsJobItem.sequence }}
                               </td>
                               <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                                {{ opsJobItemIndex + 1 }}
+                                <span v-if="isSequenceGenerated">
+                                  {{ opsJobItemIndex }}
+                                </span>
                               </td>
                               <td class="whitespace-pre-line py-2 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                                 <div class="flex flex-col space-y-2 max-w-24">
-                                  <Link :href="'/vends/customers?codes=' + opsJobItem.vend.code" class="text-blue-700">
-                                    <span> {{ opsJobItem.vend.code }} </span>
+                                  <Link :href="'/vends/customers?codes=' + opsJobItem.vend?.code" class="text-blue-700">
+                                    <span> {{ opsJobItem.vend?.code }} </span>
                                   </Link>
                                   <div>
                                     <Link :href="'/ops-jobs/items/' + opsJobItem.id + '/edit'">
                                       <Button
                                         class="bg-indigo-400 hover:bg-indigo-500 text-white text-xs font-medium"
-                                        v-if="permissions.includes('update operations')"
+                                        v-if="permissions.includes('update operations') && opsJobItem.ref_id"
                                       >
                                         {{ opsJobItem.ref_id }}
                                       </Button>
@@ -137,14 +214,6 @@
                                   <span v-if="opsJobItem.customer && opsJobItem.customer.deliveryAddress">
                                     <div class="flex space-x-2 items-center font-medium text-xs">
                                       <span class="flex space-x-1 items-center">
-                                        <!-- <Button
-                                          type="button"
-                                          class="bg-sky-300 hover:bg-sky-400 px-3 py-1 text-xs text-sky-800 flex space-x-1 w-fit"
-                                          @click="onMapMarkerClicked(opsJobItem)"
-                                          v-if="opsJobItem.customer.deliveryAddress && opsJobItem.customer.deliveryAddress.latitude && opsJobItem.customer.deliveryAddress.longitude"
-                                        >
-                                          <MapPinIcon class="h-3 w-3" aria-hidden="true" />
-                                        </Button> -->
                                         <a
                                           :href="opsJobItem.customer.deliveryAddress.map_url ||
                                             ('https://www.google.com/maps/search/?api=1&query='
@@ -198,46 +267,54 @@
     </div>
   </BreezeAuthenticatedLayout>
 </template>
-
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-import TableHead from '@/Components/TableHead.vue';
-import { ArrowUturnLeftIcon, MapPinIcon } from '@heroicons/vue/20/solid';
+import MultiSelect from '@/Components/MultiSelect.vue';
+import TableHead from '@/Components/TableHead.vue'; // Retained TableHead component
+import { ArrowUturnLeftIcon, ArrowRightCircleIcon, BarsArrowDownIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
+  destinationAddresses: [Array, Object],
   mapApiKey: String,
   operatorsWithAddress: [Array, Object],
+  originAddresses: [Array, Object],
   opsJob: Object,
 });
 
 const emit = defineEmits(['modalClose']);
 
-const filters = ref({
-  vend_code: '',
-  customer: '',
-});
-
+const destinationAddressOptions = ref([]);
 const form = ref(useForm(getDefaultForm()));
-const customerModel = ref([]);
-const operatorCountry = usePage().props.auth.operatorCountry;
+const isSequenceGenerated = ref(false);
 const operatorsWithAddress = ref([]);
 const opsJob = ref(props.opsJob?.data || {});
-const opsJobItemModel = ref([]);
+const originAddressOptions = ref([]);
 const permissions = usePage().props.auth.permissions;
-const pickLists = ref([]);
-const pickListType = ref(1);
-const showChannelModal = ref(false);
-const showMapMarkerModal = ref(false);
-const showPickListModal = ref(false);
 const toast = useToast();
-let map, directionsService, directionsRenderer;
+let map, directionsService;
 let defaultPos = { lat: 1.3521, lng: 103.8198 };
+let markers = []; // Array to store map markers
+let renderers = []; // Array to store all DirectionsRenderer instances
 
 onMounted(() => {
+  destinationAddressOptions.value = props.destinationAddresses?.data?.map(address => ({
+    id: address.id,
+    name: address.name,
+    full_address: '(' + address.name + ') ' + address.full_address,
+    latitude: address.latitude,
+    longitude: address.longitude,
+  })) || [];
+  originAddressOptions.value = props.originAddresses?.data?.map(address => ({
+    id: address.id,
+    name: address.name,
+    full_address: '(' + address.name + ') ' + address.full_address,
+    latitude: address.latitude,
+    longitude: address.longitude,
+  })) || [];
   operatorsWithAddress.value = props.operatorsWithAddress?.data?.map(operator => ({
     id: operator.id,
     name: operator.name,
@@ -249,10 +326,26 @@ onMounted(() => {
   loadGoogleMapsApi();
 });
 
+// Function to clear the existing route and markers
+function clearMarkers() {
+  markers.forEach(marker => marker.setMap(null)); // Clear markers
+  markers = []; // Reset marker array
+}
+
+function clearRoute() {
+  renderers.forEach(renderer => renderer.setMap(null)); // Clear all existing routes
+  renderers = []; // Reset the renderers array
+}
+
+const regenerateRoute = () => {
+  clearRoute(); // Clear the existing route
+  showDirections(); // Call the function to regenerate the directions
+};
+
 function getDefaultForm() {
   return {
-    id: '',
-    vend_id: '',
+    destination_address_id: '',
+    origin_address_id: '',
   };
 }
 
@@ -285,7 +378,6 @@ function loadGoogleMapsApi() {
 async function initMap() {
   const { Map, DirectionsService, DirectionsRenderer } = await google.maps.importLibrary("maps");
   directionsService = new google.maps.DirectionsService();
-  directionsRenderer = new google.maps.DirectionsRenderer();
 
   let latSum = 0;
   let lngSum = 0;
@@ -322,16 +414,12 @@ async function initMap() {
     mapId: "MAP_ID", // Optional custom map ID
   });
 
-  directionsRenderer.setMap(map);
-
-  showDirections();
-  // Add markers
-  addMarkers();
-
-
+  addMarkers(); // Initially add markers
 }
 
 function addMarkers() {
+  clearMarkers(); // Clear existing markers before adding new ones
+
   if (opsJob.value.opsJobItems) {
     opsJob.value.opsJobItems.forEach((jobItem, index) => {
       if (jobItem.customer && jobItem.customer.deliveryAddress) {
@@ -341,12 +429,11 @@ function addMarkers() {
         if (!isNaN(lat) && !isNaN(lng)) {
           const position = new google.maps.LatLng(lat, lng);
 
-          // jobItem = JSON.parse(JSON.stringify(jobItem));
           const marker = new google.maps.Marker({
             position,
             map,
             label: {
-              text: '(' + String(index + 1) + ') ' + jobItem.vend.code, // Using custom sequence
+              text: String(index + 1), // Using custom sequence
               color: "#000000",
               fontSize: "14px",
               fontWeight: "bold",
@@ -369,23 +456,88 @@ function addMarkers() {
               shouldFocus: false,
             });
           });
+
+          markers.push(marker); // Store the marker
         }
       }
     });
   }
 }
 
-const showDirections = () => {
+function setOriginDestination() {
+  if (!form.value.origin_address_id || !form.value.destination_address_id) {
+    toast.error('Please select both Origin and Destination addresses.');
+    return;
+  }
+
+  // Find the selected origin and destination addresses from the options
+  const origin = originAddressOptions.value.find(address => address.id === form.value.origin_address_id.id);
+  const destination = destinationAddressOptions.value.find(address => address.id === form.value.destination_address_id.id);
+
+  if (!origin || !destination) {
+    toast.error('Invalid Origin or Destination address.');
+    return;
+  }
+
+  // Convert origin and destination to Google Maps LatLng format
+  const originLatLng = { lat: parseFloat(origin.latitude), lng: parseFloat(origin.longitude) };
+  const destinationLatLng = { lat: parseFloat(destination.latitude), lng: parseFloat(destination.longitude) };
+
+  // Insert the origin and destination into opsJob.opsJobItems as first and last items
+  const originItem = {
+    customer: {
+      name: origin.name,
+      deliveryAddress: {
+        full_address: origin.full_address,
+        latitude: origin.latitude,
+        longitude: origin.longitude,
+      }
+    },
+    isOrigin: true, // Mark as origin
+  };
+
+  const destinationItem = {
+    customer: {
+      name: destination.name,
+      deliveryAddress: {
+        full_address: destination.full_address,
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+      }
+    },
+    isDestination: true, // Mark as destination
+  };
+
+  // First, remove any existing origin and destination in opsJobItems before adding the new ones
+  opsJob.value.opsJobItems = opsJob.value.opsJobItems.filter(item => !item.isOrigin && !item.isDestination);
+
+  // Add the origin at the start of opsJobItems and destination at the end
+  opsJob.value.opsJobItems.unshift(originItem); // Origin goes to the first position
+  opsJob.value.opsJobItems.push(destinationItem); // Destination goes to the last position
+
+  // Now, call showDirections with the formatted origin and destination
+  showDirections(originLatLng, destinationLatLng);
+}
+
+
+const showDirections = (originLatLng, destinationLatLng) => {
+  isSequenceGenerated.value = true;
   if (!directionsService) return;
 
   const batchSize = 23; // Max 23 waypoints + origin and destination = 25
-  let customersWithValidAddresses = opsJob.value.opsJobItems.filter(opsJobItem => opsJobItem.customer.deliveryAddress);
+  let customersWithValidAddresses = opsJob.value.opsJobItems.filter(opsJobItem => opsJobItem.customer.deliveryAddress && !opsJobItem.isOrigin && !opsJobItem.isDestination);
   let totalBatches = Math.ceil(customersWithValidAddresses.length / batchSize); // Calculate number of batches
 
-  // Initialize request batches
+  // Clear the existing directions and markers before generating new ones
+  clearMarkers();
+  clearRoute();
+
+  let optimizedOpsJobItems = [];
+  let markerLabelCounter = 1; // Start counting the marker labels from 1
+
   const requests = [];
 
-  // Prepare batches of customers
+  // Prepare batches of customers for the requests
   for (let i = 0; i < totalBatches; i++) {
     const batchStartIndex = i * batchSize;
     const batchCustomers = customersWithValidAddresses.slice(batchStartIndex, batchStartIndex + batchSize);
@@ -393,35 +545,23 @@ const showDirections = () => {
     let request = {
       travelMode: google.maps.TravelMode.DRIVING, // Travel mode
       waypoints: [],
-      origin: null,
-      destination: null,
+      origin: originLatLng,
+      destination: destinationLatLng,
       optimizeWaypoints: true, // Enable distance-based optimization for waypoints
     };
 
-    // Assign origin, waypoints, and destination for each batch
-    batchCustomers.forEach((opsJobItem, index) => {
+    // Add customers as waypoints
+    batchCustomers.forEach((opsJobItem) => {
       const lat = parseFloat(opsJobItem.customer.deliveryAddress.latitude);
       const lng = parseFloat(opsJobItem.customer.deliveryAddress.longitude);
 
       if (isNaN(lat) || isNaN(lng)) return;
 
-      const markerPosition = new google.maps.LatLng(lat, lng);
-
-      // Set the first customer as the origin
-      if (index === 0) {
-        request.origin = markerPosition;
-      }
-      // Set the last customer as the destination
-      else if (index === batchCustomers.length - 1) {
-        request.destination = markerPosition;
-      }
-      // Add all other customers as waypoints
-      else {
-        request.waypoints.push({
-          location: markerPosition,
-          stopover: true, // Indicates that the route will stop at this waypoint
-        });
-      }
+      const waypointLatLng = { lat, lng };
+      request.waypoints.push({
+        location: waypointLatLng,
+        stopover: true,
+      });
     });
 
     if (request.origin && request.destination) {
@@ -431,32 +571,39 @@ const showDirections = () => {
 
   // Function to process each batch sequentially
   const processBatch = (index) => {
-    if (index >= requests.length) return; // Stop if all batches have been processed
+    if (index >= requests.length) {
+      // Once all batches are processed, update the table
+      opsJob.value.opsJobItems = [
+        opsJob.value.opsJobItems.find(item => item.isOrigin), // Keep origin
+        ...optimizedOpsJobItems, // Add all optimized waypoints from all batches
+        opsJob.value.opsJobItems.find(item => item.isDestination), // Keep destination
+      ];
+      return; // Stop when all batches have been processed
+    }
 
     const currentRequest = requests[index];
-    const batchRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true });
-    batchRenderer.setMap(map);
+
+    // Create a new DirectionsRenderer for each batch
+    const batchRenderer = new google.maps.DirectionsRenderer({
+      suppressMarkers: true, // Prevent default markers
+      map: map, // Attach it to the map
+    });
 
     directionsService.route(currentRequest, (result, status) => {
       if (status === google.maps.DirectionsStatus.OK) {
         batchRenderer.setDirections(result);
+        renderers.push(batchRenderer); // Store the renderer for later use (clear or reset)
 
-        // Get the optimized order of waypoints based on distance
         const optimizedOrder = result.routes[0].waypoint_order;
+        const optimizedCustomers = optimizedOrder.map(orderIndex => customersWithValidAddresses[index * batchSize + orderIndex]);
+        optimizedOpsJobItems = [...optimizedOpsJobItems, ...optimizedCustomers];
 
-        // Use the optimized order to reorder the current batch of customers
-        const optimizedCustomers = optimizedOrder.map(orderIndex => {
-          return customersWithValidAddresses[index * batchSize + orderIndex + 1]; // Adjust for 1-based indexing in `waypoints` array
-        });
+        // Add custom markers for origin, destination, and waypoints with continued marker labels
+        addCustomMarkers(originLatLng, destinationLatLng, optimizedCustomers, markerLabelCounter);
 
-        // Insert the optimized customers into the original list at the correct positions
-        opsJob.value.opsJobItems.splice(
-          index * batchSize + 1, // Position in the original array
-          optimizedCustomers.length, // Number of items to replace
-          ...optimizedCustomers // Insert optimized customers
-        );
+        // Update the counter for marker labels to continue from the last batch
+        markerLabelCounter += optimizedCustomers.length;
 
-        // Continue processing the next batch
         processBatch(index + 1);
       } else {
         console.error('Directions request failed due to ' + status);
@@ -464,11 +611,73 @@ const showDirections = () => {
     });
   };
 
-  // Start processing the first batch
   processBatch(0);
 };
 
+// Add custom markers for each waypoint, with continued marker labels
+function addCustomMarkers(originLatLng, destinationLatLng, waypoints, startLabel) {
+  // Add a custom marker for the origin
+  const originMarker = new google.maps.Marker({
+    position: originLatLng,
+    map: map,
+    label: {
+      text: '0', // Using custom sequence for the origin
+      color: "#000000",
+      fontSize: "14px",
+      fontWeight: "bold",
+    },
+  });
+  markers.push(originMarker);
 
+  // Add custom markers for waypoints
+  waypoints.forEach((waypoint, index) => {
+    const latLng = {
+      lat: parseFloat(waypoint.customer.deliveryAddress.latitude),
+      lng: parseFloat(waypoint.customer.deliveryAddress.longitude),
+    };
 
+    const marker = new google.maps.Marker({
+      position: latLng,
+      map: map,
+      label: {
+        text: String(startLabel + index), // Continue marker label numbering
+        color: "#000000",
+        fontSize: "14px",
+        fontWeight: "bold",
+      },
+    });
 
+    const infoWindow = new google.maps.InfoWindow({
+      content: `<div>
+          <span class="font-bold">${waypoint.vend ? waypoint.vend?.code : ''}</span><br>
+          <span class="font-medium">${waypoint.customer.name}</span><br>
+          <p>${waypoint.customer.deliveryAddress.full_address ? waypoint.customer.deliveryAddress.full_address : waypoint.customer.deliveryAddress.postcode}</p>
+          <a href="https://www.google.com/maps/search/?api=1&query=${latLng.lat},${latLng.lng}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>
+        </div>`,
+    });
+
+    marker.addListener('click', () => {
+      infoWindow.open({
+        anchor: marker,
+        map,
+        shouldFocus: false,
+      });
+    });
+
+    markers.push(marker); // Store each marker in the array
+  });
+
+  // Add a custom marker for the destination
+  const destinationMarker = new google.maps.Marker({
+    position: destinationLatLng,
+    map: map,
+    label: {
+      text: String(startLabel + waypoints.length), // Continue marker label for the destination
+      color: "#000000",
+      fontSize: "14px",
+      fontWeight: "bold",
+    },
+  });
+  markers.push(destinationMarker);
+}
 </script>
