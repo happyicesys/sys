@@ -992,12 +992,12 @@ class OpsJobController extends Controller
 
         return Inertia::render('OpsJob/Route', [
             'destinationAddresses' => AddressResource::collection(
-                Address::where('type', 'destination')
+                Address::where('type', '100')
                     ->latest()
                     ->get()
             ),
             'originAddresses' => AddressResource::collection(
-                Address::where('type', 'start')
+                Address::where('type', '90')
                     ->latest()
                     ->get()
             ),
