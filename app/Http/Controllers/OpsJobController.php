@@ -973,12 +973,12 @@ class OpsJobController extends Controller
         return redirect()->back();
     }
 
-    public function route($id)
+    public function route(Request $request, $id)
     {
         $opsJob = OpsJob::query()
             ->with([
                 'deliveredBy',
-                'opsJobItems' => function($query) {
+                'opsJobItems' => function($query) use ($request) {
                     $query
                         ->leftJoin('customers', 'customers.id', '=', 'ops_job_items.customer_id')
                         ->leftJoin('addresses', function($query) {
@@ -987,9 +987,13 @@ class OpsJobController extends Controller
                                     ->where('addresses.type', '=', 2)
                                     ->limit(1);
                         })
-                        ->select('ops_job_items.*')
-                        ->orderBy('ops_job_items.sequence')
-                        ->orderBy('postcode');
+                        ->select('ops_job_items.*', 'postcode AS delivery_postcode');
+
+                    $query->when($request->sortKey, function($query, $search) use ($request) {
+                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc');
+                    }, function($query) {
+                        $query->orderByRaw('ISNULL(ops_job_items.sequence), ops_job_items.sequence ASC')->orderBy('postcode');
+                    });
                 },
                 'opsJobItems.customer.deliveryAddress',
                 'opsJobItems.opsJobItemChannels',

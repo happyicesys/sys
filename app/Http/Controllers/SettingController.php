@@ -136,7 +136,6 @@ class SettingController extends Controller
                 'vends.product_mapping_id',
                 'vends.termination_date',
                 'vends.firmware_ver',
-                'vends.last_updated_at',
                 'vends.private_key',
                 'vends.simcard_id',
                 'vends.upcoming_product_mapping_id',
@@ -151,6 +150,8 @@ class SettingController extends Controller
                 'vend_serial_numbers.code AS vend_serial_number_code',
             );
         $vends = $this->filterOperator($vends);
+
+        $vends = $vends->groupBy('vends.id');
 
         $vends = $vends->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
             ->withQueryString();

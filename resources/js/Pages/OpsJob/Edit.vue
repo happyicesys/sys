@@ -289,6 +289,7 @@
                                 type="text"
                                 class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-fit text-sm border-gray-300 rounded-md max-w-14 text-center"
                                 v-model="opsJobItem.sequence"
+                                :disabled="opsJobItem.status >= 3"
                                 @input="updateSequence(opsJobItem)"
                                 />
                             </div>

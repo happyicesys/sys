@@ -124,7 +124,7 @@
                       <div class="flex space-x-1 items-center">
                         <BarsArrowDownIcon class="h-4 w-4" />
                         <span>
-                          Apply Sequence to Job(s)
+                          Sync Generated Sequence to Current
                         </span>
                       </div>
                     </button>
@@ -151,7 +151,25 @@
                         <table class="min-w-full divide-y divide-gray-300">
                           <thead class="bg-gray-50">
                             <tr>
-                              <TableHead> <span> Prev Sequence </span> </TableHead>
+                              <TableHead>
+                                <div class="flex flex-col space-x-1">
+                                  <SingleSortItem modelName="sequence" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('sequence')">
+                                    Current Sequence
+                                  </SingleSortItem>
+                                  <Button
+                                    class="bg-yellow-300 hover:bg-yellow-400 text-gray-800 text-xs font-medium"
+                                    @click.prevent="onRenumberItemsClicked()"
+                                    v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 3) && permissions.includes('admin-access operations')"
+                                  >
+                                    <div class="flex space-x-1 items-center">
+                                      <BarsArrowDownIcon class="h-3 w-3"></BarsArrowDownIcon>
+                                      <span>
+                                        Renumber
+                                      </span>
+                                    </div>
+                                  </Button>
+                                </div>
+                              </TableHead>
                               <TableHead> <span> Generated Sequence </span> </TableHead>
                               <TableHead>
                                 <div class="flex flex-col space-y-2">
@@ -166,14 +184,24 @@
                                   <span> Ops Note </span>
                                 </div>
                               </TableHead>
+                              <TableHeadSort modelName="delivery_postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_postcode')">
+                                Postcode
+                              </TableHeadSort>
                               <TableHead> Address </TableHead>
-                              <TableHead> Action </TableHead>
                             </tr>
                           </thead>
                           <tbody class="bg-white">
                             <tr v-for="(opsJobItem, opsJobItemIndex) in opsJob.opsJobItems" :key="opsJobItem.id" :class="opsJobItemIndex % 2 === 0 ? undefined : 'bg-gray-100'">
                               <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                                {{ opsJobItem.sequence }}
+                                <div class="flex items-center justify-center">
+                                  <input
+                                    type="text"
+                                    class="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-fit text-sm border-gray-300 rounded-md max-w-14 text-center"
+                                    v-model="opsJobItem.sequence"
+                                    :disabled="opsJobItem.status >= 3"
+                                    @input="updateSequence(opsJobItem)"
+                                    />
+                                </div>
                               </td>
                               <td class="whitespace-nowrap py-2 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
                                 <span v-if="isSequenceGenerated">
@@ -225,7 +253,6 @@
                                           GPS
                                         </a>
                                       </span>
-                                      <span> {{ opsJobItem.customer.deliveryAddress.postcode }} </span>
                                     </div>
                                   </span>
                                   <span class="text-left font-medium bg-gray-200 py-1 px-1 rounded" v-if="opsJobItem.customer && opsJobItem.customer.ops_note">
@@ -233,7 +260,10 @@
                                   </span>
                                 </div>
                               </td>
-                              <td class="whitespace-pre-line py-2 px-1 text-sm text-left">
+                              <td class="whitespace-pre-line py-2 px-1 text-sm text-center">
+                                {{ opsJobItem.delivery_postcode }}
+                              </td>
+                              <td class="whitespace-pre-line py-2 px-1 text-sm text-center">
                                 <div class="flex flex-col space-y-2 break-words max-w-32 md:max-w-72">
                                   <span>
                                     <a :href="opsJobItem.customer.deliveryAddress.map_url" class="text-blue-700" target="_blank"> {{ opsJobItem.customer.deliveryAddress.full_address }} </a>
@@ -243,7 +273,6 @@
                                   </span>
                                 </div>
                               </td>
-                              <td class="whitespace-nowrap py-2 px-1 text-sm text-center"></td>
                             </tr>
 
                             <!-- Fallback for no records -->
@@ -271,11 +300,19 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue'; // Retained TableHead component
+import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ArrowUturnLeftIcon, ArrowRightCircleIcon, BarsArrowDownIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+
+
+const filters = ref({
+  sortKey: '',
+  sortBy: true,
+})
 
 const props = defineProps({
   destinationAddresses: [Array, Object],
@@ -326,6 +363,23 @@ onMounted(() => {
   loadGoogleMapsApi();
 });
 
+function applySequenceJobs() {
+  const approval = confirm('Are you sure to sync and overwrite the current sequence?');
+  if (!approval) {
+      return;
+  }
+
+  axios.post('/ops-jobs/' + opsJob.value.id + '/sequence', {
+    opsJobItems: opsJob.value.opsJobItems
+  })
+  .then(response => {
+    onSearchFilterUpdated()
+  })
+  .catch(error => {
+    console.error(error);
+  });
+}
+
 // Function to clear the existing route and markers
 function clearMarkers() {
   markers.forEach(marker => marker.setMap(null)); // Clear markers
@@ -342,6 +396,63 @@ function getDefaultForm() {
     destination_address_id: '',
     origin_address_id: '',
   };
+}
+
+function onRenumberItemsClicked() {
+  form.value.clearErrors()
+  form.value
+    .transform((data) => ({
+      ...data,
+      opsJobItems: opsJob.value.opsJobItems,
+    }))
+    .post('/ops-jobs/' + opsJob.value.id + '/renumber', {
+    onSuccess: () => {
+      toast.success("Successfully Renumbered", {
+        timeout: 3000
+      });
+      opsJob.value = props.opsJob.data
+    },
+    preserveState: true,
+    preserveScroll: true,
+    replace: true,
+  })
+}
+
+function onSearchFilterUpdated() {
+  router.reload({
+    only: ['opsJob'],
+    data: {
+      ...filters.value,
+    },
+    replace: true,
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: page => {
+      opsJob.value = props.opsJob ? props.opsJob.data : null
+    }
+  })
+}
+
+function sortTable(sortKey) {
+  filters.value.sortKey = sortKey
+  filters.value.sortBy = !filters.value.sortBy
+  onSearchFilterUpdated()
+}
+
+function updateSequence(opsJobItem) {
+  form.value.clearErrors()
+  form.value
+    .transform((data) => ({
+      ...data,
+      sequence: opsJobItem.sequence,
+    }))
+    .post('/ops-jobs/items/' + opsJobItem.id + '/update', {
+    onSuccess: () => {
+    },
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+  })
 }
 
 // Google Maps API loading
