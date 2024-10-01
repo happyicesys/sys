@@ -863,6 +863,7 @@ onMounted(() => {
     return { id: data.id, name: data.name };
   });
   vendPrefixOptions.value = [
+      {id: 'single-ud', value: 'Single UD'},
 			...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
 	]
   tagOptions.value = props.tags.data.map((data) => {

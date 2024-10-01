@@ -733,6 +733,10 @@ class Vend extends Model
         })
         ->when($request->vendPrefixes, function($query, $search) {
             if(!in_array('all', $search)){
+                if(in_array('single-ud', $search)) {
+                    $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
+                    unset($search[array_search('single-ud', $search)]);
+                }
                 $query->whereIn('vends.vend_prefix_id', $search);
             }
             // $query->whereHas('vendPrefix', function($query) use ($search) {

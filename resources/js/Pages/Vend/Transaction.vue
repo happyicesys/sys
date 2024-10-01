@@ -696,6 +696,7 @@ onMounted(() => {
     ]
     vendPrefixOptions.value = [
         {id: 'all', value: 'All'},
+        {id: 'single-ud', value: 'Single UD'},
         ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
     vmcByteOptions.value = [

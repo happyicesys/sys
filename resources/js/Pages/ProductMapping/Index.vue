@@ -407,6 +407,7 @@ onMounted(() => {
   ]
   vendPrefixOptions.value = [
     { id: '', value: 'All' },
+    {id: 'single-ud', value: 'Single UD'},
     ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   filters.value.is_active = booleanOptions.value[0]
