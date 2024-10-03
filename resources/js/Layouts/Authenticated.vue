@@ -116,6 +116,7 @@ const navigation = [
         children: [
             {name: 'Products', href: '/products', permission: 'read products'},
             {name: 'Product Mappings', href: '/product-mappings', permission: 'read product-mappings'},
+            {name: 'Product Availability', href: '/products/availability', permission: 'read products'},
         ]
     },
     {

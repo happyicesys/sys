@@ -105,7 +105,7 @@
                       {{ Number(product.needed_qty)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                     </td>
                     <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800">
-                      <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded text-gray-800" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
+                      <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded" :class="[product.max_ops_job_pick_limit > 0 ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
                         <option :value="null">No</option>
                         <option v-for="n in 15 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                       </select>

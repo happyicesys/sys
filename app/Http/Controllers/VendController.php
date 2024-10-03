@@ -42,6 +42,7 @@ use App\Models\OpsJob;
 use App\Models\PaymentMethod;
 use App\Models\PaymentGatewayLog;
 use App\Models\Product;
+use App\Models\ProductMapping;
 use App\Models\SellingPrice;
 use App\Models\User;
 use App\Models\Vend;
@@ -64,6 +65,7 @@ use App\Services\HistoryService;
 use App\Services\MapService;
 use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
+use App\Services\ProductMappingService;
 use App\Services\RunningNumberService;
 use App\Services\VendDataService;
 use App\Services\VendDispenseService;
@@ -92,6 +94,7 @@ class VendController extends Controller
     protected $mapService;
     protected $mqttService;
     protected $paymentGatewayService;
+    protected $productMappingService;
     protected $runningNumberService;
     protected $vendDataService;
     protected $vendDispenseService;
@@ -115,6 +118,7 @@ class VendController extends Controller
         $this->mapService = new MapService();
         $this->mqttService = $mqttService;
         $this->paymentGatewayService = $paymentGatewayService;
+        $this->productMappingService = new ProductMappingService();
         $this->runningNumberService = $runningNumberService;
         $this->vendDataService = $vendDataService;
         $this->vendDispenseService = $vendDispenseService;
@@ -1444,6 +1448,7 @@ class VendController extends Controller
 
     public function update(Request $request, $vendID)
     {
+        $isProductMappingChanged = false;
         // status assignment
         if($request->status) {
             $status = $request->status;
@@ -1475,8 +1480,8 @@ class VendController extends Controller
             $request->merge([
                 'upcoming_product_mapping_id' => null,
             ]);
+            $isProductMappingChanged = true;
         }
-        // dd($request->all());
         $vend->update([
             'name' => $request->name,
             'begin_date' => $request->begin_date,
@@ -1509,6 +1514,10 @@ class VendController extends Controller
         //         'modem_type_id' => $vend->modem_type_id,
         //     ]);
         // }
+
+        if($isProductMappingChanged and $vend->product_mapping_id) {
+            $this->productMappingService->syncChannels(ProductMapping::find($vend->product_mapping_id));
+        }
 
         if($request->operator_id != $vend->operator_id) {
             $vend->update([

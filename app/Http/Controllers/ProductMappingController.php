@@ -13,6 +13,7 @@ use App\Models\ProductMappingItem;
 use App\Models\SellingPrice;
 use App\Models\Vend;
 use App\Models\VendPrefix;
+use App\Services\ProductMappingService;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -21,9 +22,12 @@ use Inertia\Inertia;
 
 class ProductMappingController extends Controller
 {
+    private $productMappingService;
+
     public function __construct()
     {
         $this->middleware(['permission:read product-mappings']);
+        $this->productMappingService = new ProductMappingService();
     }
 
     public function index(Request $request)
@@ -201,7 +205,7 @@ class ProductMappingController extends Controller
 
         $productMapping->save();
 
-        $this->syncProductMappingChannels($productMapping);
+        $this->productMappingService->syncChannels($productMapping);
 
         return redirect()->route('product-mappings.edit', ['id' => $productMapping->id]);
     }
@@ -270,7 +274,7 @@ class ProductMappingController extends Controller
         $productMapping->vends_json = $request->productMappingVends;
         $productMapping->save();
 
-        $this->syncProductMappingChannels($productMapping);
+        $this->productMappingService->syncChannels($productMapping);
 
         return redirect()->route('product-mappings');
     }
@@ -290,29 +294,6 @@ class ProductMappingController extends Controller
             foreach($vends as $vend) {
                 $vendData = Vend::findOrFail($vend->id);
                 $vendData->vendChannels()->update(['product_id' => null]);
-            }
-        }
-    }
-
-    private function syncProductMappingChannels(ProductMapping $productMapping)
-    {
-        if($productMapping->vends()->exists()) {
-            foreach($productMapping->vends as $vend) {
-                if($vend->vendChannels()->exists() and $productMapping->productMappingItems()->exists()) {
-                    $vendData = Vend::findOrFail($vend->id);
-                    $vendData->vendChannels()->update(['product_id' => null]);
-
-                    $vendChannels = $vend->vendChannels;
-                    $productMappingItems = $productMapping->productMappingItems;
-                    foreach($productMappingItems as $productMappingItem) {
-                        $vendChannel = $vendChannels->where('code', $productMappingItem->channel_code)->first();
-                        if($vendChannel) {
-                            $vendChannel->product_id = $productMappingItem->product_id;
-                            $vendChannel->save();
-                        }
-                    }
-                    SaveVendChannelsJson::dispatch($vend->id)->onQueue('default');
-                }
             }
         }
     }

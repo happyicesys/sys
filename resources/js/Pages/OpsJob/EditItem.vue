@@ -12,10 +12,20 @@
               {{ opsJobItem.ref_id }}
             </span>
           </span>
+          <span v-if="opsJobItem.vend && opsJobItem.vend.vendPrefix">
+            Prefix
+            <span class="text-blue-800">
+              {{ opsJobItem.vend.vendPrefix.name }}
+            </span>
+          </span>
           <span v-if="opsJobItem.vend">
             Machine ID#
             <span class="text-blue-800">
-              {{ opsJobItem.vend.code }}
+              <a :href="'/vends/customers?codes=' + opsJobItem.vend.code" target="_blank" class="text-blue-700">
+                <span>
+                  {{ opsJobItem.vend.code }}
+                </span>
+              </a>
             </span>
           </span>
           <!-- <span v-if="opsJobItem.customer" class="text-gray-700">
@@ -1140,8 +1150,13 @@ function loadingData() {
         (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available ?
         (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null ? (
 
-          opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= opsJobItemChannel.vendChannel.qty ? (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit - opsJobItemChannel.vendChannel.qty) :
-          0
+        (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit > opsJobItemChannel.vendChannel.capacity &&
+          opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= opsJobItemChannel.vendChannel.qty) ?
+          (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) :
+          ((opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit <= opsJobItemChannel.vendChannel.capacity &&
+          opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= opsJobItemChannel.vendChannel.qty) ?
+          (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit - opsJobItemChannel.vendChannel.qty)
+        :0)
         )
           : opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) : 0) :
         opsJobItemChannel.picked_qty,

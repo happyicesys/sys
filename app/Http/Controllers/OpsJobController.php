@@ -1009,22 +1009,15 @@ class OpsJobController extends Controller
                 Address::where('type', '100')
                     ->latest()
                     ->get()
-                    ->merge($opsJobAddresses)
-                    ->unique('id')
+                    // ->merge($opsJobAddresses)
+                    // ->unique('id')
             ),
             'originAddresses' => AddressResource::collection(
                 Address::where('type', '90')
                     ->latest()
                     ->get()
-                    ->merge($opsJobAddresses)
-                    ->unique('id')
-            ),
-            'operatorsWithAddress' => OperatorResource::collection(
-                Operator::query()
-                    ->with(['address'])
-                    ->has('address')
-                    ->orderBy('name')
-                    ->get()
+                    // ->merge($opsJobAddresses)
+                    // ->unique('id')
             ),
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
             'opsJob' => OpsJobResource::make($opsJob),
@@ -1035,16 +1028,14 @@ class OpsJobController extends Controller
     {
         $opsJob = OpsJob::findOrFail($id);
 
-        $sequence = 1;
-        foreach($request->opsJobItems as $opsJobItem) {
-            if(isset($opsJobItem['isOrigin']) or isset($opsJobItem['isDestination'])) {
+        foreach($request->opsJobItems as $opsJobItemRequest) {
+            if(isset($opsJobItemRequest['isOpsJobItem']) and $opsJobItemRequest['isOpsJobItem'] == false) {
                 continue;
             }
-            $opsJobItem = OpsJobItem::findOrFail($opsJobItem['id']);
+            $opsJobItem = OpsJobItem::findOrFail($opsJobItemRequest['id']);
             $opsJobItem->update([
-                'sequence' => $sequence,
+                'sequence' => $opsJobItemRequest['generated_sequence'],
             ]);
-            $sequence++;
         }
 
         return redirect()->back();

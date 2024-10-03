@@ -1141,6 +1141,16 @@ onMounted(() => {
       name: modemType.name,
     }))
   ];
+
+  console.log(props.vend.modem_type_id)
+  modemUnitOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...props.modemUnitOptions.data.filter(modemUnit => modemUnit.modem_type_id == props.vend.modem_type_id).map(modemUnit => ({
+      id: modemUnit.id,
+      name: modemUnit.imei,
+      modem_type_id: modemUnit.modem_type_id
+    }))
+  ];
   operatorOptions.value = props.operatorOptions.data
   productMappingOptions.value = [
     { id: '', name: '--- Clear ---'},
@@ -1234,14 +1244,6 @@ onMounted(() => {
     id: customer.id,
     full_name: customer.person_id && customer.virtual_customer_code ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name + ' [cms]'  : customer.name,
   }))
-  modemUnitOptions.value = [
-    { id: '', name: '--- Clear ---'},
-    ...props.modemUnitOptions.data.filter(modemUnit => modemUnit.modem_type_id == form.value.modem_type_id?.id).map(modemUnit => ({
-      id: modemUnit.id,
-      name: modemUnit.imei,
-      modem_type_id: modemUnit.modem_type_id
-    }))
-  ];
 })
 
 function formatDatetime(datetime) {
@@ -1370,6 +1372,7 @@ function saveVend(vendID) {
       key_id: data.key_id ? data.key_id.id : null,
       menu_frame_id: data.menu_frame_id ? data.menu_frame_id.id : null,
       modem_type_id: data.modem_type_id ? data.modem_type_id.id : null,
+      modem_unit_id: data.modem_unit_id ? data.modem_unit_id.id : null,
       simcard_id: data.simcard_id ? data.simcard_id.id : null,
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
       operator_id: data.operator_id ? data.operator_id.id : null,

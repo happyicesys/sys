@@ -204,9 +204,11 @@
                             <span>
                               {{ vendIndex + 1 }}.
                             </span>
-                            <span class="text-blue-700 text-md pr-2">
-                              {{ vend.code }}
-                            </span>
+                            <a :href="'/vends/customers?codes=' + vend.code" target="_blank" class="text-blue-700">
+                              <span>
+                                {{ vend.code }}
+                              </span>
+                            </a>
 
                             <span v-if="vend.customer && vend.customer.person_id">
                                 <span v-if="permissions.includes('admin-access vends')">
