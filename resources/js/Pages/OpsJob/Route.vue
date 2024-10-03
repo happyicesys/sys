@@ -89,7 +89,7 @@
                   <div class="flex space-x-1">
                     <button
                       type="button"
-                      @click.prevent="setOriginDestination"
+                      @click="setOriginDestination"
                       class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded text-sm"
                     >
                       <div class="flex space-x-1 items-center">
@@ -142,7 +142,7 @@
                                   </SingleSortItem>
                                   <Button
                                     class="bg-yellow-300 hover:bg-yellow-400 text-gray-800 text-xs font-medium"
-                                    @click.prevent="onRenumberItemsClicked()"
+                                    @click.prevent="onRenumberItemsClicked"
                                     v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 3) && permissions.includes('admin-access operations')"
                                   >
                                     <div class="flex space-x-1 items-center">
@@ -296,7 +296,7 @@ const emit = defineEmits(['modalClose']);
 const originAddressOptions = ref([]);
 const form = ref(useForm(getDefaultForm()));
 const isSequenceGenerated = ref(false);
-const opsJob = ref(props.opsJob?.data || {});
+const opsJob = ref(props.opsJob?.data || []);
 const permissions = usePage().props.auth.permissions;
 const toast = useToast();
 let map, directionsService;
@@ -386,23 +386,39 @@ function getDefaultForm() {
 }
 
 function onRenumberItemsClicked() {
-  form.value.clearErrors()
-  form.value
-    .transform((data) => ({
-      ...data,
-      opsJobItems: opsJob.value.opsJobItems,
-    }))
-    .post('/ops-jobs/' + opsJob.value.id + '/renumber', {
-    onSuccess: () => {
+  // Clean opsJobItems and ensure only serializable data is passed
+  const cleanOpsJobItems = opsJob.value.opsJobItems.map(item => ({
+    id: item.id,
+    sequence: item.sequence,
+    generated_sequence: item.generated_sequence,
+    customer: {
+      id: item.customer.id, // Only pass simple data
+      name: item.customer.name,
+      deliveryAddress: {
+        id: item.customer.deliveryAddress.id,
+        latitude: item.customer.deliveryAddress.latitude,
+        longitude: item.customer.deliveryAddress.longitude,
+        full_address: item.customer.deliveryAddress.full_address
+      }
+    },
+    vend: item.vend ? { code: item.vend.code } : null,
+    isOrigin: item.isOrigin,
+    isOpsJobItem: item.isOpsJobItem,
+  }));
+
+  axios({
+      method: 'POST',
+      url: '/ops-jobs/' + opsJob.value.id + '/renumber',
+      data: {opsJobItems: cleanOpsJobItems},
+  }).then(response => {
       toast.success("Successfully Renumbered", {
         timeout: 3000
       });
-      opsJob.value = props.opsJob.data
-    },
-    preserveState: true,
-    preserveScroll: true,
-    replace: true,
+      location.reload()
+  }).catch(error => {
+  }).finally(() => {
   })
+
 }
 
 function onSearchFilterUpdated() {
@@ -414,8 +430,8 @@ function onSearchFilterUpdated() {
       ...cleanFilters, // Use cleaned version of filters
     },
     replace: true,
-    preserveState: true,
-    preserveScroll: true,
+    preserveState: false,
+    preserveScroll: false,
     onSuccess: page => {
       opsJob.value = props.opsJob ? props.opsJob.data : null;
     },
@@ -565,6 +581,7 @@ function setOriginDestination() {
   // Fetch the selected origin based on form input or fallback to the first opsJobItem with isOpsJobItem true
   if (form.value.origin_address_id) {
     origin = originAddressOptions.value.find(address => address.id === form.value.origin_address_id.id);
+
   } else {
     origin = originAddressOptions.value.filter(address => address.is_ops_job_item)[0];
   }
@@ -625,13 +642,13 @@ function setOriginDestination() {
 const showDirections = (originLatLng) => {
   isSequenceGenerated.value = true;
 
-  // Check if originLatLng is valid
+  // Ensure originLatLng is valid
   if (!originLatLng || typeof originLatLng.lat !== 'number' || typeof originLatLng.lng !== 'number') {
     console.error("Invalid originLatLng");
     return; // Exit if originLatLng is invalid
   }
 
-  const maxWaypoints = 23; // Max 23 waypoints + origin = 24 + destination = 25
+  const maxWaypoints = 23; // Max 23 waypoints allowed by Google Maps Directions API
   let customersWithValidAddresses = opsJob.value.opsJobItems.filter(
     opsJobItem => opsJobItem.customer.deliveryAddress && !opsJobItem.isOrigin
   );
@@ -639,13 +656,11 @@ const showDirections = (originLatLng) => {
   // Limit to the first 23 waypoints
   const waypoints = customersWithValidAddresses.slice(0, maxWaypoints);
 
-  // Get the remaining opsJobItems (those that are beyond the 23 waypoints)
+  // Get remaining opsJobItems (those beyond 23 waypoints)
   const remainingOpsJobItems = customersWithValidAddresses.slice(maxWaypoints);
 
-  // Ensure the last waypoint is correctly marked as the destination but not removed from the list
-  const lastWaypoint = waypoints.length > 0
-    ? waypoints[waypoints.length - 1].customer.deliveryAddress
-    : null;
+  // Ensure the last waypoint is correctly marked as the destination
+  const lastWaypoint = waypoints.length > 0 ? waypoints[waypoints.length - 1].customer.deliveryAddress : null;
 
   // If there are no valid waypoints, we cannot proceed
   if (!lastWaypoint) {
@@ -653,12 +668,12 @@ const showDirections = (originLatLng) => {
     return;
   }
 
-  // Clear the existing directions and markers before generating new ones
+  // Clear the existing markers and route to avoid duplication
   clearMarkers();
   clearRoute();
 
   const request = {
-    travelMode: google.maps.TravelMode.DRIVING, // Travel mode
+    travelMode: google.maps.TravelMode.DRIVING, // Driving mode
     waypoints: waypoints.map(opsJobItem => {
       return {
         location: {
@@ -671,56 +686,52 @@ const showDirections = (originLatLng) => {
     origin: originLatLng,
     destination: {
       lat: parseFloat(lastWaypoint.latitude),
-      lng: parseFloat(lastWaypoint.longitude)
-    }, // The last waypoint as the destination
-    optimizeWaypoints: true, // Enable distance-based optimization for waypoints
+      lng: parseFloat(lastWaypoint.longitude),
+    },
+    optimizeWaypoints: true, // Enable distance-based optimization
   };
 
-  if (request.origin && request.destination) {
-    const directionsRenderer = new google.maps.DirectionsRenderer({
-      suppressMarkers: true, // Prevent default markers
-      map: map, // Attach it to the map
-    });
+  const directionsRenderer = new google.maps.DirectionsRenderer({
+    suppressMarkers: true, // Prevent default markers
+    map: map, // Attach it to the map
+  });
 
-    directionsService.route(request, (result, status) => {
-      if (status === google.maps.DirectionsStatus.OK) {
-        directionsRenderer.setDirections(result);
-        renderers.push(directionsRenderer); // Store the renderer for later use (clear or reset)
+  directionsService.route(request, (result, status) => {
+    if (status === google.maps.DirectionsStatus.OK) {
+      directionsRenderer.setDirections(result);
+      renderers.push(directionsRenderer); // Store renderer for later
 
-        const optimizedOrder = result.routes[0].waypoint_order;
-        const optimizedCustomers = optimizedOrder.map((orderIndex, idx) => {
-          const item = waypoints[orderIndex];
-          item.generated_sequence = idx + 2; // Start from 2 because 1 is reserved for origin
-          return item;
-        });
+      const optimizedOrder = result.routes[0].waypoint_order;
+      const optimizedCustomers = optimizedOrder.map((orderIndex, idx) => {
+        const item = waypoints[orderIndex];
+        item.generated_sequence = idx + 2; // Sequence starts from 2 (1 is for origin)
+        return item;
+      });
 
-        // Assign generated_sequence "1" to the origin
-        const originItem = opsJob.value.opsJobItems.find(item => item.isOrigin);
-        if (originItem) {
-          originItem.generated_sequence = 1;
-        }
-
-        // Assign sequences to remaining items starting with "R1", "R2", etc.
-        remainingOpsJobItems.forEach((item, index) => {
-          item.generated_sequence = `5${index + 1}`;
-        });
-
-        // Call addCustomMarkers to display markers with the sequences
-        addCustomMarkers(originLatLng, optimizedCustomers, remainingOpsJobItems);
-
-        // Update opsJobItems to include everything (origin, waypoints, remaining items)
-        opsJob.value.opsJobItems = [
-          originItem,  // Add the origin with sequence 1
-          ...optimizedCustomers, // Add the optimized waypoints
-          ...remainingOpsJobItems, // Add the rest of the opsJobItems that didn't fit in the first 23
-        ];
-      } else {
-        console.error('Directions request failed due to ' + status);
+      // Assign generated_sequence "1" to the origin
+      const originItem = opsJob.value.opsJobItems.find(item => item.isOrigin);
+      if (originItem) {
+        originItem.generated_sequence = 1;
       }
-    });
-  } else {
-    console.error('Invalid origin or destination for route calculation.');
-  }
+
+      // Assign sequences to remaining items starting with "R1", "R2", etc.
+      remainingOpsJobItems.forEach((item, index) => {
+        item.generated_sequence = `5${index + 1}`;
+      });
+
+      // Add custom markers to display sequences
+      addCustomMarkers(originLatLng, optimizedCustomers, remainingOpsJobItems);
+
+      // Update opsJobItems to include everything (origin, waypoints, remaining items)
+      opsJob.value.opsJobItems = [
+        originItem, // Origin with sequence 1
+        ...optimizedCustomers, // Optimized waypoints
+        ...remainingOpsJobItems, // Remaining items
+      ];
+    } else {
+      console.error('Directions request failed due to ' + status);
+    }
+  });
 };
 
 function addCustomMarkers(originLatLng, optimizedCustomers = [], remainingOpsJobItems = []) {
@@ -729,7 +740,7 @@ function addCustomMarkers(originLatLng, optimizedCustomers = [], remainingOpsJob
     position: originLatLng,
     map: map,
     label: {
-      text: '1', // Using custom sequence for the origin
+      text: '1', // Sequence for the origin
       color: "#000000",
       fontSize: "14px",
       fontWeight: "bold",
@@ -737,94 +748,87 @@ function addCustomMarkers(originLatLng, optimizedCustomers = [], remainingOpsJob
   });
   markers.push(originMarker);
 
-  // Add custom markers for waypoints (ensure optimizedCustomers is defined)
-  if (Array.isArray(optimizedCustomers)) {
-    optimizedCustomers.forEach((waypoint, index) => {
-      if (waypoint && waypoint.customer && waypoint.customer.deliveryAddress) {
-        const latLng = {
-          lat: parseFloat(waypoint.customer.deliveryAddress.latitude),
-          lng: parseFloat(waypoint.customer.deliveryAddress.longitude),
-        };
+  // Add custom markers for optimized waypoints
+  optimizedCustomers.forEach((waypoint) => {
+    if (waypoint && waypoint.customer && waypoint.customer.deliveryAddress) {
+      const latLng = {
+        lat: parseFloat(waypoint.customer.deliveryAddress.latitude),
+        lng: parseFloat(waypoint.customer.deliveryAddress.longitude),
+      };
 
-        const marker = new google.maps.Marker({
-          position: latLng,
-          map: map,
-          label: {
-            text: String(waypoint.generated_sequence), // Show generated sequence number
-            color: "#000000",
-            fontSize: "14px",
-            fontWeight: "bold",
-          },
+      const marker = new google.maps.Marker({
+        position: latLng,
+        map: map,
+        label: {
+          text: String(waypoint.generated_sequence), // Show generated sequence
+          color: "#000000",
+          fontSize: "14px",
+          fontWeight: "bold",
+        },
+      });
+
+      const infoWindow = new google.maps.InfoWindow({
+        content: `<div>
+          <span class="font-bold">${waypoint.vend ? waypoint.vend.code : ''}</span><br>
+          <span class="font-medium">${waypoint.customer.name}</span><br>
+          <p>${waypoint.customer.deliveryAddress.full_address}</p>
+          <a href="https://www.google.com/maps/search/?api=1&query=${latLng.lat},${latLng.lng}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>
+        </div>`,
+      });
+
+      marker.addListener('click', () => {
+        infoWindow.open({
+          anchor: marker,
+          map,
+          shouldFocus: false,
         });
+      });
 
-        const infoWindow = new google.maps.InfoWindow({
-          content: `<div>
-              <span class="font-bold">${waypoint.vend ? waypoint.vend?.code : ''}</span><br>
-              <span class="font-medium">${waypoint.customer.name}</span><br>
-              <p>${waypoint.customer.deliveryAddress.full_address ? waypoint.customer.deliveryAddress.full_address : waypoint.customer.deliveryAddress.postcode}</p>
-              <a href="https://www.google.com/maps/search/?api=1&query=${latLng.lat},${latLng.lng}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>
-            </div>`,
+      markers.push(marker); // Store the marker
+    }
+  });
+
+  // Add markers for the remaining opsJobItems
+  remainingOpsJobItems.forEach((opsJobItem) => {
+    if (opsJobItem && opsJobItem.customer && opsJobItem.customer.deliveryAddress) {
+      const latLng = {
+        lat: parseFloat(opsJobItem.customer.deliveryAddress.latitude),
+        lng: parseFloat(opsJobItem.customer.deliveryAddress.longitude),
+      };
+
+      const marker = new google.maps.Marker({
+        position: latLng,
+        map: map,
+        label: {
+          text: String(opsJobItem.generated_sequence), // "R" sequence for remaining items
+          color: "#FFFFFF",
+          fontSize: "14px",
+          fontWeight: "bold",
+        },
+      });
+
+      const infoWindow = new google.maps.InfoWindow({
+        content: `<div>
+          <span class="font-bold">${opsJobItem.vend ? opsJobItem.vend.code : ''}</span><br>
+          <span class="font-medium">${opsJobItem.customer.name}</span><br>
+          <p>${opsJobItem.customer.deliveryAddress.full_address}</p>
+          <a href="https://www.google.com/maps/search/?api=1&query=${latLng.lat},${latLng.lng}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>
+        </div>`,
+      });
+
+      marker.addListener('click', () => {
+        infoWindow.open({
+          anchor: marker,
+          map,
+          shouldFocus: false,
         });
+      });
 
-        marker.addListener('click', () => {
-          infoWindow.open({
-            anchor: marker,
-            map,
-            shouldFocus: false,
-          });
-        });
-
-        markers.push(marker); // Store each marker in the array
-      }
-    });
-  } else {
-    console.error("Invalid or empty optimizedCustomers");
-  }
-
-  // Add markers for the remaining opsJobItems (ensure remainingOpsJobItems is defined)
-  if (Array.isArray(remainingOpsJobItems)) {
-    remainingOpsJobItems.forEach((opsJobItem, index) => {
-      if (opsJobItem && opsJobItem.customer && opsJobItem.customer.deliveryAddress) {
-        const latLng = {
-          lat: parseFloat(opsJobItem.customer.deliveryAddress.latitude),
-          lng: parseFloat(opsJobItem.customer.deliveryAddress.longitude),
-        };
-
-        const marker = new google.maps.Marker({
-          position: latLng,
-          map: map,
-          label: {
-            text: String(opsJobItem.generated_sequence), // Show "R" sequence
-            color: "#FFFFFF",
-            fontSize: "14px",
-            fontWeight: "bold",
-          },
-        });
-
-        const infoWindow = new google.maps.InfoWindow({
-          content: `<div>
-              <span class="font-bold">${opsJobItem.vend ? opsJobItem.vend?.code : ''}</span><br>
-              <span class="font-medium">${opsJobItem.customer.name}</span><br>
-              <p>${opsJobItem.customer.deliveryAddress.full_address ? opsJobItem.customer.deliveryAddress.full_address : opsJobItem.customer.deliveryAddress.postcode}</p>
-              <a href="https://www.google.com/maps/search/?api=1&query=${latLng.lat},${latLng.lng}" target="_blank" class="text-blue-600 font-medium underline">View on Google Maps</a>
-            </div>`,
-        });
-
-        marker.addListener('click', () => {
-          infoWindow.open({
-            anchor: marker,
-            map,
-            shouldFocus: false,
-          });
-        });
-
-        markers.push(marker); // Store remaining markers
-      }
-    });
-  } else {
-    console.error("Invalid or empty remainingOpsJobItems");
-  }
+      markers.push(marker); // Store marker
+    }
+  });
 }
+
 
 
 

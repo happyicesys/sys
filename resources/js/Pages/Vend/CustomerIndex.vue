@@ -506,15 +506,16 @@
 								</span>
 							</span>
 						</Button>
-						<!-- <a :href="'/products/availability'" target="_blank" class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+						<a :href="'/products/availability'" target="_blank" class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
 						>
+						<!-- @click="onProductAvailableModalClicked()" -->
 							<PlayCircleIcon class="h-4 w-4" aria-hidden="true"/>
 							<span class="flex flex-col space-y-1">
 								<span>
 										Set Product Availability
 								</span>
 							</span>
-						</a> -->
+						</a>
 
 						<!-- if there is any checkbox selected (vend.is_selected) -->
 						<Button class="inline-flex space-x-1 items-center rounded-md border border-sky bg-sky-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-black shadow-sm hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
