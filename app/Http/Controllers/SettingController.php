@@ -330,7 +330,7 @@ class SettingController extends Controller
                 ModemType::orderBy('id')->get()
             ),
             'modemUnitOptions' => ModemUnitResource::collection(
-                ModemUnit::orderBy('imei')->get()
+                ModemUnit::doesntHave('vend')->orderBy('imei')->get()
             ),
             'menuFrameOptions' => Vend::MENU_FRAME_MAPPINGS,
             'operatorOptions' => OperatorResource::collection(

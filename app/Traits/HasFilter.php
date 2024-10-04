@@ -161,6 +161,11 @@ trait HasFilter {
         ->when($request->account_manager_name, function($query, $search) {
             $query->where('customers.account_manager_json->name', 'LIKE', "{$search}%");
         })
+        ->when($request->allTempHigherThan, function($query, $search) {
+            if(is_numeric($search)) {
+                $query->where('temp', '>=', $search * 10);
+            }
+        })
         ->when($request->cashless_terminal_id, function($query, $search) {
             if($search != 'all') {
                 $query->where('vends.cashless_terminal_id', $search);
@@ -331,6 +336,11 @@ trait HasFilter {
                     ->whereNotNull('parameter_json->t2')
                     ->where('parameter_json->t2', '!=', VendTemp::TEMPERATURE_ERROR)
                     ->whereRaw('temp - json_extract(parameter_json, "$.t2") > ?', [$search * 10]);
+            }
+        })
+        ->when($request->tempLimitHigherThan, function($query, $search) {
+            if(is_numeric($search)) {
+                $query->where('acb_vmc_pa_json->TempLimit', '>=', $search);
             }
         })
         ->when($request->errors, function($query, $search) {

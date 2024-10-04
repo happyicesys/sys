@@ -18,25 +18,32 @@
               ("," for multiple)
           </span>
         </SearchInput>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Channel ID" v-model="filters.channel_codes" @keyup.enter="onSearchFilterUpdated()">
           Channel ID
           <span class="text-[9px]">
               ("," for multiple)
           </span>
         </SearchInput>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Serial Num" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Serial Num" v-model="filters.serialNum" @keyup.enter="onSearchFilterUpdated()">
           Serial Num
         </SearchInput>
-        <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @keyup.enter="onSearchFilterUpdated()" class="md:block" :class="[showAllFilters ? 'block' : 'hidden']">
+        <SearchInput placeholderStr="Number" v-model="filters.tempHigherThan" @keyup.enter="onSearchFilterUpdated()" :class="[showAllFilters ? 'block' : 'hidden']">
           T1 &gt;&gt;
         </SearchInput>
-        <SearchInput placeholderStr="Number" v-model="filters.t2HigherThan" @keyup.enter="onSearchFilterUpdated()" class="md:block" :class="[showAllFilters ? 'block' : 'hidden']">
+        <SearchInput placeholderStr="Number" v-model="filters.t2HigherThan" @keyup.enter="onSearchFilterUpdated()" :class="[showAllFilters ? 'block' : 'hidden']">
           T2 &gt;&gt;
         </SearchInput>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Number" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Number" v-model="filters.tempDeltaHigherThan" @keyup.enter="onSearchFilterUpdated()">
           T1-T2 Delta &gt;&gt;
         </SearchInput>
-        <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']">
+        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Number" v-model="filters.tempLimitHigherThan" @keyup.enter="onSearchFilterUpdated()">
+          Temperature Limit &gt;&gt;
+          <!-- {{vend.acbVmcPaJson['TempLimit']}} -->
+        </SearchInput>
+        <SearchInput placeholderStr="Number" v-model="filters.allTempHigherThan" @keyup.enter="onSearchFilterUpdated()">
+          Temperature &gt;&gt;
+        </SearchInput>
+        <div :class="[showAllFilters ? 'block' : 'hidden']">
           <label for="text" class="block text-sm font-medium text-gray-700">
             Channel Errors
           </label>
@@ -74,22 +81,6 @@
           >
           </MultiSelect>
         </div>
-        <div v-if="permissions.includes('admin-access vend-machines') && indexType === 'customers'">
-            <label for="text" class="block text-sm font-medium text-gray-700">
-              Customer Active?
-            </label>
-            <MultiSelect
-              v-model="filters.is_active"
-              :options="booleanOptions"
-              trackBy="id"
-              valueProp="id"
-              label="value"
-              placeholder="Select"
-              open-direction="bottom"
-              class="mt-1"
-            >
-            </MultiSelect>
-        </div>
         <div v-if="permissions.includes('admin-access vend-machines')">
           <label for="text" class="block text-sm font-medium text-gray-700">
             Machine Status
@@ -106,7 +97,7 @@
           >
           </MultiSelect>
         </div>
-        <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" >
+        <div :class="[showAllFilters ? 'block' : 'hidden']" >
             <label for="text" class="block text-sm font-medium text-gray-700">
               Sensor Status
             </label>
@@ -122,7 +113,7 @@
             >
             </MultiSelect>
         </div>
-        <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" >
+        <div :class="[showAllFilters ? 'block' : 'hidden']" >
             <label for="text" class="block text-sm font-medium text-gray-700">
               Is Door Open
             </label>
@@ -138,7 +129,7 @@
             >
             </MultiSelect>
         </div>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan" @keyup.enter="onSearchFilterUpdated()">
             Fan Speed &lt;&lt;
         </SearchInput>
         <div v-if="permissions.includes('admin-access vend-machines')">
@@ -158,7 +149,7 @@
           >
           </MultiSelect>
         </div>
-        <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" v-if="indexType === 'customers'">
+        <div :class="[showAllFilters ? 'block' : 'hidden']" v-if="indexType === 'customers'">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Location Type
             </label>
@@ -174,22 +165,22 @@
             >
             </MultiSelect>
         </div>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()" v-if="indexType === 'customers'">
+        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="How many Day(s)" v-model="filters.lastVisitedGreaterThan" @keyup.enter="onSearchFilterUpdated()" v-if="indexType === 'customers'">
           Last Visited Day &gt;&gt;
         </SearchInput>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Balance Stock Less Than" v-model="filters.balanceStockLessThan" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Balance Stock Less Than" v-model="filters.balanceStockLessThan" @keyup.enter="onSearchFilterUpdated()">
           Balance Stock(%) &lt;&lt;
         </SearchInput>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Remaining SKU Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Remaining SKU Less Than" v-model="filters.remainingSkuLessThan" @keyup.enter="onSearchFilterUpdated()">
           Remaining SKU(%) &lt;&lt;
         </SearchInput>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Firmware Ver" v-model="filters.firmware_ver" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Firmware Ver" v-model="filters.firmware_ver" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
           Firmware Ver
         </SearchInput>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="APK Ver" v-model="filters.apk_ver" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="APK Ver" v-model="filters.apk_ver" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
           APK Ver
         </SearchInput>
-        <div class="md:block" :class="[showAllFilters ? 'block' : 'hidden']">
+        <div :class="[showAllFilters ? 'block' : 'hidden']">
           <label for="text" class="block text-sm font-medium text-gray-700">
             Android Device Type
           </label>
@@ -205,10 +196,10 @@
           >
           </MultiSelect>
         </div>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Avg Day Sales Less Than" v-model="filters.vendRecordsThirtyDaysAmountAverageLessThan" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
           Avg/Day Sales (30d) &lt;&lt;
         </SearchInput>
-        <div>
+        <div :class="[showAllFilters ? 'block' : 'hidden']">
           <label for="text" class="block text-sm font-medium text-gray-700">
             Is MQTT?
           </label>
@@ -224,7 +215,7 @@
           >
           </MultiSelect>
         </div>
-        <div>
+        <div :class="[showAllFilters ? 'block' : 'hidden']">
           <label for="text" class="block text-sm font-medium text-gray-700">
             Is MQTT Active?
           </label>
@@ -240,36 +231,13 @@
           >
           </MultiSelect>
         </div>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Account Manager" v-model="filters.account_manager_name" v-if="permissions.includes('admin-access vend-machines') && indexType === 'customers'" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Account Manager" v-model="filters.account_manager_name" v-if="permissions.includes('admin-access vend-machines') && indexType === 'customers'" @keyup.enter="onSearchFilterUpdated()">
           Account Manager
         </SearchInput>
-        <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Number" v-model="filters.coinLessThan" @keyup.enter="onSearchFilterUpdated()">
+        <SearchInput :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Number" v-model="filters.coinLessThan" @keyup.enter="onSearchFilterUpdated()">
           Coin Amount &lt;&lt;
         </SearchInput>
-        <div v-if="indexType === 'customers'">
-          <label for="text" class="block text-sm font-medium text-gray-700">
-            Next Planned Driver
-          </label>
-          <MultiSelect
-            v-model="filters.next_planned_driver"
-            :options="nextDeliveryDriverOptions"
-            trackBy="id"
-            valueProp="id"
-            label="value"
-            placeholder="Select"
-            open-direction="bottom"
-            class="mt-1"
-          >
-          </MultiSelect>
-        </div>
-        <div v-if="indexType === 'customers'">
-          <DatePicker
-            v-model="filters.next_planned_date"
-          >
-            Next Planned Date
-          </DatePicker>
-        </div>
-        <div>
+        <div :class="[showAllFilters ? 'block' : 'hidden']">
           <label for="text" class="block text-sm font-medium text-gray-700">
             Machine Prefix
           </label>
@@ -286,7 +254,7 @@
           >
           </MultiSelect>
         </div>
-        <div>
+        <div :class="[showAllFilters ? 'block' : 'hidden']">
           <label for="text" class="block text-sm font-medium text-gray-700">
             Ref Price Type
           </label>
@@ -302,7 +270,7 @@
           >
           </MultiSelect>
         </div>
-        <div>
+        <div :class="[showAllFilters ? 'block' : 'hidden']">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Machine Model
             </label>
@@ -319,7 +287,7 @@
             >
             </MultiSelect>
           </div>
-          <div>
+          <div :class="[showAllFilters ? 'block' : 'hidden']">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Modem Type
             </label>
@@ -335,7 +303,7 @@
             >
             </MultiSelect>
           </div>
-          <div>
+          <div :class="[showAllFilters ? 'block' : 'hidden']">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Modem IMEI
             </label>
@@ -351,7 +319,7 @@
             >
             </MultiSelect>
           </div>
-          <div>
+          <div :class="[showAllFilters ? 'block' : 'hidden']">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 LCD Monitor
             </label>
@@ -367,7 +335,7 @@
             >
             </MultiSelect>
           </div>
-          <div>
+          <div :class="[showAllFilters ? 'block' : 'hidden']">
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Has Customer
             </label>
@@ -396,7 +364,7 @@
                   Search
               </span>
             </Button>
-            <Button class="md:hidden inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             @click="onShowAllFiltersClicked()"
             >
               <span v-if="!showAllFilters" class="flex">
@@ -824,28 +792,30 @@
             </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-            <ul
-            class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
-            v-if="vend.vendChannels"
-            @click="onChannelOverviewClicked(vend)"
-            >
-              <li v-for="(channel, channelIndex) in vend.vendChannels"
-                  class="quick-look"
-                  :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
+            <div class="flex flex-col space-y-2">
+              <ul
+              class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
+              v-if="vend.vendChannels"
+              @click="onChannelOverviewClicked(vend)"
               >
-              <span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
-                  <span :class="[vend.is_active || vend.is_testing ? 'text-black' : 'text-gray-600']">
-                      #{{channel['code']}},
-                  </span>
-                  <span :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-500']">
-                      {{channel['capacity'] - channel['qty']}},
-                  </span>
-                  <span :class="[vend.is_active || vend.is_testing ? (channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700') : 'text-gray-400']">
-                      {{channel['qty']}}/{{channel['capacity']}}
-                  </span>
-              </span>
-              </li>
-            </ul>
+                <li v-for="(channel, channelIndex) in vend.vendChannels"
+                    class="quick-look"
+                    :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
+                >
+                <span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
+                    <span :class="[vend.is_active || vend.is_testing ? 'text-black' : 'text-gray-600']">
+                        #{{channel['code']}},
+                    </span>
+                    <span :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-500']">
+                        {{channel['capacity'] - channel['qty']}},
+                    </span>
+                    <span :class="[vend.is_active || vend.is_testing ? (channel['qty'] <= 2 ? 'text-red-700' : 'text-green-700') : 'text-gray-400']">
+                        {{channel['qty']}}/{{channel['capacity']}}
+                    </span>
+                </span>
+                </li>
+              </ul>
+            </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
             <div class="flex flex-col space-y-1">
@@ -1175,7 +1145,7 @@
                       </span>
                   </div>
               </div>
-              <div
+              <!-- <div
                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                   :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['BILL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
                   v-if="vend.acbVmcPaJson && 'BILL_MFG' in vend.acbVmcPaJson"
@@ -1202,7 +1172,7 @@
                           {{ vend.acbVmcPaJson['BILL_MDL'] ? vend.acbVmcPaJson['BILL_MDL'] : 'NA' }}
                       </span>
                   </div>
-              </div>
+              </div> -->
               <div
                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                   :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CHGEStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CHGEStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
@@ -1217,7 +1187,7 @@
                       </span>
                   </div>
               </div>
-              <div
+              <!-- <div
               class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
               :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CoinCnt'] > 1600 ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
               v-if="vend.parameterJson && vend.parameterJson['CoinCnt']"
@@ -1230,7 +1200,7 @@
                           {{(vend.parameterJson['CoinCnt']/ (Math.pow(10, operatorCountry.currency_exponent))).toFixed(2)}}
                       </span>
                   </div>
-              </div>
+              </div> -->
               <div
                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-green-200 text-gray-800"
                   v-if="vend.acbVmcPaJson && 'CoinLimit' in vend.acbVmcPaJson"
@@ -1244,7 +1214,7 @@
                       </span>
                   </div>
               </div>
-              <div
+              <!-- <div
                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                   :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['COIN_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
                   v-if="vend.acbVmcPaJson && 'COIN_MFG' in vend.acbVmcPaJson"
@@ -1271,7 +1241,7 @@
                           {{vend.acbVmcPaJson['COIN_MDL'] ? vend.acbVmcPaJson['COIN_MDL'] : 'NA' }}
                       </span>
                   </div>
-              </div>
+              </div> -->
               <div
                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                   :class="[vend.is_active || vend.is_testing ? (vend.parameterJson['CSHLStat'] == 3 ? 'bg-green-200' : (vend.parameterJson['CSHLStat'] == 1 ? 'bg-red-200' : 'bg-gray-200')) : 'bg-gray-200 text-gray-400']"
@@ -1286,7 +1256,7 @@
                       </span>
                   </div>
               </div>
-              <div
+              <!-- <div
                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                   :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
                   v-if="vend.acbVmcPaJson && 'CSHL_MFG' in vend.acbVmcPaJson"
@@ -1313,7 +1283,7 @@
                           {{vend.acbVmcPaJson['CSHL_MDL'] ? vend.acbVmcPaJson['CSHL_MDL'] : 'NA' }}
                       </span>
                   </div>
-              </div>
+              </div> -->
             </div>
           </TableData>
           <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers'">
@@ -1481,6 +1451,7 @@ font-size:13px;
 
   const filters = ref({
       account_manager_name: '',
+      allTempHigherThan: '',
       apk_ver: '',
       codes: '',
       coinLessThan: '',
@@ -1496,6 +1467,7 @@ font-size:13px;
       is_active: true,
       is_binded_customer: '',
       tempHigherThan: '',
+      tempLimitHigherThan: '',
       t2HigherThan: '',
       tempDeltaHigherThan: '',
       vend_channel_error_id: '',

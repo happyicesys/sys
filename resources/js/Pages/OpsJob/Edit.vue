@@ -94,17 +94,17 @@
               </div>
 
               <div class="sm:col-span-6 flex justify-between space-x-1 text-sm mt-3">
-                <div class="flex space-x-1">
+                <div class="flex flex-col md:flex-row space-x-1">
                   <Button
                     type="button"
-                    class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-sky-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 hover:cursor-pointer ml-1"
+                    class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-sky-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-700 shadow-sm hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 hover:cursor-pointer ml-1 w-fit h-fit"
                     @click="onMapAllMarkerClicked"
                     v-if="opsJob.opsJobItems && opsJob.opsJobItems.some(item => item.customer && item.customer.deliveryAddress && item.customer.deliveryAddress.latitude && item.customer.deliveryAddress.longitude)"
                   >
                     <MapPinIcon class="h-4 w-4" aria-hidden="true" />
                     <span>Show Map Markers</span>
                   </Button>
-                  <Button class="inline-flex space-x-1 items-center rounded-md border border-blue bg-blue-400 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-blue bg-blue-400 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 w-fit h-fit"
                   @click.prevent="onGeneratePickListClicked()"
                   v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status < 2)"
                   >
@@ -115,7 +115,7 @@
                       </span>
                     </span>
                   </Button>
-                  <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 w-fit"
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-yellow bg-yellow-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 w-fit h-fit"
                   @click.prevent="onGenerateQtyListClicked(2)"
                   v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status == 2)"
                   >
@@ -126,7 +126,7 @@
                       </span>
                     </span>
                   </Button>
-                  <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 w-fit"
+                  <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 w-fit h-fit"
                   @click.prevent="onGenerateQtyListClicked(3)"
                   v-if="opsJob.opsJobItems && opsJob.opsJobItems.length && opsJob.opsJobItems.some(item => item.status >= 3)"
                   >
@@ -164,7 +164,7 @@
               <div class="sm:col-span-6 flex flex-col">
               <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                 <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
-                  <div class="overflow-scroll max-h-[600px] md:max-h-[800px] shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                  <div class="overflow-scroll max-h-[800px] md:max-h-[1000px] shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                     <table class="min-w-full divide-y divide-gray-300">
                       <thead class="bg-gray-50">
                         <tr class="">

@@ -90,6 +90,9 @@ class VendDataService
               case 66:
                 $processedDataArr['data']['label'] = 'B';
                 break;
+              case 67:
+                $processedDataArr['data']['label'] = 'C';
+                break;
               case 83:
                 $processedDataArr['data']['label'] = 'S';
                 break;

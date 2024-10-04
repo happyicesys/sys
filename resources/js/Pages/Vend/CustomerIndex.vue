@@ -1497,7 +1497,7 @@
 														QR Code
 												</span>
 												<span>
-														{{vend.acbVmcPaJson['QRCode'] == 1 ? 'Active' : 'NA'}}
+														{{vend.acbVmcPaJson['QRCode'] == 1 ? 'Enabled' : 'Disabled'}}
 												</span>
 										</div>
 								</div>
