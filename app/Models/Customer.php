@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\OpsJob;
 use App\Models\Scopes\OperatorCustomerFilterScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -171,6 +172,42 @@ class Customer extends Model
     public function firstTransaction()
     {
         return $this->belongsTo(Transaction::class, 'first_transaction_id');
+    }
+
+    public function lastOpsJobItem()
+    {
+        return $this->hasOne(OpsJobItem::class)
+                    ->whereHas('opsJob', function ($query) {
+                        $query->where('date', '<=', Carbon::today()->endOfDay());
+                    })
+                    ->where('status', '>=', OpsJob::STATUS_DELIVERED)
+                    ->where('status', '<>', OpsJob::STATUS_CANCELLED)
+                    ->latest();
+    }
+
+    public function lastSecondOpsJobItem()
+    {
+        return $this->hasOne(OpsJobItem::class)
+                    ->whereHas('opsJob', function ($query) {
+                        $query->where('date', '<=', Carbon::today()->endOfDay());
+                    })
+                    ->where('status', '>=', OpsJob::STATUS_DELIVERED)
+                    ->where('status', '<>', OpsJob::STATUS_CANCELLED)
+                    ->latest()    // Order by the latest date
+                    ->skip(1)     // Skip the most recent (latest) entry
+                    ->take(1);    // Take the second-to-last entry
+    }
+
+
+    public function nextOpsJobItem()
+    {
+        return $this->hasOne(OpsJobItem::class)
+                    ->whereHas('opsJob', function ($query) {
+                        $query->where('date', '>=', Carbon::today()->startOfDay());
+                    })
+                    ->where('status', '<', OpsJob::STATUS_DELIVERED)
+                    ->where('status', '<>', OpsJob::STATUS_CANCELLED)
+                    ->oldest();
     }
 
     public function locationType()

@@ -333,16 +333,16 @@ class VendController extends Controller
             ->with([
                 'deliveryAddress',
                 'nextInvoiceDriver:id,name,username',
-                'vend.lastOpsJobItem:id,ops_job_id,status,vend_id',
-                'vend.lastOpsJobItem.opsJob:id,code,date,delivered_by',
-                'vend.lastOpsJobItem.opsJob.deliveredBy:id,name,username',
-                'vend.lastSecondOpsJobItem:id,ops_job_id,status,vend_id',
-                'vend.lastSecondOpsJobItem.opsJob:id,code,date,delivered_by',
-                'vend.lastSecondOpsJobItem.opsJob.deliveredBy:id,name,username',
-                'vend.nextOpsJobItem:id,ops_job_id,status,vend_id',
-                'vend.nextOpsJobItem.opsJob:id,code,date,delivered_by',
-                'vend.nextOpsJobItem.opsJob.deliveredBy:id,name,username',
-                'vend.nextOpsJobItem.opsJobItemChannels.vendChannel',
+                'lastOpsJobItem:id,ops_job_id,status,vend_id,customer_id',
+                'lastOpsJobItem.opsJob:id,code,date,delivered_by',
+                'lastOpsJobItem.opsJob.deliveredBy:id,name,username',
+                'lastSecondOpsJobItem:id,ops_job_id,status,vend_id,customer_id',
+                'lastSecondOpsJobItem.opsJob:id,code,date,delivered_by',
+                'lastSecondOpsJobItem.opsJob.deliveredBy:id,name,username',
+                'nextOpsJobItem:id,ops_job_id,status,vend_id,customer_id',
+                'nextOpsJobItem.opsJob:id,code,date,delivered_by',
+                'nextOpsJobItem.opsJob.deliveredBy:id,name,username',
+                'nextOpsJobItem.opsJobItemChannels.vendChannel',
                 'vend.vendChannels.latestOpsJobItemChannel',
                 'vend.vendChannels.product.thumbnail',
                 'vend.vendChannels.product.sellingPrices',
@@ -414,18 +414,18 @@ class VendController extends Controller
             ->leftJoin(DB::raw('
                 (
                     SELECT
-                        last_ops_jobs_inner.vend_id,
+                        last_ops_jobs_inner.customer_id,
                         last_ops_jobs_inner.amount,
                         last_ops_jobs_inner.cash_amount,
                         last_ops_jobs_inner.count
                     FROM
                     (
                         SELECT
-                            ops_job_items.vend_id,
+                            ops_job_items.customer_id,
                             ops_job_items.cash_amount,
                             SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount,
                             SUM(ops_job_item_channels.actual_qty) AS count,
-                            ROW_NUMBER() OVER (PARTITION BY ops_job_items.vend_id ORDER BY ops_job_items.created_at DESC) AS rn
+                            ROW_NUMBER() OVER (PARTITION BY ops_job_items.customer_id ORDER BY ops_job_items.created_at DESC) AS rn
                         FROM
                             ops_job_item_channels
                         INNER JOIN
@@ -438,26 +438,26 @@ class VendController extends Controller
                             ops_job_items.status >= 3
                             AND ops_jobs.date < CURDATE() + INTERVAL 1 DAY
                         GROUP BY
-                            ops_job_items.vend_id, ops_job_items.created_at
+                            ops_job_items.customer_id, ops_job_items.created_at
                     ) AS last_ops_jobs_inner
                     WHERE last_ops_jobs_inner.rn = 1
                 ) AS last_ops_jobs
-            '), 'last_ops_jobs.vend_id', '=', 'vends.id')
+            '), 'last_ops_jobs.customer_id', '=', 'customers.id')
             ->leftJoin(DB::raw('
                 (
                     SELECT
-                        last_second_ops_jobs_inner.vend_id,
+                        last_second_ops_jobs_inner.customer_id,
                         last_second_ops_jobs_inner.amount,
                         last_second_ops_jobs_inner.cash_amount,
                         last_second_ops_jobs_inner.count
                     FROM
                     (
                         SELECT
-                            ops_job_items.vend_id,
+                            ops_job_items.customer_id,
                             ops_job_items.cash_amount,
                             SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount,
                             SUM(ops_job_item_channels.actual_qty) AS count,
-                            ROW_NUMBER() OVER (PARTITION BY ops_job_items.vend_id ORDER BY ops_job_items.created_at DESC) AS rn
+                            ROW_NUMBER() OVER (PARTITION BY ops_job_items.customer_id ORDER BY ops_job_items.created_at DESC) AS rn
                         FROM
                             ops_job_item_channels
                         INNER JOIN
@@ -470,26 +470,26 @@ class VendController extends Controller
                             ops_job_items.status >= 3
                             AND ops_jobs.date < CURDATE() + INTERVAL 1 DAY
                         GROUP BY
-                            ops_job_items.vend_id, ops_job_items.created_at
+                            ops_job_items.customer_id, ops_job_items.created_at
                     ) AS last_second_ops_jobs_inner
                     WHERE last_second_ops_jobs_inner.rn = 2 -- This selects the second-to-last row
                 ) AS last_second_ops_jobs
-            '), 'last_second_ops_jobs.vend_id', '=', 'vends.id')
+            '), 'last_second_ops_jobs.customer_id', '=', 'customers.id')
             ->leftJoin(DB::raw('
                 (
                     SELECT
-                        next_ops_jobs_inner.vend_id,
+                        next_ops_jobs_inner.customer_id,
                         next_ops_jobs_inner.amount,
                         next_ops_jobs_inner.cash_amount,
                         next_ops_jobs_inner.count
                     FROM
                     (
                         SELECT
-                            ops_job_items.vend_id,
+                            ops_job_items.customer_id,
                             ops_job_items.cash_amount,
                             SUM(ops_job_item_channels.picked_qty * vend_channels.amount) AS amount,
                             SUM(ops_job_item_channels.picked_qty) AS count,
-                            ROW_NUMBER() OVER (PARTITION BY ops_job_items.vend_id ORDER BY ops_job_items.created_at ASC) AS rn
+                            ROW_NUMBER() OVER (PARTITION BY ops_job_items.customer_id ORDER BY ops_job_items.created_at ASC) AS rn
                         FROM
                             ops_job_item_channels
                         INNER JOIN
@@ -502,11 +502,11 @@ class VendController extends Controller
                             ops_job_items.status < 3
                             AND ops_jobs.date >= CURDATE()
                         GROUP BY
-                            ops_job_items.vend_id, ops_job_items.created_at
+                            ops_job_items.customer_id, ops_job_items.created_at
                     ) AS next_ops_jobs_inner
                     WHERE next_ops_jobs_inner.rn = 1
                 ) AS next_ops_jobs
-            '), 'next_ops_jobs.vend_id', '=', 'vends.id')
+            '), 'next_ops_jobs.customer_id', '=', 'customers.id')
             ->select(
                 'customers.id AS id',
                 'vends.id AS vend_id',

@@ -1199,36 +1199,36 @@
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-1">
-								<div v-if="vend.vend && vend.vend.lastSecondOpsJobItem" class="flex flex-col space-y-1">
-									<a :href="'/ops-jobs/items/' + vend.vend.lastSecondOpsJobItem.id + '/edit'">
+								<div v-if="vend && vend.lastSecondOpsJobItem" class="flex flex-col space-y-1">
+									<a :href="'/ops-jobs/items/' + vend.lastSecondOpsJobItem.id + '/edit'">
 										<div
 											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
 										>
 											<span>
-												{{ vend.vend.lastSecondOpsJobItem.ref_id }}
+												{{ vend.lastSecondOpsJobItem.ref_id }}
 											</span>
 										</div>
 									</a>
 									<span>
-										{{ vend.vend.lastSecondOpsJobItem.opsJob.deliveredBy.name }}
+										{{ vend.lastSecondOpsJobItem.opsJob.deliveredBy.name }}
 									</span>
 									<span class="flex flex-col space-y-1">
 										<span>
-											{{ vend.vend.lastSecondOpsJobItem.opsJob.date_formatted }}
+											{{ vend.lastSecondOpsJobItem.opsJob.date_formatted }}
 										</span>
 										<div
 											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
-											:class="[(vend.vend.lastSecondOpsJobItem.opsJob.date_diff_count < 1 && vend.vend.lastSecondOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.vend.lastSecondOpsJobItem.opsJob.date_diff_count > -1 && vend.vend.lastSecondOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : vend.vend.lastSecondOpsJobItem.opsJob.date_diff_count > 10 ? 'bg-red-300' : '') ]"
-											v-if="vend.vend.lastSecondOpsJobItem.opsJob.date_diff_human"
+											:class="[(vend.lastSecondOpsJobItem.opsJob.date_diff_count < 1 && vend.lastSecondOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.lastSecondOpsJobItem.opsJob.date_diff_count > -1 && vend.lastSecondOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : vend.lastSecondOpsJobItem.opsJob.date_diff_count > 10 ? 'bg-red-300' : '') ]"
+											v-if="vend.lastSecondOpsJobItem.opsJob.date_diff_human"
 										>
 											<span>
-												{{ vend.vend.lastSecondOpsJobItem.opsJob.date_diff_human }}
+												{{ vend.lastSecondOpsJobItem.opsJob.date_diff_human }}
 											</span>
 										</div>
 									</span>
 									<span class="flex flex-col space-y-1"
-										v-if="vend.vend.lastSecondOpsJobItem.status >= 3"
-										:class="[vend.vend.lastSecondOpsJobItem.status == 4 ? 'text-green-700' : (vend.vend.lastSecondOpsJobItem.status == 98 ? 'text-red-700' : '')]"
+										v-if="vend.lastSecondOpsJobItem.status >= 3"
+										:class="[vend.lastSecondOpsJobItem.status == 4 ? 'text-green-700' : (vend.lastSecondOpsJobItem.status == 98 ? 'text-red-700' : '')]"
 									>
 										<span>
 											{{ operatorCountry.currency_symbol }}{{ vend.last_second_ops_job_amount ? vend.last_second_ops_job_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
@@ -1245,36 +1245,36 @@
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-1">
-								<div v-if="vend.vend && vend.vend.lastOpsJobItem" class="flex flex-col space-y-1">
-									<a :href="'/ops-jobs/items/' + vend.vend.lastOpsJobItem.id + '/edit'">
+								<div v-if="vend && vend.lastOpsJobItem" class="flex flex-col space-y-1">
+									<a :href="'/ops-jobs/items/' + vend.lastOpsJobItem.id + '/edit'">
 										<div
 											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
 										>
 											<span>
-												{{ vend.vend.lastOpsJobItem.ref_id }}
+												{{ vend.lastOpsJobItem.ref_id }}
 											</span>
 										</div>
 									</a>
 									<span>
-										{{ vend.vend.lastOpsJobItem.opsJob.deliveredBy.name }}
+										{{ vend.lastOpsJobItem.opsJob.deliveredBy.name }}
 									</span>
 									<span class="flex flex-col space-y-1">
 										<span>
-											{{ vend.vend.lastOpsJobItem.opsJob.date_formatted }}
+											{{ vend.lastOpsJobItem.opsJob.date_formatted }}
 										</span>
 										<div
 											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
-											:class="[(vend.vend.lastOpsJobItem.opsJob.date_diff_count < 1 && vend.vend.lastOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.vend.lastOpsJobItem.opsJob.date_diff_count > -1 && vend.vend.lastOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : vend.vend.lastOpsJobItem.opsJob.date_diff_count > 10 ? 'bg-red-300' : '') ]"
-											v-if="vend.vend.lastOpsJobItem.opsJob.date_diff_human"
+											:class="[(vend.lastOpsJobItem.opsJob.date_diff_count < 1 && vend.lastOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.lastOpsJobItem.opsJob.date_diff_count > -1 && vend.lastOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : vend.lastOpsJobItem.opsJob.date_diff_count > 10 ? 'bg-red-300' : '') ]"
+											v-if="vend.lastOpsJobItem.opsJob.date_diff_human"
 										>
 											<span>
-												{{ vend.vend.lastOpsJobItem.opsJob.date_diff_human }}
+												{{ vend.lastOpsJobItem.opsJob.date_diff_human }}
 											</span>
 										</div>
 									</span>
 									<span class="flex flex-col space-y-1"
-										v-if="vend.vend.lastOpsJobItem.status >= 3"
-										:class="[vend.vend.lastOpsJobItem.status == 4 ? 'text-green-700' : (vend.vend.lastOpsJobItem.status == 98 ? 'text-red-700' : '')]"
+										v-if="vend.lastOpsJobItem.status >= 3"
+										:class="[vend.lastOpsJobItem.status == 4 ? 'text-green-700' : (vend.lastOpsJobItem.status == 98 ? 'text-red-700' : '')]"
 									>
 										<span>
 											{{ operatorCountry.currency_symbol }}{{ vend.last_ops_job_amount ? vend.last_ops_job_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
@@ -1291,35 +1291,35 @@
 						</TableData>
 						<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType == 'customers' && !roles.includes('operator_3pl')">
 							<div class="flex flex-col space-y-1">
-								<div v-if="vend.vend && vend.vend.nextOpsJobItem" class="flex flex-col space-y-1">
-									<a :href="'/ops-jobs/items/' + vend.vend.nextOpsJobItem.id + '/edit'">
+								<div v-if="vend && vend.nextOpsJobItem" class="flex flex-col space-y-1">
+									<a :href="'/ops-jobs/items/' + vend.nextOpsJobItem.id + '/edit'">
 										<div
 											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900 bg-indigo-300"
 										>
 											<span>
-												{{ vend.vend.nextOpsJobItem.ref_id }}
+												{{ vend.nextOpsJobItem.ref_id }}
 											</span>
 										</div>
 									</a>
 									<span>
-										{{ vend.vend.nextOpsJobItem.opsJob.deliveredBy.name }}
+										{{ vend.nextOpsJobItem.opsJob.deliveredBy.name }}
 									</span>
 									<span class="flex flex-col space-y-1">
 										<span>
-											{{ vend.vend.nextOpsJobItem.opsJob.date_formatted }}
+											{{ vend.nextOpsJobItem.opsJob.date_formatted }}
 										</span>
 										<div
 											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full text-gray-900"
-											:class="[(vend.vend.nextOpsJobItem.opsJob.date_diff_count < 1 &&  vend.vend.nextOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.vend.nextOpsJobItem.opsJob.date_diff_count > -1 && vend.vend.nextOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
-											v-if="vend.vend.nextOpsJobItem.opsJob.date_diff_human"
+											:class="[(vend.nextOpsJobItem.opsJob.date_diff_count < 1 &&  vend.nextOpsJobItem.opsJob.date_diff_count > 0) ? 'bg-green-200' : ((vend.nextOpsJobItem.opsJob.date_diff_count > -1 && vend.nextOpsJobItem.opsJob.date_diff_count < 0) ? 'bg-yellow-200' : '') ]"
+											v-if="vend.nextOpsJobItem.opsJob.date_diff_human"
 										>
 											<span>
-												{{ vend.vend.nextOpsJobItem.opsJob.date_diff_human }}
+												{{ vend.nextOpsJobItem.opsJob.date_diff_human }}
 											</span>
 										</div>
 									</span>
-									<span class="flex flex-col space-y-1" v-if="vend.vend.nextOpsJobItem.status == 2"
-										:class="[vend.vend.nextOpsJobItem.status == 4 ? 'text-green-700' : (vend.vend.nextOpsJobItem.status == 98 ? 'text-red-700' : '')]">
+									<span class="flex flex-col space-y-1" v-if="vend.nextOpsJobItem.status == 2"
+										:class="[vend.nextOpsJobItem.status == 4 ? 'text-green-700' : (vend.nextOpsJobItem.status == 98 ? 'text-red-700' : '')]">
 										<span>
 											{{ operatorCountry.currency_symbol }}{{ vend.next_ops_job_amount ? vend.next_ops_job_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
 										</span>
