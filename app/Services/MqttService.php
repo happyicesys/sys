@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ModemUnit;
 use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -35,7 +36,7 @@ class MqttService
   {
     $content = base64_encode(json_encode($input));
     $contentLength = strlen($content);
-    $key = $modemUnit->imei;
+    $key = $modemUnit->imei.'A';
     $topic = 'CM'.ltrim(substr($modemUnit->imei, -6), "0");
     $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
