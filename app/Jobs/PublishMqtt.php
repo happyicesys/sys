@@ -16,15 +16,18 @@ class PublishMqtt implements ShouldQueue
 
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    protected $mqttConnection; // Renamed to avoid conflict
     protected $message;
     protected $mqttService;
     protected $qos;
     protected $topic;
+
     /**
      * Create a new job instance.
      */
-    public function __construct($topic, $message, $qos = 1)
+    public function __construct($topic, $message, $qos = 1, $mqttConnection = null)
     {
+        $this->mqttConnection = $mqttConnection;
         $this->message = $message;
         $this->mqttService = new MqttService();
         $this->qos = $qos;
@@ -36,6 +39,6 @@ class PublishMqtt implements ShouldQueue
      */
     public function handle(): void
     {
-        $this->mqttService->publish($this->topic, $this->message, $this->qos);
+        $this->mqttService->publish($this->topic, $this->message, $this->qos, $this->mqttConnection);
     }
 }
