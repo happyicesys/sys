@@ -128,8 +128,18 @@
                       <TableData :currentIndex="modemUnitIndex" :totalLength="modemUnits.length" inputClass="text-center">
                         {{ modemUnit.vend?.code }}
                       </TableData>
-                      <TableData :currentIndex="modemUnitIndex" :totalLength="modemUnits.length" inputClass="text-center">
-                        <div class="flex justify-center space-x-1">
+                      <TableData :currentIndex="modemUnitIndex" :totalLength="modemUnits.length" inputClass="text-left">
+                        <div class="flex justify-start space-x-1">
+                          <Button
+                            type="button" class="bg-yellow-300 hover:bg-yellow-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                            @click="onResetClicked(modemUnit)"
+                            v-if="modemUnit.modemType?.is_resetable"
+                          >
+                            <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                            <span>
+                                Reset
+                            </span>
+                          </Button>
                           <Button
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                             @click="onEditClicked(modemUnit)"
@@ -190,12 +200,13 @@ import Form from '@/Pages/ModemUnit/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   modemTypeOptions: Object,
@@ -212,6 +223,7 @@ const filters = ref({
 const showModal = ref(false)
 const modemTypeIndexOptions = ref([])
 const modemUnit = ref()
+const toast = useToast()
 const type = ref('')
 const numberPerPageOptions = ref([])
 
@@ -249,6 +261,24 @@ function onEditClicked(telcoValue) {
   type.value = 'update'
   modemUnit.value = telcoValue
   showModal.value = true
+}
+
+function onResetClicked(modemUnit) {
+  const approval = confirm('Are you sure to reset ' + modemUnit.imei + '?');
+  if (!approval) {
+      return;
+  }
+
+  router.post('/modem-units/' + modemUnit.id + '/reset', {}, {
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+    onSuccess: () => {
+      toast.success("Reset signal sent", {
+        timeout: 3000
+      });
+    }
+  })
 }
 
 function onSearchFilterUpdated() {

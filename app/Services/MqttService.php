@@ -14,10 +14,10 @@ class MqttService
   const CONNECTION_TYPE = 'mqtt';
   const SUBSCRIBED_TOPIC = '#';
 
-  public function publish($topic, $message, $qos = MqttClient::QOS_AT_LEAST_ONCE)
+  public function publish($topic, $message, $qos = MqttClient::QOS_AT_LEAST_ONCE, $connection = null)
   {
     $startTime = Carbon::now();
-    $mqtt = MQTT::connection();
+    $mqtt = $connection ? MQTT::connection($connection) :  MQTT::connection();
 
     $mqtt->publish($topic, $message, $qos);
 
@@ -29,6 +29,22 @@ class MqttService
     // });
     $mqtt->loop(true, true);
     // $mqtt->disconnect();
+  }
+
+  public function publishModemParamMapping(ModemUnit $modemUnit, $fid, $input)
+  {
+    $content = base64_encode(json_encode($input));
+    $contentLength = strlen($content);
+    $key = $modemUnit->imei;
+    $topic = 'CM'.ltrim(substr($modemUnit->imei, -6), "0");
+    $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+    return [
+      'topic' => $topic,
+      'message' => $fid.','.$contentLength.','.$content.','.$md5,
+      'qos' => MqttClient::QOS_AT_LEAST_ONCE,
+      'connection' => 'mqtt_modems'
+    ];
   }
 
   public function publishVend(Vend $vend, $fid, $input)

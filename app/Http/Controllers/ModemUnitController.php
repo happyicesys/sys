@@ -2,16 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\PublishMqtt;
 use App\Http\Resources\ModemTypeResource;
 use App\Http\Resources\ModemUnitResource;
 use App\Models\ModemType;
 use App\Models\ModemUnit;
+use App\Services\MqttService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ModemUnitController extends Controller
 {
+    private $mqttService;
+
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->mqttService = new MqttService();
+    }
+
     public function index(Request $request)
     {
         $request->merge([
@@ -29,6 +39,9 @@ class ModemUnitController extends Controller
             'modemUnits' => ModemUnitResource::collection(
                 ModemUnit::query()
                     ->with(['modemType', 'vend'])
+                    ->when($request->id, function($query, $search) {
+                        $query->where('id', $search);
+                    })
                     ->when($request->imei, function($query, $search) {
                         $query->where('imei', 'LIKE', "%{$search}%");
                     })
@@ -42,6 +55,21 @@ class ModemUnitController extends Controller
                     ->withQueryString()
             ),
         ]);
+    }
+
+    public function reset($id)
+    {
+        $modemUnit = ModemUnit::findOrFail($id);
+        $content = [
+            'action' => 'RESET',
+            'time' => Carbon::now()->timestamp,
+        ];
+
+        $processedData = $this->mqttService->publishModemParamMapping($modemUnit, 2, $content);
+
+        PublishMqtt::dispatch($processedData['topic'], $processedData['message'], $processedData['qos'], $processedData['connection'])->onQueue('high');
+
+        return redirect()->back();
     }
 
     public function store(Request $request)

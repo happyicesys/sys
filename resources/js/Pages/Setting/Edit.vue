@@ -359,10 +359,17 @@
 
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Modem Model
-                  <span class="text-red-500">
-                    *
-                  </span>
+                  <div class="flex space-x-2">
+                    Modem Model
+                    <span class="text-red-500">
+                      *
+                    </span>
+                    <span v-if="form.modem_type_id && form.modem_type_id.id">
+                      <a class="text-blue-700" target="_blank" :href="'/modem-types?id=' + form.modem_type_id.id">
+                        <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
+                      </a>
+                    </span>
+                  </div>
                 </label>
                 <MultiSelect
                   v-model="form.modem_type_id"
@@ -381,7 +388,16 @@
             </div>
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Modem IMEI
+                  <div class="flex space-x-2">
+                    <span>
+                      Modem IMEI
+                    </span>
+                    <span v-if="form.modem_unit_id && form.modem_unit_id.id">
+                      <a class="text-blue-700" target="_blank" :href="'/modem-units?id=' + form.modem_unit_id.id">
+                        <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
+                      </a>
+                    </span>
+                  </div>
                 </label>
                 <MultiSelect
                   v-model="form.modem_unit_id"

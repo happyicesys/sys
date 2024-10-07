@@ -19,6 +19,7 @@ class ModemTypeResource extends JsonResource
             'name' => $this->name,
             'desc' => $this->desc,
             'is_modem_unit_required' => $this->is_modem_unit_required ? true : false,
+            'is_resetable' => $this->is_resetable ? true : false,
             'modemUnits' => ModemUnitResource::collection($this->whenLoaded('modemUnits')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,

@@ -14,6 +14,7 @@ class ModemType extends Model
         'name',
         'desc',
         'is_modem_unit_required',
+        'is_resetable',
     ];
 
     // relationships

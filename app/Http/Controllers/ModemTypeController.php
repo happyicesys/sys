@@ -22,6 +22,9 @@ class ModemTypeController extends Controller
             'modemTypes' => ModemTypeResource::collection(
                 ModemType::query()
                     ->with('modemUnits')
+                    ->when($request->id, function($query, $search) {
+                        $query->where('id', $search);
+                    })
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })

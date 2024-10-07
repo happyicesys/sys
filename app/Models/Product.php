@@ -94,6 +94,11 @@ class Product extends Model
         return $this->belongsTo(Operator::class);
     }
 
+    public function productLimits()
+    {
+        return $this->hasMany(ProductLimit::class);
+    }
+
     public function productUoms()
     {
         return $this->hasMany(ProductUom::class, 'product_id')->orderBy('value');

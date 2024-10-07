@@ -137,6 +137,9 @@ class ProductController extends Controller
             ->with([
                 'isAvailableUpdatedBy',
                 'latestUnitCost',
+                'productLimits' => function($query) {
+                    $query->where('date', '=', $request->productAvailableDate);
+                },
                 'thumbnail',
             ])
             ->when($request->operators, function($query, $search) {
@@ -151,10 +154,10 @@ class ProductController extends Controller
                 'is_available_updated_at',
                 'is_available_updated_by',
             )
-            ->selectRaw('
-                JSON_UNQUOTE(JSON_EXTRACT(max_ops_job_pick_limit_json, ?)) AS max_ops_job_pick_limit',
-                ['$."'.$request->productAvailableDate.'"']
-            )
+            // ->selectRaw('
+            //     JSON_UNQUOTE(JSON_EXTRACT(max_ops_job_pick_limit_json, ?)) AS max_ops_job_pick_limit',
+            //     ['$."'.$request->productAvailableDate.'"']
+            // )
             ->selectRaw('(
                 SELECT SUM(vend_channels.capacity - vend_channels.qty)
                 FROM ops_job_item_channels

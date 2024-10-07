@@ -332,6 +332,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('modem-units')->group(function() {
         Route::get('/', [ModemUnitController::class, 'index'])->name('modem-units');
+        Route::post('/{id}/reset', [ModemUnitController::class, 'reset']);
         Route::post('/store', [ModemUnitController::class, 'store']);
         Route::post('/{id}/update', [ModemUnitController::class, 'update']);
         Route::delete('/{id}', [ModemUnitController::class, 'delete']);

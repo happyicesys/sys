@@ -91,6 +91,8 @@ class SettingController extends Controller
                 'cashlessTerminal',
                 'customer:id,code,name,is_active,person_id,person_json,virtual_customer_code,virtual_customer_prefix,operator_id,selling_price_type',
                 'customer.operator:id,code,name',
+                'modemType',
+                'modemUnit',
                 'productMapping.upcomingProductMappings',
                 'simcard',
                 'upcomingProductMapping',
@@ -130,6 +132,7 @@ class SettingController extends Controller
                 'vends.lcd_monitor_id',
                 'vends.last_updated_at',
                 'vends.modem_type_id',
+                'vends.modem_unit_id',
                 'vends.parameter_json',
                 'vends.name',
                 'vends.operator_id',
@@ -224,6 +227,7 @@ class SettingController extends Controller
             'customer.contact',
             'key',
             'logs',
+            'modemType',
             'modemUnit',
             'operator',
             'productMapping',
@@ -330,7 +334,15 @@ class SettingController extends Controller
                 ModemType::orderBy('id')->get()
             ),
             'modemUnitOptions' => ModemUnitResource::collection(
-                ModemUnit::doesntHave('vend')->orderBy('imei')->get()
+                ModemUnit::query()
+                    ->where(function($query) use ($vend) {
+                        $query->doesntHave('vend')
+                              ->orWhereHas('vend', function($q) use ($vend) {
+                                  $q->where('vends.id', $vend->id);
+                              });
+                    })
+                    ->orderBy('imei')
+                    ->get()
             ),
             'menuFrameOptions' => Vend::MENU_FRAME_MAPPINGS,
             'operatorOptions' => OperatorResource::collection(

@@ -443,7 +443,7 @@
                       Cashless Terminal
                     </TableHead>
                     <TableHead>
-                      Modem Type
+                      Modem
                     </TableHead>
                     <TableHead>
                       LCD Monitor
@@ -793,7 +793,14 @@
                         </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.modem_type }}
+                        <div class="flex flex-col space-y-2">
+                          <span>
+                            {{ vend.modemType?.name }}
+                          </span>
+                          <span v-if="vend.modemUnit">
+                            {{ vend.modemUnit.imei }}
+                          </span>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.lcd_monitor }}
