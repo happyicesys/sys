@@ -287,6 +287,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/item-channels/{itemChannelId}/settle-error', [OpsJobController::class, 'settleItemChannelError']);
         Route::post('/items/{itemID}/upload-attachments', [OpsJobController::class, 'uploadItemAttachments']);
         Route::post('/items/{itemID}/cash-collected', [OpsJobController::class, 'itemCashCollected']);
+        Route::post('/items/{itemID}/undo-cash-collected', [OpsJobController::class, 'undoItemCashCollected']);
         Route::post('/qty-list/status/{status}', [OpsJobController::class, 'qtyList']);
         Route::post('/{id}/sequence', [OpsJobController::class, 'saveSequence']);
     });

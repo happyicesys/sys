@@ -137,9 +137,10 @@ class ProductController extends Controller
             ->with([
                 'isAvailableUpdatedBy',
                 'latestUnitCost',
-                'productLimits' => function($query) {
+                'productLimits' => function($query) use ($request){
                     $query->where('date', '=', $request->productAvailableDate);
                 },
+                'productLimits.createdBy',
                 'thumbnail',
             ])
             ->when($request->operators, function($query, $search) {
@@ -154,10 +155,12 @@ class ProductController extends Controller
                 'is_available_updated_at',
                 'is_available_updated_by',
             )
-            // ->selectRaw('
-            //     JSON_UNQUOTE(JSON_EXTRACT(max_ops_job_pick_limit_json, ?)) AS max_ops_job_pick_limit',
-            //     ['$."'.$request->productAvailableDate.'"']
-            // )
+            ->selectRaw('(
+                    SELECT qty FROM product_limits
+                    WHERE product_limits.product_id = products.id
+                    AND product_limits.date = ?
+                    LIMIT 1
+                ) AS max_ops_job_pick_limit', [$request->productAvailableDate])
             ->selectRaw('(
                 SELECT SUM(vend_channels.capacity - vend_channels.qty)
                 FROM ops_job_item_channels
@@ -373,6 +376,15 @@ class ProductController extends Controller
     public function updateMaxOpsJobPickLimit(Request $request, $productID)
     {
         $product = Product::findOrFail($productID);
+
+        $product->productLimits()->updateOrCreate([
+            'date' => $request->date,
+        ], [
+            'qty' => $request->max_ops_job_pick_limit,
+            'setup_date' => $request->date,
+            'is_created_by_system' => false,
+            'created_by' => auth()->user()->id,
+        ]);
 
         // Retrieve the current `max_ops_job_pick_limit_json` as an associative array
         $maxOpsJobPickLimitJson = $product->max_ops_job_pick_limit_json;

@@ -16,14 +16,17 @@ class ProductLimitSeeder extends Seeder
     public function run(): void
     {
         $products = Product::all();
-        $maxOpsJobPickLimitJson = $product->max_ops_job_pick_limit_json;
 
         foreach($products as $product) {
+            $maxOpsJobPickLimitJson = $product->max_ops_job_pick_limit_json;
             if(!$maxOpsJobPickLimitJson || empty($maxOpsJobPickLimitJson)) {
                 continue;
             }
 
             foreach ($maxOpsJobPickLimitJson as $date => $value) {
+                if(Carbon::parse($date)->isPast()) {
+                    continue;
+                }
                 ProductLimit::updateOrCreate([
                     'product_id' => $product->id,
                     'date' => Carbon::parse($date),

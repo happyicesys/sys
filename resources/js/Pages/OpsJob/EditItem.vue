@@ -813,6 +813,19 @@
                       </span>
                     </span>
                   </Button>
+                  <Button
+                      type="button"
+                      class=" px-2 py-2 mt-2 ml-1 text-md flex space-x-1 bg-yellow-500 hover:bg-yellow-600 text-gray-800"
+                      @click="onUndoCashCollectedClicked()"
+                      v-if="opsJobItem.status > 1 && opsJobItem.status <= 3 && opsJobItem.is_cash_collected && permissions.includes('admin-access operations')"
+                  >
+                    <span class="flex space-x-1 items-center">
+                      <ArrowPathRoundedSquareIcon class="w-4 h-4"></ArrowPathRoundedSquareIcon>
+                      <span>
+                        Undo Cash Collection
+                      </span>
+                    </span>
+                  </Button>
                 </div>
               </div>
               <div class="flex flex-col md:flex-row md:items-center px-4 py-3 sm:grid sm:grid-cols-3 sm:gap-2 sm:px-0" v-if="opsJobItem.status > 2">
@@ -1350,6 +1363,30 @@ function onCashCollectedClicked() {
     preserveScroll: true,
     onSuccess: () => {
       toast.success("Successfully Saved", {
+        timeout: 3000
+      });
+      router.reload({
+        only: ['opsJobItem'],
+        replace: true,
+        preserveState: true,
+        onSuccess: page => {
+          loadingData()
+        }
+      })
+    }
+  })
+}
+
+function onUndoCashCollectedClicked() {
+  const approval = confirm('Are you sure to undo Cash Collection?');
+  if (!approval) {
+      return;
+  }
+  router.post('/ops-jobs/items/' + opsJobItem.value.id + '/undo-cash-collected', {
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success("Successfully Updated", {
         timeout: 3000
       });
       router.reload({

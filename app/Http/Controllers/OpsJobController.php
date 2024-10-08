@@ -802,15 +802,12 @@ class OpsJobController extends Controller
                 'opsJob',
                 'opsJobItemChannels.vendChannel.product' => function($query) use ($opsJob) {
                     $query->select('*')
-                    ->selectRaw('
-                        (
-                            SELECT JSON_UNQUOTE(JSON_EXTRACT(p1.max_ops_job_pick_limit_json, CONCAT(\'$."\', ?, \'"\')))
-                            FROM products AS p1
-                            WHERE p1.id = products.id
-                            LIMIT 1
-                        ) as max_ops_job_pick_limit
-                    ', [$opsJob->date->toDateString()]);
-
+                    ->selectRaw('(
+                        SELECT qty FROM product_limits
+                        WHERE product_limits.product_id = products.id
+                        AND product_limits.date = ?
+                        LIMIT 1
+                    ) AS max_ops_job_pick_limit', [$opsJob->date->toDateString()]);
                 },
                 'opsJobItemChannels.vendChannel.product.thumbnail',
                 'attachments',
@@ -1226,6 +1223,17 @@ class OpsJobController extends Controller
                 ]);
             }
         }
+
+        return redirect()->back();
+    }
+
+    public function undoItemCashCollected(Request $request, $opsJobItemID)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($opsJobItemID);
+
+        $opsJobItem->update([
+            'is_cash_collected' => false,
+        ]);
 
         return redirect()->back();
     }

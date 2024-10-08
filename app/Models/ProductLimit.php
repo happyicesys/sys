@@ -10,12 +10,12 @@ class ProductLimit extends Model
     use HasFactory;
 
     protected $fillable = [
+        'created_by',
         'date',
-        'from_date',
         'is_created_by_system',
         'product_id',
         'qty',
-        'created_by',
+        'setup_date',
     ];
 
     protected $casts = [

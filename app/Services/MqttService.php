@@ -44,7 +44,6 @@ class MqttService
       'topic' => $topic,
       'message' => $fid.','.$contentLength.','.$content.','.$md5,
       'qos' => MqttClient::QOS_AT_LEAST_ONCE,
-      'connection' => 'mqtt_modems'
     ];
   }
 

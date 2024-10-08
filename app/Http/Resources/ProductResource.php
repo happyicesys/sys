@@ -48,6 +48,7 @@ class ProductResource extends JsonResource
             'latestUnitCost' => UnitCostResource::make($this->whenLoaded('latestUnitCost')),
             'needed_qty' => isset($this->needed_qty) ? $this->needed_qty : null,
             'unitCosts' => UnitCostResource::collection($this->whenLoaded('unitCosts')),
+            'productLimits' => ProductLimitResource::collection($this->whenLoaded('productLimits')),
             'productUoms' => ProductUomResource::collection($this->whenLoaded('productUoms')),
             'qty_available_pcs_api' => isset($this->qty_available_pcs_api) ? $this->qty_available_pcs_api : null,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),

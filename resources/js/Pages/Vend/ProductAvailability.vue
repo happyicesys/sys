@@ -286,3 +286,13 @@ function onSearchFilterUpdated() {
   })
 }
 </script>
+
+
+// Update the state locally without reloading the page
+const updatedProduct = response.data; // Assuming the server returns the updated product
+
+// Find the product in the list and update its max_ops_job_pick_limit
+const productIndex = props.products.data.findIndex(product => product.id === id);
+if (productIndex !== -1) {
+  props.products.data[productIndex].max_ops_job_pick_limit = max_ops_job_pick_limit;
+}

@@ -94,8 +94,9 @@ class DatabaseSeeder extends Seeder
             // FirstOpsJobItems::class,
             // ObserverRoleSeeder::class,
             // SyncCurrentCustomerSeeder::class,
-            StartDestinationAddressSeeder::class,
-            ModemSeeder::class,
+            // StartDestinationAddressSeeder::class,
+            // ModemSeeder::class,
+            ProductLimitSeeder::class,
         ]);
     }
 }
