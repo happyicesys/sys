@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use App\Models\ModemUnit;
 use App\Models\Vend;
 use App\Models\VendData;
 use App\Jobs\PublishMqtt;
