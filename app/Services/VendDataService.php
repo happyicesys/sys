@@ -206,11 +206,12 @@ class VendDataService
         $modem = ModemUnit::whereRaw("TRIM(LEADING '0' FROM RIGHT(imei, 6)) = ?", [$originalInput['m']])
         ->first();
 
-        UpdateModemLastUpdated::dispatch($modem)->onQueue('default');
-
         if(!$modem) {
           return $response;
         }
+        UpdateModemLastUpdated::dispatch($modem)->onQueue('default');
+
+        return $response;
       }
 
       if($vend->customer && !$vend->customer->totals_json) {
