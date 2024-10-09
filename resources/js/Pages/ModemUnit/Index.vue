@@ -111,6 +111,9 @@
                       Binded Machine
                     </TableHead>
                     <TableHead>
+                      Status
+                    </TableHead>
+                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -122,11 +125,28 @@
                       <TableData :currentIndex="modemUnitIndex" :totalLength="modemUnits.length" inputClass="text-left">
                         {{ modemUnit.imei }}
                       </TableData>
-                      <TableData :currentIndex="modemUnitIndex" :totalLength="modemUnits.length" inputClass="text-left">
+                      <TableData :currentIndex="modemUnitIndex" :totalLength="modemUnits.length" inputClass="text-center">
                         {{ modemUnit.modemType?.name }}
                       </TableData>
                       <TableData :currentIndex="modemUnitIndex" :totalLength="modemUnits.length" inputClass="text-center">
                         {{ modemUnit.vend?.code }}
+                      </TableData>
+                      <TableData :currentIndex="modemUnitIndex" :totalLength="modemUnits.length" inputClass="text-center">
+                        <div class="flex flex-col space-y-1 items-center">
+                          <div
+                              class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
+                              :class="[modemUnit.is_online ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']"
+                          >
+                              <div class="flex flex-col">
+                                  <span class="font-bold">
+                                      {{modemUnit.is_online ? 'Online' : 'Offline'}}
+                                  </span>
+                                  <span v-if="modemUnit.last_updated_at">
+                                      {{modemUnit.last_updated_at}}
+                                  </span>
+                              </div>
+                          </div>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="modemUnitIndex" :totalLength="modemUnits.length" inputClass="text-left">
                         <div class="flex justify-start space-x-1">

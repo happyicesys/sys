@@ -350,6 +350,7 @@ class VendController extends Controller
                     $query->where('created_at', '>=', Carbon::today()->subDays(29));
                 },
                 'vend.vendChannels.vendChannelErrorLogs.vendChannelError',
+                'vend.modemUnit'
             ])
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
@@ -415,6 +416,8 @@ class VendController extends Controller
                 (
                     SELECT
                         last_ops_jobs_inner.customer_id,
+                        last_ops_jobs_inner.acc_total_amount,
+                        last_ops_jobs_inner.acc_total_count,
                         last_ops_jobs_inner.amount,
                         last_ops_jobs_inner.cash_amount,
                         last_ops_jobs_inner.count
@@ -423,6 +426,8 @@ class VendController extends Controller
                         SELECT
                             ops_job_items.customer_id,
                             ops_job_items.cash_amount,
+                            ops_job_items.acc_total_amount,
+                            ops_job_items.acc_total_count,
                             SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount,
                             SUM(ops_job_item_channels.actual_qty) AS count,
                             ROW_NUMBER() OVER (PARTITION BY ops_job_items.customer_id ORDER BY ops_job_items.created_at DESC) AS rn
@@ -447,6 +452,8 @@ class VendController extends Controller
                 (
                     SELECT
                         last_second_ops_jobs_inner.customer_id,
+                        last_second_ops_jobs_inner.acc_total_amount,
+                        last_second_ops_jobs_inner.acc_total_count,
                         last_second_ops_jobs_inner.amount,
                         last_second_ops_jobs_inner.cash_amount,
                         last_second_ops_jobs_inner.count
@@ -455,6 +462,8 @@ class VendController extends Controller
                         SELECT
                             ops_job_items.customer_id,
                             ops_job_items.cash_amount,
+                            ops_job_items.acc_total_amount,
+                            ops_job_items.acc_total_count,
                             SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount,
                             SUM(ops_job_item_channels.actual_qty) AS count,
                             ROW_NUMBER() OVER (PARTITION BY ops_job_items.customer_id ORDER BY ops_job_items.created_at DESC) AS rn
@@ -507,6 +516,20 @@ class VendController extends Controller
                     WHERE next_ops_jobs_inner.rn = 1
                 ) AS next_ops_jobs
             '), 'next_ops_jobs.customer_id', '=', 'customers.id')
+            ->leftJoin(DB::raw('(
+                SELECT SUM(ops_job_item_channels.actual_qty) AS qty,
+                       SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount,
+                       ops_job_items.customer_id
+                FROM ops_job_item_channels
+                INNER JOIN vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
+                INNER JOIN ops_job_items ON ops_job_item_channels.ops_job_item_id = ops_job_items.id
+                INNER JOIN ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
+                WHERE ops_job_items.status >= 3
+                AND ops_job_items.status <> 99
+                AND ops_jobs.date BETWEEN CURDATE() - INTERVAL 29 DAY AND CURDATE()
+                GROUP BY ops_job_items.customer_id
+            ) AS last_thirty_days_stock_in'),
+            'last_thirty_days_stock_in.customer_id', '=', 'customers.id')
             ->select(
                 'customers.id AS id',
                 'vends.id AS vend_id',
@@ -564,12 +587,18 @@ class VendController extends Controller
                 'customers.virtual_customer_prefix',
                 'customers.virtual_customer_code',
                 'location_types.name AS location_type_name',
+                'last_ops_jobs.acc_total_amount AS last_ops_job_acc_total_amount',
+                'last_ops_jobs.acc_total_count AS last_ops_job_acc_total_count',
                 'last_ops_jobs.amount AS last_ops_job_amount',
                 'last_ops_jobs.cash_amount AS last_ops_job_cash_amount',
                 'last_ops_jobs.count AS last_ops_job_count',
+                'last_second_ops_jobs.acc_total_amount AS last_second_ops_job_acc_total_amount',
+                'last_second_ops_jobs.acc_total_count AS last_second_ops_job_acc_total_count',
                 'last_second_ops_jobs.amount AS last_second_ops_job_amount',
                 'last_second_ops_jobs.cash_amount AS last_second_ops_job_cash_amount',
                 'last_second_ops_jobs.count AS last_second_ops_job_count',
+                'last_thirty_days_stock_in.amount AS last_thirty_days_stock_in_amount',
+                'last_thirty_days_stock_in.qty AS last_thirty_days_stock_in_qty',
                 'next_ops_jobs.amount AS next_ops_job_amount',
                 'next_ops_jobs.cash_amount AS next_ops_job_cash_amount',
                 'next_ops_jobs.count AS next_ops_job_count',

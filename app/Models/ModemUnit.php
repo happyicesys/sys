@@ -11,8 +11,10 @@ class ModemUnit extends Model
 
     protected $fillable = [
         'imei',
+        'last_updated_at',
         'modem_type_id',
         'is_active',
+        'is_online',
     ];
 
     // relationships

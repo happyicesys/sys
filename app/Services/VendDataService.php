@@ -9,6 +9,7 @@ use App\Jobs\SyncAcbStatus;
 use App\Jobs\SyncDeliveryPlatformMenu;
 use App\Jobs\SyncIsMqttVend;
 use App\Jobs\UpdateHttpLastUpdated;
+use App\Jobs\UpdateModemLastUpdated;
 use App\Jobs\Vend\CreateVendStatistics;
 use App\Jobs\Vend\CreateVendTransaction;
 use App\Jobs\Vend\GetPaymentGatewayQR;
@@ -201,7 +202,14 @@ class VendDataService
       $vend = Vend::with('customer')->where('code', $originalInput['m'])->first();
 
       if(!$vend) {
-        return $response;
+        $modem = ModemUnit::whereRaw("TRIM(LEADING '0' FROM RIGHT(imei, 6)) = ?", [$originalInput['m']])
+        ->first();
+
+        UpdateModemLastUpdated::dispatch($modem)->onQueue('default');
+
+        if(!$modem) {
+          return $response;
+        }
       }
 
       if($vend->customer && !$vend->customer->totals_json) {

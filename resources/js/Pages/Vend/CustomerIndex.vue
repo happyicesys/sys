@@ -744,7 +744,7 @@
 									Qty
 								</span>
 								<span>
-									{{ operatorCountry.currency_symbol }}Collected
+									Transaction{{ operatorCountry.currency_symbol }} (Qty)
 								</span>
 							</div>
 						</TableHead>
@@ -760,7 +760,7 @@
 									Qty
 								</span>
 								<span>
-									{{ operatorCountry.currency_symbol }}Collected
+									Transaction{{ operatorCountry.currency_symbol }} (Qty)
 								</span>
 							</div>
 						</TableHead>
@@ -806,6 +806,9 @@
 								</SingleSortItem>
 								<SingleSortItem modelName="virtual_vend_records_thirty_days_amount_average" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('virtual_vend_records_thirty_days_amount_average', true)">
 									AvgDailySales (Last30d)
+								</SingleSortItem>
+								<SingleSortItem modelName="thirty_days_stock_in_qty" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_stock_in_qty', false)">
+									StockIn (Last30d)
 								</SingleSortItem>
 								<div class="flex justify-center items-center">
 									<SingleSortItem modelName="thirty_days_over_full_load_ratio" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_over_full_load_ratio', false)">
@@ -1238,7 +1241,7 @@
 										</span>
 									</span>
 									<span>
-										{{ operatorCountry.currency_symbol }}{{ vend.last_second_ops_job_cash_amount ? vend.last_second_ops_job_cash_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										{{ operatorCountry.currency_symbol }}{{ vend.last_second_ops_job_acc_total_amount ? vend.last_second_ops_job_acc_total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }} ({{ vend.last_ops_job_acc_total_count ? vend.last_second_ops_job_acc_total_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 0 }})
 									</span>
 								</div>
 							</div>
@@ -1284,7 +1287,7 @@
 										</span>
 									</span>
 									<span>
-										{{ operatorCountry.currency_symbol }}{{ vend.last_ops_job_cash_amount ? vend.last_ops_job_cash_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }}
+										{{ operatorCountry.currency_symbol }}{{ vend.last_ops_job_acc_total_amount ? vend.last_ops_job_acc_total_amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 0 }} ({{ vend.last_ops_job_acc_total_count ? vend.last_ops_job_acc_total_count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 0 }})
 									</span>
 								</div>
 							</div>
@@ -1378,6 +1381,9 @@
 								</span>
 								<span :class="[(vend.is_active || vend.is_testing) && vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson ? (vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
 										{{ operatorCountry.currency_symbol }}{{ vend.virtual_vend_records_thirty_days_amount_average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+								</span>
+								<span :class="[vend.last_thirty_days_stock_in_amount >= vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent)) ? 'text-green-700' : 'text-red-700']">
+									{{ operatorCountry.currency_symbol }}{{ (vend.last_thirty_days_stock_in_amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{(vend.last_thirty_days_stock_in_qty).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}})
 								</span>
 								<span :class="[vend.thirty_days_over_full_load_ratio < 1 ? 'text-red-600' : (vend.thirty_days_over_full_load_ratio > 2 ? 'text-green-600' : 'text-gray-800')]">
 									{{(vend.thirty_days_over_full_load_ratio).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}
@@ -1480,6 +1486,19 @@
 														</span>
 														<span>
 																{{vend.acbVmcPaJson['TempLimit']}}
+														</span>
+												</div>
+								</div>
+								<div
+									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full bg-green-200 text-gray-900"
+									v-if="vend.modemUnit && vend.modemUnit.last_updated_at"
+								>
+												<div class="flex flex-col">
+														<span class="font-bold">
+																Modem
+														</span>
+														<span>
+																{{vend.modemUnit.last_updated_at}}
 														</span>
 												</div>
 								</div>

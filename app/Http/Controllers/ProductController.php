@@ -162,6 +162,12 @@ class ProductController extends Controller
                     LIMIT 1
                 ) AS max_ops_job_pick_limit', [$request->productAvailableDate])
             ->selectRaw('(
+                SELECT is_created_by_system FROM product_limits
+                WHERE product_limits.product_id = products.id
+                AND product_limits.date = ?
+                LIMIT 1
+            ) AS limit_is_created_by_system', [$request->productAvailableDate])
+            ->selectRaw('(
                 SELECT SUM(vend_channels.capacity - vend_channels.qty)
                 FROM ops_job_item_channels
                 LEFT JOIN ops_jobs ON ops_jobs.id = ops_job_item_channels.ops_job_id

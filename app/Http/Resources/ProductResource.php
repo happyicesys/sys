@@ -46,6 +46,7 @@ class ProductResource extends JsonResource
             'not_yet_sync_api_qty' => isset($this->not_yet_sync_api_qty) ? $this->not_yet_sync_api_qty : null,
             'thumbnail' => AttachmentResource::make($this->whenLoaded('thumbnail')),
             'latestUnitCost' => UnitCostResource::make($this->whenLoaded('latestUnitCost')),
+            'limit_is_created_by_system' => isset($this->limit_is_created_by_system) ? $this->limit_is_created_by_system : null,
             'needed_qty' => isset($this->needed_qty) ? $this->needed_qty : null,
             'unitCosts' => UnitCostResource::collection($this->whenLoaded('unitCosts')),
             'productLimits' => ProductLimitResource::collection($this->whenLoaded('productLimits')),

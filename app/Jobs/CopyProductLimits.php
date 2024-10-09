@@ -37,6 +37,10 @@ class CopyProductLimits implements ShouldQueue
 
         if($productLimits) {
             foreach($productLimits as $productLimit) {
+                if($productLimit->date === Carbon::parse($this->dateTo)->toDateString() and $productLimit->product_id === $productLimit->product_id) {
+                    continue;
+                }
+
                 ProductLimit::updateOrCreate([
                     'date' => Carbon::parse($this->dateTo)->toDateString(),
                     'product_id' => $productLimit->product_id
