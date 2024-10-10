@@ -52,6 +52,8 @@ class VendResource extends JsonResource
             : null,
             'last_thirty_days_stock_in_amount' => isset($this->last_thirty_days_stock_in_amount) ? $this->last_thirty_days_stock_in_amount/100 : 0,
             'last_thirty_days_stock_in_qty' => isset($this->last_thirty_days_stock_in_qty) ? $this->last_thirty_days_stock_in_qty : 0,
+            'thirty_days_stock_in_delta_amount' => isset($this->thirty_days_stock_in_delta_amount) ? $this->thirty_days_stock_in_delta_amount : 0,
+            'thirty_days_stock_in_delta_percent' => isset($this->thirty_days_stock_in_delta_percent) ? $this->thirty_days_stock_in_delta_percent : 0,
             'last_updated_at' => isset($this->last_updated_at) ? Carbon::parse($this->last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'lcd_monitor' => isset($this->lcd_monitor_id) ? Vend::LCD_MONITOR_MAPPINGS[$this->lcd_monitor_id] : null,
             'lcd_monitor_id' => isset($this->lcd_monitor_id) ? $this->lcd_monitor_id : null,

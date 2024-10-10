@@ -40,62 +40,19 @@ class CreateFVMBackDate extends Command
     public function handle()
     {
         $data = [
-            [
-                'vend' => 1801,
-                'cash' => 650,
-                'cashless' => 155
-            ],
-            [
-                'vend' => 1802,
-                'cash' => 770,
-                'cashless' => 332
-            ],
-            [
-                'vend' => 1803,
-                'cash' => 421,
-                'cashless' => 376
-            ],
-            [
-                'vend' => 1804,
-                'cash' => 98,
-                'cashless' => 85
-            ],
-            [
-                'vend' => 1805,
-                'cash' => 376,
-                'cashless' => 198
-            ],
-            [
-                'vend' => 1806,
-                'cash' => 219,
-                'cashless' => 222
-            ],
-            [
-                'vend' => 1807,
-                'cash' => 0,
-                'cashless' => 30
-            ],
-            [
-                'vend' => 1808,
-                'cash' => 137,
-                'cashless' => 146
-            ],
-            [
-                'vend' => 1809,
-                'cash' => 227.5,
-                'cashless' => 0
-            ],
-            [
-                'vend' => 1810,
-                'cash' => 0,
-                'cashless' => 320.11
-            ],
-            [
-                'vend' => 1811,
-                'cash' => 0,
-                'cashless' => 285
-            ],
+            ['vend' => 1804, 'cash' => 149.00, 'cashless' => 117.54],
+            ['vend' => 1803, 'cash' => 722.00, 'cashless' => 389.30],
+            ['vend' => 1802, 'cash' => 823.10, 'cashless' => 266.34],
+            ['vend' => 1801, 'cash' => 273.00, 'cashless' => 151.53],
+            ['vend' => 1805, 'cash' => 298.50, 'cashless' => 195.94],
+            ['vend' => 1806, 'cash' => 195.00, 'cashless' => 326.20],
+            ['vend' => 1807, 'cash' => 32.00, 'cashless' => 57.44],
+            ['vend' => 1808, 'cash' => 76.00, 'cashless' => 156.22],
+            ['vend' => 1809, 'cash' => 151.20, 'cashless' => 0.00],
+            ['vend' => 1810, 'cash' => 0.00, 'cashless' => 243.89],
+            ['vend' => 1811, 'cash' => 0.00, 'cashless' => 224.72],
         ];
+
 
         $dayCountInMonth = Carbon::now()->subMonth()->daysInMonth;
 

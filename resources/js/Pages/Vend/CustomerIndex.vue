@@ -816,6 +816,9 @@
 								<SingleSortItem modelName="thirty_days_stock_in_qty" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_stock_in_qty', false)">
 									StockIn (Last30d)
 								</SingleSortItem>
+								<SingleSortItem modelName="thirty_days_stock_in_delta_percent" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_stock_in_delta_percent', false)">
+										&Delta;Last30d StockIn - Sales:  {{ operatorCountry.currency_symbol }}(%)
+								</SingleSortItem>
 								<div class="flex justify-center items-center">
 									<SingleSortItem modelName="thirty_days_over_full_load_ratio" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('thirty_days_over_full_load_ratio', false)">
 										Avg30dSales/ Full Load
@@ -1390,6 +1393,9 @@
 								</span>
 								<span :class="[vend.last_thirty_days_stock_in_amount < vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent)) ? 'text-green-700' : 'text-red-700']">
 									{{ operatorCountry.currency_symbol }}{{ (vend.last_thirty_days_stock_in_amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{(vend.last_thirty_days_stock_in_qty).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}})
+								</span>
+								<span :class="[vend.thirty_days_stock_in_delta_percent < 0 ? 'text-green-700' : 'text-red-700']">
+									{{ operatorCountry.currency_symbol }}{{ (vend.thirty_days_stock_in_delta_amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{(vend.thirty_days_stock_in_delta_percent).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}%)
 								</span>
 								<span :class="[vend.thirty_days_over_full_load_ratio < 1 ? 'text-red-600' : (vend.thirty_days_over_full_load_ratio > 2 ? 'text-green-600' : 'text-gray-800')]">
 									{{(vend.thirty_days_over_full_load_ratio).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}}

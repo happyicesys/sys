@@ -617,7 +617,13 @@ class VendController extends Controller
                 DB::raw('
                     (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.vend_records_thirty_days_amount_average")) *30 /100)/
                     (vc.total_full_load_amount / 100) AS thirty_days_over_full_load_ratio
-                ')
+                '),
+                DB::raw('
+                    (last_thirty_days_stock_in.amount/100 - (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount"))/100)) AS thirty_days_stock_in_delta_amount
+                '),
+                DB::raw('
+                    ((last_thirty_days_stock_in.amount/100 - (JSON_UNQUOTE(JSON_EXTRACT(customers.totals_json, "$.thirty_days_amount"))/100)))/ (last_thirty_days_stock_in.amount/100) * 100  AS thirty_days_stock_in_delta_percent
+                '),
             );
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends, 'customers');
