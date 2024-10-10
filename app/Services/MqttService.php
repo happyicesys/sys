@@ -37,7 +37,7 @@ class MqttService
     $content = base64_encode(json_encode($input));
     $contentLength = strlen($content);
     $key = $modemUnit->imei."A";
-    $topic = 'CM'.ltrim(substr($modemUnit->imei, -6), "0");
+    $topic = 'CX'.ltrim(substr($modemUnit->imei, -6), "0");
     $md5 = strtoupper(md5($fid.','.$contentLength.','.$content.$key));
 
     return [
