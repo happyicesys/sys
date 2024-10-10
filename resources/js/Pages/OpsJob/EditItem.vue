@@ -1157,7 +1157,7 @@ function loadingData() {
       error_settled_at_formatted: opsJobItemChannel.error_settled_at_formatted,
       is_error_settle: opsJobItemChannel.is_error_settle,
       ops_job_item_channel_id: opsJobItemChannel.id,
-      picked_limit: opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null ? opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit : null,
+      picked_limit: opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null ? opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit : null,
       before_picked: opsJobItemChannel.picked_before_qty,
       picked: props.opsJobItem.data.status < 2 ?
         (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available ?
