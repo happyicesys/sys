@@ -210,6 +210,7 @@ class VendDataService
           return $response;
         }
         UpdateModemLastUpdated::dispatch($modem)->onQueue('default');
+        PublishMqtt::dispatch('CM'.ltrim(substr($modem->imei, -6), "0"), $response, 0)->onQueue('default');
 
         return $response;
       }

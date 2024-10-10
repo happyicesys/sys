@@ -637,6 +637,11 @@ class VendController extends Controller
                             ->sum(function($vend) {
                                 return $vend->vend_transaction_totals_json ? $vend->vend_transaction_totals_json['vend_records_thirty_days_amount_average'] : 0;
                             })/100,
+            'thirthyDaysStockIn' => collect((clone $vends)
+                            ->items())
+                            ->sum(function($vend) {
+                                return $vend->last_thirty_days_stock_in_amount ? $vend->last_thirty_days_stock_in_amount : 0;
+                            })/100,
         ];
 
         return Inertia::render('Vend/CustomerIndex', [

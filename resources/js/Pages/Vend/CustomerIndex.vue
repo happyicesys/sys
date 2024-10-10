@@ -548,7 +548,13 @@
 						</Button>
 					</div>
 				</div>
-				<dl class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+				<dl class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-4">
+					<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block" :class="[showAllFilters ? 'block' : 'hidden']">
+						<dt class="truncate text-sm font-medium text-gray-500">Total Stock In (Last 30 days)</dt>
+						<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+							{{totals['thirthyDaysStockIn'].toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+						</dd>
+					</div>
 					<div class="overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow md:block" :class="[showAllFilters ? 'block' : 'hidden']">
 						<dt class="truncate text-sm font-medium text-gray-500">Total Sales (Last 30 days)</dt>
 						<dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
@@ -1382,7 +1388,7 @@
 								<span :class="[(vend.is_active || vend.is_testing) && vend.vendTransactionTotalsJson && 'vend_records_amount_average_day' in vend.vendTransactionTotalsJson ? (vend.virtual_vend_records_thirty_days_amount_average >= vend.vendTransactionTotalsJson['vend_records_amount_average_day']/100 ? 'text-green-700' : 'text-red-700') : 'text-gray-400']">
 										{{ operatorCountry.currency_symbol }}{{ vend.virtual_vend_records_thirty_days_amount_average.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
 								</span>
-								<span :class="[vend.last_thirty_days_stock_in_amount >= vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent)) ? 'text-green-700' : 'text-red-700']">
+								<span :class="[vend.last_thirty_days_stock_in_amount < vend.vendTransactionTotalsJson['thirty_days_amount']/ (Math.pow(10, operatorCountry.currency_exponent)) ? 'text-green-700' : 'text-red-700']">
 									{{ operatorCountry.currency_symbol }}{{ (vend.last_thirty_days_stock_in_amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} ({{(vend.last_thirty_days_stock_in_qty).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}})
 								</span>
 								<span :class="[vend.thirty_days_over_full_load_ratio < 1 ? 'text-red-600' : (vend.thirty_days_over_full_load_ratio > 2 ? 'text-green-600' : 'text-gray-800')]">
