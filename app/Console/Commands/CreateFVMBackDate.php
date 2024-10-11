@@ -126,6 +126,10 @@ class CreateFVMBackDate extends Command
             foreach($data as $vend) {
                 $vend = Vend::where('code', $vend['vend'])->firstOrFail();
                 SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
+
+                if($vend->customer) {
+                    SyncVendTransactionTotalsJson::dispatch($vend->customer)->onQueue('default');
+                }
             }
         }
     }
