@@ -45,6 +45,7 @@ class StoreVendsRecord implements ShouldQueue
             ->select(
                 'vends.id AS vend_id',
                 'vends.code',
+                'vends.vend_prefix_id',
                 'vend_transactions.id',
                 'customers.id AS customer_id',
                 DB::raw('DATE(vend_transactions.transaction_datetime) as date'),
