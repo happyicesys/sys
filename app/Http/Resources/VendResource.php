@@ -66,7 +66,7 @@ class VendResource extends JsonResource
             'modem_unit_id' => isset($this->modem_unit_id) ? $this->modem_unit_id : null,
             'modem_unit_imei' => isset($this->modem_unit_imei) ? $this->modem_unit_imei : null,
             'modem_unit_is_online' => isset($this->modem_unit_is_online) ? $this->modem_unit_is_online : null,
-            'modem_unit_last_online_at' => isset($this->modem_unit_last_updated_at) ? Carbon::parse($this->modem_unit_last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
+            'modem_unit_last_updated_at' => isset($this->modem_unit_last_updated_at) ? Carbon::parse($this->modem_unit_last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'mqtt_last_updated_at' => isset($this->mqtt_last_updated_at) ? Carbon::parse($this->mqtt_last_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'mqtt_updated_at' => isset($this->mqtt_updated_at) ? Carbon::parse($this->mqtt_updated_at)->setTimezone($this->getUserTimezone())->shortRelativeDiffForHumans() : null,
             'name' => isset($this->name) ? $this->name : null,

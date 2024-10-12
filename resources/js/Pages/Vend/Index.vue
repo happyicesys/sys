@@ -553,8 +553,18 @@
               </span>
             </div>
           </TableHead>
-          <TableHeadSort modelName="modem_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('modem_name')">
-            Modem
+          <TableHeadSort modelName="modem_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('modem_type_name')">
+            <div class="flex flex-col space-y-1">
+              <span>
+                Modem
+              </span>
+              <span>
+                IMEI
+              </span>
+              <span>
+                Status
+              </span>
+            </div>
           </TableHeadSort>
           <TableHead>
             Inventory Status <br>
