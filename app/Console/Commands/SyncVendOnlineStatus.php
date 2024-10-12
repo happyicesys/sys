@@ -33,6 +33,9 @@ class SyncVendOnlineStatus extends Command
     public function handle()
     {
         $vends = Vend::all();
+        $modems = ModemUnit::whereHas('modemType', function($query) {
+            $query->where('name', 'Air724UGB4');
+        })->get();
 
         foreach($vends as $vend) {
             // sync online offline
@@ -92,6 +95,20 @@ class SyncVendOnlineStatus extends Command
             }
 
             $vend->save();
+        }
+
+        if($modems) {
+            foreach($modems as $modem) {
+                // sync online offline
+                $modem->is_online = false;
+
+                if($modem->last_updated_at and $modem->last_updated_at->diffInMinutes(Carbon::now()) < 15) {
+                    $modem->is_online = true;
+                }
+
+                $modem->save();
+            }
+
         }
     }
 }
