@@ -553,6 +553,9 @@
               </span>
             </div>
           </TableHead>
+          <TableHeadSort modelName="modem_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('modem_name')">
+            Modem
+          </TableHeadSort>
           <TableHead>
             Inventory Status <br>
             #Channel, Needed, Balance/Capacity (LastStockIn)
@@ -621,9 +624,6 @@
           </TableHead>
           <TableHead>
             <div class="flex flex-col space-y-2">
-              <span>
-                Modem
-              </span>
               <span>
                 LCD Monitor
               </span>
@@ -788,6 +788,47 @@
                   v-if="vend.parameterJson && vend.parameterJson['t2'] && vend.parameterJson['t2'] != constTempError && !vend.is_temp_error"
               >
                   {{ (vend.temp - vend.parameterJson['t2']/10).toFixed(1) }}
+              </span>
+            </div>
+          </TableData>
+          <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
+            <div>
+              <span v-if="vend.modem_type_name" class="text-blue-800 flex flex-col space-y-1 items-center">
+                <span>
+                  {{ vend.modem_type_name }}
+                </span>
+                <span v-if="vend.modem_unit_imei">
+                  {{ vend.modem_unit_imei }}
+                </span>
+                <span v-else>
+                  N/A
+                </span>
+                <div
+                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
+                    :class="[vend.modem_unit_is_online ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']"
+                >
+                    <div class="flex flex-col">
+                        <span class="font-bold">
+                            {{vend.modem_unit_is_online ? 'Online' : 'Offline'}}
+                        </span>
+                        <span v-if="vend.modem_unit_last_updated_at">
+                            {{vend.modem_unit_last_updated_at}}
+                        </span>
+                    </div>
+                </div>
+                <Button
+                  type="button" class="bg-yellow-300 hover:bg-yellow-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                  @click="onResetModemClicked(vend.modem_unit_id)"
+                  v-if="vend.modem_type_is_resettable && vend.modem_unit_last_updated_at"
+                >
+                  <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                  <span>
+                      Reset
+                  </span>
+                </Button>
+              </span>
+              <span v-else class="text-gray-400">
+                N/A
               </span>
             </div>
           </TableData>
@@ -1428,6 +1469,7 @@ font-size:13px;
   import { router, Link, Head, usePage } from '@inertiajs/vue3';
   import moment from 'moment';
   import axios from 'axios';
+  import { useToast } from "vue-toastification";
 
   const props = defineProps({
       cmsEndpoint: String,
@@ -1523,6 +1565,7 @@ font-size:13px;
   const showEditModal = ref(false)
   const showPickListModal = ref(false)
   const statusOptions = ref([])
+  const toast = useToast()
   const type = ref('')
   const vend = ref()
 
@@ -1736,6 +1779,7 @@ function onSearchFilterUpdated() {
       lcd_monitor_id: filters.value.lcd_monitor_id.id,
       location_type_id: filters.value.locationType.id,
       modem_type_id: filters.value.modem_type_id.id,
+      modem_unit_id: filters.value.modem_unit_id.id,
       next_planned_date: filters.value.next_planned_date,
       next_planned_driver: filters.value.next_planned_driver.id,
       operators: filters.value.operators.map((operator) => { return operator.id }),
@@ -1786,9 +1830,28 @@ function onIsShowOperationDivButtonClicked() {
       isShowOperationDiv.value = !isShowOperationDiv.value
 }
 
+function onResetModemClicked(modemUnit) {
+  const approval = confirm('Are you sure to reset this modem?');
+  if (!approval) {
+      return;
+  }
+
+  router.post('/modem-units/' + modemUnit.id + '/reset', {}, {
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+    onSuccess: () => {
+      toast.success("Reset signal sent", {
+        timeout: 3000
+      });
+    }
+  })
+}
+
 function resetFilters() {
     router.get(baseUrl.value)
 }
+
 
 function sortTable(sortKey, inverse = false) {
 filters.value.sortBy = !filters.value.sortBy
@@ -1824,6 +1887,7 @@ axios({
         lcd_monitor_id: filters.value.lcd_monitor_id.id,
         location_type_id: filters.value.locationType.id,
         modem_type_id: filters.value.modem_type_id.id,
+        modem_unit_id: filters.value.modem_unit_id.id,
         operators: filters.value.operators.map((operator) => { return operator.id }),
         is_active: filters.value.is_active.id,
         is_binded_customer: filters.value.is_binded_customer.id,

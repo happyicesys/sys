@@ -9,13 +9,20 @@ class Campaign extends Model
 {
     use HasFactory;
 
+    const TYPE_BUY_ONE_FREE_ONE = 1;
+    const TYPE_BUY_TWO_FREE_ONE = 2;
+
     protected $fillable = [
+        'datetime_from',
+        'datetime_to',
         'is_active',
         'is_control_by_group',
         'min_purchase_qty',
         'name',
-        'promo_item_group',
-        'promo_item_qty',
-        'purchase_item_group',
+        'promo_group_number',
+        'promo_qty',
+        'promo_value',
+        'purchase_group_number',
+        'type',
     ];
 }

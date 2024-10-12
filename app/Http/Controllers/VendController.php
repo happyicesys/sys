@@ -161,6 +161,8 @@ class VendController extends Controller
             ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            ->leftJoin('modem_types', 'modem_types.id', '=', 'vends.modem_type_id')
+            ->leftJoin('modem_units', 'modem_units.id', '=', 'vends.modem_unit_id')
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
@@ -192,6 +194,7 @@ class VendController extends Controller
                 'vends.lcd_monitor_id',
                 'vends.last_updated_at',
                 'vends.modem_type_id',
+                'vends.modem_unit_id',
                 'vends.mqtt_last_updated_at',
                 'vends.operator_id',
                 'vends.out_of_stock_sku_percent',
@@ -215,6 +218,11 @@ class VendController extends Controller
                 'customers.selling_price_type',
                 'customers.virtual_customer_prefix',
                 'customers.virtual_customer_code',
+                'modem_types.name AS modem_type_name',
+                'modem_types.is_resetable AS modem_type_is_resettable',
+                'modem_units.imei AS modem_unit_imei',
+                'modem_units.is_online AS modem_unit_is_online',
+                'modem_units.last_updated_at AS modem_unit_last_updated_at',
                 'product_mappings.name AS product_mapping_name',
                 'product_mappings.remarks AS product_mapping_remarks',
                 'operators.code AS operator_code',
