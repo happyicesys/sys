@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Mail\VendMqttOfflineNotificationMail;
 use App\Mail\VendOfflineNotificationMail;
+use App\Models\ModemUnit;
 use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
