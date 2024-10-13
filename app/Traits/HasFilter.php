@@ -396,7 +396,7 @@ trait HasFilter {
                 }else {
                     $search = false;
                 }
-                $query->where('is_online', $search);
+                $query->where('vends.is_online', $search);
             }
         })
         ->when($request->is_sensor, function($query, $search) {
@@ -619,7 +619,7 @@ trait HasFilter {
                 }else {
                     $search = false;
                 }
-                $query->where('is_online', $search);
+                $query->where('vends.is_online', $search);
             }
         })
         ->when($isSensor, function($query, $search) {
