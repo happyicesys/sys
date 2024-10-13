@@ -402,16 +402,68 @@ class VendController extends Controller
                         vend_channels.vend_id
                 ) AS vc_cost
             '), 'vc_cost.vend_id', '=', 'vends.id')
+            // ->leftJoin(DB::raw('
+            //     (
+            //         SELECT
+            //             vend_channels.vend_id,
+            //             SUM(vend_channels.amount * (vend_channels.capacity - vend_channels.qty)) AS actual_stock_in_value,
+            //             SUM(vend_channels.capacity - vend_channels.qty) AS actual_stock_in_qty
+            //         FROM
+            //             vend_channels
+            //         INNER JOIN
+            //             products ON vend_channels.product_id = products.id
+            //         INNER JOIN
+            //             product_limits ON products.id = product_limits.product_id
+            //         WHERE
+            //             products.is_available = true
+            //         AND vend_channels.is_active = true
+            //         AND vend_channels.capacity > 0
+            //         GROUP BY
+            //             vend_channels.vend_id
+            //     ) AS vc_stock
+            // '), 'vc_stock.vend_id', '=', 'vends.id')
             ->leftJoin(DB::raw('
                 (
                     SELECT
                         vend_channels.vend_id,
-                        SUM(vend_channels.amount * (vend_channels.capacity - vend_channels.qty)) AS actual_stock_in_value,
-                        SUM(vend_channels.capacity - vend_channels.qty) AS actual_stock_in_qty
+                        SUM(
+                            vend_channels.amount *
+                            CASE
+                                WHEN product_limits.qty > vend_channels.capacity THEN (vend_channels.capacity - vend_channels.qty)
+                                ELSE
+                                    CASE
+                                        WHEN vend_channels.qty > product_limits.qty THEN vend_channels.qty
+                                        ELSE (product_limits.qty - vend_channels.qty)
+                                    END
+                            END
+                        ) AS actual_stock_in_value,
+                        SUM(
+                            CASE
+                                WHEN product_limits.qty > vend_channels.capacity THEN (vend_channels.capacity - vend_channels.qty)
+                                ELSE
+                                    CASE
+                                        WHEN vend_channels.qty > product_limits.qty THEN vend_channels.qty
+                                        ELSE (product_limits.qty - vend_channels.qty)
+                                    END
+                            END
+                        ) AS actual_stock_in_qty
                     FROM
                         vend_channels
                     INNER JOIN
                         products ON vend_channels.product_id = products.id
+                    INNER JOIN (
+                        SELECT product_id, qty, date
+                        FROM product_limits AS pl
+                        WHERE pl.date = CURDATE()
+                        AND pl.id = (
+                            SELECT id
+                            FROM product_limits
+                            WHERE product_id = pl.product_id
+                            AND date = pl.date
+                            ORDER BY id DESC  -- Use your ordering criteria here
+                            LIMIT 1
+                        )
+                    ) AS product_limits ON products.id = product_limits.product_id
                     WHERE
                         products.is_available = true
                     AND vend_channels.is_active = true
@@ -420,6 +472,7 @@ class VendController extends Controller
                         vend_channels.vend_id
                 ) AS vc_stock
             '), 'vc_stock.vend_id', '=', 'vends.id')
+
             ->leftJoin(DB::raw('
                 (
                     SELECT

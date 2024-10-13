@@ -80,6 +80,7 @@ class DeliveryPlatformService
           $deliveryPlatformOrder->delivery_platform_operator_id = $this->deliveryPlatformOperator->id;
           $deliveryPlatformOrder->delivery_product_mapping_vend_id = $deliveryProductMappingVend->id;
           $deliveryPlatformOrder->save();
+          // dd($deliveryPlatformOrder->toArray());
           $this->createDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
           DB::commit();
 
