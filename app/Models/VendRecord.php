@@ -36,6 +36,7 @@ class VendRecord extends Model
         'total_count', //this total count is for success transaction
         'vend_code',
         'vend_id',
+        'vend_prefix_id',
         'year',
     ];
 

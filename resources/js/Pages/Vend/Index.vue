@@ -1840,13 +1840,13 @@ function onIsShowOperationDivButtonClicked() {
       isShowOperationDiv.value = !isShowOperationDiv.value
 }
 
-function onResetModemClicked(modemUnit) {
+function onResetModemClicked(modemUnitID) {
   const approval = confirm('Are you sure to reset this modem?');
   if (!approval) {
       return;
   }
 
-  router.post('/modem-units/' + modemUnit.id + '/reset', {}, {
+  router.post('/modem-units/' + modemUnitID + '/reset', {}, {
     preserveScroll: true,
     preserveState: true,
     replace: true,
