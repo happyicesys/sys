@@ -50,6 +50,7 @@ class DeliveryPlatformService
 
   public function createOrder($platformRefId = null, $vendCode = null, $input)
   {
+    // dd($input, $platformRefId, $vendCode);
     $deliveryProductMappingVend = DeliveryProductMappingVend::query()
       ->when($platformRefId, function($query) use ($platformRefId) {
         $query->where('platform_ref_id', $platformRefId);

@@ -412,7 +412,7 @@ class OpsJobController extends Controller
                         ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
                         ->where('vend_transactions.created_at', '>=', $previousOpsJobItem->completed_at)
                         ->where('vend_transactions.created_at', '<=', $opsJobItem->completed_at)
-                        ->where('vend_transactions.vend_id', $opsJobItem->vend_id)
+                        ->where('vend_transactions.customer_id', $opsJobItem->customer_id)
                         ->isSuccessful()
                         ->selectRaw('SUM(vend_transactions.amount) as total_amount')
                         ->selectRaw('COUNT(*) as total_count')
@@ -434,7 +434,7 @@ class OpsJobController extends Controller
                 // search for B and A vend channel records within 30 mins
                 $vendChannelRecord = VendChannelRecord::query()
                     ->orderByRaw('ABS(TIMESTAMPDIFF(SECOND, before_data_created_at, ?))', [$opsJobItem->completed_at])
-                    ->where('vend_id', $opsJobItem->vend_id)
+                    ->where('customer_id', $opsJobItem->customer_id)
                     ->doesntHave('opsJobItem')
                     ->whereBetween('before_data_created_at', [
                         Carbon::parse($opsJobItem->completed_at)->subMinutes(30),
