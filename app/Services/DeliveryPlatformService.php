@@ -50,12 +50,14 @@ class DeliveryPlatformService
 
   public function createOrder($platformRefId = null, $vendCode = null, $input)
   {
-    // dd($input, $platformRefId, $vendCode);
+    // dd($platformRefId, $vendCode, $input);
     $deliveryProductMappingVend = DeliveryProductMappingVend::query()
       ->when($platformRefId, function($query) use ($platformRefId) {
         $query->where('platform_ref_id', $platformRefId);
       })
       ->where('vend_code', $vendCode)
+      ->where('is_active', true)
+      ->orderBy('created_at', 'desc')
       ->first();
 
     if(!$deliveryProductMappingVend) {
@@ -557,6 +559,7 @@ class DeliveryPlatformService
     }
     $items = collect($input['items']);
 
+    // dd($deliveryPlatformOrder->toArray());
     // get all the vend channels on this vend for this product id
     // use group by product id on ver2
     $deliveryProductMappingVendChannels =
@@ -567,6 +570,8 @@ class DeliveryPlatformService
         $query->whereIn('id', $items->pluck('id'));
       })
       ->get();
+
+      // dd($deliveryPlatformOrder->deliveryProductMappingVend->toArray(),$items->pluck('id'), $deliveryProductMappingVendChannels->toArray(), $deliveryPlatformOrder->toArray(), $input);
 
     if($deliveryProductMappingVendChannels->count() === 0) {
       throw new \Exception('No items found in the mapping.');

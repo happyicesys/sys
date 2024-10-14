@@ -101,10 +101,16 @@ class DeliveryPlatformController extends Controller
     // order
     public function createGrabOrder(Request $request)
     {
-        $merchantID = $request->merchantID;
-        $partnerMerchantID = $request->partnerMerchantID;
+        $input = $request->all();
 
-        $deliveryPlatformOrder = $this->deliveryPlatformService->createOrder($merchantID, $partnerMerchantID, $request->all());
+        if($request->has('order')) {
+            $input = $request->order;
+        }
+
+        $merchantID = $input['merchantID'];
+        $partnerMerchantID = $input['partnerMerchantID'];
+
+        $deliveryPlatformOrder = $this->deliveryPlatformService->createOrder($merchantID, $partnerMerchantID, $input);
 
         // auto mark order as ready after success creation
         if($deliveryPlatformOrder) {

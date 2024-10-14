@@ -139,7 +139,7 @@ class DeliveryPlatformOrder extends Model
 
     public function deliveryProductMappingVend()
     {
-        return $this->belongsTo(DeliveryProductMappingVend::class);
+        return $this->belongsTo(DeliveryProductMappingVend::class)->where('is_active', true);
     }
 
     public function orderItemVendChannels()
