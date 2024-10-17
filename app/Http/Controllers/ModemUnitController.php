@@ -42,6 +42,18 @@ class ModemUnitController extends Controller
                     ->when($request->id, function($query, $search) {
                         $query->where('id', $search);
                     })
+                    ->when($request->codes, function($query, $search) {
+                        if(strpos($search, ',') !== false) {
+                            $search = explode(',', $search);
+                            $query->whereHas('vend', function($query) use ($search) {
+                                $query->whereIn('code', $search);
+                            });
+                        }else {
+                            $query->whereHas('vend', function($query) use ($search) {
+                                $query->where('code', 'LIKE', "%{$search}%");
+                            });
+                        }
+                    })
                     ->when($request->imei, function($query, $search) {
                         $query->where('imei', 'LIKE', "%{$search}%");
                     })

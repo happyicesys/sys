@@ -11,6 +11,7 @@ class Campaign extends Model
 
     const TYPE_BUY_ONE_FREE_ONE = 1;
     const TYPE_BUY_TWO_FREE_ONE = 2;
+    const TYPE_BUNDLE = 3;
 
     protected $fillable = [
         'datetime_from',

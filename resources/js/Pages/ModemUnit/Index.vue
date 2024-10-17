@@ -42,6 +42,12 @@
             >
             </MultiSelect>
           </div>
+          <SearchInput placeholderStr="4 to 5 Digits Number" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+              Machine ID
+              <span class="text-[9px]">
+                  ("," for multiple)
+              </span>
+            </SearchInput>
         </div>
 
 
@@ -234,6 +240,7 @@ const props = defineProps({
 })
 
 const filters = ref({
+  codes: [],
   imei: '',
   modem_type_id: '',
   sortKey: '',
