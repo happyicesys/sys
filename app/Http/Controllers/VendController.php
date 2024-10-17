@@ -126,63 +126,63 @@ class VendController extends Controller
 
     public function index(Request $request)
     {
-        $debugData = Customer::query()
-        ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
-        ->leftJoin(DB::raw('
-        (
-            SELECT
-                vend_channels.vend_id,
-                vend_channels.id,
-                vend_channels.code,
-                products.name,
-                product_limits.qty as product_limit_qty,
-                vend_channels.capacity,
-                vend_channels.qty as vend_channel_qty,
-                CASE
-                    WHEN product_limits.id AND product_limits.qty < vend_channels.capacity THEN
-                        (product_limits.qty - vend_channels.qty)
-                    ELSE
-                        (vend_channels.capacity - vend_channels.qty)
-                END AS stock_in_qty
-            FROM
-                vend_channels
-            INNER JOIN
-                products ON vend_channels.product_id = products.id
-            LEFT JOIN (
-                    SELECT id, product_id, qty, date
-                    FROM product_limits AS pl
-                    WHERE pl.date = CURDATE()
-                    AND pl.id = (
-                        SELECT id
-                        FROM product_limits
-                        WHERE product_id = pl.product_id
-                        AND date = pl.date
-                        ORDER BY id DESC
-                        LIMIT 1
-                    )
-                ) AS product_limits ON products.id = product_limits.product_id
-            WHERE
-                products.is_available = true
-            AND vend_channels.is_active = true
-            AND vend_channels.capacity > 0
-            ORDER BY vend_channels.code
-        ) AS vc_stock
-    '), 'vc_stock.vend_id', '=', 'vends.id')
-        ->select(
-            'customers.id AS id',
-            'vends.id AS vend_id',
-            'vc_stock.code',
-            'vc_stock.name',
-            'vc_stock.product_limit_qty',
-            'vc_stock.capacity',
-            'vc_stock.vend_channel_qty',
-            'vc_stock.stock_in_qty',
-        )
-        ->where('vends.code', 2638)
+//         $debugData = Customer::query()
+//         ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
+//         ->leftJoin(DB::raw('
+//         (
+//             SELECT
+//                 vend_channels.vend_id,
+//                 vend_channels.id,
+//                 vend_channels.code,
+//                 products.name,
+//                 product_limits.qty as product_limit_qty,
+//                 vend_channels.capacity,
+//                 vend_channels.qty as vend_channel_qty,
+//                 CASE
+//                     WHEN product_limits.id AND product_limits.qty < vend_channels.capacity THEN
+//                         (product_limits.qty - vend_channels.qty)
+//                     ELSE
+//                         (vend_channels.capacity - vend_channels.qty)
+//                 END AS stock_in_qty
+//             FROM
+//                 vend_channels
+//             INNER JOIN
+//                 products ON vend_channels.product_id = products.id
+//             LEFT JOIN (
+//                     SELECT id, product_id, qty, date
+//                     FROM product_limits AS pl
+//                     WHERE pl.date = CURDATE()
+//                     AND pl.id = (
+//                         SELECT id
+//                         FROM product_limits
+//                         WHERE product_id = pl.product_id
+//                         AND date = pl.date
+//                         ORDER BY id DESC
+//                         LIMIT 1
+//                     )
+//                 ) AS product_limits ON products.id = product_limits.product_id
+//             WHERE
+//                 products.is_available = true
+//             AND vend_channels.is_active = true
+//             AND vend_channels.capacity > 0
+//             ORDER BY vend_channels.code
+//         ) AS vc_stock
+//     '), 'vc_stock.vend_id', '=', 'vends.id')
+//         ->select(
+//             'customers.id AS id',
+//             'vends.id AS vend_id',
+//             'vc_stock.code',
+//             'vc_stock.name',
+//             'vc_stock.product_limit_qty',
+//             'vc_stock.capacity',
+//             'vc_stock.vend_channel_qty',
+//             'vc_stock.stock_in_qty',
+//         )
+//         ->where('vends.code', 2638)
 
-    ->get();
+//     ->get();
 
-dd($debugData->toArray());
+// dd($debugData->toArray());
 
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         if(!isset($request->is_active)) {
