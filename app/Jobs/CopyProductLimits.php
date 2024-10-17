@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Models\Product;
 use App\Models\ProductLimit;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -17,13 +16,14 @@ class CopyProductLimits implements ShouldQueue
 
     protected $dateFrom;
     protected $dateTo;
+
     /**
      * Create a new job instance.
      */
     public function __construct($dateFrom, $dateTo)
     {
-        $this->dateFrom = $dateFrom;
-        $this->dateTo = $dateTo;
+        $this->dateFrom = Carbon::parse($dateFrom);
+        $this->dateTo = Carbon::parse($dateTo);
     }
 
     /**
@@ -31,24 +31,31 @@ class CopyProductLimits implements ShouldQueue
      */
     public function handle(): void
     {
-        $productLimits = ProductLimit::query()
-            ->where('date', Carbon::parse($this->dateFrom)->toDateString())
-            ->get();
+        // Iterate over each day from $dateFrom to $dateTo
+        for ($date = $this->dateFrom->copy(); $date->lte($this->dateTo); $date->addDay()) {
+            // Get the previous day's product limits
+            $previousDate = $date->copy()->subDay();
+            $previousProductLimits = ProductLimit::query()
+                ->where('date', $previousDate->toDateString())
+                ->get();
 
-        if($productLimits) {
-            foreach($productLimits as $productLimit) {
-                if($productLimit->date === Carbon::parse($this->dateTo)->toDateString() and $productLimit->product_id === $productLimit->product_id) {
+            // Copy each previous day's product limit to the current date
+            foreach ($previousProductLimits as $productLimit) {
+                // Skip if the limit already exists for the target date and product_id
+                if (ProductLimit::where('date', $date->toDateString())
+                                ->where('product_id', $productLimit->product_id)
+                                ->exists()) {
                     continue;
                 }
 
+                // Create or update with the previous day's qty
                 ProductLimit::updateOrCreate([
-                    'date' => Carbon::parse($this->dateTo)->toDateString(),
-                    'product_id' => $productLimit->product_id
-                ],
-                [
+                    'date' => $date->toDateString(),
+                    'product_id' => $productLimit->product_id,
+                ], [
                     'created_by' => $productLimit->created_by,
                     'is_created_by_system' => true,
-                    'qty' => $productLimit->qty,
+                    'qty' => $productLimit->qty, // Use qty from the previous day
                     'setup_date' => $productLimit->setup_date,
                 ]);
             }

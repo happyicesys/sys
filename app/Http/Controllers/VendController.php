@@ -542,6 +542,7 @@ class VendController extends Controller
                             ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
                         WHERE
                             ops_job_items.status >= 3
+                            AND ops_job_items.status <> 99
                             AND ops_jobs.date < CURDATE() + INTERVAL 1 DAY
                         GROUP BY
                             ops_job_items.customer_id, ops_job_items.created_at
@@ -578,6 +579,7 @@ class VendController extends Controller
                             ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
                         WHERE
                             ops_job_items.status >= 3
+                            AND ops_job_items.status <> 99
                             AND ops_jobs.date < CURDATE() + INTERVAL 1 DAY
                         GROUP BY
                             ops_job_items.customer_id, ops_job_items.created_at

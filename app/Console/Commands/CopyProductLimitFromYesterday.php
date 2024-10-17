@@ -20,17 +20,20 @@ class CopyProductLimitFromYesterday extends Command
      *
      * @var string
      */
-    protected $description = 'Copy the product limit from yesterday';
+    protected $description = 'Copy the product limit from yesterday over the next five days';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
+        // Define the range of dates
+        $from = Carbon::yesterday();
+        $to = Carbon::today()->addDays(5);
 
-        $from = Carbon::yesterday()->toDateString();
-        $to = Carbon::today()->toDateString();
-
+        // Dispatch the job with Carbon instances
         CopyProductLimits::dispatch($from, $to);
+
+        $this->info("Product limits from yesterday have been queued for copying over the next five days.");
     }
 }

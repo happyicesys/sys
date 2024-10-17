@@ -392,17 +392,16 @@ class ProductController extends Controller
             'created_by' => auth()->user()->id,
         ]);
 
+            // Find and update any future product limits for the product
+        $product->productLimits()
+        ->where('date', '>', $request->date)
+        ->update([
+            'qty' => $request->max_ops_job_pick_limit,
+            'is_created_by_system' => true,
+        ]);
+
         // Retrieve the current `max_ops_job_pick_limit_json` as an associative array
         $maxOpsJobPickLimitJson = $product->max_ops_job_pick_limit_json;
-
-        // Loop through the existing array and remove entries where the date is in the past
-        // if (!empty($maxOpsJobPickLimitJson)) {
-        //     foreach ($maxOpsJobPickLimitJson as $date => $value) {
-        //         if (Carbon::parse($date)->lt(Carbon::today())) {
-        //             unset($maxOpsJobPickLimitJson[$date]);
-        //         }
-        //     }
-        // }
 
         // Check if new data is provided in the request, then add it to the array
         if ($request->date && $request->max_ops_job_pick_limit) {
