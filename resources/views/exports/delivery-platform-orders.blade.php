@@ -64,7 +64,7 @@
             $deliveryPlatformOrder->deliveryProductMappingVend->vend->customer)
               {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->customer->name }}
             @else
-              {{ $deliveryPlatformOrder->deliveryProductMappingVend->vend->name }}
+              {{ $deliveryPlatformOrder?->deliveryProductMappingVend?->vend->name }}
             @endif
           </td>
           <td>
