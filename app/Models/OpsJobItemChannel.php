@@ -12,6 +12,7 @@ class OpsJobItemChannel extends Model
     protected $fillable = [
         'actual_before_qty',
         'actual_qty',
+        'amount',
         'capacity',
         'error_settled_at',
         'is_error_settle',

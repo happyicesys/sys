@@ -113,6 +113,12 @@
                         <span class="text-xs text-red-700" v-if="product.limit_is_created_by_system">
                           from Yesterday
                         </span>
+                        <span class="text-xs text-gray-800" v-if="product.productLimits[0] && product.productLimits[0].createdBy">
+                          {{ product.productLimits[0].createdBy.name }}
+                        </span>
+                        <span class="text-xs text-gray-800" v-if="product.productLimits[0] && product.productLimits[0].createdBy">
+                          {{ product.productLimits[0].setupDate }}
+                        </span>
                       </div>
                     </td>
                   </tr>

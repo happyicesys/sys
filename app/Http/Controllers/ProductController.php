@@ -383,11 +383,17 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($productID);
 
+        // find the latest previous productlimit
+        $previousProductLimit = $product->productLimits()
+            ->where('date', '<', $request->date)
+            ->latest('date')
+            ->first();
+
         $product->productLimits()->updateOrCreate([
             'date' => $request->date,
         ], [
             'qty' => $request->max_ops_job_pick_limit,
-            'setup_date' => $request->date,
+            'setup_date' => $previousProductLimit->setup_date ? $previousProductLimit->setup_date : Carbon::now(),
             'is_created_by_system' => false,
             'created_by' => auth()->user()->id,
         ]);

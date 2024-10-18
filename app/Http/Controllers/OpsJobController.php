@@ -1247,6 +1247,7 @@ class OpsJobController extends Controller
             foreach($vend->vendChannels as $vendChannel) {
                 // dd($vendChannel->toArray());
                 $opsJobItem->opsJobItemChannels()->create([
+                    'amount' => $vendChannel->amount,
                     'ops_job_id' => $opsJobItem->ops_job_id,
                     'product_id' => $vendChannel->product_id ?? 0,
                     'vend_channel_code' => $vendChannel->code,
