@@ -84,7 +84,7 @@
             {{ $deliveryPlatformOrder->promo_amount }}
           </td>
           <td>
-            {{ $deliveryPlatformOrder->subtotal_amount }}
+            {{ $deliveryPlatformOrder->subtotal_amount - $deliveryPlatformOrder->promo_amount }}
           </td>
       </tr>
       @if($deliveryPlatformOrder->deliveryPlatformOrderItems)
