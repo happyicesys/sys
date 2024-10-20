@@ -24,6 +24,7 @@ use App\Models\Product;
 use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Models\Vend;
+use App\Services\DeliveryPlatformCampaignService;
 use App\Services\DeliveryPlatformService;
 use App\Services\DeliveryProductMappingService;
 use Carbon\Carbon;
@@ -33,15 +34,18 @@ use Inertia\Inertia;
 
 class DeliveryProductMappingController extends Controller
 {
+    protected $deliveryPlatformCampaignService;
     protected $deliveryPlatformService;
     protected $deliveryProductMappingService;
 
     public function __construct(
+        DeliveryPlatformCampaignService $deliveryPlatformCampaignService,
         DeliveryPlatformService $deliveryPlatformService,
         DeliveryProductMappingService $deliveryProductMappingService
     )
     {
         $this->deliveryPlatformService = $deliveryPlatformService;
+        $this->deliveryPlatformCampaignService = $deliveryPlatformCampaignService;
         $this->deliveryProductMappingService = $deliveryProductMappingService;
     }
 
@@ -504,6 +508,21 @@ class DeliveryProductMappingController extends Controller
         $deliveryProductMappingVend = DeliveryProductMappingVend::findOrFail($deliveryProductMappingVendId);
         $deliveryProductMappingVend->end_date = Carbon::now();
         $deliveryProductMappingVend->save();
+
+        if($deliveryProductMappingVend->deliveryPlatformCampaignItemVends()->exists()) {
+            foreach($deliveryProductMappingVend->deliveryPlatformCampaignItemVends as $deliveryPlatformCampaignItemVend) {
+                if($deliveryPlatformCampaignItemVend->is_submitted and $deliveryPlatformCampaignItemVend->platform_ref_id) {
+                    $response = $this->deliveryPlatformCampaignService->deleteCampaign($deliveryPlatformCampaignItemVend);
+                    $deliveryPlatformCampaignItemVend->update([
+                        'datetime_to' => Carbon::now(),
+                        'is_active' => false,
+                        'submission_response_json' => $response,
+                    ]);
+                }else {
+                    $deliveryPlatformCampaignItemVend->delete();
+                }
+            }
+        }
 
         return redirect()->route('delivery-product-mappings.edit', [$deliveryProductMappingVend->delivery_product_mapping_id]);
     }

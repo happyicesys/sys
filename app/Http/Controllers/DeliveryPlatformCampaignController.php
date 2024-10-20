@@ -155,8 +155,8 @@ class DeliveryPlatformCampaignController extends Controller
                     $query->where('id', $search);
                 });
             })
-            // ->whereNull('end_date')
-            // ->where('is_active', true)
+            ->whereNull('end_date')
+            ->where('is_active', true)
             ->get();
 
 
