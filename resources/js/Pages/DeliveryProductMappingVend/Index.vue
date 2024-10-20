@@ -177,7 +177,7 @@
                       Platform ID
                     </TableHead>
                     <TableHead>
-                      Cust Prefix
+                      Cust ID
                     </TableHead>
                     <TableHead>
                       Cust Name
