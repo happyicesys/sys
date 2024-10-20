@@ -35,6 +35,7 @@ class InitTodayVendRecords implements ShouldQueue
                 'vends.id as id',
                 'vends.code as code',
                 'vends.operator_id',
+                'vends.vend_prefix_id',
                 'customers.id as customer_id'
             )
             ->where('customers.is_active', true)
@@ -52,6 +53,7 @@ class InitTodayVendRecords implements ShouldQueue
                 'operator_id' => $vend->operator_id,
                 'year' => Carbon::yesterday()->year,
                 'vend_code' => $vend->code,
+                'vend_prefix_id' => $vend->vend_prefix_id,
             ]);
         }
     }
