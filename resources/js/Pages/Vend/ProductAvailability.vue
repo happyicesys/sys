@@ -12,6 +12,48 @@
       <div class="mt-6 flex flex-col">
         <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
           <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+            <div class="py-4">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div>
+                      <label for="text" class="block text-sm font-medium text-gray-700">
+                          Operator
+                      </label>
+                      <MultiSelect
+                          v-model="filters.operators"
+                          :options="operatorOptions"
+                          trackBy="id"
+                          valueProp="id"
+                          label="full_name"
+                          placeholder="Select"
+                          open-direction="bottom"
+                          class="mt-1"
+                          mode="tags"
+                      >
+                      </MultiSelect>
+                  </div>
+              </div>
+
+              <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-2">
+                  <div class="flex space-x-1">
+                      <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                      @click.prevent="onSearchFilterUpdated()"
+                      >
+                          <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
+                          <span>
+                              Search
+                          </span>
+                      </Button>
+                      <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                      @click="resetFilters()"
+                      >
+                          <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
+                          <span>
+                              Reset
+                          </span>
+                      </Button>
+                  </div>
+              </div>
+              </div>
             <div class="max-h-[600px] md:max-h-[800px] overflow-y-auto shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
               <table class="min-w-full divide-y divide-gray-300">
                 <thead class="bg-gray-100 sticky top-0 z-10">
@@ -167,29 +209,48 @@
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
-import { CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, BackspaceIcon } from '@heroicons/vue/20/solid';
 import DatePicker from '@/Components/DatePicker.vue';
 import { onMounted, ref } from 'vue';
 import { Head, usePage, router } from '@inertiajs/vue3';
 import moment from 'moment';
+import MultiSelect from '@/Components/MultiSelect.vue';
 const props = defineProps({
+  operatorOptions: Object,
   products: Object,
 })
 
+const authOperator = usePage().props.auth.operator
+const baseUrl = ref('/products/availability')
 const operatorCountry = usePage().props.auth.operatorCountry;
+const operatorOptions = ref([])
 const filters = ref({
   name: '',
   code: '',
   is_available: '',
+  operators: [],
   productAvailableDate: moment().add(1, 'days').format('YYYY-MM-DD'),
 });
 const today = moment().format('YYYY-MM-DD');
 
 onMounted(() => {
+  operatorOptions.value = [
+      {id: 'all', full_name: 'All'},
+      ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
+  ]
+
   filters.value = {
     ...filters.value,
     ...props.products.filters,
   }
+
+  filters.value.operators = authOperator ? [
+		operatorOptions.value.find(operator => operator.id === authOperator.id),
+		...authOperator.code == 'HIPL' ? [
+			operatorOptions.value.find(operator => operator.code == 'HIMD'),
+			operatorOptions.value.find(operator => operator.code == 'LEA'),
+		] : [],
+	] : operatorOptions.value[0]
 })
 
 // Functions to calculate total available, net, and needed quantities and costs
@@ -295,6 +356,10 @@ function onSearchFilterUpdated() {
     preserveState: true,
     preserveScroll: true,
   })
+}
+
+function resetFilters() {
+  router.get(baseUrl.value)
 }
 </script>
 

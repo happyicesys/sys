@@ -144,7 +144,9 @@ class ProductController extends Controller
                 'thumbnail',
             ])
             ->when($request->operators, function($query, $search) {
-                $query->whereIn('operator_id', $search);
+                if(!in_array('all', $search)){
+                    $query->whereIn('operator_id', $search);
+                }
             })
             ->select(
                 'id',
