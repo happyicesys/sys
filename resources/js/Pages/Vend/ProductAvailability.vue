@@ -15,21 +15,21 @@
             <div class="py-4">
               <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <div>
-                      <label for="text" class="block text-sm font-medium text-gray-700">
-                          Operator
-                      </label>
-                      <MultiSelect
-                          v-model="filters.operators"
-                          :options="operatorOptions"
-                          trackBy="id"
-                          valueProp="id"
-                          label="full_name"
-                          placeholder="Select"
-                          open-direction="bottom"
-                          class="mt-1"
-                          mode="tags"
-                      >
-                      </MultiSelect>
+                    <label for="text" class="block text-sm font-medium text-gray-700">
+                      Operator
+                    </label>
+                    <MultiSelect
+                      v-model="filters.operators"
+                      :options="operatorOptions"
+                      trackBy="id"
+                      valueProp="id"
+                      label="full_name"
+                      placeholder="Select"
+                      open-direction="bottom"
+                      class="mt-1"
+                      mode="tags"
+                    >
+                    </MultiSelect>
                   </div>
               </div>
 
@@ -211,7 +211,7 @@
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import { CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon, BackspaceIcon } from '@heroicons/vue/20/solid';
 import DatePicker from '@/Components/DatePicker.vue';
-import { onMounted, ref } from 'vue';
+import { onBeforeMount, onMounted, ref } from 'vue';
 import { Head, usePage, router } from '@inertiajs/vue3';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -235,15 +235,9 @@ const today = moment().format('YYYY-MM-DD');
 
 onMounted(() => {
   operatorOptions.value = [
-      {id: 'all', full_name: 'All'},
-      ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
+			{id: 'all', full_name: 'All'},
+      ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
-
-  filters.value = {
-    ...filters.value,
-    ...props.products.filters,
-  }
-
   filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
 		...authOperator.code == 'HIPL' ? [
@@ -251,6 +245,11 @@ onMounted(() => {
 			operatorOptions.value.find(operator => operator.code == 'LEA'),
 		] : [],
 	] : operatorOptions.value[0]
+
+  filters.value = {
+    ...filters.value,
+    ...props.products.filters,
+  }
 })
 
 // Functions to calculate total available, net, and needed quantities and costs
@@ -347,11 +346,10 @@ function onMaxOpsJobPickLimitSelected(id, max_ops_job_pick_limit) {
 
 
 function onSearchFilterUpdated() {
-  router.reload({
-    only: ['products'],
-    data: {
-      ...filters.value,
-    },
+  router.get(baseUrl.value, {
+    ...filters.value,
+    operators: filters.value.operators.map(operator => operator.id),
+  }, {
     replace: true,
     preserveState: true,
     preserveScroll: true,

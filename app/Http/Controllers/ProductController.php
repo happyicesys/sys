@@ -118,14 +118,15 @@ class ProductController extends Controller
 
     public function availability(Request $request)
     {
-        if(!$request->operators) {
+        // dd($request->operators, $request->all());
+        if($request->operators == null) {
             if(auth()->user()->operator->code == 'HIPL') {
                 $request->merge(['operators' => [
                     auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
                     auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
                 ]]);
             }else {
-                $request->merge(['operators' => [auth()->user()->operator_id]]);
+                $request->merge(['operators' => auth()->user()->operator_id]);
             }
         }
 
