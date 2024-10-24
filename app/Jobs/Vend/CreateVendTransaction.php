@@ -162,11 +162,14 @@ class CreateVendTransaction implements ShouldQueue
             'unit_cost_id' => $input['unitCostID'],
             'gst_vat_rate' => $input['gstVatRate'],
             'meta_json' => [
+                'apk_ver' => isset($this->vend->apk_ver_json['apkver']) ? $this->vend->apk_ver_json['apkver'] : null,
+                'firmware_ver' => isset($this->vend->firmware_ver) ? dechex($this->vend->firmware_ver) : null,
                 'vend_code' => $this->vend->code,
                 'customer_code' => $this->vend->customer()->exists() ? $this->vend->customer->id + 20000 : null,
                 'customer_name' => $this->vend->customer()->exists() ? $this->vend->customer->name : null,
                 'vend_prefix_id' => $this->vend->vendPrefix()->exists() ? $this->vend->vendPrefix->id : null,
                 'vend_prefix_name' => $this->vend->vendPrefix()->exists() ? $this->vend->vendPrefix->name : null,
+
             ]
         ]);
 

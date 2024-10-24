@@ -1470,7 +1470,7 @@ class VendController extends Controller
                         'unit_cost' => $vendTransactionItem->unitCost ?
                                         $vendTransactionItem->unitCost->cost :
                                         '',
-                        'payment_method' => '',
+                        'payment_method' => $vendTransaction->payment_method_name,
                         'error_code' => $vendTransactionItem->vendChannelError ? $vendTransactionItem->vendChannelError->code : '',
                         'location_type' => $vendTransactionItem->vendTransaction->customer && $vendTransactionItem->vendTransaction->customer->locationType ? $vendTransactionItem->vendTransaction->customer->locationType->name : '',
                         'operator' => $vendTransactionItem->vendTransaction->operator ? $vendTransactionItem->vendTransaction->operator->code : '',

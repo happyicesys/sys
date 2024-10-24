@@ -182,7 +182,7 @@ class Vend extends Model
 
     public function deliveryProductMappingVends()
     {
-        return $this->hasMany(DeliveryProductMappingVend::class);
+        return $this->hasMany(DeliveryProductMappingVend::class)->where('is_active', true);
     }
 
     // for the use of cleanCustomerSeeder before deprecate

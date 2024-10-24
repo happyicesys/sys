@@ -14,16 +14,9 @@ class Campaign extends Model
     const TYPE_BUNDLE = 3;
 
     protected $fillable = [
-        'datetime_from',
-        'datetime_to',
         'is_active',
-        'is_control_by_group',
-        'min_purchase_qty',
         'name',
-        'promo_group_number',
-        'promo_qty',
-        'promo_value',
-        'purchase_group_number',
-        'type',
+        'operator_id',
+        'remarks'
     ];
 }
