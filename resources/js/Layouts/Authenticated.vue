@@ -114,9 +114,9 @@ const navigation = [
         permission: 'read products',
         tagline: null,
         children: [
-            {name: 'Products', href: '/products', permission: 'read products'},
+            {name: 'Products', href: '/products', permission: 'read product-lists'},
             {name: 'Product Mappings', href: '/product-mappings', permission: 'read product-mappings'},
-            {name: 'Product Availability', href: '/products/availability', permission: 'read products'},
+            {name: 'Product Availability', href: '/products/availability', permission: 'read product-availability'},
         ]
     },
     {

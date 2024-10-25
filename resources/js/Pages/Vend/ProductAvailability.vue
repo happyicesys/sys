@@ -148,7 +148,7 @@
                     </td>
                     <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800">
                       <div class="flex flex-col space-y-1">
-                        <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded" :class="[product.max_ops_job_pick_limit > 0 ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
+                        <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded" :class="[product.max_ops_job_pick_limit > 0 ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available || !permissions.includes('admin-access product-availability')" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
                           <option :value="null">No</option>
                           <option v-for="n in 15 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                         </select>
@@ -224,6 +224,7 @@ const authOperator = usePage().props.auth.operator
 const baseUrl = ref('/products/availability')
 const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorOptions = ref([])
+const permissions = usePage().props.auth.permissions
 const filters = ref({
   name: '',
   code: '',
@@ -315,13 +316,15 @@ function getProductNeededQtyTotalCost() {
 
 // Event handlers for availability toggling and limit selection
 function onIsAvailableClicked(product) {
-  router.post('/products/toggle-is-available', {
-    product_id: product.id
-  }, {
-      preserveState: true,
-      preserveScroll: true,
-      replace: true,
-  })
+  if(permissions.includes('admin-access product-availability')) {
+    router.post('/products/toggle-is-available', {
+      product_id: product.id
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    })
+  }
 }
 
 function onMaxOpsJobPickLimitSelected(id, max_ops_job_pick_limit) {

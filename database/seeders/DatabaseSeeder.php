@@ -96,7 +96,8 @@ class DatabaseSeeder extends Seeder
             // SyncCurrentCustomerSeeder::class,
             // StartDestinationAddressSeeder::class,
             // ModemSeeder::class,
-            ProductLimitSeeder::class,
+            // ProductLimitSeeder::class,
+            ProductAvailabilitySeeder::class,
         ]);
     }
 }
