@@ -386,6 +386,13 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($productID);
 
+        if($request->max_ops_job_pick_limit === null) {
+            $product->productLimits()
+            ->where('date', '>=', $request->date)
+            ->delete();
+
+            return redirect()->back();
+        }
         // find the latest previous productlimit
         $previousProductLimit = $product->productLimits()
             ->where('date', '<', $request->date)
@@ -396,7 +403,7 @@ class ProductController extends Controller
             'date' => $request->date,
         ], [
             'qty' => $request->max_ops_job_pick_limit,
-            'setup_date' => $previousProductLimit->setup_date ? $previousProductLimit->setup_date : Carbon::now(),
+            'setup_date' => Carbon::now(),
             'is_created_by_system' => false,
             'created_by' => auth()->user()->id,
         ]);

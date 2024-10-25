@@ -25,7 +25,7 @@ class ProductLimitResource extends JsonResource
             'product' => ProductResource::make($this->whenLoaded('product')),
             'qty' => $this->qty,
             'setup_date' => $this->setup_date,
-            'setupDate' => Carbon::parse($this->setup_date)->format('ymd h:ia'),
+            'setupDate' => Carbon::parse($this->setup_date)->format('ymd'),
             'created_at' => $this->created_at,
             'createdAt' => Carbon::parse($this->created_at)->format('ymd h:ia'),
             'updated_at' => $this->updated_at,
