@@ -199,43 +199,48 @@
                         </ul>
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
-                        <ul class="divide-y divide-gray-200">
-                          <li class="flex py-1 px-3 space-x-2" v-for="(vend, vendIndex) in productMapping.vends">
-                            <span>
-                              {{ vendIndex + 1 }}.
-                            </span>
-                            <a :href="'/vends/customers?codes=' + vend.code" target="_blank" class="text-blue-700">
+                        <div class="flex flex-col space-y-1">
+                          <span class="text-center text-indigo-600 p-2 text-xs">
+                            {{ productMapping.vends.length }} Machine(s)
+                          </span>
+                          <ul class="divide-y divide-gray-200">
+                            <li class="flex py-1 px-3 space-x-2" v-for="(vend, vendIndex) in productMapping.vends">
                               <span>
-                                {{ vend.code }}
+                                {{ vendIndex + 1 }}.
                               </span>
-                            </a>
+                              <a :href="'/vends/customers?codes=' + vend.code" target="_blank" class="text-blue-700">
+                                <span>
+                                  {{ vend.code }}
+                                </span>
+                              </a>
 
-                            <span v-if="vend.customer && vend.customer.person_id">
-                                <span v-if="permissions.includes('admin-access vends')">
-                                    <a :class="[vend.customer && vend.customer.person_id && vend.customer.is_active ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer.id + '/edit'">
-                                        {{ vend.customer.virtual_customer_code }} ({{ vend.customer.virtual_customer_prefix }})
-                                        <br>
-                                        {{ vend.customer.name }}
-                                    </a>
-                                </span>
-                                <span v-else>
-                                    {{ vend.customer.virtual_customer_code }} ({{ vend.customer.virtual_customer_prefix }})
-                                    <br>
-                                    {{ vend.customer.name }}
-                                </span>
-                            </span>
-                            <span v-else-if="vend.customer && !vend.customer.person_id">
-                                <span v-if="permissions.includes('admin-access vends')" :class="[vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
-                                    <!-- <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'"> -->
-                                        {{ vend.customer.name }}
-                                    <!-- </a> -->
-                                </span>
-                                <span v-else :class="[vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
-                                    {{ vend.customer.name }}
-                                </span>
-                            </span>
-                          </li>
-                        </ul>
+                              <span v-if="vend.customer && vend.customer.person_id">
+                                  <span v-if="permissions.includes('admin-access vends')">
+                                      <a :class="[vend.customer && vend.customer.person_id && vend.customer.is_active ? 'text-blue-700' : 'text-gray-400']" target="_blank" :href="'/customers/' + vend.customer.id + '/edit'">
+                                          {{ vend.customer.virtual_customer_code }} ({{ vend.customer.virtual_customer_prefix }})
+                                          <br>
+                                          {{ vend.customer.name }}
+                                      </a>
+                                  </span>
+                                  <span v-else>
+                                      {{ vend.customer.virtual_customer_code }} ({{ vend.customer.virtual_customer_prefix }})
+                                      <br>
+                                      {{ vend.customer.name }}
+                                  </span>
+                              </span>
+                              <span v-else-if="vend.customer && !vend.customer.person_id">
+                                  <span v-if="permissions.includes('admin-access vends')" :class="[vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
+                                      <!-- <a class="text-blue-700" target="_blank" :href="'//admin.happyice.com.sg/person/' + vend.person_id + '/edit'"> -->
+                                          {{ vend.customer.name }}
+                                      <!-- </a> -->
+                                  </span>
+                                  <span v-else :class="[vend.customer.is_active ? 'text-gray-800' : 'text-gray-400']">
+                                      {{ vend.customer.name }}
+                                  </span>
+                              </span>
+                            </li>
+                          </ul>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="productMappingIndex" :totalLength="productMappings.length" inputClass="text-left">
                         <span v-if="productMapping.attachments && productMapping.attachments.length > 0">
@@ -397,6 +402,7 @@ const permissions = usePage().props.auth.permissions
 const vendPrefixOptions = ref([])
 
 onMounted(() => {
+  console.log(props.productMappings)
   booleanOptions.value = [
     {id: 'true', value: 'Yes'},
     {id: 'false', value: 'No'},

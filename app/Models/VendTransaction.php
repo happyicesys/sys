@@ -166,6 +166,9 @@ class VendTransaction extends Model
                 $query->whereRaw('1 = 0');
             }
         })
+        ->when($request->apk_ver, function($query, $search) {
+            $query->where('vend_transactions.meta_json->apk_ver', 'LIKE', "%{$search}%");
+        })
         ->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);

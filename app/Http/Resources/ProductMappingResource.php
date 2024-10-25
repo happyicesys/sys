@@ -27,6 +27,7 @@ class ProductMappingResource extends JsonResource
             'productMappingItems' => ProductMappingItemResource::collection($this->whenLoaded('productMappingItems')),
             'productMappingItemsJson' => $this->product_mapping_items_json,
             'vends' => VendResource::collection($this->whenLoaded('vends')),
+            'vends_count' => isset($this->vends_count) ? $this->vends_count : null,
             'vendsJson' => $this->vends_json,
             'vendPrefixes' => VendPrefixResource::collection($this->whenLoaded('vendPrefixes')),
         ];

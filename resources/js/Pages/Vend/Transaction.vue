@@ -270,6 +270,11 @@
                 >
                 </MultiSelect>
             </div>
+            <div class="col-span-5 md:col-span-1" v-if="permissions.includes('admin-access transactions')">
+                <SearchInput placeholderStr="APK Ver" v-model="filters.apk_ver" @keyup.enter="onSearchFilterUpdated()">
+                    APK Ver
+                </SearchInput>
+            </div>
             </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -717,6 +722,7 @@ onMounted(() => {
 })
 
 const filters = ref({
+    apk_ver: '',
     codes: '',
     channel_codes: '',
     categories: [],
