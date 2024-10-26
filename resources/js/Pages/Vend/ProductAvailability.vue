@@ -148,7 +148,7 @@
                     </td>
                     <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800">
                       <div class="flex flex-col space-y-1">
-                        <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded" :class="[product.max_ops_job_pick_limit > 0 ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available || !permissions.includes('admin-access product-availability')" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
+                        <select name="max_ops_job_pick_limit" id="max_ops_job_pick_limit" class="rounded" :class="[product.max_ops_job_pick_limit >= 0 && product.max_ops_job_pick_limit != null ? 'text-red-600' : 'text-gray-800']" v-model="product.max_ops_job_pick_limit" :disabled="!product.is_available || !permissions.includes('admin-access product-availability')" @change="onMaxOpsJobPickLimitSelected(product.id, product.max_ops_job_pick_limit)">
                           <option :value="null">No</option>
                           <option v-for="n in 15 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                         </select>
