@@ -444,8 +444,10 @@ const smallLogoUrl = usePage().props.smallLogoUrl
                             </DisclosureButton>
                             <DisclosurePanel class="py-1 space-y-1">
                                 <Link v-for="subItem in item.children" :key="subItem.name" as="a"
-                                        :href="subItem.href">
+                                        :href="subItem.href"
+                                >
                                     <DisclosureButton
+                                        v-if="subItem && (!subItem.permission || (subItem.permission && permissions.includes(subItem.permission)))"
                                         class="group w-full flex items-center pl-11 pr-2 py-3 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-50">
                                         {{ subItem.name }}
                                     </DisclosureButton>
