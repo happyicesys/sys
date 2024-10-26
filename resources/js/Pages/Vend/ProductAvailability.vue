@@ -152,13 +152,13 @@
                           <option :value="null">No</option>
                           <option v-for="n in 15 + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                         </select>
-                        <span class="text-xs text-red-700" v-if="product.max_ops_job_pick_limit && product.limit_is_created_by_system">
+                        <span class="text-xs text-red-700" v-if="product.max_ops_job_pick_limit != null && product.limit_is_created_by_system">
                           from Yesterday
                         </span>
-                        <span class="text-xs text-gray-800" v-if="product.max_ops_job_pick_limit && product.productLimits[0] && product.productLimits[0].createdBy">
+                        <span class="text-xs text-gray-800" v-if="product.max_ops_job_pick_limit != null && product.productLimits[0] && product.productLimits[0].createdBy">
                           {{ product.productLimits[0].createdBy.name }}
                         </span>
-                        <span class="text-xs text-gray-800" v-if="product.max_ops_job_pick_limit && product.productLimits[0] && product.productLimits[0].createdBy">
+                        <span class="text-xs text-gray-800" v-if="product.max_ops_job_pick_limit != null && product.productLimits[0] && product.productLimits[0].createdBy">
                           {{ product.productLimits[0].setupDate }}
                         </span>
                       </div>
