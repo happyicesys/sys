@@ -1166,7 +1166,6 @@ onMounted(() => {
     }))
   ];
 
-  console.log(props.vend.modem_type_id)
   modemUnitOptions.value = [
     { id: '', name: '--- Clear ---'},
     ...props.modemUnitOptions.data.filter(modemUnit => modemUnit.modem_type_id == props.vend.modem_type_id).map(modemUnit => ({

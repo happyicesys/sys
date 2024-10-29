@@ -70,6 +70,165 @@ class Vend extends Model
         self::PICK_TYPE_DELIVERED => 'Stock In',
     ];
 
+
+    const CAMPAIGN_PARAMETER_SETTINGS = [
+        'enablePromoHeaderText' => [
+            'sequence' => 1,
+            'type' => 'boolean',
+            'options' => [
+                'true' => 'Yes',
+                'false' => 'No',
+            ]
+        ],
+        'promoHeaderText' => [
+            'sequence' => 2,
+            'type' => 'string'
+        ],
+        'enableHeaderTextRunning' => [
+            'sequence' => 3,
+            'type' => 'boolean',
+            'options' => [
+                'true' => 'Yes',
+                'false' => 'No',
+            ]
+        ],
+        'promoBannerKind' => [
+            'sequence' => 4,
+            'type' => 'string',
+            'options' => [
+                'video' => 'Video',
+                'picture' => 'Picture',
+            ]
+        ],
+        'headerTextStartDate' => [
+            'sequence' => 5,
+            'type' => 'string'
+        ],
+        'headerTextEndDate' => [
+            'sequence' => 6,
+            'type' => 'string'
+        ],
+        'enablePromoRunningText' => [
+            'sequence' => 7,
+            'type' => 'boolean',
+            'options' => [
+                'true' => 'Yes',
+                'false' => 'No',
+            ]
+        ],
+        'promoRunningText' => [
+            'sequence' => 8,
+            'type' => 'string'
+        ],
+        'runningTextStartDate' => [
+            'sequence' => 9,
+            'type' => 'string'
+        ],
+        'runningTextEndDate' => [
+            'sequence' => 10,
+            'type' => 'string'
+        ],
+        'disableP1P2CrossGrp' => [
+            'sequence' => 11,
+            'type' => 'boolean',
+            'options' => [
+                'true' => 'Yes',
+                'false' => 'No',
+            ]
+        ],
+        'enableBuy1Free1' => [
+            'sequence' => 12,
+            'type' => 'boolean',
+            'options' => [
+                'true' => 'Yes',
+                'false' => 'No',
+            ]
+        ],
+        'buy1free1X1' => [
+            'sequence' => 13,
+            'type' => 'int'
+        ],
+        'buy1free1Y' => [
+            'sequence' => 14,
+            'type' => 'int'
+        ],
+        'buy1free1StartDate' => [
+            'sequence' => 15,
+            'type' => 'string'
+        ],
+        'buy1free1EndDate' => [
+            'sequence' => 16,
+            'type' => 'string'
+        ],
+        'enableBuy2Free1' => [
+            'sequence' => 17,
+            'type' => 'boolean',
+            'options' => [
+                'true' => 'Yes',
+                'false' => 'No',
+            ]
+        ],
+        'buy2free1X1' => [
+            'sequence' => 18,
+            'type' => 'int'
+        ],
+        'buy2free1Y' => [
+            'sequence' => 19,
+            'type' => 'int'
+        ],
+        'buy2free1StartDate' => [
+            'sequence' => 20,
+            'type' => 'string'
+        ],
+        'buy2free1EndDate' => [
+            'sequence' => 21,
+            'type' => 'string'
+        ],
+        'enableBundleDiscount' => [
+            'sequence' => 22,
+            'type' => 'boolean',
+            'options' => [
+                'true' => 'Yes',
+                'false' => 'No',
+            ]
+        ],
+        'bundleStartDate' => [
+            'sequence' => 23,
+            'type' => 'string'
+        ],
+        'bundleEndDate' => [
+            'sequence' => 24,
+            'type' => 'string'
+        ],
+        'enableDiscount01' => [
+            'sequence' => 25,
+            'type' => 'boolean',
+            'options' => [
+                'true' => 'Yes',
+                'false' => 'No',
+            ]
+        ],
+        'discountPercent01' => [
+            'sequence' => 26,
+            'type' => 'int',
+            'default' => 10
+        ],
+        'enableDiscount02' => [
+            'sequence' => 27,
+            'type' => 'boolean',
+            'options' => [
+                'true' => 'Yes',
+                'false' => 'No',
+            ]
+        ],
+        'discountPercent02' => [
+            'sequence' => 28,
+            'type' => 'int',
+            'default' => 10
+        ]
+    ];
+
+
     protected static function booted()
     {
         static::addGlobalScope(new OperatorVendFilterScope);
@@ -86,6 +245,7 @@ class Vend extends Model
         'original_vend_channels_json' => 'json',
         'parameter_json' => 'json',
         'statistics1_json' => 'json',
+        'settings_parameter_json' => 'json',
         'temp_updated_at' => 'datetime',
         'termination_date' => 'datetime',
         'vend_channel_error_logs_json' => 'json',
@@ -95,7 +255,6 @@ class Vend extends Model
         'vend_criteria_weightage_json' => 'json',
         'vend_temp_alert_json' => 'json',
         'vend_transaction_totals_json' => 'json',
-
     ];
 
     protected $fillable = [
@@ -143,6 +302,7 @@ class Vend extends Model
         'private_key',
         'product_mapping_id',
         'serial_num',
+        'settings_parameter_json',
         'simcard_id',
         'statistics1_json',
         'termination_date',

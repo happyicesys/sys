@@ -834,7 +834,7 @@
                       </TableData>
 
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        <div class="flex justify-center space-x-1">
+                        <div class="flex flex-col justify-center space-y-1">
                           <Link :href="'/settings/vend/' + vend.id + '/update'">
                             <Button
                               type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
@@ -842,6 +842,16 @@
                               <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                               <span>
                                   Edit
+                              </span>
+                            </Button>
+                          </Link>
+                          <Link :href="'/settings/vend/' + vend.id + '/parameter'">
+                            <Button
+                              type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                            >
+                              <AdjustmentsHorizontalIcon class="w-4 h-4"></AdjustmentsHorizontalIcon>
+                              <span>
+                                  Parameters
                               </span>
                             </Button>
                           </Link>
@@ -887,7 +897,7 @@ import Button from '@/Components/Button.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { AdjustmentsHorizontalIcon, BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';

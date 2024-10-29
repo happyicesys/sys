@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\VendDataController;
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CashlessProviderController;
 use App\Http\Controllers\CashlessTerminalController;
 use App\Http\Controllers\CategoryController;
@@ -105,12 +106,20 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [CashlessTerminalController::class, 'delete']);
     });
 
+    Route::prefix('campaigns')->group(function() {
+        Route::get('/', [CampaignController::class, 'index'])->name('campaigns');
+        Route::post('/create', [CampaignController::class, 'create']);
+        Route::post('/{id}/update', [CampaignController::class, 'update']);
+        Route::delete('/{id}', [CampaignController::class, 'delete']);
+    });
+
     Route::prefix('categories')->group(function() {
         Route::get('/', [CategoryController::class, 'index'])->name('categories');
         Route::post('/create', [CategoryController::class, 'create']);
         Route::post('/{id}/update', [CategoryController::class, 'update']);
         Route::delete('/{id}', [CategoryController::class, 'delete']);
     });
+
 
     Route::prefix('category-groups')->group(function() {
         Route::get('/', [CategoryGroupController::class, 'index'])->name('category-groups');
@@ -391,6 +400,8 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/', [SettingController::class, 'index'])->name('settings');
         Route::get('/vend/create', [SettingController::class, 'create']);
         Route::get('/vend/{id}/update', [SettingController::class, 'edit'])->name('settings.edit');
+        Route::get('/vend/{id}/parameter', [SettingController::class, 'parameter'])->name('settings.parameter');
+        Route::post('/vend/{id}/parameter', [SettingController::class, 'updateParameter']);
         Route::post('/vend/store', [SettingController::class, 'store']);
         Route::post('/{id}/toggle-activation', [SettingController::class, 'toggleActivation']);
     });

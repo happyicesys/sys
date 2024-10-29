@@ -16,6 +16,7 @@ class VerifyCsrfToken extends Middleware
         '/api/v1/payment-gateway-status',
         '/api/v1/customers',
         '/api/v1/ops-jobs',
+        '/api/v1/vends/*/parameters',
         '/SetPara2',
     ];
 }

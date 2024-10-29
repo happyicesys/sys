@@ -4,13 +4,18 @@ namespace App\Http\Controllers;
 
 
 use App\Models\Campaign;
+use App\Models\Operator;
 use App\Http\Resources\CampaignResource;
+use App\Http\Resources\OperatorResource;
+use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
+
 class CampaignController extends Controller
 {
+    use GetUserTimezone;
     /**
      * Display a listing of the resource.
      */

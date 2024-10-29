@@ -21,6 +21,7 @@ use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendSerialNumberResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendDBResource;
+use App\Services\VendParameterService;
 use App\Models\CashlessTerminal;
 use App\Models\Category;
 use App\Models\Country;
@@ -50,9 +51,12 @@ class SettingController extends Controller
 {
     use HasFilter;
 
+    protected $vendParameterService;
+
     public function __construct()
     {
         $this->middleware(['permission:read vend-settings']);
+        $this->vendParameterService = new VendParameterService();
     }
 
     public function index(Request $request)
@@ -400,6 +404,29 @@ class SettingController extends Controller
         ]);
     }
 
+    public function parameter(Request $request, $id)
+    {
+        $vend = Vend::withoutGlobalScopes()
+        ->with([
+            'operator',
+        ])
+        ->where('vends.id', $id)
+        ->select(
+            'vends.id',
+            'vends.code',
+            'vends.settings_parameter_json'
+        )
+        ->first();
+
+        return Inertia::render('Setting/Parameter', [
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'vend' => VendResource::make($vend),
+            'type' => 'update',
+        ]);
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -446,5 +473,13 @@ class SettingController extends Controller
         }
 
         return redirect()->route('settings.edit', [$vendId]);
+    }
+
+    public function updateParameter(Request $request, $vendID) {
+        $vend = Vend::findOrFail($vendID);
+        $parameters = $this->vendParameterService->getCampaignParameter($request->all());
+
+        $vend->settings_parameter_json = $parameters;
+        $vend->save();
     }
 }

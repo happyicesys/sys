@@ -4,6 +4,7 @@ use App\Http\Controllers\DeliveryPlatformController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\OpsJobController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\SettingController;
 use App\Http\Controllers\VendController;
 use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\Api\Client\ClientController;
@@ -70,6 +71,7 @@ Route::prefix('vends')->group(function() {
     Route::get('/search/operator/{code?}', [VendController::class, 'searchVendCodeWithOperator']);
     Route::get('/{vendCode}/vend-channels/{vendChanelCode}/thumbnail', [VendController::class, 'getVendChannelThumnail']);
     Route::get('/{vendCode}/thumbnails', [VendController::class, 'getVendAllChannelThumnails']);
+    Route::get('/{vendCode}/parameters', [VendController::class, 'getVendParameters']);
 });
 
 

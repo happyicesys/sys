@@ -19,4 +19,21 @@ class Campaign extends Model
         'operator_id',
         'remarks'
     ];
+
+    // scopes
+    public function scopeFilterIndex($query, $request)
+    {
+
+        $query = $query
+            ->when($request->name, function($query, $search) {
+                $query->where('name', 'LIKE', "%{$search}%");
+            })
+            ->when($request->operators, function($query, $search) {
+                if($search != 'all') {
+                    $query->whereIn('operators', $search);
+                }
+            });
+
+        return $query;
+    }
 }

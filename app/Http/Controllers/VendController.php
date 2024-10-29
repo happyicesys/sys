@@ -1173,6 +1173,19 @@ class VendController extends Controller
         return false;
     }
 
+    public function getVendParameters($vendCode) {
+        $vend = Vend::where('code', $vendCode)->firstOrFail();
+
+        if(!$vend->settings_parameter_json) {
+            abort(response([
+                'error_code' => 400,
+                'error_message' => 'Parameters not found',
+            ], 400));
+        }
+
+        return $vend->settings_parameter_json;
+    }
+
     public function transactionIndex(Request $request)
     {
         if(!$request->operators) {
