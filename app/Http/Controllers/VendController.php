@@ -1548,6 +1548,38 @@ class VendController extends Controller
             'code' => $request->code,
             'name' => $request->name,
             'private_key' => $request->private_key,
+            'settings_parameter_json' => [
+                "buy1free1X" => 0,
+                "buy1free1Y" => 0,
+                "buy2free1X" => 1,
+                "buy2free1Y" => 0,
+                "bundleEndDate" => null,
+                "bundleStartDate" => null,
+                "enableBuy1Free1" => "false",
+                "enableBuy2Free1" => "false",
+                "promoBannerKind" => "video",
+                "promoHeaderText" => null,
+                "buy1free1EndDate" => null,
+                "buy2free1EndDate" => null,
+                "enableDiscount01" => "true",
+                "enableDiscount02" => "false",
+                "enableDiscount03" => "false",
+                "promoRunningText" => null,
+                "discountPercent01" => 1,
+                "discountPercent02" => 1,
+                "discountPercent03" => 1,
+                "headerTextEndDate" => null,
+                "buy1free1StartDate" => null,
+                "buy2free1StartDate" => null,
+                "runningTextEndDate" => null,
+                "disableP1P2CrossGrp" => "false",
+                "headerTextStartDate" => null,
+                "enableBundleDiscount" => "false",
+                "runningTextStartDate" => null,
+                "enablePromoHeaderText" => "false",
+                "enablePromoRunningText" => "false",
+                "enableHeaderTextRunning" => "false"
+            ]
         ]);
 
         // if($request->customer_id) {
