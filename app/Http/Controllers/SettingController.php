@@ -486,7 +486,7 @@ class SettingController extends Controller
 
         $fid = 1;
         $content = base64_encode(json_encode([
-            'Type' => 'TYPESYNCAPICHANNELSLOTLIST',
+            'Type' => 'TYPESYNCSETTINGSPARAM',
             'time' => Carbon::now()->timestamp,
             'action' => '',
             'mid' => $vend->code,
