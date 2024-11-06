@@ -6,6 +6,8 @@ use App\Mail\VendMqttOfflineNotificationMail;
 use App\Mail\VendOfflineNotificationMail;
 use App\Models\ModemUnit;
 use App\Models\Vend;
+use App\Services\MqttService;
+use App\Jobs\PublishMqtt;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
@@ -25,6 +27,13 @@ class SyncVendOnlineStatus extends Command
      * @var string
      */
     protected $description = 'Run scheduler check online status (more than 5 mins last updated time becomes offline)';
+
+    protected $mqttService;
+    public function __construct()
+    {
+        parent::__construct();
+        $this->mqttService = new MqttService();
+    }
 
     /**
      * Execute the console command.
@@ -46,6 +55,19 @@ class SyncVendOnlineStatus extends Command
             if($vend->last_updated_at and $vend->last_updated_at->diffInMinutes(Carbon::now()) < 15) {
                 $vend->is_online = true;
                 $vend->is_offline_notification_sent = false;
+            }
+
+            // trigger if http last updated more than 5 mins, restart modem
+            if($vend->last_updated_at and $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 5 and $vend->modemType->is_resetable and $vend->modem_unit_id) {
+                $modemUnit = ModemUnit::findOrFail($vend->modem_unit_id);
+                $content = [
+                    'action' => 'RESET',
+                    'time' => Carbon::now()->timestamp,
+                ];
+
+                $processedData = $this->mqttService->publishModemParamMapping($modemUnit, 2, $content);
+
+                PublishMqtt::dispatch($processedData['topic'], $processedData['message'], $processedData['qos'], $processedData['connection'])->onQueue('high');
             }
 
             // if($vend->mqtt_last_updated_at and $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) < 15) {
