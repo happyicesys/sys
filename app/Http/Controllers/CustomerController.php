@@ -361,6 +361,7 @@ class CustomerController extends Controller
             ->when($personID, fn($query, $input) => $query->where('person_id', $input))
             ->get();
 
+        SyncVendCustomerCms::dispatch($personID, null);
         return $customers;
     }
 

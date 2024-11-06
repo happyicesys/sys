@@ -21,6 +21,7 @@ use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendSerialNumberResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendDBResource;
+use App\Jobs\PublishMqtt;
 use App\Services\VendParameterService;
 use App\Models\CashlessTerminal;
 use App\Models\Category;
@@ -475,11 +476,25 @@ class SettingController extends Controller
         return redirect()->route('settings.edit', [$vendId]);
     }
 
-    public function updateParameter(Request $request, $vendID) {
+    public function updateParameter(Request $request, $vendID)
+    {
         $vend = Vend::findOrFail($vendID);
         $parameters = $this->vendParameterService->getCampaignParameter($request->all());
 
         $vend->settings_parameter_json = $parameters;
         $vend->save();
+
+        $fid = 1;
+        $content = base64_encode(json_encode([
+            'Type' => 'TYPESYNCAPICHANNELSLOTLIST',
+            'time' => Carbon::now()->timestamp,
+            'action' => '',
+            'mid' => $vend->code,
+        ]));
+        $contentLength = strlen($content);
+        $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
     }
 }

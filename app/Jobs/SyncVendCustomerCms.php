@@ -46,13 +46,13 @@ class SyncVendCustomerCms implements ShouldQueue
     {
         $response = Http::get($this->endPointUrl);
         $customerCollection = $response->collect();
+        // dd($this->endPointUrl, $this->callBackVendCodeEndPoint);
         $className = get_class(new Customer());
         $baseCurrencyCountryId = null;
         $categoryId = null;
         $categoryGroupId = null;
         $profileId = null;
 
-        // dd($customerCollection);
         if($customerCollection and isset($customerCollection[0])) {
             $customerCollection = collect($customerCollection[0]);
                 if(isset($customerCollection['location_type'])) {
@@ -152,9 +152,11 @@ class SyncVendCustomerCms implements ShouldQueue
                     $profileId = $profile->id;
                 }
 
-            if($this->personID) {
+            if($this->personID or isset($customerCollection['id'])) {
+                $personID = $this->personID ? $this->personID : $customerCollection['id'];
+
                 $customer = Customer::updateOrCreate([
-                    'person_id' => $this->personID,
+                    'person_id' => $personID,
                 ], [
                     'code' => $customerCollection['code'],
                     'person_json' => $customerCollection,
@@ -166,6 +168,7 @@ class SyncVendCustomerCms implements ShouldQueue
                     'status_id' => Customer::STATUS_ACTIVE,
                     'location_type_id' => isset($locationTypeId) ? $locationTypeId : null,
                 ]);
+
                 // dd($customerCollection['delivery_country'], $customerCollection['del_postcode'], $customerCollection);
                 if(isset($customerCollection['delivery_country']) and isset($customerCollection['del_postcode'])) {
                     $deliveryCountry = $customerCollection['delivery_country'];
@@ -198,7 +201,7 @@ class SyncVendCustomerCms implements ShouldQueue
                     ]);
                 }
 
-                if($this->vendID) {
+                if($this->vendID and Vend::find($this->vendID)) {
                     $beginDate =  isset($customerCollection['first_transaction_date']) ? $customerCollection['first_transaction_date'] : $customerCollection['created_at'];
 
                     $vend = Vend::findOrFail($this->vendID);
