@@ -89,13 +89,25 @@
                   <div class="flex space-x-1">
                     <button
                       type="button"
-                      @click="setOriginDestination"
+                      @click="setOriginDestination(1)"
                       class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded text-sm"
                     >
                       <div class="flex space-x-1 items-center">
                         <ArrowRightCircleIcon class="h-4 w-4" />
                         <span>
-                          Generate Route
+                          Generate Route (Google API)
+                        </span>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      @click="setOriginDestination(2)"
+                      class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded text-sm"
+                    >
+                      <div class="flex space-x-1 items-center">
+                        <ArrowRightCircleIcon class="h-4 w-4" />
+                        <span>
+                          Generate Route (Nearest Distance Algo)
                         </span>
                       </div>
                     </button>
@@ -575,7 +587,7 @@ function addMarkers() {
   }
 }
 
-function setOriginDestination() {
+function setOriginDestination(type = 1) {
   let origin = null;
 
   // Fetch the selected origin based on form input or fallback to the first opsJobItem with isOpsJobItem true
@@ -636,10 +648,14 @@ function setOriginDestination() {
   }
 
   // Now call showDirections with the new origin
-  showDirections(originLatLng);
+  if(type === 1) {
+    showDirectionsAPI(originLatLng);
+  } else if (type === 2) {
+    showDirectionsNearest(originLatLng);
+  }
 }
 
-const showDirections = (originLatLng) => {
+const showDirectionsAPI = (originLatLng) => {
   isSequenceGenerated.value = true;
 
   // Ensure originLatLng is valid
@@ -649,9 +665,12 @@ const showDirections = (originLatLng) => {
   }
 
   const maxWaypoints = 23; // Max 23 waypoints allowed by Google Maps Directions API
-  let customersWithValidAddresses = opsJob.value.opsJobItems.filter(
-    opsJobItem => opsJobItem.customer.deliveryAddress && !opsJobItem.isOrigin
-  );
+// Filter out customers without valid latitude and longitude
+  let customersWithValidAddresses = opsJob.value.opsJobItems.filter(opsJobItem => {
+    const lat = parseFloat(opsJobItem.customer?.deliveryAddress?.latitude);
+    const lng = parseFloat(opsJobItem.customer?.deliveryAddress?.longitude);
+    return !isNaN(lat) && !isNaN(lng); // Only keep valid coordinates
+  }).filter(opsJobItem => !opsJobItem.isOrigin); // Exclude the origin
 
   // Limit to the first 23 waypoints
   const waypoints = customersWithValidAddresses.slice(0, maxWaypoints);
@@ -734,6 +753,140 @@ const showDirections = (originLatLng) => {
   });
 };
 
+function showDirectionsNearest(originLatLng) {
+  isSequenceGenerated.value = true;
+
+  // Ensure originLatLng is valid
+  if (!originLatLng || typeof originLatLng.lat !== 'number' || typeof originLatLng.lng !== 'number') {
+    console.error("Invalid originLatLng");
+    return; // Exit if originLatLng is invalid
+  }
+
+  // Get all opsJobItems with valid addresses, excluding the origin
+  let customersWithValidAddresses = opsJob.value.opsJobItems.filter(
+    opsJobItem => opsJobItem.customer.deliveryAddress && !opsJobItem.isOrigin
+  );
+
+  // Use the originLatLng as the starting point
+  let currentPoint = originLatLng;
+  let optimizedCustomers = [];
+
+  while (customersWithValidAddresses.length > 0) {
+    // Find the nearest customer to the current point
+    let nearestIndex = -1;
+    let minDistance = Infinity;
+
+    customersWithValidAddresses.forEach((opsJobItem, index) => {
+      const lat = parseFloat(opsJobItem.customer.deliveryAddress.latitude);
+      const lng = parseFloat(opsJobItem.customer.deliveryAddress.longitude);
+
+      if (!isNaN(lat) && !isNaN(lng)) {
+        const distance = getDistance(currentPoint, { lat, lng });
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestIndex = index;
+        }
+      }
+    });
+
+    if (nearestIndex >= 0) {
+      // Add the nearest customer to the optimized sequence
+      const nearestCustomer = customersWithValidAddresses.splice(nearestIndex, 1)[0];
+      optimizedCustomers.push(nearestCustomer);
+      currentPoint = {
+        lat: parseFloat(nearestCustomer.customer.deliveryAddress.latitude),
+        lng: parseFloat(nearestCustomer.customer.deliveryAddress.longitude),
+      };
+    }
+  }
+
+  // Assign generated_sequence "1" to the origin
+  const originItem = opsJob.value.opsJobItems.find(item => item.isOrigin);
+  if (originItem) {
+    originItem.generated_sequence = 1;
+  }
+
+  // Assign generated sequences starting from 2 for the optimized customers
+  optimizedCustomers.forEach((item, idx) => {
+    item.generated_sequence = idx + 2;
+  });
+
+  // Update opsJobItems to include the origin and the optimized sequence
+  opsJob.value.opsJobItems = [
+    originItem, // Origin with sequence 1
+    ...optimizedCustomers, // Optimized waypoints
+  ];
+
+  // Add custom markers to display the optimized sequence
+  addCustomMarkers(originLatLng, optimizedCustomers);
+
+  // Plot the route on roads
+  plotRouteOnRoads([originLatLng, ...optimizedCustomers.map(customer => ({
+    lat: parseFloat(customer.customer.deliveryAddress.latitude),
+    lng: parseFloat(customer.customer.deliveryAddress.longitude),
+  }))]);
+}
+
+function plotRouteOnRoads(routeCoordinates) {
+  clearRoute(); // Clear any existing routes
+
+  if (routeCoordinates.length < 2) {
+    console.error("Not enough points to plot a route");
+    return; // Exit if there are not enough points
+  }
+
+  let directionsService = new google.maps.DirectionsService();
+
+  // Create a recursive function to calculate and display directions between consecutive points
+  function calculateRoute(index) {
+    if (index >= routeCoordinates.length - 1) return; // End of the route
+
+    const request = {
+      origin: routeCoordinates[index],
+      destination: routeCoordinates[index + 1],
+      travelMode: google.maps.TravelMode.DRIVING, // Driving mode
+    };
+
+    directionsService.route(request, (result, status) => {
+      if (status === google.maps.DirectionsStatus.OK) {
+        // Create a new DirectionsRenderer for each segment
+        let directionsRenderer = new google.maps.DirectionsRenderer({
+          suppressMarkers: true, // Prevent default markers
+          map: map, // Attach it to the map
+          polylineOptions: {
+            strokeColor: "#6868FF", // Blue color for the route
+            strokeOpacity: 0.8,
+            strokeWeight: 4,
+          },
+        });
+        directionsRenderer.setDirections(result);
+        renderers.push(directionsRenderer); // Store renderer for clearing later
+
+        // Recursively calculate the next segment
+        calculateRoute(index + 1);
+      } else {
+        console.error('Directions request failed due to ' + status);
+      }
+    });
+  }
+
+  // Start calculating the route from the first point
+  calculateRoute(0);
+}
+
+
+
+// Helper function to calculate the distance between two coordinates
+function getDistance(point1, point2) {
+  const rad = Math.PI / 180;
+  const lat1 = point1.lat * rad;
+  const lat2 = point2.lat * rad;
+  const sinDLat = Math.sin((lat2 - lat1) / 2);
+  const sinDLon = Math.sin(((point2.lng - point1.lng) * rad) / 2);
+  const a = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLon * sinDLon;
+  return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function addCustomMarkers(originLatLng, optimizedCustomers = [], remainingOpsJobItems = []) {
   // Add a custom marker for the origin
   const originMarker = new google.maps.Marker({
@@ -755,6 +908,8 @@ function addCustomMarkers(originLatLng, optimizedCustomers = [], remainingOpsJob
         lat: parseFloat(waypoint.customer.deliveryAddress.latitude),
         lng: parseFloat(waypoint.customer.deliveryAddress.longitude),
       };
+
+      if (isNaN(latLng.lat) || isNaN(latLng.lng)) return;
 
       const marker = new google.maps.Marker({
         position: latLng,
