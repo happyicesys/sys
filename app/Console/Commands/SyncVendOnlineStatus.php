@@ -29,10 +29,18 @@ class SyncVendOnlineStatus extends Command
     protected $description = 'Run scheduler check online status (more than 5 mins last updated time becomes offline)';
 
     protected $mqttService;
+    protected $emailRecipients;
     public function __construct()
     {
         parent::__construct();
         $this->mqttService = new MqttService();
+        $this->emailRecipients = [
+            'daniel.ma@happyice.com.sg',
+            'kent@happyice.com.sg',
+            'stephen@happyice.com.sg',
+            'brianlee@happyice.com.my',
+            'technician1@happyice.com.sg',
+        ];
     }
 
     /**
@@ -42,91 +50,56 @@ class SyncVendOnlineStatus extends Command
      */
     public function handle()
     {
-        $vends = Vend::all();
         $modems = ModemUnit::whereHas('modemType', function($query) {
             $query->where('name', 'Air724UGB4');
         })->get();
 
-        foreach($vends as $vend) {
-            // sync online offline
-            $vend->is_online = false;
-            $vend->is_temp_active = false;
+        // Use chunking to process Vends in batches
+        Vend::chunk(100, function($vends) {
+            foreach($vends as $vend) {
+                // Sync online status
+                $vend->is_online = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) < 15;
+                $vend->is_temp_active = $vend->temp_updated_at && $vend->temp_updated_at->diffInMinutes(Carbon::now()) < 15;
 
-            if($vend->last_updated_at and $vend->last_updated_at->diffInMinutes(Carbon::now()) < 15) {
-                $vend->is_online = true;
-                $vend->is_offline_notification_sent = false;
-            }
+                // Trigger modem reset if necessary
+                if ($vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 5 && $vend->modemType?->is_resetable && $vend->modem_unit_id) {
+                    $modemUnit = ModemUnit::find($vend->modem_unit_id);
+                    if ($modemUnit) {
+                        $content = [
+                            'action' => 'RESET',
+                            'time' => Carbon::now()->timestamp,
+                        ];
+                        $processedData = $this->mqttService->publishModemParamMapping($modemUnit, 2, $content);
+                        PublishMqtt::dispatch($processedData['topic'], $processedData['message'], $processedData['qos'], $processedData['connection'])->onQueue('high');
+                    }
+                }
 
-            // trigger if http last updated more than 5 mins, restart modem
-            if($vend->last_updated_at and $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 5 and $vend->modemType->is_resetable and $vend->modem_unit_id) {
-                $modemUnit = ModemUnit::findOrFail($vend->modem_unit_id);
-                $content = [
-                    'action' => 'RESET',
-                    'time' => Carbon::now()->timestamp,
-                ];
-
-                $processedData = $this->mqttService->publishModemParamMapping($modemUnit, 2, $content);
-
-                PublishMqtt::dispatch($processedData['topic'], $processedData['message'], $processedData['qos'], $processedData['connection'])->onQueue('high');
-            }
-
-            // send offline notification mail after 30 mins
-            if($vend->last_updated_at and $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 60) {
-                if(!$vend->is_offline_notification_sent) {
-                    Mail::to([
-                        'daniel.ma@happyice.com.sg',
-                        'kent@happyice.com.sg',
-                        'stephen@happyice.com.sg',
-                        'brianlee@happyice.com.my',
-                        'technician1@happyice.com.sg',
-                    ])->send(new VendOfflineNotificationMail($vend));
-
+                // Send offline notification mail after 60 minutes
+                if ($vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 60 && !$vend->is_offline_notification_sent) {
+                    Mail::to($this->emailRecipients)->send(new VendOfflineNotificationMail($vend));
                     $vend->is_offline_notification_sent = true;
                 }
-            }
 
-            // sync mqtt if offline
-            $vend->is_mqtt_active = false;
-            if($vend->is_mqtt) {
-                if($vend->mqtt_last_updated_at and $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) < 15) {
-                    $vend->is_mqtt_active = true;
-                    $vend->is_mqtt_offline_notified = false;
-                }
-
-                if($vend->mqtt_last_updated_at and $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) > 60) {
-                    if(!$vend->is_mqtt_offline_notified) {
-                        Mail::to([
-                            'daniel.ma@happyice.com.sg',
-                            'kent@happyice.com.sg',
-                            'stephen@happyice.com.sg',
-                            'brianlee@happyice.com.my',
-                            'technician1@happyice.com.sg',
-                        ])->send(new VendMqttOfflineNotificationMail($vend));
+                // Handle MQTT status
+                if ($vend->is_mqtt) {
+                    $vend->is_mqtt_active = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) < 15;
+                    if ($vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) > 60 && !$vend->is_mqtt_offline_notified) {
+                        Mail::to($this->emailRecipients)->send(new VendMqttOfflineNotificationMail($vend));
                         $vend->is_mqtt_offline_notified = true;
                     }
                 }
+
+                $vend->save();
             }
+        });
 
-            // sync temperature active or not
-            if($vend->temp_updated_at and $vend->temp_updated_at->diffInMinutes(Carbon::now()) < 15) {
-                $vend->is_temp_active = true;
-            }
-
-            $vend->save();
-        }
-
-        if($modems) {
+        ModemUnit::whereHas('modemType', function($query) {
+            $query->where('name', 'Air724UGB4');
+        })->chunk(100, function($modems) {
             foreach($modems as $modem) {
-                // sync online offline
-                $modem->is_online = false;
-
-                if($modem->last_updated_at and $modem->last_updated_at->diffInMinutes(Carbon::now()) < 15) {
-                    $modem->is_online = true;
-                }
-
+                $modem->is_online = $modem->last_updated_at && $modem->last_updated_at->diffInMinutes(Carbon::now()) < 15;
                 $modem->save();
             }
-
-        }
+        });
     }
 }
