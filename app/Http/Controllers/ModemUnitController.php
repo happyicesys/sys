@@ -87,7 +87,7 @@ class ModemUnitController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'imei' => 'required',
+            'imei' => 'required|unique:modem_units',
         ]);
 
         ModemUnit::create($request->all());
@@ -98,11 +98,12 @@ class ModemUnitController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'imei' => 'required',
+            'imei' => 'required|unique:modem_units,imei,'.$id,
         ]);
 
         $model = ModemUnit::findOrFail($id);
-        $model->update($request->all());
+        $model->fill($request->except('last_updated_at'));
+        $model->save();
 
         return redirect()->route('modem-units');
     }
