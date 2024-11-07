@@ -70,11 +70,6 @@ class SyncVendOnlineStatus extends Command
                 PublishMqtt::dispatch($processedData['topic'], $processedData['message'], $processedData['qos'], $processedData['connection'])->onQueue('high');
             }
 
-            // if($vend->mqtt_last_updated_at and $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) < 15) {
-            //     $vend->is_online = true;
-            //     $vend->is_offline_notification_sent = false;
-            // }
-
             // send offline notification mail after 30 mins
             if($vend->last_updated_at and $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 60) {
                 if(!$vend->is_offline_notification_sent) {

@@ -582,8 +582,41 @@ onMounted(() => {
   operatorOptions.value = props.operatorOptions.data
 
   form.value = props.vend?.data.settings_parameter_json ? useForm({
-    // load the json form
-    ...props.vend.data,
+    ...JSON.parse(JSON.stringify(props.vend.data.settings_parameter_json)),
+    enablePromoHeaderText: booleanStrictOptions.value.find(
+      option => option.id === props.vend.data.settings_parameter_json.enablePromoHeaderText
+    ),
+    enableHeaderTextRunning: booleanStrictOptions.value.find(
+      option => option.id === props.vend.data.settings_parameter_json.enableHeaderTextRunning
+    ),
+    promoBannerKind: promoBannerKindOptions.value.find(
+      option => option.id === props.vend.data.settings_parameter_json.promoBannerKind
+    ),
+    enablePromoRunningText: booleanStrictOptions.value.find(
+      option => option.id === props.vend.data.settings_parameter_json.enablePromoRunningText
+    ),
+    disableP1P2CrossGrp: booleanStrictOptions.value.find(
+      option => option.id === props.vend.data.settings_parameter_json.disableP1P2CrossGrp
+    ),
+    enableBuy1Free1: booleanStrictOptions.value.find(
+      option => option.id === props.vend.data.settings_parameter_json.enableBuy1Free1
+    ),
+    enableBuy2Free1: booleanStrictOptions.value.find(
+      option => option.id === props.vend.data.settings_parameter_json.enableBuy2Free1
+    ),
+    enableBundleDiscount: booleanStrictOptions.value.find(
+      option => option.id === props.vend.data.settings_parameter_json.enableBundleDiscount
+    ),
+    enableDiscount01: booleanStrictOptions.value.find(
+      option => option.id === props.vend.data.settings_parameter_json.enableDiscount01
+    ),
+    enableDiscount02: booleanStrictOptions.value.find(
+      option => option.id === props.vend.data.settings_parameter_json.enableDiscount02
+    ),
+    enableDiscount03: booleanStrictOptions.value.find(
+      option => option.id === props.vend.data.settings_parameter_json.enableDiscount03
+    ),
+
   }) : useForm(getDefaultForm())
 
   // init for default
@@ -663,6 +696,7 @@ onMounted(() => {
       option => option.id === 'false' // or 'true' if you want "Yes" selected
     );
   }
+
 })
 
 function getDefaultForm() {
@@ -711,17 +745,17 @@ function saveParameterSettings(vendID) {
   form.value
     .transform((data) => ({
       ...data,
-      enablePromoHeaderText: data.enablePromoHeaderText.id,
-      enableHeaderTextRunning: data.enableHeaderTextRunning.id,
-      promoBannerKind: data.promoBannerKind.id,
-      enablePromoRunningText: data.enablePromoRunningText.id,
-      disableP1P2CrossGrp: data.disableP1P2CrossGrp.id,
-      enableBuy1Free1: data.enableBuy1Free1.id,
-      enableBuy2Free1: data.enableBuy2Free1.id,
-      enableBundleDiscount: data.enableBundleDiscount.id,
-      enableDiscount01: data.enableDiscount01.id,
-      enableDiscount02: data.enableDiscount02.id,
-      enableDiscount03: data.enableDiscount03.id,
+      enablePromoHeaderText: form.value.enablePromoHeaderText.id,
+      enableHeaderTextRunning: form.value.enableHeaderTextRunning.id,
+      promoBannerKind: form.value.promoBannerKind.id,
+      enablePromoRunningText: form.value.enablePromoRunningText.id,
+      disableP1P2CrossGrp: form.value.disableP1P2CrossGrp.id,
+      enableBuy1Free1: form.value.enableBuy1Free1.id,
+      enableBuy2Free1: form.value.enableBuy2Free1.id,
+      enableBundleDiscount: form.value.enableBundleDiscount.id,
+      enableDiscount01: form.value.enableDiscount01.id,
+      enableDiscount02: form.value.enableDiscount02.id,
+      enableDiscount03: form.value.enableDiscount03.id,
     }))
     .post('/settings/vend/' + vend.value.id + '/parameter', {
     onSuccess: () => {
