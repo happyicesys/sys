@@ -58,8 +58,9 @@ class SyncVendOnlineStatus extends Command
         Vend::chunk(100, function($vends) {
             foreach($vends as $vend) {
                 // Sync online status
-                $vend->is_online = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) < 15;
-                $vend->is_temp_active = $vend->temp_updated_at && $vend->temp_updated_at->diffInMinutes(Carbon::now()) < 15;
+                $vend->is_online = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) < 15 ? true : false;
+                $vend->is_temp_active = $vend->temp_updated_at && $vend->temp_updated_at->diffInMinutes(Carbon::now()) < 15 ? true : false;
+
 
                 // Trigger modem reset if necessary
                 if ($vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 5 && $vend->modemType?->is_resetable && $vend->modem_unit_id) {
@@ -97,7 +98,7 @@ class SyncVendOnlineStatus extends Command
             $query->where('name', 'Air724UGB4');
         })->chunk(100, function($modems) {
             foreach($modems as $modem) {
-                $modem->is_online = $modem->last_updated_at && $modem->last_updated_at->diffInMinutes(Carbon::now()) < 15;
+                $modem->is_online = $modem->last_updated_at && $modem->last_updated_at->diffInMinutes(Carbon::now()) < 15 ? true : false;
                 $modem->save();
             }
         });
