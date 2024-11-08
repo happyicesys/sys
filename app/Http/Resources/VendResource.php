@@ -80,11 +80,11 @@ class VendResource extends JsonResource
             'frequency_per_week_status_name' => isset($this->frequency_per_week_status) ? Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING[$this->frequency_per_week_status] : null,
             'full_name' => $this->when($this->relationLoaded('customer'), function() {
                 if($this->customer && $this->customer->person_id) {
-                    return $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
+                    return '('. $this->code . ') ' . $this->customer->virtual_customer_code . ' - ' . $this->customer->name;
                 }else if($this->customer && !$this->customer->person_id) {
-                    return $this->customer->id + 20000 . ' - ' . $this->customer->name;
+                    return '('. $this->code . ') ' . $this->customer->id + 20000 . ' - ' . $this->customer->name;
                 }else {
-                    return null;
+                    return $this->code;
                 }
             }),
             'cust_full_name' => $this->when($this->relationLoaded('customer'), function() {

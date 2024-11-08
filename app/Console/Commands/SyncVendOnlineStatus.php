@@ -2,13 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Mail\VendMqttOfflineNotificationMail;
-use App\Mail\VendOfflineNotificationMail;
-use App\Models\ModemUnit;
-use App\Models\Vend;
-use App\Services\MqttService;
-use App\Jobs\PublishMqtt;
-use Carbon\Carbon;
+use App\Jobs\SyncOnlineStatus;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 
@@ -28,21 +22,6 @@ class SyncVendOnlineStatus extends Command
      */
     protected $description = 'Run scheduler check online status (more than 5 mins last updated time becomes offline)';
 
-    protected $mqttService;
-    protected $emailRecipients;
-    public function __construct()
-    {
-        parent::__construct();
-        $this->mqttService = new MqttService();
-        $this->emailRecipients = [
-            'daniel.ma@happyice.com.sg',
-            'kent@happyice.com.sg',
-            'stephen@happyice.com.sg',
-            'brianlee@happyice.com.my',
-            'technician1@happyice.com.sg',
-        ];
-    }
-
     /**
      * Execute the console command.
      *
@@ -50,57 +29,6 @@ class SyncVendOnlineStatus extends Command
      */
     public function handle()
     {
-        $modems = ModemUnit::whereHas('modemType', function($query) {
-            $query->where('name', 'Air724UGB4');
-        })->get();
-
-        // Use chunking to process Vends in batches
-        Vend::chunk(100, function($vends) {
-            foreach($vends as $vend) {
-                // Sync online status
-                $vend->is_online = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) < 15 ? true : false;
-                $vend->is_temp_active = $vend->temp_updated_at && $vend->temp_updated_at->diffInMinutes(Carbon::now()) < 15 ? true : false;
-
-
-                // Trigger modem reset if necessary
-                if ($vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 5 && $vend->modemType?->is_resetable && $vend->modem_unit_id) {
-                    $modemUnit = ModemUnit::find($vend->modem_unit_id);
-                    if ($modemUnit) {
-                        $content = [
-                            'action' => 'RESET',
-                            'time' => Carbon::now()->timestamp,
-                        ];
-                        $processedData = $this->mqttService->publishModemParamMapping($modemUnit, 2, $content);
-                        PublishMqtt::dispatch($processedData['topic'], $processedData['message'], $processedData['qos'], $processedData['connection'])->onQueue('high');
-                    }
-                }
-
-                // Send offline notification mail after 60 minutes
-                if ($vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 60 && !$vend->is_offline_notification_sent) {
-                    Mail::to($this->emailRecipients)->send(new VendOfflineNotificationMail($vend));
-                    $vend->is_offline_notification_sent = true;
-                }
-
-                // Handle MQTT status
-                if ($vend->is_mqtt) {
-                    $vend->is_mqtt_active = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) < 15;
-                    if ($vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) > 60 && !$vend->is_mqtt_offline_notified) {
-                        Mail::to($this->emailRecipients)->send(new VendMqttOfflineNotificationMail($vend));
-                        $vend->is_mqtt_offline_notified = true;
-                    }
-                }
-
-                $vend->save();
-            }
-        });
-
-        ModemUnit::whereHas('modemType', function($query) {
-            $query->where('name', 'Air724UGB4');
-        })->chunk(100, function($modems) {
-            foreach($modems as $modem) {
-                $modem->is_online = $modem->last_updated_at && $modem->last_updated_at->diffInMinutes(Carbon::now()) < 15 ? true : false;
-                $modem->save();
-            }
-        });
+        SyncOnlineStatus::dispatch()->onQueue('default');
     }
 }
