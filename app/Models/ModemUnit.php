@@ -17,6 +17,10 @@ class ModemUnit extends Model
         'is_online',
     ];
 
+    protected $casts = [
+        'last_updated_at' => 'datetime',
+    ];
+
     // relationships
     public function modemType()
     {
