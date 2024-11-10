@@ -56,6 +56,10 @@
                 <!-- Map Section -->
                 <div id="map" class="sm:col-span-6 mb-3" style="width: 100%; height: 600px;"></div>
 
+                <div class="sm:col-span-6" v-if="totalDistance">
+                  Total travel: {{ totalDistance }} km
+                </div>
+
                 <!-- Origin Select -->
                 <div class="sm:col-span-6">
                   <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
@@ -311,6 +315,7 @@ const isSequenceGenerated = ref(false);
 const opsJob = ref(props.opsJob?.data || []);
 const permissions = usePage().props.auth.permissions;
 const toast = useToast();
+const totalDistance = ref(0);
 let map, directionsService;
 let defaultPos = { lat: 1.3521, lng: 103.8198 };
 let markers = []; // Array to store map markers
@@ -656,43 +661,36 @@ function setOriginDestination(type = 1) {
 }
 
 const showDirectionsAPI = (originLatLng) => {
+  totalDistance.value = 0;
   isSequenceGenerated.value = true;
 
-  // Ensure originLatLng is valid
   if (!originLatLng || typeof originLatLng.lat !== 'number' || typeof originLatLng.lng !== 'number') {
     console.error("Invalid originLatLng");
-    return; // Exit if originLatLng is invalid
+    return;
   }
 
-  const maxWaypoints = 23; // Max 23 waypoints allowed by Google Maps Directions API
-// Filter out customers without valid latitude and longitude
+  const maxWaypoints = 23;
   let customersWithValidAddresses = opsJob.value.opsJobItems.filter(opsJobItem => {
     const lat = parseFloat(opsJobItem.customer?.deliveryAddress?.latitude);
     const lng = parseFloat(opsJobItem.customer?.deliveryAddress?.longitude);
-    return !isNaN(lat) && !isNaN(lng); // Only keep valid coordinates
-  }).filter(opsJobItem => !opsJobItem.isOrigin); // Exclude the origin
+    return !isNaN(lat) && !isNaN(lng);
+  }).filter(opsJobItem => !opsJobItem.isOrigin);
 
-  // Limit to the first 23 waypoints
   const waypoints = customersWithValidAddresses.slice(0, maxWaypoints);
-
-  // Get remaining opsJobItems (those beyond 23 waypoints)
   const remainingOpsJobItems = customersWithValidAddresses.slice(maxWaypoints);
 
-  // Ensure the last waypoint is correctly marked as the destination
   const lastWaypoint = waypoints.length > 0 ? waypoints[waypoints.length - 1].customer.deliveryAddress : null;
 
-  // If there are no valid waypoints, we cannot proceed
   if (!lastWaypoint) {
     console.error('No valid waypoints found');
     return;
   }
 
-  // Clear the existing markers and route to avoid duplication
   clearMarkers();
   clearRoute();
 
   const request = {
-    travelMode: google.maps.TravelMode.DRIVING, // Driving mode
+    travelMode: google.maps.TravelMode.DRIVING,
     waypoints: waypoints.map(opsJobItem => {
       return {
         location: {
@@ -707,45 +705,51 @@ const showDirectionsAPI = (originLatLng) => {
       lat: parseFloat(lastWaypoint.latitude),
       lng: parseFloat(lastWaypoint.longitude),
     },
-    optimizeWaypoints: true, // Enable distance-based optimization
+    optimizeWaypoints: true,
   };
 
   const directionsRenderer = new google.maps.DirectionsRenderer({
-    suppressMarkers: true, // Prevent default markers
-    map: map, // Attach it to the map
+    suppressMarkers: true,
+    map: map,
   });
 
   directionsService.route(request, (result, status) => {
     if (status === google.maps.DirectionsStatus.OK) {
       directionsRenderer.setDirections(result);
-      renderers.push(directionsRenderer); // Store renderer for later
+      renderers.push(directionsRenderer);
+
+      // Calculate total distance in kilometers
+      // let totalDistance = 0;
+      result.routes[0].legs.forEach(leg => {
+        totalDistance.value += leg.distance.value; // Distance in meters
+      });
+      totalDistance.value = totalDistance.value / 1000; // Convert to kilometers
+
+      totalDistance.value = totalDistance.value.toFixed(2); // Update total distance
+      // console.log(`Total distance (Google API): ${totalDistance.toFixed(2)} km`);
 
       const optimizedOrder = result.routes[0].waypoint_order;
       const optimizedCustomers = optimizedOrder.map((orderIndex, idx) => {
         const item = waypoints[orderIndex];
-        item.generated_sequence = idx + 2; // Sequence starts from 2 (1 is for origin)
+        item.generated_sequence = idx + 2;
         return item;
       });
 
-      // Assign generated_sequence "1" to the origin
       const originItem = opsJob.value.opsJobItems.find(item => item.isOrigin);
       if (originItem) {
         originItem.generated_sequence = 1;
       }
 
-      // Assign sequences to remaining items starting with "R1", "R2", etc.
       remainingOpsJobItems.forEach((item, index) => {
         item.generated_sequence = `5${index + 1}`;
       });
 
-      // Add custom markers to display sequences
       addCustomMarkers(originLatLng, optimizedCustomers, remainingOpsJobItems);
 
-      // Update opsJobItems to include everything (origin, waypoints, remaining items)
       opsJob.value.opsJobItems = [
-        originItem, // Origin with sequence 1
-        ...optimizedCustomers, // Optimized waypoints
-        ...remainingOpsJobItems, // Remaining items
+        originItem,
+        ...optimizedCustomers,
+        ...remainingOpsJobItems,
       ];
     } else {
       console.error('Directions request failed due to ' + status);
@@ -753,26 +757,25 @@ const showDirectionsAPI = (originLatLng) => {
   });
 };
 
+
 function showDirectionsNearest(originLatLng) {
+  totalDistance.value = 0;
   isSequenceGenerated.value = true;
 
-  // Ensure originLatLng is valid
   if (!originLatLng || typeof originLatLng.lat !== 'number' || typeof originLatLng.lng !== 'number') {
     console.error("Invalid originLatLng");
-    return; // Exit if originLatLng is invalid
+    return;
   }
 
-  // Get all opsJobItems with valid addresses, excluding the origin
   let customersWithValidAddresses = opsJob.value.opsJobItems.filter(
     opsJobItem => opsJobItem.customer.deliveryAddress && !opsJobItem.isOrigin
   );
 
-  // Use the originLatLng as the starting point
   let currentPoint = originLatLng;
   let optimizedCustomers = [];
+  // let totalDistance = 0; // Initialize total distance
 
   while (customersWithValidAddresses.length > 0) {
-    // Find the nearest customer to the current point
     let nearestIndex = -1;
     let minDistance = Infinity;
 
@@ -790,42 +793,43 @@ function showDirectionsNearest(originLatLng) {
     });
 
     if (nearestIndex >= 0) {
-      // Add the nearest customer to the optimized sequence
       const nearestCustomer = customersWithValidAddresses.splice(nearestIndex, 1)[0];
       optimizedCustomers.push(nearestCustomer);
-      currentPoint = {
+
+      const nextPoint = {
         lat: parseFloat(nearestCustomer.customer.deliveryAddress.latitude),
         lng: parseFloat(nearestCustomer.customer.deliveryAddress.longitude),
       };
+      // totalDistance.value += getDistance(currentPoint, nextPoint); // Add distance in km
+      currentPoint = nextPoint;
     }
   }
 
-  // Assign generated_sequence "1" to the origin
+  // totalDistance.value = totalDistance.value.toFixed(2); // Update total distance
+
+  // console.log(`Total distance (Nearest Distance): ${totalDistance.toFixed(2)} km`);
+
   const originItem = opsJob.value.opsJobItems.find(item => item.isOrigin);
   if (originItem) {
     originItem.generated_sequence = 1;
   }
 
-  // Assign generated sequences starting from 2 for the optimized customers
   optimizedCustomers.forEach((item, idx) => {
     item.generated_sequence = idx + 2;
   });
 
-  // Update opsJobItems to include the origin and the optimized sequence
   opsJob.value.opsJobItems = [
-    originItem, // Origin with sequence 1
-    ...optimizedCustomers, // Optimized waypoints
+    originItem,
+    ...optimizedCustomers,
   ];
 
-  // Add custom markers to display the optimized sequence
   addCustomMarkers(originLatLng, optimizedCustomers);
-
-  // Plot the route on roads
   plotRouteOnRoads([originLatLng, ...optimizedCustomers.map(customer => ({
     lat: parseFloat(customer.customer.deliveryAddress.latitude),
     lng: parseFloat(customer.customer.deliveryAddress.longitude),
   }))]);
 }
+
 
 function plotRouteOnRoads(routeCoordinates) {
   clearRoute(); // Clear any existing routes
@@ -836,10 +840,16 @@ function plotRouteOnRoads(routeCoordinates) {
   }
 
   let directionsService = new google.maps.DirectionsService();
+  totalDistance.value = 0; // Reset total distance
 
   // Create a recursive function to calculate and display directions between consecutive points
   function calculateRoute(index) {
-    if (index >= routeCoordinates.length - 1) return; // End of the route
+    if (index >= routeCoordinates.length - 1) {
+      // All segments have been processed, convert totalDistance to kilometers and log it
+      totalDistance.value = (totalDistance.value).toFixed(2); // Convert to kilometers and fix to 2 decimals
+      console.log(`Total distance (Plotted on Roads): ${totalDistance.value} km`);
+      return; // End of the route
+    }
 
     const request = {
       origin: routeCoordinates[index],
@@ -862,6 +872,9 @@ function plotRouteOnRoads(routeCoordinates) {
         directionsRenderer.setDirections(result);
         renderers.push(directionsRenderer); // Store renderer for clearing later
 
+        // Add the distance of this leg to the total distance
+        totalDistance.value += result.routes[0].legs[0].distance.value/ 1000; // Distance in meters
+
         // Recursively calculate the next segment
         calculateRoute(index + 1);
       } else {
@@ -873,6 +886,7 @@ function plotRouteOnRoads(routeCoordinates) {
   // Start calculating the route from the first point
   calculateRoute(0);
 }
+
 
 
 
