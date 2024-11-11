@@ -1141,6 +1141,34 @@ class VendController extends Controller
         return false;
     }
 
+    public function getVendBannerImage($vendCode)
+    {
+        // $vend = Vend::where('code', $vendCode)->first();
+
+        // if($vend && $vend->banner_image) {
+        // $image = file_get_contents($vend->banner_image->full_url);
+        $image = file_get_contents("https://happyice-space.sgp1.digitaloceanspaces.com/sys/vends/banner-images/defaultpicture.jpg");
+        return response($image, 200)
+            ->header('Content-Type', 'image/*');
+        // }
+
+        return false;
+    }
+
+    public function getVendBannerVideo($vendCode)
+    {
+        // $vend = Vend::where('code', $vendCode)->first();
+
+        // if($vend && $vend->banner_video) {
+            // $video = file_get_contents($vend->banner_video->full_url);
+            $video = file_get_contents("https://happyice-space.sgp1.digitaloceanspaces.com/sys/vends/banner-videos/defaultvideo.mp4");
+            return response($video, 200)
+                ->header('Content-Type', 'video/*');
+        // }
+
+        return false;
+    }
+
     public function getVendChannelThumnail($vendCode, $vendChannelCode)
     {
         $vendChannel = VendChannel::query()
