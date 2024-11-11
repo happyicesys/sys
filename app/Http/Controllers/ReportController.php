@@ -45,8 +45,19 @@ class ReportController extends Controller
 
     public function indexSales(Request $request, $type)
     {
+
+
+        if(auth()->user()->operator->code == 'HIPL') {
+            $request->merge(['operators' => [
+                auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
+                auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
+            ]]);
+        }else {
+            $request->merge(['operators' => [auth()->user()->operator_id]]);
+        }
+
         $request->merge([
-            'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
+            // 'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
             'visited' => isset($request->visited) ? $request->visited : true,
             'is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true'),
         ]);
@@ -57,12 +68,12 @@ class ReportController extends Controller
                 $request->merge(['date_to' => explode(',',$request->currentFilterDate)[1]]);
             }
         }
-        if(!$request->date_from) {
-            $request->merge(['date_from' => Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
-        }
-        if(!$request->date_to) {
-            $request->merge(['date_to' => Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
-        }
+        // if(!$request->date_from) {
+        //     $request->merge(['date_from' => Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
+        // }
+        // if(!$request->date_to) {
+        //     $request->merge(['date_to' => Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
+        // }
 
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'amount';
@@ -122,7 +133,15 @@ class ReportController extends Controller
 
     public function indexGpVm(Request $request)
     {
-        $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
+        // $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
+        if(auth()->user()->operator->code == 'HIPL') {
+            $request->merge(['operators' => [
+                auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
+                auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
+            ]]);
+        }else {
+            $request->merge(['operators' => [auth()->user()->operator_id]]);
+        }
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
@@ -157,7 +176,15 @@ class ReportController extends Controller
 
     public function indexGpProduct(Request $request)
     {
-        $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
+        // $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
+        if(auth()->user()->operator->code == 'HIPL') {
+            $request->merge(['operators' => [
+                auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
+                auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
+            ]]);
+        }else {
+            $request->merge(['operators' => [auth()->user()->operator_id]]);
+        }
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
@@ -191,7 +218,15 @@ class ReportController extends Controller
 
     public function indexGpCategory(Request $request)
     {
-        $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
+        // $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
+        if(auth()->user()->operator->code == 'HIPL') {
+            $request->merge(['operators' => [
+                auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
+                auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
+            ]]);
+        }else {
+            $request->merge(['operators' => [auth()->user()->operator_id]]);
+        }
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
@@ -224,7 +259,15 @@ class ReportController extends Controller
 
     public function indexGpLocationType(Request $request)
     {
-        $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
+        // $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
+        if(auth()->user()->operator->code == 'HIPL') {
+            $request->merge(['operators' => [
+                auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
+                auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
+            ]]);
+        }else {
+            $request->merge(['operators' => [auth()->user()->operator_id]]);
+        }
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';

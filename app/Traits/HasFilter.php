@@ -126,10 +126,15 @@ trait HasFilter {
               $query->where('location_type_id', $search);
             }
         })
-        ->when($request->operator_id, function($query, $search) {
-            if($search != 'all') {
-              $query->where('operators.id', $search);
-            }
+        // ->when($request->operator_id, function($query, $search) {
+        //     if($search != 'all') {
+        //       $query->where('operators.id', $search);
+        //     }
+        // })
+        ->when($request->operators, function($query, $search) {
+            // if($search != 'all') {
+              $query->whereIn('operators.id', $search);
+            // }
         })
         ->when($request->product_code, function($query, $search) {
             $query->where('products.code', 'LIKE', "%{$search}%");
