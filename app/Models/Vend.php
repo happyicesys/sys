@@ -906,6 +906,9 @@ class Vend extends Model
         ->when($request->vendRecordsThirtyDaysAmountAverageLessThan, function($query, $search) {
             $query->where('virtual_vend_records_thirty_days_amount_average', '<=', $search*100);
         })
+        ->when($request->vend_serial_number_code, function($query, $search) {
+            $query->where('vend_serial_numbers.code', 'LIKE', "%{$search}%");
+        })
         ->when($request->sortKey, function($query, $search) use ($request) {
             if(strpos($search, '->')) {
                 $inputSearch = explode("->", $search);

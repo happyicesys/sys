@@ -334,6 +334,9 @@
             >
             </MultiSelect>
           </div>
+          <SearchInput placeholderStr="Serial Num" v-model="filters.vend_serial_number_code" v-if="permissions.includes('admin-access vend-settings')" @keyup.enter="onSearchFilterUpdated()">
+            Serial Num
+          </SearchInput>
         </div>
 
 
@@ -945,6 +948,7 @@ const filters = ref({
     vendConfigs: [],
     vendModels: [],
     vendPrefixes: [],
+    vend_serial_number_code: '',
     sortKey: '',
     sortBy: false,
     status: '',

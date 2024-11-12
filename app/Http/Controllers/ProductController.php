@@ -159,6 +159,11 @@ class ProductController extends Controller
                 'is_available_updated_by',
             )
             ->selectRaw('(
+                SELECT COUNT(*)/4 FROM vend_transactions
+                WHERE vend_transactions.product_id = products.id
+                AND created_at >= ?
+            ) AS avg_seven_days_count', [Carbon::parse($request->productAvailableDate)->subDays(27)->toDateString()])
+            ->selectRaw('(
                     SELECT qty FROM product_limits
                     WHERE product_limits.product_id = products.id
                     AND product_limits.date = ?

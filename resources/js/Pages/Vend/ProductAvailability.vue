@@ -67,6 +67,10 @@
                     <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                       Product
                     </th>
+                    <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                      Last7d sold qty <br>
+                      (avg last 28d)
+                    </th>
                     <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                       Available?
                     </th>
@@ -115,6 +119,9 @@
                       <span class="break-normal text-xs" v-if="product.name">
                         <br> {{ product.name }}
                       </span>
+                    </td>
+                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-right" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
+                      {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                     </td>
                     <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600">
                       <div class="flex flex-col justify-center items-center">

@@ -19,6 +19,7 @@ class VendTransactionResource extends JsonResource
         return [
             'id' => $this->id,
             'amount' => $this->amount/ 100,
+            'avg_seven_days_amount' => isset($this->avg_seven_days_amount) ? $this->avg_seven_days_amount : null,
             'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'customer_code' => isset($this->customer_code) ? $this->customer_code : null,
             'customer_name' => isset($this->customer_name) ? $this->customer_name : null,
@@ -33,6 +34,7 @@ class VendTransactionResource extends JsonResource
             'payment_method_name' => isset($this->payment_method_name) ? $this->payment_method_name : null,
             'person_id' => isset($this->person_id) ? $this->person_id : null,
             'product' => ProductResource::make($this->whenLoaded('product')),
+            'product_id' => isset($this->product_id) ? $this->product_id : null,
             'product_code' => isset($this->product_code) ? $this->product_code : null,
             'product_name' => isset($this->product_name) ? $this->product_name : null,
             'transaction_datetime' => $this->transaction_datetime ? Carbon::parse($this->transaction_datetime)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null,

@@ -16,6 +16,7 @@ class ProductResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'avg_seven_days_count' => isset($this->avg_seven_days_count) ? $this->avg_seven_days_count : null,
             'code' => $this->code,
             // 'created_at' => $this->created_at,
             'name' => $this->name,
@@ -68,6 +69,7 @@ class ProductResource extends JsonResource
             'last_two_month_revenue' => $this->last_two_month_revenue/100,
             'last_two_month_gross_profit' => $this->last_two_month_gross_profit/100,
             'last_two_month_gross_profit_margin' => $this->last_two_month_gross_profit_margin,
+            'vendTransactions' => VendTransactionResource::collection($this->whenLoaded('vendTransactions'))
         ];
     }
 }
