@@ -6,6 +6,7 @@ use App\Models\Vend;
 use App\Jobs\RemoveEmptyOpsJob;
 use App\Jobs\RemoveOddTransactions;
 use App\Jobs\StoreVendsRecord;
+use App\Jobs\SyncAvgSalesQtyProducts;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
@@ -35,5 +36,6 @@ class StorePreviousDayVendRecords extends Command
         RemoveOddTransactions::dispatch($yesterday->toDateString(), $yesterday->toDateString());
         RemoveEmptyOpsJob::dispatch($yesterday->toDateString());
         StoreVendsRecord::dispatch($yesterday->toDateString(), $yesterday->toDateString(), true);
+        SyncAvgSalesQtyProducts::dispatch($yesterday->toDateString());
     }
 }
