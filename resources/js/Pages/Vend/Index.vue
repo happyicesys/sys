@@ -351,6 +351,22 @@
             >
             </MultiSelect>
           </div>
+          <div :class="[showAllFilters ? 'block' : 'hidden']">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Is QR Code Active?
+            </label>
+            <MultiSelect
+              v-model="filters.is_qr_code_active"
+              :options="booleanOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
       </div>
 
       <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -1518,6 +1534,7 @@ font-size:13px;
       operators: [],
       is_active: true,
       is_binded_customer: '',
+      is_qr_code_active: '',
       tempHigherThan: '',
       tempLimitHigherThan: '',
       t2HigherThan: '',
@@ -1693,6 +1710,7 @@ filters.value.is_door_open = doorOptions.value[0]
 filters.value.is_mqtt = booleanOptions.value[0]
 filters.value.is_mqtt_active = booleanOptions.value[0]
 filters.value.is_online = booleanOptions.value[0]
+filters.value.is_qr_code_active = booleanOptions.value[0]
 filters.value.is_sensor = enableOptions.value[0]
 filters.value.is_testing = booleanOptions.value[2]
 // console.log(initBinded, roles[0])
@@ -1799,6 +1817,7 @@ function onSearchFilterUpdated() {
       is_mqtt: filters.value.is_mqtt.id,
       is_mqtt_active: filters.value.is_mqtt_active.id,
       is_online: filters.value.is_online.id,
+      is_qr_code_active: filters.value.is_qr_code_active.id,
       is_sensor: filters.value.is_sensor.id,
       // is_testing: filters.value.is_testing.id,
       status: filters.value.status.id,
@@ -1905,6 +1924,7 @@ axios({
         is_mqtt: filters.value.is_mqtt.id,
         is_mqtt_active: filters.value.is_mqtt_active.id,
         is_online: filters.value.is_online.id,
+        is_qr_code_active: filters.value.is_qr_code_active.id,
         is_sensor: filters.value.is_sensor.id,
         is_testing: filters.value.is_testing.id,
         status: filters.value.status.id,

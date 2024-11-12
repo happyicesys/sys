@@ -27,7 +27,7 @@
                       ("," for multiple)
                   </span>
               </SearchInput>
-              <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
+              <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
                   Customer
               </SearchInput>
               <!-- <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">

@@ -325,6 +325,11 @@ trait HasFilter {
                 $query->where('parameter_json->door', '=', $search);
             }
         })
+        ->when($request->is_qr_code_active, function($query, $search) {
+            if($search != 'all') {
+                $query->where('acb_vmc_pa_json->QRCode', filter_var($search, FILTER_VALIDATE_BOOLEAN) ? 1 : 0);
+            }
+        })
         ->when($request->tempHigherThan, function($query, $search) {
             if(is_numeric($search)) {
                 $query->where('temp', '>=', $search * 10);
