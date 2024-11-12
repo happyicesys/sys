@@ -30,46 +30,40 @@
               <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
                   Customer
               </SearchInput>
-              <!-- <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
-                  Cust ID
-              </SearchInput>
-              <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
-                  Cust Name
-              </SearchInput> -->
-              <div v-if="permissions.includes('admin-access vends')">
-                  <label for="text" class="block text-sm font-medium text-gray-700">
-                      Category
-                  </label>
-                  <MultiSelect
-                      v-model="filters.categories"
-                      :options="categoryOptions"
-                      trackBy="id"
-                      valueProp="id"
-                      label="name"
-                      mode="tags"
-                      placeholder="Select"
-                      open-direction="bottom"
-                      class="mt-1"
-                  >
-                  </MultiSelect>
-              </div>
-              <div v-if="permissions.includes('admin-access vends')">
-                  <label for="text" class="block text-sm font-medium text-gray-700">
-                      Group
-                  </label>
-                  <MultiSelect
-                      v-model="filters.categoryGroups"
-                      :options="categoryGroupOptions"
-                      trackBy="id"
-                      valueProp="id"
-                      label="name"
-                      mode="tags"
-                      placeholder="Select"
-                      open-direction="bottom"
-                      class="mt-1"
-                  >
-                  </MultiSelect>
-              </div>
+              <div>
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Machine Prefix
+                </label>
+                <MultiSelect
+                    v-model="filters.vendPrefixes"
+                    :options="vendPrefixOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                    mode="tags"
+                >
+                </MultiSelect>
+            </div>
+            <div>
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Operator
+                </label>
+                <MultiSelect
+                    v-model="filters.operators"
+                    :options="operatorOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="full_name"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                    mode="tags"
+                >
+                </MultiSelect>
+            </div>
               <div v-if="permissions.includes('admin-access vends')">
                   <label for="text" class="block text-sm font-medium text-gray-700">
                       Customer Binded?
@@ -440,6 +434,7 @@ const props = defineProps({
   monthOptions: Object,
   operatorOptions: Object,
   vendSnapshots: Object,
+  vendPrefixOptions: Object,
 })
 
 const filters = ref({
@@ -448,14 +443,13 @@ const filters = ref({
   currentMonth: '',
   customer_code: '',
   customer_name: '',
-  categories: [],
-  categoryGroups: [],
   locationType: '',
-  operator: '',
+  operators: [],
   is_binded_customer: '',
   sortKey: '',
   sortBy: false,
   numberPerPage: '',
+  vendPrefixes: [],
   visited: true,
 })
 
@@ -471,6 +465,7 @@ const operatorOptions = ref([])
 const showChannelOverviewModal = ref(false)
 const vendSnapshot = ref()
 const vendChannelErrorsOptions = ref([])
+const vendPrefixOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
 const permissions = usePage().props.auth.permissions
 
@@ -507,11 +502,17 @@ onMounted(() => {
       ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
   monthOptions.value = props.monthOptions.map((data) => {return {id: data.id, name: data.name}})
+  vendPrefixOptions.value = [
+        {id: 'all', value: 'All'},
+        {id: 'single-ud', value: 'Single UD'},
+        ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    ]
 
   filters.value.currentMonth = monthOptions.value[1]
   filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
   filters.value.locationType = locationTypeOptions.value[0]
-  filters.value.operator = operatorOptions.value[0]
+//   filters.value.operators = operatorOptions.value[0]
+    // filters.value.vendPrefixes = vendPrefixOptions.value[0]
 
   // vendOptions.value = props.vendOptions.data.map((vendSnapshot) => {return {id: vendSnapshot.id, code: vendSnapshot.code}})
 })
@@ -529,13 +530,12 @@ onMounted(() => {
 
       router.get('/reports/stock-count', {
           ...filters.value,
-          categories: filters.value.categories.map((category) => { return category.id }),
-          categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
           currentMonth: filters.value.currentMonth.id,
           location_type_id: filters.value.locationType.id,
-          operator_id: filters.value.operator.id,
+          operators: filters.value.operators.map((operator) => { return operator.id }),
           is_binded_customer: filters.value.is_binded_customer.id,
           numberPerPage: filters.value.numberPerPage.id,
+          vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       }, {
           preserveState: true,
           replace: true,
@@ -559,12 +559,11 @@ function onExportChannelExcelClicked() {
       url: '/reports/stock-count/excel',
       params: {
           ...filters.value,
-          categories: filters.value.categories.map((category) => { return category.id }),
-          categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
           currentMonth: filters.value.currentMonth.id,
           location_type_id: filters.value.locationType.id,
-          operator_id: filters.value.operator.id,
+          operators: filters.value.operators.map((operator) => { return operator.id }),
           is_binded_customer: filters.value.is_binded_customer.id,
+          vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       },
       responseType: 'blob',
   }).then(response => {

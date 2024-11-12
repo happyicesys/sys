@@ -13,6 +13,7 @@ use App\Http\Resources\ProductResource;
 use App\Http\Resources\SalesReportResource;
 use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendResource;
+use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendSnapshotDBResource;
 use App\Models\Category;
 use App\Models\CategoryGroup;
@@ -22,6 +23,7 @@ use App\Models\Operator;
 use App\Models\Product;
 use App\Models\UnitCost;
 use App\Models\Vend;
+use App\Models\VendPrefix;
 use App\Models\VendTransaction;
 use App\Traits\GetUserTimezone;
 use App\Traits\HasFilter;
@@ -45,7 +47,6 @@ class ReportController extends Controller
 
     public function indexSales(Request $request, $type)
     {
-
 
         if(auth()->user()->operator->code == 'HIPL') {
             $request->merge(['operators' => [
@@ -125,6 +126,9 @@ class ReportController extends Controller
             'operators' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
             'items' => SalesReportResource::collection($items),
             'totals' => $totals,
         ]);
@@ -169,6 +173,9 @@ class ReportController extends Controller
             'operators' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
             'totals' => $totals,
             'vends' => VendDBResource::collection($vends),
         ]);
@@ -211,6 +218,9 @@ class ReportController extends Controller
             'operators' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
             'totals' => $totals,
             'products' => ProductDBResource::collection($products),
         ]);
@@ -251,6 +261,9 @@ class ReportController extends Controller
             'monthOptions' => $this->getMonthOption(),
             'operators' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
+            ),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
             ),
             'totals' => $totals,
             'categories' => CategoryDBResource::collection($categories),
@@ -294,6 +307,9 @@ class ReportController extends Controller
             'operators' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
             'totals' => $totals,
             'locationTypes' => LocationTypeDBResource::collection($locationTypes),
         ]);
@@ -301,6 +317,16 @@ class ReportController extends Controller
 
     public function indexStockCount(Request $request)
     {
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [
+                    auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
+                    auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
+                ]]);
+            }else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
         $request->merge(['currentMonth' => isset($request->currentMonth) ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone()) : Carbon::today()->setTimezone($this->getUserTimezone())]);
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : false)]);
@@ -327,6 +353,9 @@ class ReportController extends Controller
             'monthOptions' => $this->getMonthOption(),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
+            ),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
             ),
             'vendSnapshots' => VendSnapshotDBResource::collection($vendSnapshots),
         ]);
@@ -883,6 +912,7 @@ class ReportController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_snapshots.operator_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->select(
                 'vend_snapshots.id AS id',
                 'customers.code AS customer_code',

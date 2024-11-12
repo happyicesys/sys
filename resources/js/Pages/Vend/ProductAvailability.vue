@@ -172,8 +172,7 @@
                     </td>
                   </tr>
                   <tr>
-                    <td colspan="3"></td>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800">
+                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800" colspan="5">
                       <div class="flex flex-col space-y-1">
                         <span>Total Pcs</span>
                         <span>Total Cost$</span>
