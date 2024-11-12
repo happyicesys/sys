@@ -1148,7 +1148,7 @@ class VendController extends Controller
         // if($vend && $vend->banner_image) {
         // $image = file_get_contents($vend->banner_image->full_url);
         return response([
-            'images' => [
+            'pictures' => [
                 "https://happyice-space.sgp1.digitaloceanspaces.com/sys/vends/banner-images/defaultpicture.jpg"
             ],
         ], 200);
