@@ -40,17 +40,17 @@ class CreateFVMBackDate extends Command
     public function handle()
     {
         $data = [
-            ['vend' => 1804, 'cash' => 149.00, 'cashless' => 117.54],
-            ['vend' => 1803, 'cash' => 722.00, 'cashless' => 389.30],
-            ['vend' => 1802, 'cash' => 823.10, 'cashless' => 266.34],
-            ['vend' => 1801, 'cash' => 273.00, 'cashless' => 151.53],
-            ['vend' => 1805, 'cash' => 298.50, 'cashless' => 195.94],
-            ['vend' => 1806, 'cash' => 195.00, 'cashless' => 326.20],
-            ['vend' => 1807, 'cash' => 32.00, 'cashless' => 57.44],
-            ['vend' => 1808, 'cash' => 76.00, 'cashless' => 156.22],
-            ['vend' => 1809, 'cash' => 151.20, 'cashless' => 0.00],
-            ['vend' => 1810, 'cash' => 0.00, 'cashless' => 243.89],
-            ['vend' => 1811, 'cash' => 0.00, 'cashless' => 224.72],
+            ['vend' => 1804, 'cash' => 136.00, 'cashless' => 122.34],
+            ['vend' => 1803, 'cash' => 493.00, 'cashless' => 379.77],
+            ['vend' => 1802, 'cash' => 873.00, 'cashless' => 382.80],
+            ['vend' => 1801, 'cash' => 957.00, 'cashless' => 228.39],
+            ['vend' => 1805, 'cash' => 489.90, 'cashless' => 196.02],
+            ['vend' => 1806, 'cash' => 295.00, 'cashless' => 295.10],
+            ['vend' => 1807, 'cash' => 10.00, 'cashless' => 51.44],
+            ['vend' => 1808, 'cash' => 128.00, 'cashless' => 188.26],
+            ['vend' => 1809, 'cash' => 730.50, 'cashless' => 0.00],
+            ['vend' => 1810, 'cash' => 0.00, 'cashless' => 320.55],
+            ['vend' => 1811, 'cash' => 0.00, 'cashless' => 18.43],
         ];
 
 
