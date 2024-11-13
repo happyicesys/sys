@@ -1149,7 +1149,11 @@ class VendController extends Controller
         // $image = file_get_contents($vend->banner_image->full_url);
         return response([
             'pictures' => [
-                "https://happyice-space.sgp1.digitaloceanspaces.com/sys/vends/banner-images/defaultpicture.jpg"
+                [
+                    'name' => 'defaultpicture',
+                    'ext' => 'jpg',
+                    'url' => "https://happyice-space.sgp1.digitaloceanspaces.com/sys/vends/banner-images/defaultpicture.jpg",
+                ]
             ],
         ], 200);
         // }
@@ -1165,7 +1169,11 @@ class VendController extends Controller
             // $video = file_get_contents($vend->banner_video->full_url);
         return response([
             'videos' => [
-                "https://happyice-space.sgp1.digitaloceanspaces.com/sys/vends/banner-videos/defaultvideo.mp4"
+                [
+                    'name' => 'defaultvideo',
+                    'ext' => 'mp4',
+                    'url' => "https://happyice-space.sgp1.digitaloceanspaces.com/sys/vends/banner-videos/defaultvideo.mp4"
+                ]
             ],
         ], 200);
         // }
