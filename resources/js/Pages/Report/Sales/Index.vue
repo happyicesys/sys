@@ -40,15 +40,43 @@
               ("," for multiple)
             </span>
           </SearchInput>
-          <!-- <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
-            Cust ID
-          </SearchInput>
-          <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
-            Cust Name
-          </SearchInput> -->
           <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
             Customer
           </SearchInput>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Machine Prefix
+            </label>
+            <MultiSelect
+                v-model="filters.vendPrefixes"
+                :options="vendPrefixOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Operator
+            </label>
+            <MultiSelect
+                v-model="filters.operators"
+                :options="operatorOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+            >
+            </MultiSelect>
+          </div>
           <SearchInput placeholderStr="Product ID" v-model="filters.product_code" @keyup.enter="onSearchFilterUpdated()">
               Product ID
           </SearchInput>
@@ -338,11 +366,13 @@ const filters = ref({
   is_binded_customer: '',
   location_type_id: '',
   operator_id: '',
+  operators: [],
   product_code: '',
   product_name: '',
   sortKey: '',
   sortBy: false,
   numberPerPage: 30,
+  vendPrefixes: [],
   visited: false,
 })
 const authOperator = usePage().props.auth.operator

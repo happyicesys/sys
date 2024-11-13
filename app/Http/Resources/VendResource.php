@@ -48,8 +48,11 @@ class VendResource extends JsonResource
             'last_ops_job_acc_total_count' => isset($this->last_ops_job_acc_total_count) ? $this->last_ops_job_acc_total_count : 0,
             'last_second_ops_job_acc_total_amount' => isset($this->last_second_ops_job_acc_total_amount) ? $this->last_second_ops_job_acc_total_amount/100 : 0,
             'last_second_ops_job_acc_total_count' => isset($this->last_second_ops_job_acc_total_count) ? $this->last_second_ops_job_acc_total_count : 0,
-            'last_online_at' => isset($this->last_updated_at) || isset($this->mqtt_last_updated_at)
-            ? $this->getNearestTime($this->last_updated_at, $this->mqtt_last_updated_at)->shortRelativeDiffForHumans()
+            // 'last_online_at' => isset($this->last_updated_at) || isset($this->mqtt_last_updated_at)
+            // ? $this->getNearestTime($this->last_updated_at, $this->mqtt_last_updated_at)->shortRelativeDiffForHumans()
+            // : null,
+            'last_online_at' => isset($this->last_updated_at)
+            ? $this->last_updated_at->shortRelativeDiffForHumans()
             : null,
             'last_thirty_days_stock_in_amount' => isset($this->last_thirty_days_stock_in_amount) ? $this->last_thirty_days_stock_in_amount/100 : 0,
             'last_thirty_days_stock_in_qty' => isset($this->last_thirty_days_stock_in_qty) ? $this->last_thirty_days_stock_in_qty : 0,
