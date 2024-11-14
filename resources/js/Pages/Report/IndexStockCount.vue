@@ -453,6 +453,7 @@ const filters = ref({
   visited: true,
 })
 
+const authOperator = usePage().props.auth.operator
 const booleanOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
@@ -511,8 +512,12 @@ onMounted(() => {
   filters.value.currentMonth = monthOptions.value[1]
   filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
   filters.value.locationType = locationTypeOptions.value[0]
-//   filters.value.operators = operatorOptions.value[0]
-    // filters.value.vendPrefixes = vendPrefixOptions.value[0]
+  filters.value.operators = [
+    operatorOptions.value[0]
+  ]
+  filters.value.vendPrefixes = [
+    vendPrefixOptions.value[0]
+  ]
 
   // vendOptions.value = props.vendOptions.data.map((vendSnapshot) => {return {id: vendSnapshot.id, code: vendSnapshot.code}})
 })

@@ -126,21 +126,25 @@ trait HasFilter {
               $query->where('location_type_id', $search);
             }
         })
-        // ->when($request->operator_id, function($query, $search) {
-        //     if($search != 'all') {
-        //       $query->where('operators.id', $search);
-        //     }
-        // })
         ->when($request->operators, function($query, $search) {
-            // if($search != 'all') {
-              $query->whereIn('operators.id', $search);
-            // }
+            if(!in_array('all', $search)){
+                $query->whereIn('vends.operator_id', $search);
+            }
         })
         ->when($request->product_code, function($query, $search) {
             $query->where('products.code', 'LIKE', "%{$search}%");
         })
         ->when($request->product_name, function($query, $search) {
             $query->where('products.name', 'LIKE', "%{$search}%");
+        })
+        ->when($request->vendPrefixes, function($query, $search) {
+            if(!in_array('all', $search)){
+                if(in_array('single-ud', $search)) {
+                    $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
+                    unset($search[array_search('single-ud', $search)]);
+                }
+                $query->whereIn('vends.vend_prefix_id', $search);
+            }
         });
 
         return $query;

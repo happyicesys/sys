@@ -194,7 +194,7 @@ const navigation = [
             {name: 'Sales Report', href: '/reports/sales/operator'},
             {name: 'GP by VM', href: '/reports/gp/vend'},
             {name: 'GP by Product', href: '/reports/gp/product'},
-            {name: 'GP by Category', href: '/reports/gp/category'},
+            // {name: 'GP by Category', href: '/reports/gp/category'},
             {name: 'GP by Location Type', href: '/reports/gp/location-type'},
         ]
     },

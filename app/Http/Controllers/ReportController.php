@@ -48,14 +48,16 @@ class ReportController extends Controller
     public function indexSales(Request $request, $type)
     {
 
-        if(auth()->user()->operator->code == 'HIPL') {
-            $request->merge(['operators' => [
-                auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
-                auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
-            ]]);
-        }else {
-            $request->merge(['operators' => [auth()->user()->operator_id]]);
-        }
+        // if(!$request->operators) {
+        //     if(auth()->user()->operator->code == 'HIPL') {
+        //         $request->merge(['operators' => [
+        //             auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
+        //             auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
+        //         ]]);
+        //     }else {
+        //         $request->merge(['operators' => [auth()->user()->operator_id]]);
+        //     }
+        // }
 
         $request->merge([
             // 'operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id,
@@ -138,14 +140,16 @@ class ReportController extends Controller
     public function indexGpVm(Request $request)
     {
         // $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
-        if(auth()->user()->operator->code == 'HIPL') {
-            $request->merge(['operators' => [
-                auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
-                auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
-            ]]);
-        }else {
-            $request->merge(['operators' => [auth()->user()->operator_id]]);
-        }
+        // if(!$request->operators) {
+        //     if(auth()->user()->operator->code == 'HIPL') {
+        //         $request->merge(['operators' => [
+        //             auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
+        //             auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
+        //         ]]);
+        //     }else {
+        //         $request->merge(['operators' => [auth()->user()->operator_id]]);
+        //     }
+        // }
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
@@ -184,14 +188,16 @@ class ReportController extends Controller
     public function indexGpProduct(Request $request)
     {
         // $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
-        if(auth()->user()->operator->code == 'HIPL') {
-            $request->merge(['operators' => [
-                auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
-                auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
-            ]]);
-        }else {
-            $request->merge(['operators' => [auth()->user()->operator_id]]);
-        }
+        // if(!$request->operators) {
+        //     if(auth()->user()->operator->code == 'HIPL') {
+        //         $request->merge(['operators' => [
+        //             auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
+        //             auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
+        //         ]]);
+        //     }else {
+        //         $request->merge(['operators' => [auth()->user()->operator_id]]);
+        //     }
+        // }
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 30;
@@ -229,14 +235,16 @@ class ReportController extends Controller
     public function indexGpCategory(Request $request)
     {
         // $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
-        if(auth()->user()->operator->code == 'HIPL') {
-            $request->merge(['operators' => [
-                auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
-                auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
-            ]]);
-        }else {
-            $request->merge(['operators' => [auth()->user()->operator_id]]);
-        }
+        // if(!$request->operators) {
+        //     if(auth()->user()->operator->code == 'HIPL') {
+        //         $request->merge(['operators' => [
+        //             auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
+        //             auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
+        //         ]]);
+        //     }else {
+        //         $request->merge(['operators' => [auth()->user()->operator_id]]);
+        //     }
+        // }
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
@@ -273,14 +281,16 @@ class ReportController extends Controller
     public function indexGpLocationType(Request $request)
     {
         // $request->merge(['operator_id' => $request->operator_id ? $request->operator_id : auth()->user()->operator_id]);
-        if(auth()->user()->operator->code == 'HIPL') {
-            $request->merge(['operators' => [
-                auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
-                auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
-            ]]);
-        }else {
-            $request->merge(['operators' => [auth()->user()->operator_id]]);
-        }
+        // if(!$request->operators) {
+        //     if(auth()->user()->operator->code == 'HIPL') {
+        //         $request->merge(['operators' => [
+        //             auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
+        //             auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
+        //         ]]);
+        //     }else {
+        //         $request->merge(['operators' => [auth()->user()->operator_id]]);
+        //     }
+        // }
         $request->merge(['visited' => isset($request->visited) ? $request->visited : false]);
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $request->sortKey = $request->sortKey ? $request->sortKey : 'this_month_revenue';
@@ -647,6 +657,7 @@ class ReportController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
             ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
             ->whereIn('error_code_normalized', [0, 6]);
@@ -718,6 +729,7 @@ class ReportController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
             ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
             ->whereIn('vend_transaction_json->SErr', [0, 6]);
@@ -784,6 +796,7 @@ class ReportController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
             ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
             ->whereIn('vend_transaction_json->SErr', [0, 6]);
@@ -850,6 +863,7 @@ class ReportController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
             ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
             ->whereIn('vend_transaction_json->SErr', [0, 6]);

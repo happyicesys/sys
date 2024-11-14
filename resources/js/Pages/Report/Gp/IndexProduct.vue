@@ -18,12 +18,43 @@
               ("," for multiple)
             </span>
           </SearchInput>
-          <SearchInput placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
-            Cust ID
+          <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+            Customer
           </SearchInput>
-          <SearchInput placeholderStr="Cust Name" v-model="filters.customer_name" v-if="permissions.includes('admin-access vends')" @keyup.enter="onSearchFilterUpdated()">
-            Cust Name
-          </SearchInput>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Machine Prefix
+            </label>
+            <MultiSelect
+                v-model="filters.vendPrefixes"
+                :options="vendPrefixOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Operator
+            </label>
+            <MultiSelect
+                v-model="filters.operators"
+                :options="operatorOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+            >
+            </MultiSelect>
+          </div>
           <SearchInput placeholderStr="Product ID" v-model="filters.product_code" @keyup.enter="onSearchFilterUpdated()">
             Product ID
           </SearchInput>
@@ -40,56 +71,6 @@
               trackBy="id"
               valueProp="id"
               label="value"
-              placeholder="Select"
-              open-direction="bottom"
-              class="mt-1"
-            >
-            </MultiSelect>
-          </div>
-          <div v-if="permissions.includes('admin-access vends')">
-            <label for="text" class="block text-sm font-medium text-gray-700">
-              Operator
-            </label>
-            <MultiSelect
-              v-model="filters.operator_id"
-              :options="operatorOptions"
-              trackBy="id"
-              valueProp="id"
-              label="full_name"
-              placeholder="Select"
-              open-direction="bottom"
-              class="mt-1"
-            >
-            </MultiSelect>
-          </div>
-          <div v-if="permissions.includes('admin-access vends')">
-            <label for="text" class="block text-sm font-medium text-gray-700">
-              Category
-            </label>
-            <MultiSelect
-              v-model="filters.categories"
-              :options="categoryOptions"
-              trackBy="id"
-              valueProp="id"
-              label="name"
-              mode="tags"
-              placeholder="Select"
-              open-direction="bottom"
-              class="mt-1"
-            >
-            </MultiSelect>
-          </div>
-          <div v-if="permissions.includes('admin-access vends')">
-            <label for="text" class="block text-sm font-medium text-gray-700">
-              Group
-            </label>
-            <MultiSelect
-              v-model="filters.categoryGroups"
-              :options="categoryGroupOptions"
-              trackBy="id"
-              valueProp="id"
-              label="name"
-              mode="tags"
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
@@ -382,23 +363,22 @@ const props = defineProps({
   operators: Object,
   totals: [Array, Object],
   products: Object,
+  vendPrefixOptions: Object,
 })
 
 const filters = ref({
-  categories: [],
-  categoryGroups: [],
   codes: '',
   currentMonth: '',
-  customer_code: '',
-  customer_name: '',
+  customer: '',
   product_code: '',
   product_name: '',
   is_binded_customer: '',
   location_type_id: '',
-  operator_id: '',
+  operators: [],
   sortKey: '',
   sortBy: false,
   numberPerPage: 30,
+  vendPrefixes: [],
   visited: false,
 })
 const authOperator = usePage().props.auth.operator
@@ -412,6 +392,7 @@ const operatorOptions = ref([])
 const operatorRole = usePage().props.auth.operatorRole
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
+const vendPrefixOptions = ref([])
 
 onMounted(() => {
   filters.value.visited = true
@@ -442,20 +423,29 @@ onMounted(() => {
     {id: 'all', full_name: 'All'},
     ...props.operators.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
+  vendPrefixOptions.value = [
+      {id: 'all', value: 'All'},
+      {id: 'single-ud', value: 'Single UD'},
+      ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
+  ]
   filters.value.is_binded_customer = operatorRole.value ? booleanOptions.value[0] : booleanOptions.value[1]
   filters.value.location_type_id = locationTypeOptions.value[0]
-  filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+  filters.value.operators = [
+    operatorOptions.value[0]
+  ]
+  filters.value.vendPrefixes = [
+    vendPrefixOptions.value[0]
+  ]
 })
 
 function onSearchFilterUpdated() {
   router.get('/reports/gp/product', {
       ...filters.value,
-      categories: filters.value.categories.map((category) => { return category.id }),
-      categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
       currentMonth: filters.value.currentMonth.id,
       is_binded_customer: filters.value.is_binded_customer.id,
       location_type_id: filters.value.location_type_id.id,
-      operator_id: filters.value.operator_id.id,
+      operators: filters.value.operators.map((operator) => { return operator.id }),
+      vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,
@@ -480,12 +470,11 @@ function onExportExcelClicked() {
         url: '/reports/gp/product/excel',
         params: {
             ...filters.value,
-            categories: filters.value.categories.map((category) => { return category.id }),
-            categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
             currentMonth: filters.value.currentMonth.id,
             is_binded_customer: filters.value.is_binded_customer.id,
             location_type_id: filters.value.location_type_id.id,
-            operator_id: filters.value.operator_id.id,
+            operators: filters.value.operators.map((operator) => { return operator.id }),
+            vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
         },
         responseType: 'blob',
     }).then(response => {
