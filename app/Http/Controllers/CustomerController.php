@@ -365,11 +365,11 @@ class CustomerController extends Controller
         return $customers;
     }
 
-    public function migrate(Request $request)
-    {
-        $value = $request->all();
-        SyncVendCustomerCms::dispatch(null, $value['id']);
-    }
+    // public function migrate(Request $request)
+    // {
+    //     $value = $request->all();
+    //     SyncVendCustomerCms::dispatch(null, $value['id']);
+    // }
 
     public function search(Request $request)
     {

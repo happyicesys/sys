@@ -10,18 +10,20 @@ class TagBinding extends Model
     use HasFactory;
 
     protected $fillable = [
-        'customer_id',
+        'modelable_id',
+        'modelable_type',
         'tag_id',
     ];
 
     // relationships
-    public function customer()
-    {
-        return $this->belongsTo(Customer::class)->orderBy('code', 'asc');
-    }
 
     public function tag()
     {
         return $this->belongsTo(Tag::class);
+    }
+
+    public function modelable()
+    {
+        return $this->morphTo();
     }
 }

@@ -31,10 +31,7 @@ class Category extends Model
         return $this->belongsTo(CategoryGroup::class);
     }
 
-    public function customers()
-    {
-        return $this->hasMany(Customer::class);
-    }
+
 
     // scopes
     public function scopeFilterIndex($query, $request)

@@ -161,6 +161,12 @@
                       Name
                     </TableHeadSort>
                     <TableHead>
+                      Category
+                    </TableHead>
+                    <TableHead>
+                      Category Group
+                    </TableHead>
+                    <TableHead>
                       Thumbnail
                     </TableHead>
                     <TableHead v-if="permissions.includes('admin-access products')">
@@ -173,14 +179,21 @@
                       </span>
                     </TableHead>
                     <TableHead v-if="permissions.includes('admin-access products')">
-                      Reference Price
+                      <div class="flex flex-col space-y-1">
+                        <span>
+                          Reference Price
+                        </span>
+                        <span class="text-xs text-gray-600">
+                          (tax inclusive)
+                        </span>
+                      </div>
                     </TableHead>
                     <TableHead v-if="permissions.includes('admin-access products')">
-                      <div class="flex justify-between">
-                        <span>
+                      <div class="flex justify-center">
+                        <!-- <span>
                           Selling Price <br>
                           (before GST)
-                        </span>
+                        </span> -->
                         <span>
                           Gross Margin
                         </span>
@@ -229,6 +242,12 @@
                         </div>
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
+                        {{ product.category?.name }}
+                      </TableData>
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
+                        {{ product.categoryGroup?.name }}
+                      </TableData>
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         <div class="flex justify-center">
                           <a :href="product.thumbnail.full_url" target="_blank" v-if="product.thumbnail">
                             <img class="h-28 w-28 md:h-24 md:w-24 rounded-full" :src="product.thumbnail.full_url" alt="" />
@@ -245,7 +264,7 @@
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center" v-if="permissions.includes('admin-access products')">
                         <div class="flex flex-col space-y-1">
-                          <span v-for="(sellingPrice, sellingPriceIndex) in product.sellingPrices" class="flex space-x-1">
+                          <span v-for="(sellingPrice, sellingPriceIndex) in product.sellingPrices" class="flex space-x-1 justify-center">
                             <div
                                 class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-indigo-100 text-indigo-800 border-indigo-300"
                             >
@@ -263,8 +282,8 @@
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center" v-if="permissions.includes('admin-access products')">
                         <div class="flex flex-col space-y-1">
-                          <span v-for="(sellingPrice, sellingPriceIndex) in product.sellingPrices" class="flex justify-between">
-                            <div
+                          <span v-for="(sellingPrice, sellingPriceIndex) in product.sellingPrices" class="flex justify-center">
+                            <!-- <div
                                 class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-purple-100 text-purple-800 border-purple-300"
                             >
                                 <div class="flex space-x-1">
@@ -275,7 +294,7 @@
                                       {{ calculateSellingPrice(sellingPrice.amount, operatorCountry.currency_exponent, operatorCountry.is_currency_exponent_hidden, product.operator ? product.operator.gst_vat_rate : 0) }}
                                     </span>
                                 </div>
-                            </div>
+                            </div> -->
                             <div
                                 class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-indigo-100 text-indigo-800 border-indigo-300"
                                 v-if="product && product.latestUnitCost"

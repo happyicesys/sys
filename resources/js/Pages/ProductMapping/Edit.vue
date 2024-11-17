@@ -164,6 +164,15 @@
                                 Product
                               </th>
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                                Category
+                              </th>
+                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                                Group
+                              </th>
+                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                                Server Price ({{ operatorCountry.currency_symbol }})
+                              </th>
+                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 Action
                               </th>
                             </tr>
@@ -188,6 +197,22 @@
                                 <span>
                                   {{ productMappingItem.product.name }}
                                 </span>
+                              </td>
+                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                                <span v-if="productMappingItem.product.category">
+                                  {{ productMappingItem.product.category.name }}
+                                </span>
+                              </td>
+                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                                <span v-if="productMappingItem.product.category && productMappingItem.product.category.categoryGroup">
+                                  {{ productMappingItem.product.category.categoryGroup.name }}
+                                </span>
+                              </td>
+                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-right">
+                                <div class="flex justify-center">
+                                  <FormInput @input="onServerAmountChanged(productMappingItem.id, productMappingItem.server_amount)" v-model="productMappingItem.server_amount" :error="form.errors.server_amount">
+                                  </FormInput>
+                                </div>
                               </td>
                               <td class="whitespace-nowrap py-4 text-sm text-center">
                                 <Button
@@ -230,7 +255,7 @@
                               Deactivate
                             </span>
                           </span>
-                          <span>
+                          <span class="text-xs">
                             (Product Mapping(s) still Binded)
                           </span>
                         </span>
@@ -247,7 +272,7 @@
                   <div class="flex space-x-1 justify-end">
                     <Link :href="'/product-mappings'">
                       <Button
-                        type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                        type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 h-full"
                       >
                         <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                         <span>
@@ -285,7 +310,7 @@ import MultiSelect from '@/Components/MultiSelect.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   priceTypeOptions: Object,
@@ -299,6 +324,7 @@ const emit = defineEmits(['modalClose'])
 const form = ref(
   useForm(getDefaultForm())
 )
+const operatorCountry = usePage().props.auth.operatorCountry
 const productOptions = ref([])
 const productMappingItems = ref([])
 const upcomingProductMappingOptions = ref([])
@@ -321,6 +347,7 @@ function getDefaultForm() {
     remarks: '',
     channel_code: '',
     product_id: '',
+    server_amount: '',
     upcomingProductMappings: [],
   }
 }
@@ -348,6 +375,18 @@ function bindProductMappingItem() {
     productMappingItems.value.push({ product: form.value.product_id, channel_code: form.value.channel_code })
     productMappingItems.value.sort((a, b) => a.channel_code - b.channel_code)
   }
+}
+
+function onServerAmountChanged(id, amount) {
+  router.post('/product-mappings/items/' + id + '/update', {
+    server_amount: amount,
+  },{
+    onSuccess: () => {
+    },
+    preserveState: true,
+    preserveScroll: true,
+    replace: true,
+  })
 }
 
 function toggleActivateDeactivate() {

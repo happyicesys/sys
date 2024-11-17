@@ -148,6 +148,7 @@ class ProductMappingController extends Controller
             'productMappingItems',
             'productMappingItems.product:id,code,name,is_active',
             'productMappingItems.product.thumbnail',
+            'productMappingItems.product.category.categoryGroup',
             'upcomingProductMappings',
             'vends:id,code,name,product_mapping_id,customer_id',
             'vends.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',
@@ -208,6 +209,15 @@ class ProductMappingController extends Controller
         $this->productMappingService->syncChannels($productMapping);
 
         return redirect()->route('product-mappings.edit', ['id' => $productMapping->id]);
+    }
+
+    public function updateItem(Request $request, $productMappingItemID)
+    {
+        $productMappingItem = ProductMappingItem::findOrFail($productMappingItemID);
+        $productMappingItem->fill($request->all());
+        $productMappingItem->save();
+
+        return redirect()->route('product-mappings.edit', ['id' => $productMappingItem->productMapping->id]);
     }
 
     public function uploadAttachment(Request $request, $id)

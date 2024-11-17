@@ -16,17 +16,19 @@ class CategoryController extends Controller
 {
     public function index(Request $request)
     {
-        $classname = $request->classname ? $request->classname : get_class(new Customer());
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
-        $request->sortKey = $request->sortKey ? $request->sortKey : 'created_at';
-        $request->sortBy = $request->sortBy ? $request->sortBy : false;
+        $request->merge([
+            'classname' => $request->classname ? $request->classname : get_class(new Customer()),
+            'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
+            'sortKey' => $request->sortKey ? $request->sortKey : 'name',
+            'sortBy' => $request->sortBy ? $request->sortBy : true,
+        ]);
 
         return Inertia::render('Category/Index', [
             'categories' => CategoryResource::collection(
                 Category::with([
                     'categoryGroup'
                     ])
-                    ->when($classname, function($query, $search) {
+                    ->when($request->classname, function($query, $search) {
                         $query->where('classname', $search);
                     })
                     ->when($request->name, function($query, $search) {
@@ -37,17 +39,21 @@ class CategoryController extends Controller
                             $query->whereIn('id', $search);
                         });
                     })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+                    ->when($request->sortKey, function($query, $search) use ($request) {
+                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                     })
-                    ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                    ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
             ),
             'categoryGroups' => CategoryGroupResource::collection(
                 CategoryGroup::query()
+                    ->when($request->classname, function($query, $search) {
+                        $query->where('classname', $search);
+                    })
                     ->orderBy('name')
                     ->get()
-            )
+                ),
+            'classname' => $request->classname,
         ]);
     }
 
@@ -56,10 +62,9 @@ class CategoryController extends Controller
         $request->validate([
             'name' => 'required',
         ]);
-
         Category::create($request->all());
 
-        return redirect()->route('categories');
+        return redirect()->back();
     }
 
     public function update(Request $request, $categoryId)
@@ -71,7 +76,7 @@ class CategoryController extends Controller
         $category = Category::findOrFail($categoryId);
         $category->update($request->all());
 
-        return redirect()->route('categories');
+        return redirect()->back();
     }
 
     public function delete($categoryId)
@@ -79,6 +84,6 @@ class CategoryController extends Controller
         $category = Category::findOrFail($categoryId);
         $category->delete();
 
-        return redirect()->route('categories');
+        return redirect()->back();
     }
 }

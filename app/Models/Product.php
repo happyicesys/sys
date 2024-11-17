@@ -32,7 +32,6 @@ class Product extends Model
     protected $fillable = [
         'avg_seven_days_count',
         'category_id',
-        'category_group_id',
         'cms_refer_id',
         'code',
         'desc',
@@ -49,6 +48,7 @@ class Product extends Model
         'measurement_value',
         'name',
         'operator_id',
+        'product_sub_category_id',
         'remarks',
         'translated_names_json',
     ];
@@ -72,12 +72,12 @@ class Product extends Model
 
     public function category()
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsTo(Category::class)->where('classname', 'App\Models\Product');
     }
 
     public function categoryGroup()
     {
-        return $this->belongsTo(CategoryGroup::class);
+        return $this->belongsTo(CategoryGroup::class)->where('classname', 'App\Models\Product');
     }
 
     public function isAvailableUpdatedBy()
@@ -98,6 +98,11 @@ class Product extends Model
     public function productLimits()
     {
         return $this->hasMany(ProductLimit::class);
+    }
+
+    public function productSubCategory()
+    {
+        return $this->belongsTo(ProductSubCategory::class);
     }
 
     public function productUoms()

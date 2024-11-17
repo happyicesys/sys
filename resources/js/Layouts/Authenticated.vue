@@ -115,9 +115,11 @@ const navigation = [
         permission: 'read products',
         tagline: null,
         children: [
-            {name: 'Products', href: '/products', permission: 'read product-lists'},
-            {name: 'Product Mappings', href: '/product-mappings', permission: 'read product-mappings'},
-            {name: 'Product Availability', href: '/products/availability', permission: 'read product-availability'},
+            {name: 'List', href: '/products', permission: 'read product-lists'},
+            {name: 'Mappings', href: '/product-mappings', permission: 'read product-mappings'},
+            {name: 'Availability', href: '/products/availability', permission: 'read product-availability'},
+            {name: 'Categories', href: '/categories?classname=App\\Models\\Product'},
+            {name: 'Category Groups', href: '/category-groups?classname=App\\Models\\Product'},
         ]
     },
     {
@@ -130,8 +132,8 @@ const navigation = [
             {name: 'Cashless Providers', href: '/cashless-providers'},
             // {name: 'Cashless Terminals', href: '/cashless-terminals'},
             // {name: 'Country & Currency', href: '/countries'},
-            // {name: 'Cust Categories', href: '/categories?classname=App\\Models\\Customer'},
-            // {name: 'Cust Category Groups', href: '/category-groups'},
+            // {name: 'Product Categories', href: '/categories?classname=App\\Models\\Product'},
+            // {name: 'Product Category Groups', href: '/category-groups'},
             // {name: 'Payment Methods', href: '/payment-methods'},
             // {name: 'Payment Terms', href: '/payment-terms'},
             // {name: 'Permission', href: '/permissions'},

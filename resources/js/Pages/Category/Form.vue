@@ -86,6 +86,7 @@ import { ref, onMounted } from 'vue'
 const props = defineProps({
   category: Object,
   categoryGroups: Object,
+  classname: String,
   type: String,
   showModal: Boolean,
 })
@@ -121,6 +122,7 @@ function submit() {
     .transform((data) => ({
       ...data,
       category_group_id: data.category_group_id.id,
+      classname: props.classname,
     }))
     .post('/categories/create', {
       onSuccess: () => {
@@ -136,6 +138,7 @@ function submit() {
       .transform((data) => ({
         ...data,
         category_group_id: data.category_group_id.id,
+        classname: props.classname,
       }))
       .post('/categories/' + form.value.id + '/update', {
       onSuccess: () => {

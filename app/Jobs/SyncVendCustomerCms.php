@@ -46,15 +46,18 @@ class SyncVendCustomerCms implements ShouldQueue
     {
         $response = Http::get($this->endPointUrl);
         $customerCollection = $response->collect();
-        // dd($this->endPointUrl, $this->callBackVendCodeEndPoint);
+
         $className = get_class(new Customer());
         $baseCurrencyCountryId = null;
         $categoryId = null;
         $categoryGroupId = null;
         $profileId = null;
 
+        // dd($this->endPointUrl, $customerCollection);
+
         if($customerCollection and isset($customerCollection[0])) {
             $customerCollection = collect($customerCollection[0]);
+
                 if(isset($customerCollection['location_type'])) {
                     $locationTypeData = $customerCollection['location_type'];
                     $locationType = LocationType::firstOrCreate([

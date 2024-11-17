@@ -5,7 +5,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Settings (Customer Categories)
+        Product Categories
       </h2>
     </template>
 
@@ -28,7 +28,7 @@
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Category Group
+              Product Category Group
             </label>
             <MultiSelect
               v-model="filters.categoryGroups"
@@ -167,6 +167,7 @@
       v-if="showModal"
       :category="category"
       :categoryGroups="props.categoryGroups"
+      :classname="props.classname"
       :type="type"
       :showModal="showModal"
       @modalClose="onModalClose"
@@ -192,6 +193,7 @@ import { Head, router } from '@inertiajs/vue3';
 const props = defineProps({
   categories: Object,
   categoryGroups: Object,
+  classname: String,
 })
 
 const filters = ref({
@@ -241,6 +243,7 @@ function onEditClicked(categoryValue) {
 function onSearchFilterUpdated() {
   router.get('/categories', {
       ...filters.value,
+      classname: props.classname,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,
@@ -249,7 +252,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  router.get('/categories')
+  router.get('/categories?classname=' + props.classname)
 }
 
 function sortTable(sortKey) {

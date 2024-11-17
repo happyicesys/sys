@@ -10,6 +10,7 @@ class Tag extends Model
     use HasFactory;
 
     protected $fillable = [
+        'classname',
         'name',
         'slug',
         'desc',

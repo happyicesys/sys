@@ -80,6 +80,8 @@
               <div class="text-sm text-red-600" v-if="form.errors.measurement_unit">
                 {{ form.errors.measurement_unit }}
               </div>
+            </div>
+            <div class="sm:col-span-2">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Operator
                 <span class="text-red-500">
@@ -101,6 +103,26 @@
                 {{ form.errors.operator_id }}
               </div>
             </div>
+            <div class="sm:col-span-2">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Category (Group)
+              </label>
+              <MultiSelect
+                v-model="form.category_id"
+                :options="categoryOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="top"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.category_id">
+                {{ form.errors.category_id }}
+              </div>
+            </div>
+
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -489,8 +511,7 @@ const priceTypeOptions = ref([]);
 const sellingPrices = ref([]);
 
 onMounted(() => {
-  form.value = props.product ? useForm(props.product) : useForm(getDefaultForm());
-  categoryOptions.value = props.categories.data.map(category => ({ id: category.id, name: category.name }));
+  categoryOptions.value = props.categories.data.map(category => ({ id: category.id, name: category.name, full_name: category.name + ' (' + category.categoryGroup?.name + ')' }));
   categoryGroupOptions.value = props.categoryGroups.data.map(categoryGroup => ({ id: categoryGroup.id, name: categoryGroup.name }));
   languageOptions.value = Object.entries(props.languageOptions).map(([id, name]) => ({ id, name }));
   measurementUnitOptions.value = Object.keys(props.measurementUnitOptions).map(measurementUnit => ({ id: measurementUnit, name: measurementUnit }));
@@ -504,6 +525,11 @@ onMounted(() => {
   priceTypeOptions.value = priceTypeOptions.value.filter(priceTypeOption => {
     return !sellingPrices.value.some(sellingPrice => sellingPrice.type === priceTypeOption.id);
   });
+
+  form.value = props.product ? useForm({
+    ...props.product,
+    category_id: categoryOptions.value.find(categoryOption => categoryOption.id === props.product.category_id),
+  }) : useForm(getDefaultForm());
 });
 
 function getDefaultForm() {
@@ -517,7 +543,6 @@ function getDefaultForm() {
     is_commission: '',
     is_supermarket_fee: '',
     category_id: '',
-    category_group_id: '',
     measurement_count: '',
     measurement_value: '',
     measurement_unit: '',
@@ -536,6 +561,7 @@ function submit() {
     form.value
       .transform(data => ({
         ...data,
+        category_id: data.category_id?.id,
         measurement_unit: data.measurement_unit.id,
         operator_id: data.operator_id.id,
       }))
@@ -552,6 +578,7 @@ function submit() {
     form.value
       .transform(data => ({
         ...data,
+        category_id: data.category_id?.id,
         measurement_unit: data.measurement_unit.id,
         operator_id: data.operator_id.id,
         unitCosts: unitCosts.value,

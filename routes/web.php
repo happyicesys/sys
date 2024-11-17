@@ -379,6 +379,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/update/vends', [ProductMappingController::class, 'bindVends']);
         Route::post('/{id}/upload-attachments', [ProductMappingController::class, 'uploadAttachment']);
         Route::delete('/{id}', [ProductMappingController::class, 'delete']);
+        Route::post('/items/{itemID}/update', [ProductMappingController::class, 'updateItem']);
         Route::post('/replicate', [ProductMappingController::class, 'replicate']);
     });
 

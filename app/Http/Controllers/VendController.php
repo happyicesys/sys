@@ -409,6 +409,7 @@ class VendController extends Controller
                 'nextOpsJobItem.opsJob:id,code,date,delivered_by',
                 'nextOpsJobItem.opsJob.deliveredBy:id,name,username',
                 'nextOpsJobItem.opsJobItemChannels.vendChannel',
+                'vend.vendChannels',
                 'vend.vendChannels.latestOpsJobItemChannel',
                 'vend.vendChannels.product.thumbnail',
                 'vend.vendChannels.product.sellingPrices',

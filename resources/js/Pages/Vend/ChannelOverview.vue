@@ -42,12 +42,12 @@
                         Cap
                       </th>
                       <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
-                        P1
-                        <span v-if="profile && profile.base_currency">
-                          ({{ profile.base_currency.currency_symbol }})
-                        </span>
+                        Machine Price
                       </th>
-                      <th
+                      <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                        Server Price
+                      </th>
+                      <!-- <th
                         scope="col"
                         class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"
                         v-if="channels.some(channel => 'amount2' in channel)"
@@ -56,9 +56,9 @@
                         <span v-if="profile && profile.base_currency">
                           ({{ profile.base_currency.currency_symbol }})
                         </span>
-                      </th>
+                      </th> -->
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-blue-600">
-                        RP({{ vend.customer ? vend.customer.selling_price_type : vend.selling_price_type }})
+                        Ref Price({{ vend.customer ? vend.customer.selling_price_type : vend.selling_price_type }})
                       </th>
                       <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                         Group
@@ -151,12 +151,15 @@
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="compareSellingPrice(channel)">
                         {{ (channel.amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                       </td>
-                      <td
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="compareSellingPrice(channel)">
+                        <!-- {{ (channel.amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }} -->
+                      </td>
+                      <!-- <td
                         class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800"
                         v-if="channels.some(channel => 'amount2' in channel)"
                       >
                         {{ (channel.amount2).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
-                      </td>
+                      </td> -->
                       <td
                         class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800"
                       >
