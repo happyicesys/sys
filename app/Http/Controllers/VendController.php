@@ -208,6 +208,12 @@ class VendController extends Controller
 
         $vends = Vend::query()
             ->with([
+                'vendChannels' => function($query) {
+                    $query->select('*')
+                        ->selectRaw("(SELECT server_amount FROM product_mapping_items WHERE
+                            product_mapping_items.product_id = vend_channels.product_id AND
+                            product_mapping_items.product_mapping_id = (SELECT product_mapping_id FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
+                },
                 'vendChannels.latestOpsJobItemChannel',
                 'vendChannels.product.thumbnail',
                 'vendChannels.product.sellingPrices',
@@ -409,7 +415,12 @@ class VendController extends Controller
                 'nextOpsJobItem.opsJob:id,code,date,delivered_by',
                 'nextOpsJobItem.opsJob.deliveredBy:id,name,username',
                 'nextOpsJobItem.opsJobItemChannels.vendChannel',
-                'vend.vendChannels',
+                'vend.vendChannels' => function($query) {
+                    $query->select('*')
+                        ->selectRaw("(SELECT server_amount FROM product_mapping_items WHERE
+                            product_mapping_items.product_id = vend_channels.product_id AND
+                            product_mapping_items.product_mapping_id = (SELECT product_mapping_id FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
+                },
                 'vend.vendChannels.latestOpsJobItemChannel',
                 'vend.vendChannels.product.thumbnail',
                 'vend.vendChannels.product.sellingPrices',

@@ -34,6 +34,7 @@ class VendChannelResource extends JsonResource
             'amount2' => $this->amount2 ? $this->amount2/ 100 : 0,
             'is_active' => $this->is_active ? true : false,
             'product' => ProductResource::make($this->whenLoaded('product')),
+            'server_amount' => isset($this->server_amount) ? $this->server_amount/ 100 : 0,
             'vendChannelErrorLogs' => VendChannelErrorLogResource::collection($this->whenLoaded('vendChannelErrorLogs')),
             'vendTransactions' => VendTransactionResource::collection($this->whenLoaded('vendTransactions')),
             'vendThreeDaysErrorTransactions' => VendTransactionResource::collection($this->whenLoaded('vendThreeDaysErrorTransactions')),
