@@ -206,7 +206,7 @@ class ProductMappingController extends Controller
 
         $productMapping->save();
 
-        $this->productMappingService->syncChannels($productMapping);
+        $this->productMappingService->syncChannels($productMapping->id);
 
         return redirect()->route('product-mappings.edit', ['id' => $productMapping->id]);
     }
@@ -284,7 +284,7 @@ class ProductMappingController extends Controller
         $productMapping->vends_json = $request->productMappingVends;
         $productMapping->save();
 
-        $this->productMappingService->syncChannels($productMapping);
+        $this->productMappingService->syncChannels($productMapping->id);
 
         return redirect()->route('product-mappings');
     }

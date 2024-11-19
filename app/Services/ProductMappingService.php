@@ -8,21 +8,20 @@ use Carbon\Carbon;
 
 class ProductMappingService
 {
-    public function syncChannels(ProductMapping $productMapping)
+    public function syncChannels($productMappingID)
     {
+        $productMapping = ProductMapping::findOrFail($productMappingID);
+
         if($productMapping->vends()->exists()) {
             foreach($productMapping->vends as $vend) {
                 if($vend->vendChannels()->exists() and $productMapping->productMappingItems()->exists()) {
-                    $vendData = Vend::findOrFail($vend->id);
-                    $vendData->vendChannels()->update(['product_id' => null]);
-
-                    $vendChannels = $vend->vendChannels;
-                    $productMappingItems = $productMapping->productMappingItems;
-                    foreach($productMappingItems as $productMappingItem) {
-                        $vendChannel = $vendChannels->where('code', $productMappingItem->channel_code)->first();
+                    $vend->vendChannels()->update(['product_id' => null]);
+                    foreach($productMapping->productMappingItems as $productMappingItem) {
+                        $vendChannel = $vend->vendChannels()->where('code', (int)$productMappingItem->channel_code)->first();
                         if($vendChannel) {
                             $vendChannel->product_id = $productMappingItem->product_id;
                             $vendChannel->save();
+                            // dd($vendChannel->toArray());
                         }
                     }
                     SaveVendChannelsJson::dispatch($vend->id)->onQueue('high');
