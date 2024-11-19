@@ -186,26 +186,15 @@ class ProductController extends Controller
                 AND DATE(ops_jobs.date) >= ?
             ) AS needed_qty', [$request->productAvailableDate, Carbon::today()->toDateString()])
             ->selectRaw('(
-                SELECT SUM(
-                    CASE
-                        WHEN ops_job_items.status >= ? AND ops_job_items.status <> ?
-                            THEN ops_job_item_channels.actual_qty
-                        WHEN ops_job_items.status = ?
-                            THEN ops_job_item_channels.picked_qty
-                        ELSE 0
-                    END
-                ) AS total_qty
+                SELECT SUM(ops_job_item_channels.picked_qty) AS total_qty
                 FROM ops_job_item_channels
-                LEFT JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
-                LEFT JOIN ops_jobs ON ops_jobs.id = ops_job_item_channels.ops_job_id
-                LEFT JOIN vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
+                JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
+                JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
+                JOIN ops_jobs ON ops_jobs.id = ops_job_items.ops_job_id
                 WHERE ops_job_item_channels.product_id = products.id
                 AND DATE(ops_jobs.date) >= ?
                 AND ops_job_items.cms_transaction_id IS NULL
             ) AS not_yet_sync_api_qty ', [
-                OpsJob::STATUS_DELIVERED,
-                OpsJob::STATUS_CANCELLED,
-                OpsJob::STATUS_PICKED,
                 Carbon::today()->toDateString()
             ])
             ->where('is_active', true)
