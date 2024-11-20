@@ -43,6 +43,7 @@ use App\Models\PaymentMethod;
 use App\Models\PaymentGatewayLog;
 use App\Models\Product;
 use App\Models\ProductMapping;
+use App\Models\ProductMappingItem;
 use App\Models\SellingPrice;
 use App\Models\User;
 use App\Models\Vend;
@@ -1103,7 +1104,10 @@ class VendController extends Controller
     public function getVendAllChannelThumnails($vendCode)
     {
         $vendChannels = VendChannel::query()
-        ->with('product.thumbnail')
+        ->with([
+            'product.thumbnail',
+            'vend.productMapping',
+        ])
         ->whereHas('vend', function($query) use ($vendCode) {
             $query->where('code', $vendCode);
         })
@@ -1122,6 +1126,7 @@ class VendController extends Controller
                     'product_code' => null,
                     'product_name' => null,
                     'thumbnail' => null,
+                    'server_price' => $vendChannel->vend->product_mapping_id ? ProductMappingItem::where('product_mapping_id', $vendChannel->vend->product_mapping_id)->where('channel_code', (int)$vendChannel->code)->first()?->server_amount * 100 : null,
                 ];
                 if($vendChannel->product) {
                     $dataArr[$vendChannelIndex] = [

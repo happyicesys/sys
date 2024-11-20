@@ -164,7 +164,7 @@
                       Category
                     </TableHead>
                     <TableHead>
-                      Category Group
+                      Sub Category
                     </TableHead>
                     <TableHead>
                       Thumbnail
@@ -242,10 +242,10 @@
                         </div>
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
-                        {{ product.category?.name }}
+                        {{ product.categoryGroup?.name }}
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
-                        {{ product.categoryGroup?.name }}
+                        {{ product.category?.name }}
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         <div class="flex justify-center">

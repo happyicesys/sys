@@ -167,7 +167,7 @@
                                 Category
                               </th>
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                                Group
+                                SubCategory
                               </th>
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 Server Price ({{ operatorCountry.currency_symbol }})
@@ -199,13 +199,13 @@
                                 </span>
                               </td>
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                                <span v-if="productMappingItem.product.category">
-                                  {{ productMappingItem.product.category.name }}
+                                <span v-if="productMappingItem.product.category && productMappingItem.product.category.categoryGroup">
+                                  {{ productMappingItem.product.category.categoryGroup.name }}
                                 </span>
                               </td>
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                                <span v-if="productMappingItem.product.category && productMappingItem.product.category.categoryGroup">
-                                  {{ productMappingItem.product.category.categoryGroup.name }}
+                                <span v-if="productMappingItem.product.category">
+                                  {{ productMappingItem.product.category.name }}
                                 </span>
                               </td>
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-right">

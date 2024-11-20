@@ -118,8 +118,8 @@ const navigation = [
             {name: 'List', href: '/products', permission: 'read product-lists'},
             {name: 'Mappings', href: '/product-mappings', permission: 'read product-mappings'},
             {name: 'Availability', href: '/products/availability', permission: 'read product-availability'},
-            {name: 'Categories', href: '/categories?classname=App\\Models\\Product'},
-            {name: 'Category Groups', href: '/category-groups?classname=App\\Models\\Product'},
+            {name: 'Categories', href: '/category-groups?classname=App\\Models\\Product'},
+            {name: 'SubCategories', href: '/categories?classname=App\\Models\\Product'},
         ]
     },
     {
