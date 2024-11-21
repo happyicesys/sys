@@ -648,7 +648,9 @@ class ReportController extends Controller
 
     private function getUnitCostByVendQuery($request)
     {
-        $currentDate = $request->currentMonth ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone()) : Carbon::today()->setTimezone($this->getUserTimezone());
+        $currentDate = $request->currentMonth
+        ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone())
+        : Carbon::today()->setTimezone($this->getUserTimezone());
 
         $queryVendTransactions = DB::table('vend_transactions')
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
@@ -661,8 +663,12 @@ class ReportController extends Controller
             ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
             ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
             ->whereIn('error_code_normalized', [0, 6]);
+
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
         $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
+
+        $currentMonthFormatted = $currentDate->format('Y-m');
+
         $queryVendTransactions = $queryVendTransactions
             ->select(
                 'vends.id',
@@ -671,14 +677,15 @@ class ReportController extends Controller
                 'customers.name AS customer_name',
                 'vends.name',
                 'vends.code',
-                DB::raw('PERIOD_DIFF(DATE_FORMAT(NOW(), "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) AS month_diff'),
+                DB::raw('PERIOD_DIFF(DATE_FORMAT("' . $currentMonthFormatted . '-01", "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) AS month_diff'),
                 DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin'),
-                DB::raw('SUM(CASE WHEN PERIOD_DIFF(DATE_FORMAT(NOW(), "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) = 0 THEN revenue ELSE 0 END) AS this_month_revenue'),
+                DB::raw('ROUND(SUM(gross_profit) * 100 / SUM(revenue), 1) AS gross_profit_margin'),
+                DB::raw('SUM(CASE WHEN PERIOD_DIFF(DATE_FORMAT("' . $currentMonthFormatted . '-01", "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) = 0 THEN revenue ELSE 0 END) AS this_month_revenue')
             )
             ->groupBy('vends.id', 'month_diff');
+
             // dd($queryVendTransactions->toSql());
 
         $vends = DB::query()
@@ -720,7 +727,11 @@ class ReportController extends Controller
 
     private function getUnitCostByProductQuery($request)
     {
-        $currentDate = $request->currentMonth ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone()) : Carbon::today()->setTimezone($this->getUserTimezone());
+        $currentDate = $request->currentMonth
+        ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone())
+        : Carbon::today()->setTimezone($this->getUserTimezone());
+
+        $currentMonthFormatted = $currentDate->format('Y-m');
 
         $queryVendTransactions = DB::table('vend_transactions')
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
@@ -733,21 +744,24 @@ class ReportController extends Controller
             ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
             ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
             ->whereIn('vend_transaction_json->SErr', [0, 6]);
+
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
         $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
+
         $queryVendTransactions = $queryVendTransactions
             ->select(
                 'products.id',
                 'products.name',
                 'products.code',
-                DB::raw('PERIOD_DIFF(DATE_FORMAT(NOW(), "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) AS month_diff'),
+                DB::raw('PERIOD_DIFF(DATE_FORMAT("' . $currentMonthFormatted . '-01", "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) AS month_diff'),
                 DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin'),
-                DB::raw('SUM(CASE WHEN PERIOD_DIFF(DATE_FORMAT(NOW(), "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) = 0 THEN revenue ELSE 0 END) AS this_month_revenue'),
+                DB::raw('ROUND(SUM(gross_profit) * 100 / SUM(revenue), 1) AS gross_profit_margin'),
+                DB::raw('SUM(CASE WHEN PERIOD_DIFF(DATE_FORMAT("' . $currentMonthFormatted . '-01", "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) = 0 THEN revenue ELSE 0 END) AS this_month_revenue')
             )
             ->groupBy('products.id', 'month_diff');
+
 
         $products = DB::query()
             ->fromSub($queryVendTransactions, 'transac')
@@ -786,8 +800,13 @@ class ReportController extends Controller
 
     private function getUnitCostByCategoryQuery($request)
     {
-        $currentDate = $request->currentMonth ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone()) : Carbon::today()->setTimezone($this->getUserTimezone());
+        $currentDate = $request->currentMonth
+        ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone())
+        : Carbon::today()->setTimezone($this->getUserTimezone());
+
         $className = get_class(new Customer());
+
+        $currentMonthFormatted = $currentDate->format('Y-m');
 
         $queryVendTransactions = DB::table('vend_transactions')
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
@@ -800,21 +819,24 @@ class ReportController extends Controller
             ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
             ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
             ->whereIn('vend_transaction_json->SErr', [0, 6]);
+
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
         $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
+
         $queryVendTransactions = $queryVendTransactions
             ->select(
                 'categories.id',
                 'categories.name',
                 'categories.classname',
-                DB::raw('PERIOD_DIFF(DATE_FORMAT(NOW(), "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) AS month_diff'),
+                DB::raw('PERIOD_DIFF(DATE_FORMAT("' . $currentMonthFormatted . '-01", "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) AS month_diff'),
                 DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin'),
-                DB::raw('SUM(CASE WHEN PERIOD_DIFF(DATE_FORMAT(NOW(), "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) = 0 THEN revenue ELSE 0 END) AS this_month_revenue'),
+                DB::raw('ROUND(SUM(gross_profit) * 100 / SUM(revenue), 1) AS gross_profit_margin'),
+                DB::raw('SUM(CASE WHEN PERIOD_DIFF(DATE_FORMAT("' . $currentMonthFormatted . '-01", "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) = 0 THEN revenue ELSE 0 END) AS this_month_revenue')
             )
             ->groupBy('categories.id', 'month_diff');
+
 
         $categories = DB::query()
             ->fromSub($queryVendTransactions, 'transac')
@@ -853,7 +875,11 @@ class ReportController extends Controller
 
     private function getUnitCostByLocationTypeQuery($request)
     {
-        $currentDate = $request->currentMonth ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone()) : Carbon::today()->setTimezone($this->getUserTimezone());
+        $currentDate = $request->currentMonth
+        ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone())
+        : Carbon::today()->setTimezone($this->getUserTimezone());
+
+        $currentMonthFormatted = $currentDate->format('Y-m');
 
         $queryVendTransactions = DB::table('vend_transactions')
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
@@ -867,20 +893,23 @@ class ReportController extends Controller
             ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
             ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
             ->whereIn('vend_transaction_json->SErr', [0, 6]);
+
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
         $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
+
         $queryVendTransactions = $queryVendTransactions
             ->select(
                 'location_types.id',
                 'location_types.name',
-                DB::raw('PERIOD_DIFF(DATE_FORMAT(NOW(), "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) AS month_diff'),
+                DB::raw('PERIOD_DIFF(DATE_FORMAT("' . $currentMonthFormatted . '-01", "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) AS month_diff'),
                 DB::raw('COUNT(*) AS count'),
                 DB::raw('SUM(revenue) AS revenue'),
                 DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100/ SUM(revenue), 1) AS gross_profit_margin'),
-                DB::raw('SUM(CASE WHEN PERIOD_DIFF(DATE_FORMAT(NOW(), "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) = 0 THEN revenue ELSE 0 END) AS this_month_revenue'),
+                DB::raw('ROUND(SUM(gross_profit) * 100 / SUM(revenue), 1) AS gross_profit_margin'),
+                DB::raw('SUM(CASE WHEN PERIOD_DIFF(DATE_FORMAT("' . $currentMonthFormatted . '-01", "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) = 0 THEN revenue ELSE 0 END) AS this_month_revenue')
             )
             ->groupBy('location_types.id', 'month_diff');
+
 
         $locationTypes = DB::query()
             ->fromSub($queryVendTransactions, 'transac')
