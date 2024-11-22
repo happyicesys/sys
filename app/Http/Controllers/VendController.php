@@ -1126,7 +1126,7 @@ class VendController extends Controller
                     'product_code' => null,
                     'product_name' => null,
                     'thumbnail' => null,
-                    'server_price' => $vendChannel->vend->product_mapping_id ? ProductMappingItem::where('product_mapping_id', $vendChannel->vend->product_mapping_id)->where('channel_code', (int)$vendChannel->code)->first()?->server_amount * 100 : null,
+                    'server_price' => $vendChannel->vend->product_mapping_id ? (int)(ProductMappingItem::where('product_mapping_id', $vendChannel->vend->product_mapping_id)->where('channel_code', (int)$vendChannel->code)->first()?->server_amount * 100) : null,
                 ];
                 if($vendChannel->product) {
                     $dataArr[$vendChannelIndex] = [
