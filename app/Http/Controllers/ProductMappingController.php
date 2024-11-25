@@ -149,6 +149,7 @@ class ProductMappingController extends Controller
             'productMappingItems.product:id,code,name,is_active',
             'productMappingItems.product.thumbnail',
             'productMappingItems.product.category.categoryGroup',
+            'productMappingItems.product.sellingPrices',
             'upcomingProductMappings',
             'vends:id,code,name,product_mapping_id,customer_id',
             'vends.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',
@@ -184,7 +185,6 @@ class ProductMappingController extends Controller
             'name' => 'required',
 
         ]);
-
         // $request->merge([
         //     'is_active' => filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN),
         // ]);
@@ -200,6 +200,7 @@ class ProductMappingController extends Controller
                 $productMapping->productMappingItems()->create([
                     'channel_code' => $productMappingItem['channel_code'],
                     'product_id' => $productMappingItem['product']['id'],
+                    'selling_price_id' => isset($productMappingItem['selling_price_id']) ? $productMappingItem['selling_price_id'] : null,
                 ]);
            }
         }

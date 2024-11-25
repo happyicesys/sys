@@ -19,6 +19,8 @@ class ProductMappingItemResource extends JsonResource
             'channel_code' => $this->channel_code,
             'product' => ProductResource::make($this->whenLoaded('product')),
             'productMapping' => ProductMappingResource::make($this->whenLoaded('productMapping')),
+            'selling_price_id' => $this->selling_price_id,
+            'sellingPrice' => SellingPriceResource::make($this->whenLoaded('sellingPrice')),
             'server_amount' => isset($this->server_amount) && $this->server_amount != null ? $this->server_amount : null,
         ];
     }

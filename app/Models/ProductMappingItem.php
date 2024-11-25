@@ -14,6 +14,7 @@ class ProductMappingItem extends Model
         'channel_code',
         'product_id',
         'product_mapping_id',
+        'selling_price_id',
         'server_amount',
     ];
 
@@ -34,5 +35,10 @@ class ProductMappingItem extends Model
     public function productMapping()
     {
         return $this->belongsTo(ProductMapping::class);
+    }
+
+    public function sellingPrice()
+    {
+        return $this->belongsTo(SellingPrice::class);
     }
 }

@@ -147,7 +147,7 @@
                 <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
                   <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                     <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
-                      <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                      <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg pb-24">
                         <table class="min-w-full divide-y divide-gray-300">
                           <thead class="bg-gray-50">
                             <tr>
@@ -210,8 +210,19 @@
                               </td>
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-right">
                                 <div class="flex justify-center">
-                                  <FormInput @input="onServerAmountChanged(productMappingItem.id, productMappingItem.server_amount)" v-model="productMappingItem.server_amount" :error="form.errors.server_amount">
-                                  </FormInput>
+                                  <!-- <FormInput @input="onServerAmountChanged(productMappingItem.id, productMappingItem.server_amount)" v-model="productMappingItem.server_amount" :error="form.errors.server_amount">
+                                  </FormInput> -->
+                                  <MultiSelect
+                                    v-model="productMappingItem.selling_price_id"
+                                    :options="productMappingItemOptionsMapping(productMappingItem)"
+                                    trackBy="id"
+                                    valueProp="id"
+                                    label="full_name"
+                                    placeholder="Select"
+                                    open-direction="bottom"
+                                    class="mt-1 w-full min-w-48"
+                                  >
+                                  </MultiSelect>
                                 </div>
                               </td>
                               <td class="whitespace-nowrap py-4 text-sm text-center">
@@ -332,10 +343,20 @@ const upcomingProductMappingOptions = ref([])
 onMounted(() => {
   form.value = props.productMapping ? useForm({
     ...props.productMapping.data,
-  }) : useForm(getDefaultForm())
+    productMappingItems: props.productMapping.data.productMappingItems.map(item => ({
+      ...item,
+      selling_price_id: getDefaultSellingPriceId(item),
+    }))
+  }) : useForm(getDefaultForm());
 
   productOptions.value = props.products.data;
-  productMappingItems.value = props.productMapping ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems)) : [];
+  // productMappingItems.value = props.productMapping ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems)) : [];
+  productMappingItems.value = props.productMapping
+    ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems)).map(item => ({
+      ...item,
+      selling_price_id: getDefaultSellingPriceId(item)[0], // Ensure the list has initialized IDs
+    }))
+    : [];
   upcomingProductMappingOptions.value = props.upcomingProductMappingOptions.data.map((data) => ({ id: data.id, value: data.name }));
 })
 
@@ -357,7 +378,10 @@ function submit() {
   form.value
     .transform((data) => ({
       ...data,
-      productMappingItems: productMappingItems.value,
+      productMappingItems: productMappingItems.value.map((item) => ({
+        ...item,
+        selling_price_id: item.selling_price_id.id, // Ensure the list has initialized IDs
+      })),
       upcomingProductMappings: JSON.parse(JSON.stringify(form.value.upcomingProductMappings)).map((data) => data.id),
       is_active: data.is_active.id,
     }))
@@ -377,6 +401,10 @@ function bindProductMappingItem() {
   }
 }
 
+function getDefaultSellingPriceId(productMappingItem) {
+  return productMappingItem.product?.sellingPrices.filter((data) => data.id === productMappingItem.selling_price_id).map((data) => ({ id: data.id, full_name: 'P' + data.type + ' (' + (data.amount/100).toFixed(2) + ')' }))
+}
+
 function onServerAmountChanged(id, amount) {
   router.post('/product-mappings/items/' + id + '/update', {
     server_amount: amount,
@@ -387,6 +415,10 @@ function onServerAmountChanged(id, amount) {
     preserveScroll: true,
     replace: true,
   })
+}
+
+function productMappingItemOptionsMapping(productMappingItem) {
+  return productMappingItem.product?.sellingPrices.map((data) => ({ id: data.id, full_name: 'P' + data.type + ' (' + (data.amount/100).toFixed(2) + ')' }))
 }
 
 function toggleActivateDeactivate() {
