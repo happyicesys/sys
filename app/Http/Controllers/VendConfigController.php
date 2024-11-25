@@ -140,6 +140,15 @@ class VendConfigController extends Controller
         return redirect()->route('vend-configs');
     }
 
+    public function toggleActivateDeactivate($vendConfigID)
+    {
+        $vendConfig = VendConfig::findOrFail($vendConfigID);
+        $vendConfig->is_active = !$vendConfig->is_active;
+        $vendConfig->save();
+
+        return redirect()->route('vend-configs');
+    }
+
     public function uploadAttachment(Request $request, $id)
     {
         $customer = VendConfig::findOrFail($id);

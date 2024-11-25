@@ -197,15 +197,16 @@
 
 
             <div class="sm:col-span-6 mt-5 ">
-              <div class="flex justify-end">
-                <!-- <div class="flex space-x-1 justify-start">
+              <div class="flex justify-end space-x-1">
+                 <div class="flex space-x-1 justify-start">
+                  <!--
                   <Button type="button" class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1" v-if="form.id" @click="replicateProductMapping()">
                     <DocumentDuplicateIcon class="w-4 h-4"></DocumentDuplicateIcon>
                     <span>
                       Replicate
                     </span>
                   </Button>
-
+-->
                   <Button type="button" v-if="form.id" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
                     <div>
                       <span class="flex space-x-1 items-center" v-if="form.is_active">
@@ -222,7 +223,7 @@
                       </span>
                     </div>
                   </Button>
-                </div> -->
+                </div>
 
                 <div class="flex space-x-1 justify-end">
                   <Link :href="'/vend-configs'">
