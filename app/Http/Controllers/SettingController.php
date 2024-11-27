@@ -435,7 +435,7 @@ class SettingController extends Controller
         ]);
 
         if(Vend::where('code', $request->code)->exists()) {
-            return redirect()->back()->with('errors', 'Vend ID already exists');
+            return redirect()->back()->with('errors', 'Machine ID already exists');
         }
 
         $vend = Vend::create($request->all());

@@ -129,7 +129,7 @@ class DeliveryPlatformController extends Controller
         $shortOrderID = $request->short_order_id;
 
         if(!$shortOrderID || !$code) {
-            throw new \Exception('Please provide Short Order ID and Vend ID');
+            throw new \Exception('Please provide Short Order ID and Machine ID');
         }
 
         $deliveryPlatformOrder = DeliveryPlatformOrder::query()

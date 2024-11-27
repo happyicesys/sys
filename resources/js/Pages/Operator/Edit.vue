@@ -508,7 +508,7 @@
                         <tr class="bg-gray-200">
                           <th scope="col" colspan="4" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             <span class="flex space-x-2">
-                              <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code" @input="onSearchFilterUpdated()">
+                              <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code" @input="onSearchFilterUpdated()">
                                   Machine ID
                               </SearchInput>
                               <SearchInput placeholderStr="Cust Name" v-model="filters.name" @input="onSearchFilterUpdated()">
@@ -542,7 +542,7 @@
                             #
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                            Vend ID
+                            Machine ID
                           </th>
                           <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                             Customer

@@ -4,7 +4,7 @@
       <th>#</th>
       <th>Order ID</th>
       <th>Transaction Datetime</th>
-      <th>Vend ID</th>
+      <th>Machine ID</th>
       <th>Customer Name</th>
       <th>Channel</th>
       <th>Product ID</th>

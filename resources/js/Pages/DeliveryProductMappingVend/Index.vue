@@ -61,8 +61,8 @@
             >
             </MultiSelect>
           </div>
-          <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code">
-            Vend ID
+          <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
+            Machine ID
           </SearchInput>
           <SearchInput placeholderStr="Platform ID" v-model="filters.platform_ref_id">
             Platform ID
@@ -171,7 +171,7 @@
                       #
                     </TableHead>
                     <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
-                      Vend ID
+                      Machine ID
                     </TableHeadSort>
                     <TableHead>
                       Platform ID

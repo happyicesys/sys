@@ -36,8 +36,8 @@
 					    </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
-              <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code" class="block text-sm font-medium text-gray-700">
-                Vend ID#
+              <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code" class="block text-sm font-medium text-gray-700">
+                Machine ID#
 					    </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">

@@ -24,8 +24,8 @@
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Vend ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-            Vend ID
+          <SearchInput placeholderStr="Machine ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+            Machine ID
             <span class="text-[9px]">
                 ("," for multiple)
             </span>

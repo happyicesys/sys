@@ -8,7 +8,7 @@
       <th>Short Order ID</th>
       <th>Status</th>
       <th>C to D (minutes)</th>
-      <th>Vend ID</th>
+      <th>Machine ID</th>
       <th>Customer Code</th>
       <th>Customer Name</th>
       <th>Transaction Order ID</th>

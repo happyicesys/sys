@@ -1056,7 +1056,7 @@ class VendController extends Controller
 
         return (new FastExcel($vendTemps))->download('Vend_Temps_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendTemp) {
             return [
-                'Vend ID' => $vendTemp->vend_code,
+                'Machine ID' => $vendTemp->vend_code,
                 'Date Time' => Carbon::parse($vendTemp->created_at)->toDateTimeString(),
                 'Temp' => $vendTemp->value/ 10,
                 'Type' => 'T'.$vendTemp->type,
@@ -1566,7 +1566,7 @@ class VendController extends Controller
             return [
                 'Order ID' => $vendTransaction->order_id,
                 'Transaction Datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
-                'Vend ID' => $vendTransaction->vend->code,
+                'Machine ID' => $vendTransaction->vend->code,
                 'Customer ID' => $vendTransaction->customer ? $vendTransaction->customer->id + 20000 : '',
                 'Customer Name' => $vendTransaction->customer_id ? $vendTransaction->customer->name : '',
                 'Channel' => $vendTransaction->vend_channel_code,
@@ -1922,7 +1922,7 @@ class VendController extends Controller
         // dd($vendChannels);
         return (new FastExcel($this->yieldOneByOne($vendChannels)))->download('Vend_channels_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendChannel) {
             return [
-                'Vend ID' => isset($vendChannel->vend_code) ? $vendChannel->vend_code : '',
+                'Machine ID' => isset($vendChannel->vend_code) ? $vendChannel->vend_code : '',
                 'Customer Name' => isset($vendChannel->customer_code) ?
                                     $vendChannel->customer_code.' '.$vendChannel->customer_name :
                                     (isset($vendChannel->vend_name) ? $vendChannel->vend_name : ''),

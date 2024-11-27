@@ -8,7 +8,7 @@
             <div class="flex flex-col space-y-1">
                 <div class="flex space-x-2 items-center">
                     <h2 class="font-semibold text-md md:text-xl text-gray-700 leading-tight">
-                        Vend ID
+                        Machine ID
                     </h2>
                     <h2 class="font-semibold text-xl md:text-2xl text-gray-900 leading-tight">
                         {{ vend.code }}
@@ -56,7 +56,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3">
                 <div>
                     <label for="text" class="block text-sm font-medium text-gray-700">
-                        Vend ID
+                        Machine ID
                     </label>
                     <MultiSelect
                         v-model="filters.vend_id"

@@ -3,7 +3,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        More Information for Vend ID#
+        More Information for Machine ID#
         {{ vend.code }}
       </h2>
     </template>
@@ -40,7 +40,7 @@
 
             <div class="sm:col-span-5" v-if="vend">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Vend ID#
+                Machine ID#
               </label>
               <div class="mt-1">
                 <input

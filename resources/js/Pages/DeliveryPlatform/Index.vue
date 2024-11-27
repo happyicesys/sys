@@ -27,8 +27,8 @@
           <SearchInput placeholderStr="Name" v-model="filters.name">
             Name
           </SearchInput>
-          <SearchInput placeholderStr="Vend ID" v-model="filters.vend_code">
-            Vend ID
+          <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
+            Machine ID
           </SearchInput>
         </div>
 

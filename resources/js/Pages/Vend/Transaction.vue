@@ -20,8 +20,8 @@
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
-                <SearchInput placeholderStr="Vend ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
-                    Vend ID
+                <SearchInput placeholderStr="Machine ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
+                    Machine ID
                     <span class="text-[9px]">
                         ("," for multiple)
                     </span>
@@ -423,7 +423,7 @@
                             Transaction DateTime
                         </TableHeadSort>
                         <TableHead>
-                            Vend ID
+                            Machine ID
                         </TableHead>
                         <TableHead>
                             Machine Prefix

@@ -2,7 +2,7 @@
   <thead>
   <tr>
       <th>#</th>
-      <th>Vend ID</th>
+      <th>Machine ID</th>
       <th>Date Time</th>
       <th>Temp</th>
       <th>Type</th>

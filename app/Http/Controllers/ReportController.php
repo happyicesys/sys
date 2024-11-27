@@ -518,7 +518,7 @@ class ReportController extends Controller
 
         return (new FastExcel($this->yieldOneByOne($vendChannelsArr)))->download('Vend_channels_'.Carbon::now()->toDateTimeString().'.xlsx', function ($vendChannel) {
             return [
-                'Vend ID' => $vendChannel['vend_code'],
+                'Machine ID' => $vendChannel['vend_code'],
                 'Customer Name' => $vendChannel['full_name'],
                 'Channel' => $vendChannel['channel_code'],
                 'Product Code' => $vendChannel['product_code'],

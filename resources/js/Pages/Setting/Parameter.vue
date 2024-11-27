@@ -16,7 +16,7 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
             <div class="sm:col-span-5" v-if="vend">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Vend ID#
+                Machine ID#
               </label>
               <div class="mt-1">
                 <input

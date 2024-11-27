@@ -521,13 +521,13 @@
                         #
                     </TableHead>
                     <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType !== 'customers'">
-                        Vend ID
+                        Machine ID
                     </TableHeadSort>
                     <TableHeadSort modelName="customers.name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customers.name')">
                         Customer
                     </TableHeadSort>
                     <TableHeadSort modelName="vends.code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.code')" v-if="indexType === 'customers'">
-                        Vend ID
+                        Machine ID
                     </TableHeadSort>
                     <TableHead>
                         <SingleSortItem modelName="vends.vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vends.vend_prefix_name', false)">

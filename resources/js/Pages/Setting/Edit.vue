@@ -52,7 +52,7 @@
 
             <div class="sm:col-span-2" v-if="vend">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Vend ID#
+                Machine ID#
               </label>
               <div class="mt-1">
                 <input
