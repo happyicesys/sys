@@ -322,6 +322,7 @@ import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   priceTypeOptions: Object,
@@ -338,6 +339,7 @@ const form = ref(
 const operatorCountry = usePage().props.auth.operatorCountry
 const productOptions = ref([])
 const productMappingItems = ref([])
+const toast = useToast()
 const upcomingProductMappingOptions = ref([])
 
 onMounted(() => {
@@ -380,7 +382,7 @@ function submit() {
       ...data,
       productMappingItems: productMappingItems.value.map((item) => ({
         ...item,
-        selling_price_id: item.selling_price_id.id, // Ensure the list has initialized IDs
+        selling_price_id: item.selling_price_id?.id, // Ensure the list has initialized IDs
       })),
       upcomingProductMappings: JSON.parse(JSON.stringify(form.value.upcomingProductMappings)).map((data) => data.id),
       is_active: data.is_active.id,
@@ -441,7 +443,12 @@ function replicateProductMapping() {
       id: form.value.id,
     },
     {
-      preserveState: true,
+      onSuccess: () => {
+        toast.success("Mappings replicated", {
+          timeout: 3000
+        });
+      },
+      preserveState: false,
       replace: true,
     })
 }

@@ -1763,7 +1763,7 @@ class VendController extends Controller
         // }
 
         if($isProductMappingChanged and $vend->product_mapping_id) {
-            $this->productMappingService->syncChannels(ProductMapping::find($vend->product_mapping_id));
+            $this->productMappingService->syncChannels($vend->product_mapping_id);
         }
 
         if($request->operator_id != $vend->operator_id) {
