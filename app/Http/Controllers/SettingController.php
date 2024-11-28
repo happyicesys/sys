@@ -136,6 +136,7 @@ class SettingController extends Controller
                 'vends.is_testing',
                 'vends.label_name',
                 'vends.lcd_monitor_id',
+                'vends.led_matrix_panel_id',
                 'vends.last_updated_at',
                 'vends.modem_type_id',
                 'vends.modem_unit_id',
@@ -181,6 +182,7 @@ class SettingController extends Controller
                 Key::orderBy('name')->get()
             ),
             'lcdMonitorOptions' => Vend::LCD_MONITOR_MAPPINGS,
+            'ledMatrixPanelOptions' => Vend::LED_MATRIX_PANEL_MAPPINGS,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
@@ -273,6 +275,7 @@ class SettingController extends Controller
             'vends.claw_machine_board_id',
             'vends.claw_machine_body_id',
             'vends.lcd_monitor_id',
+            'vends.led_matrix_panel_id',
             'vends.customer_movement_history_json',
             'vends.begin_date',
             'vends.simcard_id',
@@ -337,6 +340,7 @@ class SettingController extends Controller
                 Key::orderBy('name')->get()
             ),
             'lcdMonitorOptions' => Vend::LCD_MONITOR_MAPPINGS,
+            'ledMatrixPanelOptions' => Vend::LED_MATRIX_PANEL_MAPPINGS,
             'modemTypeOptions' => ModemTypeResource::collection(
                 ModemType::orderBy('id')->get()
             ),

@@ -1119,7 +1119,7 @@ class VendController extends Controller
         if($vendChannels) {
             $dataArr = [];
             foreach($vendChannels as $vendChannelIndex => $vendChannel) {
-                $sellingPriceID = ProductMappingItem::where('product_mapping_id', $vendChannel->vend->product_mapping_id)->where('channel_code', (int)$vendChannel->code)->first()?->selling_price_id;
+                $productMappingItem = ProductMappingItem::where('product_mapping_id', $vendChannel->vend->product_mapping_id)->where('channel_code', (int)$vendChannel->code)->first();
 
                 $dataArr[$vendChannelIndex] = [
                     'vend_code' => $vendChannel->vend->code,
@@ -1128,7 +1128,7 @@ class VendController extends Controller
                     'product_code' => null,
                     'product_name' => null,
                     'thumbnail' => null,
-                    'server_price' => $sellingPriceID ? SellingPrice::findOrFail($sellingPriceID)->amount/100 : null,
+                    'server_price' => $productMappingItem ? $productMappingItem->server_amount/100 : null,
                 ];
                 if($vendChannel->product) {
                     $dataArr[$vendChannelIndex] = [
@@ -1738,6 +1738,7 @@ class VendController extends Controller
             'claw_machine_body_id' => $request->claw_machine_body_id,
             'label_name' => $request->label_name,
             'lcd_monitor_id' => $request->lcd_monitor_id,
+            'led_matrix_panel_id' => $request->led_matrix_panel_id,
             'menu_frame_id' => $request->menu_frame_id,
             'modem_type_id' => $request->modem_type_id,
             'modem_unit_id' => $request->modem_unit_id,

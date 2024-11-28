@@ -46,6 +46,11 @@ class Vend extends Model
         3 => 'WaveShare 10.1HP-CAPLCD (Type-C) 1280x800'
     ];
 
+    const LED_MATRIX_PANEL_MAPPINGS = [
+        1 => 'Yes',
+        2 => 'No',
+    ];
+
     const MENU_FRAME_MAPPINGS = [
         1 => 'Square (A) 方',
         2 => 'Rectangle (L) 长',
@@ -271,6 +276,7 @@ class Vend extends Model
         'customer_movement_history_json',
         'label_name',
         'lcd_monitor_id',
+        'led_matrix_panel_id',
         'modem_type_id',
         'modem_unit_id',
         'menu_frame_id',
@@ -803,6 +809,15 @@ class Vend extends Model
                     $query->whereNull('lcd_monitor_id');
                 }else {
                     $query->where('lcd_monitor_id', $search);
+                }
+            }
+        })
+        ->when($request->led_matrix_panel_id, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'undefined') {
+                    $query->whereNull('led_matrix_panel_id');
+                }else {
+                    $query->where('led_matrix_panel_id', $search);
                 }
             }
         })

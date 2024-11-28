@@ -237,6 +237,22 @@
           </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
+              LED Matrix Panel
+            </label>
+            <MultiSelect
+                v-model="filters.led_matrix_panel_id"
+                :options="ledMatrixPanelOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
                 Simcard
             </label>
             <MultiSelect
@@ -915,6 +931,7 @@ const props = defineProps({
     cmsEndpoint: String,
     keyOptions: Object,
     lcdMonitorOptions: Object,
+    ledMatrixPanelOptions: Object,
     locationTypeOptions: Object,
     modemTypeOptions: [Array, Object],
     modemUnitOptions: [Array, Object],
@@ -936,6 +953,7 @@ const filters = ref({
     categoryGroups: [],
     key_id: '',
     lcd_monitor_id: '',
+    led_matrix_panel_id: '',
     locationTypes: [],
     modem_type_id: '',
     modem_unit_id: '',
@@ -971,6 +989,7 @@ const filters = ref({
   const type = ref('')
   const vend = ref()
   const lcdMonitorOptions = ref([])
+  const ledMatrixPanelOptions = ref([])
   const operatorCountry = usePage().props.auth.operatorCountry
   const operatorRole = usePage().props.auth.operatorRole
   const sellingPriceTypeOptions = ref([])
@@ -1015,6 +1034,10 @@ onMounted(() => {
     lcdMonitorOptions.value = [
         { id: 'undefined', value: 'Undefined'},
         ...Object.entries(props.lcdMonitorOptions).map(([id, name]) => ({id: id, value: name}))
+    ]
+    ledMatrixPanelOptions.value = [
+        { id: 'undefined', value: 'Undefined'},
+        ...Object.entries(props.ledMatrixPanelOptions).map(([id, name]) => ({id: id, value: name}))
     ]
     locationTypeOptions.value = [
         {id: 'all', value: 'All'},
@@ -1094,6 +1117,7 @@ function onSearchFilterUpdated() {
       cashless_terminal_id: filters.value.cashless_terminal_id.id,
       // location_type_id: filters.value.locationType.id,
       lcd_monitor_id: filters.value.lcd_monitor_id.id,
+      led_matrix_panel_id: filters.value.led_matrix_panel_id.id,
       locationTypes: filters.value.locationTypes.map((locationType) => { return locationType.id }),
       modem_type_id: filters.value.modem_type_id.id,
       modem_unit_id: filters.value.modem_unit_id.id,

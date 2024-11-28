@@ -508,6 +508,25 @@
                   {{ form.errors.lcd_monitor_id }}
                 </div>
             </div>
+            <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  LED Matrix Panel
+                </label>
+                <MultiSelect
+                  v-model="form.led_matrix_panel_id"
+                  :options="ledMatrixPanelOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.led_matrix_panel_id">
+                  {{ form.errors.led_matrix_panel_id }}
+                </div>
+            </div>
 
             <hr class="sm:col-span-6">
             <div class="sm:col-span-3" v-if="form.vend_prefix_id">
@@ -1023,6 +1042,7 @@ const props = defineProps({
     countries: Object,
     keyOptions: Object,
     lcdMonitorOptions: [Array, Object],
+    ledMatrixPanelOptions: [Array, Object],
     menuFrameOptions: [Array, Object],
     modemTypeOptions: [Array, Object],
     modemUnitOptions: [Array, Object],
@@ -1060,6 +1080,7 @@ const clawMachineBoardOptions = ref([])
 const clawMachineBodyOptions = ref([])
 const countryOptions = ref([])
 const lcdMonitorOptions = ref([])
+const ledMatrixPanelOptions = ref([])
 const menuFrameOptions = ref([])
 const modemTypeOptions = ref([])
 const modemUnitOptions = ref([])
@@ -1088,6 +1109,7 @@ function getDefaultForm() {
     customer_id: '',
     label_name: '',
     lcd_monitor_id: '',
+    led_matrix_panel_id: '',
     customer: {
       begin_date: '',
       termination_date: '',
@@ -1149,6 +1171,10 @@ onMounted(() => {
   lcdMonitorOptions.value = [
     { id: '', name: '--- Clear ---'},
     ...Object.entries(props.lcdMonitorOptions).map(([id, name]) => ({ id: id, name: name }))
+  ];
+  ledMatrixPanelOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...Object.entries(props.ledMatrixPanelOptions).map(([id, name]) => ({ id: id, name: name }))
   ];
   keyOptions.value = [
     { id: '', name: '--- Clear ---'},
@@ -1221,6 +1247,7 @@ onMounted(() => {
     claw_machine_board_id: props.vend.claw_machine_board_id ? clawMachineBoardOptions.value.find(clawMachineBoard => clawMachineBoard.id == props.vend.claw_machine_board_id) : null,
     claw_machine_body_id: props.vend.claw_machine_body_id ? clawMachineBodyOptions.value.find(clawMachineBody => clawMachineBody.id == props.vend.claw_machine_body_id) : null,
     lcd_monitor_id: props.vend.lcd_monitor_id ? lcdMonitorOptions.value.find(lcdMonitor => lcdMonitor.id == props.vend.lcd_monitor_id) : null,
+    led_matrix_panel_id: props.vend.led_matrix_panel_id ? ledMatrixPanelOptions.value.find(ledMatrixPanel => ledMatrixPanel.id == props.vend.led_matrix_panel_id) : null,
     key_id: props.vend.key_id ? keyOptions.value.find(keyModel => keyModel.id === props.vend.key_id) : null,
     menu_frame_id: props.vend.menu_frame_id ? menuFrameOptions.value.find(menuFrame => menuFrame.id == props.vend.menu_frame_id) : null,
     modem_type_id: props.vend.modem_type_id ? modemTypeOptions.value.find(modemType => modemType.id == props.vend.modem_type_id) : null,
@@ -1391,6 +1418,7 @@ function saveVend(vendID) {
       claw_machine_board_id: data.claw_machine_board_id ? data.claw_machine_board_id.id : null,
       claw_machine_body_id: data.claw_machine_body_id ? data.claw_machine_body_id.id : null,
       lcd_monitor_id: data.lcd_monitor_id ? data.lcd_monitor_id.id : null,
+      led_matrix_panel_id: data.led_matrix_panel_id ? data.led_matrix_panel_id.id : null,
       begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
       key_id: data.key_id ? data.key_id.id : null,
       menu_frame_id: data.menu_frame_id ? data.menu_frame_id.id : null,
