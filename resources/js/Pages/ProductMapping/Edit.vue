@@ -132,7 +132,7 @@
                 <div class="sm:col-span-1" v-if="form.id">
                   <Button
                     type="button"
-                    @click="bindProductMappingItem()"
+                    @click.prevent="bindProductMappingItem()"
                     class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
                     :class="[!form.channel_code || !form.product_id ? 'opacity-50 cursor-not-allowed' : '']"
                     :disabled="!form.channel_code || !form.product_id"
@@ -170,7 +170,20 @@
                                 SubCategory
                               </th>
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                                Server Price ({{ operatorCountry.currency_symbol }})
+                                Server Price ({{ operatorCountry.currency_symbol }}) <br>
+                                <MultiSelect
+                                    v-model="form.selling_price_type"
+                                    :options="priceTypeOptions"
+                                    trackBy="id"
+                                    valueProp="id"
+                                    label="name"
+                                    placeholder="Select"
+                                    open-direction="bottom"
+                                    class="mt-1 w-full min-w-36"
+                                    @selected="onSellingPriceChanged"
+                                  >
+                                  </MultiSelect>
+
                               </th>
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 Action
@@ -208,22 +221,10 @@
                                   {{ productMappingItem.product.category.name }}
                                 </span>
                               </td>
-                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-right">
-                                <div class="flex justify-center">
-                                  <!-- <FormInput @input="onServerAmountChanged(productMappingItem.id, productMappingItem.server_amount)" v-model="productMappingItem.server_amount" :error="form.errors.server_amount">
-                                  </FormInput> -->
-                                  <MultiSelect
-                                    v-model="productMappingItem.selling_price_id"
-                                    :options="productMappingItemOptionsMapping(productMappingItem)"
-                                    trackBy="id"
-                                    valueProp="id"
-                                    label="full_name"
-                                    placeholder="Select"
-                                    open-direction="bottom"
-                                    class="mt-1 w-full min-w-48"
-                                  >
-                                  </MultiSelect>
-                                </div>
+                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                                <span v-if="form.selling_price_type && productMappingItem.product && productMappingItem.product.sellingPrices">
+                                  {{((productMappingItem.product.sellingPrices[0].amount)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                                </span>
                               </td>
                               <td class="whitespace-nowrap py-4 text-sm text-center">
                                 <Button
@@ -337,29 +338,26 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const operatorCountry = usePage().props.auth.operatorCountry
+const priceTypeOptions = ref([])
 const productOptions = ref([])
 const productMappingItems = ref([])
 const toast = useToast()
 const upcomingProductMappingOptions = ref([])
 
 onMounted(() => {
+
+  priceTypeOptions.value = [
+    {id: '', name: '--- Clear ---' },
+    ...Object.entries(props.priceTypeOptions).map(([id, name]) => ({id: id, name: name}))
+  ]
+  productOptions.value = props.products.data;
+  productMappingItems.value = props.productMapping ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems)) : [];
+  upcomingProductMappingOptions.value = props.upcomingProductMappingOptions.data.map((data) => ({ id: data.id, value: data.name }));
+
   form.value = props.productMapping ? useForm({
     ...props.productMapping.data,
-    productMappingItems: props.productMapping.data.productMappingItems.map(item => ({
-      ...item,
-      selling_price_id: getDefaultSellingPriceId(item),
-    }))
+    selling_price_type: priceTypeOptions.value.find((data) => data.id == props.productMapping.data.selling_price_type),
   }) : useForm(getDefaultForm());
-
-  productOptions.value = props.products.data;
-  // productMappingItems.value = props.productMapping ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems)) : [];
-  productMappingItems.value = props.productMapping
-    ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems)).map(item => ({
-      ...item,
-      selling_price_id: getDefaultSellingPriceId(item)[0], // Ensure the list has initialized IDs
-    }))
-    : [];
-  upcomingProductMappingOptions.value = props.upcomingProductMappingOptions.data.map((data) => ({ id: data.id, value: data.name }));
 })
 
 function getDefaultForm() {
@@ -380,9 +378,9 @@ function submit() {
   form.value
     .transform((data) => ({
       ...data,
+      selling_price_type: data.selling_price_type?.id,
       productMappingItems: productMappingItems.value.map((item) => ({
         ...item,
-        selling_price_id: item.selling_price_id?.id, // Ensure the list has initialized IDs
       })),
       upcomingProductMappings: JSON.parse(JSON.stringify(form.value.upcomingProductMappings)).map((data) => data.id),
       is_active: data.is_active.id,
@@ -405,6 +403,23 @@ function bindProductMappingItem() {
 
 function getDefaultSellingPriceId(productMappingItem) {
   return productMappingItem.product?.sellingPrices.filter((data) => data.id === productMappingItem.selling_price_id).map((data) => ({ id: data.id, full_name: 'P' + data.type + ' (' + (data.amount/100).toFixed(2) + ')' }))
+}
+
+function onSellingPriceChanged() {
+  router.reload({
+    only: ['productMapping'],
+    data: {
+      selling_price_type: form.value.selling_price_type?.id,
+    },
+    replace: true,
+    preserveState: true,
+    onSuccess: page => {
+      productMappingItems.value = page.props.productMapping.data.productMappingItems.map(item => ({
+        ...item,
+        selling_price_id: getDefaultSellingPriceId(item)[0], // Ensure the list has initialized IDs
+      }))
+    }
+  })
 }
 
 function onServerAmountChanged(id, amount) {

@@ -34,6 +34,7 @@ class ProductMapping extends Model
         'is_active',
         'operator_id',
         'product_mapping_items_json',
+        'selling_price_type',
         'vends_json',
     ];
 

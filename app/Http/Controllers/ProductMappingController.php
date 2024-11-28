@@ -141,15 +141,24 @@ class ProductMappingController extends Controller
         return redirect()->route('product-mappings');
     }
 
-    public function edit($id)
+    public function edit(Request $request, $id)
     {
+        $productMappingInit = ProductMapping::findOrFail($id);
+        $request->merge([
+            'selling_price_type' => $request->selling_price_type ? $request->selling_price_type  : ($productMappingInit->selling_price_type ? $productMappingInit->selling_price_type : null),
+        ]);
+
         $productMapping = ProductMapping::with([
             'attachments',
             'productMappingItems',
             'productMappingItems.product:id,code,name,is_active',
             'productMappingItems.product.thumbnail',
             'productMappingItems.product.category.categoryGroup',
-            'productMappingItems.product.sellingPrices',
+            'productMappingItems.product.sellingPrices' => function($query) use ($request) {
+                if($request->selling_price_type) {
+                    $query->where('type', $request->selling_price_type);
+                }
+            },
             'upcomingProductMappings',
             'vends:id,code,name,product_mapping_id,customer_id',
             'vends.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',

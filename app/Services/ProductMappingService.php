@@ -3,6 +3,8 @@
 namespace App\Services;
 use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Models\ProductMapping;
+use App\Models\ProductMappingItem;
+use App\Models\SellingPrice;
 use App\Models\Vend;
 use Carbon\Carbon;
 
@@ -20,8 +22,13 @@ class ProductMappingService
                         $vendChannel = $vend->vendChannels()->where('code', (int)$productMappingItem->channel_code)->first();
                         if($vendChannel) {
                             $vendChannel->product_id = $productMappingItem->product_id;
+                            if($productMapping->selling_price_type) {
+                                $sellingPrice = SellingPrice::where('product_id', $productMappingItem->product_id)->where('type', $productMapping->selling_price_type)->first();
+                                if($sellingPrice) {
+                                    $productMappingItem->update(['server_amount' => $sellingPrice->amount]);
+                                }
+                            }
                             $vendChannel->save();
-                            // dd($vendChannel->toArray());
                         }
                     }
                     SaveVendChannelsJson::dispatch($vend->id)->onQueue('high');
