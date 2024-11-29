@@ -7,6 +7,7 @@ use App\Http\Resources\CategoryGroupResource;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Customer;
+use App\Models\Product;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -16,7 +17,7 @@ class CategoryGroupController extends Controller
 {
     public function index(Request $request)
     {
-        $classname = $request->classname ? $request->classname : get_class(new Customer());
+        $classname = $request->classname ? $request->classname : get_class(new Product());
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
         $sortKey = $request->sortKey ? $request->sortKey : 'created_at';
         $sortBy = $request->sortBy ? $request->sortBy : false;
@@ -26,6 +27,9 @@ class CategoryGroupController extends Controller
                 CategoryGroup::with([
                     'categories'
                     ])
+                    ->when($classname, function($query, $search) {
+                        $query->where('classname', $search);
+                    })
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })

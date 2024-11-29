@@ -7,6 +7,7 @@ use App\Http\Resources\CategoryGroupResource;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Customer;
+use App\Models\Product;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -17,7 +18,7 @@ class CategoryController extends Controller
     public function index(Request $request)
     {
         $request->merge([
-            'classname' => $request->classname ? $request->classname : get_class(new Customer()),
+            'classname' => $request->classname ? $request->classname : get_class(new Product()),
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'sortKey' => $request->sortKey ? $request->sortKey : 'name',
             'sortBy' => $request->sortBy ? $request->sortBy : true,
