@@ -59,6 +59,10 @@ class CategoryGroupController extends Controller
             'name' => 'required',
         ]);
 
+        $request->merge([
+            'classname' => $request->classname ? $request->classname : get_class(new Product()),
+        ]);
+
         CategoryGroup::create($request->all());
 
         return redirect()->route('category-groups');

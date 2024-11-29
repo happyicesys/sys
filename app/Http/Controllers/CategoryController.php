@@ -63,6 +63,10 @@ class CategoryController extends Controller
         $request->validate([
             'name' => 'required',
         ]);
+
+        $request->merge([
+            'classname' => $request->classname ? $request->classname : get_class(new Product()),
+        ]);
         Category::create($request->all());
 
         return redirect()->back();
