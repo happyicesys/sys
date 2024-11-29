@@ -7,10 +7,10 @@
             Editing
           </span>
           <span v-if="props.category">
-            {{ props.categoryGroup.name }}
+            Product Category {{ props.categoryGroup.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Category Group
+            Create New Product Category
           </span>
         </div>
       </template>

@@ -5,7 +5,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Product Sub Categories
+        Product SubCategory
       </h2>
     </template>
 
@@ -28,7 +28,7 @@
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Product Category Group
+              Product Category
             </label>
             <MultiSelect
               v-model="filters.categoryGroups"
@@ -108,7 +108,7 @@
                       Desc
                     </TableHead>
                     <TableHead>
-                      Category Group
+                      Category
                     </TableHead>
                     <TableHead>
                     </TableHead>

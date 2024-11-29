@@ -7,10 +7,10 @@
             Editing
           </span>
           <span v-if="props.category">
-            {{ props.category.name }}
+            Product SubCategory {{ props.category.name }}
           </span>
           <span class="text-gray-600" v-else>
-            Create New Category
+            Create New Product SubCategory
           </span>
         </div>
       </template>
@@ -29,7 +29,7 @@
             </div>
             <div class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Category Group
+                Category
               </label>
               <MultiSelect
                 v-model="form.category_group_id"

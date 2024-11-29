@@ -28,7 +28,7 @@
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Categories
+              SubCategory
             </label>
             <MultiSelect
               v-model="filters.categories"
