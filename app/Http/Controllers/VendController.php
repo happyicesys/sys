@@ -1128,7 +1128,7 @@ class VendController extends Controller
                     'product_code' => null,
                     'product_name' => null,
                     'thumbnail' => null,
-                    'server_price' => $productMappingItem ? $productMappingItem->server_amount/100 : null,
+                    'server_price' => $productMappingItem ? $productMappingItem->server_amount : null,
                 ];
                 if($vendChannel->product) {
                     $dataArr[$vendChannelIndex] = [
