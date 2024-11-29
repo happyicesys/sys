@@ -1121,6 +1121,7 @@ class VendController extends Controller
             foreach($vendChannels as $vendChannelIndex => $vendChannel) {
                 $productMappingItem = ProductMappingItem::where('product_mapping_id', $vendChannel->vend->product_mapping_id)->where('channel_code', (int)$vendChannel->code)->first();
 
+                // dd($productMappingItem->server_amount);
                 $dataArr[$vendChannelIndex] = [
                     'vend_code' => $vendChannel->vend->code,
                     'channel_code' => $vendChannel->code,
