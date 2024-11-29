@@ -5,7 +5,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Product (List)
+        Products
       </h2>
     </template>
 
@@ -164,7 +164,7 @@
                       Category
                     </TableHead>
                     <TableHead>
-                      Sub Category
+                      SubCategory
                     </TableHead>
                     <TableHead>
                       Thumbnail

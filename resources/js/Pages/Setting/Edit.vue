@@ -527,6 +527,25 @@
                   {{ form.errors.led_matrix_panel_id }}
                 </div>
             </div>
+            <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Is Using Server Price?
+                </label>
+                <MultiSelect
+                  v-model="form.is_using_server_price"
+                  :options="booleanStrictOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.is_using_server_price">
+                  {{ form.errors.is_using_server_price }}
+                </div>
+            </div>
 
             <hr class="sm:col-span-6">
             <div class="sm:col-span-3" v-if="form.vend_prefix_id">
@@ -1144,6 +1163,7 @@ function getDefaultForm() {
     termination_date: '',
     is_testing: '',
     is_active: '',
+    is_using_server_price: '',
     upcoming_product_mapping_id: '',
     vend_config_id: '',
     vend_config_version: '',
@@ -1246,6 +1266,7 @@ onMounted(() => {
     cashless_terminal_id: props.vend.cashless_terminal_id ? props.vend.cashless_terminal_id : null,
     claw_machine_board_id: props.vend.claw_machine_board_id ? clawMachineBoardOptions.value.find(clawMachineBoard => clawMachineBoard.id == props.vend.claw_machine_board_id) : null,
     claw_machine_body_id: props.vend.claw_machine_body_id ? clawMachineBodyOptions.value.find(clawMachineBody => clawMachineBody.id == props.vend.claw_machine_body_id) : null,
+    is_using_server_price: booleanStrictOptions.value.find(booleanStrict => booleanStrict.id == props.vend.is_using_server_price.toString()),
     lcd_monitor_id: props.vend.lcd_monitor_id ? lcdMonitorOptions.value.find(lcdMonitor => lcdMonitor.id == props.vend.lcd_monitor_id) : null,
     led_matrix_panel_id: props.vend.led_matrix_panel_id ? ledMatrixPanelOptions.value.find(ledMatrixPanel => ledMatrixPanel.id == props.vend.led_matrix_panel_id) : null,
     key_id: props.vend.key_id ? keyOptions.value.find(keyModel => keyModel.id === props.vend.key_id) : null,
@@ -1421,6 +1442,7 @@ function saveVend(vendID) {
       led_matrix_panel_id: data.led_matrix_panel_id ? data.led_matrix_panel_id.id : null,
       begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
       key_id: data.key_id ? data.key_id.id : null,
+      is_using_server_price: data.is_using_server_price.id === 'true' ? 1 : 0,
       menu_frame_id: data.menu_frame_id ? data.menu_frame_id.id : null,
       modem_type_id: data.modem_type_id ? data.modem_type_id.id : null,
       modem_unit_id: data.modem_unit_id ? data.modem_unit_id.id : null,

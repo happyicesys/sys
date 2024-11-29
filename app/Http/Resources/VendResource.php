@@ -41,6 +41,7 @@ class VendResource extends JsonResource
             'begin_date' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'begin_date_short' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'deliveryProductMappingVends' => DeliveryProductMappingVendResource::collection($this->whenLoaded('deliveryProductMappingVends')),
+            'is_using_server_price' => $this->is_using_server_price,
             'serial_num' => isset($this->serial_num) ? $this->serial_num : null,
             // compare last_updated_at and mqtt_last_updated_at which time is nearer to current time, then show the shortRelativeDiffForHumans
             'label_name' => isset($this->label_name) ? $this->label_name : null,
