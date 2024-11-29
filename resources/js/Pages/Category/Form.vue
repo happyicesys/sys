@@ -4,10 +4,10 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.category">
-            Editing
+            Editing Product SubCategory
           </span>
           <span v-if="props.category">
-            Product SubCategory {{ props.category.name }}
+            {{ props.category.name }}
           </span>
           <span class="text-gray-600" v-else>
             Create New Product SubCategory

@@ -4,10 +4,10 @@
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2">
           <span class="text-gray-600" v-if="props.categoryGroup">
-            Editing
+            Editing Product Category
           </span>
           <span v-if="props.category">
-            Product Category {{ props.categoryGroup.name }}
+            {{ props.categoryGroup.name }}
           </span>
           <span class="text-gray-600" v-else>
             Create New Product Category
