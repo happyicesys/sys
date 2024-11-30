@@ -40,7 +40,6 @@ class ProductController extends Controller
         return Inertia::render('Product/Index', [
             'categories' => CategoryResource::collection(
                     Category::where('classname', $className)
-                        ->with('categoryGroup')
                         ->orderBy('name')
                         ->get()
             ),
@@ -59,6 +58,7 @@ class ProductController extends Controller
                 Product::with([
                         'attachments',
                         'category',
+                        'categoryGroup',
                         'latestUnitCost',
                         'operator',
                         'productUoms.uom',

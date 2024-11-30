@@ -203,7 +203,7 @@
                                   <img class="h-24 w-24 md:h-20 md:w-20 rounded-full" :src="productMappingItem.product.thumbnail.full_url" alt="" v-if="productMappingItem.product && productMappingItem.product.thumbnail"/>
                                 </div>
                               </td>
-                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                              <td class="py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
                                 <span v-if="productMappingItem.product.code">
                                   {{ productMappingItem.product.code }} -
                                 </span>
@@ -212,8 +212,8 @@
                                 </span>
                               </td>
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                                <span v-if="productMappingItem.product.category && productMappingItem.product.category.categoryGroup">
-                                  {{ productMappingItem.product.category.categoryGroup.name }}
+                                <span v-if="productMappingItem.product.category && productMappingItem.product.categoryGroup">
+                                  {{ productMappingItem.product.categoryGroup.name }}
                                 </span>
                               </td>
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">

@@ -32,6 +32,7 @@ class Product extends Model
     protected $fillable = [
         'avg_seven_days_count',
         'category_id',
+        'category_group_id',
         'cms_refer_id',
         'code',
         'desc',

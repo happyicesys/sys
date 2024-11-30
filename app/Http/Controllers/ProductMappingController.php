@@ -151,9 +151,10 @@ class ProductMappingController extends Controller
         $productMapping = ProductMapping::with([
             'attachments',
             'productMappingItems',
-            'productMappingItems.product:id,code,name,is_active',
+            'productMappingItems.product:id,code,name,is_active,category_id,category_group_id',
             'productMappingItems.product.thumbnail',
-            'productMappingItems.product.category.categoryGroup',
+            'productMappingItems.product.category',
+            'productMappingItems.product.categoryGroup',
             'productMappingItems.product.sellingPrices' => function($query) use ($request) {
                 if($request->selling_price_type) {
                     $query->where('type', $request->selling_price_type);

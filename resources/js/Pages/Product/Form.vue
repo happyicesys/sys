@@ -105,7 +105,26 @@
             </div>
             <div class="sm:col-span-2">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                SubCategory (Category)
+                Category
+              </label>
+              <MultiSelect
+                v-model="form.category_group_id"
+                :options="categoryGroupOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="top"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.category_group_id">
+                {{ form.errors.category_group_id }}
+              </div>
+            </div>
+            <div class="sm:col-span-2">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                SubCategory
               </label>
               <MultiSelect
                 v-model="form.category_id"
@@ -511,8 +530,8 @@ const priceTypeOptions = ref([]);
 const sellingPrices = ref([]);
 
 onMounted(() => {
-  categoryOptions.value = props.categories.data.map(category => ({ id: category.id, name: category.name, full_name: category.name + ' (' + category.categoryGroup?.name + ')' }));
-  categoryGroupOptions.value = props.categoryGroups.data.map(categoryGroup => ({ id: categoryGroup.id, name: categoryGroup.name }));
+  categoryOptions.value = props.categories.data.map(category => ({ id: category.id, name: category.name, full_name: category.name }));
+  categoryGroupOptions.value = props.categoryGroups.data.map(categoryGroup => ({ id: categoryGroup.id, full_name: categoryGroup.name }));
   languageOptions.value = Object.entries(props.languageOptions).map(([id, name]) => ({ id, name }));
   measurementUnitOptions.value = Object.keys(props.measurementUnitOptions).map(measurementUnit => ({ id: measurementUnit, name: measurementUnit }));
   priceTypeOptions.value = Object.entries(props.priceTypeOptions).map(([id, name]) => ({ id, name }));
@@ -529,11 +548,14 @@ onMounted(() => {
   form.value = props.product ? useForm({
     ...props.product,
     category_id: categoryOptions.value.find(categoryOption => categoryOption.id === props.product.category_id),
+    category_group_id: categoryGroupOptions.value.find(categoryGroupOption => categoryGroupOption.id === props.product.category_group_id),
   }) : useForm(getDefaultForm());
 });
 
 function getDefaultForm() {
   return {
+    category_id: '',
+    category_group_id: '',
     code: '',
     date_from: '',
     desc: '',
@@ -562,6 +584,7 @@ function submit() {
       .transform(data => ({
         ...data,
         category_id: data.category_id?.id,
+        category_group_id: data.category_group_id?.id,
         measurement_unit: data.measurement_unit.id,
         operator_id: data.operator_id.id,
       }))
@@ -579,6 +602,7 @@ function submit() {
       .transform(data => ({
         ...data,
         category_id: data.category_id?.id,
+        category_group_id: data.category_group_id?.id,
         measurement_unit: data.measurement_unit.id,
         operator_id: data.operator_id.id,
         unitCosts: unitCosts.value,

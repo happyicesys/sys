@@ -85,6 +85,16 @@ Route::post('/SetPara2', [VendDataController::class, 'create']);
 
 Route::middleware(['auth', 'cors'])->group(function() {
 
+    // Route::prefix('apk-settings')->group(function() {
+    //     Route::get('/', [SettingController::class, 'index'])->name('settings');
+    //     Route::get('/vend/create', [SettingController::class, 'create']);
+    //     Route::get('/vend/{id}/update', [SettingController::class, 'edit'])->name('settings.edit');
+    //     Route::get('/vend/{id}/parameter', [SettingController::class, 'parameter'])->name('settings.parameter');
+    //     Route::post('/vend/{id}/parameter', [SettingController::class, 'updateParameter']);
+    //     Route::post('/vend/store', [SettingController::class, 'store']);
+    //     Route::post('/{id}/toggle-activation', [SettingController::class, 'toggleActivation']);
+    // });
+
     Route::prefix('attachments')->group(function() {
         Route::get('/', [AttachmentController::class, 'index'])->name('attachments');
         Route::post('/create', [AttachmentController::class, 'create']);

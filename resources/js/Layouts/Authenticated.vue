@@ -93,6 +93,7 @@ const navigation = [
         children: [
             {name: 'Machines View', href: '/vends'},
             {name: 'Machines Settings', href: '/settings'},
+            {name: 'APK Settings', href: '/apk-settings'},
             {name: 'Setting Charts', href: '/vend-configs'},
             {name: 'Machine Prefix', href: '/vend-prefixes'},
             {name: 'Cashless Terminals', href: '/cashless-terminals'},

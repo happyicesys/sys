@@ -36,6 +36,8 @@ class ProductResource extends JsonResource
             'is_supermarket_fee' => $this->is_supermarket_fee ? true : false,
             'category' => CategoryResource::make($this->whenLoaded('category')),
             'category_id' => $this->category_id,
+            'categoryGroup' => CategoryGroupResource::make($this->whenLoaded('categoryGroup')),
+            'category_group_id' => $this->category_group_id,
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'isActive' => $this->is_active ? 'Yes' : 'No',
             'isInventory' => $this->is_inventory ? 'Yes' : 'No',
