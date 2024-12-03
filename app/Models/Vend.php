@@ -47,8 +47,8 @@ class Vend extends Model
     ];
 
     const LED_MATRIX_PANEL_MAPPINGS = [
-        1 => 'Yes -> Hard',
-        2 => 'No -> Soft',
+        1 => 'Hard',
+        2 => 'Soft',
     ];
 
     const MENU_FRAME_MAPPINGS = [
