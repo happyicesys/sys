@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\VendDataController;
+use App\Http\Controllers\ApkSettingController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CashlessProviderController;
@@ -85,15 +86,13 @@ Route::post('/SetPara2', [VendDataController::class, 'create']);
 
 Route::middleware(['auth', 'cors'])->group(function() {
 
-    // Route::prefix('apk-settings')->group(function() {
-    //     Route::get('/', [SettingController::class, 'index'])->name('settings');
-    //     Route::get('/vend/create', [SettingController::class, 'create']);
-    //     Route::get('/vend/{id}/update', [SettingController::class, 'edit'])->name('settings.edit');
-    //     Route::get('/vend/{id}/parameter', [SettingController::class, 'parameter'])->name('settings.parameter');
-    //     Route::post('/vend/{id}/parameter', [SettingController::class, 'updateParameter']);
-    //     Route::post('/vend/store', [SettingController::class, 'store']);
-    //     Route::post('/{id}/toggle-activation', [SettingController::class, 'toggleActivation']);
-    // });
+    Route::prefix('apk-settings')->group(function() {
+        Route::get('/', [ApkSettingController::class, 'index'])->name('apk-settings');
+        Route::get('/create', [ApkSettingController::class, 'create']);
+        Route::get('/{id}/edit', [ApkSettingController::class, 'edit'])->name('apk-settings.edit');
+        Route::post('/{id}/update', [ApkSettingController::class, 'update']);
+        Route::post('/store', [ApkSettingController::class, 'store']);
+    });
 
     Route::prefix('attachments')->group(function() {
         Route::get('/', [AttachmentController::class, 'index'])->name('attachments');

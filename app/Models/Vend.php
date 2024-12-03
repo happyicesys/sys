@@ -333,6 +333,11 @@ class Vend extends Model
     ];
 
     // relationships
+    public function apkSettingVend()
+    {
+        return $this->hasOne(ApkSettingVend::class);
+    }
+
     public function category()
     {
         return $this->morphOne(Category::class, 'modelable');

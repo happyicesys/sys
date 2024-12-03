@@ -514,7 +514,7 @@
                 </label>
                 <MultiSelect
                   v-model="form.led_matrix_panel_id"
-                  :options="ledMatrixPanelOptions"
+                  :options="booleanStrictLEDOptions"
                   trackBy="id"
                   valueProp="id"
                   label="name"
@@ -1087,6 +1087,10 @@ const adminCustomerOptions = ref([])
 const booleanStrictOptions = ref([
     {id: 'true', value: 'Yes'},
     {id: 'false', value: 'No'},
+])
+const booleanStrictLEDOptions = ref([
+    {id: 'true', value: 'Yes -> Hard'},
+    {id: 'false', value: 'No -> Soft'},
 ])
 const statusOptions = ref([
     {id: 'factory', value: 'Factory'},

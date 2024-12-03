@@ -1106,6 +1106,7 @@ class VendController extends Controller
         $vendChannels = VendChannel::query()
         ->with([
             'product.thumbnail',
+            'product.category',
             'vend.productMapping',
         ])
         ->whereHas('vend', function($query) use ($vendCode) {
@@ -1141,6 +1142,7 @@ class VendController extends Controller
                         'product_id' => $vendChannel->product->id,
                         'product_code' => $vendChannel->product->code,
                         'product_name' => $vendChannel->product->name,
+                        'product_sub_category' => $vendChannel->product->category ? $vendChannel->product->category->name : null,
                     ];
                     if($vendChannel->product->thumbnail) {
                         $dataArr[$vendChannelIndex] = [
@@ -1361,10 +1363,6 @@ class VendController extends Controller
                                     THEN 1 ELSE NULL END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS success_count_rate')
             )
             ->first();
-
-
-
-
 
         return Inertia::render('Vend/Transaction', [
             'categories' => CategoryResource::collection(

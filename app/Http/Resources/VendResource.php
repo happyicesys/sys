@@ -97,7 +97,7 @@ class VendResource extends JsonResource
                 }else if($this->customer && !$this->customer->person_id) {
                     return '('. $this->code . ') ' . $this->customer->code . ' - ' . $this->customer->name;
                 }else {
-                    return null;
+                    return '(' . $this->code . ')' . ' - ' . $this->label_name;
                 }
             }),
             'key' => KeyResource::make($this->whenLoaded('key')),

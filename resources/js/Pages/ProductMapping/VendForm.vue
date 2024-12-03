@@ -119,7 +119,7 @@
                           Machine ID
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                          Vend Name
+                          Machine Name
                         </th>
                         <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                           Action

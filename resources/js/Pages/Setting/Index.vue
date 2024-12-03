@@ -465,7 +465,14 @@
                       Modem
                     </TableHead>
                     <TableHead>
-                      LCD Monitor
+                      <div class="flex flex-col space-y-2">
+                        <span>
+                          LCD Monitor
+                        </span>
+                        <span>
+                          LED Matrix Panel
+                        </span>
+                      </div>
                     </TableHead>
                     <TableHead>
                       Simcard
@@ -830,7 +837,14 @@
                         </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
-                        {{ vend.lcd_monitor }}
+                        <div class="flex flex-col space-y-2">
+                          <span>
+                            {{ vend.lcd_monitor }}
+                          </span>
+                          <span v-if="vend.led_matrix_panel_id">
+                            {{ vend.led_matrix_panel_id == 1 ? 'Hard' : 'Soft' }}
+                          </span>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center">
                         {{ vend.simcard ? vend.simcard.code : '' }}

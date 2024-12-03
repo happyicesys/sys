@@ -5,6 +5,49 @@ use Carbon\Carbon;
 
 class VendParameterService
 {
+    public function getDefaultParameter()
+    {
+        $parameters = [
+            'enablePromoHeaderText' => false,
+            'promoHeaderText' => null,
+            'enableHeaderTextRunning' => false,
+            'promoBannerKind' => 'video',
+            'headerTextStartDate' => null,
+            'headerTextEndDate' => null,
+
+            'enablePromoRunningText' => false,
+            'promoRunningText' => null,
+            'runningTextStartDate' => null,
+            'runningTextEndDate' => null,
+
+            'disableP1P2CrossGrp' => false,
+
+            'enableBuy1Free1' => false,
+            'buy1free1X' => 0,
+            'buy1free1Y' => 0,
+            'buy1free1StartDate' => null,
+            'buy1free1EndDate' => null,
+
+            'enableBuy2Free1' => false,
+            'buy2free1X' => 1,
+            'buy2free1Y' => 0,
+            'buy2free1StartDate' => null,
+            'buy2free1EndDate' => null,
+
+            'enableBundleDiscount' => false,
+            'bundleStartDate' => null,
+            'bundleEndDate' => null,
+            'enableDiscount01' => true,
+            'discountPercent01' => 1,
+            'enableDiscount02' => false,
+            'discountPercent02' => 1,
+            'enableDiscount03' => false,
+            'discountPercent03' => 1,
+        ];
+
+        return $parameters;
+    }
+
     public function getCampaignParameter($parameters)
     {
         $settings = [
