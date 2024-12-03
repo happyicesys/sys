@@ -514,7 +514,7 @@
                 </label>
                 <MultiSelect
                   v-model="form.led_matrix_panel_id"
-                  :options="booleanStrictLEDOptions"
+                  :options="ledMatrixPanelOptions"
                   trackBy="id"
                   valueProp="id"
                   label="name"
