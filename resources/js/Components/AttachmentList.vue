@@ -59,6 +59,11 @@
         </div>
       </div>
     </li>
+    <li v-if="!items || !items.length">
+      <div class="flex items-center justify-center py-4">
+        <p class="text-sm text-gray-500">No attachments found</p>
+      </div>
+    </li>
   </ul>
 </template>
 

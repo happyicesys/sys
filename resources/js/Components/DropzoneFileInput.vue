@@ -23,13 +23,21 @@ import 'dropzone/dist/dropzone.css';
 const dropzoneForm = ref(null);
 const props = defineProps({
   endpoint: String,
+  acceptedFiles: {
+    type: String,
+    default: "image/*,video/*,.pdf",
+  },
+  maxFilesize: {
+    type: Number,
+    default: 20,
+  },
 });
 
 onMounted(() => {
   const myDropzone = new Dropzone(dropzoneForm.value, {
     url: props.endpoint,
-    maxFilesize: 20, // MB
-    acceptedFiles: "image/*,video/*,.pdf",
+    maxFilesize: props.maxFilesize, // MB
+    acceptedFiles: props.acceptedFiles,
     addRemoveLinks: false,
     paramName: "files",
     init: function () {

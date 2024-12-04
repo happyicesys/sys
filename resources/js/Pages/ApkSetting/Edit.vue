@@ -48,8 +48,16 @@
               </AttachmentList>
             </div>
 
-            <div class="sm:col-span-6">
-              <DropzoneFileInput :endpoint="'/apk-settings/' + apkSetting.id + '/upload-videos'"></DropzoneFileInput>
+            <!-- <div class="sm:col-span-6">
+              <UploadFileInput :endpoint="'/apk-settings/' + apkSetting.id + '/upload-videos'"></UploadFileInput>
+            </div> -->
+            <div class="sm:col-span-6" v-if="apkSetting.id">
+              <DropzoneFileInput
+                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-videos'"
+                :accepted-files="'video/*'"
+                :max-filesize="10"
+                >
+              </DropzoneFileInput>
             </div>
 
             <hr class="sm:col-span-6">
@@ -66,14 +74,21 @@
             </div>
 
             <div class="sm:col-span-6">
-              <DropzoneFileInput :endpoint="'/apk-settings/' + apkSetting.id + '/upload-images'"></DropzoneFileInput>
-            </div>
-
-            <div class="sm:col-span-6">
               <AttachmentList
                 :items="apkSetting.images"
               >
               </AttachmentList>
+            </div>
+            <!-- <div class="sm:col-span-6">
+              <UploadFileInput :endpoint="'/apk-settings/' + apkSetting.id + '/upload-images'" ></UploadFileInput>
+            </div> -->
+            <div class="sm:col-span-6" v-if="apkSetting.id">
+              <DropzoneFileInput
+                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-images'"
+                :accepted-files="'image/*'"
+                :max-filesize="1"
+                >
+              </DropzoneFileInput>
             </div>
 
             <hr class="sm:col-span-6">
@@ -760,6 +775,7 @@ import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import UploadFileInput from '@/Components/UploadFileInput.vue';
 import { ArrowDownCircleIcon, ArrowUpCircleIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';

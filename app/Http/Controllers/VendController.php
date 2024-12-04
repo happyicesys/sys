@@ -1169,40 +1169,73 @@ class VendController extends Controller
 
     public function getVendBannerImage($vendCode)
     {
-        // $vend = Vend::where('code', $vendCode)->first();
 
-        // if($vend && $vend->banner_image) {
-        // $image = file_get_contents($vend->banner_image->full_url);
+        $imageArray = [];
+        $vend = Vend::where('code', $vendCode)->first();
+
+        if($vend->apkSettings) {
+            $apkSetting = $vend->apkSettings[0];
+            if($apkSetting->images) {
+                foreach($apkSetting->images as $image) {
+                    $imageArray[] = [
+                        'name' => $image->name,
+                        'ext' => pathinfo($image->full_url, PATHINFO_EXTENSION),
+                        'url' => $image->full_url,
+                    ];
+                }
+            }
+        }
+
         return response([
-            'pictures' => [
-                [
-                    'name' => 'defaultpicture',
-                    'ext' => 'jpg',
-                    'url' => "https://happyice-space.sgp1.digitaloceanspaces.com/sys/vends/banner-images/defaultpicture.jpg",
-                ]
-            ],
+            'pictures' => $imageArray,
         ], 200);
-        // }
+
+        // return response([
+        //     'pictures' => [
+        //         [
+        //             'name' => 'defaultpicture',
+        //             'ext' => 'jpg',
+        //             'url' => "https://happyice-space.sgp1.digitaloceanspaces.com/sys/vends/banner-images/defaultpicture.jpg",
+        //         ]
+        //     ],
+        // ], 200);
 
         return false;
     }
 
     public function getVendBannerVideo($vendCode)
     {
-        // $vend = Vend::where('code', $vendCode)->first();
+        $videoArray = [];
+        $vend = Vend::where('code', $vendCode)->first();
 
-        // if($vend && $vend->banner_video) {
-            // $video = file_get_contents($vend->banner_video->full_url);
+        if($vend->apkSettings) {
+            $apkSetting = $vend->apkSettings[0];
+            if($apkSetting->videos) {
+                foreach($apkSetting->videos as $video) {
+                    $videoArray[] = [
+                        'name' => $video->name,
+                        'ext' => pathinfo($video->full_url, PATHINFO_EXTENSION),
+                        'url' => $video->full_url,
+                    ];
+                }
+            }
+        }
+
         return response([
-            'videos' => [
-                [
-                    'name' => 'defaultvideo',
-                    'ext' => 'mp4',
-                    'url' => "https://happyice-space.sgp1.digitaloceanspaces.com/sys/vends/banner-videos/defaultvideo.mp4"
-                ]
-            ],
+            'videos' => $videoArray,
         ], 200);
-        // }
+
+
+        // return response([
+        //     'videos' => [
+        //         [
+        //             'name' => 'defaultvideo',
+        //             'ext' => 'mp4',
+        //             'url' => "https://happyice-space.sgp1.digitaloceanspaces.com/sys/vends/banner-videos/defaultvideo.mp4"
+        //         ]
+        //     ],
+        // ], 200);
+
 
         return false;
     }
@@ -1242,14 +1275,14 @@ class VendController extends Controller
     public function getVendParameters($vendCode) {
         $vend = Vend::where('code', $vendCode)->firstOrFail();
 
-        if(!$vend->settings_parameter_json) {
+        if(!$vend->apkSettings) {
             abort(response([
                 'error_code' => 400,
                 'error_message' => 'Parameters not found',
             ], 400));
         }
 
-        return $vend->settings_parameter_json;
+        return $vend->apkSettings[0]->settings_parameter_json;
     }
 
     public function transactionIndex(Request $request)

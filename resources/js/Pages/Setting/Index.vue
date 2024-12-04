@@ -878,7 +878,7 @@
                               </span>
                             </Button>
                           </Link>
-                          <Link :href="'/settings/vend/' + vend.id + '/parameter'">
+                          <!-- <Link :href="'/settings/vend/' + vend.id + '/parameter'">
                             <Button
                               type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                             >
@@ -887,7 +887,7 @@
                                   Parameters
                               </span>
                             </Button>
-                          </Link>
+                          </Link> -->
                           <!-- <Button
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
                             @click="onEditClicked(vend)"

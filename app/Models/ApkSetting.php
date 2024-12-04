@@ -9,6 +9,9 @@ class ApkSetting extends Model
 {
     use HasFactory;
 
+    const FILE_TYPE_IMAGE = 1;
+    const FILE_TYPE_VIDEO = 2;
+
     protected $fillable = [
         'name',
         'remarks',
@@ -21,7 +24,7 @@ class ApkSetting extends Model
 
     public function images()
     {
-        return $this->morphMany(Attachment::class, 'modelable')->where('type', 'image')->oldest();
+        return $this->morphMany(Attachment::class, 'modelable')->where('type', ApkSetting::FILE_TYPE_IMAGE)->oldest();
     }
 
     public function vends()
@@ -31,7 +34,7 @@ class ApkSetting extends Model
 
     public function videos()
     {
-        return $this->morphMany(Attachment::class, 'modelable')->where('type', 'video')->oldest();
+        return $this->morphMany(Attachment::class, 'modelable')->where('type', ApkSetting::FILE_TYPE_VIDEO)->oldest();
     }
 
     // filter index

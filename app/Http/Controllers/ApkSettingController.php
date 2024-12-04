@@ -12,6 +12,7 @@ use App\Http\Resources\VendResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Services\VendParameterService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class ApkSettingController extends Controller
@@ -133,5 +134,45 @@ class ApkSettingController extends Controller
         //  }
 
         return redirect()->route('apk-settings.edit', [$apkSetting->id]);
+    }
+
+    public function uploadImages(Request $request, $id)
+    {
+        $apkSetting = ApkSetting::findOrFail($id);
+
+        if($request->files) {
+            $files = $request->file('files');
+            $dir = 'sys/vends/banner-images';
+            $storedPath = $files->storePublicly($dir);
+            $fileName = $files->getClientOriginalName();
+            $url = Storage::url($storedPath);
+            $apkSetting->videos()->create([
+                'name' => $fileName,
+                'type' => ApkSetting::FILE_TYPE_IMAGE,
+                'full_url' => $url,
+                'local_url' => $dir . '/' . basename($storedPath),
+            ]);
+        }
+        return true;
+    }
+
+    public function uploadVideos(Request $request, $id)
+    {
+        $apkSetting = ApkSetting::findOrFail($id);
+
+        if($request->files) {
+            $files = $request->file('files');
+            $dir = 'sys/vends/banner-videos';
+            $storedPath = $files->storePublicly($dir);
+            $fileName = $files->getClientOriginalName();
+            $url = Storage::url($storedPath);
+            $apkSetting->videos()->create([
+                'name' => $fileName,
+                'type' => ApkSetting::FILE_TYPE_VIDEO,
+                'full_url' => $url,
+                'local_url' => $dir . '/' . basename($storedPath),
+            ]);
+        }
+        return true;
     }
 }
