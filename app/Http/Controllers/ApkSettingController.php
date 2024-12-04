@@ -93,7 +93,10 @@ class ApkSettingController extends Controller
                     'customer'
                 ])
                 ->doesntHave('apkSettingVend')
-                ->where('is_active', true)
+                ->where(function($query) {
+                    $query->orWhere('is_active', true)
+                        ->orWhere('is_testing', true);
+                })
                 ->select(
                     'id',
                     'code',
