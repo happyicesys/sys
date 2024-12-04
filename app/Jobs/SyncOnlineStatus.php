@@ -50,7 +50,7 @@ class SyncOnlineStatus implements ShouldQueue
                 $vend->is_temp_active = $vend->temp_updated_at && $vend->temp_updated_at->diffInMinutes(Carbon::now()) < 15 ? true : false;
 
                 // Trigger modem reset if necessary
-                if ($vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 5 && $vend->modemType?->is_resetable && $vend->modem_unit_id) {
+                if ($vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 5 && $vend->modemType?->is_resetable && $vend->modem_unit_id && $vend->modem_unit_id != 65) {
                     $modemUnit = ModemUnit::find($vend->modem_unit_id);
                     if ($modemUnit) {
                         $content = [
