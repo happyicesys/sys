@@ -193,7 +193,10 @@ class VendTransaction extends Model
         })
         ->when($request->errors, function($query, $search) {
             if(in_array('errors_only', $search)) {
-                $query->has('vendChannelError');
+                $query->where(function($query) {
+                    $query->has('vendChannelError')
+                        ->orWhereHas('vendTransactionItems.vendChannelError');
+                });
             }else if(in_array('1', $search)) {
                 $query->where(function($query) {
                     $query->whereHas('vendChannelError', function($query) {
@@ -201,8 +204,14 @@ class VendTransaction extends Model
                     })->orWhereDoesntHave('vendChannelError');
                 });
             }else {
-                $query->whereHas('vendChannelError', function($query) use ($search) {
-                    $query->whereIn('id', $search);
+                $query->where(function($query) use ($search) {
+                    $query->whereHas('vendChannelError', function($query) use ($search) {
+                        $query->whereIn('id', $search);
+                    });
+
+                    $query->orWhereHas('vendTransactionItems.vendChannelError', function ($query) use ($search) {
+                        $query->whereIn('id', $search);
+                    });
                 });
             }
         })
@@ -246,9 +255,20 @@ class VendTransaction extends Model
         ->when($isPaymentReceived, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
-                    $query->where('is_payment_received', true);
+                    $query->where(function($query) {
+                        $query->where('is_payment_received', true)
+                            ->orWhereHas('vendTransactionItems.vendChannelError', function($query) {
+                                $query->whereIn('code', [0, 6]);
+                            });
+                    });
+                    // $query->where('is_payment_received', true);
                 }else {
-                    $query->where('is_payment_received', false);
+                    $query->where(function($query) {
+                        $query->where('is_payment_received', false)
+                            ->orWhereHas('vendTransactionItems.vendChannelError', function($query) {
+                                $query->whereNotIn('code', [0, 6]);
+                            });
+                    });
                 }
             }
         })
