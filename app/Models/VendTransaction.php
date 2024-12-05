@@ -187,8 +187,11 @@ class VendTransaction extends Model
             }else {
                 $search = [$search];
             }
-            $query->whereHas('vendChannel', function($query) use ($search) {
-                $query->whereIn('code', $search);
+            $query->where(function($query) use ($search) {
+                $query->whereIn('vend_channel_code', $search)
+                    ->orWhereHas('vendTransactionItems', function($query) use ($search) {
+                        $query->whereIn('vend_channel_code', $search);
+                    });
             });
         })
         ->when($request->errors, function($query, $search) {
@@ -326,13 +329,27 @@ class VendTransaction extends Model
             }
         })
         ->when($request->product_code, function($query, $search) {
-            $query->whereIn('vend_transactions.product_id', function($query) use ($search) {
-                $query->select('id')->from('products')->where('code', 'LIKE', "{$search}%");
+            $query->where(function($query) use ($search) {
+                $query->whereIn('vend_transactions.product_id', function($query) use ($search) {
+                    $query->select('id')->from('products')->where('code', 'LIKE', "{$search}%");
+                });
+                $query->orWhereHas('vendTransactionItems', function($query) use ($search) {
+                    $query->whereIn('product_id', function($query) use ($search) {
+                        $query->select('id')->from('products')->where('code', 'LIKE', "{$search}%");
+                    });
+                });
             });
         })
         ->when($request->product_name, function($query, $search) {
-            $query->whereIn('vend_transactions.product_id', function($query) use ($search) {
-                $query->select('id')->from('products')->where('name', 'LIKE', "%{$search}%");
+            $query->where(function($query) use ($search) {
+                $query->whereIn('vend_transactions.product_id', function($query) use ($search) {
+                    $query->select('id')->from('products')->where('name', 'LIKE', "%{$search}%");
+                });
+                $query->orWhereHas('vendTransactionItems', function($query) use ($search) {
+                    $query->whereIn('product_id', function($query) use ($search) {
+                        $query->select('id')->from('products')->where('name', 'LIKE', "%{$search}%");
+                    });
+                });
             });
         })
         ->when($request->vendPrefixes, function($query, $search) {
