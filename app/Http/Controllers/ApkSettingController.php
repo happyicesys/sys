@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\PublishMqtt;
 use App\Models\ApkSetting;
 use App\Models\Operator;
 use App\Models\Vend;
@@ -11,6 +12,7 @@ use App\Http\Resources\OperatorResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Services\VendParameterService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -135,6 +137,22 @@ class ApkSettingController extends Controller
         //         ]);
         //     }
         //  }
+        if($apkSetting->vends) {
+            foreach($apkSetting->vends as $vend) {
+                $fid = 1;
+                $content = base64_encode(json_encode([
+                    'Type' => 'TYPESYNCSETTINGSPARAM',
+                    'time' => Carbon::now()->timestamp,
+                    'action' => '',
+                    'mid' => $vend->code,
+                ]));
+                $contentLength = strlen($content);
+                $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+                $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+                PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+            }
+        }
 
         return redirect()->route('apk-settings.edit', [$apkSetting->id]);
     }
