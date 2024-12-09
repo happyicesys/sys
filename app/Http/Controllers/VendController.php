@@ -1169,7 +1169,6 @@ class VendController extends Controller
 
     public function getVendBannerImage($vendCode)
     {
-
         $imageArray = [];
         $vend = Vend::where('code', $vendCode)->first();
 
@@ -1189,18 +1188,6 @@ class VendController extends Controller
         return response([
             'pictures' => $imageArray,
         ], 200);
-
-        // return response([
-        //     'pictures' => [
-        //         [
-        //             'name' => 'defaultpicture',
-        //             'ext' => 'jpg',
-        //             'url' => "https://happyice-space.sgp1.digitaloceanspaces.com/sys/vends/banner-images/defaultpicture.jpg",
-        //         ]
-        //     ],
-        // ], 200);
-
-        return false;
     }
 
     public function getVendBannerVideo($vendCode)
@@ -1225,19 +1212,53 @@ class VendController extends Controller
             'videos' => $videoArray,
         ], 200);
 
+    }
 
-        // return response([
-        //     'videos' => [
-        //         [
-        //             'name' => 'defaultvideo',
-        //             'ext' => 'mp4',
-        //             'url' => "https://happyice-space.sgp1.digitaloceanspaces.com/sys/vends/banner-videos/defaultvideo.mp4"
-        //         ]
-        //     ],
-        // ], 200);
+    public function getVendCampaignImage($vendCode)
+    {
+        $imageArray = [];
+        $vend = Vend::where('code', $vendCode)->first();
 
+        if($vend->apkSettings) {
+            $apkSetting = $vend->apkSettings[0];
+            if($apkSetting->campaignImages) {
+                foreach($apkSetting->campaignImages as $image) {
+                    $imageArray[] = [
+                        'name' => $image->name,
+                        'ext' => pathinfo($image->full_url, PATHINFO_EXTENSION),
+                        'url' => $image->full_url,
+                    ];
+                }
+            }
+        }
 
-        return false;
+        return response([
+            'pictures' => $imageArray,
+        ], 200);
+    }
+
+    public function getVendCampaignVideo($vendCode)
+    {
+        $videoArray = [];
+        $vend = Vend::where('code', $vendCode)->first();
+
+        if($vend->apkSettings) {
+            $apkSetting = $vend->apkSettings[0];
+            if($apkSetting->campaignVideos) {
+                foreach($apkSetting->campaignVideos as $video) {
+                    $videoArray[] = [
+                        'name' => $video->name,
+                        'ext' => pathinfo($video->full_url, PATHINFO_EXTENSION),
+                        'url' => $video->full_url,
+                    ];
+                }
+            }
+        }
+
+        return response([
+            'videos' => $videoArray,
+        ], 200);
+
     }
 
     public function getVendChannelThumnail($vendCode, $vendChannelCode)
@@ -1449,6 +1470,92 @@ class VendController extends Controller
             ->send(new VendChannelErrorLogsMail($vendChannelErrorLogs, $intervalHours));
     }
 
+//     public function exportTransactionExcel(Request $request)
+// {
+//     $request->merge(['sortKey' => $request->sortKey ?: 'transaction_datetime']);
+//     $request->merge(['sortBy' => $request->sortBy ?: false]);
+//     $request->date_from = $request->date_from
+//         ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay()
+//         : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
+//     $request->date_to = $request->date_to
+//         ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay()
+//         : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
+
+//     return (new FastExcel($this->generateTransactionData($request)))->download('Vend_transactions_' . Carbon::now()->toDateTimeString() . '.xlsx');
+// }
+
+/**
+ * Generate data using a generator for memory-efficient processing
+ */
+// private function generateTransactionData(Request $request)
+// {
+//     // Chunking transactions to avoid memory issues
+//     VendTransaction::query()
+//         ->with('vendTransactionItems')
+//         ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+//         ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+//         ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+//         ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+//         ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+//         ->filterTransactionIndex($request)
+//         ->chunk(2000, function ($vendTransactions) {
+//             foreach ($vendTransactions as $vendTransaction) {
+//                 // Main transaction data
+//                 yield [
+//                     'order_id' => $vendTransaction->order_id,
+//                     'transaction_datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
+//                     'machine_id' => $vendTransaction->vend_code ?: '',
+//                     'machine_prefix' => $vendTransaction->vend_prefix_name ?: '',
+//                     'customer_id' => $vendTransaction->customer_id + 20000,
+//                     'customer_code' => $vendTransaction->person_id ? $vendTransaction->virtual_customer_code : '',
+//                     'customer_name' => $vendTransaction->customer_name,
+//                     'channel' => $vendTransaction->vend_channel_code ?: '',
+//                     'product_code' => $vendTransaction->product_code,
+//                     'product_name' => $vendTransaction->product_name,
+//                     'price_type' => $vendTransaction->vend_channel_amount == $vendTransaction->amount
+//                         ? 'P1'
+//                         : ($vendTransaction->vend_channel_amount2 == $vendTransaction->amount ? 'P2' : ''),
+//                     'amount' => $vendTransaction->amount / 100,
+//                     'unit_cost' => $vendTransaction->cost ? $vendTransaction->cost / 100 : '',
+//                     'payment_method' => $vendTransaction->payment_method_name,
+//                     'error_code' => $vendTransaction->vend_channel_error_code,
+//                     'location_type' => $vendTransaction->location_type_name,
+//                     'operator' => $vendTransaction->operator_code,
+//                     'is_successful' => $vendTransaction->vend_channel_error_code
+//                         ? ($vendTransaction->vend_channel_error_code == 0 || $vendTransaction->vend_channel_error_code == 6
+//                             ? 'Successful'
+//                             : 'Unsuccessful')
+//                         : 'Successful',
+//                     'is_refunded' => $vendTransaction->is_refunded ? 'Yes' : '',
+//                     'is_multiple' => $vendTransaction->is_multiple ? 'Yes' : 'No',
+//                     'multiple_qty' => $vendTransaction->is_multiple ? $vendTransaction->vendTransactionItems->count() : 1,
+//                     'txn_src' => $vendTransaction->interface_type,
+//                 ];
+
+//                 // Nested vendTransactionItems data
+//                 foreach ($vendTransaction->vendTransactionItems as $item) {
+//                     yield [
+//                         'order_id' => $vendTransaction->order_id,
+//                         'transaction_datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
+//                         'machine_id' => $vendTransaction->vend_code ?: '',
+//                         'channel' => $item->vend_channel_code ?: '',
+//                         'product_code' => $item->product ? $item->product->code : '',
+//                         'product_name' => $item->product ? $item->product->name : '',
+//                         'amount_breakdown' => $item->vendChannel ? $item->vendChannel->amount / 100 : '',
+//                         'unit_cost' => $item->unitCost ? $item->unitCost->cost / 100 : '',
+//                         'error_code' => $item->vendChannelError ? $item->vendChannelError->code : '',
+//                         'is_successful' => $item->vendChannelError
+//                             ? ($item->vendChannelError->code == 0 || $item->vendChannelError->code == 6
+//                                 ? 'Successful'
+//                                 : 'Unsuccessful')
+//                             : 'Successful',
+//                     ];
+//                 }
+//             }
+//         });
+// }
+
+
     public function exportTransactionExcel(Request $request)
     {
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'transaction_datetime']);
@@ -1548,26 +1655,23 @@ class VendController extends Controller
                 $vendTransactionItems = $vendTransaction
                     ->vendTransactionItems()
                     ->with([
-                        'vendChannel',
-                        'vendTransaction',
-                        'vendTransaction.vend',
-                        'vendTransaction.vend.vendPrefix',
-                        'vendTransaction.customer.locationType',
-                        'vendTransaction.operator',
-                        'product',
-                        'unitCost',
-                        'vendChannelError',
+                        'vendChannel:id,code,amount',
+                        'product:id,code,name',
+                        'unitCost:id,cost',
+                        'vendChannelError:id,code,desc',
                     ])
                     ->get();
                 foreach($vendTransaction->vendTransactionItems as $vendTransactionItem) {
                     $data[] = [
-                        'order_id' => $vendTransactionItem->vendTransaction->order_id,
-                        'transaction_datetime' => Carbon::parse($vendTransactionItem->vendTransaction->transaction_datetime)->toDateTimeString(),
-                        'vend_id' => $vendTransactionItem->vendTransaction->vend->code,
-                        'machine_prefix' => $vendTransactionItem->vendTransaction->vend && $vendTransactionItem->vendTransaction->vend->vendPrefix ? $vendTransactionItem->vendTransaction->vend->vendPrefix->name : '',
-                        'customer_id' => $vendTransactionItem->vendTransaction->customer ? $vendTransactionItem->vendTransaction->customer->id + 20000 : '',
-                        'customer_code' => $vendTransactionItem->vendTransaction->customer && $vendTransactionItem->vendTransaction->customer->person_id ? $vendTransactionItem->vendTransaction->customer->virtual_customer_code : '',
-                        'customer_name' => $vendTransactionItem->vendTransaction->customer ? $vendTransactionItem->vendTransaction->customer->name : '',
+                        'order_id' => $vendTransaction->order_id,
+                        'transaction_datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
+                        'machine_id' => $vendTransaction->vend_code ? $vendTransaction->vend_code : '',
+                        'machine_prefix' =>  $vendTransaction->vend_prefix_name ? $vendTransaction->vend_prefix_name : '',
+                        'customer_id' => $vendTransaction->customer_id + 20000,
+                        'customer_code' => $vendTransaction->person_id ?
+                                            $vendTransaction->virtual_customer_code :
+                                            '',
+                        'customer_name' => $vendTransaction->customer_name,
                         'channel' => (int)$vendTransactionItem->vend_channel_code,
                         'product_code' => $vendTransactionItem->product ? $vendTransactionItem->product->code : '',
                         'product_name' => $vendTransactionItem->product ? $vendTransactionItem->product->name : '',
@@ -1580,13 +1684,13 @@ class VendController extends Controller
                                         '',
                         'payment_method' => $vendTransaction->payment_method_name,
                         'error_code' => $vendTransactionItem->vendChannelError ? $vendTransactionItem->vendChannelError->code : '',
-                        'location_type' => $vendTransactionItem->vendTransaction->customer && $vendTransactionItem->vendTransaction->customer->locationType ? $vendTransactionItem->vendTransaction->customer->locationType->name : '',
-                        'operator' => $vendTransactionItem->vendTransaction->operator ? $vendTransactionItem->vendTransaction->operator->code : '',
+                        'location_type' => $vendTransaction->location_type_name,
+                        'operator' => $vendTransaction->operator_code,
                         'is_successful' => $vendTransactionItem->vendChannelError ? ($vendTransactionItem->vendChannelError->code == 0 || $vendTransactionItem->vendChannelError->code == 6 ? 'Successful' : "Unsuccessful") : 'Successful',
                         'is_refunded' => '',
-                        'is_multiple' => $vendTransactionItem->vendTransaction->is_multiple ? 'Yes' : 'No',
+                        'is_multiple' => $vendTransaction->is_multiple ? 'Yes' : 'No',
                         'multiple_qty' => 0,
-                        'txn_src' => $vendTransactionItem->vendTransaction->interface_type,
+                        'txn_src' => $vendTransaction->interface_type,
                     ];
                 }
             }

@@ -11,6 +11,8 @@ class ApkSetting extends Model
 
     const FILE_TYPE_IMAGE = 1;
     const FILE_TYPE_VIDEO = 2;
+    const FILE_TYPE_CAMPAIGN_IMAGE = 3;
+    const FILE_TYPE_CAMPAIGN_VIDEO = 4;
 
     protected $fillable = [
         'name',
@@ -21,6 +23,21 @@ class ApkSetting extends Model
     protected $casts = [
         'settings_parameter_json' => 'json',
     ];
+
+    public function campaignImages()
+    {
+        return $this->morphMany(Attachment::class, 'modelable')->where('type', ApkSetting::FILE_TYPE_CAMPAIGN_IMAGE)->oldest();
+    }
+
+    public function campaignItems()
+    {
+        return $this->hasMany(CampaignItem::class);
+    }
+
+    public function campaignVideos()
+    {
+        return $this->morphMany(Attachment::class, 'modelable')->where('type', ApkSetting::FILE_TYPE_CAMPAIGN_VIDEO)->oldest();
+    }
 
     public function images()
     {

@@ -92,6 +92,8 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/{id}/edit', [ApkSettingController::class, 'edit'])->name('apk-settings.edit');
         Route::post('/{id}/update', [ApkSettingController::class, 'update']);
         Route::post('/store', [ApkSettingController::class, 'store']);
+        Route::post('/{id}/upload-campaign-images', [ApkSettingController::class, 'uploadCampaignImages']);
+        Route::post('/{id}/upload-campaign-videos', [ApkSettingController::class, 'uploadCampaignVideos']);
         Route::post('/{id}/upload-images', [ApkSettingController::class, 'uploadImages']);
         Route::post('/{id}/upload-videos', [ApkSettingController::class, 'uploadVideos']);
     });

@@ -116,6 +116,11 @@ class Product extends Model
         return $this->hasMany(SellingPrice::class)->orderBy('type', 'asc');
     }
 
+    public function tagBindings()
+    {
+        return $this->morphMany(TagBinding::class, 'modelable');
+    }
+
     public function thumbnail()
     {
         return $this->morphOne(Attachment::class, 'modelable')->ofMany('type', 'min');

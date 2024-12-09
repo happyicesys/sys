@@ -1,11 +1,11 @@
 <template>
 
-  <Head title="Tags" />
+  <Head title="Labels" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Data Settings (Tags)
+        {{ props.modelName }} Labels
       </h2>
     </template>
 
@@ -25,22 +25,6 @@
           <SearchInput placeholderStr="Name" v-model="filters.name">
             Name
           </SearchInput>
-          <div class="col-span-5 md:col-span-1">
-            <label for="text" class="block text-sm font-medium text-gray-700">
-              Customers
-            </label>
-            <MultiSelect
-              v-model="filters.customers"
-              :options="customerOptions"
-              valueProp="id"
-              label="code"
-              mode="tags"
-              placeholder="Select"
-              open-direction="bottom"
-              class="mt-1"
-            >
-            </MultiSelect>
-            </div>
         </div>
 
 
@@ -104,7 +88,7 @@
                       Name
                     </TableHeadSort>
                     <TableHead>
-                      Customers
+                      Desc
                     </TableHead>
                     <TableHead>
                     </TableHead>
@@ -118,12 +102,8 @@
                       <TableData :currentIndex="tagIndex" :totalLength="tags.length" inputClass="text-left">
                         {{ tag.name }}
                       </TableData>
-                      <TableData :currentIndex="tagIndex" :totalLength="tags.length" inputClass="text-left">
-                        <span v-for="customer in tag.tagBindings.filter(function(customer) {
-                          return customer.is_active
-                        })" class="inline-flex items-center rounded px-2.5 py-0.5 text-xs font-medium border bg-gray-200" >
-                            {{customer.code}}, {{ customer.name }}
-                        </span>
+                      <TableData :currentIndex="tagIndex" :totalLength="tags.length" inputClass="text-left whitespace-pre-wrap">
+                        {{ tag.desc }}
                       </TableData>
                       <TableData :currentIndex="tagIndex" :totalLength="tags.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
@@ -163,6 +143,7 @@
   <Form
       v-if="showModal"
       :tag="tag"
+      :classname="props.classname"
       :type="type"
       :showModal="showModal"
       @modalClose="onModalClose"
@@ -186,13 +167,13 @@ import { ref, onMounted } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 
 const props = defineProps({
-  customers: Object,
+  modelName: String,
   tags: Object,
+  classname: String,
 })
 
 const filters = ref({
   name: '',
-  customers: [],
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
@@ -201,7 +182,6 @@ const showModal = ref(false)
 const tag = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
-const customerOptions = ref([])
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -211,12 +191,6 @@ onMounted(() => {
     { id: 'All', value: 'All' },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
-  customerOptions.value = props.customers.data.map((customer) => {return {
-    id: customer.id,
-    code: customer.code,
-    name: customer.name,
-    is_active: customer.is_active,
-  }})
 })
 
 function onCreateClicked() {
@@ -233,16 +207,16 @@ function onDeleteClicked(tag) {
   router.delete('/tags/' + tag.id)
 }
 
-function onEditClicked(tagValue) {
+function onEditClicked(categoryValue) {
   type.value = 'update'
-  tag.value = tagValue
+  tag.value = categoryValue
   showModal.value = true
 }
 
 function onSearchFilterUpdated() {
   router.get('/tags', {
       ...filters.value,
-      customers: filters.value.customers.map((customer) => { return customer.id }),
+      classname: props.classname,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,
@@ -251,7 +225,7 @@ function onSearchFilterUpdated() {
 }
 
 function resetFilters() {
-  router.get('/tags')
+  router.get('/tags?classname=' + props.classname)
 }
 
 function sortTable(sortKey) {
@@ -263,4 +237,5 @@ function sortTable(sortKey) {
 function onModalClose() {
   showModal.value = false
 }
+
 </script>

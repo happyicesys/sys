@@ -199,6 +199,9 @@
                         </span>
                       </div>
                     </TableHead>
+                    <TableHead>
+                      Label(s)
+                    </TableHead>
                     <!-- <TableHead>
                       Category
                     </TableHead>
@@ -324,6 +327,21 @@
                         {{ product.isActive }}
                       </TableData> -->
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
+                        <div class="flex flex-col space-y-1">
+                          <span v-for="(tagBinding, tagBindingIndex) in product.tagBindings" class="flex space-x-1 justify-center">
+                            <div
+                                class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-blue-100 text-blue-800 border-blue-300"
+                            >
+                                <div class="flex space-x-1">
+                                    <span class="font-semibold grow-0">
+                                      {{ tagBinding.tag ? tagBinding.tag.name : null }}
+                                    </span>
+                                </div>
+                            </div>
+                          </span>
+                        </div>
+                      </TableData>
+                      <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
                           <Button
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
@@ -362,6 +380,7 @@
       :operatorOptions="operatorOptions"
       :permissions="permissions"
       :priceTypeOptions="priceTypeOptions"
+      :productTagOptions="props.productTagOptions"
       @modalClose="onModalClose"
   >
   </Form>
@@ -391,6 +410,7 @@ const props = defineProps({
   operatorOptions: Object,
   priceTypeOptions: Object,
   products: Object,
+  productTagOptions: Object,
   uoms: Object,
 })
 

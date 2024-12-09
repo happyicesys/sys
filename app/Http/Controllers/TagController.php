@@ -14,27 +14,31 @@ class TagController extends Controller
 {
     public function index(Request $request)
     {
-        $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 100;
-        $sortKey = $request->sortKey ? $request->sortKey : 'name';
-        $sortBy = $request->sortBy ? $request->sortBy : true;
+        $request->merge([
+            'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
+            'sortKey' => $request->sortKey ? $request->sortKey : 'name',
+            'sortBy' => $request->sortBy ? $request->sortBy : true,
+        ]);
+
+        $classname = $request->classname;
 
         return Inertia::render('Tag/Index', [
-            'customers' => CustomerResource::collection(Customer::orderBy('code')->get()),
+            'classname' => $classname,
+            'modelName' => $classname ? substr(strrchr($classname, '\\'), 1) : null,
             'tags' => TagResource::collection(
                 Tag::with([
                     'tagBindings',
-                    'tagBindings.customer',
                     ])
+                    ->when($request->classname, function($query, $search) {
+                        $query->where('classname', $search);
+                    })
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
-                    ->when($request->customers, function($query, $search) {
-                        $query->whereIn('id', $search);
+                    ->when($request->sortKey, function($query, $search) use ($request) {
+                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                     })
-                    ->when($sortKey, function($query, $search) use ($sortBy) {
-                        $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-                    })
-                    ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+                    ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
             ),
         ]);
@@ -48,7 +52,7 @@ class TagController extends Controller
 
         Tag::create($request->all());
 
-        return redirect()->route('tags');
+        return redirect()->back();
     }
 
     public function update(Request $request, $tagId)
@@ -60,7 +64,7 @@ class TagController extends Controller
         $tag = Tag::findOrFail($tagId);
         $tag->update($request->all());
 
-        return redirect()->route('tags');
+        return redirect()->back();
     }
 
     public function delete($tagId)
@@ -68,6 +72,6 @@ class TagController extends Controller
         $tag = Tag::findOrFail($tagId);
         $tag->delete();
 
-        return redirect()->route('tags');
+        return redirect()->back();
     }
 }

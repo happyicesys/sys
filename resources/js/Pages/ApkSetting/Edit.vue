@@ -48,9 +48,6 @@
               </AttachmentList>
             </div>
 
-            <!-- <div class="sm:col-span-6">
-              <UploadFileInput :endpoint="'/apk-settings/' + apkSetting.id + '/upload-videos'"></UploadFileInput>
-            </div> -->
             <div class="sm:col-span-6" v-if="apkSetting.id">
               <DropzoneFileInput
                 :endpoint="'/apk-settings/' + apkSetting.id + '/upload-videos'"
@@ -79,9 +76,6 @@
               >
               </AttachmentList>
             </div>
-            <!-- <div class="sm:col-span-6">
-              <UploadFileInput :endpoint="'/apk-settings/' + apkSetting.id + '/upload-images'" ></UploadFileInput>
-            </div> -->
             <div class="sm:col-span-6" v-if="apkSetting.id">
               <DropzoneFileInput
                 :endpoint="'/apk-settings/' + apkSetting.id + '/upload-images'"
@@ -128,6 +122,61 @@
                   <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Campaigns </span>
                 </div>
               </div>
+            </div>
+
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center ">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">Campaign Video(s) </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sm:col-span-6">
+              <AttachmentList
+                :items="apkSetting.campaignVideos"
+              >
+              </AttachmentList>
+            </div>
+
+            <div class="sm:col-span-6" v-if="apkSetting.id">
+              <DropzoneFileInput
+                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-campaign-videos'"
+                :accepted-files="'video/*'"
+                :max-filesize="10"
+                >
+              </DropzoneFileInput>
+            </div>
+
+            <hr class="sm:col-span-6">
+
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center ">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">Campaign Image(s) </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sm:col-span-6">
+              <AttachmentList
+                :items="apkSetting.campaignImages"
+              >
+              </AttachmentList>
+            </div>
+            <div class="sm:col-span-6" v-if="apkSetting.id">
+              <DropzoneFileInput
+                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-campaign-images'"
+                :accepted-files="'image/*'"
+                :max-filesize="1"
+                >
+              </DropzoneFileInput>
             </div>
 
             <div class="sm:col-span-3">
@@ -606,6 +655,164 @@
                 </div>
               </FormInput>
             </div>
+
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center ">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">By Label(s) </span>
+                </div>
+              </div>
+            </div>
+            <div class="sm:col-span-4">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Labels
+              </label>
+              <MultiSelect
+                v-model="form.tags"
+                :options="productTagOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+              >
+              </MultiSelect>
+            </div>
+
+            <div class="sm:col-span-2">
+              <FormInput v-model="form.qty">
+                <div class="flex flex-col space-y-1">
+                  <span>
+                    Bundle Qty
+                  </span>
+                </div>
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-2">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Promo Type
+              </label>
+              <MultiSelect
+                v-model="form.promo_type"
+                :options="promoTypeOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+
+            <div class="sm:col-span-3">
+              <FormInput v-model="form.value">
+                <div class="flex flex-col space-y-1">
+                  <span>
+                    Value
+                  </span>
+                </div>
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-1">
+              <Button
+              type="button"
+              @click="addCampaignItem()"
+              class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
+              :class="[!form.tags || !form.qty || !form.promo_type || !form.value ? 'opacity-50 cursor-not-allowed' : '']"
+              :disabled="!form.tags || !form.qty || !form.promo_type || !form.value"
+              >
+                <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                <span>
+                  Add Label
+                </span>
+              </Button>
+            </div>
+
+            <div class="sm:col-span-6 flex flex-col mt-3">
+            <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+              <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                  <table class="min-w-full divide-y divide-gray-300">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          #
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Label(s)
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Bundle Qty
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Promo Type
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Value
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                      <tr v-for="(campaignItem, campaignItemIndex) in campaignItems" :key="campaignItem.id" :class="campaignItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                          {{ campaignItemIndex + 1 }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          <div class="flex flex-col space-y-1">
+                            <span v-for="(tagBinding, tagBindingIndex) in campaignItem.tagBindings" class="flex space-x-1 justify-center">
+                              <div
+                                  class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-blue-100 text-blue-800 border-blue-300"
+                              >
+                                  <div class="flex space-x-1">
+                                      <span class="font-semibold grow-0">
+                                        {{ tagBinding?.name }}
+                                      </span>
+                                  </div>
+                              </div>
+                            </span>
+                          </div>
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          {{ campaignItem.qty }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          {{ campaignItem.promo_type }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          {{ campaignItem.value }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 text-sm text-center">
+                          <Button
+                            class="bg-red-400 hover:bg-red-500 text-white"
+                            @click="deleteCampaignItem(campaignItem)"
+                          >
+                            <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                          </Button>
+                        </td>
+                      </tr>
+                      <tr v-if="!campaignItems?.length">
+                        <td colspan="6" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
+                          No Records Found
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            </div>
+
             </div>
 
             <div class="sm:col-span-6 py-4">
@@ -746,7 +953,7 @@
             </div>
 
             <div class="sm:col-span-6 py-4">
-              <span class="flex space-x-1">
+              <span class="flex space-x-1 justify-end">
                 <Button
                   type="submit"
                   class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
@@ -781,10 +988,12 @@ import { ArrowDownCircleIcon, ArrowUpCircleIcon, BackspaceIcon, CheckCircleIcon,
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import axios from 'axios';
 
 const props = defineProps({
     apkSetting: Object,
     operatorOptions: Object,
+    productTagOptions: Object,
     type: String,
     unbindedVendOptions: Object,
   })
@@ -802,20 +1011,35 @@ const promoBannerKindOptions = ref([
 const isShowCampaignSection = ref(false)
 const isShowVendSection = ref(false)
 const operatorOptions = ref([])
+const productTagOptions = ref([])
 const permissions = usePage().props.auth.permissions
+const campaignItems = ref([])
 const toast = useToast()
 const form = ref(
   useForm(getDefaultForm())
 )
 const apkSetting = ref([])
+const promoTypeOptions = ref([
+  {id: '1', value: 'Amount'},
+  {id: '2', value: 'Percent'},
+])
 const unbindedVendOptions = ref([])
 const vends = ref([])
 
 onMounted(() => {
   apkSetting.value = props.apkSetting.data
   operatorOptions.value = props.operatorOptions.data
+  productTagOptions.value = props.productTagOptions.data.map(tag => ({ id: tag.id, name: tag.name }));
   unbindedVendOptions.value = props.unbindedVendOptions.data
   vends.value = props.apkSetting.data.vends
+
+  console.log(props.apkSetting)
+  campaignItems.value = props.apkSetting.data.campaignItems.map(campaignItem => ({
+    ...campaignItem,
+    tagBindings: campaignItem.tagBindings?.map(tagBinding => productTagOptions.value.find(
+      option => option.id == tagBinding.tag.id
+    )),
+  }))
 
   form.value = props.apkSetting?.data.settings_parameter_json ? useForm({
     ...props.apkSetting.data,
@@ -899,44 +1123,112 @@ function getDefaultForm() {
     enableDiscount03: '',
     discountPercent03: '',
 
+    is_campaign_items_active: '',
+    tags: [],
+    qty: '',
+    promo_type: '',
+    value: '',
+
+    campaignItems: [],
+
     vend_id: '',
   }
 }
 
 function submit() {
   form.value.clearErrors()
+  let campaignItemsObj = JSON.parse(JSON.stringify(campaignItems.value))
+  // form.value
+  //   .transform((data) => ({
+  //     ...data,
+  //     enablePromoHeaderText: form.value.enablePromoHeaderText?.id,
+  //     enableHeaderTextRunning: form.value.enableHeaderTextRunning?.id,
+  //     promoBannerKind: form.value.promoBannerKind?.id,
+  //     enablePromoRunningText: form.value.enablePromoRunningText?.id,
+  //     disableP1P2CrossGrp: form.value.disableP1P2CrossGrp?.id,
+  //     enableBuy1Free1: form.value.enableBuy1Free1?.id,
+  //     enableBuy2Free1: form.value.enableBuy2Free1?.id,
+  //     enableBundleDiscount: form.value.enableBundleDiscount?.id,
+  //     enableDiscount01: form.value.enableDiscount01?.id,
+  //     enableDiscount02: form.value.enableDiscount02?.id,
+  //     enableDiscount03: form.value.enableDiscount03?.id,
+  //     campaignItems: campaignItemsObj.map(campaignItem => ({
+  //       ...campaignItem,
+  //       promo_type: campaignItem.promo_type?.id,
+  //       tags: campaignItem.tags?.map(tag => tag.id) || [],
+  //     })),
+  //     vends: vends.value.map(vend => vend.id),
+  //   }))
+  //   .post('/apk-settings/' + apkSetting.value.id + '/update', {
+  //   onSuccess: () => {
+  //     toast.success("Successfully Saved", {
+  //       timeout: 3000
+  //     });
+  //   },
+  //   onError: (errors) => {
+  //     toast.error("Failed, Please Try Again", {
+  //       timeout: 3000
+  //     });
+  //   },
+  //   preserveState: true,
+  //   replace: true,
+  // })
+  axios({
+          method: 'POST',
+          url: '/apk-settings/' + apkSetting.value.id + '/update',
+          data: {
+            ...form.value,
+            enablePromoHeaderText: form.value.enablePromoHeaderText?.id,
+            enableHeaderTextRunning: form.value.enableHeaderTextRunning?.id,
+            promoBannerKind: form.value.promoBannerKind?.id,
+            enablePromoRunningText: form.value.enablePromoRunningText?.id,
+            disableP1P2CrossGrp: form.value.disableP1P2CrossGrp?.id,
+            enableBuy1Free1: form.value.enableBuy1Free1?.id,
+            enableBuy2Free1: form.value.enableBuy2Free1?.id,
+            enableBundleDiscount: form.value.enableBundleDiscount?.id,
+            enableDiscount01: form.value.enableDiscount01?.id,
+            enableDiscount02: form.value.enableDiscount02?.id,
+            enableDiscount03: form.value.enableDiscount03?.id,
+            campaignItems: campaignItemsObj.map(campaignItem => ({
+              qty: campaignItem.qty,
+              value: campaignItem.value,
+              promo_type: campaignItem.promo_type?.id,
+              tags: campaignItem.tags?.map(tag => tag.id) || [],
+            })),
+            vends: vends.value.map(vend => vend.id),
+          }
+      }).then(response => {
+        toast.success("Successfully Saved", {
+          timeout: 3000
+        });
+      }).catch(error => {
+      }).finally(() => {
+        // location.reload()
+      })
+}
 
-  console.log(apkSetting.value.id)
-  form.value
-    .transform((data) => ({
-      ...data,
-      enablePromoHeaderText: form.value.enablePromoHeaderText?.id,
-      enableHeaderTextRunning: form.value.enableHeaderTextRunning?.id,
-      promoBannerKind: form.value.promoBannerKind?.id,
-      enablePromoRunningText: form.value.enablePromoRunningText?.id,
-      disableP1P2CrossGrp: form.value.disableP1P2CrossGrp?.id,
-      enableBuy1Free1: form.value.enableBuy1Free1?.id,
-      enableBuy2Free1: form.value.enableBuy2Free1?.id,
-      enableBundleDiscount: form.value.enableBundleDiscount?.id,
-      enableDiscount01: form.value.enableDiscount01?.id,
-      enableDiscount02: form.value.enableDiscount02?.id,
-      enableDiscount03: form.value.enableDiscount03?.id,
-      vends: vends.value.map(vend => vend.id),
-    }))
-    .post('/apk-settings/' + apkSetting.value.id + '/update', {
-    onSuccess: () => {
-      toast.success("Successfully Saved", {
-        timeout: 3000
-      });
-    },
-    onError: (errors) => {
-      toast.error("Failed, Please Try Again", {
-        timeout: 3000
-      });
-    },
-    preserveState: true,
-    replace: true,
-  })
+function addCampaignItem() {
+  form.value.clearErrors();
+
+  if (!Array.isArray(form.value.tags)) {
+    form.value.tags = [];
+  }
+
+  if (Array.isArray(campaignItems.value)) {
+    campaignItems.value.push({
+      ...form.value,
+      promo_type: form.value.promo_type?.value,
+      tagBindings: form.value.tags.map(tag => ({ id: tag.id, name: tag.name })),
+    });
+
+    // Clear the form fields after adding the campaign item
+    form.value.tags = [];
+    form.value.qty = '';
+    form.value.promo_type = '';
+    form.value.value = '';
+  } else {
+    console.error('campaignItems is not an array:', campaignItems.value);
+  }
 }
 
 function bindVendItem() {
@@ -947,6 +1239,10 @@ function bindVendItem() {
     unbindedVendOptions.value.sort((a, b) => a.code - b.code)
     form.value.vend_id = ''
   }
+}
+
+function deleteCampaignItem(campaignItem) {
+  campaignItems.value.splice(campaignItems.value.indexOf(campaignItem), 1)
 }
 
 function unbindVendItem(vend) {

@@ -6,9 +6,30 @@
       </div>
       <div class="flex min-w-0 gap-x-4">
         <a :href="item.full_url" target="_blank">
-          <img class="h-48 w-52 flex-none rounded-md bg-gray-50" :src="item.full_url" alt="" />
+          <template v-if="isVideo(item.full_url)">
+            <video
+              class="h-48 w-52 flex-none rounded-md bg-gray-50"
+              :src="item.full_url"
+              controls
+            ></video>
+          </template>
+          <template v-else-if="isPdf(item.full_url)">
+            <div class="flex items-center">
+              <span class="text-sm text-gray-900 font-medium underline">
+                {{ item.name || 'View PDF' }}
+              </span>
+            </div>
+          </template>
+          <template v-else>
+            <img
+              class="h-48 w-52 flex-none rounded-md bg-gray-50"
+              :src="item.full_url"
+              alt=""
+            />
+          </template>
         </a>
       </div>
+
       <div class="min-w-0 flex-auto self-center">
         <p class="text-sm leading-4 text-gray-900 pt-2">
           <input type="text"
@@ -91,6 +112,19 @@ watch(() => props.items, (newItems) => {
 // onMounted(() => {
 //   console.log(props.isEditEnabled)
 // })
+
+function isPdf(url) {
+  const extension = url.split('.').pop().toLowerCase();
+  return extension === 'pdf';
+}
+
+
+function isVideo(url) {
+  const videoExtensions = ['mp4', 'webm', 'ogg', 'mkv'];
+  const extension = url.split('.').pop().toLowerCase();
+  return videoExtensions.includes(extension);
+}
+
 
 function saveAttachment(itemIndex) {
   router.post('/attachments/' + items.value[itemIndex].id + '/update', {

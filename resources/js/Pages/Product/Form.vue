@@ -142,6 +142,24 @@
               </div>
             </div>
 
+            <div class="sm:col-span-6" v-if="form.id">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Labels
+              </label>
+              <MultiSelect
+                v-model="form.tags"
+                :options="productTagOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+              >
+              </MultiSelect>
+            </div>
+
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -510,6 +528,7 @@ const props = defineProps({
   showModal: Boolean,
   operatorOptions: Object,
   permissions: [Array, Object],
+  productTagOptions: Object,
 });
 
 const emit = defineEmits(['modalClose']);
@@ -527,6 +546,7 @@ const operatorCountry = usePage().props.auth.operatorCountry;
 const operatorOptions = ref([]);
 const operatorRole = usePage().props.auth.operatorRole;
 const priceTypeOptions = ref([]);
+const productTagOptions = ref([]);
 const sellingPrices = ref([]);
 
 onMounted(() => {
@@ -535,6 +555,7 @@ onMounted(() => {
   languageOptions.value = Object.entries(props.languageOptions).map(([id, name]) => ({ id, name }));
   measurementUnitOptions.value = Object.keys(props.measurementUnitOptions).map(measurementUnit => ({ id: measurementUnit, name: measurementUnit }));
   priceTypeOptions.value = Object.entries(props.priceTypeOptions).map(([id, name]) => ({ id, name }));
+  productTagOptions.value = props.productTagOptions.data.map(tag => ({ id: tag.id, name: tag.name }));
   uomOptions.value = props.uoms.data.map(uom => ({ id: uom.id, name: uom.name }));
   operatorOptions.value = props.operatorOptions.slice(1);
   sellingPrices.value = props.product ? props.product.sellingPrices : [];
@@ -549,6 +570,7 @@ onMounted(() => {
     ...props.product,
     category_id: categoryOptions.value.find(categoryOption => categoryOption.id === props.product.category_id),
     category_group_id: categoryGroupOptions.value.find(categoryGroupOption => categoryGroupOption.id === props.product.category_group_id),
+    tags: props.product.tagBindings?.map(tagBinding => productTagOptions.value.find(productTagOption => productTagOption.id === tagBinding.tag.id)),
   }) : useForm(getDefaultForm());
 });
 
@@ -571,6 +593,7 @@ function getDefaultForm() {
     operator_id: '',
     selling_price_amount: '',
     selling_price_type: '',
+    tags: [],
     unit_cost: '',
     date_from: '',
   };
@@ -598,17 +621,33 @@ function submit() {
   }
 
   if (props.type === 'update') {
+
+    // console.log(JSON.parse(JSON.stringify(form.value)
     form.value
-      .transform(data => ({
-        ...data,
-        category_id: data.category_id?.id,
-        category_group_id: data.category_group_id?.id,
-        measurement_unit: data.measurement_unit.id,
-        operator_id: data.operator_id.id,
-        unitCosts: unitCosts.value,
-        languages: languages.value,
-        sellingPrices: sellingPrices.value,
-      }))
+      // .transform(data => ({
+      //   ...data,
+      //   category_id: data.category_id?.id,
+      //   category_group_id: data.category_group_id?.id,
+      //   measurement_unit: data.measurement_unit.id,
+      //   operator_id: data.operator_id.id,
+      //   unitCosts: unitCosts.value,
+      //   languages: languages.value,
+      //   sellingPrices: sellingPrices.value,
+      //   tags: data.tags?.map(tag => tag.id),
+      // }))
+      .transform((data) => {
+        return {
+          ...data,
+          category_id: data.category_id?.id,
+          category_group_id: data.category_group_id?.id,
+          measurement_unit: data.measurement_unit.id,
+          operator_id: data.operator_id.id,
+          unitCosts: unitCosts.value,
+          languages: languages.value,
+          sellingPrices: sellingPrices.value,
+          tags: form.value.tags?.map(tag => tag.id),
+        }
+      })
       .post('/products/' + form.value.id + '/update', {
         onSuccess: () => {
           emit('modalClose');

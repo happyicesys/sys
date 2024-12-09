@@ -6,6 +6,7 @@ use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
+use App\Http\Resources\TagResource;
 use App\Http\Resources\UomResource;
 use App\Models\Category;
 use App\Models\CategoryGroup;
@@ -14,9 +15,11 @@ use App\Models\OpsJob;
 use App\Models\Product;
 use App\Models\ProductUom;
 use App\Models\SellingPrice;
+use App\Models\Tag;
 use App\Models\Uom;
 use App\Traits\GetUserTimezone;
 use App\Services\CmsService;
+use App\Services\TagBindingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -29,6 +32,7 @@ class ProductController extends Controller
     public function __construct()
     {
         $this->cmsService = new CmsService();
+        $this->tagBindingService = new TagBindingService();
         $this->middleware(['permission:read products']);
     }
 
@@ -63,6 +67,7 @@ class ProductController extends Controller
                         'operator',
                         'productUoms.uom',
                         'sellingPrices',
+                        'tagBindings.tag',
                         'thumbnail',
                         'unitCosts' => function($query) {
                             $query->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
@@ -71,6 +76,11 @@ class ProductController extends Controller
                     ->filterIndex($request)
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
+            ),
+            'productTagOptions' => TagResource::collection(
+                Tag::where('classname', $className)
+                    ->orderBy('name')
+                    ->get()
             ),
             'uoms' => UomResource::collection(
                 Uom::query()
@@ -235,11 +245,11 @@ class ProductController extends Controller
             'operator_id.required' => 'Please choose the operator.',
         ]);
 
-// dd($request->all());
-
         $product = Product::findOrFail($productId);
         $product->fill($request->except(['is_available', 'is_available_updated_at']));
         $product->save();
+
+        $this->tagBindingService->sync($product, $request->tags);
 
         if($request->hasFile('thumbnail')){
             $request->validate([

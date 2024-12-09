@@ -5,12 +5,16 @@ namespace App\Http\Controllers;
 use App\Jobs\PublishMqtt;
 use App\Models\ApkSetting;
 use App\Models\Operator;
+use App\Models\Product;
+use App\Models\Tag;
 use App\Models\Vend;
 use App\Models\VendPrefix;
 use App\Http\Resources\ApkSettingResource;
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\TagResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendPrefixResource;
+use App\Services\TagBindingService;
 use App\Services\VendParameterService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -19,10 +23,12 @@ use Inertia\Inertia;
 
 class ApkSettingController extends Controller
 {
+    protected $tagBindingService;
     protected $vendParameterService;
 
     public function __construct()
     {
+        $this->tagBindingService = new TagBindingService();
         $this->vendParameterService = new VendParameterService();
     }
 
@@ -79,16 +85,26 @@ class ApkSettingController extends Controller
     {
         $apkSetting = ApkSetting::query()
             ->with([
+                'campaignImages',
+                'campaignVideos',
                 'images',
+                'campaignItems.tagBindings.tag',
                 'vends.customer',
                 'videos',
             ])
             ->findOrFail($id);
 
+        $className = get_class(new Product());
+
         return Inertia::render('ApkSetting/Edit', [
             'apkSetting' => ApkSettingResource::make($apkSetting),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
+            ),
+            'productTagOptions' => TagResource::collection(
+                Tag::where('classname', $className)
+                    ->orderBy('name')
+                    ->get()
             ),
             'unbindedVendOptions' => VendResource::collection(
                 Vend::with([
@@ -128,6 +144,20 @@ class ApkSettingController extends Controller
 
         $apkSetting->vends()->sync($request->vends);
 
+        $apkSetting->campaignItems()->delete();
+        if($request->campaignItems) {
+            foreach($request->campaignItems as $campaignItem) {
+                $campaignItemObj = $apkSetting->campaignItems()->create([
+                    'apk_setting_id' => $apkSetting->id,
+                    'qty' => $campaignItem['qty'],
+                    'promo_type' => $campaignItem['promo_type'],
+                    'value' => $campaignItem['value'],
+                ]);
+
+                $this->tagBindingService->sync($campaignItemObj, $campaignItem['tags']);
+            }
+        }
+
         // if($request->vends) {
         //     $apkSetting->vends()->delete();
         //     foreach($request->vends as $vendID) {
@@ -155,6 +185,46 @@ class ApkSettingController extends Controller
         }
 
         return redirect()->route('apk-settings.edit', [$apkSetting->id]);
+    }
+
+    public function uploadCampaignImages(Request $request, $id)
+    {
+        $apkSetting = ApkSetting::findOrFail($id);
+
+        if($request->files) {
+            $files = $request->file('files');
+            $dir = 'sys/vends/campaign-images';
+            $storedPath = $files->storePublicly($dir);
+            $fileName = $files->getClientOriginalName();
+            $url = Storage::url($storedPath);
+            $apkSetting->videos()->create([
+                'name' => $fileName,
+                'type' => ApkSetting::FILE_TYPE_CAMPAIGN_IMAGE,
+                'full_url' => $url,
+                'local_url' => $dir . '/' . basename($storedPath),
+            ]);
+        }
+        return true;
+    }
+
+    public function uploadCampaignVideos(Request $request, $id)
+    {
+        $apkSetting = ApkSetting::findOrFail($id);
+
+        if($request->files) {
+            $files = $request->file('files');
+            $dir = 'sys/vends/campaign-videos';
+            $storedPath = $files->storePublicly($dir);
+            $fileName = $files->getClientOriginalName();
+            $url = Storage::url($storedPath);
+            $apkSetting->videos()->create([
+                'name' => $fileName,
+                'type' => ApkSetting::FILE_TYPE_CAMPAIGN_VIDEO,
+                'full_url' => $url,
+                'local_url' => $dir . '/' . basename($storedPath),
+            ]);
+        }
+        return true;
     }
 
     public function uploadImages(Request $request, $id)
