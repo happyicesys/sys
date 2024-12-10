@@ -680,6 +680,7 @@
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
+                max="1"
               >
               </MultiSelect>
             </div>
@@ -1033,7 +1034,6 @@ onMounted(() => {
   unbindedVendOptions.value = props.unbindedVendOptions.data
   vends.value = props.apkSetting.data.vends
 
-  console.log(props.apkSetting)
   campaignItems.value = props.apkSetting.data.campaignItems.map(campaignItem => ({
     ...campaignItem,
     tagBindings: campaignItem.tagBindings?.map(tagBinding => productTagOptions.value.find(

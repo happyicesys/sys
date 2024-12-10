@@ -36,6 +36,11 @@ class CampaignItem extends Model
         );
     }
 
+    public function tagBinding()
+    {
+        return $this->morphOne(TagBinding::class, 'modelable');
+    }
+
     public function tagBindings()
     {
         return $this->morphMany(TagBinding::class, 'modelable');
