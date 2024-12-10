@@ -1192,7 +1192,9 @@ function submit() {
             campaignItems: campaignItemsObj.map(campaignItem => ({
               qty: campaignItem.qty,
               value: campaignItem.value,
-              promo_type: campaignItem.promo_type?.id,
+              promo_type: promoTypeOptions.value.find(
+                option => option.value == campaignItem.promo_type
+              )?.id,
               tags: campaignItem.tags?.map(tag => tag.id) || [],
             })),
             vends: vends.value.map(vend => vend.id),

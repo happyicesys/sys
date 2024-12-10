@@ -1107,6 +1107,7 @@ class VendController extends Controller
         ->with([
             'product.thumbnail',
             'product.category',
+            'product.tagBindings.tag',
             'vend.productMapping',
         ])
         ->whereHas('vend', function($query) use ($vendCode) {
@@ -1155,6 +1156,13 @@ class VendController extends Controller
                             $dataArr[$vendChannelIndex] = [
                                 ...$dataArr[$vendChannelIndex],
                                 'product_name_'.$value['id'] => $value['name'],
+                            ];
+                        }
+                    }
+                    if($vendChannel->product->tagBindings) {
+                        foreach($vendChannel->product->tagBindings as $tagBinding) {
+                            $dataArr[$vendChannelIndex]['labels'][] = [
+                                'name' => $tagBinding->tag?->name,
                             ];
                         }
                     }
