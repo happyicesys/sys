@@ -30,6 +30,7 @@ use App\Http\Resources\ZoneResource;
 use App\Jobs\SyncVendCustomerCms;
 use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Mail\VendChannelErrorLogsMail;
+use App\Models\CampaignItem;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Country;
@@ -1302,16 +1303,38 @@ class VendController extends Controller
     }
 
     public function getVendParameters($vendCode) {
+        $campaignItems = [];
         $vend = Vend::where('code', $vendCode)->firstOrFail();
+        $apkSettings = $vend->apkSettings;
 
-        if(!$vend->apkSettings) {
+        if(!$vend->apkSettings or !isset($apkSettings[0])) {
             abort(response([
                 'error_code' => 400,
                 'error_message' => 'Parameters not found',
             ], 400));
         }
 
-        return $vend->apkSettings[0]->settings_parameter_json;
+        if(isset($apkSettings[0]) and $apkSettings[0]->campaignItems) {
+            $campaignItems = $apkSettings[0]->campaignItems;
+        }
+
+        $data = [
+            ...$vend->apkSettings[0]->settings_parameter_json,
+            'promoLabelItems' => $campaignItems->map(function($campaignItem) {
+                return [
+                    'tags' => $campaignItem->tagBindings->map(function($tagBinding) {
+                        return $tagBinding->tag->name;
+                    }),
+                    'bundle_qty' => $campaignItem->qty,
+                    'promo_type' => CampaignItem::PROMO_TYPE_MAPPINGS[$campaignItem->promo_type],
+                    'value' => $campaignItem->value,
+                ];
+            }),
+        ];
+
+        return $data;
+
+        // return $vend->apkSettings[0]->settings_parameter_json;
     }
 
     public function transactionIndex(Request $request)

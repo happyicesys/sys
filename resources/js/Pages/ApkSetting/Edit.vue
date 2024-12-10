@@ -1129,6 +1129,10 @@ function getDefaultForm() {
     promo_type: '',
     value: '',
 
+    enableLabelPromo: '',
+    labelPromoStartDate: '',
+    labelPromoEndDate: '',
+
     campaignItems: [],
 
     vend_id: '',
