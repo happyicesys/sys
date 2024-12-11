@@ -2,6 +2,7 @@
 
 namespace App\Models\Scopes;
 
+use App\Models\Vend;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -33,6 +34,12 @@ class OperatorTransactionFilterScope implements Scope
         $vendIds = $user->vends ? $user->vends->pluck('id')->toArray() : null;
         if($vendIds) {
             $builder->whereIn('vend_transactions.vend_id', $vendIds);
+
+            $customerIDs = Vend::whereIn('id', $vendIds)->get()->pluck('customer_id')->toArray();
+
+            if($customerIDs) {
+              $builder->whereIn('vend_transactions.customer_id', $customerIDs);
+            }
         }
       }
     }

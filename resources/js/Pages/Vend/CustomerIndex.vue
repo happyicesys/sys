@@ -954,7 +954,7 @@
 									<a
 										:href="vend.deliveryAddress && vend.deliveryAddress.map_url
 											? vend.deliveryAddress.map_url
-											: (vend.deliveryAddress.latitude && vend.deliveryAddress.longitude
+											: (vend.deliveryAddress && vend.deliveryAddress.latitude && vend.deliveryAddress.longitude
 												? 'https://www.google.com/maps/search/?api=1&query=' + vend.deliveryAddress.latitude + ',' + vend.deliveryAddress.longitude
 												: '')"
 										target="_blank"

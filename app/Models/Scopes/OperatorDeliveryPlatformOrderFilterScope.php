@@ -2,6 +2,7 @@
 
 namespace App\Models\Scopes;
 
+use App\Models\Vend;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -35,6 +36,14 @@ class OperatorDeliveryPlatformOrderFilterScope implements Scope
             $builder->whereHas('deliveryProductMappingVend.vend', function($query) use ($vendIds) {
                 $query->whereIn('id', $vendIds);
             });
+
+            $customerIDs = Vend::whereIn('id', $vendIds)->get()->pluck('customer_id')->toArray();
+
+            if($customerIDs) {
+              $builder->whereHas('deliveryProductMappingVend.vend.customer', function($query) use ($customerIDs) {
+                $query->whereIn('id', $customerIDs);
+            });
+            }
         }
       }
     }

@@ -308,6 +308,7 @@ onMounted(() => {
   }))
   roleOptions.value = JSON.parse(JSON.stringify(props.roles.data))
   unbindedVendOptions.value = props.unbindedVends.data
+  console.log(unbindedVendOptions.value)
   form.value = props.user ? useForm({
     ...getDefaultForm(),
     phone_country_id: props.user ? countryOptions.value.find(country => country.id == user.value.phone_country_id) : '',

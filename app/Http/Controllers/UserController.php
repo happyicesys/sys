@@ -162,7 +162,20 @@ class UserController extends Controller
                     ->orderBy('code')
                     ->select('id', 'code', 'name', 'customer_id')
                     ->get()
-                )
+                ),
+            // 'unbindedCustomers' => fn () =>
+            //     CustomerResource::collection(
+            //         Customer::with([
+            //             'vend:id,code,name'
+            //         ])
+            //         ->where('operator_id', $user->operator_id)
+            //         ->whereHas('vend', function($query) use ($user) {
+            //             $query->where('is_active', true);
+            //         })
+            //         ->orderBy('code')
+            //         ->select('id', 'code', 'name', 'customer_id')
+            //         ->get()
+            //     ),
         ]);
     }
 
