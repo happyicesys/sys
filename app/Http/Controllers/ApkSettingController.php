@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\PublishMqtt;
 use App\Models\ApkSetting;
+use App\Models\CampaignItem;
 use App\Models\Operator;
 use App\Models\Product;
 use App\Models\Tag;
@@ -68,6 +69,32 @@ class ApkSettingController extends Controller
                 VendPrefix::orderBy('name')->get()
             ),
         ]);
+    }
+
+    public function createCampaignItem(Request $request, $id)
+    {
+        $apkSetting = ApkSetting::findOrFail($id);
+
+        $campaignItemObj = $apkSetting->campaignItems()->create([
+            'apk_setting_id' => $apkSetting->id,
+            'qty' => $request->qty,
+            'promo_type' => $request->promo_type,
+            'value' => $request->value,
+        ]);
+
+        $this->tagBindingService->sync($campaignItemObj, $request->tags);
+    }
+
+    public function deleteCampaignItem($id)
+    {
+        $campaignItem = CampaignItem::findOrFail($id);
+
+        if($campaignItem->tagBindings) {
+            foreach($campaignItem->tagBindings as $tagBinding) {
+                $tagBinding->delete();
+            }
+        }
+        $campaignItem->delete();
     }
 
     public function store(Request $request)
@@ -144,29 +171,13 @@ class ApkSettingController extends Controller
 
         $apkSetting->vends()->sync($request->vends);
 
-        $apkSetting->campaignItems()->delete();
-        if($request->campaignItems) {
-            foreach($request->campaignItems as $campaignItem) {
-                $campaignItemObj = $apkSetting->campaignItems()->create([
-                    'apk_setting_id' => $apkSetting->id,
-                    'qty' => $campaignItem['qty'],
-                    'promo_type' => $campaignItem['promo_type'],
-                    'value' => $campaignItem['value'],
-                ]);
+        // $apkSetting->campaignItems()->delete();
+        // if($request->campaignItems) {
+        //     foreach($request->campaignItems as $campaignItem) {
 
-                $this->tagBindingService->sync($campaignItemObj, $campaignItem['tags']);
-            }
-        }
-
-        // if($request->vends) {
-        //     $apkSetting->vends()->delete();
-        //     foreach($request->vends as $vendID) {
-        //         $vend = Vend::findOrFail($vendID);
-        //         $vend->apkSettingVend()->create([
-        //             'apk_setting_id' => $apkSetting->id,
-        //         ]);
         //     }
-        //  }
+        // }
+
         if($apkSetting->vends) {
             foreach($apkSetting->vends as $vend) {
                 $fid = 1;

@@ -1227,6 +1227,27 @@ function addCampaignItem() {
       tagBindings: form.value.tags.map(tag => ({ id: tag.id, name: tag.name })),
     });
 
+    router.post('/apk-settings/' + apkSetting.value.id + '/create-campaign-item', {
+      ...form.value,
+      tags: form.value.tags.map(tag => tag.id),
+      promo_type: form.value.promo_type?.id,
+    },
+    {
+      onSuccess: () => {
+        toast.success("Successfully Saved", {
+          timeout: 3000
+        });
+      },
+      onError: (errors) => {
+        toast.error("Failed, Please Try Again", {
+          timeout: 3000
+        });
+      },
+      preserveState: true,
+      preserveScroll: true,
+      replace: true,
+    })
+
     // Clear the form fields after adding the campaign item
     form.value.tags = [];
     form.value.qty = '';
@@ -1248,6 +1269,26 @@ function bindVendItem() {
 }
 
 function deleteCampaignItem(campaignItem) {
+  const approval = confirm('Are you sure to delete this entry?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/apk-settings/campaign-items/' + campaignItem.id + '/delete-campaign-item',
+  {
+    onSuccess: () => {
+      toast.success("Successfully Deleted", {
+        timeout: 3000
+      });
+    },
+    onError: (errors) => {
+      toast.error("Failed, Please Try Again", {
+        timeout: 3000
+      });
+    },
+    preserveState: true,
+    preserveScroll: true,
+    replace: true,
+  })
   campaignItems.value.splice(campaignItems.value.indexOf(campaignItem), 1)
 }
 
