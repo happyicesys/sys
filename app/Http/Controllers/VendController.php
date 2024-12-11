@@ -1322,7 +1322,7 @@ class VendController extends Controller
             ...$vend->apkSettings[0]->settings_parameter_json,
             'promoLabelItems' => $campaignItems->map(function($campaignItem) {
                 return [
-                    'label' => $campaignItem->tagBindings[0]->tag->name,
+                    'label' => isset($campaignItem->tagBindings[0]) ? $campaignItem->tagBindings[0]->tag->name : null,
                     'bundle_qty' => $campaignItem->qty,
                     'promo_type' => CampaignItem::PROMO_TYPE_MAPPINGS[$campaignItem->promo_type],
                     'value' => $campaignItem->value,
