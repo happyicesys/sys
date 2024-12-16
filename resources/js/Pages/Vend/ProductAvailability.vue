@@ -120,7 +120,7 @@
                         <br> {{ product.name }}
                       </span>
                     </td>
-                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-right" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
+                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[product.is_available ? 'text-gray-600' : 'text-gray-400']">
                       {{ Number(product.avg_seven_days_count)?.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                     </td>
                     <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-blue-600">

@@ -206,7 +206,7 @@ class ApkSettingController extends Controller
             $files = $request->file('files');
             $dir = 'sys/vends/campaign-images';
             $storedPath = $files->storePublicly($dir);
-            $fileName = $files->getClientOriginalName();
+            $fileName = pathinfo($files->getClientOriginalName(), PATHINFO_FILENAME);
             $url = Storage::url($storedPath);
             $apkSetting->videos()->create([
                 'name' => $fileName,
@@ -226,7 +226,7 @@ class ApkSettingController extends Controller
             $files = $request->file('files');
             $dir = 'sys/vends/campaign-videos';
             $storedPath = $files->storePublicly($dir);
-            $fileName = $files->getClientOriginalName();
+            $fileName = pathinfo($files->getClientOriginalName(), PATHINFO_FILENAME);
             $url = Storage::url($storedPath);
             $apkSetting->videos()->create([
                 'name' => $fileName,
@@ -246,7 +246,7 @@ class ApkSettingController extends Controller
             $files = $request->file('files');
             $dir = 'sys/vends/banner-images';
             $storedPath = $files->storePublicly($dir);
-            $fileName = $files->getClientOriginalName();
+            $fileName = pathinfo($files->getClientOriginalName(), PATHINFO_FILENAME);
             $url = Storage::url($storedPath);
             $apkSetting->videos()->create([
                 'name' => $fileName,
@@ -266,7 +266,7 @@ class ApkSettingController extends Controller
             $files = $request->file('files');
             $dir = 'sys/vends/banner-videos';
             $storedPath = $files->storePublicly($dir);
-            $fileName = $files->getClientOriginalName();
+            $fileName = pathinfo($files->getClientOriginalName(), PATHINFO_FILENAME);
             $url = Storage::url($storedPath);
             $apkSetting->videos()->create([
                 'name' => $fileName,
