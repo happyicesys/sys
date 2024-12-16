@@ -22,6 +22,7 @@ use App\Services\CmsService;
 use App\Services\TagBindingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -249,7 +250,7 @@ class ProductController extends Controller
         $product->fill($request->except(['is_available', 'is_available_updated_at']));
         $product->save();
 
-        $this->tagBindingService->sync($product, $request->tags);
+        $this->tagBindingService->sync($product, Arr::wrap($request->tags));
 
         if($request->hasFile('thumbnail')){
             $request->validate([
