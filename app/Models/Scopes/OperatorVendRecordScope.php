@@ -38,7 +38,7 @@ class OperatorVendRecordScope implements Scope
             $customerIDs = Vend::whereIn('id', $vendIds)->get()->pluck('customer_id')->toArray();
 
             if($customerIDs) {
-              $builder->whereIn('customer_id', $customerIDs);
+              $builder->whereIn('vend_records.customer_id', $customerIDs);
             }
         }
       }
