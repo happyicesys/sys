@@ -200,7 +200,7 @@
                       </div>
                     </TableHead>
                     <TableHead>
-                      Label(s)
+                      Campaign Label(s)
                     </TableHead>
                     <!-- <TableHead>
                       Category

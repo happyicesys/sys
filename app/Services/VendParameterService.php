@@ -44,9 +44,9 @@ class VendParameterService
             'enableDiscount03' => false,
             'discountPercent03' => 1,
 
-            // 'enableLabelPromo' => false,
-            // 'labelPromoStartDate' => null,
-            // 'labelPromoEndDate' => null,
+            'enableLabelPromo' => false,
+            'labelPromoStartDate' => null,
+            'labelPromoEndDate' => null,
         ];
 
         return $parameters;
@@ -90,6 +90,10 @@ class VendParameterService
             'discountPercent02' => $parameters['discountPercent02'],
             'enableDiscount03' => $parameters['enableDiscount03'],
             'discountPercent03' => $parameters['discountPercent03'],
+
+            'enableLabelPromo' => $parameters['enableLabelPromo'],
+            'labelPromoStartDate' => $parameters['labelPromoStartDate'],
+            'labelPromoEndDate' => $parameters['labelPromoEndDate'],
         ];
 
         return $settings;

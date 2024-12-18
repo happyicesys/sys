@@ -144,8 +144,16 @@
 
             <div class="sm:col-span-6" v-if="form.id">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Labels
+                <div>
+                  <span>
+                    Campaign Labels
+                  </span>
+                  <span class="text-xs text-gray-500">
+                    (Select one only)
+                  </span>
+                </div>
               </label>
+
               <MultiSelect
                 v-model="form.tags"
                 :options="productTagOptions"
@@ -156,6 +164,7 @@
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
+                max="1"
               >
               </MultiSelect>
             </div>

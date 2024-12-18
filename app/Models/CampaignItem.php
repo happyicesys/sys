@@ -18,8 +18,15 @@ class CampaignItem extends Model
         self::PROMO_TYPE_PERCENTAGE => 'Percentage',
     ];
 
+    protected $casts = [
+        'date_from' => 'datetime',
+        'date_to' => 'datetime',
+    ];
+
     protected $fillable = [
         'apk_setting_id',
+        'date_from',
+        'date_to',
         'name',
         'remarks',
         'qty',

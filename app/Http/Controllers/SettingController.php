@@ -440,9 +440,13 @@ class SettingController extends Controller
             'code' => 'required',
         ]);
 
-        if(Vend::where('code', $request->code)->exists()) {
-            return redirect()->back()->with('errors', 'Machine ID already exists');
+        $vend = Vend::where('code', $request->code)->first();
+
+        if($vend) {
+            return redirect()->route('settings.edit', [$vend->id])->with('errors', 'Vend Code already exists.');
         }
+
+        // dd($request->all());
 
         $vend = Vend::create($request->all());
         $vend->operator_id = auth()->user()->operator_id;

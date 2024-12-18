@@ -63,6 +63,11 @@ class CreateVendTransaction implements ShouldQueue
 
         // exception for 2007 for debug purpose
         if($vend->code != '2007') {
+            // handle case: TXN_SRC = 50, then add yym to order ID
+            if($processedInput['interfaceType'] == '50') {
+                $processedInput['orderID'] = Carbon::now()->format('y') . (Carbon::now()->format('m'))[0] . $processedInput['orderID'];
+            }
+
             // check duplicated orderid
             $duplicatedVendTransaction = VendTransaction::query()
                 ->where(function($query) use ($processedInput) {

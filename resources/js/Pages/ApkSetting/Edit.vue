@@ -657,6 +657,7 @@
               </FormInput>
             </div>
 
+
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -667,42 +668,14 @@
                 </div>
               </div>
             </div>
-            <div class="sm:col-span-4">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Labels
-              </label>
-              <MultiSelect
-                v-model="form.tags"
-                :options="productTagOptions"
-                trackBy="id"
-                valueProp="id"
-                label="name"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-                mode="tags"
-                max="1"
-              >
-              </MultiSelect>
-            </div>
-
-            <div class="sm:col-span-2">
-              <FormInput v-model="form.qty">
-                <div class="flex flex-col space-y-1">
-                  <span>
-                    Bundle Qty
-                  </span>
-                </div>
-              </FormInput>
-            </div>
 
             <div class="sm:col-span-2">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Promo Type
+                Enable Label Promo?
               </label>
               <MultiSelect
-                v-model="form.promo_type"
-                :options="promoTypeOptions"
+                v-model="form.enableLabelPromo"
+                :options="booleanStrictOptions"
                 trackBy="id"
                 valueProp="id"
                 label="value"
@@ -713,29 +686,97 @@
               </MultiSelect>
             </div>
 
-            <div class="sm:col-span-3">
-              <FormInput v-model="form.value">
+            <div class="sm:col-span-2">
+              <DatePicker v-model="form.labelPromoStartDate">
                 <div class="flex flex-col space-y-1">
                   <span>
-                    Value
+                    Start Date
                   </span>
                 </div>
-              </FormInput>
+              </DatePicker>
             </div>
 
-            <div class="sm:col-span-1">
-              <Button
-              type="button"
-              @click="addCampaignItem()"
-              class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
-              :class="[!form.tags || !form.qty || !form.promo_type || !form.value ? 'opacity-50 cursor-not-allowed' : '']"
-              :disabled="!form.tags || !form.qty || !form.promo_type || !form.value"
-              >
-                <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
-                <span>
-                  Add Label
-                </span>
-              </Button>
+            <div class="sm:col-span-2">
+              <DatePicker v-model="form.labelPromoEndDate">
+                <div class="flex flex-col space-y-1">
+                  <span>
+                    End Date
+                  </span>
+                </div>
+              </DatePicker>
+            </div>
+
+            <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3 bg-gray-200 rounded p-4">
+              <div class="sm:col-span-4">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Labels
+                </label>
+                <MultiSelect
+                  v-model="form.tags"
+                  :options="productTagOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  mode="tags"
+                  max="1"
+                >
+                </MultiSelect>
+              </div>
+
+              <div class="sm:col-span-2">
+                <FormInput v-model="form.qty">
+                  <div class="flex flex-col space-y-1">
+                    <span>
+                      Bundle Qty
+                    </span>
+                  </div>
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Promo Type
+                </label>
+                <MultiSelect
+                  v-model="form.promo_type"
+                  :options="promoTypeOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+              </div>
+
+              <div class="sm:col-span-3">
+                <FormInput v-model="form.value">
+                  <div class="flex flex-col space-y-1">
+                    <span>
+                      Value
+                    </span>
+                  </div>
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-1">
+                <Button
+                type="button"
+                @click="addCampaignItem()"
+                class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
+                :class="[!form.tags || !form.qty || !form.promo_type || !form.value ? 'opacity-50 cursor-not-allowed' : '']"
+                :disabled="!form.tags || !form.qty || !form.promo_type || !form.value"
+                >
+                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                  <span>
+                    Add Label
+                  </span>
+                </Button>
+              </div>
             </div>
 
             <div class="sm:col-span-6 flex flex-col mt-3">
