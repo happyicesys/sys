@@ -1235,6 +1235,7 @@ function submit() {
             enableDiscount01: form.value.enableDiscount01?.id,
             enableDiscount02: form.value.enableDiscount02?.id,
             enableDiscount03: form.value.enableDiscount03?.id,
+            enableLabelPromo: form.value.enableLabelPromo?.id,
             campaignItems: campaignItemsObj.map(campaignItem => ({
               qty: campaignItem.qty,
               value: campaignItem.value,
