@@ -31,7 +31,7 @@ class SyncOnlineStatus implements ShouldQueue
         $this->emailRecipients = [
             'daniel.ma@happyice.com.sg',
             'kent@happyice.com.sg',
-            'stephen@happyice.com.sg',
+            // 'stephen@happyice.com.sg',
             'brianlee@happyice.com.my',
             'technician1@happyice.com.sg',
         ];
@@ -64,7 +64,7 @@ class SyncOnlineStatus implements ShouldQueue
 
                 // Send offline notification mail after 60 minutes
                 if ($vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 60 && !$vend->is_offline_notification_sent) {
-                    Mail::to($this->emailRecipients)->send(new VendOfflineNotificationMail($vend));
+                    // Mail::to($this->emailRecipients)->send(new VendOfflineNotificationMail($vend));
                     $vend->is_offline_notification_sent = true;
                 }
 
@@ -72,7 +72,7 @@ class SyncOnlineStatus implements ShouldQueue
                 if ($vend->is_mqtt) {
                     $vend->is_mqtt_active = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) < 15;
                     if ($vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) > 60 && !$vend->is_mqtt_offline_notified) {
-                        Mail::to($this->emailRecipients)->send(new VendMqttOfflineNotificationMail($vend));
+                        // Mail::to($this->emailRecipients)->send(new VendMqttOfflineNotificationMail($vend));
                         $vend->is_mqtt_offline_notified = true;
                     }
                 }

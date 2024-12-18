@@ -20,13 +20,17 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
             <div class="sm:col-span-5">
               <FormInput v-model="form.name">
-                Name
+                <div class="text-base">
+                  Name
+                </div>
               </FormInput>
             </div>
 
             <div class="sm:col-span-5">
               <FormTextarea v-model="form.remarks">
-                Remarks
+                <div class="text-base">
+                  Remarks
+                </div>
               </FormTextarea>
             </div>
 
@@ -180,11 +184,11 @@
               </DropzoneFileInput>
             </div>
 
-            <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Enable Promo Header Text?
+            <div class="sm:col-span-4">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+                Enable Campaign Advertisement?
               </label>
-              <span class="text-xs text-gray-600">
+              <span class="text-sm text-gray-600">
                 (Enable Main Banner text show on MainView)
               </span>
               <MultiSelect
@@ -200,14 +204,40 @@
               </MultiSelect>
             </div>
 
+            <div class="sm:col-span-3">
+              <DatePicker v-model="form.headerTextStartDate">
+                <div class="flex flex-col space-y-1">
+                  <span class="text-base">
+                    Advertisement Start Date
+                  </span>
+                  <span class="text-sm text-gray-600">
+                    (Main Banner starting time)
+                  </span>
+                </div>
+              </DatePicker>
+            </div>
+
+            <div class="sm:col-span-3">
+              <DatePicker v-model="form.headerTextEndDate">
+                <div class="flex flex-col space-y-1">
+                  <span class="text-base">
+                    Advertisement End Date
+                  </span>
+                  <span class="text-sm text-gray-600">
+                    (Main Banner ending time)
+                  </span>
+                </div>
+              </DatePicker>
+            </div>
+
             <div class="sm:col-span-5">
               <FormInput v-model="form.promoHeaderText">
                 <div class="flex flex-col space-y-1">
-                  <span>
-                    Promo Header Text
+                  <span class="text-base">
+                    Campaign Running Text 1
                   </span>
-                  <span class="text-xs text-gray-600">
-                    (Set Main Banner text)
+                  <span class="text-sm text-gray-600">
+                    (located at Main Page)
                   </span>
                 </div>
               </FormInput>
@@ -253,31 +283,7 @@
               </MultiSelect>
             </div>
 
-            <div class="sm:col-span-3">
-              <DatePicker v-model="form.headerTextStartDate">
-                <div class="flex flex-col space-y-1">
-                  <span>
-                    Header Text Start Date
-                  </span>
-                  <span class="text-xs text-gray-600">
-                    (Main Banner starting time)
-                  </span>
-                </div>
-              </DatePicker>
-            </div>
 
-            <div class="sm:col-span-3">
-              <DatePicker v-model="form.headerTextEndDate">
-                <div class="flex flex-col space-y-1">
-                  <span>
-                    Header Text End Date
-                  </span>
-                  <span class="text-xs text-gray-600">
-                    (Main Banner ending time)
-                  </span>
-                </div>
-              </DatePicker>
-            </div>
 
             <hr class="sm:col-span-6 my-2">
 

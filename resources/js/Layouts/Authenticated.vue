@@ -121,7 +121,7 @@ const navigation = [
             {name: 'Availability', href: '/products/availability', permission: 'read product-availability'},
             {name: 'Categories', href: '/category-groups?classname=App\\Models\\Product'},
             {name: 'SubCategories', href: '/categories?classname=App\\Models\\Product'},
-            {name: 'Labels', href: '/tags?classname=App\\Models\\Product'},
+            {name: 'Campaign Labels', href: '/tags?classname=App\\Models\\Product'},
         ]
     },
     {
