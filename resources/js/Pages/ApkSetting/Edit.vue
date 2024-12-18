@@ -1119,6 +1119,9 @@ onMounted(() => {
     enableDiscount03: booleanStrictOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.enableDiscount03.toString()
     ),
+    enableLabelPromo: booleanStrictOptions.value.find(
+      option => option.id == props.apkSetting.data.settings_parameter_json.enableLabelPromo.toString()
+    ),
 
   }) : useForm(getDefaultForm())
 
