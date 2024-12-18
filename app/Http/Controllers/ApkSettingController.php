@@ -162,7 +162,7 @@ class ApkSettingController extends Controller
         // dd($request->all(), $id);
         $apkSetting = ApkSetting::findOrFail($id);
 
-        dd($request->all());
+        // dd($request->all());
         $request->merge([
             'settings_parameter_json' => $this->vendParameterService->getCampaignParameter($request->all())
         ]);
