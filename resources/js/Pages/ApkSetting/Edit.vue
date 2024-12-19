@@ -129,60 +129,6 @@
               </div>
             </div>
 
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-center ">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">Campaign Video(s) </span>
-                </div>
-              </div>
-            </div>
-
-            <div class="sm:col-span-6">
-              <AttachmentList
-                :items="apkSetting.campaignVideos"
-              >
-              </AttachmentList>
-            </div>
-
-            <div class="sm:col-span-6" v-if="apkSetting.id">
-              <DropzoneFileInput
-                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-campaign-videos'"
-                :accepted-files="'video/*'"
-                :max-filesize="10"
-                >
-              </DropzoneFileInput>
-            </div>
-
-            <hr class="sm:col-span-6">
-
-            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
-              <div class="relative">
-                <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div class="w-full border-t border-gray-300"></div>
-                </div>
-                <div class="relative flex justify-center ">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">Campaign Image(s) </span>
-                </div>
-              </div>
-            </div>
-
-            <div class="sm:col-span-6">
-              <AttachmentList
-                :items="apkSetting.campaignImages"
-              >
-              </AttachmentList>
-            </div>
-            <div class="sm:col-span-6" v-if="apkSetting.id">
-              <DropzoneFileInput
-                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-campaign-images'"
-                :accepted-files="'image/*'"
-                :max-filesize="1"
-                >
-              </DropzoneFileInput>
-            </div>
 
             <div class="sm:col-span-4">
               <label for="text" class="flex justify-start text-base font-medium text-gray-700">
@@ -230,44 +176,11 @@
               </DatePicker>
             </div>
 
-            <div class="sm:col-span-5">
-              <FormInput v-model="form.promoHeaderText">
-                <div class="flex flex-col space-y-1">
-                  <span class="text-base">
-                    Campaign Running Text 1
-                  </span>
-                  <span class="text-sm text-gray-600">
-                    (located at Main Page)
-                  </span>
-                </div>
-              </FormInput>
-            </div>
-
             <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Enable Header Text Running?
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+                Campaign Advertisement Material
               </label>
-              <span class="text-xs text-gray-600">
-                (Main Banner show as running text, default is line by line)
-              </span>
-              <MultiSelect
-                v-model="form.enableHeaderTextRunning"
-                :options="booleanStrictOptions"
-                trackBy="id"
-                valueProp="id"
-                label="value"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-              >
-              </MultiSelect>
-            </div>
-
-            <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Promo Banner Kind
-              </label>
-              <span class="text-xs text-gray-600">
+              <span class="text-sm text-gray-600">
                 (MainView Campaign background type picture/video)
               </span>
               <MultiSelect
@@ -284,75 +197,94 @@
             </div>
 
 
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center ">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">Campaign Video(s) </span>
+                </div>
+              </div>
+            </div>
 
-            <hr class="sm:col-span-6 my-2">
-
-            <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Enable Promo Running Text?
-              </label>
-              <span class="text-xs text-gray-600">
-                (Enable Promo Banner text show on SoftKeybadView)
-              </span>
-              <MultiSelect
-                v-model="form.enablePromoRunningText"
-                :options="booleanStrictOptions"
-                trackBy="id"
-                valueProp="id"
-                label="value"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
+            <div class="sm:col-span-6">
+              <AttachmentList
+                :items="apkSetting.campaignVideos"
               >
-              </MultiSelect>
+              </AttachmentList>
+            </div>
+
+            <div class="sm:col-span-6" v-if="apkSetting.id">
+              <DropzoneFileInput
+                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-campaign-videos'"
+                :accepted-files="'video/*'"
+                :max-filesize="10"
+                >
+              </DropzoneFileInput>
+            </div>
+
+            <hr class="sm:col-span-6">
+
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center ">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">Campaign Picture(s) </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sm:col-span-6">
+              <AttachmentList
+                :items="apkSetting.campaignImages"
+              >
+              </AttachmentList>
+            </div>
+            <div class="sm:col-span-6" v-if="apkSetting.id">
+              <DropzoneFileInput
+                :endpoint="'/apk-settings/' + apkSetting.id + '/upload-campaign-images'"
+                :accepted-files="'image/*'"
+                :max-filesize="1"
+                >
+              </DropzoneFileInput>
             </div>
 
             <div class="sm:col-span-5">
-              <FormInput v-model="form.promoRunningText">
+              <FormInput v-model="form.promoHeaderText">
                 <div class="flex flex-col space-y-1">
-                  <span>
-                    Promo Running Text
+                  <span class="text-base">
+                    Campaign Running Text 1
                   </span>
-                  <span class="text-xs text-gray-600">
-                    (Set Promo Banner text)
+                  <span class="text-sm text-gray-600">
+                    (located at Main Page)
                   </span>
                 </div>
               </FormInput>
             </div>
 
-            <div class="sm:col-span-3">
-              <DatePicker v-model="form.runningTextStartDate">
+            <div class="sm:col-span-5">
+              <FormInput v-model="form.promoRunningText">
                 <div class="flex flex-col space-y-1">
-                  <span>
-                    Running Text Start Date
+                  <span class="text-base">
+                    Campaign Running Text 2
                   </span>
                   <span class="text-xs text-gray-600">
-                    (Promo Banner text starting time)
+                    (located on top of Soft Keypad)
                   </span>
                 </div>
-              </DatePicker>
-            </div>
-
-            <div class="sm:col-span-3">
-              <DatePicker v-model="form.runningTextEndDate">
-                <div class="flex flex-col space-y-1">
-                  <span>
-                    Running Text End Date
-                  </span>
-                  <span class="text-xs text-gray-600">
-                    (Promo Banner text ending time)
-                  </span>
-                </div>
-              </DatePicker>
+              </FormInput>
             </div>
 
             <hr class="sm:col-span-6 my-2">
 
             <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
                 Disable P1 P2 Cross Group?
               </label>
-              <span class="text-xs text-gray-600">
+              <span class="text-sm text-gray-600">
                 (Disable Old Discount Logic cross group, old discount logic can cross group to apply)
               </span>
               <MultiSelect
@@ -371,10 +303,10 @@
             <hr class="sm:col-span-6 my-2">
 
             <div class="sm:col-span-4">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
                 Enable Buy 1 Free 1?
               </label>
-              <span class="text-xs text-gray-600">
+              <span class="text-sm text-gray-600">
                 (Enable buy1free1 Campaign)
               </span>
               <MultiSelect
@@ -393,10 +325,10 @@
             <div class="sm:col-span-3">
               <FormInput v-model="form.buy1free1X">
                 <div class="flex flex-col space-y-1">
-                  <span>
+                  <span class="text-base">
                     Buy 1 Free 1 (Buy Group)
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-sm text-gray-600">
                     (buy1free1 buy group, *cannot same with buy2free1X, numbers only)
                   </span>
                 </div>
@@ -406,10 +338,10 @@
             <div class="sm:col-span-3">
               <FormInput v-model="form.buy1free1Y">
                 <div class="flex flex-col space-y-1">
-                  <span>
+                  <span class="text-base">
                     Buy 1 Free 1 (Free Group)
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-sm text-gray-600">
                     (buy1free1 free group, numbers only)
                   </span>
                 </div>
@@ -419,10 +351,10 @@
             <div class="sm:col-span-3">
               <DatePicker v-model="form.buy1free1StartDate">
                 <div class="flex flex-col space-y-1">
-                  <span>
+                  <span class="text-base">
                     Buy 1 Free 1 Start Date
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-sm text-gray-600">
                     (buy1free1 campaign starting time)
                   </span>
                 </div>
@@ -432,10 +364,10 @@
             <div class="sm:col-span-3">
               <DatePicker v-model="form.buy1free1EndDate">
                 <div class="flex flex-col space-y-1">
-                  <span>
+                  <span class="text-base">
                     Buy 1 Free 1 End Date
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-sm text-gray-600">
                     (buy1free1 campaign ending time)
                   </span>
                 </div>
@@ -445,10 +377,10 @@
             <hr class="sm:col-span-6 my-2">
 
             <div class="sm:col-span-4">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
                 Enable Buy 2 Free 1?
               </label>
-              <span class="text-xs text-gray-600">
+              <span class="text-sm text-gray-600">
                 (Enable buy2free1 Campaign)
               </span>
               <MultiSelect
@@ -467,10 +399,10 @@
             <div class="sm:col-span-3">
               <FormInput v-model="form.buy2free1X">
                 <div class="flex flex-col space-y-1">
-                  <span>
+                  <span class="text-base">
                     Buy 2 Free 1 (Buy Group)
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-sm text-gray-600">
                     (buy2free1 buy group, *cannot same with buy1free1X, numbers only)
                   </span>
                 </div>
@@ -480,10 +412,10 @@
             <div class="sm:col-span-3">
               <FormInput v-model="form.buy2free1Y">
                 <div class="flex flex-col space-y-1">
-                  <span>
+                  <span class="text-base">
                     Buy 2 Free 1 (Free Group)
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-sm text-gray-600">
                     (buy2free1 buy group, numbers only)
                   </span>
                 </div>
@@ -493,10 +425,10 @@
             <div class="sm:col-span-3">
               <DatePicker v-model="form.buy2free1StartDate">
                 <div class="flex flex-col space-y-1">
-                  <span>
+                  <span class="text-base">
                     Buy 2 Free 1 Start Date
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-sm text-gray-600">
                     (buy2free1 campaign starting time)
                   </span>
                 </div>
@@ -506,10 +438,10 @@
             <div class="sm:col-span-3">
               <DatePicker v-model="form.buy2free1EndDate">
                 <div class="flex flex-col space-y-1">
-                  <span>
+                  <span class="text-base">
                     Buy 2 Free 1 End Date
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-sm text-gray-600">
                     (buy2free1 campaign ending time)
                   </span>
                 </div>
@@ -519,10 +451,10 @@
             <hr class="sm:col-span-6 my-2">
 
             <div class="sm:col-span-4">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
                 Enable Bundle Discount?
               </label>
-              <span class="text-xs text-gray-600">
+              <span class="text-sm text-gray-600">
                 (Enable bundle discount Campaign)
               </span>
               <MultiSelect
@@ -541,10 +473,10 @@
             <div class="sm:col-span-3">
               <DatePicker v-model="form.bundleStartDate">
                 <div class="flex flex-col space-y-1">
-                  <span>
+                  <span class="text-base">
                     Bundle Start Date
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-sm text-gray-600">
                     (bundle discount Campaign starting time)
                   </span>
                 </div>
@@ -554,10 +486,10 @@
             <div class="sm:col-span-3">
               <DatePicker v-model="form.bundleEndDate">
                 <div class="flex flex-col space-y-1">
-                  <span>
+                  <span class="text-base">
                     Bundle End Date
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-sm text-gray-600">
                     (bundle discount Campaign ending time)
                   </span>
                 </div>
@@ -565,10 +497,10 @@
             </div>
 
             <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
                 Enable Buy 2 Get Discount?
               </label>
-              <span class="text-xs text-gray-600">
+              <span class="text-sm text-gray-600">
                 (Enable buy2 get discount)
               </span>
               <MultiSelect
@@ -587,10 +519,10 @@
             <div class="sm:col-span-3">
               <FormInput v-model="form.discountPercent01">
                 <div class="flex flex-col space-y-1">
-                  <span>
+                  <span class="text-base">
                     Buy 2 Discount %
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-sm text-gray-600">
                     (set buy2 get how many % discount, *default 10%)
                   </span>
                 </div>
@@ -598,10 +530,10 @@
             </div>
 
             <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
                 Enable Buy 3 Get Discount?
               </label>
-              <span class="text-xs text-gray-600">
+              <span class="text-sm text-gray-600">
                 (Enable buy3 get discount)
               </span>
               <MultiSelect
@@ -620,10 +552,10 @@
             <div class="sm:col-span-3">
               <FormInput v-model="form.discountPercent02">
                 <div class="flex flex-col space-y-1">
-                  <span>
+                  <span class="text-base">
                     Buy 3 Discount %
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-sm text-gray-600">
                     (set buy3 get how many % discount, *default 10%)
                   </span>
                 </div>
@@ -631,10 +563,10 @@
             </div>
 
             <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
                 Enable Buy 4 Get Discount?
               </label>
-              <span class="text-xs text-gray-600">
+              <span class="text-sm text-gray-600">
                 (Enable buy4 get discount)
               </span>
               <MultiSelect
@@ -653,10 +585,10 @@
             <div class="sm:col-span-3">
               <FormInput v-model="form.discountPercent03">
                 <div class="flex flex-col space-y-1">
-                  <span>
+                  <span class="text-base">
                     Buy 4 Discount %
                   </span>
-                  <span class="text-xs text-gray-600">
+                  <span class="text-sm text-gray-600">
                     (set buy4 get how many % discount, *default 10%)
                   </span>
                 </div>
@@ -1095,14 +1027,8 @@ onMounted(() => {
     enablePromoHeaderText: booleanStrictOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.enablePromoHeaderText.toString()
     ),
-    enableHeaderTextRunning: booleanStrictOptions.value.find(
-      option => option.id == props.apkSetting.data.settings_parameter_json.enableHeaderTextRunning.toString()
-    ),
     promoBannerKind: promoBannerKindOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.promoBannerKind.toString()
-    ),
-    enablePromoRunningText: booleanStrictOptions.value.find(
-      option => option.id == props.apkSetting.data.settings_parameter_json.enablePromoRunningText.toString()
     ),
     disableP1P2CrossGrp: booleanStrictOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.disableP1P2CrossGrp.toString()
@@ -1140,15 +1066,11 @@ function getDefaultForm() {
 
     enablePromoHeaderText: '',
     promoHeaderText: '',
-    enableHeaderTextRunning: '',
     promoBannerKind: '',
     headerTextStartDate: '',
     headerTextEndDate: '',
 
-    enablePromoRunningText: '',
     promoRunningText: '',
-    runningTextStartDate: '',
-    runningTextEndDate: '',
 
     disableP1P2CrossGrp: '',
 
@@ -1193,50 +1115,14 @@ function getDefaultForm() {
 function submit() {
   form.value.clearErrors()
   let campaignItemsObj = JSON.parse(JSON.stringify(campaignItems.value))
-  // form.value
-  //   .transform((data) => ({
-  //     ...data,
-  //     enablePromoHeaderText: form.value.enablePromoHeaderText?.id,
-  //     enableHeaderTextRunning: form.value.enableHeaderTextRunning?.id,
-  //     promoBannerKind: form.value.promoBannerKind?.id,
-  //     enablePromoRunningText: form.value.enablePromoRunningText?.id,
-  //     disableP1P2CrossGrp: form.value.disableP1P2CrossGrp?.id,
-  //     enableBuy1Free1: form.value.enableBuy1Free1?.id,
-  //     enableBuy2Free1: form.value.enableBuy2Free1?.id,
-  //     enableBundleDiscount: form.value.enableBundleDiscount?.id,
-  //     enableDiscount01: form.value.enableDiscount01?.id,
-  //     enableDiscount02: form.value.enableDiscount02?.id,
-  //     enableDiscount03: form.value.enableDiscount03?.id,
-  //     campaignItems: campaignItemsObj.map(campaignItem => ({
-  //       ...campaignItem,
-  //       promo_type: campaignItem.promo_type?.id,
-  //       tags: campaignItem.tags?.map(tag => tag.id) || [],
-  //     })),
-  //     vends: vends.value.map(vend => vend.id),
-  //   }))
-  //   .post('/apk-settings/' + apkSetting.value.id + '/update', {
-  //   onSuccess: () => {
-  //     toast.success("Successfully Saved", {
-  //       timeout: 3000
-  //     });
-  //   },
-  //   onError: (errors) => {
-  //     toast.error("Failed, Please Try Again", {
-  //       timeout: 3000
-  //     });
-  //   },
-  //   preserveState: true,
-  //   replace: true,
-  // })
+
   axios({
           method: 'POST',
           url: '/apk-settings/' + apkSetting.value.id + '/update',
           data: {
             ...form.value,
             enablePromoHeaderText: form.value.enablePromoHeaderText?.id,
-            enableHeaderTextRunning: form.value.enableHeaderTextRunning?.id,
             promoBannerKind: form.value.promoBannerKind?.id,
-            enablePromoRunningText: form.value.enablePromoRunningText?.id,
             disableP1P2CrossGrp: form.value.disableP1P2CrossGrp?.id,
             enableBuy1Free1: form.value.enableBuy1Free1?.id,
             enableBuy2Free1: form.value.enableBuy2Free1?.id,

@@ -7,18 +7,18 @@ class VendParameterService
 {
     public function getDefaultParameter()
     {
+        // enableHeaderTextRunning
+        // enablePromoRunningText
+        // runningTextStartDate
+        // runningTextEndDate
         $parameters = [
             'enablePromoHeaderText' => false,
             'promoHeaderText' => null,
-            'enableHeaderTextRunning' => false,
             'promoBannerKind' => 'video',
             'headerTextStartDate' => null,
             'headerTextEndDate' => null,
 
-            'enablePromoRunningText' => false,
             'promoRunningText' => null,
-            'runningTextStartDate' => null,
-            'runningTextEndDate' => null,
 
             'disableP1P2CrossGrp' => false,
 
@@ -57,15 +57,11 @@ class VendParameterService
         $settings = [
             'enablePromoHeaderText' => $parameters['enablePromoHeaderText'],
             'promoHeaderText' => $parameters['promoHeaderText'],
-            'enableHeaderTextRunning' => $parameters['enableHeaderTextRunning'],
             'promoBannerKind' => $parameters['promoBannerKind'],
             'headerTextStartDate' => $parameters['headerTextStartDate'],
             'headerTextEndDate' => $parameters['headerTextEndDate'],
 
-            'enablePromoRunningText' => $parameters['enablePromoRunningText'],
             'promoRunningText' => $parameters['promoRunningText'],
-            'runningTextStartDate' => $parameters['runningTextStartDate'],
-            'runningTextEndDate' => $parameters['runningTextEndDate'],
 
             'disableP1P2CrossGrp' => $parameters['disableP1P2CrossGrp'],
 
