@@ -181,7 +181,7 @@
                                                     </td>
                                                     <td class="whitespace-nowrap px-3 py-1 text-sm text-gray-600 flex space-x-2">
                                                         <span>
-                                                            {{ vend.vend.code }} -
+                                                            {{ vend.vend?.code }} -
                                                         </span>
                                                         <span v-if="vend.customer && vend.customer.person_id">
                                                             <!-- {{ vend.customer.virtual_customer_prefix }}- -->
