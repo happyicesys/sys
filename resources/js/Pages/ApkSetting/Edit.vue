@@ -40,7 +40,12 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center ">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Video(s) </span>
+                  <div class="flex flex-col items-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Default Video(s) </span>
+                    <span class="text-sm">
+                      (device file location: Internal Memory/Android/data/com.venderroute/files/DefaultMedia/Videos)
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -69,7 +74,12 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center ">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Image(s) </span>
+                  <div class="flex flex-col items-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Default Picture(s) </span>
+                    <span class="text-sm">
+                      (device file location: Internal Memory/Android/data/com.venderroute/files/DefaultMedia/Pictures)
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -154,10 +164,7 @@
               <DatePicker v-model="form.headerTextStartDate">
                 <div class="flex flex-col space-y-1">
                   <span class="text-base">
-                    Advertisement Start Date
-                  </span>
-                  <span class="text-sm text-gray-600">
-                    (Main Banner starting time)
+                    Campaign Advertisement Start Date
                   </span>
                 </div>
               </DatePicker>
@@ -167,10 +174,7 @@
               <DatePicker v-model="form.headerTextEndDate">
                 <div class="flex flex-col space-y-1">
                   <span class="text-base">
-                    Advertisement End Date
-                  </span>
-                  <span class="text-sm text-gray-600">
-                    (Main Banner ending time)
+                    Campaign Advertisement End Date
                   </span>
                 </div>
               </DatePicker>
@@ -203,7 +207,12 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center ">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">Campaign Video(s) </span>
+                  <div class="flex flex-col items-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Campaign Video(s) </span>
+                    <span class="text-sm">
+                      (device file location: Internal Memory/Android/data/com.venderroute/files/Campaign/Videos)
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -232,7 +241,12 @@
                   <div class="w-full border-t border-gray-300"></div>
                 </div>
                 <div class="relative flex justify-center ">
-                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">Campaign Picture(s) </span>
+                  <div class="flex flex-col items-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Campaign Picture(s) </span>
+                    <span class="text-sm">
+                      (device file location: Internal Memory/Android/data/com.venderroute/files/Campaign/Pictures)
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
