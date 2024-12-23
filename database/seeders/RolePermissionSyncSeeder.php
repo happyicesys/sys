@@ -83,15 +83,15 @@ class RolePermissionSyncSeeder extends Seeder
             ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer']],
 
             ['vend-configs',
-            ['create', 'update', 'delete', 'admin-access'],
+            ['read', 'create', 'update', 'delete', 'admin-access'],
             ['superadmin', 'admin', 'supervisor', 'technician']],
 
             ['vend-prefixes',
-            ['create', 'update', 'delete', 'admin-access'],
+            ['read', 'create', 'update', 'delete', 'admin-access'],
             ['superadmin', 'admin', 'supervisor', 'technician']],
 
             ['cashless-terminals',
-            ['create', 'update', 'delete', 'admin-access'],
+            ['read', 'create', 'update', 'delete', 'admin-access'],
             ['superadmin', 'admin', 'supervisor', 'technician']],
 
             ['customers',
