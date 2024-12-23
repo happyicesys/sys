@@ -10,6 +10,7 @@ use App\Models\VendChannelRecord;
 use App\Models\VendTransaction;
 use App\Models\ProductMappingItem;
 use App\Services\DeliveryProductMappingService;
+use App\Services\ProductMappingService;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Bus\Queueable;
@@ -25,6 +26,7 @@ class SyncVendChannels implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $deliveryProductMappingService;
+    protected $productMappingService;
     protected $input;
     protected $vend;
 
@@ -38,6 +40,7 @@ class SyncVendChannels implements ShouldQueue
         $this->input = $input;
         $this->vend = $vend;
         $this->deliveryProductMappingService = new DeliveryProductMappingService();
+        $this->productMappingService = new ProductMappingService();
     }
 
     /**
@@ -101,7 +104,7 @@ class SyncVendChannels implements ShouldQueue
                 }
 
                 if($vendChannel->is_active) {
-                    $this->syncProductMappingItem($vendChannel, $channel);
+                    $this->syncProductMappingItem($vendChannel);
                     SyncVendChannelErrorLog::dispatch($vend, $channel['channel_code'], $channel['error_code']);
                 }
             }
@@ -231,15 +234,9 @@ class SyncVendChannels implements ShouldQueue
     }
 
     // sync with product mapping template item
-    private function syncProductMappingItem(VendChannel $vendChannel, $input)
+    private function syncProductMappingItem(VendChannel $vendChannel)
     {
-        $vendChannel->update(['product_id' =>
-            $vendChannel->vend->productMapping()->exists() &&
-            $vendChannel->vend->productMapping->productMappingItems()->exists() &&
-            $vendChannel->vend->productMapping->productMappingItems()->where('channel_code', $input['channel_code'])->first() ?
-            $vendChannel->vend->productMapping->productMappingItems()->where('channel_code', $input['channel_code'])->first()->product_id :
-            null
-        ]);
+        $this->productMappingService->syncChannel($vendChannel->id);
     }
 
     private function syncVendChannelRecordVMCBeforeQty(VendChannelRecord $vendChannelRecord)

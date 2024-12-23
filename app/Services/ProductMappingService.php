@@ -6,6 +6,7 @@ use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Models\SellingPrice;
 use App\Models\Vend;
+use App\Models\VendChannel;
 use Carbon\Carbon;
 
 class ProductMappingService
@@ -36,4 +37,61 @@ class ProductMappingService
             }
         }
     }
+
+    public function syncSingleChannel($vendChannelID, $productMappingItemID)
+    {
+        $vendChannel = VendChannel::findOrFail($vendChannelID);
+        $productMappingItem = ProductMappingItem::findOrFail($productMappingItemID);
+
+        $vendChannel->update(['product_id' => null]);
+
+        if($vendChannel and $productMappingItem) {
+            $vendChannel->product_id = $productMappingItem->product_id;
+            $vendChannel->save();
+            SaveVendChannelsJson::dispatch($vendChannel->vend_id)->onQueue('high');
+        }
+    }
+
+    public function syncChannel($vendChannelID)
+    {
+        // Find the specific vendChannel instance
+        $vendChannel = VendChannel::findOrFail($vendChannelID);
+
+        // Access the associated Vend and ProductMapping
+        $vend = $vendChannel->vend;
+        $productMapping = $vend->productMapping;
+
+        // Clear the product_id for the specific vendChannel
+        $vendChannel->product_id = null;
+
+        if($productMapping) {
+            // Find the associated ProductMappingItem using channel_code
+            $productMappingItem = $productMapping->productMappingItems()
+                ->where('channel_code', (int)$vendChannel->code)
+                ->first();
+
+            if ($productMappingItem) {
+                // Update vendChannel's product_id with the associated product ID
+                $vendChannel->product_id = $productMappingItem->product_id;
+
+                // If a selling price type is defined, update server_amount
+                if ($productMapping->selling_price_type) {
+                    $sellingPrice = SellingPrice::where('product_id', $productMappingItem->product_id)
+                        ->where('type', $productMapping->selling_price_type)
+                        ->first();
+
+                    if ($sellingPrice) {
+                        $productMappingItem->update(['server_amount' => $sellingPrice->amount]);
+                    }
+                }
+
+                // Dispatch a job to update VendChannels JSON
+                SaveVendChannelsJson::dispatch($vend->id)->onQueue('high');
+            }
+        }
+
+        $vendChannel->save();
+
+    }
+
 }
