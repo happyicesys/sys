@@ -310,6 +310,7 @@ class Vend extends Model
         'private_key',
         'product_mapping_id',
         'serial_num',
+        'server_price_type',
         'settings_parameter_json',
         'simcard_id',
         'statistics1_json',

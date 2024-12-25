@@ -3,7 +3,7 @@
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        More Information for Machine ID#
+        Advance Control for Machine ID#
         {{ vend.code }}
       </h2>
     </template>

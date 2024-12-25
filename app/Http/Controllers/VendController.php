@@ -871,6 +871,25 @@ class VendController extends Controller
         return redirect()->back();
     }
 
+    public function syncApkSettings($id)
+    {
+        $vend = Vend::findOrFail($id);
+        $fid = 1;
+        $content = base64_encode(json_encode([
+            'Type' => 'TYPESYNCSETTINGSPARAM',
+            'time' => Carbon::now()->timestamp,
+            'action' => '',
+            'mid' => $vend->code,
+        ]));
+        $contentLength = strlen($content);
+        $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+
+        return redirect()->back();
+    }
+
     public function syncVendChannels($id)
     {
         $vend = Vend::findOrFail($id);
@@ -1913,9 +1932,10 @@ class VendController extends Controller
             'modem_unit_id' => $request->modem_unit_id,
             'is_active' => $request->is_active,
             'is_testing' => $request->is_testing,
-            'is_using_server_price' => $request->is_using_server_price,
+            // 'is_using_server_price' => $request->is_using_server_price,
             'product_mapping_id' => $request->product_mapping_id,
             'serial_num' => $request->serial_num,
+            'server_price_type' => $request->server_price_type,
             'simcard_id' => $request->simcard_id,
             'termination_date' => $request->termination_date,
             'upcoming_product_mapping_id' => $request->upcoming_product_mapping_id,

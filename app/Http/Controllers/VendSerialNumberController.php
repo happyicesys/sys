@@ -24,6 +24,7 @@ class VendSerialNumberController extends Controller
             'vendSerialNumbers' => VendSerialNumberResource::collection(
                 VendSerialNumber::query()
                     ->with('vend')
+                    ->leftJoin('vends', 'vends.vend_serial_number_id', '=', 'vend_serial_numbers.id')
                     ->when($request->id, function($query, $search) {
                         $query->where('id', $search);
                     })
@@ -45,6 +46,7 @@ class VendSerialNumberController extends Controller
                     ->when($request->sortKey, function($query, $search) use ($request) {
                         $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
                     })
+                    ->select('vend_serial_numbers.*', 'vends.code as vend_code')
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
             )
@@ -54,7 +56,7 @@ class VendSerialNumberController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'code' => 'required',
+            'code' => 'required|unique:vend_serial_numbers',
         ]);
 
         $model = VendSerialNumber::create($request->all());
@@ -65,7 +67,7 @@ class VendSerialNumberController extends Controller
     public function update(Request $request, $id)
     {
         $request->validate([
-            'code' => 'required',
+            'code' => 'required|unique:vend_serial_numbers,code,'.$id,
         ]);
 
         $model = VendSerialNumber::findOrFail($id);

@@ -288,6 +288,7 @@ class SettingController extends Controller
             'vends.modem_unit_id',
             'vends.operator_id',
             'vends.product_mapping_id',
+            'vends.server_price_type',
             // 'vends.serial_num',
             'vends.key_id',
             'vends.upcoming_product_mapping_id',
@@ -371,6 +372,7 @@ class SettingController extends Controller
                     ->orderBy('name')
                     ->get()
             ),
+            'sellingPriceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'simcardOptions' => SimcardResource::collection(
                 Simcard::orderBy('code')->get()
             ),

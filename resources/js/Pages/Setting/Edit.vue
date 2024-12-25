@@ -532,8 +532,8 @@
                   Is Using Server Price?
                 </label>
                 <MultiSelect
-                  v-model="form.is_using_server_price"
-                  :options="booleanStrictOptions"
+                  v-model="form.server_price_type"
+                  :options="serverPriceTypeOptions"
                   trackBy="id"
                   valueProp="id"
                   label="value"
@@ -542,8 +542,8 @@
                   class="mt-1"
                 >
                 </MultiSelect>
-                <div class="text-sm text-red-600" v-if="form.errors.is_using_server_price">
-                  {{ form.errors.is_using_server_price }}
+                <div class="text-sm text-red-600" v-if="form.errors.server_price_type">
+                  {{ form.errors.server_price_type }}
                 </div>
             </div>
 
@@ -631,24 +631,6 @@
                   <span>
                     Replace Current Product Mapping
                   </span>
-                </Button>
-                <Button
-                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                    @click.prevent="restartVMC(vend.id)"
-                  >
-                    <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
-                    <span>
-                      Restart VMC
-                    </span>
-                </Button>
-                <Button
-                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
-                    @click.prevent="restartAPK(vend.id)"
-                  >
-                    <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
-                    <span>
-                      Restart APK
-                    </span>
                 </Button>
               </span>
             </div>
@@ -912,7 +894,7 @@
               </div>
             </div>
             <div class="sm:col-span-6 flex justify-between">
-              <div class="flex space-x-1 mt-5 justify-start">
+              <div class="flex space-x-1  justify-start">
                 <Button
                   class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1"
                   @click.prevent="triggerLogUpload(vend.id)"
@@ -967,6 +949,58 @@
                 </div>
               </div>
             </div>
+            </div>
+
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-start">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Advance Control </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sm:col-span-6">
+              <span class="flex space-x-1">
+                <Button
+                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                    @click.prevent="restartVMC(vend.id)"
+                  >
+                    <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                    <span>
+                      Restart VMC
+                    </span>
+                </Button>
+                <Button
+                    class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                    @click.prevent="restartAPK(vend.id)"
+                  >
+                    <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                    <span>
+                      Restart APK
+                    </span>
+                </Button>
+                <Button
+                    class="bg-yellow-500 hover:bg-yellow-600 text-black flex space-x-1"
+                    @click.prevent="syncChannels(vend.id)"
+                  >
+                    <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                    <span>
+                      Sync Channels List
+                    </span>
+                </Button>
+                <Button
+                    class="bg-yellow-500 hover:bg-yellow-600 text-black flex space-x-1"
+                    @click.prevent="syncApkSettings(vend.id)"
+                  >
+                    <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                    <span>
+                      Sync APK Settings
+                    </span>
+                </Button>
+              </span>
             </div>
 
             <!-- <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
@@ -1067,6 +1101,7 @@ const props = defineProps({
     modemUnitOptions: [Array, Object],
     operatorOptions: Object,
     productMappingOptions: Object,
+    sellingPriceTypeOptions: Array,
     simcardOptions: Object,
     type: String,
     upcomingProductMappingOptions: Object,
@@ -1112,6 +1147,7 @@ const isExisting = ref(1)
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const productMappingOptions = ref([])
+const serverPriceTypeOptions = ref([])
 const simcardOptions = ref([])
 const upcomingProductMappingOptions = ref([])
 const toast = useToast()
@@ -1229,6 +1265,10 @@ onMounted(() => {
     { id: '', name: '--- Clear ---'},
     ...props.productMappingOptions.data,
   ]
+  serverPriceTypeOptions.value = [
+    { id: '', value: '--- Not Using ---'},
+    ...Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
+  ]
   simcardOptions.value = [
     { id: '', name: '--- Clear ---'},
     ...props.simcardOptions.data.map(simcard => ({
@@ -1270,23 +1310,24 @@ onMounted(() => {
     cashless_terminal_id: props.vend.cashless_terminal_id ? props.vend.cashless_terminal_id : null,
     claw_machine_board_id: props.vend.claw_machine_board_id ? clawMachineBoardOptions.value.find(clawMachineBoard => clawMachineBoard.id == props.vend.claw_machine_board_id) : null,
     claw_machine_body_id: props.vend.claw_machine_body_id ? clawMachineBodyOptions.value.find(clawMachineBody => clawMachineBody.id == props.vend.claw_machine_body_id) : null,
-    is_using_server_price: booleanStrictOptions.value.find(booleanStrict => booleanStrict.id == props.vend.is_using_server_price.toString()),
+    // is_using_server_price: booleanStrictOptions.value.find(booleanStrict => booleanStrict.id == props.vend.is_using_server_price.toString()),
     lcd_monitor_id: props.vend.lcd_monitor_id ? lcdMonitorOptions.value.find(lcdMonitor => lcdMonitor.id == props.vend.lcd_monitor_id) : null,
     led_matrix_panel_id: props.vend.led_matrix_panel_id ? ledMatrixPanelOptions.value.find(ledMatrixPanel => ledMatrixPanel.id == props.vend.led_matrix_panel_id) : null,
     key_id: props.vend.key_id ? keyOptions.value.find(keyModel => keyModel.id === props.vend.key_id) : null,
     menu_frame_id: props.vend.menu_frame_id ? menuFrameOptions.value.find(menuFrame => menuFrame.id == props.vend.menu_frame_id) : null,
     modem_type_id: props.vend.modem_type_id ? modemTypeOptions.value.find(modemType => modemType.id == props.vend.modem_type_id) : null,
     modem_unit_id: props.vend.modem_unit_id ? modemUnitOptions.value.find(modemUnit => modemUnit.id == props.vend.modem_unit_id) : null,
-    product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping =>    productMapping.id === props.vend.product_mapping_id) : null,
+    product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping =>    productMapping.id == props.vend.product_mapping_id) : null,
+    server_price_type: props.vend.server_price_type ? serverPriceTypeOptions.value.find(serverPriceType => serverPriceType.id == props.vend.server_price_type) : null,
     simcard_id: props.vend.simcard_id ? props.vend.simcard_id : null,
     status: statusOptions.value.find(status => status.id === (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')),
-    operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id === props.vend.operator_id) : null : null,
+    operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id == props.vend.operator_id) : null : null,
     upcoming_product_mapping_id: props.vend.upcoming_product_mapping_id ? upcomingProductMappingOptions.value.find(upcomingProductMapping => upcomingProductMapping.id === props.vend.upcoming_product_mapping_id) : upcomingProductMappingOptions.value[1],
-    vend_config_id: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vend.vend_config_id) : null : null,
-    vend_config_version: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vend.vend_config_id).version : null : null,
-    vend_model_id: props.vend ? props.vend.vend_model_id ? vendModelOptions.value.find(vendModel => vendModel.id === props.vend.vend_model_id) : null : null,
-    vend_prefix_id: props.vend ? props.vend.vend_prefix_id ? vendPrefixOptions.value.find(vendPrefix => vendPrefix.id === props.vend.vend_prefix_id) : null : null,
-    vend_serial_number_id: props.vend ? props.vend.vend_serial_number_id ? vendSerialNumberOptions.value.find(vendSerialNumber => vendSerialNumber.id === props.vend.vend_serial_number_id) : null : null,
+    vend_config_id: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id) : null : null,
+    vend_config_version: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id).version : null : null,
+    vend_model_id: props.vend ? props.vend.vend_model_id ? vendModelOptions.value.find(vendModel => vendModel.id == props.vend.vend_model_id) : null : null,
+    vend_prefix_id: props.vend ? props.vend.vend_prefix_id ? vendPrefixOptions.value.find(vendPrefix => vendPrefix.id == props.vend.vend_prefix_id) : null : null,
+    vend_serial_number_id: props.vend ? props.vend.vend_serial_number_id ? vendSerialNumberOptions.value.find(vendSerialNumber => vendSerialNumber.id == props.vend.vend_serial_number_id) : null : null,
     vend_vend_config_version: props.vend.vend_vend_config_version ? {id: props.vend.vend_vend_config_version, value: props.vend.vend_vend_config_version} : null,
     customer: {
       ...JSON.parse(JSON.stringify(props.vend.customer)),
@@ -1446,10 +1487,11 @@ function saveVend(vendID) {
       led_matrix_panel_id: data.led_matrix_panel_id ? data.led_matrix_panel_id.id : null,
       begin_date: data.begin_date && data.begin_date != 'Invalid date' ? data.begin_date : null,
       key_id: data.key_id ? data.key_id.id : null,
-      is_using_server_price: data.is_using_server_price.id === 'true' ? 1 : 0,
+      // is_using_server_price: data.is_using_server_price.id === 'true' ? 1 : 0,
       menu_frame_id: data.menu_frame_id ? data.menu_frame_id.id : null,
       modem_type_id: data.modem_type_id ? data.modem_type_id.id : null,
       modem_unit_id: data.modem_unit_id ? data.modem_unit_id.id : null,
+      server_price_type: data.server_price_type ? data.server_price_type.id : null,
       simcard_id: data.simcard_id ? data.simcard_id.id : null,
       termination_date: data.termination_date && data.termination_date != 'Invalid date' ? data.termination_date : null,
       operator_id: data.operator_id ? data.operator_id.id : null,
@@ -1488,6 +1530,28 @@ function submit() {
     },
     preserveState: true,
     replace: true,
+  })
+}
+
+function syncApkSettings(vendID) {
+  router.post('/vends/' + vendID + '/sync-apk-settings', {}, {
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+    onSuccess: () => {
+      emit('modalClose')
+    }
+  })
+}
+
+function syncChannels(vendID) {
+  router.post('/vends/' + vendID + '/sync-vend-channels', {}, {
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+    onSuccess: () => {
+      emit('modalClose')
+    }
   })
 }
 

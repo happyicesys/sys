@@ -402,7 +402,6 @@ const permissions = usePage().props.auth.permissions
 const vendPrefixOptions = ref([])
 
 onMounted(() => {
-  console.log(props.productMappings)
   booleanOptions.value = [
     {id: 'true', value: 'Yes'},
     {id: 'false', value: 'No'},

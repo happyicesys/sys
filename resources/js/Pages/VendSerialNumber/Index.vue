@@ -94,12 +94,12 @@
                     <TableHeadSort modelName="code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('code')">
                       Serial Number
                     </TableHeadSort>
-                    <TableHead>
+                    <TableHeadSort modelName="desc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('desc')">
                       Remarks
-                    </TableHead>
-                    <TableHead>
+                    </TableHeadSort>
+                    <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
                       Machine
-                    </TableHead>
+                    </TableHeadSort>
                     <TableHead>
                     </TableHead>
                   </tr>
