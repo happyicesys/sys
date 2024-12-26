@@ -1143,9 +1143,12 @@ class VendController extends Controller
             foreach($vendChannels as $vendChannelIndex => $vendChannel) {
                 $productMappingItem = ProductMappingItem::where('product_mapping_id', $vendChannel->vend->product_mapping_id)->where('channel_code', (int)$vendChannel->code)->first();
 
+                // dd($vendChannel->vend->product_mapping_id, (int)$vendChannel->code, $productMappingItem);
                 $serverPrice = null;
-                if($productMappingItem and $vendChannel->vend->is_using_server_price) {
-                    $serverPrice = $productMappingItem->server_amount;
+                if($productMappingItem and $vendChannel->vend->server_price_type) {
+                    if($sellingPrice = SellingPrice::where('type', $vendChannel->vend->server_price_type)->where('product_id', $productMappingItem->product_id)->first()) {
+                        $serverPrice = $sellingPrice->amount;
+                    }
                 }
 
                 $dataArr[$vendChannelIndex] = [

@@ -169,7 +169,7 @@
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 SubCategory
                               </th>
-                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                              <!-- <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 Server Price ({{ operatorCountry.currency_symbol }}) <br>
                                 <MultiSelect
                                     v-model="form.selling_price_type"
@@ -184,7 +184,7 @@
                                   >
                                   </MultiSelect>
 
-                              </th>
+                              </th> -->
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 Action
                               </th>
@@ -221,11 +221,11 @@
                                   {{ productMappingItem.product.category.name }}
                                 </span>
                               </td>
-                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                              <!-- <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                                 <span v-if="form.selling_price_type && productMappingItem.product && productMappingItem.product.sellingPrices">
                                   {{((productMappingItem.product.sellingPrices[0].amount)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                                 </span>
-                              </td>
+                              </td> -->
                               <td class="whitespace-nowrap py-4 text-sm text-center">
                                 <Button
                                   class="bg-red-400 hover:bg-red-500 text-white"
@@ -356,7 +356,7 @@ onMounted(() => {
 
   form.value = props.productMapping ? useForm({
     ...props.productMapping.data,
-    selling_price_type: priceTypeOptions.value.find((data) => data.id == props.productMapping.data.selling_price_type),
+    // selling_price_type: priceTypeOptions.value.find((data) => data.id == props.productMapping.data.selling_price_type),
   }) : useForm(getDefaultForm());
 })
 
@@ -378,7 +378,7 @@ function submit() {
   form.value
     .transform((data) => ({
       ...data,
-      selling_price_type: data.selling_price_type?.id,
+      // selling_price_type: data.selling_price_type?.id,
       productMappingItems: productMappingItems.value.map((item) => ({
         ...item,
       })),
