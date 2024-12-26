@@ -116,7 +116,7 @@ const navigation = [
         permission: 'read products',
         tagline: null,
         children: [
-            {name: 'Products', href: '/products', permission: 'read product-lists'},
+            {name: 'Products', href: '/products', permission: 'read products'},
             {name: 'Mappings', href: '/product-mappings', permission: 'read product-mappings'},
             {name: 'Availability', href: '/products/availability', permission: 'read product-availability'},
             {name: 'Categories', href: '/category-groups?classname=App\\Models\\Product', 'permission': 'read product-categories'},
