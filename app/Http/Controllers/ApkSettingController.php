@@ -157,6 +157,19 @@ class ApkSettingController extends Controller
         ]);
     }
 
+    public function push(Request $request, $id)
+    {
+        $apkSetting = ApkSetting::findOrFail($id);
+
+        if($apkSetting->vends) {
+            foreach($apkSetting->vends as $vend) {
+                $this->syncApkSettings($vend->id);
+            }
+        }
+
+        return redirect()->route('apk-settings.edit', [$apkSetting->id]);
+    }
+
     public function update(Request $request, $id)
     {
         // dd($request->all(), $id);
@@ -179,22 +192,11 @@ class ApkSettingController extends Controller
         //     }
         // }
 
-        if($apkSetting->vends) {
-            foreach($apkSetting->vends as $vend) {
-                $fid = 1;
-                $content = base64_encode(json_encode([
-                    'Type' => 'TYPESYNCSETTINGSPARAM',
-                    'time' => Carbon::now()->timestamp,
-                    'action' => '',
-                    'mid' => $vend->code,
-                ]));
-                $contentLength = strlen($content);
-                $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
-                $md5 = md5($fid.','.$contentLength.','.$content.$key);
-
-                PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
-            }
-        }
+        // if($apkSetting->vends) {
+        //     foreach($apkSetting->vends as $vend) {
+        //         $this->syncApkSettings($vend->id);
+        //     }
+        // }
 
         return redirect()->route('apk-settings.edit', [$apkSetting->id]);
     }
@@ -277,5 +279,23 @@ class ApkSettingController extends Controller
             ]);
         }
         return true;
+    }
+
+    private function syncApkSettings($vendID)
+    {
+        $vend = Vend::findOrFail($vendID);
+
+        $fid = 1;
+        $content = base64_encode(json_encode([
+            'Type' => 'TYPESYNCSETTINGSPARAM',
+            'time' => Carbon::now()->timestamp,
+            'action' => '',
+            'mid' => $vend->code,
+        ]));
+        $contentLength = strlen($content);
+        $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+        PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
     }
 }

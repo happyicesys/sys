@@ -92,6 +92,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('{id}/create-campaign-item', [ApkSettingController::class, 'createCampaignItem']);
         Route::delete('/campaign-items/{id}/delete-campaign-item', [ApkSettingController::class, 'deleteCampaignItem']);
         Route::get('/{id}/edit', [ApkSettingController::class, 'edit'])->name('apk-settings.edit');
+        Route::post('/{id}/push', [ApkSettingController::class, 'push']);
         Route::post('/{id}/update', [ApkSettingController::class, 'update']);
         Route::post('/store', [ApkSettingController::class, 'store']);
         Route::post('/{id}/upload-campaign-images', [ApkSettingController::class, 'uploadCampaignImages']);

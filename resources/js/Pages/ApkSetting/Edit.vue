@@ -830,6 +830,16 @@
                     </span>
                   </div>
                 </Button>
+
+                <Button
+                  @click.prevent="pushApkSettings()"
+                  class="bg-yellow-500 hover:bg-yellow-600 text-black flex space-x-1"
+                >
+                  <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                  <span>
+                    Push Settings to Binded Machines
+                  </span>
+                </Button>
               </span>
             </div>
 
@@ -979,7 +989,7 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import { ArrowDownCircleIcon, ArrowUpCircleIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownCircleIcon, ArrowPathIcon, ArrowUpCircleIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -1242,6 +1252,25 @@ function deleteCampaignItem(campaignItem) {
     replace: true,
   })
   campaignItems.value.splice(campaignItems.value.indexOf(campaignItem), 1)
+}
+
+function pushApkSettings() {
+  router.post('/apk-settings/' + apkSetting.value.id + '/push',
+  {
+    onSuccess: () => {
+      toast.success("Successfully Pushed", {
+        timeout: 3000
+      });
+    },
+    onError: (errors) => {
+      toast.error("Failed, Please Try Again", {
+        timeout: 3000
+      });
+    },
+    preserveState: true,
+    preserveScroll: true,
+    replace: true,
+  })
 }
 
 function unbindVendItem(vend) {
