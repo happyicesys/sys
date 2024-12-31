@@ -1424,6 +1424,13 @@ function onSaveRemarksClicked() {
 }
 
 function onStatusClicked(nextStatus) {
+
+  if(nextStatus == 99) {
+    const approval = confirm('Are you sure to cancel this job?');
+    if (!approval) {
+        return;
+    }
+  }
   router.post('/ops-jobs/items/' + opsJobItem.value.id + '/status', {
     ...form.value,
     nextStatus: nextStatus,

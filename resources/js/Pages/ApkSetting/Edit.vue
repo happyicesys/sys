@@ -34,6 +34,49 @@
               </FormTextarea>
             </div>
 
+            <div class="sm:col-span-3">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+                Background Video/ Picture
+              </label>
+              <span class="text-sm text-gray-600">
+                (MainView Default background type)
+              </span>
+              <MultiSelect
+                v-model="form.bannerKind"
+                :options="promoBannerKindOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+
+            <div class="sm:col-span-3">
+              <FormInput v-model="form.poweredBy">
+                <div class="flex flex-col space-y-1">
+                  <span class="text-base">
+                    Display Text
+                  </span>
+                  <span class="text-sm text-gray-600">
+                    (top right corner text)
+                  </span>
+                </div>
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-3">
+              <FormInput v-model="form.supportContactNum">
+                <div class="flex flex-col space-y-1">
+                  <span class="text-base">
+                    Support contact num
+                  </span>
+                </div>
+              </FormInput>
+            </div>
+
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -1078,6 +1121,9 @@ onMounted(() => {
     enableLabelPromo: booleanStrictOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.enableLabelPromo.toString()
     ),
+    bannerKind: promoBannerKindOptions.value.find(
+      option => option.id == props.apkSetting.data.settings_parameter_json.bannerKind.toString()
+    ),
 
   }) : useForm(getDefaultForm())
 
@@ -1130,6 +1176,10 @@ function getDefaultForm() {
     labelPromoStartDate: '',
     labelPromoEndDate: '',
 
+    bannerKind: '',
+    supportContactNum: '',
+    poweredBy: '',
+
     campaignItems: [],
 
     vend_id: '',
@@ -1155,6 +1205,7 @@ function submit() {
             enableDiscount02: form.value.enableDiscount02?.id,
             enableDiscount03: form.value.enableDiscount03?.id,
             enableLabelPromo: form.value.enableLabelPromo?.id,
+            bannerKind: form.value.bannerKind?.id,
             campaignItems: campaignItemsObj.map(campaignItem => ({
               qty: campaignItem.qty,
               value: campaignItem.value,

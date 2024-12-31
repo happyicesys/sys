@@ -47,6 +47,10 @@ class VendParameterService
             'enableLabelPromo' => false,
             'labelPromoStartDate' => null,
             'labelPromoEndDate' => null,
+
+            'bannerKind' => 'picture',
+            'supportContactNum' => '87188597',
+            'poweredBy' => 'Powered By Happy Ice'
         ];
 
         return $parameters;
@@ -90,6 +94,10 @@ class VendParameterService
             'enableLabelPromo' => $parameters['enableLabelPromo'],
             'labelPromoStartDate' => $parameters['labelPromoStartDate'],
             'labelPromoEndDate' => $parameters['labelPromoEndDate'],
+
+            'bannerKind' => $parameters['bannerKind'],
+            'supportContactNum' => $parameters['supportContactNum'],
+            'poweredBy' => $parameters['poweredBy']
         ];
 
         return $settings;
