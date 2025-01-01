@@ -555,9 +555,11 @@ class CustomerController extends Controller
             $customer->update($request->customer);
 
             if ($request->customer['contact'] && isset($request->customer['contact']['name'])) {
-                $customer->contact()->updateOrCreate([
-                    'id' => $customer->contact->id,
-                ], $request->customer['contact']);
+                if($customer->contact) {
+                    $customer->contact->update($request->customer['contact']);
+                }else {
+                    $customer->contact()->create($request->customer['contact']);
+                }
             }
 
             if ($request->customer['address'] && isset($request->customer['address']['country_id'])) {
