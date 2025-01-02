@@ -1510,7 +1510,7 @@
 								>
 										<div class="flex flex-col">
 												<span class="font-bold">
-														Keyboard QR Code
+														Keypad QR Code
 												</span>
 												<span>
 														{{vend.acbVmcPaJson['QRCode'] == 1 ? 'Enabled' : 'Disabled'}}
