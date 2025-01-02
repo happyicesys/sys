@@ -50,7 +50,9 @@ class VendParameterService
 
             'bannerKind' => 'picture',
             'supportContactNum' => '87188597',
-            'poweredBy' => 'Powered By Happy Ice'
+            'poweredBy' => 'Powered By Happy Ice',
+
+            'selectedPricingSource' => 'server',
         ];
 
         return $parameters;
@@ -97,7 +99,9 @@ class VendParameterService
 
             'bannerKind' => $parameters['bannerKind'],
             'supportContactNum' => $parameters['supportContactNum'],
-            'poweredBy' => $parameters['poweredBy']
+            'poweredBy' => $parameters['poweredBy'],
+
+            'selectedPricingSource' => $parameters['selectedPricingSource'],
         ];
 
         return $settings;

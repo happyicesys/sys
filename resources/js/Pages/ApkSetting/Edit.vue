@@ -77,6 +77,23 @@
               </FormInput>
             </div>
 
+            <div class="sm:col-span-3">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+                Pricing Source
+              </label>
+              <MultiSelect
+                v-model="form.selectedPricingSource"
+                :options="pricingSourceOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -1051,6 +1068,11 @@ const booleanStrictOptions = ref([
   {id: 'false', value: 'No'},
 ])
 
+const pricingSourceOptions = ref([
+  {id: 'server', value: 'Server'},
+  {id: 'machine', value: 'Machine'},
+])
+
 const promoBannerKindOptions = ref([
   {id: 'video', value: 'Video'},
   {id: 'picture', value: 'Picture'},
@@ -1124,6 +1146,9 @@ onMounted(() => {
     bannerKind: promoBannerKindOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.bannerKind.toString()
     ),
+    selectedPricingSource: pricingSourceOptions.value.find(
+      option => option.id == props.apkSetting.data.settings_parameter_json.selectedPricingSource.toString()
+    ),
 
   }) : useForm(getDefaultForm())
 
@@ -1180,6 +1205,8 @@ function getDefaultForm() {
     supportContactNum: '',
     poweredBy: '',
 
+    selectedPricingSource: '',
+
     campaignItems: [],
 
     vend_id: '',
@@ -1206,6 +1233,7 @@ function submit() {
             enableDiscount03: form.value.enableDiscount03?.id,
             enableLabelPromo: form.value.enableLabelPromo?.id,
             bannerKind: form.value.bannerKind?.id,
+            selectedPricingSource: form.value.selectedPricingSource?.id,
             campaignItems: campaignItemsObj.map(campaignItem => ({
               qty: campaignItem.qty,
               value: campaignItem.value,
