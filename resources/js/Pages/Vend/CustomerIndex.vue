@@ -1406,31 +1406,30 @@
 							<div class="flex flex-col space-y-1">
 								<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-										:class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-green-200' : 'bg-red-200')]"
-								>
-										<div class="flex flex-col">
-												<span class="font-bold">
-													Machine
-												</span>
-												<span>
-														{{vend.is_testing ? 'Testing' : (vend.is_active ? 'Active' : 'Not Active')}}
-												</span>
-										</div>
-
-								</div>
-								<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 										:class="[vend.is_active || vend.is_testing ? (vend.is_online ? 'bg-green-200' : 'bg-red-200') : 'bg-gray-200 text-gray-400']"
 								>
 										<div class="flex flex-col">
 												<span class="font-bold">
-														{{vend.is_online ? 'Online' : 'Offline'}}
+														{{vend.is_online ? 'HTTP Online' : 'HTTP Offline'}}
 												</span>
 												<span v-if="vend.last_online_at">
 														{{vend.last_online_at}}
 												</span>
 										</div>
-
+								</div>
+								<div
+										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+										:class="[vend.is_active || vend.is_testing ? (vend.is_mqtt_active ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
+										v-if="vend.is_mqtt"
+								>
+										<div class="flex flex-col">
+												<span class="font-bold">
+													{{vend.is_mqtt_active ? 'MQTT Online' : 'MQTT Offline'}}
+												</span>
+												<span v-if="vend.mqtt_last_updated_at">
+														{{ vend.mqtt_last_updated_at }}
+												</span>
+										</div>
 								</div>
 								<div
 										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
@@ -1439,7 +1438,7 @@
 								>
 										<div class="flex flex-col">
 												<span class="font-bold">
-														Drop Sensor
+														Product Drop Sensor
 												</span>
 												<span>
 														{{vend.parameterJson['Sensor'] % 2 == 0 ? 'Disabled' : 'Enabled'}}
@@ -1453,7 +1452,7 @@
 								>
 										<div class="flex flex-col">
 												<span class="font-bold">
-														Fan Speed
+														Freezer Fan Speed
 												</span>
 												<span>
 														{{vend.parameterJson['fan']}}
@@ -1467,24 +1466,10 @@
 								>
 										<div class="flex flex-col">
 												<span class="font-bold">
-														Door
+														Dispensing Door
 												</span>
 												<span>
 														{{vend.parameterJson['door'] == 'open' ? 'Open' : 'Close'}}
-												</span>
-										</div>
-								</div>
-								<div
-										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-										:class="[vend.is_active || vend.is_testing ? (vend.is_mqtt_active ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
-										v-if="vend.is_mqtt"
-								>
-										<div class="flex flex-col">
-												<span class="font-bold">
-														MQTT
-												</span>
-												<span v-if="vend.mqtt_last_updated_at">
-														{{ vend.mqtt_last_updated_at }}
 												</span>
 										</div>
 								</div>
@@ -1525,7 +1510,7 @@
 								>
 										<div class="flex flex-col">
 												<span class="font-bold">
-														QR Code
+														Keyboard QR Code
 												</span>
 												<span>
 														{{vend.acbVmcPaJson['QRCode'] == 1 ? 'Enabled' : 'Disabled'}}
@@ -1622,7 +1607,7 @@
 								>
 										<div class="flex flex-col">
 												<span class="font-bold">
-														Cashless Status
+														MDB Cashless Device
 												</span>
 												<span>
 														{{vend.parameterJson['CSHLStat'] == 3 ? 'Active' : (vend.parameterJson['CSHLStat'] == 1 ? 'Inactive' : 'NA') }}
@@ -1686,6 +1671,20 @@
 											{{ vend.acbVmcPaJson['ACBVer'] }}
 										</span>
 									</span>
+									<div
+										class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
+										:class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-green-200' : 'bg-red-200')]"
+									>
+											<div class="flex flex-col">
+													<span class="font-bold">
+														Machine
+													</span>
+													<span>
+															{{vend.is_testing ? 'Testing' : (vend.is_active ? 'Active' : 'Not Active')}}
+													</span>
+											</div>
+
+									</div>
 									<Link :href="'/vends/' + vend.vend_id + '/edit'" v-if="permissions.includes('admin-access vend-customers')">
 										<Button
 										type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
