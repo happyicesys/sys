@@ -77,6 +77,9 @@ Route::prefix('vends')->group(function() {
     Route::get('/{vendCode}/campaign-video', [VendController::class, 'getVendCampaignVideo']);
     Route::get('/{vendCode}/campaign-image', [VendController::class, 'getVendCampaignImage']);
 
+    Route::middleware('auth:api')->group(function() {
+        Route::post('/dcvends', [VendController::class, 'getAllDCVends']);
+    });
 });
 
 

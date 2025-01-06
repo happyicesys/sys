@@ -24,6 +24,7 @@ class Operator extends Model
         'gst_vat_rate',
         'name',
         'is_active',
+        'is_dcvend',
         'profile_id',
         'remarks',
         'timezone',

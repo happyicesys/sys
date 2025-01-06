@@ -212,9 +212,9 @@ class VendController extends Controller
             ->with([
                 'vendChannels' => function($query) {
                     $query->select('*')
-                        ->selectRaw("(SELECT server_amount FROM product_mapping_items WHERE
-                            product_mapping_items.product_id = vend_channels.product_id AND
-                            product_mapping_items.product_mapping_id = (SELECT product_mapping_id FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
+                        ->selectRaw("(SELECT amount FROM selling_prices WHERE
+                            selling_prices.product_id = vend_channels.product_id AND
+                            selling_prices.type = (SELECT server_price_type FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
                 },
                 'vendChannels.latestOpsJobItemChannel',
                 'vendChannels.product.thumbnail',
@@ -419,9 +419,9 @@ class VendController extends Controller
                 'nextOpsJobItem.opsJobItemChannels.vendChannel',
                 'vend.vendChannels' => function($query) {
                     $query->select('*')
-                        ->selectRaw("(SELECT server_amount FROM product_mapping_items WHERE
-                            product_mapping_items.product_id = vend_channels.product_id AND
-                            product_mapping_items.product_mapping_id = (SELECT product_mapping_id FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
+                        ->selectRaw("(SELECT amount FROM selling_prices WHERE
+                            selling_prices.product_id = vend_channels.product_id AND
+                            selling_prices.type = (SELECT server_price_type FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
                 },
                 'vend.vendChannels.latestOpsJobItemChannel',
                 'vend.vendChannels.product.thumbnail',
@@ -1119,6 +1119,28 @@ class VendController extends Controller
             )
             ->get();
         return $vendChannels;
+    }
+
+    public function getAllDCVends(Request $request)
+    {
+        if(!$request->operatorName) {
+            throw new \Exception('Operator name is required');
+        }
+
+        $vends = Vend::query()
+            ->with([
+                'vendChannels',
+                'vendChannels.product.thumbnail',
+            ])
+            ->whereHas('operator', function($query) use ($request) {
+                $query->where('name', $request->operatorName)
+                    ->where('is_dcvend', true);
+            })
+            ->where('is_active', true)
+            ->orderBy('code', 'asc')
+            ->get();
+
+        return response()->json($vends, 200);
     }
 
     public function getVendAllChannelThumnails($vendCode)
