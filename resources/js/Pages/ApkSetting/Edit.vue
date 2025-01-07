@@ -1262,11 +1262,11 @@ function addCampaignItem() {
   }
 
   if (Array.isArray(campaignItems.value)) {
-    campaignItems.value.push({
-      ...form.value,
-      promo_type: form.value.promo_type?.value,
-      tagBindings: form.value.tags.map(tag => ({ id: tag.id, name: tag.name })),
-    });
+    // campaignItems.value.push({
+    //   ...form.value,
+    //   promo_type: form.value.promo_type?.value,
+    //   tagBindings: form.value.tags.map(tag => ({ id: tag.id, name: tag.name })),
+    // });
 
     router.post('/apk-settings/' + apkSetting.value.id + '/create-campaign-item', {
       ...form.value,
@@ -1278,6 +1278,20 @@ function addCampaignItem() {
         toast.success("Successfully Saved", {
           timeout: 3000
         });
+        router.reload({
+          only: ['apkSetting'],
+          replace: true,
+          preserveState: true,
+          preserveScroll: true,
+          onSuccess: page => {
+            campaignItems.value = props.apkSetting.data.campaignItems.map(campaignItem => ({
+              ...campaignItem,
+              tagBindings: campaignItem.tagBindings?.map(tagBinding => productTagOptions.value.find(
+                option => option.id == tagBinding.tag.id
+              )),
+            }))
+          }
+        })
       },
       onError: (errors) => {
         toast.error("Failed, Please Try Again", {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 // use App\Exports\VendTempExport;
 use App\Exports\VendTransactionExport;
 use App\Jobs\PublishMqtt;
+use App\Http\Resources\DCVend\VendResource as DCVendResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CountryResource;
@@ -1124,23 +1125,24 @@ class VendController extends Controller
     public function getAllDCVends(Request $request)
     {
         if(!$request->operatorName) {
-            throw new \Exception('Operator name is required');
+            throw new \Exception('Operator code is required');
         }
 
         $vends = Vend::query()
             ->with([
+                'customer.deliveryAddress',
                 'vendChannels',
                 'vendChannels.product.thumbnail',
             ])
             ->whereHas('operator', function($query) use ($request) {
-                $query->where('name', $request->operatorName)
+                $query->where('code', $request->operatorCode)
                     ->where('is_dcvend', true);
             })
             ->where('is_active', true)
             ->orderBy('code', 'asc')
             ->get();
 
-        return response()->json($vends, 200);
+            return DCVendResource::collection($vends);
     }
 
     public function getVendAllChannelThumnails($vendCode)
