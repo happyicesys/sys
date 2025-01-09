@@ -60,10 +60,17 @@ class ApkSetting extends Model
         return $query->when($request->name, function($query, $search) {
             $query->where('name', 'LIKE', "{$search}%");
         })
-        ->when($request->codes, function($query, $codes) {
-            $query->whereHas('vends', function($query) use ($codes) {
-                $query->whereIn('vend_id', $codes);
-            });
+        ->when($request->codes, function($query, $search) {
+            if(strpos($search, ',') !== false) {
+                $search = explode(',', $search);
+                $query->whereHas('vends', function($query) use ($search) {
+                    $query->whereIn('code', $search);
+                });
+            }else {
+                $query->whereHas('vends', function($query) use ($search)  {
+                    $query->where('code', 'LIKE', "%{$search}%");
+                });
+            }
         })
         ->when($request->sortKey, function($query, $search) use ($request) {
 

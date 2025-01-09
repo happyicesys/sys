@@ -24,7 +24,7 @@
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Customer" v-model="filters.name" @keyup.enter="onSearchFilterUpdated()">
+          <SearchInput placeholderStr="Name" v-model="filters.name" @keyup.enter="onSearchFilterUpdated()">
             Name
           </SearchInput>
           <SearchInput placeholderStr="Machine ID" v-model="filters.codes" @keyup.enter="onSearchFilterUpdated()">
@@ -300,6 +300,7 @@ function onSearchFilterUpdated() {
   router.get('/apk-settings', {
       ...filters.value,
       // operators: filters.value.operators?.map((operator) => { return operator.id }),
+      // make codes as array split by comma
       vendPrefixes: filters.value.vendPrefixes?.map((vendPrefix) => { return vendPrefix.id }),
       numberPerPage: filters.value.numberPerPage.id,
   }, {

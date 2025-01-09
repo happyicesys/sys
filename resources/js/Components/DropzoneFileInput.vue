@@ -52,7 +52,7 @@ onMounted(() => {
       this.on("queuecomplete", function () {
         // All files finished uploading
         if (this.getQueuedFiles().length === 0 && this.getUploadingFiles().length === 0) {
-          location.reload(); // Refresh the page
+          // location.reload(); // Refresh the page
         }
       });
     },
