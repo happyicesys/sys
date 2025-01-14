@@ -1128,6 +1128,8 @@ class VendController extends Controller
             throw new \Exception('Operator code is required');
         }
 
+        return 'dude';
+
         $vends = Vend::query()
             ->with([
                 'customer.deliveryAddress',

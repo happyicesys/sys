@@ -98,7 +98,11 @@ class DatabaseSeeder extends Seeder
             // ModemSeeder::class,
             // ProductLimitSeeder::class,
             // ProductAvailabilitySeeder::class,
-            RolePermissionSyncSeeder::class
+
+
+            // RolePermissionSyncSeeder::class
+
+            DcvendAuthSeeder::class,
         ]);
     }
 }
