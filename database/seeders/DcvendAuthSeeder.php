@@ -17,7 +17,7 @@ class DcvendAuthSeeder extends Seeder
 
         if($user) {
             $token = $user->createToken($user->username.'-access');
-            $user->access_token = $token->plainTextToken;
+            $user->access_token = $token->accessToken;
             $user->save();
         }
     }
