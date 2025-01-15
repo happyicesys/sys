@@ -23,6 +23,7 @@ Route::prefix('client')
     ->group(function() {
         Route::post('/transactions', [ClientController::class, 'getTransactions']);
         Route::post('/channels', [ClientController::class, 'getChannels']);
+        Route::post('/dcvends', [VendController::class, 'getAllDCVends']);
     });
 
 Route::prefix('v1')->group(function() {
@@ -76,10 +77,6 @@ Route::prefix('vends')->group(function() {
     Route::get('/{vendCode}/banner-image', [VendController::class, 'getVendBannerImage']);
     Route::get('/{vendCode}/campaign-video', [VendController::class, 'getVendCampaignVideo']);
     Route::get('/{vendCode}/campaign-image', [VendController::class, 'getVendCampaignImage']);
-
-    Route::middleware('auth:api')->group(function() {
-        Route::post('/dcvends', [VendController::class, 'getAllDCVends']);
-    });
 });
 
 

@@ -16,9 +16,9 @@ class DcvendAuthSeeder extends Seeder
         $user = User::where('username', 'dcvend')->first();
 
         if($user) {
-            $token = $user->createToken('dcvend_token')->accessToken;
-
-            echo($token);
+            $token = $user->createToken($user->username.'-access');
+            $user->access_token = $token->plainTextToken;
+            $user->save();
         }
     }
 }
