@@ -1124,11 +1124,9 @@ class VendController extends Controller
 
     public function getAllDCVends(Request $request)
     {
-        if(!$request->operatorName) {
+        if(!$request->operatorCode) {
             throw new \Exception('Operator code is required');
         }
-
-        return 'dude';
 
         $vends = Vend::query()
             ->with([

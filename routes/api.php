@@ -18,8 +18,8 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 });
 
 Route::prefix('client')
-    ->middleware(['throttle:client'])
-    ->middleware('auth:api')
+    // ->middleware(['throttle:client'])
+    // ->middleware('auth:api')
     ->group(function() {
         Route::post('/transactions', [ClientController::class, 'getTransactions']);
         Route::post('/channels', [ClientController::class, 'getChannels']);
