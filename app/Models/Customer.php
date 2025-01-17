@@ -134,7 +134,7 @@ class Customer extends Model
 
     public function attachments()
     {
-        return $this->morphMany(Attachment::class, 'modelable')->orderBy('sequence');
+        return $this->morphMany(Attachment::class, 'modelable')->where('type', 1)->orderBy('sequence');
     }
 
     public function billingAddress()
@@ -223,6 +223,11 @@ class Customer extends Model
     public function operator()
     {
         return $this->belongsTo(Operator::class);
+    }
+
+    public function photos()
+    {
+        return $this->morphMany(Attachment::class, 'modelable')->where('type', 2)->orderBy('created_at');
     }
 
     public function profile()

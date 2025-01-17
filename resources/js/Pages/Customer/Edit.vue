@@ -580,6 +580,32 @@
                     </span>
                   </div>
 
+                  <!-- Photo Section -->
+                <div class="sm:col-span-6 mt-5 pb-1 md:pt-5 md:pb-3">
+                  <div class="relative">
+                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                      <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center ">
+                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Photo(s) </span>
+                    </div>
+                  </div>
+                </div>
+                <div class="sm:col-span-6">
+                  <AttachmentList :items="customer.photos"></AttachmentList>
+                </div>
+                <!-- <div class="sm:col-span-6" v-if="customer.id">
+                  <UploadFileInput
+                    :endpoint="'/customers/' + customer.id + '/upload-photos'"
+                    acceptedFileTypes="image/*"
+                    maxFileSize="5MB"
+                  >
+                  </UploadFileInput>
+                </div> -->
+                <div class="sm:col-span-6" v-if="customer.id">
+                  <DropzoneFileInput :endpoint="'/customers/' + customer.id + '/upload-photos'"></DropzoneFileInput>
+                </div>
+
                 <!-- Attachment Section -->
                 <div class="sm:col-span-6 mt-5 pb-1 md:pt-5 md:pb-3">
                   <div class="relative">

@@ -283,6 +283,7 @@ class CustomerController extends Controller
             'contact',
             'deliveryAddress',
             'firstTransaction',
+            'photos',
             'profile',
             'status',
             'tagBindings',
@@ -609,6 +610,25 @@ class CustomerController extends Controller
             $url = Storage::url($storedPath);
             $customer->attachments()->create([
                 'type' => 1,
+                'full_url' => $url,
+                'local_url' => $dir . '/' . $fileName,
+            ]);
+        }
+        return true;
+    }
+
+    public function uploadPhoto(Request $request, $id)
+    {
+        $customer = Customer::findOrFail($id);
+
+        if ($request->files) {
+            $files = $request->file('files');
+            $dir = 'sys/customers';
+            $storedPath = $files->storePublicly($dir);
+            $fileName = basename($storedPath);
+            $url = Storage::url($storedPath);
+            $customer->photos()->create([
+                'type' => 2,
                 'full_url' => $url,
                 'local_url' => $dir . '/' . $fileName,
             ]);

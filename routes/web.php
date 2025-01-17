@@ -162,6 +162,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [CustomerController::class, 'delete']);
         Route::get('/sync-next-delivery-date', [CustomerController::class, 'syncNextDeliveryDate']);
         Route::post('/{id}/upload-attachments', [CustomerController::class, 'uploadAttachment']);
+        Route::post('/{id}/upload-photos', [CustomerController::class, 'uploadPhoto']);
         Route::post('/{id}/bind-vend', [CustomerController::class, 'bindVend']);
         Route::get('/{id}/selling-prices/type/{type}', [CustomerController::class, 'getProductSellingPrices']);
         Route::post('/sync-cms-invoice-items', [CustomerController::class, 'syncCmsInvoiceItems']);

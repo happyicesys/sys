@@ -1131,6 +1131,7 @@ class VendController extends Controller
         $vends = Vend::query()
             ->with([
                 'customer.deliveryAddress',
+                'customer.photos',
                 'vendChannels',
                 'vendChannels.product.thumbnail',
             ])

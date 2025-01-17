@@ -4,10 +4,10 @@
       v-model="files"
       name="files"
       label-idle="Click to Browse or Drop files here..."
-      accepted-file-types="image/*, video/*, pdf"
+      :accepted-file-types="acceptedFileTypes"
       credits="false"
       allowMultiple="true"
-      maxFileSize="20MB"
+      :maxFileSize="maxFileSize"
       @processfile="handleProcessFile"
       ref="pond"
     />
@@ -26,7 +26,15 @@ const FilePond = vueFilePond(FilePondPluginFileValidateType, FilePondPluginFileV
 const files = ref([]);
 const pond = ref(null);
 const props = defineProps({
+  acceptedFileTypes: {
+    type: String,
+    default: 'image/*, video/*, pdf',
+  },
   endpoint: String,
+  maxFileSize: {
+    type: String,
+    default: '20MB',
+  },
 });
 
 setOptions({
@@ -45,7 +53,7 @@ function handleProcessFile() {
   const allFilesProcessed = pond.value.getFiles().every(file => file.serverId !== null);
 
   if (allFilesProcessed) {
-    location.reload(); // Refresh the page
+    // location.reload(); // Refresh the page
   }
 }
 </script>

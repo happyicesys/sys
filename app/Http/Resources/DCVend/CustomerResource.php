@@ -16,7 +16,7 @@ class CustomerResource extends JsonResource
     {
         return [
             'address' => AddressResource::make($this->whenLoaded('deliveryAddress')),
-            'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
+            'photos' => AttachmentResource::collection($this->whenLoaded('photos')),
             'name' => $this->name,
         ];
     }
