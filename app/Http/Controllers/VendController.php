@@ -1139,7 +1139,6 @@ class VendController extends Controller
                 $query->where('code', $request->operatorCode)
                     ->where('is_dcvend', true);
             })
-            ->has('customer')
             ->where('is_active', true)
             ->orderBy('code', 'asc')
             ->get();

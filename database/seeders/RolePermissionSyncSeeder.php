@@ -72,7 +72,7 @@ class RolePermissionSyncSeeder extends Seeder
 
             ['operations',
             ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl']],
 
             ['vend-settings',
             ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
