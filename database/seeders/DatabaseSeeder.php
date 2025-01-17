@@ -100,9 +100,9 @@ class DatabaseSeeder extends Seeder
             // ProductAvailabilitySeeder::class,
 
 
-            // RolePermissionSyncSeeder::class
+            RolePermissionSyncSeeder::class
 
-            DcvendAuthSeeder::class,
+            // DcvendAuthSeeder::class,
         ]);
     }
 }
