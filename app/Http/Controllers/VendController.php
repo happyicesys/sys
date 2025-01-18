@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 use App\Exports\VendTransactionExport;
 use App\Jobs\PublishMqtt;
 use App\Http\Resources\DCVend\VendResource as DCVendResource;
+use App\Http\Resources\DCVend\CustomerResource as DCVendCustomerResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CountryResource;
@@ -186,6 +187,19 @@ class VendController extends Controller
 //     ->get();
 
 // dd($debugData->toArray());
+
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [
+                    auth()->user()->operator_id,
+                    Operator::where('code', 'HIMD')->first()?->id,
+                    Operator::where('code', 'LEA')->first()?->id,
+                    Operator::where('code', 'DC')->first()?->id,
+                ]]);
+            }else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
 
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         if(!isset($request->is_active)) {
@@ -388,8 +402,10 @@ class VendController extends Controller
         if(!$request->operators) {
             if(auth()->user()->operator->code == 'HIPL') {
                 $request->merge(['operators' => [
-                    auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
-                    auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
+                    auth()->user()->operator_id,
+                    Operator::where('code', 'HIMD')->first()?->id,
+                    Operator::where('code', 'LEA')->first()?->id,
+                    Operator::where('code', 'DC')->first()?->id,
                 ]]);
             }else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -1128,22 +1144,49 @@ class VendController extends Controller
             throw new \Exception('Operator code is required');
         }
 
-        $vends = Vend::query()
+        // $vends = Vend::query()
+        //     ->with([
+        //         'customer.deliveryAddress',
+        //         'customer.photos',
+        //         'vendChannels',
+        //         'vendChannels.product.thumbnail',
+        //     ])
+        //     ->whereHas('operator', function($query) use ($request) {
+        //         $query->where('code', $request->operatorCode)
+        //             ->where('is_dcvend', true);
+        //     })
+        //     ->where('is_active', true)
+        //     ->orderBy('code', 'asc')
+        //     ->get();
+
+        $customers = Customer::query()
             ->with([
-                'customer.deliveryAddress',
-                'customer.photos',
-                'vendChannels',
-                'vendChannels.product.thumbnail',
+                'deliveryAddress',
+                'photos',
+                'vend' => function($query) use ($request) {
+                    $query
+                        ->with([
+                            'vendChannels',
+                            'vendChannels.product.thumbnail',
+                        ]);
+                },
             ])
+            ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->whereHas('operator', function($query) use ($request) {
                 $query->where('code', $request->operatorCode)
                     ->where('is_dcvend', true);
             })
-            ->where('is_active', true)
-            ->orderBy('code', 'asc')
+            ->where('customers.is_active', true)
+            ->orderByRaw("CASE WHEN vends.id IS NOT NULL THEN 0 ELSE 1 END") // Sort by customers with vends first
+            ->orderBy('vends.code') // Sort by vend code
+            ->select('customers.id', 'customers.name') // Ensure only customer columns are selected
+            ->distinct()
             ->get();
 
-            return DCVendResource::collection($vends);
+
+        return DCVendCustomerResource::collection($customers);
+
+            // return DCVendResource::collection($vends);
     }
 
     public function getVendAllChannelThumnails($vendCode)
@@ -1386,7 +1429,12 @@ class VendController extends Controller
     {
         if(!$request->operators) {
             if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [auth()->user()->operator_id, Operator::where('code', 'HIMD')->first() ? Operator::where('code', 'HIMD')->first()->id : null]]);
+                $request->merge(['operators' => [
+                    auth()->user()->operator_id,
+                    Operator::where('code', 'HIMD')->first()?->id,
+                    Operator::where('code', 'LEA')->first()?->id,
+                    Operator::where('code', 'DC')->first()?->id,
+                ]]);
             }else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }

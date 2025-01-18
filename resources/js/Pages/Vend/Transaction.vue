@@ -712,7 +712,11 @@ onMounted(() => {
     filters.value.location_type_id = locationTypeOptions.value[0]
     filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
-		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
+		...authOperator.code == 'HIPL' ? [
+			operatorOptions.value.find(operator => operator.code == 'HIMD'),
+			operatorOptions.value.find(operator => operator.code == 'LEA'),
+			operatorOptions.value.find(operator => operator.code == 'DC'),
+		] : [],
 	] : operatorOptions.value[0]
     filters.value.interface_type = vmcByteOptions.value[0]
     filters.value.is_binded_customer = booleanOptions.value[0]

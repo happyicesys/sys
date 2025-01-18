@@ -85,6 +85,23 @@
                 >
                 </MultiSelect>
             </div>
+            <div>
+              <label for="text" class="block text-sm font-medium text-gray-700">
+                Operator
+              </label>
+              <MultiSelect
+                v-model="filters.operators"
+                :options="operatorOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+              >
+              </MultiSelect>
+            </div>
         </div>
 
 
@@ -487,18 +504,22 @@ const filters = ref({
   delivered_by: '',
   created_by: '',
   ops_job_item_ref_id: '',
+  operators: [],
   vend_code: '',
   sortKey: '',
   sortBy: false,
   numberPerPage: 100,
 })
+const authOperator = usePage().props.auth.operator
 const showAddressModal = ref(false)
 const showModal = ref(false)
 const operatorCountry = usePage().props.auth.operatorCountry
+const operatorOptions = ref([])
 const opsJob = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
 const userOptions = ref([])
+
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -507,10 +528,23 @@ onMounted(() => {
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
   ]
+  operatorOptions.value = [
+    {id: 'all', full_name: 'All'},
+    ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
+  ]
   userOptions.value = [
     ...props.userOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
+
+  filters.value.operators = authOperator ? [
+		operatorOptions.value.find(operator => operator.id === authOperator.id),
+		...authOperator.code == 'HIPL' ? [
+			operatorOptions.value.find(operator => operator.code == 'HIMD'),
+			operatorOptions.value.find(operator => operator.code == 'LEA'),
+			operatorOptions.value.find(operator => operator.code == 'DC'),
+		] : [],
+	] : operatorOptions.value[0]
 })
 
 function onCreateClicked() {
@@ -536,6 +570,7 @@ function onSearchFilterUpdated() {
       ...filters.value,
       created_by: filters.value.created_by.id,
       delivered_by: filters.value.delivered_by.id,
+      operators: filters.value.operators.map(operator => operator.id),
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,
