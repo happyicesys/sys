@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Http;
 
 class SendDataToDcvend implements ShouldQueue
 {
@@ -17,6 +18,7 @@ class SendDataToDcvend implements ShouldQueue
     protected $dcvendUserID;
     protected $endpoint;
     protected $vendTransactionID;
+    protected $vendTransactionService;
     /**
      * Create a new job instance.
      */
@@ -34,7 +36,7 @@ class SendDataToDcvend implements ShouldQueue
     {
         $vendTransaction = VendTransaction::find($this->vendTransactionID);
 
-        $data = $this->vendTransactionService->setDcvendParam($vendTransaction);
+        $data = $this->vendTransactionService->setDcvendParam($vendTransaction->id);
 
         $response = Http::post($this->endpoint, $data);
     }

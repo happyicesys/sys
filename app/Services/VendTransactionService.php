@@ -14,11 +14,9 @@ class VendTransactionService
             'vend:id,code,vend_prefix_id',
             'vend.vendPrefix:id,name',
             'vendTransactionItems.product:id,name,thumbnail_url',
-            'vendTransactionItems.vendChannelError:id,name',
+            'vendTransactionItems.vendChannelError:id,code',
         ])
-        ->where('id', $vendTransactionID)
-        ->first();
-
+        ->find($vendTransactionID);
 
         $data = [
             'id' => $vendTransaction->id,
@@ -46,7 +44,7 @@ class VendTransactionService
                     'product_id' => $item->product?->id,
                     'product_name' => $item->product?->name,
                     'product_thumbnail_url' => $item->product?->thumbnail_url,
-                    'qty' => $item->qty,
+                    'qty' => $item->qty ?? 1,
                     'vend_channel_code' => $item->vend_channel_code,
                     'vend_channel_id' => $item->vend_channel_id,
                     'vend_channel_error_code' => $item->vend_channel_error_code,
@@ -55,6 +53,8 @@ class VendTransactionService
                 ];
             });
         }
+
+        return $data;
     }
 
 }

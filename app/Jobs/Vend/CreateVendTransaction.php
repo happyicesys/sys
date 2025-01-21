@@ -274,7 +274,7 @@ class CreateVendTransaction implements ShouldQueue
             'paymentMethodCode' => isset($input['paymentMethodCode']) ? $input['paymentMethodCode'] : null,
             'paymentMethodID' => $paymentMethod ? $paymentMethod->id : null,
             'productID' => $product ? $product->id : null,
-            'promoAmount' => $input['promoAmount'],
+            'dcvendDiscountAmount' => isset($input['dcvendDiscountAmount']) ? $input['dcvendDiscountAmount'] : null,
             'time' => isset($input['time']) ? $input['time'] : null,
             'unitCostID' => $unitCost ? $unitCost->id : null,
             'vendChannelCode' => $input['vendChannelCode'],
@@ -293,7 +293,7 @@ class CreateVendTransaction implements ShouldQueue
         $data['dcvendUserID'] = isset($input['dcvend_user_id']) ? $input['dcvend_user_id'] : null;
         $data['orderID'] = isset($input['ORDRID']) ? $input['ORDRID'] : null;
         $data['paymentMethodCode'] = isset($input['PAY_TYPE']) ? $input['PAY_TYPE'] : null;
-        $data['promoAmount'] = isset($input['promo_amount']) ? $input['promo_amount'] : null;
+        $data['dcvendDiscountAmount'] = isset($input['dcvend_discount_amount']) ? $input['dcvend_discount_amount'] : null;
         $data['time'] = isset($input['TIME']) ? $input['TIME'] : Carbon::now()->toDateTimeString();
         $data['errorCode'] = isset($input['SErr']) ? $input['SErr'] : (isset($input['errorCode']) ? $input['errorCode'] : 0);
         $data['vendChannelCode'] = isset($input['SId']) ? $input['SId'] : 0;
