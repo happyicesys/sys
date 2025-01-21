@@ -18,6 +18,7 @@ use App\Models\VendData;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
 use App\Jobs\HandleFailedVendTransaction;
+use App\Jobs\SendDataToDcvend;
 use App\Jobs\Vend\SyncUnitCostJson;
 use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
@@ -141,6 +142,10 @@ class CreateVendTransaction implements ShouldQueue
         if($processedInput['vendChannelErrorID']) {
             SyncVendChannelErrorLog::dispatch($vend, $processedInput['vendChannelCode'], $processedInput['errorCode'], $vendTransaction->id)->onQueue('default');
         }
+
+        if($processedInput['dcvendUserID']) {
+            SendDataToDcvend::dispatch($vendTransaction->id, $processedInput['dcvendUserID'])->onQueue('default');
+        }
     }
 
     private function createVendTransaction($input)
@@ -256,6 +261,7 @@ class CreateVendTransaction implements ShouldQueue
         return [
             'amount' => isset($input['amount']) ? $input['amount'] : 0,
             'children' => isset($input['children']) ? $input['children'] : [],
+            'dcvendUserID' => $input['dcvendUserID'],
             'errorCode' => $input['errorCode'],
             'gstVatRate' => $gstVatRate,
             'interfaceType' => isset($input['interfaceType']) ? $input['interfaceType'] : null,
@@ -268,6 +274,7 @@ class CreateVendTransaction implements ShouldQueue
             'paymentMethodCode' => isset($input['paymentMethodCode']) ? $input['paymentMethodCode'] : null,
             'paymentMethodID' => $paymentMethod ? $paymentMethod->id : null,
             'productID' => $product ? $product->id : null,
+            'promoAmount' => $input['promoAmount'],
             'time' => isset($input['time']) ? $input['time'] : null,
             'unitCostID' => $unitCost ? $unitCost->id : null,
             'vendChannelCode' => $input['vendChannelCode'],
@@ -283,8 +290,10 @@ class CreateVendTransaction implements ShouldQueue
 
         $data['originalJson'] = $input;
         $data['amount'] = isset($input['Price']) ? (isset($input['transf_info']) ? ($input['Price'] * 100) : $input['Price']) : 0;
+        $data['dcvendUserID'] = isset($input['dcvend_user_id']) ? $input['dcvend_user_id'] : null;
         $data['orderID'] = isset($input['ORDRID']) ? $input['ORDRID'] : null;
         $data['paymentMethodCode'] = isset($input['PAY_TYPE']) ? $input['PAY_TYPE'] : null;
+        $data['promoAmount'] = isset($input['promo_amount']) ? $input['promo_amount'] : null;
         $data['time'] = isset($input['TIME']) ? $input['TIME'] : Carbon::now()->toDateTimeString();
         $data['errorCode'] = isset($input['SErr']) ? $input['SErr'] : (isset($input['errorCode']) ? $input['errorCode'] : 0);
         $data['vendChannelCode'] = isset($input['SId']) ? $input['SId'] : 0;

@@ -2337,6 +2337,29 @@ class VendController extends Controller
         return redirect()->back();
     }
 
+    public function updateDCVendsCountries($operatorCode)
+    {
+        $operator = Operator::where('code', $operatorCode)->first();
+        $vends = Vend::where('operator_id', $operator->id)->get();
+
+        foreach($vends as $vend) {
+            $fid = 1;
+            $content = base64_encode(json_encode([
+                'Type' => 'TYPEUPDATECOUNTRYCODE',
+                'time' => Carbon::now()->timestamp,
+                'action' => '',
+                'mid' => $vend->code,
+            ]));
+            $contentLength = strlen($content);
+            $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
+            $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+            PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+        }
+
+        return redirect()->back();
+    }
+
     public function uploadAttachment(Request $request, $id)
     {
         $vend = Vend::findOrFail($id);

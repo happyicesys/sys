@@ -53,8 +53,6 @@ class SyncVendCustomerCms implements ShouldQueue
         $categoryGroupId = null;
         $profileId = null;
 
-        // dd($this->endPointUrl, $customerCollection);
-
         if($customerCollection and isset($customerCollection[0])) {
             $customerCollection = collect($customerCollection[0]);
 

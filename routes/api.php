@@ -77,6 +77,7 @@ Route::prefix('vends')->group(function() {
     Route::get('/{vendCode}/banner-image', [VendController::class, 'getVendBannerImage']);
     Route::get('/{vendCode}/campaign-video', [VendController::class, 'getVendCampaignVideo']);
     Route::get('/{vendCode}/campaign-image', [VendController::class, 'getVendCampaignImage']);
+    Route::get('/operators/{operatorCode}/update-dcvends-countries', [VendController::class, 'updateDCVendsCountries']);
 });
 
 

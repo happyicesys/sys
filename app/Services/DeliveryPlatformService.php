@@ -245,7 +245,7 @@ class DeliveryPlatformService
       ->first();
 
     if(!$deliveryPlatformOrder) {
-      throw new \Exception('No Order Found for this merchant ID and order ID.');
+      throw new \Exception('No Order Found for this merchant ID and order ID.' . $platformRefId . ' - ' . $orderId);
     }
 
     $this->deliveryPlatformOperator = $deliveryPlatformOrder->deliveryPlatformOperator;
