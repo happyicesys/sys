@@ -733,7 +733,6 @@
                   open-direction="bottom"
                   class="mt-1"
                   mode="tags"
-                  max="1"
                 >
                 </MultiSelect>
               </div>

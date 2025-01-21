@@ -261,7 +261,7 @@ class CreateVendTransaction implements ShouldQueue
         return [
             'amount' => isset($input['amount']) ? $input['amount'] : 0,
             'children' => isset($input['children']) ? $input['children'] : [],
-            'dcvendUserID' => $input['dcvendUserID'],
+            'dcvendUserID' => isset($input['dcvendUserID']) ? $input['dcvendUserID'] : null,
             'errorCode' => $input['errorCode'],
             'gstVatRate' => $gstVatRate,
             'interfaceType' => isset($input['interfaceType']) ? $input['interfaceType'] : null,

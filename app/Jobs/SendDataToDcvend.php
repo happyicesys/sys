@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\VendTransaction;
+use App\Services\VendTransactionService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -23,6 +24,7 @@ class SendDataToDcvend implements ShouldQueue
     {
         $this->vendTransactionID = $vendTransactionID;
         $this->endpoint = env('DCVEND_URL') . '/api/v1/transactions/create/users/' . $dcvendUserID;
+        $this->vendTransactionService = new VendTransactionService();
     }
 
     /**
@@ -31,5 +33,9 @@ class SendDataToDcvend implements ShouldQueue
     public function handle(): void
     {
         $vendTransaction = VendTransaction::find($this->vendTransactionID);
+
+        $data = $this->vendTransactionService->setDcvendParam($vendTransaction);
+
+        $response = Http::post($this->endpoint, $data);
     }
 }
