@@ -13,7 +13,8 @@ class VendTransactionService
             'paymentMethod:id,name',
             'vend:id,code,vend_prefix_id',
             'vend.vendPrefix:id,name',
-            'vendTransactionItems.product:id,name,thumbnail_url',
+            'vendTransactionItems.product:id,name',
+            'vendTransactionItems.product.thumbnail',
             'vendTransactionItems.vendChannelError:id,code',
         ])
         ->find($vendTransactionID);
@@ -43,7 +44,7 @@ class VendTransactionService
                 return [
                     'product_id' => $item->product?->id,
                     'product_name' => $item->product?->name,
-                    'product_thumbnail_url' => $item->product?->thumbnail_url,
+                    'product_thumbnail_url' => $item->product?->thumbnail?->full_url,
                     'qty' => $item->qty ?? 1,
                     'vend_channel_code' => $item->vend_channel_code,
                     'vend_channel_id' => $item->vend_channel_id,

@@ -96,6 +96,7 @@ class Customer extends Model
         'frequency_per_week_status',
         'name',
         'is_active',
+        'is_restricted_access',
         'last_invoice_date',
         'location_type_id',
         'next_invoice_date',
