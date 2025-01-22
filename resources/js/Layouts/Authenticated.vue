@@ -97,6 +97,7 @@ const navigation = [
             {name: 'Setting Charts', href: '/vend-configs', permission: 'read vend-configs'},
             {name: 'Machine Prefix', href: '/vend-prefixes', permission: 'read vend-prefixes'},
             {name: 'Cashless Terminals', href: '/cashless-terminals', permission: 'read cashless-terminals'},
+            {name: 'Modem IMEI', href: '/modem-units', permission: 'read modem-imei'},
             // {name: 'Campaigns', href: '/campaigns'},
         ]
     },
@@ -148,7 +149,6 @@ const navigation = [
             {name: 'Location Types', href: '/location-types', permission: 'read location-types'},
             {name: 'Machine Models', href: '/vend-models', permission: 'read vend-models'},
             {name: 'Modem Models', href: '/modem-types', permission: 'read modem-models'},
-            {name: 'Modem IMEI', href: '/modem-units', permission: 'read modem-imei'},
             {name: 'Keys', href: '/keys', permission: 'read keys'},
             {name: 'Serial Numbers', href: '/vend-serial-numbers', permission: 'read serial-numbers'},
             {name: 'Telco', href: '/telcos', permission: 'read telcos'},
