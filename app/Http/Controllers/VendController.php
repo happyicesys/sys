@@ -2339,8 +2339,11 @@ class VendController extends Controller
 
     public function updateDCVendsCountries($operatorCode)
     {
-        $operator = Operator::where('code', $operatorCode)->first();
-        $vends = Vend::where('operator_id', $operator->id)->get();
+
+        $vends = Vend::whereHas('operator', function($query) use ($operatorCode) {
+            $query->where('code', $operatorCode);
+        })
+        ->get();
 
         foreach($vends as $vend) {
             $fid = 1;
@@ -2354,10 +2357,10 @@ class VendController extends Controller
             $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
             $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
+            // dd('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+
             PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
         }
-
-        return redirect()->back();
     }
 
     public function uploadAttachment(Request $request, $id)
