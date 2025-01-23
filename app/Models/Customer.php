@@ -69,6 +69,8 @@ class Customer extends Model
         'acb_status_json' => 'json',
         'apk_ver_json' => 'json',
         'begin_date' => 'datetime',
+        'is_active' => 'boolean',
+        'is_restricted_access' => 'boolean',
         'last_updated_at' => 'datetime',
         'mqtt_last_updated_at' => 'datetime',
         'parameter_json' => 'json',

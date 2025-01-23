@@ -514,6 +514,13 @@ class CustomerController extends Controller
         } else {
             $requestCustomerArr['is_active'] = false;
         }
+
+        if(isset($requestCustomerArr['is_restricted_access']) and $requestCustomerArr['is_restricted_access'] === 'true') {
+            $requestCustomerArr['is_restricted_access'] = true;
+        } else {
+            $requestCustomerArr['is_restricted_access'] = false;
+        }
+
         $request->merge([
             'customer' => $requestCustomerArr,
         ]);

@@ -1144,21 +1144,6 @@ class VendController extends Controller
             throw new \Exception('Operator code is required');
         }
 
-        // $vends = Vend::query()
-        //     ->with([
-        //         'customer.deliveryAddress',
-        //         'customer.photos',
-        //         'vendChannels',
-        //         'vendChannels.product.thumbnail',
-        //     ])
-        //     ->whereHas('operator', function($query) use ($request) {
-        //         $query->where('code', $request->operatorCode)
-        //             ->where('is_dcvend', true);
-        //     })
-        //     ->where('is_active', true)
-        //     ->orderBy('code', 'asc')
-        //     ->get();
-
         $customers = Customer::query()
             ->with([
                 'deliveryAddress',
@@ -1179,7 +1164,7 @@ class VendController extends Controller
             ->where('customers.is_active', true)
             ->orderByRaw("CASE WHEN vends.id IS NOT NULL THEN 0 ELSE 1 END") // Sort by customers with vends first
             ->orderBy('vends.code') // Sort by vend code
-            ->select('customers.id', 'customers.name') // Ensure only customer columns are selected
+            ->select('customers.id', 'customers.name', 'is_restricted_access') // Ensure only customer columns are selected
             ->distinct()
             ->get();
 

@@ -159,6 +159,24 @@
                       {{ form.errors['customer.location_type_id'] }}
                     </div>
                   </div>
+                  <div class="sm:col-span-3">
+                    <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                      Is Restricted Access Location?
+                    </label>
+                    <MultiSelect
+                      v-model="form.is_restricted_access"
+                      :options="booleanStrictOptions"
+                      trackBy="id"
+                      valueProp="id"
+                      label="value"
+                      placeholder="Select"
+                      open-direction="bottom"
+                      class="mt-1"
+                    ></MultiSelect>
+                    <div class="text-sm text-red-600" v-if="form.errors['customer.is_restricted_access']">
+                      {{ form.errors['customer.is_restricted_access'] }}
+                    </div>
+                  </div>
                   <div class="sm:col-span-5">
                     <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                       Reference Price Type
@@ -696,6 +714,8 @@ function getDefaultForm() {
     operator_id: '',
     begin_date: '',
     frequency_per_week_status: '',
+    is_active: '',
+    is_restricted_access: '',
     location_type_id: '',
     ops_note: '',
     preferred_visit_days_json:  {
@@ -809,6 +829,7 @@ onMounted(() => {
       unit_num: '',
     },
     is_active: props.customer ? props.customer.is_active ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false') : booleanStrictOptions.value.find(option => option.id === 'true'),
+    is_restricted_access: props.customer ? props.customer.is_restricted_access ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false') : booleanStrictOptions.value.find(option => option.id === 'false'),
     preferred_visit_days_json: { ...initialPreferredVisitDays, ...props.customer.preferred_visit_days_json },
     selling_price_type: props.customer && props.customer.selling_price_type ? sellingPriceTypeOptions.value.find(option => option.id == props.customer.selling_price_type) : null,
     zone_id: props.customer && props.customer.zone_id ? zoneOptions.value.find(zone => zone.id === props.customer.zone_id) : null,
@@ -895,6 +916,7 @@ function saveCustomer(customerID) {
         country_id: data.address.country_id ? data.address.country_id.id : null,
       },
       is_active: data.is_active.id,
+      is_restricted_access: data.is_restricted_access.id,
       selling_price_type: data.selling_price_type ? data.selling_price_type.id : null,
       vend_id: data.vend_id ? data.vend_id.id : null,
       zone_id: data.zone_id ? data.zone_id.id : null,
