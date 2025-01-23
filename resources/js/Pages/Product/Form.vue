@@ -148,9 +148,9 @@
                   <span>
                     Campaign Labels
                   </span>
-                  <span class="text-xs text-gray-500">
+                  <!-- <span class="text-xs text-gray-500">
                     (Select one only)
-                  </span>
+                  </span> -->
                 </div>
               </label>
 
@@ -164,7 +164,6 @@
                 open-direction="bottom"
                 class="mt-1"
                 mode="tags"
-                max="1"
               >
               </MultiSelect>
             </div>
