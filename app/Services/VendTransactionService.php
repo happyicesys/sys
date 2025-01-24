@@ -1,6 +1,9 @@
 <?php
 
 namespace App\Services;
+use App\Models\Product;
+use App\Models\VendChannel;
+use App\Models\VendChannelError;
 use App\Models\VendTransaction;
 use Carbon\Carbon;
 
@@ -53,6 +56,26 @@ class VendTransactionService
                     'vend_channel_error_id' => $item->vend_channel_error_id,
                 ];
             });
+        }
+
+        if(count($vendTransaction->vendTransactionItems) == 0 and isset($vendTransaction->vend_transaction_json['transf_info']) and count($vendTransaction->vend_transaction_json['transf_info']) > 0) {
+            foreach($vendTransaction->vend_transaction_json['transf_info'] as $transfInfo) {
+
+                $product = Product::find($transfInfo['goods_id']);
+                $vendChannel = VendChannel::where('code', $transfInfo['SId'])->where('vend_id', $vendTransaction->vend_id)->first();
+                $vendChannelError = VendChannelError::where('code', $transfInfo['SErr'])->first();
+                $data['items'][] = [
+                    'product_id' => $transfInfo['goods_id'],
+                    'product_name' => $transfInfo['goods_name'],
+                    'product_thumbnail_url' => $product?->thumbnail?->full_url,
+                    'qty' => 1,
+                    'vend_channel_code' => $transfInfo['SId'],
+                    'vend_channel_id' =>  $vendChannel->id,
+                    'vend_channel_error_code' => $transfInfo['SErr'],
+                    'vend_channel_error_name' => $vendChannelError->desc,
+                    'vend_channel_error_id' => $vendChannelError->id,
+                ];
+            }
         }
 
         return $data;

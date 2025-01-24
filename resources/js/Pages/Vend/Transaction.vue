@@ -464,6 +464,9 @@
                         <TableHead>
                             TXN_SRC
                         </TableHead>
+                        <TableHead>
+                            Is Member?
+                        </TableHead>
                       </tr>
                   </thead>
                   <tbody class="bg-white">
@@ -601,6 +604,11 @@
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             {{ vendTransaction.interface_type }}
                         </TableData>
+                        <!-- <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
+                            <span v-if="vendTransaction.vendTransactionJson && vendTransaction.vendTransactionJson['dcvend_user_id']">
+
+                            </span>
+                        </TableData> -->
                       </tr>
                     </template>
                     <tr v-if="!vendTransactions || !vendTransactions.data.length">
