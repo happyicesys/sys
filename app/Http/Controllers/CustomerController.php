@@ -36,6 +36,7 @@ use App\Models\Zone;
 use App\Services\HistoryService;
 use App\Services\MapService;
 use App\Traits\HasFilter;
+use App\Traits\SearchAddress;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -45,7 +46,7 @@ use Inertia\Inertia;
 
 class CustomerController extends Controller
 {
-    use HasFilter;
+    use HasFilter, SearchAddress;
 
     protected $historyService;
     protected $mapService;
@@ -588,6 +589,19 @@ class CustomerController extends Controller
 
                 if($isMovement) {
                     $this->historyService->syncVendCustomerMovement($vend, $customer, true);
+                }
+            }
+        }
+
+        if($customer->deliveryAddress) {
+            if((!$customer->deliveryAddress->latitude or !$customer->deliveryAddress->longitude) and $customer->deliveryAddress->country->code == 'SG') {
+                $location = $this->getAddressResult($customer->deliveryAddress->postcode);
+
+                if($location) {
+                    $customer->deliveryAddress->update([
+                        'latitude' => $location['latitude'],
+                        'longitude' => $location['longitude'],
+                    ]);
                 }
             }
         }
