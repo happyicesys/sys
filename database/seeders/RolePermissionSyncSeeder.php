@@ -36,7 +36,7 @@ class RolePermissionSyncSeeder extends Seeder
         $permissionsData = [
             ['dashboard',
             ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer']],
+            ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer', 'licensee']],
 
             ['dashboard',
             ['admin-access'],
@@ -44,11 +44,11 @@ class RolePermissionSyncSeeder extends Seeder
 
             ['vends',
             ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee', 'licensee']],
 
             ['vend-customers',
             ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee', 'licensee']],
 
             ['vend-customers',
             ['admin-access'],
@@ -64,7 +64,7 @@ class RolePermissionSyncSeeder extends Seeder
 
             ['transactions',
             ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer', 'franchisee']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer', 'franchisee', 'licensee']],
 
             ['transactions',
             ['admin-access'],
@@ -236,11 +236,11 @@ class RolePermissionSyncSeeder extends Seeder
 
             ['resource-centers',
             ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee', 'licensee']],
 
             ['resource-center-operators',
             ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee', 'licensee']],
 
             ['resource-center-operators',
             ['admin-access'],

@@ -99,7 +99,7 @@ class DatabaseSeeder extends Seeder
             // ProductLimitSeeder::class,
             // ProductAvailabilitySeeder::class,
 
-
+            LicenseeRoleSeeder::class,
             RolePermissionSyncSeeder::class
 
             // DcvendAuthSeeder::class,
