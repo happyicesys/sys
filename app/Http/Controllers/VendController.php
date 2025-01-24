@@ -1474,6 +1474,7 @@ class VendController extends Controller
                 'vend_transaction_items_json',
                 'vend_transactions.is_payment_received',
                 'vend_transactions.items_json',
+                'vend_transactions.vend_transaction_json'
             )->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 
@@ -1719,7 +1720,8 @@ class VendController extends Controller
             'vend_transactions.revenue',
             'vend_transactions.is_payment_received',
             'vend_transactions.items_json',
-            'vend_transactions.vend_channel_code'
+            'vend_transactions.vend_channel_code',
+            'vend_transactions.vend_transaction_json'
         )
         ->get();
 
@@ -1758,6 +1760,7 @@ class VendController extends Controller
                 'is_multiple' => $vendTransaction->is_multiple ? 'Yes' : 'No',
                 'multiple_qty' => $vendTransaction->is_multiple ? $vendTransaction->vendTransactionItems->count() : 1,
                 'txn_src' => $vendTransaction->interface_type,
+                'member_id' => $vendTransaction->vend_transaction_json && isset($vendTransaction->vend_transaction_json['dcvend_user_id']) ? $vendTransaction->vend_transaction_json['dcvend_user_id'] : '',
             ];
 
             if($vendTransaction->vendTransactionItems) {

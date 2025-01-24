@@ -275,6 +275,22 @@
                     APK Ver
                 </SearchInput>
             </div>
+            <div class="col-span-5 md:col-span-1">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Is Member?
+                </label>
+                <MultiSelect
+                    v-model="filters.is_member"
+                    :options="booleanOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
             </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -465,7 +481,7 @@
                             TXN_SRC
                         </TableHead>
                         <TableHead>
-                            Is Member?
+                            Member ID
                         </TableHead>
                       </tr>
                   </thead>
@@ -560,6 +576,10 @@
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.interface_type }}
                         </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            {{ vendTransaction.vendTransactionJson && vendTransaction.vendTransactionJson['dcvend_user_id'] ? vendTransaction.vendTransactionJson['dcvend_user_id'] : null }}
+                            <!-- <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="vendTransaction.vendTransactionJson && vendTransaction.vendTransactionJson['dcvend_user_id']"></CheckCircleIcon> -->
+                        </TableData>
                       </tr>
                       <tr v-if="vendTransaction.vendTransactionItems" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItems" class="divide-x">
                         <td v-if="vendTransactionItemIndex == 0" class="border-b border-gray-200" colspan="7" :rowspan="vendTransaction.vendTransactionItems.length"></td>
@@ -604,11 +624,6 @@
                         <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
                             {{ vendTransaction.interface_type }}
                         </TableData>
-                        <!-- <TableData :currentIndex="vendTransactionItemIndex" :totalLength="vendTransaction.vendTransactionItems.length" inputClass="text-center bg-gray-100">
-                            <span v-if="vendTransaction.vendTransactionJson && vendTransaction.vendTransactionJson['dcvend_user_id']">
-
-                            </span>
-                        </TableData> -->
                       </tr>
                     </template>
                     <tr v-if="!vendTransactions || !vendTransactions.data.length">
@@ -728,6 +743,7 @@ onMounted(() => {
 	] : operatorOptions.value[0]
     filters.value.interface_type = vmcByteOptions.value[0]
     filters.value.is_binded_customer = booleanOptions.value[0]
+    filters.value.is_member = booleanOptions.value[0]
     filters.value.is_multiple = booleanOptions.value[0]
     filters.value.is_payment_received = booleanOptions.value[0]
     filters.value.is_refunded = booleanOptions.value[0]
@@ -749,6 +765,7 @@ const filters = ref({
     order_id: '',
     interface_type: '',
     is_binded_customer: '',
+    is_member: '',
     is_multiple: '',
     is_payment_received: '',
     is_refunded: '',
@@ -811,6 +828,7 @@ function onExportExcelClicked() {
             operators: filters.value.operators.map((operator) => { return operator.id }),
             interface_type: filters.value.interface_type.id,
             is_binded_customer: filters.value.is_binded_customer.id,
+            is_member: filters.value.is_member.id,
             is_multiple: filters.value.is_multiple.id,
             is_payment_received: filters.value.is_payment_received.id,
             is_refunded: filters.value.is_refunded.id,
@@ -839,6 +857,7 @@ function onSearchFilterUpdated() {
         operators: filters.value.operators.map((operator) => { return operator.id }),
         interface_type: filters.value.interface_type.id,
         is_binded_customer: filters.value.is_binded_customer.id,
+        is_member: filters.value.is_member.id,
         is_multiple: filters.value.is_multiple.id,
         is_payment_received: filters.value.is_payment_received.id,
         is_refunded: filters.value.is_refunded.id,

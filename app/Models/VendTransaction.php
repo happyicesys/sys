@@ -246,6 +246,18 @@ class VendTransaction extends Model
                 }
             }
         })
+        ->when($request->is_member, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->where('vend_transactions.vend_transaction_json->dcvend_user_id', '>', 0);
+                }else {
+                    $query->where(function($query) {
+                        $query->where('vend_transactions.vend_transaction_json->dcvend_user_id', null)
+                            ->orWhere('vend_transactions.vend_transaction_json->dcvend_user_id', 0);
+                    });
+                }
+            }
+        })
         ->when($request->is_refunded, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {
