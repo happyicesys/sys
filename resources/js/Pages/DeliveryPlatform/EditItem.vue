@@ -92,7 +92,7 @@
               <Button
                 class="bg-red-400 hover:bg-red-500 text-white flex space-x-1"
                 @click.prevent="unbindDeliveryProductMappingItem(deliveryProductMappingItemObj.id)"
-                v-if="roles.includes('superadmin')"
+                v-if="permissions.includes('update vends')"
               >
                 <BackspaceIcon class="w-3 h-3"></BackspaceIcon>
                 <span class="text-xs">
