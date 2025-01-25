@@ -55,6 +55,7 @@ class VendTransaction extends Model
         'payment_gateway_log_id',
         'payment_method_id',
         'product_id',
+        'qty',
         'revenue',
         'vend_channel_id',
         'vend_channel_code',

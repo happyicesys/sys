@@ -160,7 +160,6 @@ class PaymentGatewayService
             $paymentGatewayLog = PaymentGatewayLog::create([
                 'request' => $params['request'],
                 'response' => $response,
-                'history_json' => $response,
                 'order_id' => $params['metadata']['order_id'],
                 'amount' => $params['amount'],
                 'qr_url' => $qrCodeUrl,

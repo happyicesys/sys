@@ -128,7 +128,6 @@ class PaymentController extends Controller
       'order_id' => $orderId,
     ], [
       'response' => $input,
-      'history_json' => $paymentGatewayLog->history_json ? array_merge($paymentGatewayLog->history_json, $input) : $input,
       'ref_id' => $refId,
       'status' => $status,
     ]);
