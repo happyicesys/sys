@@ -305,7 +305,11 @@ class CreateVendTransaction implements ShouldQueue
         $data['isMultiple'] = false;
         $data['children'] = [];
         $data['qty'] = 1;
-        $data['success_qty'] = 0;
+        if(isset($input['SErr']) and ($input['SErr'] == 0 or $input['SErr'] == 6)) {
+            $data['success_qty'] = 1;
+        } else {
+            $data['success_qty'] = 0;
+        }
 
         if(isset($input['transf_info']) and sizeof($input['transf_info']) == 1) {
             $data['qty'] = 1;
