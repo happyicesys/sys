@@ -259,7 +259,6 @@ class DeliveryPlatformService
             'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$input['state']]],
             'datetime' => Carbon::now()->toDateTimeString(),
           ]),
-          'request_history_json' => $deliveryPlatformOrder->request_history_json ? array_merge($deliveryPlatformOrder->request_history_json, $input) : $input,
         ]);
         $this->syncOrderQtyBasedOnStatus($deliveryPlatformOrder);
         $this->handleLastMileTimediff($deliveryPlatformOrder);
@@ -917,7 +916,6 @@ class DeliveryPlatformService
       'vend_code' => $params['partnerMerchantID'],
       'order_created_at' => isset($params['orderTime']) ? Carbon::parse($params['orderTime'], 'UTC')->setTimezone($this->getUserTimezone()) : null,
       'order_json' => $params,
-      'request_history_json' => $params,
       'status' => isset($params['orderState']) ? DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$params['orderState']] : DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_PENDING],
       'status_json' => [
         'status' => isset($params['orderState']) ? DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::GRAB_STATUS_MAPPING[$params['orderState']]] : DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_PENDING]],
