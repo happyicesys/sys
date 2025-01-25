@@ -160,6 +160,7 @@ class CreateVendTransaction implements ShouldQueue
             'items_json' => $input['children'],
             'payment_method_id' => $input['paymentMethodID'],
             'qty' => $input['qty'],
+            'success_qty' => $input['success_qty'],
             'vend_id' => $this->vend->id,
             'vend_channel_code' => $input['vendChannelCode'],
             'vend_channel_id' => $input['vendChannelID'],
@@ -276,6 +277,7 @@ class CreateVendTransaction implements ShouldQueue
             'paymentMethodID' => $paymentMethod ? $paymentMethod->id : null,
             'productID' => $product ? $product->id : null,
             'qty' => isset($input['qty']) ? $input['qty'] : 1,
+            'success_qty' => isset($input['success_qty']) ? $input['success_qty'] : 0,
             'dcvendDiscountAmount' => isset($input['dcvendDiscountAmount']) ? $input['dcvendDiscountAmount'] : null,
             'time' => isset($input['time']) ? $input['time'] : null,
             'unitCostID' => $unitCost ? $unitCost->id : null,
@@ -303,26 +305,28 @@ class CreateVendTransaction implements ShouldQueue
         $data['isMultiple'] = false;
         $data['children'] = [];
         $data['qty'] = 1;
+        $data['success_qty'] = 0;
 
         if(isset($input['transf_info']) and sizeof($input['transf_info']) == 1) {
             $data['qty'] = 1;
             $data['isMultiple'] = false;
             $data['errorCode'] = $input['transf_info'][0]['SErr'];
             $data['vendChannelCode'] = $input['transf_info'][0]['SId'];
+
+            if($input['transf_info'][0]['SErr'] == 0 or $input['transf_info'][0]['SErr'] == 6) {
+                $data['success_qty'] = 1;
+            }
         }
 
         if(isset($input['transf_info']) and sizeof($input['transf_info']) > 1) {
             $data['isMultiple'] = true;
             $data['qty'] = sizeof($input['transf_info']);
             foreach($input['transf_info'] as $trans) {
-                // $data['children'][] = [
-                //     'errorCode' => $trans['SErr'],
-                //     'vendChannelCode' => $trans['SId'],
-                // ];
                 $data['children'][] = $this->processMapping([
                     'errorCode' => $trans['SErr'],
                     'vendChannelCode' => $trans['SId'],
                 ]);
+                $data['success_qty'] += ($trans['SErr'] == 0 or $trans['SErr'] == 6) ? 1 : 0;
             }
         }
 

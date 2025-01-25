@@ -57,6 +57,7 @@ class VendTransaction extends Model
         'product_id',
         'qty',
         'revenue',
+        'success_qty',
         'vend_channel_id',
         'vend_channel_code',
         'vend_channel_error_id',
