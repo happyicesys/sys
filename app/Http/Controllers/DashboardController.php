@@ -117,7 +117,7 @@ class DashboardController extends Controller
                 DB::raw('DATE(transaction_datetime) as date'),
                 DB::raw('DAY(transaction_datetime) as day'),
                 DB::raw('SUM(amount) as amount'),
-                DB::raw('COUNT(id) as count')
+                DB::raw('SUM(success_qty) as count')
             );
 
         $dayGraph = $dayGraph->union($todayGraph)

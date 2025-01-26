@@ -67,26 +67,13 @@ class StoreVendsRecord implements ShouldQueue
                     ),0) as total_amount'
                 ),
                 DB::raw(
-                    'COUNT(vend_transactions.id) as all_total_count'
+                    'SUM(vend_transactions.qty) as all_total_count'
                 ),
                 DB::raw(
-                    'COUNT(
-                        CASE
-                            WHEN vend_channel_error_id IS NULL THEN vend_transactions.id
-                            WHEN vend_channel_errors.code = 0 THEN vend_transactions.id
-                            WHEN vend_channel_errors.code = 6 THEN vend_transactions.id
-                            WHEN is_multiple = 1 THEN vend_transactions.id
-                            ELSE NULL
-                        END
-                    ) as total_count'
+                    'SUM(vend_transactions.success_qty) as total_count'
                 ),
                 DB::raw(
-                    'COUNT(
-                        CASE
-                            WHEN vend_channel_error_id IS NOT NULL THEN 1
-                            ELSE NULL
-                        END
-                    ) as error_count'
+                    'SUM(vend_transactions.qty - vend_transactions.success_qty) as error_count'
                 ),
                 DB::raw(
                     'COALESCE(SUM(

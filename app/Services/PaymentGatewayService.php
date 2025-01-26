@@ -79,13 +79,29 @@ class PaymentGatewayService
                 }
                 break;
         }
+        // dd(file_get_contents($qrCodeUrl));
         // dd($qrCodeUrl, $isCreateInput, $isRequiredDecode, $isResizeImage);
         $img = false;
         if($isRequiredDecode) {
           if($isResizeImage) {
-            $imagick = new Imagick($qrCodeUrl);
+
+            if(filter_var($qrCodeUrl, FILTER_VALIDATE_URL) !== false) {
+                $imagick = new Imagick();
+                $imagick->readImageBlob(file_get_contents($qrCodeUrl));
+            }else {
+                $imagick = new Imagick($qrCodeUrl);
+            }
+
             $imagick->resizeImage(150, 150, Imagick::FILTER_LANCZOS, 1);
             $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $imagick->getImageBlob(), 'public');
+
+
+            // $imagick = new Imagick();
+            // $imagick->setBackgroundColor(new ImagickPixel('transparent'));
+            // $imagick->readImageBlob(file_get_contents($qrCodeUrl));
+            // $imagick->setImageFormat('png24');
+            // $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $imagick->getImageBlob(), 'public');
+// dd($imagick->getImageBlob());
           }else {
             if(isset($params['type']) and $params['type'] == 'alipayplus_mpm') {
               $imagick = new Imagick();
@@ -160,6 +176,7 @@ class PaymentGatewayService
             $paymentGatewayLog = PaymentGatewayLog::create([
                 'request' => $params['request'],
                 'response' => $response,
+                'history_json' => $response,
                 'order_id' => $params['metadata']['order_id'],
                 'amount' => $params['amount'],
                 'qr_url' => $qrCodeUrl,
