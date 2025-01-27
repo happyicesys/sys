@@ -201,7 +201,7 @@
 
 
             <div class="sm:col-span-4">
-              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-lg font-bold text-gray-700">
                 Enable Campaign Advertisement?
               </label>
               <span class="text-sm text-gray-600">
@@ -377,7 +377,7 @@
             <hr class="sm:col-span-6 my-2">
 
             <div class="sm:col-span-4">
-              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-lg font-bold text-gray-700">
                 Enable Buy 1 Free 1?
               </label>
               <span class="text-sm text-gray-600">
@@ -451,7 +451,7 @@
             <hr class="sm:col-span-6 my-2">
 
             <div class="sm:col-span-4">
-              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-lg font-bold text-gray-700">
                 Enable Buy 2 Free 1?
               </label>
               <span class="text-sm text-gray-600">
@@ -525,7 +525,7 @@
             <hr class="sm:col-span-6 my-2">
 
             <div class="sm:col-span-4">
-              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-lg font-bold text-gray-700">
                 Enable Bundle Discount?
               </label>
               <span class="text-sm text-gray-600">
@@ -571,7 +571,7 @@
             </div>
 
             <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-lg font-bold text-gray-700">
                 Enable Buy 2 Get Discount?
               </label>
               <span class="text-sm text-gray-600">
@@ -604,7 +604,7 @@
             </div>
 
             <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-lg font-bold text-gray-700">
                 Enable Buy 3 Get Discount?
               </label>
               <span class="text-sm text-gray-600">
@@ -637,7 +637,7 @@
             </div>
 
             <div class="sm:col-span-3">
-              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-lg font-bold text-gray-700">
                 Enable Buy 4 Get Discount?
               </label>
               <span class="text-sm text-gray-600">
@@ -682,7 +682,7 @@
             </div>
 
             <div class="sm:col-span-2">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              <label for="text" class="flex justify-start text-lg font-bold text-gray-700">
                 Enable Label Promo?
               </label>
               <MultiSelect
