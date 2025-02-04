@@ -16,6 +16,7 @@ class PaymentMethod extends Model
         'name',
         'payment_gateway_id',
         'payment_merchant_id',
+        'sequence',
         'type_name',
     ];
 

@@ -153,6 +153,7 @@ class PaymentController extends Controller
         });
       })
       ->where('is_active', true)
+      ->orderByRaw('ISNULL(sequence), sequence ASC')
       ->get();
       // dd($paymentMethods->toArray());
 
@@ -163,6 +164,7 @@ class PaymentController extends Controller
             'name' => $paymentMethod->paymentMerchant->name,
             'image_url' => $paymentMethod->paymentMerchant->image_url,
             'slug' => $paymentMethod->type_name,
+            'sequence' => $paymentMethod->sequence,
             'timeout_seconds' => 150,
             'is_default' => $paymentMethod->paymentGateway->default_payment_method_id === $paymentMethod->id,
           ]);
