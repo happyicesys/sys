@@ -604,7 +604,7 @@ function statusClass(deliveryPlatformOrder) {
     case 98:
     case 99:
       statusClass = 'bg-red-400 text-gray-800'
-      statusDesc = deliveryPlatformOrder.request_history_json['code'] + ' (' + deliveryPlatformOrder.request_history_json['message'] + ')'
+      statusDesc = deliveryPlatformOrder.request_history_json ? deliveryPlatformOrder.request_history_json['code'] + ' (' + deliveryPlatformOrder.request_history_json['message'] + ')' : null
       break;
   }
   return {

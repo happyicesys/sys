@@ -127,7 +127,7 @@ class PaymentController extends Controller
     $updatedPaymentGatewayLog = PaymentGatewayLog::updateOrCreate([
       'order_id' => $orderId,
     ], [
-      'response' => $input,
+      'response_history_json' => $input,
       'ref_id' => $refId,
       'status' => $status,
     ]);

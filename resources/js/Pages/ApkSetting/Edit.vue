@@ -356,6 +356,23 @@
 
             <div class="sm:col-span-3">
               <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+                Enable P2 Price?
+              </label>
+              <MultiSelect
+                v-model="form.enableP2Price"
+                :options="booleanStrictOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+
+            <div class="sm:col-span-3">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
                 Disable P1 P2 Cross Group?
               </label>
               <span class="text-sm text-gray-600">
@@ -1118,6 +1135,9 @@ onMounted(() => {
     promoBannerKind: promoBannerKindOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.promoBannerKind.toString()
     ),
+    enableP2Price: booleanStrictOptions.value.find(
+      option => option.id == props.apkSetting.data.settings_parameter_json.enableP2Price.toString()
+    ),
     disableP1P2CrossGrp: booleanStrictOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.disableP1P2CrossGrp.toString()
     ),
@@ -1166,6 +1186,7 @@ function getDefaultForm() {
 
     promoRunningText: '',
 
+    enableP2Price: '',
     disableP1P2CrossGrp: '',
 
     enableBuy1Free1: '',
@@ -1223,6 +1244,7 @@ function submit() {
             ...form.value,
             enablePromoHeaderText: form.value.enablePromoHeaderText?.id,
             promoBannerKind: form.value.promoBannerKind?.id,
+            enableP2Price: form.value.enableP2Price?.id,
             disableP1P2CrossGrp: form.value.disableP1P2CrossGrp?.id,
             enableBuy1Free1: form.value.enableBuy1Free1?.id,
             enableBuy2Free1: form.value.enableBuy2Free1?.id,

@@ -922,6 +922,12 @@
 												CMS
 										</div>
 									</a>
+									<div
+											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
+											v-if="vend.delivery_platform_slug == 'grab'"
+									>
+										Grab
+									</div>
 								</span>
 								<span v-else-if="!vend.person_id">
 									<span v-if="permissions.includes('admin-access vend-customers')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">

@@ -35,6 +35,7 @@ class VendResource extends JsonResource
             'claw_machine_body_id' => isset($this->claw_machine_body_id) ? $this->claw_machine_body_id : null,
             'code' => $this->code,
             'deliveryAddress' => AddressResource::make($this->whenLoaded('deliveryAddress')),
+            'delivery_platform_slug' => isset($this->delivery_platform_slug) ? $this->delivery_platform_slug : null,
             'acbVmcPaJson' => isset($this->acb_vmc_pa_json) ? $this->acb_vmc_pa_json : null,
             'amount_average_day' => isset($this->amount_average_day) ? $this->amount_average_day/100 : null,
             'apkVerJson' => isset($this->apk_ver_json) ? $this->apk_ver_json : null,

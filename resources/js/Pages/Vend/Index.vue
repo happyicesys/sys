@@ -1717,14 +1717,7 @@ filters.value.is_testing = booleanOptions.value[2]
 filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]
 filters.value.locationType = locationTypeOptions.value[0]
   filters.value.next_planned_driver = nextDeliveryDriverOptions.value[0]
-  filters.value.operators = authOperator ? [
-		operatorOptions.value.find(operator => operator.id === authOperator.id),
-		...authOperator.code == 'HIPL' ? [
-			operatorOptions.value.find(operator => operator.code == 'HIMD'),
-			operatorOptions.value.find(operator => operator.code == 'LEA'),
-			operatorOptions.value.find(operator => operator.code == 'DCVIC'),
-		] : [],
-	] : operatorOptions.value[0]
+  filters.value.operators = [operatorOptions.value[0]]
 filters.value.status = statusOptions.value[2]
 // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
 })

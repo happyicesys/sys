@@ -576,6 +576,13 @@ class Vend extends Model
                     ->where('date', '<=', Carbon::today()->subDays($to)->endOfDay());
     }
 
+    public function isGrab()
+    {
+        return $this->deliveryProductMappingVends()->whereHas('deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform', function($query) {
+            $query->where('slug', 'grab');
+        })->exists();
+    }
+
     // computed
     public function getVendChannelsTotalCapacityAttribute()
     {

@@ -130,77 +130,6 @@ class VendController extends Controller
 
     public function index(Request $request)
     {
-//         $debugData = Customer::query()
-//         ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
-//         ->leftJoin(DB::raw('
-//         (
-//             SELECT
-//                 vend_channels.vend_id,
-//                 vend_channels.id,
-//                 vend_channels.code,
-//                 products.name,
-//                 product_limits.qty as product_limit_qty,
-//                 vend_channels.capacity,
-//                 vend_channels.qty as vend_channel_qty,
-//                 CASE
-//                     WHEN product_limits.id AND product_limits.qty < vend_channels.capacity THEN
-//                         (product_limits.qty - vend_channels.qty)
-//                     ELSE
-//                         (vend_channels.capacity - vend_channels.qty)
-//                 END AS stock_in_qty
-//             FROM
-//                 vend_channels
-//             INNER JOIN
-//                 products ON vend_channels.product_id = products.id
-//             LEFT JOIN (
-//                     SELECT id, product_id, qty, date
-//                     FROM product_limits AS pl
-//                     WHERE pl.date = CURDATE()
-//                     AND pl.id = (
-//                         SELECT id
-//                         FROM product_limits
-//                         WHERE product_id = pl.product_id
-//                         AND date = pl.date
-//                         ORDER BY id DESC
-//                         LIMIT 1
-//                     )
-//                 ) AS product_limits ON products.id = product_limits.product_id
-//             WHERE
-//                 products.is_available = true
-//             AND vend_channels.is_active = true
-//             AND vend_channels.capacity > 0
-//             ORDER BY vend_channels.code
-//         ) AS vc_stock
-//     '), 'vc_stock.vend_id', '=', 'vends.id')
-//         ->select(
-//             'customers.id AS id',
-//             'vends.id AS vend_id',
-//             'vc_stock.code',
-//             'vc_stock.name',
-//             'vc_stock.product_limit_qty',
-//             'vc_stock.capacity',
-//             'vc_stock.vend_channel_qty',
-//             'vc_stock.stock_in_qty',
-//         )
-//         ->where('vends.code', 2638)
-
-//     ->get();
-
-// dd($debugData->toArray());
-
-        if(!$request->operators) {
-            if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                ]]);
-            }else {
-                $request->merge(['operators' => [auth()->user()->operator_id]]);
-            }
-        }
-
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         if(!isset($request->is_active)) {
             if(
@@ -247,6 +176,10 @@ class VendController extends Controller
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->leftJoin('delivery_product_mapping_vends', 'delivery_product_mapping_vends.vend_id', '=', 'vends.id')
+            ->leftJoin('delivery_product_mappings', 'delivery_product_mappings.id', '=', 'delivery_product_mapping_vends.delivery_product_mapping_id')
+            ->leftJoin('delivery_platform_operators', 'delivery_platform_operators.id', '=', 'delivery_product_mappings.delivery_platform_operator_id')
+            ->leftJoin('delivery_platforms', 'delivery_platforms.id', '=', 'delivery_platform_operators.delivery_platform_id')
             ->select(
                 'vends.id AS id',
                 'vends.id AS vend_id',
@@ -309,6 +242,7 @@ class VendController extends Controller
                 'operators.code AS operator_code',
                 'operators.name AS operator_name',
                 'vend_prefixes.name AS vend_prefix_name',
+                'delivery_platforms.slug AS delivery_platform_slug'
             );
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends, 'vends');

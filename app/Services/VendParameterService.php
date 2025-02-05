@@ -20,6 +20,7 @@ class VendParameterService
 
             'promoRunningText' => null,
 
+            'enableP2Price' => false,
             'disableP1P2CrossGrp' => false,
 
             'enableBuy1Free1' => false,
@@ -69,6 +70,7 @@ class VendParameterService
 
             'promoRunningText' => $parameters['promoRunningText'],
 
+            'enableP2Price' => $parameters['enableP2Price'],
             'disableP1P2CrossGrp' => $parameters['disableP1P2CrossGrp'],
 
             'enableBuy1Free1' => $parameters['enableBuy1Free1'],
