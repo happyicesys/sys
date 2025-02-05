@@ -40,14 +40,14 @@
                   Not Active
                 </span>
               </div>
-              <span v-if="vend.delivery_product_mapping_vends" v-for="(deliveryProductMappingVend, index) in vend.delivery_product_mapping_vends">
+              <!-- <span v-if="vend.delivery_product_mapping_vends" v-for="(deliveryProductMappingVend, index) in vend.delivery_product_mapping_vends">
                 <div
                     class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
                     v-if="deliveryProductMappingVend.delivery_product_mapping && deliveryProductMappingVend.delivery_product_mapping.delivery_platform_operator && deliveryProductMappingVend.delivery_product_mapping.delivery_platform_operator.delivery_platform"
                 >
                   {{ deliveryProductMappingVend.delivery_product_mapping.delivery_platform_operator.delivery_platform.name }}
                 </div>
-              </span>
+              </span> -->
             </div>
 
             <div class="sm:col-span-2" v-if="vend">

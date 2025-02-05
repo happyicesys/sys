@@ -176,10 +176,10 @@ class VendController extends Controller
             ->leftJoin('operators', 'operators.id', '=', 'vends.operator_id')
             ->leftJoin('product_mappings', 'product_mappings.id', '=', 'vends.product_mapping_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
-            ->leftJoin('delivery_product_mapping_vends', 'delivery_product_mapping_vends.vend_id', '=', 'vends.id')
-            ->leftJoin('delivery_product_mappings', 'delivery_product_mappings.id', '=', 'delivery_product_mapping_vends.delivery_product_mapping_id')
-            ->leftJoin('delivery_platform_operators', 'delivery_platform_operators.id', '=', 'delivery_product_mappings.delivery_platform_operator_id')
-            ->leftJoin('delivery_platforms', 'delivery_platforms.id', '=', 'delivery_platform_operators.delivery_platform_id')
+            // ->leftJoin('delivery_product_mapping_vends', 'delivery_product_mapping_vends.vend_id', '=', 'vends.id')
+            // ->leftJoin('delivery_product_mappings', 'delivery_product_mappings.id', '=', 'delivery_product_mapping_vends.delivery_product_mapping_id')
+            // ->leftJoin('delivery_platform_operators', 'delivery_platform_operators.id', '=', 'delivery_product_mappings.delivery_platform_operator_id')
+            // ->leftJoin('delivery_platforms', 'delivery_platforms.id', '=', 'delivery_platform_operators.delivery_platform_id')
             ->select(
                 'vends.id AS id',
                 'vends.id AS vend_id',
@@ -242,7 +242,7 @@ class VendController extends Controller
                 'operators.code AS operator_code',
                 'operators.name AS operator_name',
                 'vend_prefixes.name AS vend_prefix_name',
-                'delivery_platforms.slug AS delivery_platform_slug'
+                // 'delivery_platforms.slug AS delivery_platform_slug'
             );
         $vends = $this->filterVendsDB($vends, $request);
         $vends = $this->filterOperatorDB($vends, 'vends');
