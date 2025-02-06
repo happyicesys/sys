@@ -146,12 +146,12 @@
                     </span>
                 </Button>
                 <Button
-                    class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1"
+                    class="bg-yellow-500 hover:bg-yellow-600 text-black flex space-x-1"
                     @click.prevent="syncVendChannels(vend.id)"
                   >
                     <ArrowUpCircleIcon class="w-4 h-4"></ArrowUpCircleIcon>
                     <span>
-                      Force Sync Channels
+                      Sync Channels List
                     </span>
                 </Button>
               </span>
