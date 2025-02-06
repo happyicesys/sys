@@ -536,10 +536,21 @@ class ReportController extends Controller
     {
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
         $request->merge(['is_binded_customer' => auth()->user()->hasRole('operator') ? 'all' : ($request->is_binded_customer ? $request->is_binded_customer : 'true')]);
-        $dateFrom = $request->currentFilterDate ? explode(',',$request->currentFilterDate)[0] : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
-        $dateTo = $request->currentFilterDate ? explode(',',$request->currentFilterDate)[1] : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString();
-        $request->merge(['date_from' => $dateFrom]);
-        $request->merge(['date_to' => $dateTo]);
+
+        if($request->currentFilterDate) {
+            if($request->currentFilterDate != '-1') {
+                $request->merge(['date_from' => explode(',',$request->currentFilterDate)[0]]);
+                $request->merge(['date_to' => explode(',',$request->currentFilterDate)[1]]);
+            }
+            if($request->currentFilterDate == '-1') {
+                $request->merge(['date_from' => Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->toDateString()]);
+                $request->merge(['date_to' => Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->toDateString()]);
+            }
+        }else {
+            $request->merge(['date_from' => Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
+            $request->merge(['date_to' => Carbon::today()->setTimezone($this->getUserTimezone())->toDateString()]);
+        }
+
         $request->sortKey = $request->sortKey ? $request->sortKey : 'amount';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
         $categoryClassName = get_class(new Customer());
@@ -566,7 +577,11 @@ class ReportController extends Controller
                 break;
         }
 
-        $items = $this->getSalesQuery($request, $modelName)->get();
+        $items = $this->getSalesQuery($request, $modelName);
+        $items = $items->when($request->sortKey, function($query, $search) use ($request) {
+            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+        })
+        ->get();
 
         return (new FastExcel($this->yieldOneByOne($items)))->download('SalesReport_'.$type.'_'.Carbon::now()->toDateTimeString().'.xlsx', function ($item) {
             return [
