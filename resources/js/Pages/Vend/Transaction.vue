@@ -731,6 +731,7 @@ onMounted(() => {
         {id: 'all', value: 'All'},
         {id: '0', value: '0'},
         {id: '1', value: '1'},
+        {id: '50', value: '50'},
     ]
     filters.value.location_type_id = locationTypeOptions.value[0]
     filters.value.operators = authOperator ? [
