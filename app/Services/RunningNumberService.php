@@ -13,7 +13,7 @@ class RunningNumberService
     if($vend->operator) {
         $operatorTimezone = $vend->operator->timezone;
     }
-    return Carbon::now()->setTimeZone($operatorTimezone)->format('ymdhis').sprintf('%05d', $vend->code);
+    return Carbon::now()->setTimeZone($operatorTimezone)->format('ymdHis').sprintf('%05d', $vend->code);
   }
 
   public function getVendOrderIDBasedOnDate(Vend $vend, $date)
@@ -22,7 +22,7 @@ class RunningNumberService
     if($vend->operator) {
         $operatorTimezone = $vend->operator->timezone;
     }
-    return Carbon::parse($date)->setTimeZone($operatorTimezone)->format('ymdhis').sprintf('%05d', $vend->code);
+    return Carbon::parse($date)->setTimeZone($operatorTimezone)->format('ymdHis').sprintf('%05d', $vend->code);
   }
 
   public function getCustomerRunningCode($operatorID = null)

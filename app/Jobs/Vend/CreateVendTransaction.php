@@ -62,6 +62,7 @@ class CreateVendTransaction implements ShouldQueue
 
         $processedInput = $this->processMapping($this->processInput($input));
 
+        DB::beginTransaction();
         // exception for 2007 for debug purpose
         if($vend->code != '2007') {
             // handle case: TXN_SRC = 50, then add yym to order ID
@@ -76,6 +77,7 @@ class CreateVendTransaction implements ShouldQueue
                         ->orWhere('order_id', Carbon::now()->format('y').$processedInput['orderID']);
                 })
                 ->where('vend_id', $vend->id)
+                ->lockForUpdate()
                 ->first();
 
             // exit once found duplicated order id
@@ -103,7 +105,6 @@ class CreateVendTransaction implements ShouldQueue
             }
         }
 
-        DB::beginTransaction();
         $vendTransaction = $this->createVendTransaction($processedInput);
 
         if($processedInput['isMultiple']) {
@@ -150,7 +151,10 @@ class CreateVendTransaction implements ShouldQueue
 
     private function createVendTransaction($input)
     {
-        $vendTransaction = VendTransaction::create([
+        $vendTransaction = VendTransaction::firstOrCreate([
+            'order_id' => $input['orderID'],
+            'vend_id' => $this->vend->id,
+        ],[
             'transaction_datetime' => $this->isCurrentTime ? Carbon::now() : Carbon::parse($input['time']),
             'amount' => $input['amount'],
             'order_id' => $input['orderID'],
