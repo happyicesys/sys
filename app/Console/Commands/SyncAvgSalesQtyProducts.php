@@ -27,6 +27,6 @@ class SyncAvgSalesQtyProducts extends Command
      */
     public function handle()
     {
-        SyncAvgSalesQtyProductsJob::dispatch(Carbon::today()->toDateString());
+        SyncAvgSalesQtyProductsJob::dispatch(Carbon::yesterday()->toDateString());
     }
 }
