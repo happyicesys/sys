@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\OperatorActiveScope;
 use App\Models\Scopes\OperatorFilterScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,7 @@ class Operator extends Model
 
     protected static function booted()
     {
+        static::addGlobalScope(new OperatorActiveScope);
         static::addGlobalScope(new OperatorFilterScope);
     }
 
@@ -90,5 +92,11 @@ class Operator extends Model
     public function vends()
     {
         return $this->hasMany(Vend::class)->orderBy('code');
+    }
+
+    // scopes
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
     }
 }

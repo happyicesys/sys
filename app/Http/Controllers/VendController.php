@@ -1423,21 +1423,54 @@ class VendController extends Controller
                     ->where('is_testing', true);
             })
             ->select(
+                DB::raw('CAST(COUNT(CASE
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
+                    THEN 1
+                    ELSE NULL
+                    END) AS SIGNED) AS success_count'),
+                DB::raw('CAST(ROUND(COALESCE(SUM(CASE
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS SIGNED) AS success_amount'),
+                DB::raw('CAST(COUNT(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL) AND is_multiple = false AND delivery_platform_orders.id IS NULL
+                    THEN 1
+                    ELSE NULL
+                    END) AS SIGNED) AS single_success_count'),
+                DB::raw('CAST(ROUND(COALESCE(SUM(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL) AND is_multiple = false AND delivery_platform_orders.id IS NULL
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS SIGNED) AS single_success_amount'),
+                DB::raw('CAST(COUNT(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL) AND is_multiple = true AND delivery_platform_orders.id IS NULL
+                    THEN 1
+                    ELSE NULL
+                    END) AS SIGNED) AS multiple_success_count'),
+                DB::raw('CAST(ROUND(COALESCE(SUM(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL) AND is_multiple = true AND delivery_platform_orders.id IS NULL
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS SIGNED) AS multiple_success_amount'),
+                DB::raw('CAST(COUNT(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL) AND delivery_platform_orders.id IS NOT NULL
+                    THEN 1
+                    ELSE NULL
+                    END) AS SIGNED) AS delivery_platform_success_count'),
+                DB::raw('CAST(ROUND(COALESCE(SUM(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL) AND delivery_platform_orders.id IS NOT NULL
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS SIGNED) AS delivery_platform_success_amount'),
                 DB::raw('CAST(ROUND(COALESCE(SUM(vend_transactions.amount), 0), 2) AS SIGNED) AS amount'),
-                DB::raw('CAST(COUNT(*) AS SIGNED) AS count'),
-                DB::raw('CAST(SUM(CASE WHEN is_multiple = 1 AND delivery_platform_orders.id IS NOT NULL THEN 1 ELSE 0 END) AS SIGNED) AS multiple_count_delivery_platform'),
-                DB::raw('CAST(SUM(CASE WHEN is_multiple = 1 AND delivery_platform_orders.id IS NULL THEN 1 ELSE 0 END) AS SIGNED) AS multiple_count_machine'),
+                DB::raw('CAST(COUNT(*) AS SIGNED) AS total_count'),
+                DB::raw('CAST(SUM(CASE
+                            WHEN is_multiple = 1 AND delivery_platform_orders.id IS NOT NULL
+                            THEN 1 ELSE 0
+                            END) AS SIGNED) AS multiple_count_delivery_platform'),
+                DB::raw('CAST(SUM(CASE
+                            WHEN is_multiple = 1 AND delivery_platform_orders.id IS NULL
+                            THEN 1 ELSE 0
+                            END) AS SIGNED) AS multiple_count_machine'),
                 DB::raw('CAST(SUM(CASE
                                     WHEN vend_transactions.is_multiple = 1
                                     THEN (SELECT COUNT(*) FROM vend_transaction_items WHERE vend_transaction_items.vend_transaction_id = vend_transactions.id)
                                     ELSE 1
-                                END) AS SIGNED) AS total_qty'),
-                DB::raw('CAST(ROUND(COALESCE(SUM(CASE
-                                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
-                                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS SIGNED) AS success_amount'),
-                DB::raw('CAST(COUNT(CASE
-                                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
-                                    THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
+                                    END) AS SIGNED) AS total_qty'),
+
                 DB::raw('CAST(SUM(CASE
                                     WHEN vend_transactions.is_multiple = 1
                                     THEN (SELECT COUNT(*) FROM vend_transaction_items WHERE vend_transaction_items.vend_transaction_id = vend_transactions.id AND (vend_channel_error_code = 0 OR vend_channel_error_code = 6 OR vend_channel_error_code IS NULL))
@@ -1458,9 +1491,12 @@ class VendController extends Controller
                                     END), 0), 2) AS success_total_qty_rate'),
                 DB::raw('ROUND(COUNT(CASE
                                     WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
-                                    THEN 1 ELSE NULL END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS success_count_rate')
+                                    THEN 1
+                                    ELSE NULL
+                                    END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS success_count_rate')
             )
             ->first();
+            // dd($totals->toArray());
 
         return Inertia::render('Vend/Transaction', [
             'categories' => CategoryResource::collection(

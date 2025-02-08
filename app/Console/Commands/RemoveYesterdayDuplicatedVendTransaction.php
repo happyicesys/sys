@@ -13,7 +13,7 @@ class RemoveYesterdayDuplicatedVendTransaction extends Command
      *
      * @var string
      */
-    protected $signature = 'remove:yesterday-duplicated-vend-transaction';
+    protected $signature = 'remove:today-duplicated-vend-transaction';
 
     /**
      * The console command description.
@@ -28,8 +28,8 @@ class RemoveYesterdayDuplicatedVendTransaction extends Command
     public function handle()
     {
         // Set the date range for yesterday
-        $dateFrom = Carbon::yesterday()->startOfDay();
-        $dateTo = Carbon::yesterday()->endOfDay();
+        $dateFrom = Carbon::today()->startOfDay();
+        $dateTo = Carbon::today()->endOfDay();
 
         // Dispatch the job
         RemoveDuplicatedVendTransaction::dispatch($dateFrom, $dateTo);
