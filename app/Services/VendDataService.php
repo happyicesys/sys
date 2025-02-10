@@ -9,6 +9,7 @@ use App\Jobs\SyncAcbVmcPa;
 use App\Jobs\SyncAcbStatus;
 use App\Jobs\SyncDeliveryPlatformMenu;
 use App\Jobs\SyncIsMqttVend;
+use App\Jobs\SyncP;
 use App\Jobs\UpdateHttpLastUpdated;
 use App\Jobs\UpdateModemLastUpdated;
 use App\Jobs\Vend\CreateVendStatistics;
@@ -261,6 +262,9 @@ class VendDataService
             break;
           case 'VENDER':
             SyncVendParameter::dispatch($processedInput, $vend)->onQueue('default');
+            break;
+          case 'P':
+            SyncP::dispatch($processedInput, $vend)->onQueue('default');
             break;
           default:
             $saveVendData = true;

@@ -67,9 +67,13 @@ class DashboardController extends Controller
     private function setDefaultOperators(Request $request)
     {
         if (!$request->operators) {
-            if (auth()->user()->operator->code == 'HIPL') {
-                $operatorHIMD = Operator::where('code', 'HIMD')->first();
-                $request->merge(['operators' => [auth()->user()->operator_id, $operatorHIMD ? $operatorHIMD->id : null]]);
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [
+                    auth()->user()->operator_id,
+                    Operator::where('code', 'HIMD')->first()?->id,
+                    Operator::where('code', 'LEA')->first()?->id,
+                    Operator::where('code', 'DCVIC')->first()?->id,
+                ]]);
             }else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
             }

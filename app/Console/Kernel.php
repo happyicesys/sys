@@ -16,7 +16,17 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         // $schedule->command('inspire')->hourly();
-        $schedule->command('cache:prune-stale-tags')->hourly();
+        $schedule->command('send:channel-error-logs-email')->cron('30 16 * * *');
+        $schedule->command('delete:vend-data')->dailyAt('01:30');
+        $schedule->command('delete:vend-temp')->dailyAt('01:30');
+        $schedule->command('sync:vend-online-status')->everyMinute();
+        $schedule->command('sync:totals-json')->dailyAt('01:00');
+        $schedule->command('sync:product-unit-costs-timing')->dailyAt('00:05');
+        $schedule->command('export:vends-status')->monthly();
+        $schedule->command('store:previous-day-vend-records')->daily();
+        $schedule->command('grab:sync-all-menu')->daily();
+        $schedule->command('sync:all-cms-vend-code-vend-prefix')->dailyAt('02:00');
+        $schedule->command('copy:product-limit-from-yesterday')->daily();
     }
 
     /**
