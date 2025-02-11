@@ -216,10 +216,9 @@ class PaymentController extends Controller
       $key = $paymentGatewayLog->vend && $paymentGatewayLog->vend->private_key ? $paymentGatewayLog->vend->private_key : '123456789110138A';
       $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-      $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5);
+      // $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5);
 
-      // PublishMqtt::dispatch('CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
-      // $this->mqttService->publish('CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5);
+      PublishMqtt::dispatch('CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
 
     }else {
       PublishMqtt::dispatch('CM'.$paymentGatewayLog->vend_code, 'Error: QR code expired or payment gateway invalid')->onQueue('high');

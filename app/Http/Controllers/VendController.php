@@ -2279,10 +2279,9 @@ class VendController extends Controller
           $key = $vendChannel->vend && $vendChannel->vend->private_key ? $vendChannel->vend->private_key : '123456789110138A';
           $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-          $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+        //   $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
 
-        //   PublishMqtt::dispatch('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
-        //   $this->mqttService->publish('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+          PublishMqtt::dispatch('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
 
           return true;
     }

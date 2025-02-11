@@ -53,7 +53,9 @@ class VendParameterService
             'supportContactNum' => '87188597',
             'poweredBy' => 'Powered By Happy Ice',
 
-            'selectedPricingSource' => 'server',
+            'selectedPricingSource' => 'machine',
+
+            'enableDebugMode' => false,
         ];
 
         return $parameters;
@@ -104,6 +106,8 @@ class VendParameterService
             'poweredBy' => $parameters['poweredBy'],
 
             'selectedPricingSource' => $parameters['selectedPricingSource'],
+
+            'enableDebugMode' => $parameters['enableDebugMode'],
         ];
 
         return $settings;

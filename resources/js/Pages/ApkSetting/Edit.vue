@@ -94,6 +94,23 @@
               </MultiSelect>
             </div>
 
+            <div class="sm:col-span-3">
+              <label for="text" class="flex justify-start text-base font-medium text-gray-700">
+                Enable Debug Mode
+              </label>
+              <MultiSelect
+                v-model="form.enableDebugMode"
+                :options="booleanStrictOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
                 <div class="absolute inset-0 flex items-center" aria-hidden="true">
@@ -1168,6 +1185,9 @@ onMounted(() => {
     selectedPricingSource: pricingSourceOptions.value.find(
       option => option.id == props.apkSetting.data.settings_parameter_json.selectedPricingSource.toString()
     ),
+    enableDebugMode: booleanStrictOptions.value.find(
+      option => option.id == props.apkSetting.data.settings_parameter_json.enableDebugMode.toString()
+    ),
 
   }) : useForm(getDefaultForm())
 
@@ -1227,6 +1247,8 @@ function getDefaultForm() {
 
     selectedPricingSource: '',
 
+    enableDebugMode: '',
+
     campaignItems: [],
 
     vend_id: '',
@@ -1255,6 +1277,7 @@ function submit() {
             enableLabelPromo: form.value.enableLabelPromo?.id,
             bannerKind: form.value.bannerKind?.id,
             selectedPricingSource: form.value.selectedPricingSource?.id,
+            enableDebugMode: form.value.enableDebugMode?.id,
             headerTextStartDate: form.value.headerTextStartDate != 'Invalid date' ? form.value.headerTextStartDate : null,
             headerTextEndDate: form.value.headerTextEndDate != 'Invalid date' ? form.value.headerTextEndDate : null,
             buy1free1StartDate: form.value.buy1free1StartDate != 'Invalid date' ? form.value.buy1free1StartDate : null,
