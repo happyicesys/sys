@@ -1,10 +1,34 @@
 <?php
 
 namespace App\Services;
+
+use App\Jobs\PublishMqtt;
+use App\Jobs\PublishDispenseMqttLoop;
+use App\Models\DispenseRecord;
+use App\Models\PaymentGatewayLog;
 use Carbon\Carbon;
 
 class VendDispenseService
 {
+  public function dispense($paymentGatewayLogID, $topic, $message)
+  {
+    $this->initDispenseData($paymentGatewayLogID);
+    PublishDispenseMqttLoop::dispatch($topic, $message, 1, $paymentGatewayLogID);
+  }
+
+  public function initDispenseData($paymentGatewayLogID)
+  {
+    $paymentGatewayLog = PaymentGatewayLog::find($paymentGatewayLogID);
+
+    DispenseRecord::create([
+      'payment_gateway_log_id' => $paymentGatewayLogID,
+      'order_id' => $paymentGatewayLog->order_id,
+      'vend_id' => $paymentGatewayLog->vend_id,
+      'vend_code' => $paymentGatewayLog->vend_code,
+    ]);
+
+  }
+
   public function getSingleParam($params)
   {
     $dispenseParams = [];

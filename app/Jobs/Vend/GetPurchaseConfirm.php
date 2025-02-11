@@ -43,6 +43,13 @@ class GetPurchaseConfirm
     {
         $paymentGatewayLog = PaymentGatewayLog::where('order_id', $this->orderId)->where('status', 2)->first();
         $deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $this->orderId)->first();
+        $dispenseRecord = DispenseRecord::where('order_id', $this->orderId)->first();
+
+        if($dispenseRecord) {
+          $dispenseRecord->update([
+            'is_vm_receive_dispense_signal' => true,
+          ]);
+        }
 
         if($paymentGatewayLog or $deliveryPlatformOrder) {
           $result = [
