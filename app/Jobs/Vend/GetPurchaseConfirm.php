@@ -4,6 +4,7 @@ namespace App\Jobs\Vend;
 
 use App\Jobs\PublishMqtt;
 use App\Models\DeliveryPlatformOrder;
+use App\Models\DispenseRecord;
 use App\Models\PaymentGatewayLog;
 use App\Services\MqttService;
 use Carbon\Carbon;
