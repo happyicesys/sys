@@ -12,25 +12,27 @@ use Illuminate\Queue\SerializesModels;
 
 class PublishDispenseMqttLoop implements ShouldQueue
 {
-    public $timeout = 60; // Adjusted timeout to prevent long-running jobs
-    public $tries = 1;
-
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public $timeout = 180; // Increase timeout to allow enough time
+    public $tries = 1;
 
     protected $dispenseRecordID;
     protected $message;
     protected $qos;
     protected $topic;
+    protected $attempts;
 
     /**
      * Create a new job instance.
      */
-    public function __construct($topic, $message, $qos = 1, $dispenseRecordID)
+    public function __construct($topic, $message, $qos = 1, $dispenseRecordID, $attempts = 0)
     {
         $this->dispenseRecordID = $dispenseRecordID;
         $this->message = $message;
         $this->qos = $qos;
         $this->topic = $topic;
+        $this->attempts = $attempts;
     }
 
     /**
@@ -39,23 +41,20 @@ class PublishDispenseMqttLoop implements ShouldQueue
     public function handle(): void
     {
         $mqttService = new MqttService();
-        $maxAttempts = 5;
-        $attempt = 0;
+        $dispenseRecord = DispenseRecord::find($this->dispenseRecordID);
 
-        while ($attempt < $maxAttempts) {
-            $dispenseRecord = DispenseRecord::find($this->dispenseRecordID);
+        // Stop execution if record is missing or if the vending machine has received the dispense signal
+        if (!$dispenseRecord || $dispenseRecord->is_vm_receive_dispense_signal) {
+            return;
+        }
 
-            if (!$dispenseRecord) {
-                break; // Stop if the record is deleted or missing
-            }
+        // Publish the MQTT message
+        $mqttService->publish($this->topic, $this->message, $this->qos);
 
-            if ($dispenseRecord->is_vm_receive_dispense_signal) {
-                break; // Stop if the vending machine received the signal
-            }
-
-            $mqttService->publish($this->topic, $this->message, $this->qos);
-            $attempt++;
-            sleep(10);
+        // Retry up to 5 times with a 10-second delay between attempts
+        if ($this->attempts < 5) {
+            self::dispatch($this->topic, $this->message, $this->qos, $this->dispenseRecordID, $this->attempts + 1)
+                ->delay(now()->addSeconds(10)); // Laravel queues handle delay instead of sleep
         }
     }
 }

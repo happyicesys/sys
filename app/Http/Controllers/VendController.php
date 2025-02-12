@@ -1190,10 +1190,11 @@ class VendController extends Controller
         $imageArray = [];
         $vend = Vend::where('code', $vendCode)->first();
 
-        if($vend->apkSettings) {
-            $apkSetting = $vend->apkSettings[0];
-            if($apkSetting->images) {
-                foreach($apkSetting->images as $image) {
+        if ($vend && $vend->apkSettings->isNotEmpty()) { // Ensure vend exists and apkSettings is not empty
+            $apkSetting = $vend->apkSettings->first(); // Use first() to avoid undefined index error
+
+            if (!empty($apkSetting->images)) {
+                foreach ($apkSetting->images as $image) {
                     $imageArray[] = [
                         'name' => $image->name,
                         'ext' => pathinfo($image->full_url, PATHINFO_EXTENSION),
@@ -1213,10 +1214,11 @@ class VendController extends Controller
         $videoArray = [];
         $vend = Vend::where('code', $vendCode)->first();
 
-        if($vend->apkSettings) {
-            $apkSetting = $vend->apkSettings[0];
-            if($apkSetting->videos) {
-                foreach($apkSetting->videos as $video) {
+        if ($vend && $vend->apkSettings->isNotEmpty()) {
+            $apkSetting = $vend->apkSettings->first();
+
+            if (!empty($apkSetting->videos)) {
+                foreach ($apkSetting->videos as $video) {
                     $videoArray[] = [
                         'name' => $video->name,
                         'ext' => pathinfo($video->full_url, PATHINFO_EXTENSION),
@@ -1229,7 +1231,6 @@ class VendController extends Controller
         return response([
             'videos' => $videoArray,
         ], 200);
-
     }
 
     public function getVendCampaignImage($vendCode)
@@ -1237,10 +1238,11 @@ class VendController extends Controller
         $imageArray = [];
         $vend = Vend::where('code', $vendCode)->first();
 
-        if($vend->apkSettings) {
-            $apkSetting = $vend->apkSettings[0];
-            if($apkSetting->campaignImages) {
-                foreach($apkSetting->campaignImages as $image) {
+        if ($vend && $vend->apkSettings->isNotEmpty()) {
+            $apkSetting = $vend->apkSettings->first();
+
+            if (!empty($apkSetting->campaignImages)) {
+                foreach ($apkSetting->campaignImages as $image) {
                     $imageArray[] = [
                         'name' => $image->name,
                         'ext' => pathinfo($image->full_url, PATHINFO_EXTENSION),
@@ -1260,10 +1262,11 @@ class VendController extends Controller
         $videoArray = [];
         $vend = Vend::where('code', $vendCode)->first();
 
-        if($vend->apkSettings) {
-            $apkSetting = $vend->apkSettings[0];
-            if($apkSetting->campaignVideos) {
-                foreach($apkSetting->campaignVideos as $video) {
+        if ($vend && $vend->apkSettings->isNotEmpty()) {
+            $apkSetting = $vend->apkSettings->first();
+
+            if (!empty($apkSetting->campaignVideos)) {
+                foreach ($apkSetting->campaignVideos as $video) {
                     $videoArray[] = [
                         'name' => $video->name,
                         'ext' => pathinfo($video->full_url, PATHINFO_EXTENSION),
@@ -1276,8 +1279,8 @@ class VendController extends Controller
         return response([
             'videos' => $videoArray,
         ], 200);
-
     }
+
 
     public function getVendChannelThumnail($vendCode, $vendChannelCode)
     {
