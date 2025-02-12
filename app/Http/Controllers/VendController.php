@@ -2282,13 +2282,19 @@ class VendController extends Controller
           $key = $vendChannel->vend && $vendChannel->vend->private_key ? $vendChannel->vend->private_key : '123456789110138A';
           $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
+        $dataArr = [
+            'fid' => $vendChannel->id,
+            'result' => $result,
+            'key' => $vendChannel->vend && $vendChannel->vend->private_key ? $vendChannel->vend->private_key : '123456789110138A',
+          ];
+
         //   $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
         if($vendChannel->vend->code == '2007' or $vendChannel->vend->code == '2003' or $vendChannel->vend->code == '2009') {
-            $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+            // $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+            $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$vendChannel->vend->code, $dataArr);
         }else {
             PublishMqtt::dispatch('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
         }
-        //   PublishMqtt::dispatch('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
 
           return true;
     }

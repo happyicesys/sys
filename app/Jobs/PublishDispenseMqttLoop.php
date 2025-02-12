@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\DispenseRecord;
 use App\Services\MqttService;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -14,11 +15,11 @@ class PublishDispenseMqttLoop implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 180; // Increase timeout to allow enough time
+    public $timeout = 300; // Increase timeout to allow enough time
     public $tries = 1;
 
     protected $dispenseRecordID;
-    protected $message;
+    protected $dataArr;
     protected $qos;
     protected $topic;
     protected $attempts;
@@ -26,10 +27,10 @@ class PublishDispenseMqttLoop implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct($topic, $message, $qos = 1, $dispenseRecordID, $attempts = 0)
+    public function __construct($topic, $dataArr, $qos = 1, $dispenseRecordID, $attempts = 0)
     {
         $this->dispenseRecordID = $dispenseRecordID;
-        $this->message = $message;
+        $this->dataArr = $dataArr;
         $this->qos = $qos;
         $this->topic = $topic;
         $this->attempts = $attempts;
@@ -48,12 +49,22 @@ class PublishDispenseMqttLoop implements ShouldQueue
             return;
         }
 
+        $fid = $this->dataArr['fid'];
+        $this->dataArr['result']['receivetime'] = Carbon::now()->timestamp;
+        $result = $this->dataArr['result'];
+        $content = base64_encode(json_encode($result));
+        $contentLength = strlen($content);
+        $key = $this->dataArr['key'];
+        $md5 = md5($fid.','.$contentLength.','.$content.$key);
+
+        $message = $fid.','.$contentLength.','.$content.','.$md5;
+
         // Publish the MQTT message
-        $mqttService->publish($this->topic, $this->message, $this->qos);
+        $mqttService->publish($this->topic, $message, $this->qos);
 
         // Retry up to 5 times with a 10-second delay between attempts
         if ($this->attempts < 5) {
-            self::dispatch($this->topic, $this->message, $this->qos, $this->dispenseRecordID, $this->attempts + 1)
+            self::dispatch($this->topic, $this->dataArr, $this->qos, $this->dispenseRecordID, $this->attempts + 1)
                 ->delay(now()->addSeconds(10)); // Laravel queues handle delay instead of sleep
         }
     }

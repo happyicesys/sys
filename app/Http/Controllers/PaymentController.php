@@ -210,6 +210,11 @@ class PaymentController extends Controller
         ]);
       }
 
+      $dataArr = [
+        'fid' => $paymentGatewayLog->id,
+        'result' => $result,
+        'key' => $paymentGatewayLog->vend && $paymentGatewayLog->vend->private_key ? $paymentGatewayLog->vend->private_key : '123456789110138A',
+      ];
       $fid = $paymentGatewayLog->id;
       $content = base64_encode(json_encode($result));
       $contentLength = strlen($content);
@@ -217,7 +222,8 @@ class PaymentController extends Controller
       $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
       if($paymentGatewayLog->vend_code == '2007' or $paymentGatewayLog->vend_code == '2003' or $paymentGatewayLog->vend_code == '2009') {
-        $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5);
+        // $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5);
+        $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$paymentGatewayLog->vend_code, $dataArr);
       }else {
         PublishMqtt::dispatch('CM'.$paymentGatewayLog->vend_code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
       }

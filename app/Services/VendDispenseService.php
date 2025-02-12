@@ -10,9 +10,9 @@ use Carbon\Carbon;
 
 class VendDispenseService
 {
-  public function dispense($paymentGatewayLogID, $topic, $message)
+  public function dispense($paymentGatewayLogID, $topic, $dataArr)
   {
-    PublishDispenseMqttLoop::dispatch($topic, $message, 1, $this->initDispenseData($paymentGatewayLogID));
+    PublishDispenseMqttLoop::dispatch($topic, $dataArr, 1, $this->initDispenseData($paymentGatewayLogID));
   }
 
   public function initDispenseData($paymentGatewayLogID)
