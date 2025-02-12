@@ -12,20 +12,21 @@ class VendDispenseService
 {
   public function dispense($paymentGatewayLogID, $topic, $message)
   {
-    $this->initDispenseData($paymentGatewayLogID);
-    PublishDispenseMqttLoop::dispatch($topic, $message, 1, $paymentGatewayLogID);
+    PublishDispenseMqttLoop::dispatch($topic, $message, 1, $this->initDispenseData($paymentGatewayLogID));
   }
 
   public function initDispenseData($paymentGatewayLogID)
   {
     $paymentGatewayLog = PaymentGatewayLog::find($paymentGatewayLogID);
 
-    DispenseRecord::create([
+    $dispenseRecord = DispenseRecord::create([
       'payment_gateway_log_id' => $paymentGatewayLogID,
       'order_id' => $paymentGatewayLog->order_id,
       'vend_id' => $paymentGatewayLog->vend_id,
       'vend_code' => $paymentGatewayLog->vend_code,
     ]);
+
+    return $dispenseRecord->id;
 
   }
 
