@@ -2283,7 +2283,7 @@ class VendController extends Controller
           $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
         //   $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
-        if($vendChannel->vend->code == '2007' or $vendChannel->vend->code == '2003') {
+        if($vendChannel->vend->code == '2007' or $vendChannel->vend->code == '2003' or $vendChannel->vend->code == '2009') {
             $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
         }else {
             PublishMqtt::dispatch('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
