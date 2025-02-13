@@ -35,15 +35,14 @@ class OperatorApkSettingScope implements Scope
             if ($vendIds) {
                 // Ensure filtering by vends the user is associated with
                 $builder->whereHas('vends', function ($query) use ($vendIds) {
-                    $query->whereIn('id', $vendIds);
+                    $query->whereIn('vends.id', $vendIds);
                 });
-
                 // Get customers linked to those vends
                 $customerIDs = Vend::whereIn('id', $vendIds)->pluck('customer_id')->toArray();
 
                 if ($customerIDs) {
                     $builder->whereHas('vends.customer', function ($query) use ($customerIDs) {
-                        $query->whereIn('id', $customerIDs);
+                        $query->whereIn('customers.id', $customerIDs);
                     });
                 }
             }
