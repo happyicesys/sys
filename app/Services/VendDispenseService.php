@@ -7,6 +7,7 @@ use App\Jobs\PublishDispenseMqttLoop;
 use App\Models\DispenseRecord;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\PaymentGatewayLog;
+use App\Models\Vend;
 use Carbon\Carbon;
 
 class VendDispenseService
