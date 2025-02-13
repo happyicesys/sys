@@ -11,13 +11,12 @@ class DispenseRecord extends Model
 
     protected $fillable = [
         'is_vm_receive_dispense_signal',
+        'delivery_platform_order_id',
         'order_id',
         'payment_gateway_log_id',
-        'retries',
+        'type',
         'vend_code',
         'vend_id',
-        'vend_transaction_id',
-        'vend_transaction_time',
     ];
 
     protected $casts = [

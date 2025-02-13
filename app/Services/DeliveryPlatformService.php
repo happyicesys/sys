@@ -191,6 +191,7 @@ class DeliveryPlatformService
     // );
 
     $this->syncMqtt(
+      $deliveryPlatformOrder->id,
       $deliveryPlatformOrder->deliveryProductMappingVend->vend,
       $orderID,
       $dispenseDataset
@@ -221,7 +222,7 @@ class DeliveryPlatformService
     return false;
   }
 
-  public function syncMqtt($vend, $fid, $input)
+  public function syncMqtt($deliveryPlatformOrderID, $vend, $fid, $input)
   {
     $fid = $fid;
     $content = base64_encode(json_encode($input));
@@ -229,7 +230,17 @@ class DeliveryPlatformService
     $key = $vend && $vend->private_key ? $vend->private_key : '123456789110138A';
     $md5 = md5($fid.','.$contentLength.','.$content.$key);
 
-    PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
+    $dataArr = [
+      'fid' => $fid,
+      'result' => $input,
+      'key' => $vend && $vend->private_key ? $vend->private_key : '123456789110138A',
+    ];
+
+    $this->vendDispenseService->dispense($deliveryPlatformOrderID, 'CM'.$vend->code, $dataArr, 'delivery-platform');
+
+    // $this->vendDispenseService->dispense($fid, 'CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
+
+    // PublishMqtt::dispatch('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
     // $this->publish('CM'.$vend->code, $fid.','.$contentLength.','.$content.','.$md5);
   }
 

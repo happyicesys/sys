@@ -10,21 +10,33 @@ use Carbon\Carbon;
 
 class VendDispenseService
 {
-  public function dispense($paymentGatewayLogID, $topic, $dataArr)
+  public function dispense($refID, $topic, $dataArr, $type = 'payment-gateway')
   {
-    PublishDispenseMqttLoop::dispatch($topic, $dataArr, 1, $this->initDispenseData($paymentGatewayLogID));
+    PublishDispenseMqttLoop::dispatch($topic, $dataArr, 1, $this->initDispenseData($refID, $type));
   }
 
-  public function initDispenseData($paymentGatewayLogID)
+  public function initDispenseData($refID, $type)
   {
-    $paymentGatewayLog = PaymentGatewayLog::find($paymentGatewayLogID);
+    if($type == 'payment-gateway') {
+      $paymentGatewayLog = PaymentGatewayLog::find($refID);
 
-    $dispenseRecord = DispenseRecord::create([
-      'payment_gateway_log_id' => $paymentGatewayLogID,
-      'order_id' => $paymentGatewayLog->order_id,
-      'vend_id' => $paymentGatewayLog->vend_id,
-      'vend_code' => $paymentGatewayLog->vend_code,
-    ]);
+      $dispenseRecord = DispenseRecord::create([
+        'payment_gateway_log_id' => $refID,
+        'order_id' => $paymentGatewayLog->order_id,
+        'vend_id' => $paymentGatewayLog->vend_id,
+        'vend_code' => $paymentGatewayLog->vend_code,
+      ]);
+    } else if($type == 'delivery-platform') {
+      $deliveryPlatformOrder = DeliveryPlatformOrder::find($refID);
+      $vendID = Vend::where('code', $deliveryPlatformOrder->vend_code)->first()?->id;
+
+      $dispenseRecord = DispenseRecord::create([
+        'delivery_platform_order_id' => $refID,
+        'order_id' => $deliveryPlatformOrder->vend_transaction_order_id,
+        'vend_id' => $vendID,
+        'vend_code' => $deliveryPlatformOrder->vend_code,
+      ]);
+    }
 
     return $dispenseRecord->id;
 
