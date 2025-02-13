@@ -14,6 +14,11 @@ class ApkSetting extends Model
     const FILE_TYPE_CAMPAIGN_IMAGE = 3;
     const FILE_TYPE_CAMPAIGN_VIDEO = 4;
 
+    protected static function booted()
+    {
+        static::addGlobalScope(new OperatorApkSettingScope);
+    }
+
     protected $fillable = [
         'name',
         'remarks',
