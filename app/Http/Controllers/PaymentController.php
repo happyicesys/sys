@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\PublishMqtt;
+use App\Jobs\RefundOmiseJob;
 use App\Models\Country;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
@@ -15,6 +16,7 @@ use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use App\Services\VendDataService;
 use App\Services\VendDispenseService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -133,6 +135,18 @@ class PaymentController extends Controller
     ]);
 
     if($updatedPaymentGatewayLog and $status === PaymentGatewayLog::STATUS_APPROVE) {
+
+      if ($paymentGatewayLog->created_at->diffInSeconds(Carbon::now()) > 210) {
+        switch ($company) {
+            case 'midtrans':
+                break;
+            case 'omise':
+                RefundOmiseJob::dispatch($paymentGatewayLog->order_id);
+                break;
+        }
+        return;
+      }
+
       $this->processPayment($updatedPaymentGatewayLog);
     }
   }

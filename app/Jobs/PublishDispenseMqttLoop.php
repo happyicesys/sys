@@ -63,7 +63,7 @@ class PublishDispenseMqttLoop implements ShouldQueue
         $mqttService->publish($this->topic, $message, $this->qos);
 
         // Retry up to 5 times with a 10-second delay between attempts
-        if ($this->attempts < 5) {
+        if ($this->attempts < 6) {
             self::dispatch($this->topic, $this->dataArr, $this->qos, $this->dispenseRecordID, $this->attempts + 1)
                 ->delay(now()->addSeconds(10)); // Laravel queues handle delay instead of sleep
         }
