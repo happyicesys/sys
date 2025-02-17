@@ -14,6 +14,9 @@ class UpdateMqttLastUpdated implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $tries = 0;
+    public $timeout = 2;
+
     protected $vend;
     /**
      * Create a new job instance.

@@ -16,6 +16,9 @@ class SaveVendChannelsJson implements ShouldQueue
     //
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $tries = 0;
+    public $timeout = 5;
+
     protected $originalVendChannelData;
     protected $vendId;
     /**

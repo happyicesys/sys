@@ -14,6 +14,9 @@ class UpdateModemLastUpdated implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $tries = 0;
+    public $timeout = 2;
+
     protected $modemUnit;
     /**
      * Create a new job instance.
