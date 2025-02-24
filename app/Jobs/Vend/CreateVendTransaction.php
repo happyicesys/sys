@@ -22,6 +22,7 @@ use App\Jobs\SendDataToDcvend;
 use App\Jobs\Vend\SyncUnitCostJson;
 use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
+use App\Services\VendTransactionService;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Bus\Queueable;
@@ -38,6 +39,7 @@ class CreateVendTransaction implements ShouldQueue
     protected $input;
     protected $vend;
     protected $isCurrentTime;
+    protected $vendTransactionService;
     /**
      * Create a new job instance.
      *
@@ -48,6 +50,7 @@ class CreateVendTransaction implements ShouldQueue
         $this->input = $input;
         $this->vend = $vend;
         $this->isCurrentTime = $isCurrentTime;
+        $this->vendTransactionService = new VendTransactionService();
     }
 
     /**
@@ -59,94 +62,87 @@ class CreateVendTransaction implements ShouldQueue
     {
         $input = $this->input;
         $vend = $this->vend;
-
         $processedInput = $this->processMapping($this->processInput($input));
 
-        // exception for 2007 for debug purpose
-        if($vend->code != '2007') {
-            // handle case: TXN_SRC = 50, then add yym to order ID
-            if($processedInput['interfaceType'] == '50') {
-                $processedInput['orderID'] = Carbon::now()->format('y') . (Carbon::now()->format('m'))[0] . $processedInput['orderID'];
-            }
-
-            // check duplicated orderid
-            $duplicatedVendTransaction = VendTransaction::query()
-                ->where(function($query) use ($processedInput) {
-                    $query->where('order_id', $processedInput['orderID'])
-                        ->orWhere('order_id', Carbon::now()->format('y').$processedInput['orderID']);
-                })
-                ->where('vend_id', $vend->id)
-                ->first();
-
-            // exit once found duplicated order id
-            if($duplicatedVendTransaction) {
-                // log the replicated and ori in vend data
-                VendData::create([
-                    'value' => $input,
-                    'processed' => $duplicatedVendTransaction->vend_transaction_json,
-                    'is_keep' => true,
-                    'vend_code' => $vend->code,
-                    'type' => 'duplicated_order_id',
-                ]);
-                return;
-            }
-
-            // 240709 case, delete those dun have shipment info when truncate 2 char infront, still duplicated order id
-            $shortVersionCreatedBefore = VendTransaction::query()
-                // truncate 2 char infront of orderID
-                ->where('order_id', substr($processedInput['orderID'], 2))
-                ->where('vend_id', $vend->id)
-                ->first();
-
-            if($shortVersionCreatedBefore) {
-                $shortVersionCreatedBefore->delete();
-            }
+        if ($vend->code == '2007') {
+            return;
         }
 
-        DB::beginTransaction();
-        $vendTransaction = $this->createVendTransaction($processedInput);
+        DB::statement("SET innodb_lock_wait_timeout = 5"); // Prevent long waits
 
-        if($processedInput['isMultiple']) {
-            foreach($processedInput['children'] as $child) {
-                $this->createVendTransactionItem($vendTransaction, $child);
+        try {
+            // 🔥 Store the result of the transaction
+            $vendTransaction = DB::transaction(function () use ($processedInput, $vend, $input) {
+                if ($processedInput['interfaceType'] == '50') {
+                    $processedInput['orderID'] = Carbon::now()->format('y') . (Carbon::now()->format('m'))[0] . $processedInput['orderID'];
+                }
+
+                $duplicatedVendTransaction = VendTransaction::query()
+                    ->where(function ($query) use ($processedInput) {
+                        $query->where('order_id', $processedInput['orderID'])
+                              ->orWhere('order_id', Carbon::now()->format('y') . (Carbon::now()->format('m'))[0] . $processedInput['orderID']);
+                    })
+                    ->where('vend_id', $vend->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($duplicatedVendTransaction) {
+                    VendData::create([
+                        'value' => $input,
+                        'processed' => $duplicatedVendTransaction->vend_transaction_json,
+                        'is_keep' => true,
+                        'vend_code' => $vend->code,
+                        'type' => 'duplicated_order_id',
+                    ]);
+                    return null; // Exit and return null if duplicate exists
+                }
+
+                $shortVersionCreatedBefore = VendTransaction::query()
+                    ->where('order_id', substr($processedInput['orderID'], 2))
+                    ->where('vend_id', $vend->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($shortVersionCreatedBefore) {
+                    $shortVersionCreatedBefore->delete();
+                }
+
+                // ✅ Create and return vend transaction
+                return $this->createVendTransaction($processedInput);
+            });
+
+            if (!$vendTransaction) {
+                return; // Prevent further execution if duplicate order ID
             }
-            $vendTransaction->update([
-                'vend_transaction_items_json' => $vendTransaction->vendTransactionItems()->with(['product', 'vendChannelError'])->get(),
-            ]);
+        } catch (\Exception $e) {
+            if ($e->getCode() == 1205) { // MySQL Lock Timeout error
+                $this->release(5); // Retry after 5 seconds
+            }
+            \Log::error("Error creating vend transaction: " . $e->getMessage());
+            return;
         }
 
-        // store vend transaction id if found delivery platform order
-        if($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
-            $deliveryPlatformOrder->update([
-                'vend_transaction_id' => $vendTransaction->id,
-                'status' => DeliveryPlatformOrder::STATUS_DISPENSED > $deliveryPlatformOrder->status ? DeliveryPlatformOrder::STATUS_DISPENSED : $deliveryPlatformOrder->status,
-                'status_json' => array_merge_recursive($deliveryPlatformOrder->status_json, [
-                    'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DISPENSED],
-                    'datetime' => Carbon::now()->toDateTimeString(),
-                ]),
-                'is_verified' => true,
-                // 'response_history_json' => $vendTransaction->vend_transaction_json,
-            ]);
-        }
-        DB::commit();
-
-        if(!$processedInput['isSuccessful']) {
+        // ✅ Use $vendTransaction safely outside the transaction
+        if (!$processedInput['isSuccessful']) {
             HandleFailedVendTransaction::dispatch($vendTransaction)->onQueue('default');
         }
 
         SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
-        if($vendTransaction) {
+
+        if ($vendTransaction) {
             SyncUnitCostJson::dispatch($vendTransaction)->onQueue('default');
         }
 
-        if($processedInput['vendChannelErrorID']) {
+        if ($processedInput['vendChannelErrorID']) {
             SyncVendChannelErrorLog::dispatch($vend, $processedInput['vendChannelCode'], $processedInput['errorCode'], $vendTransaction->id)->onQueue('default');
         }
 
-        if($processedInput['dcvendUserID']) {
+        if ($processedInput['dcvendUserID']) {
             SendDataToDcvend::dispatch($vendTransaction->id, $processedInput['dcvendUserID'])->onQueue('default');
         }
     }
+
+
 
     private function createVendTransaction($input)
     {
