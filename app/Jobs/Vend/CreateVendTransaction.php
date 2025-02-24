@@ -64,10 +64,6 @@ class CreateVendTransaction implements ShouldQueue
         $vend = $this->vend;
         $processedInput = $this->processMapping($this->processInput($input));
 
-        if ($vend->code == '2007') {
-            return;
-        }
-
         DB::statement("SET innodb_lock_wait_timeout = 5"); // Prevent long waits
 
         try {
@@ -77,34 +73,36 @@ class CreateVendTransaction implements ShouldQueue
                     $processedInput['orderID'] = Carbon::now()->format('y') . (Carbon::now()->format('m'))[0] . $processedInput['orderID'];
                 }
 
-                $duplicatedVendTransaction = VendTransaction::query()
-                    ->where(function ($query) use ($processedInput) {
-                        $query->where('order_id', $processedInput['orderID'])
-                              ->orWhere('order_id', Carbon::now()->format('y') . (Carbon::now()->format('m'))[0] . $processedInput['orderID']);
-                    })
-                    ->where('vend_id', $vend->id)
-                    ->lockForUpdate()
-                    ->first();
+                if ($vend->code != '2007') {
+                    $duplicatedVendTransaction = VendTransaction::query()
+                        ->where(function ($query) use ($processedInput) {
+                            $query->where('order_id', $processedInput['orderID'])
+                                ->orWhere('order_id', Carbon::now()->format('y') . (Carbon::now()->format('m'))[0] . $processedInput['orderID']);
+                        })
+                        ->where('vend_id', $vend->id)
+                        ->lockForUpdate()
+                        ->first();
 
-                if ($duplicatedVendTransaction) {
-                    VendData::create([
-                        'value' => $input,
-                        'processed' => $duplicatedVendTransaction->vend_transaction_json,
-                        'is_keep' => true,
-                        'vend_code' => $vend->code,
-                        'type' => 'duplicated_order_id',
-                    ]);
-                    return null; // Exit and return null if duplicate exists
-                }
+                    if ($duplicatedVendTransaction) {
+                        VendData::create([
+                            'value' => $input,
+                            'processed' => $duplicatedVendTransaction->vend_transaction_json,
+                            'is_keep' => true,
+                            'vend_code' => $vend->code,
+                            'type' => 'duplicated_order_id',
+                        ]);
+                        return null; // Exit and return null if duplicate exists
+                    }
 
-                $shortVersionCreatedBefore = VendTransaction::query()
-                    ->where('order_id', substr($processedInput['orderID'], 2))
-                    ->where('vend_id', $vend->id)
-                    ->lockForUpdate()
-                    ->first();
+                    $shortVersionCreatedBefore = VendTransaction::query()
+                        ->where('order_id', substr($processedInput['orderID'], 2))
+                        ->where('vend_id', $vend->id)
+                        ->lockForUpdate()
+                        ->first();
 
-                if ($shortVersionCreatedBefore) {
-                    $shortVersionCreatedBefore->delete();
+                    if ($shortVersionCreatedBefore) {
+                        $shortVersionCreatedBefore->delete();
+                    }
                 }
 
                 // ✅ Create and return vend transaction
