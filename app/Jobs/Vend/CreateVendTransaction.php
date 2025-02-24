@@ -128,6 +128,13 @@ class CreateVendTransaction implements ShouldQueue
         SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
 
         if ($vendTransaction) {
+// dd(sizeof($processedInput['children']), $processedInput['children']);
+            if(sizeof($processedInput['children']) > 1) {
+                foreach ($processedInput['children'] as $child) {
+                    $this->createVendTransactionItem($vendTransaction, $child);
+                }
+            }
+
             SyncUnitCostJson::dispatch($vendTransaction)->onQueue('default');
         }
 
@@ -195,8 +202,6 @@ class CreateVendTransaction implements ShouldQueue
             'vend_channel_error_id' => $input['vendChannelErrorID'],
             'vend_transaction_id' => $vendTransaction->id,
         ]);
-
-        return $vendTransactionItem;
     }
 
     private function createVendChannel($vendID, $channelCode)
