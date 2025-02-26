@@ -2263,7 +2263,7 @@ class VendController extends Controller
             'productCode' =>  0,
             'productName' => '',
             'channelCode' => $vendChannel->code,
-            'paymentMethod' => 10,
+            'paymentMethod' => 11,
           ]);
 
           $paymentGatewayLog = PaymentGatewayLog::create([
@@ -2276,25 +2276,13 @@ class VendController extends Controller
             'status' => 2,
           ]);
 
-        //   $fid = $vendChannel->id;
-        //   $content = base64_encode(json_encode($result));
-        //   $contentLength = strlen($content);
-        //   $key = $vendChannel->vend && $vendChannel->vend->private_key ? $vendChannel->vend->private_key : '123456789110138A';
-        //   $md5 = md5($fid.','.$contentLength.','.$content.$key);
-
         $dataArr = [
             'fid' => $vendChannel->id,
             'result' => $result,
             'key' => $vendChannel->vend && $vendChannel->vend->private_key ? $vendChannel->vend->private_key : '123456789110138A',
           ];
 
-        //   $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
-        // if($vendChannel->vend->code == '2007' or $vendChannel->vend->code == '2003' or $vendChannel->vend->code == '2009') {
-            // $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
             $this->vendDispenseService->dispense($paymentGatewayLog->id, 'CM'.$vendChannel->vend->code, $dataArr);
-        // }else {
-        //     PublishMqtt::dispatch('CM'.$vendChannel->vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
-        // }
 
           return true;
     }
