@@ -184,6 +184,7 @@ class PaymentGatewayService
                 'operator_payment_gateway_id' => $operatorPaymentGateway->id,
                 'payment_gateway_id' => $operatorPaymentGateway->paymentGateway->id,
                 'status' => PaymentGatewayLog::STATUS_PENDING,
+                'txn_src' => $params['metadata']['txn_src'] ?? null,
                 'vend_channel_code' => $params['request']['SId'] ?? null,
                 'vend_channel_id' => isset($params['request']['SId']) &&
                 $vend->vendChannels()->where('code', $params['request']['SId'])->first() ?

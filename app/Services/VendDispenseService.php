@@ -57,6 +57,7 @@ class VendDispenseService
       'receivetime' => Carbon::now()->timestamp,
       'action' => 'TRADE',
       'mid' => isset($params['vendCode']) ? (int)$params['vendCode'] : null,
+      'txn_src' => isset($params['txn_src']) ? $params['txn_src'] : 0,
       'shipment_info' => [
         [
         'port_type' => 0,
@@ -86,6 +87,7 @@ class VendDispenseService
       'receivetime' => Carbon::now()->timestamp,
       'action' => 'TRADE',
       'mid' => isset($params['vendCode']) ? (int)$params['vendCode'] : null,
+      'txn_src' => isset($params['txn_src']) ? $params['txn_src'] : 0,
       'shipment_info' => $this->getChannelsParam($params['channels']),
     ];
 

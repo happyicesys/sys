@@ -449,6 +449,7 @@ class DeliveryPlatformService
 
     switch($deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
+        // dd($deliveryPlatformOperator->toArray());
         $scope = $deliveryPlatformOperator->externalOauthToken->scopes;
         if($scope === 'mart.partner_api') {
           $response = $this->model->listMartCategories();

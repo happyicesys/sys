@@ -70,6 +70,7 @@ class GetPaymentGatewayQR
                     'cust_id' => $vend->customer ? $vend->customer->refID : null,
                     'cust_name' => $vend->customer && $vend->customer->person_id ?
                             $vend->customer->virtual_customer_prefix.'-'.$vend->customer->virtual_customer_code . ' ' . $vend->customer->name : null,
+                    'txn_src' => isset($input['txn_src']) ? $input['txn_src'] : null,
                 ],
             ]);
 

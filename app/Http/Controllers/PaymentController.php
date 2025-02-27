@@ -210,6 +210,7 @@ class PaymentController extends Controller
           'vendCode' => $paymentGatewayLog->vend_code,
           'channels' => $paymentGatewayLog->vend_channels_json,
           'paymentMethod' => $paymentMethod,
+          'txn_src' => $paymentGatewayLog->txn_src,
         ]);
       }else {
         $result = $this->vendDispenseService->getSingleParam([
@@ -221,6 +222,7 @@ class PaymentController extends Controller
           'productName' => $paymentGatewayLog->vendChannel && $paymentGatewayLog->vendChannel->product()->exists() ? $paymentGatewayLog->vendChannel->product->name : null,
           'channelCode' =>  $paymentGatewayLog->vendChannel ? $paymentGatewayLog->vend_channel_code : null,
           'paymentMethod' => $paymentMethod,
+          'txn_src' => $paymentGatewayLog->txn_src,
         ]);
       }
 

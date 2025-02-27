@@ -26,6 +26,7 @@ class PaymentGatewayLog extends Model
         'payment_gateway_id',
         'ref_id',
         'status',
+        'txn_src',
         'vend_channel_code',
         'vend_channel_id',
         'vend_channels_json',
