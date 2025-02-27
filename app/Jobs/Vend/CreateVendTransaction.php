@@ -112,6 +112,21 @@ class CreateVendTransaction implements ShouldQueue
             if (!$vendTransaction) {
                 return; // Prevent further execution if duplicate order ID
             }
+
+
+            // store vend transaction id if found delivery platform order
+            if($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
+                $deliveryPlatformOrder->update([
+                    'vend_transaction_id' => $vendTransaction->id,
+                    'status' => DeliveryPlatformOrder::STATUS_DISPENSED > $deliveryPlatformOrder->status ? DeliveryPlatformOrder::STATUS_DISPENSED : $deliveryPlatformOrder->status,
+                    'status_json' => array_merge_recursive($deliveryPlatformOrder->status_json, [
+                        'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DISPENSED],
+                        'datetime' => Carbon::now()->toDateTimeString(),
+                    ]),
+                    'is_verified' => true,
+                ]);
+            }
+
         } catch (\Exception $e) {
             if ($e->getCode() == 1205) { // MySQL Lock Timeout error
                 $this->release(5); // Retry after 5 seconds
