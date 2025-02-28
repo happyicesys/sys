@@ -52,6 +52,17 @@ class GetPurchaseConfirm
           ]);
         }
 
+        // if($deliveryPlatformOrder) {
+        //   $deliveryPlatformOrder->update([
+        //       'status' => DeliveryPlatformOrder::STATUS_DISPENSED > $deliveryPlatformOrder->status ? DeliveryPlatformOrder::STATUS_DISPENSED : $deliveryPlatformOrder->status,
+        //       'status_json' => array_merge_recursive($deliveryPlatformOrder->status_json, [
+        //           'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DISPENSED],
+        //           'datetime' => Carbon::now()->toDateTimeString(),
+        //       ]),
+        //       'is_verified' => true,
+        //   ]);
+        // }
+
         if($paymentGatewayLog or $deliveryPlatformOrder) {
           $result = [
             'Type' => 'CONFIRM',

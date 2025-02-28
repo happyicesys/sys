@@ -113,7 +113,6 @@ class CreateVendTransaction implements ShouldQueue
                 return; // Prevent further execution if duplicate order ID
             }
 
-
             // store vend transaction id if found delivery platform order
             if($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
                 $deliveryPlatformOrder->update([
@@ -126,6 +125,12 @@ class CreateVendTransaction implements ShouldQueue
                     'is_verified' => true,
                 ]);
             }
+
+            // if($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
+            //     $deliveryPlatformOrder->update([
+            //         'vend_transaction_id' => $vendTransaction->id,
+            //     ]);
+            // }
 
         } catch (\Exception $e) {
             if ($e->getCode() == 1205) { // MySQL Lock Timeout error

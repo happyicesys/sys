@@ -134,6 +134,11 @@ class DeliveryPlatformService
 
     $dispenseItems = $deliveryPlatformOrder->orderItemVendChannels()->get();
     $orderID = $this->runningNumberService->getVendOrderID($deliveryPlatformOrder->deliveryProductMappingVend->vend);
+
+    // if($deliveryPlatformOrder->vend_transaction_order_id) {
+    //   return;
+    // }
+
     $deliveryPlatformOrder->update([
       'vend_transaction_order_id' => $orderID,
     ]);
