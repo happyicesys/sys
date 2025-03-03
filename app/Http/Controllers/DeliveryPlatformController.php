@@ -192,8 +192,8 @@ class DeliveryPlatformController extends Controller
             ], 404));
         }
 
-        // if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
-        if(!$deliveryPlatformOrder->is_verified) {
+        if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
+        // if(!$deliveryPlatformOrder->is_verified) {
             if($dispenseSearch) {
                 $deliveryPlatformOrder->update([
                     'driver_phone_number' => $driverPhoneNumber,
