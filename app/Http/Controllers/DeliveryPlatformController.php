@@ -193,7 +193,7 @@ class DeliveryPlatformController extends Controller
         }
 
         // if(!$deliveryPlatformOrder->is_verified or $deliveryPlatformOrder->deliveryPlatformOperator->type === 'sandbox') {
-            if(!$deliveryPlatformOrder->is_verified) {
+        if(!$deliveryPlatformOrder->is_verified) {
             if($dispenseSearch) {
                 $deliveryPlatformOrder->update([
                     'driver_phone_number' => $driverPhoneNumber,
@@ -219,6 +219,8 @@ class DeliveryPlatformController extends Controller
         } else {
             if($deliveryPlatformOrder->vendTransaction) {
                 abort(response($deliveryPlatformOrder->vendTransaction->vend_transaction_json, 405));
+            }else {
+                abort(response([], 405));
             }
         }
     }

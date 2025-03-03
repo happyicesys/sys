@@ -122,7 +122,6 @@ class CreateVendTransaction implements ShouldQueue
                         'status' => DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DISPENSED],
                         'datetime' => Carbon::now()->toDateTimeString(),
                     ]),
-                    'is_verified' => true,
                 ]);
             }
 

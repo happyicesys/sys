@@ -233,7 +233,7 @@ class VendDataService
             break;
           case 'CONFIRM':
             if(isset($processedInput['orderid'])) {
-              GetPurchaseConfirm::dispatch($processedInput['orderid'], $vend)->onQueue('high');
+              GetPurchaseConfirm::dispatchSync($processedInput['orderid'], $vend);
             }
             break;
           case 'PWRON':
