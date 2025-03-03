@@ -121,6 +121,7 @@ function statusClass(status) {
       statusClass = 'bg-yellow-400 text-gray-800'
       break;
     case 'Requested':
+    case 'Dispensing':
     case 'Dispensed':
       statusClass = 'bg-indigo-500 text-white'
       break;
