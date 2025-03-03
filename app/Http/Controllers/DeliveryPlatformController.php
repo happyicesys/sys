@@ -219,9 +219,10 @@ class DeliveryPlatformController extends Controller
         } else {
             if($deliveryPlatformOrder->vendTransaction) {
                 abort(response($deliveryPlatformOrder->vendTransaction->vend_transaction_json, 405));
-            }else {
-                abort(response([], 405));
             }
+            // else {
+            //     abort(response([], 405));
+            // }
         }
     }
 
