@@ -593,12 +593,13 @@ function statusClass(deliveryPlatformOrder) {
       break;
     case 5:
     case 6:
+    case 7:
       statusClass = 'bg-indigo-500 text-white'
       break;
-    case 7:
+    case 8:
       statusClass = 'bg-yellow-400 text-gray-800'
       break;
-    case 8:
+    case 9:
       statusClass = 'bg-green-400 text-gray-800'
       break;
     case 98:
