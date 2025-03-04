@@ -62,49 +62,15 @@ class VendDataService
                     break;
                 case 'p':
                     if(isset($data)) {
-                        if(strpos($data, ' ')) {
-                            $data = str_replace(' ', '+', $data);
-                        }
-
-                        if(substr($data, -1) == '!') {
-                            $decoded = base64_decode(substr_replace($data, "=", -1), true);
-                        } else {
-                            $decoded = base64_decode($data, true);
-                        }
-
-                        // Validate Base64 Decoding
-                        // if ($decoded === false || !mb_check_encoding($decoded, 'UTF-8')) {
-                        //   dd('here1');
-                        //     \Log::error("Base64 decoding failed or invalid UTF-8 detected: " . $data);
-                        //     return []; // Prevent further processing
-                        // }
-
-                        // Try to decode JSON safely
-                        $jsonData = json_decode($decoded, true);
-
-                        // If JSON is invalid, force UTF-8 conversion and retry
-                        if (json_last_error() !== JSON_ERROR_NONE) {
-                            \Log::warning("JSON decode failed: " . json_last_error_msg() . " | Trying to sanitize...");
-
-                            // Remove non-UTF-8 characters
-                            $decoded = mb_convert_encoding($decoded, 'UTF-8', 'UTF-8');
-                            $jsonData = json_decode($decoded, true);
-                        }
-
-                        // If JSON is still invalid, remove `goods_name` field
-                        if (json_last_error() !== JSON_ERROR_NONE && strpos($decoded, 'goods_name') !== false) {
-                            \Log::warning("Ignoring goods_name due to encoding issue...");
-                            $decoded = preg_replace('/"goods_name"\s*:\s*"([^"]+)",?/', '', $decoded);
-                            $jsonData = json_decode($decoded, true);
-                        }
-
-                        // Ensure JSON is valid before continuing
-                        if (json_last_error() !== JSON_ERROR_NONE) {
-                            \Log::error("Final JSON decode failed: " . json_last_error_msg());
-                            return [];
-                        }
-
-                        $processedDataArr['content'] = json_encode($jsonData, JSON_UNESCAPED_UNICODE);
+                      if(strpos($data, ' ')) {
+                        $data = str_replace(' ', '+', $data);
+                      }
+                      if(substr($data, -1) == '!') {
+                          $data = base64_decode(substr_replace($data,"=",-1));
+                      }else {
+                          $data = base64_decode($data);
+                      }
+                        $processedDataArr['content'] = $data;
                     }
                     break;
                 default:
