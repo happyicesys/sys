@@ -70,6 +70,12 @@ class TagController extends Controller
     public function delete($tagId)
     {
         $tag = Tag::findOrFail($tagId);
+
+        if($tag->tagBindings) {
+            foreach($tag->tagBindings as $tagBinding) {
+                $tagBinding->delete();
+            }
+        }
         $tag->delete();
 
         return redirect()->back();

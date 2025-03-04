@@ -31,8 +31,9 @@ class VendDataController extends Controller
         $ipAddress = $request->ip();
         $connectionType = 'http';
         $standardizedVendData = $this->vendDataService->standardizedVendData($input, $connectionType);
+        // dd($standardizedVendData);
         $decodedData = $this->vendDataService->decodeVendData($standardizedVendData);
-
+// dd($decodedData);
         $response = $this->vendDataService->processVendData($standardizedVendData, $decodedData, $ipAddress, $connectionType);
 
         return $response;
