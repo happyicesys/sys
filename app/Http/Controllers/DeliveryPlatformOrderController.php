@@ -44,6 +44,19 @@ class DeliveryPlatformOrderController extends Controller
             'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
         ]);
 
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [
+                    auth()->user()->operator_id,
+                    Operator::where('code', 'HIMD')->first()?->id,
+                    Operator::where('code', 'LEA')->first()?->id,
+                    Operator::where('code', 'DCVIC')->first()?->id,
+                ]]);
+            }else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+
         $totals = DeliveryPlatformOrder::query()
             ->leftJoin('delivery_product_mapping_vend', 'delivery_platform_orders.delivery_product_mapping_vend_id', '=', 'delivery_product_mapping_vend.id')
             ->filterIndex($request)
@@ -86,7 +99,7 @@ class DeliveryPlatformOrderController extends Controller
                 })
             ],
             'operatorOptions' => OperatorResource::collection(
-                Operator::all()
+                Operator::orderBy('name')->get()
             ),
             'totals' => $totals,
         ]);

@@ -38,7 +38,7 @@
               Operator
             </label>
             <MultiSelect
-              v-model="filters.operator_id"
+              v-model="filters.operators"
               :options="operatorOptions"
               trackBy="id"
               valueProp="id"
@@ -46,6 +46,7 @@
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
+              mode="tags"
             >
             </MultiSelect>
           </div>
@@ -459,7 +460,8 @@ const filters = ref({
   date_to: moment().format('YYYY-MM-DD'),
   delivery_platform_type_id: '',
   has_complaint: 'all',
-  operator_id: '',
+  // operator_id: '',
+  operators: [],
   sortKey: '',
   sortBy: false,
   status: '',
@@ -501,12 +503,20 @@ onMounted(() => {
     ...Object.keys(props.deliveryPlatformTypeOptions).map((deliveryPlatformType, index) => {return {id: deliveryPlatformType, name: deliveryPlatformType}})
   ]
   operatorOptions.value = [
-    {id: 'all', full_name: 'All'},
-    ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+			{id: 'all', full_name: 'All'},
+      ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
   filters.value.delivery_platform_type_id = deliveryPlatformTypeOptions.value.find(deliveryPlatformType => deliveryPlatformType.id === 'all')
   filters.value.has_complaint = booleanOptions.value[0]
-  filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+  // filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+  filters.value.operators = authOperator ? [
+		operatorOptions.value.find(operator => operator.id === authOperator.id),
+		...authOperator.code == 'HIPL' ? [
+			operatorOptions.value.find(operator => operator.code == 'HIMD'),
+			operatorOptions.value.find(operator => operator.code == 'LEA'),
+			operatorOptions.value.find(operator => operator.code == 'DCVIC'),
+		] : [],
+	] : operatorOptions.value[0]
   filters.value.status = props.deliveryPlatformOrderStatusOptions[0]
 })
 
@@ -558,7 +568,8 @@ function onSearchFilterUpdated() {
   router.get('/delivery-platform-orders', {
       ...filters.value,
       delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
-      operator_id: filters.value.operator_id.id,
+      // operator_id: filters.value.operator_id.id,
+      operators: filters.value.operators.map(operator => operator.id),
       status: filters.value.status.id,
       has_complaint: filters.value.has_complaint.id,
       numberPerPage: filters.value.numberPerPage.id,

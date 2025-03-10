@@ -1954,6 +1954,13 @@ class VendController extends Controller
             ]);
             $isProductMappingChanged = true;
         }
+
+        if($request->modem_type_id == null) {
+            $request->merge([
+                'modem_unit_id' => null,
+            ]);
+        }
+
         $vend->update([
             'name' => $request->name,
             'begin_date' => $request->begin_date,
