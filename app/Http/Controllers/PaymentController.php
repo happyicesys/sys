@@ -16,6 +16,7 @@ use App\Services\MqttService;
 use App\Services\PaymentGatewayService;
 use App\Services\VendDataService;
 use App\Services\VendDispenseService;
+use App\Services\VendTransactionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -27,13 +28,15 @@ class PaymentController extends Controller
   protected $paymentGatewayService;
   protected $vendDataService;
   protected $vendDispenseService;
+  protected $vendTransactionService;
 
   public function __construct(
 
     MqttService $mqttService,
     PaymentGatewayService $paymentGatewayService,
     VendDataService $vendDataService,
-    VendDispenseService $vendDispenseService
+    VendDispenseService $vendDispenseService,
+    VendTransactionService $vendTransactionService
   )
   {
     $this->mqttService = $mqttService;

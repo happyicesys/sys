@@ -144,7 +144,7 @@ class DeliveryPlatformOrder extends Model
 
     public function deliveryProductMappingVend()
     {
-        return $this->belongsTo(DeliveryProductMappingVend::class)->where('is_active', true);
+        return $this->belongsTo(DeliveryProductMappingVend::class)->where('is_active', true)->latest();
     }
 
     public function orderItemVendChannels()
@@ -161,8 +161,13 @@ class DeliveryPlatformOrder extends Model
     public function scopeFilterIndex($query, $request)
     {
 
-        // dd($request->all());
         $query = $query
+        ->when($request->vend_code, function($query, $search) use ($request) {
+            $query->where('delivery_platform_orders.vend_code', 'LIKE', "{$search}%");
+            // $query->whereHas('deliveryProductMappingVend.vend', function($query) use ($request) {
+            //     $query->where('code', 'LIKE', "{$request->vend_code}%");
+            // });
+        })
         ->when($request->delivery_platform_operator_id, function($query, $search) {
             if($search != 'all') {
                 $query->where('delivery_platform_operator_id', $search);
@@ -188,11 +193,7 @@ class DeliveryPlatformOrder extends Model
         ->when($request->short_order_id, function($query, $search) {
             $query->where('short_order_id', 'LIKE', "%{$search}%");
         })
-        ->when($request->vend_code, function($query, $search) use ($request) {
-            $query->whereHas('deliveryProductMappingVend.vend', function($query) use ($request) {
-                $query->where('code', 'LIKE', "{$request->vend_code}%");
-            });
-        })
+
         ->when($request->date_from, function ($query, $search) {
             $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
         })
