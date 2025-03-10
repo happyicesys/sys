@@ -27,7 +27,7 @@ class VendTransactionService
 {
     public function create(Vend $vend, $input, $isCurrentTime = true)
     {
-        $processedInput = $this->processMapping($vend, $this->processInput($input));
+        $processedInput = $this->processMapping($vend, $this->processInput($vend, $input));
 
         DB::statement("SET innodb_lock_wait_timeout = 5"); // Prevent long waits
 
@@ -269,7 +269,7 @@ class VendTransactionService
         ];
     }
 
-    private function processInput($input)
+    private function processInput($vend, $input)
     {
         $data = [];
 
@@ -307,7 +307,7 @@ class VendTransactionService
             $data['isMultiple'] = true;
             $data['qty'] = sizeof($input['transf_info']);
             foreach($input['transf_info'] as $trans) {
-                $data['children'][] = $this->processMapping([
+                $data['children'][] = $this->processMapping($vend, [
                     'errorCode' => $trans['SErr'],
                     'vendChannelCode' => $trans['SId'],
                 ]);
