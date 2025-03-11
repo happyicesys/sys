@@ -52,6 +52,14 @@ const navigation = [
         tagline: null,
     },
     {
+        name: 'PaymentGateway Transactions',
+        icon: CreditCardIcon,
+        current: false,
+        href: 'payment-gateway-transactions',
+        permission: 'read transactions',
+        tagline: null,
+    },
+    {
         name: 'Operation Daily Jobs',
         icon: ArrowsPointingInIcon,
         current: false,

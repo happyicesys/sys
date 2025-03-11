@@ -52,6 +52,7 @@ class PaymentController extends Controller
     }
 
     $input = $request->all();
+    $method = null;
     $status = null;
     $orderId = null;
     $refId = null;
@@ -129,10 +130,20 @@ class PaymentController extends Controller
       // throw new \Exception('This payment is not trigger before');
     }
 
+    switch ($company) {
+      case 'midtrans':
+          $method = isset($input['acquirer']) ? $input['acquirer'] : null;
+          break;
+      case 'omise':
+          $method = isset($input['data']['source']['type']) ? $input['data']['source']['type'] : null;
+          break;
+    }
+
     $updatedPaymentGatewayLog = PaymentGatewayLog::updateOrCreate([
       'order_id' => $orderId,
     ], [
-      'response' => $input,
+      // 'response' => $input,
+      'method' => $paymentGatewayLog->method ? $paymentGatewayLog->method : $method,
       'ref_id' => $refId,
       'status' => $status,
     ]);
@@ -149,6 +160,10 @@ class PaymentController extends Controller
         }
         return;
       }
+
+      $updatedPaymentGatewayLog->update([
+        'approved_at' => Carbon::now(),
+      ]);
 
       $this->processPayment($updatedPaymentGatewayLog);
     }
@@ -199,10 +214,10 @@ class PaymentController extends Controller
       $paymentMethod = null;
       switch($paymentGatewayLog->paymentGateway->name){
         case 'midtrans':
-            $paymentMethod = array_search($paymentGatewayLog->response['acquirer'], Midtrans::PAYMENT_METHOD_MAPPING);
+            $paymentMethod = array_search($paymentGatewayLog->method, Midtrans::PAYMENT_METHOD_MAPPING);
           break;
         case 'omise':
-          $paymentMethod = array_search($paymentGatewayLog->response['data']['source']['type'], Omise::PAYMENT_METHOD_MAPPING);
+          $paymentMethod = array_search($paymentGatewayLog->method, Omise::PAYMENT_METHOD_MAPPING);
           break;
       }
 

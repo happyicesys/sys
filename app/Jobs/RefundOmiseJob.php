@@ -47,7 +47,7 @@ class RefundOmiseJob implements ShouldQueue
                 'order_id' => $this->orderId,
             ],
             'amount' => $paymentGatewayLog->amount,
-        ], $paymentGatewayLog->response['data']['id']); // charge id
+        ], $paymentGatewayLog->ref_id); // charge id
 
         if($response->failed()) {
             $this->errorService->throwErrorWithMqtt('Refund failed' . $response->body(), $paymentGatewayLog->vend);

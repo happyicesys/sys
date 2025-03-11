@@ -62,7 +62,10 @@ class SyncVendParameter implements ShouldQueue
     {
         // more than 3 minutes only update same machine temp
         // if(!$vend->temp_updated_at or $vend->temp_updated_at->addMinutes(2)->isPast()) {
-            if($temp = $input['TEMP']) {
+
+            if(isset($input['TEMP'])) {
+                $temp = $input['TEMP'];
+
                 if($temp == VendTemp::TEMPERATURE_ERROR) {
                     $vend->is_temp_error = true;
                 }else {

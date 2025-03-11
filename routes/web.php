@@ -499,6 +499,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/{id}/temp/{type}/excel', [VendController::class, 'exportTempExcel']);
         Route::get('/transactions', [VendController::class, 'transactionIndex'])->name('vends-transactions');
         Route::get('/transactions/excel', [VendController::class, 'exportTransactionExcel']);
+        Route::get('/payment-gateway-transactions', [VendController::class, 'paymentGatewayTransactionIndex'])->name('payment-gateway-transactions');
         Route::get('/vend-snapshots/excel/{vendSnapshotId}', [VendController::class, 'exportVendSnapshotExcel']);
         Route::get('/channel-error-logs-email', [VendController::class, 'channelErrorLogsEmail']);
         Route::post('/{id}/channels-error-rate', [VendController::class, 'getChannelsErrorRate']);

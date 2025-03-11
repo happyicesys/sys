@@ -15,6 +15,7 @@ use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\ModemTypeResource;
 use App\Http\Resources\ModemUnitResource;
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\PaymentGatewayLogResource;
 use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\UserResource;
@@ -1553,92 +1554,6 @@ class VendController extends Controller
             ->send(new VendChannelErrorLogsMail($vendChannelErrorLogs, $intervalHours));
     }
 
-//     public function exportTransactionExcel(Request $request)
-// {
-//     $request->merge(['sortKey' => $request->sortKey ?: 'transaction_datetime']);
-//     $request->merge(['sortBy' => $request->sortBy ?: false]);
-//     $request->date_from = $request->date_from
-//         ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay()
-//         : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
-//     $request->date_to = $request->date_to
-//         ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay()
-//         : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
-
-//     return (new FastExcel($this->generateTransactionData($request)))->download('Vend_transactions_' . Carbon::now()->toDateTimeString() . '.xlsx');
-// }
-
-/**
- * Generate data using a generator for memory-efficient processing
- */
-// private function generateTransactionData(Request $request)
-// {
-//     // Chunking transactions to avoid memory issues
-//     VendTransaction::query()
-//         ->with('vendTransactionItems')
-//         ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
-//         ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-//         ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
-//         ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
-//         ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-//         ->filterTransactionIndex($request)
-//         ->chunk(2000, function ($vendTransactions) {
-//             foreach ($vendTransactions as $vendTransaction) {
-//                 // Main transaction data
-//                 yield [
-//                     'order_id' => $vendTransaction->order_id,
-//                     'transaction_datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
-//                     'machine_id' => $vendTransaction->vend_code ?: '',
-//                     'machine_prefix' => $vendTransaction->vend_prefix_name ?: '',
-//                     'customer_id' => $vendTransaction->customer_id + 20000,
-//                     'customer_code' => $vendTransaction->person_id ? $vendTransaction->virtual_customer_code : '',
-//                     'customer_name' => $vendTransaction->customer_name,
-//                     'channel' => $vendTransaction->vend_channel_code ?: '',
-//                     'product_code' => $vendTransaction->product_code,
-//                     'product_name' => $vendTransaction->product_name,
-//                     'price_type' => $vendTransaction->vend_channel_amount == $vendTransaction->amount
-//                         ? 'P1'
-//                         : ($vendTransaction->vend_channel_amount2 == $vendTransaction->amount ? 'P2' : ''),
-//                     'amount' => $vendTransaction->amount / 100,
-//                     'unit_cost' => $vendTransaction->cost ? $vendTransaction->cost / 100 : '',
-//                     'payment_method' => $vendTransaction->payment_method_name,
-//                     'error_code' => $vendTransaction->vend_channel_error_code,
-//                     'location_type' => $vendTransaction->location_type_name,
-//                     'operator' => $vendTransaction->operator_code,
-//                     'is_successful' => $vendTransaction->vend_channel_error_code
-//                         ? ($vendTransaction->vend_channel_error_code == 0 || $vendTransaction->vend_channel_error_code == 6
-//                             ? 'Successful'
-//                             : 'Unsuccessful')
-//                         : 'Successful',
-//                     'is_refunded' => $vendTransaction->is_refunded ? 'Yes' : '',
-//                     'is_multiple' => $vendTransaction->is_multiple ? 'Yes' : 'No',
-//                     'multiple_qty' => $vendTransaction->is_multiple ? $vendTransaction->vendTransactionItems->count() : 1,
-//                     'txn_src' => $vendTransaction->interface_type,
-//                 ];
-
-//                 // Nested vendTransactionItems data
-//                 foreach ($vendTransaction->vendTransactionItems as $item) {
-//                     yield [
-//                         'order_id' => $vendTransaction->order_id,
-//                         'transaction_datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
-//                         'machine_id' => $vendTransaction->vend_code ?: '',
-//                         'channel' => $item->vend_channel_code ?: '',
-//                         'product_code' => $item->product ? $item->product->code : '',
-//                         'product_name' => $item->product ? $item->product->name : '',
-//                         'amount_breakdown' => $item->vendChannel ? $item->vendChannel->amount / 100 : '',
-//                         'unit_cost' => $item->unitCost ? $item->unitCost->cost / 100 : '',
-//                         'error_code' => $item->vendChannelError ? $item->vendChannelError->code : '',
-//                         'is_successful' => $item->vendChannelError
-//                             ? ($item->vendChannelError->code == 0 || $item->vendChannelError->code == 6
-//                                 ? 'Successful'
-//                                 : 'Unsuccessful')
-//                             : 'Successful',
-//                     ];
-//                 }
-//             }
-//         });
-// }
-
-
     public function exportTransactionExcel(Request $request)
     {
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'transaction_datetime']);
@@ -1878,6 +1793,87 @@ class VendController extends Controller
         $vend->save();
 
         return redirect()->route('settings');
+    }
+
+    public function paymentGatewayTransactionIndex(Request $request)
+    {
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [
+                    auth()->user()->operator_id,
+                    Operator::where('code', 'HIMD')->first()?->id,
+                    Operator::where('code', 'LEA')->first()?->id,
+                    Operator::where('code', 'DCVIC')->first()?->id,
+                ]]);
+            }else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+        $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'approved_at']);
+        $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
+        $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
+        // $request->merge([
+        //     'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay(),
+        //     'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay(),
+        // ]);
+        $request->merge(['numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 50]);
+
+        // dd($request->all());
+
+        $paymentGatewayLogs = PaymentGatewayLog::query()
+            ->with([
+                'operatorPaymentGateway.operator',
+                'vend:id,code,customer_id,name,label_name,is_active,vend_prefix_id',
+                'vend.customer',
+                'vend.vendPrefix',
+                'vendTransaction',
+            ])
+            ->filterIndex($request)
+            ->where('status', '>=', PaymentGatewayLog::STATUS_APPROVE)
+            ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
+            ->withQueryString();
+
+            $totals = PaymentGatewayLog::query()
+            ->with([
+                'operatorPaymentGateway.operator',
+                'vend:id,code,customer_id,name,label_name,is_active,vend_prefix_id',
+                'vend.customer',
+                'vend.vendPrefix',
+                'vendTransaction',
+            ])
+            ->filterIndex($request)
+            ->where('status', '>=', PaymentGatewayLog::STATUS_APPROVE)
+            ->select(
+                DB::raw('CAST(COUNT(CASE
+                    WHEN status = 2
+                    THEN 1
+                    ELSE NULL
+                    END) AS SIGNED) AS paid_count'),
+                DB::raw('CAST(COUNT(CASE
+                    WHEN status = 98
+                    THEN 1
+                    ELSE NULL
+                    END) AS SIGNED) AS refund_count'),
+                DB::raw('CAST(ROUND(COALESCE(SUM(CASE
+                    WHEN status = 2
+                    THEN amount ELSE 0 END), 0), 2) AS SIGNED) AS paid_amount'),
+                DB::raw('CAST(ROUND(COALESCE(SUM(CASE
+                    WHEN status = 98
+                    THEN amount ELSE 0 END), 0), 2) AS SIGNED) AS refund_amount')
+            )
+            ->first();
+            // dd($totals->toArray());
+
+        return Inertia::render('Vend/PaymentGatewayTransaction', [
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'paymentMethods' => PaymentMethodResource::collection(PaymentMethod::orderBy('name')->get()),
+            'paymentGatewayLogs' => PaymentGatewayLogResource::collection(
+                $paymentGatewayLogs
+            ),
+            'totals' => $totals,
+        ]);
     }
 
     public function pickLists(Request $request)
