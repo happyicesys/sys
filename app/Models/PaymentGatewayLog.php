@@ -16,6 +16,7 @@ class PaymentGatewayLog extends Model
 
     protected $fillable = [
         'amount',
+        'method',
         'request',
         'response',
         'order_id',
