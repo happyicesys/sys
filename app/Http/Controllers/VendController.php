@@ -1843,25 +1843,24 @@ class VendController extends Controller
             ])
             ->filterIndex($request)
             ->where('status', '>=', PaymentGatewayLog::STATUS_APPROVE)
+            ->leftJoin('vend_transactions', 'vend_transactions.payment_gateway_log_id', '=', 'payment_gateway_logs.id')
             ->select(
                 DB::raw('CAST(COUNT(CASE
                     WHEN status = 2
-                    THEN 1
-                    ELSE NULL
-                    END) AS SIGNED) AS paid_count'),
+                    THEN 1 ELSE NULL END) AS SIGNED) AS paid_count'),
                 DB::raw('CAST(COUNT(CASE
                     WHEN status = 98
-                    THEN 1
-                    ELSE NULL
-                    END) AS SIGNED) AS refund_count'),
+                    THEN 1 ELSE NULL END) AS SIGNED) AS refund_count'),
                 DB::raw('CAST(ROUND(COALESCE(SUM(CASE
                     WHEN status = 2
-                    THEN amount ELSE 0 END), 0), 2) AS SIGNED) AS paid_amount'),
+                    THEN payment_gateway_logs.amount ELSE 0 END), 0), 2) AS SIGNED) AS paid_amount'),
                 DB::raw('CAST(ROUND(COALESCE(SUM(CASE
                     WHEN status = 98
-                    THEN amount ELSE 0 END), 0), 2) AS SIGNED) AS refund_amount')
+                    THEN payment_gateway_logs.amount ELSE 0 END), 0), 2) AS SIGNED) AS refund_amount'),
+                DB::raw('CAST(COUNT(vend_transactions.id) AS SIGNED) AS dispense_count')
             )
             ->first();
+
             // dd($totals->toArray());
 
         return Inertia::render('Vend/PaymentGatewayTransaction', [
