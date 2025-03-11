@@ -63,7 +63,6 @@ class PaymentGatewayLog extends Model
         // scopes
     public function scopeFilterIndex($query, $request)
     {
-        // dd($request->all());
         $query = $query->when($request->date_from, function($query, $search) {
             $query->where('approved_at', '>=', $search);
         })

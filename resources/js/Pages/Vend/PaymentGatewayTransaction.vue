@@ -170,7 +170,7 @@
             </div>
 
         <!-- <dl class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-5"> -->
-        <dl class="grid grid-cols-1 md:grid-cols-4 gap-2">
+        <!-- <dl class="grid grid-cols-1 md:grid-cols-4 gap-2">
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                 <dt class="truncate text-sm font-medium text-gray-500">Total Revenue {{ operatorCountry.currency_symbol }} (Success)</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
@@ -234,7 +234,7 @@
                     </div>
                 </dd>
             </div>
-        </dl>
+        </dl> -->
       </div>
 
        <div class="mt-6 flex flex-col">

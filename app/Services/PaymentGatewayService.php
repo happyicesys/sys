@@ -175,8 +175,6 @@ class PaymentGatewayService
 
             $paymentGatewayLog = PaymentGatewayLog::create([
                 'request' => $params['request'],
-                'response' => $response,
-                'history_json' => $response,
                 'order_id' => $params['metadata']['order_id'],
                 'amount' => $params['amount'],
                 'qr_url' => $qrCodeUrl,
@@ -185,11 +183,6 @@ class PaymentGatewayService
                 'payment_gateway_id' => $operatorPaymentGateway->paymentGateway->id,
                 'status' => PaymentGatewayLog::STATUS_PENDING,
                 'txn_src' => $params['metadata']['txn_src'] ?? null,
-                'vend_channel_code' => $params['request']['SId'] ?? null,
-                'vend_channel_id' => isset($params['request']['SId']) &&
-                $vend->vendChannels()->where('code', $params['request']['SId'])->first() ?
-                    $vend->vendChannels()->where('code', $params['request']['SId'])->first()->id :
-                    null,
                 'vend_channels_json' => $vendChannelsCollections,
                 'vend_code' => $vend->code,
                 'vend_id' => $vend->id,

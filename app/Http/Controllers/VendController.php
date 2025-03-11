@@ -1812,10 +1812,10 @@ class VendController extends Controller
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'approved_at']);
         $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
-        // $request->merge([
-        //     'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay(),
-        //     'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay(),
-        // ]);
+        $request->merge([
+            'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay(),
+            'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay(),
+        ]);
         $request->merge(['numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 50]);
 
         // dd($request->all());
