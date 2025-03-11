@@ -17,7 +17,9 @@ class PaymentGatewayLog extends Model
     protected $fillable = [
         'amount',
         'approved_at',
+        'method',
         'request',
+        'response',
         'order_id',
         'qr_url',
         'qr_text',
@@ -33,6 +35,7 @@ class PaymentGatewayLog extends Model
 
     protected $casts = [
         'approved_at' => 'datetime',
+        'response' => 'json',
         'request' => 'json',
         'vend_channels_json' => 'json',
     ];
