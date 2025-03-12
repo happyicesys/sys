@@ -15,6 +15,11 @@
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
           <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
             <div class="col-span-5 md:col-span-1">
+                <SearchInput placeholderStr="Order ID" v-model="filters.ref_id" @keyup.enter="onSearchFilterUpdated()">
+                    Ref ID
+                </SearchInput>
+            </div>
+            <div class="col-span-5 md:col-span-1">
                 <SearchInput placeholderStr="Order ID" v-model="filters.order_id" @keyup.enter="onSearchFilterUpdated()">
                     Order ID
                 </SearchInput>
@@ -126,9 +131,8 @@
                                 Reset
                             </span>
                         </Button>
-                        <!-- <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
-                            @click.prevent="onExportExcelClicked()"
-                            v-if="permissions.includes('export transactions')">
+                        <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
+                            @click.prevent="onExportExcelClicked()">
                             <div class="flex space-x-1">
                                 <div>
                                     <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>
@@ -141,7 +145,7 @@
                                     Export Excel
                                 </span>
                             </div>
-                        </Button> -->
+                        </Button>
                     </div>
                 </div>
                 <div class="flex flex-col space-y-2">
@@ -395,14 +399,11 @@ onMounted(() => {
 })
 
 const filters = ref({
+    ref_id: '',
     codes: '',
     customer: '',
-    // product_code: '',
-    // product_name: '',
-    location_type_id: '',
     operators: [],
     order_id: '',
-    interface_type: '',
     is_refunded: '',
     paymentMethod: '',
     date_from: moment().format('YYYY-MM-DD'),
@@ -420,28 +421,19 @@ function onExportExcelClicked() {
     loading.value = true
     axios({
         method: 'get',
-        url: '/vends/transactions/excel',
+        url: '/vends/payment-gateway-transactions/excel',
         params: {
             ...filters.value,
-            categories: filters.value.categories.map((category) => { return category.id }),
-            categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
-            channel_codes: filters.value.channel_codes,
-            errors: filters.value.errors.map((error) => { return error.id }),
-            location_type_id: filters.value.location_type_id.id,
+            ref_id: filters.value.ref_id,
+            codes: filters.value.codes,
             operators: filters.value.operators.map((operator) => { return operator.id }),
-            interface_type: filters.value.interface_type.id,
-            is_binded_customer: filters.value.is_binded_customer.id,
-            is_member: filters.value.is_member.id,
-            is_multiple: filters.value.is_multiple.id,
-            is_payment_received: filters.value.is_payment_received.id,
             is_refunded: filters.value.is_refunded.id,
             paymentMethod: filters.value.paymentMethod.id,
             numberPerPage: filters.value.numberPerPage.id,
-            vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
         },
         responseType: 'blob',
     }).then(response => {
-        fileDownload(response.data, 'Vending_Transaction_' + moment().format('YYMMDDhhmmss') +'.xlsx')
+        fileDownload(response.data, 'Payment_Gateway_Transaction_' + moment().format('YYMMDDhhmmss') +'.xlsx')
     }).catch(error => {
         console.log(error)
     }).finally(() => {
@@ -452,6 +444,7 @@ function onExportExcelClicked() {
 function onSearchFilterUpdated() {
     router.get('/vends/payment-gateway-transactions', {
         ...filters.value,
+        ref_id: filters.value.ref_id,
         codes: filters.value.codes,
         operators: filters.value.operators.map((operator) => { return operator.id }),
         is_refunded: filters.value.is_refunded.id,

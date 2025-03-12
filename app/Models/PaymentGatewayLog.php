@@ -69,13 +69,9 @@ class PaymentGatewayLog extends Model
         ->when($request->date_to, function($query, $search) {
             $query->where('approved_at', '<=', $search);
         })
-        // ->when($request->has('visited'), function($query, $search) use ($request) {
-        //     if($request->visited == 'true') {
-        //         $query->whereRaw('1 = 1');
-        //     }else {
-        //         $query->whereRaw('1 = 0');
-        //     }
-        // })
+        ->when($request->ref_id, function($query, $search) {
+            $query->where('ref_id', 'LIKE', "%{$search}%");
+        })
         ->when($request->codes, function($query, $search) {
             if(strpos($search, ',') !== false) {
                 $search = explode(',', $search);

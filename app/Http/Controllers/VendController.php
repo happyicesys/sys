@@ -1554,6 +1554,58 @@ class VendController extends Controller
             ->send(new VendChannelErrorLogsMail($vendChannelErrorLogs, $intervalHours));
     }
 
+    public function exportPaymentGatewayTransactionExcel(Request $request)
+    {
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [
+                    auth()->user()->operator_id,
+                    Operator::where('code', 'HIMD')->first()?->id,
+                    Operator::where('code', 'LEA')->first()?->id,
+                    Operator::where('code', 'DCVIC')->first()?->id,
+                ]]);
+            }else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+        $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'approved_at']);
+        $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
+        $request->merge([
+            'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay(),
+            'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay(),
+        ]);
+
+        $paymentGatewayLogs = PaymentGatewayLog::query()
+            ->with([
+                'operatorPaymentGateway.operator',
+                'vend:id,code,customer_id,name,label_name,is_active,vend_prefix_id',
+                'vend.customer',
+                'vend.vendPrefix',
+                'vendTransaction',
+            ])
+            ->filterIndex($request)
+            ->where('status', '>=', PaymentGatewayLog::STATUS_APPROVE)
+            ->get();
+
+
+        return (new FastExcel($this->yieldOneByOne($paymentGatewayLogs)))->download('Payment_Gateway_Transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($paymentGatewayLog) {
+            return [
+                'Ref ID' => $paymentGatewayLog->ref_id,
+                'Order ID' => $paymentGatewayLog->order_id,
+                'Dispensed?' => $paymentGatewayLog->vendTransaction ? 'Yes' : 'No',
+                'Paid At' => Carbon::parse($paymentGatewayLog->approved_at)->toDateTimeString(),
+                'Machine ID' => $paymentGatewayLog->vend_code,
+                'Machine Prefix' => $paymentGatewayLog->vend?->vendPrefix?->name,
+                'Customer ID' => $paymentGatewayLog->vend?->customer?->virtual_customer_code,
+                'Customer Name' => $paymentGatewayLog->vend?->customer?->name,
+                'Operator' => $paymentGatewayLog->operatorPaymentGateway?->operator?->name,
+                'Amount' => $paymentGatewayLog->amount,
+                'Payment Method' => $paymentGatewayLog->method,
+                'Refunded?' => $paymentGatewayLog->status == '98' ? 'Yes' : 'No',
+            ];
+        });
+    }
+
     public function exportTransactionExcel(Request $request)
     {
         $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'transaction_datetime']);
