@@ -21,6 +21,7 @@ class PaymentGatewayLogResource extends JsonResource
             'approved_at' => $this->approved_at,
             'approved_at_formatted' => $this->approved_at ? Carbon::parse($this->approved_at)->format('ymd h:ia') : null,
             'created_at' => $this->created_at,
+            'is_dispensed' => $this->is_dispensed,
             'method' => $this->method,
             'order_id' => $this->order_id,
             'qr_text' => $this->qr_text,

@@ -5,7 +5,7 @@ import BreezeDropdownLink from '@/Components/DropdownLink.vue';
 import BreezeResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/vue'
-import { ArrowsPointingInIcon, BuildingOfficeIcon, ClipboardDocumentListIcon, CodeBracketSquareIcon, Cog8ToothIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, FolderIcon, IdentificationIcon, LinkIcon, MapPinIcon, RectangleStackIcon, TruckIcon, UserCircleIcon, UserGroupIcon, BookOpenIcon } from '@heroicons/vue/20/solid'
+import { ArrowsPointingInIcon, BuildingOfficeIcon, ClipboardDocumentListIcon, CodeBracketSquareIcon, Cog8ToothIcon, CircleStackIcon, CalendarDaysIcon, CommandLineIcon, CreditCardIcon, DocumentTextIcon, FolderIcon, IdentificationIcon, LinkIcon, MapPinIcon, RectangleStackIcon, TruckIcon, UserCircleIcon, UserGroupIcon, BookOpenIcon, TicketIcon } from '@heroicons/vue/20/solid'
 
 const navigation = [
     {
@@ -251,6 +251,17 @@ const navigation = [
         children: [
             {name: 'Operators', href: '/operators', permission: 'read operators'},
             {name: 'Users', href: '/users', permission: 'read users'},
+        ]
+    },
+    {
+        name: 'Voucher Management',
+        icon: TicketIcon,
+        current: false,
+        href: 'vouchers',
+        permission: 'read vouchers',
+        tagline: null,
+        children: [
+            {name: 'Vouchers', href: '/vouchers', permission: 'read vouchers'},
         ]
     },
     {

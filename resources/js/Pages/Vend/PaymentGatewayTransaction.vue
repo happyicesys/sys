@@ -96,6 +96,22 @@
             </div>
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
+                    Is Dispense?
+                </label>
+                <MultiSelect
+                    v-model="filters.is_dispensed"
+                    :options="booleanOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
+            <div class="col-span-5 md:col-span-1">
+                <label for="text" class="block text-sm font-medium text-gray-700">
                     Is Refunded?
                 </label>
                 <MultiSelect
@@ -254,12 +270,16 @@
                             <span>
                               {{ paymentGatewayLog.order_id }}
                             </span>
+                            <span>
+                                <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="paymentGatewayLog.vendTransaction"/>
+                                <XCircleIcon class="h-4 w-4 text-red-500" aria-hidden="true" v-if="!paymentGatewayLog.vendTransaction"/>
+                            </span>
                           </div>
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
                           <div class="flex justify-center">
-                              <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="paymentGatewayLog.vendTransaction"/>
-                              <XCircleIcon class="h-4 w-4 text-red-500" aria-hidden="true" v-if="!paymentGatewayLog.vendTransaction"/>
+                              <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="paymentGatewayLog.is_dispensed"/>
+                              <XCircleIcon class="h-4 w-4 text-red-500" aria-hidden="true" v-if="!paymentGatewayLog.is_dispensed"/>
                           </div>
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
@@ -404,6 +424,7 @@ const filters = ref({
     customer: '',
     operators: [],
     order_id: '',
+    is_dispensed: '',
     is_refunded: '',
     paymentMethod: '',
     date_from: moment().format('YYYY-MM-DD'),
@@ -427,6 +448,7 @@ function onExportExcelClicked() {
             ref_id: filters.value.ref_id,
             codes: filters.value.codes,
             operators: filters.value.operators.map((operator) => { return operator.id }),
+            is_dispensed: filters.value.is_dispensed.id,
             is_refunded: filters.value.is_refunded.id,
             paymentMethod: filters.value.paymentMethod.id,
             numberPerPage: filters.value.numberPerPage.id,
@@ -447,6 +469,7 @@ function onSearchFilterUpdated() {
         ref_id: filters.value.ref_id,
         codes: filters.value.codes,
         operators: filters.value.operators.map((operator) => { return operator.id }),
+        is_dispensed: filters.value.is_dispensed.id,
         is_refunded: filters.value.is_refunded.id,
         paymentMethod: filters.value.paymentMethod.id,
         numberPerPage: filters.value.numberPerPage.id,

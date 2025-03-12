@@ -1592,7 +1592,7 @@ class VendController extends Controller
             return [
                 'Ref ID' => $paymentGatewayLog->ref_id,
                 'Order ID' => $paymentGatewayLog->order_id,
-                'Dispensed?' => $paymentGatewayLog->vendTransaction ? 'Yes' : 'No',
+                'Dispensed?' => $paymentGatewayLog->is_dispensed ? 'Yes' : 'No',
                 'Paid At' => Carbon::parse($paymentGatewayLog->approved_at)->toDateTimeString(),
                 'Machine ID' => $paymentGatewayLog->vend_code,
                 'Machine Prefix' => $paymentGatewayLog->vend?->vendPrefix?->name,
@@ -1909,7 +1909,10 @@ class VendController extends Controller
                 DB::raw('CAST(ROUND(COALESCE(SUM(CASE
                     WHEN status = 98
                     THEN payment_gateway_logs.amount ELSE 0 END), 0), 2) AS SIGNED) AS refund_amount'),
-                DB::raw('CAST(COUNT(vend_transactions.id) AS SIGNED) AS dispense_count')
+                // DB::raw('CAST(COUNT(vend_transactions.id) AS SIGNED) AS dispense_count')
+                DB::raw('CAST(COUNT(CASE
+                    WHEN is_dispensed = 1
+                    THEN 1 ELSE NULL END) AS SIGNED) AS dispense_count')
             )
             ->first();
 

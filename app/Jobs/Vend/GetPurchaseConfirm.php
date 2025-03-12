@@ -62,6 +62,12 @@ class GetPurchaseConfirm implements ShouldQueue
           ]);
         }
 
+        if($paymentGatewayLog) {
+          $paymentGatewayLog->update([
+              'is_dispensed' => true,
+          ]);
+        }
+
         if($paymentGatewayLog or $deliveryPlatformOrder) {
           $result = [
             'Type' => 'CONFIRM',

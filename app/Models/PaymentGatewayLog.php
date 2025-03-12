@@ -17,6 +17,7 @@ class PaymentGatewayLog extends Model
     protected $fillable = [
         'amount',
         'approved_at',
+        'is_dispensed',
         'method',
         'request',
         'response',
@@ -35,6 +36,7 @@ class PaymentGatewayLog extends Model
 
     protected $casts = [
         'approved_at' => 'datetime',
+        'is_dispensed' => 'boolean',
         'response' => 'json',
         'request' => 'json',
         'vend_channels_json' => 'json',
@@ -82,6 +84,15 @@ class PaymentGatewayLog extends Model
                 $query->whereHas('vend', function($query) use ($search) {
                     $query->where('code', 'LIKE', "%{$search}%");
                 });
+            }
+        })
+        ->when($request->is_dispensed, function($query, $search) {
+            if($search != 'all') {
+                if(filter_var($search, FILTER_VALIDATE_BOOLEAN)) {
+                    $query->where('status', 98);
+                }else {
+                    $query->where('status', '<>', 98);
+                }
             }
         })
         ->when($request->is_refunded, function($query, $search) {
