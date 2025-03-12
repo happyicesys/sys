@@ -256,6 +256,7 @@ class VendTransactionService
             'paymentGatewayLogID' => isset($paymentGatewayLog) ? $paymentGatewayLog->id : null,
             'paymentMethodCode' => isset($input['paymentMethodCode']) ? $input['paymentMethodCode'] : null,
             'paymentMethodID' => $paymentMethod ? $paymentMethod->id : null,
+            'planItemID' => isset($input['planItemID']) ? $input['planItemID'] : null,
             'productID' => $product ? $product->id : null,
             'qty' => isset($input['qty']) ? $input['qty'] : 1,
             'success_qty' => isset($input['success_qty']) ? $input['success_qty'] : 0,
@@ -278,6 +279,7 @@ class VendTransactionService
         $data['dcvendUserID'] = isset($input['dcvend_user_id']) ? $input['dcvend_user_id'] : null;
         $data['orderID'] = isset($input['ORDRID']) ? $input['ORDRID'] : null;
         $data['paymentMethodCode'] = isset($input['PAY_TYPE']) ? $input['PAY_TYPE'] : null;
+        $data['planItemID'] = isset($input['plan_item_id']) ? $input['plan_item_id'] : null;
         $data['dcvendDiscountAmount'] = isset($input['dcvend_discount_amount']) ? $input['dcvend_discount_amount'] : null;
         $data['time'] = isset($input['TIME']) ? $input['TIME'] : Carbon::now()->toDateTimeString();
         $data['errorCode'] = isset($input['SErr']) ? $input['SErr'] : (isset($input['errorCode']) ? $input['errorCode'] : 0);
@@ -341,6 +343,7 @@ class VendTransactionService
             'customer_name' => $vendTransaction->customer?->name,
             'payment_method_id' => $vendTransaction->payment_method_id,
             'payment_method_name' => $vendTransaction->paymentMethod?->name,
+            'plan_item_id' => isset($vendTransaction->vend_transaction_json['plan_item_id']) ? $vendTransaction->vend_transaction_json['plan_item_id'] : null,
             'ref_order_id' => $vendTransaction->order_id,
             'total_promo_amount' => isset($vendTransaction->vend_transaction_json['dcvend_discount_amount']) ? $vendTransaction->vend_transaction_json['dcvend_discount_amount'] : 0,
             'total_qty' => $vendTransaction->vendTransactionItems ? $vendTransaction->vendTransactionItems->count() : 1,
