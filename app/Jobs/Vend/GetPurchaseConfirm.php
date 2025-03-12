@@ -63,7 +63,7 @@ class GetPurchaseConfirm implements ShouldQueue
         }
 
         if($paymentGatewayLog) {
-          Log::info('PaymentGatewayLog: '.$paymentGatewayLog->id . ',OrderID: '.$this->orderId);
+          // Log::info('PaymentGatewayLog: '.$paymentGatewayLog->id . ',OrderID: '.$this->orderId);
           $paymentGatewayLog->update([
               'is_dispensed' => true,
           ]);
