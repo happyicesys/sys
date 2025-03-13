@@ -1591,9 +1591,10 @@ class VendController extends Controller
         return (new FastExcel($this->yieldOneByOne($paymentGatewayLogs)))->download('Payment_Gateway_Transactions_'.Carbon::now()->toDateTimeString().'.xlsx', function ($paymentGatewayLog) {
             return [
                 'Ref ID' => $paymentGatewayLog->ref_id,
+                'Paid At' => Carbon::parse($paymentGatewayLog->approved_at)->toDateTimeString(),
                 'Order ID' => $paymentGatewayLog->order_id,
                 'Dispensed?' => $paymentGatewayLog->is_dispensed ? 'Yes' : 'No',
-                'Paid At' => Carbon::parse($paymentGatewayLog->approved_at)->toDateTimeString(),
+                'Found in Transactions?' => $paymentGatewayLog->vendTransaction ? 'Yes' : 'No',
                 'Machine ID' => $paymentGatewayLog->vend_code,
                 'Machine Prefix' => $paymentGatewayLog->vend?->vendPrefix?->name,
                 'Customer ID' => $paymentGatewayLog->vend?->customer?->virtual_customer_code,
@@ -1602,6 +1603,7 @@ class VendController extends Controller
                 'Amount' => $paymentGatewayLog->amount,
                 'Payment Method' => $paymentGatewayLog->method,
                 'Refunded?' => $paymentGatewayLog->status == '98' ? 'Yes' : 'No',
+                'QR Ref ID' => $paymentGatewayLog->qr_ref_id,
             ];
         });
     }

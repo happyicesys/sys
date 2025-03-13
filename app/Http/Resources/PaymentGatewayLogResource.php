@@ -24,6 +24,7 @@ class PaymentGatewayLogResource extends JsonResource
             'is_dispensed' => $this->is_dispensed,
             'method' => $this->method,
             'order_id' => $this->order_id,
+            'qr_ref_id' => $this->qr_ref_id,
             'qr_text' => $this->qr_text,
             'qr_url' => $this->qr_url,
             'ref_id' => $this->ref_id,

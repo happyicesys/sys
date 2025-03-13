@@ -33,6 +33,11 @@
                 </SearchInput>
             </div>
             <div class="col-span-5 md:col-span-1">
+                <SearchInput placeholderStr="QR Ref ID" v-model="filters.qr_ref_id" @keyup.enter="onSearchFilterUpdated()">
+                    QR Ref ID
+                </SearchInput>
+            </div>
+            <div class="col-span-5 md:col-span-1">
                 <DatePicker
                     v-model="filters.date_from"
                 >
@@ -224,15 +229,18 @@
                         <TableHead>
                             Ref ID
                         </TableHead>
+                        <TableHeadSort modelName="approved_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('approved_at')">
+                            Paid At
+                        </TableHeadSort>
                         <TableHead>
                             Order ID
                         </TableHead>
                         <TableHead>
                             Dispensed?
                         </TableHead>
-                        <TableHeadSort modelName="approved_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('approved_at')">
-                            Paid At
-                        </TableHeadSort>
+                        <TableHead>
+                            Found in Transactions?
+                        </TableHead>
                         <TableHead>
                             Machine ID
                         </TableHead>
@@ -254,6 +262,9 @@
                         <TableHead>
                             Refunded?
                         </TableHead>
+                        <TableHead>
+                            QR Ref ID
+                        </TableHead>
                       </tr>
                   </thead>
                   <tbody class="bg-white">
@@ -266,13 +277,12 @@
                             {{ paymentGatewayLog.ref_id }}
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
+                            {{ paymentGatewayLog.approved_at_formatted }}
+                        </TableData>
+                        <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
                           <div class="flex justify-between">
                             <span>
                               {{ paymentGatewayLog.order_id }}
-                            </span>
-                            <span>
-                                <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="paymentGatewayLog.vendTransaction"/>
-                                <XCircleIcon class="h-4 w-4 text-red-500" aria-hidden="true" v-if="!paymentGatewayLog.vendTransaction"/>
                             </span>
                           </div>
                         </TableData>
@@ -283,7 +293,10 @@
                           </div>
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
-                            {{ paymentGatewayLog.approved_at_formatted }}
+                          <div class="flex justify-center">
+                                <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="paymentGatewayLog.vendTransaction"/>
+                                <XCircleIcon class="h-4 w-4 text-red-500" aria-hidden="true" v-if="!paymentGatewayLog.vendTransaction"/>
+                          </div>
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
                             {{ paymentGatewayLog.vend_code }}
@@ -300,17 +313,6 @@
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
                             {{ paymentGatewayLog.operatorPaymentGateway?.operator?.code }}
                         </TableData>
-                        <!-- <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
-                            <span v-if="!paymentGatewayLog.is_multiple">
-                                {{ paymentGatewayLog.vend_channel_code }}
-                            </span>
-                        </TableData>
-                        <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
-                            {{ paymentGatewayLog.product_code }}
-                        </TableData>
-                        <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-left">
-                            {{ paymentGatewayLog.product_name }}
-                        </TableData> -->
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-right">
                             {{ paymentGatewayLog.amount.toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                         </TableData>
@@ -321,6 +323,9 @@
                             <div class="flex justify-center">
                                 <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="paymentGatewayLog.status == 98"/>
                             </div>
+                        </TableData>
+                        <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
+                            {{ paymentGatewayLog.qr_ref_id }}
                         </TableData>
                       </tr>
                     </template>
@@ -427,6 +432,7 @@ const filters = ref({
     is_dispensed: '',
     is_refunded: '',
     paymentMethod: '',
+    qr_ref_id: '',
     date_from: moment().format('YYYY-MM-DD'),
     date_to: moment().format('YYYY-MM-DD'),
     sortKey: '',

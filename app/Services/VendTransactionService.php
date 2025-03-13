@@ -90,6 +90,12 @@ class VendTransactionService
                 ]);
             }
 
+            if($paymentGatewayLog = PaymentGatewayLog::where('order_id', $input['orderID'])->first()) {
+                $vendTransaction->update([
+                    'payment_gateway_log_id' => $paymentGatewayLog->id,
+                ]);
+            }
+
             // if($deliveryPlatformOrder = DeliveryPlatformOrder::where('vend_transaction_order_id', $processedInput['orderID'])->first()) {
             //     $deliveryPlatformOrder->update([
             //         'vend_transaction_id' => $vendTransaction->id,
@@ -149,7 +155,7 @@ class VendTransactionService
             'vend_channel_id' => $input['vendChannelID'],
             'vend_channel_error_id' => $input['vendChannelErrorID'],
             'vend_transaction_json' => $input['originalJson'],
-            'payment_gateway_log_id' => $input['paymentGatewayLogID'],
+            // 'payment_gateway_log_id' => $input['paymentGatewayLogID'],
             'product_id' => $input['productID'],
             'customer_id' => $vend->customer()->exists() ? $vend->customer->id : null,
             'location_type_id' => $vend->customer()->exists() && $vend->customer->locationType()->exists() ? $vend->customer->locationType->id : null,
@@ -222,9 +228,9 @@ class VendTransactionService
         }
 
         // check is from payment gateway log
-        if(isset($input['orderID'])) {
-            $paymentGatewayLog = PaymentGatewayLog::where('order_id', $input['orderID'])->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
-        }
+        // if(isset($input['orderID'])) {
+        //     $paymentGatewayLog = PaymentGatewayLog::where('order_id', $input['orderID'])->where('status', PaymentGatewayLog::STATUS_APPROVE)->first();
+        // }
 
         // mapping product ID, and find unit cost, gst rate
         if(isset($vendChannel) and $vendChannel and $vend->productMapping()->exists()) {
@@ -253,7 +259,7 @@ class VendTransactionService
             'isSuccessful' => $isSuccessful,
             'orderID' => isset($input['orderID']) ? $input['orderID'] : null,
             'originalJson' => isset($input['originalJson']) ? $input['originalJson'] : null,
-            'paymentGatewayLogID' => isset($paymentGatewayLog) ? $paymentGatewayLog->id : null,
+            // 'paymentGatewayLogID' => isset($paymentGatewayLog) ? $paymentGatewayLog->id : null,
             'paymentMethodCode' => isset($input['paymentMethodCode']) ? $input['paymentMethodCode'] : null,
             'paymentMethodID' => $paymentMethod ? $paymentMethod->id : null,
             'planItemID' => isset($input['planItemID']) ? $input['planItemID'] : null,

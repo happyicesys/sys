@@ -22,6 +22,7 @@ class PaymentGatewayLog extends Model
         'request',
         'response',
         'order_id',
+        'qr_ref_id',
         'qr_url',
         'qr_text',
         'operator_payment_gateway_id',
@@ -133,6 +134,9 @@ class PaymentGatewayLog extends Model
                     $query->whereIn('operator_id', $search);
                 });
             }
+        })
+        ->when($request->qr_ref_id, function($query, $search) {
+            $query->where('qr_ref_id', 'LIKE', "{$search}%");
         })
         // ->when($request->product_code, function($query, $search) {
         //     $query->where(function($query) use ($search) {

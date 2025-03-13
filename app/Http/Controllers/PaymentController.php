@@ -56,6 +56,7 @@ class PaymentController extends Controller
     $status = null;
     $orderId = null;
     $refId = null;
+    $qr_ref_id = null;
 
     switch($company) {
       case 'midtrans':
@@ -81,6 +82,7 @@ class PaymentController extends Controller
         }
         $orderId = $input['order_id'];
         $refId = $input['transaction_id'];
+        $qr_ref_id = null;
       break;
 
       case 'omise':
@@ -110,6 +112,7 @@ class PaymentController extends Controller
         }
         $orderId = $input['data']['metadata']['order_id'];
         $refId = $input['data']['id'];
+        $qrRefID = $input['data']['source']['provider_references']['reference_number_1'];
       break;
     }
 
@@ -144,6 +147,7 @@ class PaymentController extends Controller
     ], [
       // 'response' => $input,
       'method' => $paymentGatewayLog->method ? $paymentGatewayLog->method : $method,
+      'qr_ref_id' => $qrRefID,
       'ref_id' => $refId,
       'status' => $status,
     ]);
