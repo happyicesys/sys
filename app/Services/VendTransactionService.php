@@ -90,7 +90,7 @@ class VendTransactionService
                 ]);
             }
 
-            if($paymentGatewayLog = PaymentGatewayLog::where('order_id', $input['orderID'])->first()) {
+            if($paymentGatewayLog = PaymentGatewayLog::where('order_id', $vendTransaction->order_id)->first()) {
                 $vendTransaction->update([
                     'payment_gateway_log_id' => $paymentGatewayLog->id,
                 ]);
