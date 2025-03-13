@@ -56,7 +56,7 @@ class PaymentController extends Controller
     $status = null;
     $orderId = null;
     $refId = null;
-    $qr_ref_id = null;
+    $qrRefID = null;
 
     switch($company) {
       case 'midtrans':
@@ -82,7 +82,7 @@ class PaymentController extends Controller
         }
         $orderId = $input['order_id'];
         $refId = $input['transaction_id'];
-        $qr_ref_id = null;
+        $qrRefID = null;
       break;
 
       case 'omise':
