@@ -112,7 +112,7 @@ class PaymentController extends Controller
         }
         $orderId = $input['data']['metadata']['order_id'];
         $refId = $input['data']['id'];
-        $qrRefID = $input['data']['source']['provider_references']['reference_number_1'];
+        $qrRefID = isset($input['data']['source']) && isset($input['data']['source']['provider_references']) && isset($input['data']['source']['provider_references']['reference_number_1']) ? $input['data']['source']['provider_references']['reference_number_1'] : null;
       break;
     }
 
