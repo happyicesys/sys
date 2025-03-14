@@ -35,7 +35,7 @@ class ProductMappingController extends Controller
         // dd($request->all());
         $request->merge([
             'is_active' => $request->is_active ? $request->is_active : true,
-            'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
+            'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 5,
             'sortBy' => $request->sortBy ? $request->sortBy : true,
             'sortKey' => $request->sortKey ? $request->sortKey : 'name'
         ]);
@@ -50,7 +50,7 @@ class ProductMappingController extends Controller
                     'productMappingItems.product.thumbnail',
                     'vends:id,code,name,product_mapping_id,customer_id',
                     'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
-                    'vendPrefixes'
+                    // 'vendPrefixes'
                 ])
                 ->leftJoin('vend_prefixes', function ($join) {
                     $join->on('product_mappings.id', '=', 'vend_prefixes.product_mapping_id')
@@ -292,7 +292,6 @@ class ProductMappingController extends Controller
                 $vend->save();
             }
         }
-        $productMapping->vends_json = $request->productMappingVends;
         $productMapping->save();
 
         $this->productMappingService->syncChannels($productMapping->id);

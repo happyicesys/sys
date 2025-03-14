@@ -29,7 +29,6 @@ class ProductMappingResource extends JsonResource
             'selling_price_type' => $this->selling_price_type,
             'vends' => VendResource::collection($this->whenLoaded('vends')),
             'vends_count' => isset($this->vends_count) ? $this->vends_count : null,
-            'vendsJson' => $this->vends_json,
             'vendPrefixes' => VendPrefixResource::collection($this->whenLoaded('vendPrefixes')),
         ];
     }
