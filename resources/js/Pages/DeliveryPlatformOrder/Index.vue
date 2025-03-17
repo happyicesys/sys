@@ -550,7 +550,7 @@ function onExportExcelClicked() {
         params: {
           ...filters.value,
           delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
-          operator_id: filters.value.operator_id.id,
+          operators: filters.value.operators.map(operator => operator.id),
           has_complaint: filters.value.has_complaint.id,
           status: filters.value.status.id,
         },
