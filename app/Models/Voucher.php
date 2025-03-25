@@ -18,6 +18,7 @@ class Voucher extends Model
         'customer_id',
         'date_from',
         'date_to',
+        'product_id',
         'response_json',
         'status',
         'vend_id',
@@ -29,9 +30,14 @@ class Voucher extends Model
         'response_json' => 'array',
     ];
 
-    public function voucherItems()
+    public function customer()
     {
-        return $this->hasMany(VoucherItem::class);
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function vend()
+    {
+        return $this->hasMany(Vend::class);
     }
 }
 

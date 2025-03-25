@@ -90,9 +90,18 @@ class PaymentGatewayLog extends Model
         ->when($request->is_dispensed, function($query, $search) {
             if($search != 'all') {
                 if(filter_var($search, FILTER_VALIDATE_BOOLEAN)) {
-                    $query->where('status', 98);
+                    $query->where('is_dispensed', true);
                 }else {
-                    $query->where('status', '<>', 98);
+                    $query->where('is_dispensed', false);
+                }
+            }
+        })
+        ->when($request->is_found_in_transaction, function($query, $search) {
+            if($search != 'all') {
+                if(filter_var($search, FILTER_VALIDATE_BOOLEAN)) {
+                    $query->has('vendTransaction');
+                }else {
+                    $query->doesntHave('vendTransaction');
                 }
             }
         })

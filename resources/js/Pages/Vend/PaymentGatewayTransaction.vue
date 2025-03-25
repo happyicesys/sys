@@ -117,6 +117,22 @@
             </div>
             <div class="col-span-5 md:col-span-1">
                 <label for="text" class="block text-sm font-medium text-gray-700">
+                    Is Found in Transaction?
+                </label>
+                <MultiSelect
+                    v-model="filters.is_found_in_transaction"
+                    :options="booleanOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
+            <div class="col-span-5 md:col-span-1">
+                <label for="text" class="block text-sm font-medium text-gray-700">
                     Is Refunded?
                 </label>
                 <MultiSelect
@@ -430,6 +446,7 @@ const filters = ref({
     operators: [],
     order_id: '',
     is_dispensed: '',
+    is_found_in_transaction:'',
     is_refunded: '',
     paymentMethod: '',
     qr_ref_id: '',
@@ -455,6 +472,7 @@ function onExportExcelClicked() {
             codes: filters.value.codes,
             operators: filters.value.operators.map((operator) => { return operator.id }),
             is_dispensed: filters.value.is_dispensed.id,
+            is_found_in_transaction: filters.value.is_found_in_transaction.id,
             is_refunded: filters.value.is_refunded.id,
             paymentMethod: filters.value.paymentMethod.id,
             numberPerPage: filters.value.numberPerPage.id,
@@ -476,6 +494,7 @@ function onSearchFilterUpdated() {
         codes: filters.value.codes,
         operators: filters.value.operators.map((operator) => { return operator.id }),
         is_dispensed: filters.value.is_dispensed.id,
+        is_found_in_transaction: filters.value.is_found_in_transaction.id,
         is_refunded: filters.value.is_refunded.id,
         paymentMethod: filters.value.paymentMethod.id,
         numberPerPage: filters.value.numberPerPage.id,
