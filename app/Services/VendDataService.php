@@ -246,8 +246,7 @@ class VendDataService
           case 'REFILL':
             break;
           case 'REQQR':
-            // GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
-            // GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
+            GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
             break;
           case 'STATIS1':
             UpdateVendStatistics::dispatch($processedInput, $vend)->onQueue('default');
