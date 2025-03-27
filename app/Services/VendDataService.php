@@ -12,6 +12,7 @@ use App\Jobs\SyncIsMqttVend;
 use App\Jobs\SyncP;
 use App\Jobs\UpdateHttpLastUpdated;
 use App\Jobs\UpdateModemLastUpdated;
+use App\Jobs\CreateVendData;
 use App\Jobs\Vend\CreateVendStatistics;
 use App\Jobs\Vend\CreateVendTransaction;
 use App\Jobs\Vend\GetPaymentGatewayQR;
@@ -236,7 +237,7 @@ class VendDataService
             break;
           case 'CONFIRM':
             if(isset($processedInput['orderid'])) {
-              GetPurchaseConfirm::dispatchSync($processedInput['orderid'], $vend);
+              GetPurchaseConfirm::dispatch($processedInput['orderid'], $vend)->onQueue('high');
             }
             break;
           case 'PWRON':
@@ -246,7 +247,7 @@ class VendDataService
             break;
           case 'REQQR':
             // GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
-            GetPaymentGatewayQR::dispatchSync($originalInput, $processedInput, $vend);
+            // GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
             break;
           case 'STATIS1':
             UpdateVendStatistics::dispatch($processedInput, $vend)->onQueue('default');
@@ -284,11 +285,14 @@ class VendDataService
         if($vend->apk_ver_json && $vend->apk_ver_json['apkver'] && $vend->apk_ver_json['apkver'] >= 129) {
           PublishMqtt::dispatch('CM'.$vend->code, $response, 0)->onQueue('default');
         }
+
+        $saveVendData = false;
       }
 
     }
 
     if($saveVendData) {
+      // CreateVendData::dispatch($originalInput, $processedInput, $ipAddress, $connectionType)->onQueue('default');
       VendData::create([
         'connection' => $connectionType,
         'ip_address' => $ipAddress,

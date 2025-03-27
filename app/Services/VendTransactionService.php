@@ -251,6 +251,7 @@ class VendTransactionService
             'amount' => isset($input['amount']) ? $input['amount'] : 0,
             'children' => isset($input['children']) ? $input['children'] : [],
             'dcvendUserID' => isset($input['dcvendUserID']) ? $input['dcvendUserID'] : null,
+            'dcvendDiscountAmount' => isset($input['dcvendDiscountAmount']) ? $input['dcvendDiscountAmount'] : null,
             'errorCode' => $input['errorCode'],
             'gstVatRate' => $gstVatRate,
             'interfaceType' => isset($input['interfaceType']) ? $input['interfaceType'] : null,
@@ -266,7 +267,6 @@ class VendTransactionService
             'productID' => $product ? $product->id : null,
             'qty' => isset($input['qty']) ? $input['qty'] : 1,
             'success_qty' => isset($input['success_qty']) ? $input['success_qty'] : 0,
-            'dcvendDiscountAmount' => isset($input['dcvendDiscountAmount']) ? $input['dcvendDiscountAmount'] : null,
             'time' => isset($input['time']) ? $input['time'] : null,
             'unitCostID' => $unitCost ? $unitCost->id : null,
             'vendChannelCode' => $input['vendChannelCode'],
@@ -283,10 +283,10 @@ class VendTransactionService
         $data['originalJson'] = $input;
         $data['amount'] = isset($input['Price']) ? (isset($input['transf_info']) ? ($input['Price'] * 100) : $input['Price']) : 0;
         $data['dcvendUserID'] = isset($input['dcvend_user_id']) ? $input['dcvend_user_id'] : null;
+        $data['dcvendDiscountAmount'] = isset($input['dcvend_discount_amount']) ? $input['dcvend_discount_amount'] : null;
         $data['orderID'] = isset($input['ORDRID']) ? $input['ORDRID'] : null;
         $data['paymentMethodCode'] = isset($input['PAY_TYPE']) ? $input['PAY_TYPE'] : null;
         $data['planItemID'] = isset($input['plan_item_id']) ? $input['plan_item_id'] : null;
-        $data['dcvendDiscountAmount'] = isset($input['dcvend_discount_amount']) ? $input['dcvend_discount_amount'] : null;
         $data['time'] = isset($input['TIME']) ? $input['TIME'] : Carbon::now()->toDateTimeString();
         $data['errorCode'] = isset($input['SErr']) ? $input['SErr'] : (isset($input['errorCode']) ? $input['errorCode'] : 0);
         $data['vendChannelCode'] = isset($input['SId']) ? $input['SId'] : 0;
