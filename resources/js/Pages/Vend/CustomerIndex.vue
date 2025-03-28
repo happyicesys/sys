@@ -2013,6 +2013,7 @@ onMounted(() => {
       {id: '1', value: 'Factory'},
       {id: '2', value: 'Active'},
       {id: '3', value: 'Not Active'},
+			{id: '4', value: 'Disposed'},
   ]
   locationTypeOptions.value = [
       {id: 'all', value: 'All'},
@@ -2032,6 +2033,7 @@ onMounted(() => {
 			{id: 'factory', value: 'Factory'},
 			{id: 'active', value: 'Active'},
 			{id: 'inactive', value: 'Not Active'},
+			{id: 'disposed', value: 'Disposed'},
 	]
 
 	vendModelOptions.value = [

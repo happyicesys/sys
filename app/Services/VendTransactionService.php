@@ -170,7 +170,7 @@ class VendTransactionService
                 'customer_name' => $vend->customer()->exists() ? $vend->customer->name : null,
                 'vend_prefix_id' => $vend->vendPrefix()->exists() ? $vend->vendPrefix->id : null,
                 'vend_prefix_name' => $vend->vendPrefix()->exists() ? $vend->vendPrefix->name : null,
-
+                'vouchers' => $input['vouchers'],
             ]
         ]);
 
@@ -273,6 +273,7 @@ class VendTransactionService
             'vendChannelError' => $vendChannelError,
             'vendChannelErrorID' => $vendChannelError ? $vendChannelError->id : null,
             'vendChannelID' => $vendChannel ? $vendChannel->id : 0,
+            'vouchers' => isset($input['vouchers']) ? $input['vouchers'] : null,
         ];
     }
 
@@ -294,6 +295,8 @@ class VendTransactionService
         $data['isMultiple'] = false;
         $data['children'] = [];
         $data['qty'] = 1;
+        $data['vouchers'] = isset($input['vouchers']) ? $input['vouchers'] : null;
+
         if(isset($input['SErr']) and ($input['SErr'] == 0 or $input['SErr'] == 6)) {
             $data['success_qty'] = 1;
         } else {
@@ -358,6 +361,7 @@ class VendTransactionService
             'vend_id' => $vendTransaction->vend_id,
             'vend_prefix_id' => $vendTransaction->vend?->vend_prefix_id,
             'vend_prefix_name' => $vendTransaction->vend?->vendPrefix?->name,
+            'vouchers' => isset($vendTransaction->meta_json['vouchers']) ? $vendTransaction->meta_json['vouchers'] : null,
         ];
 
         if($vendTransaction->vendTransactionItems) {

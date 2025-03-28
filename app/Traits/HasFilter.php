@@ -302,6 +302,9 @@ trait HasFilter {
                     case 'inactive':
                         $query->where('vends.is_active', false)->where('vends.is_testing', false);
                         break;
+                    case 'disposed':
+                        $query->where('vends.is_disposed', true);
+                        break;
                 }
             }
             // dd($query->toSql());

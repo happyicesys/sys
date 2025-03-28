@@ -245,6 +245,7 @@ class Vend extends Model
         'apk_ver_json' => 'json',
         'begin_date' => 'datetime',
         'customer_movement_history_json' => 'json',
+        'is_disposed' => 'boolean',
         'is_using_server_price' => 'boolean',
         'last_updated_at' => 'datetime',
         'mqtt_last_updated_at' => 'datetime',
@@ -292,6 +293,7 @@ class Vend extends Model
         'is_active',
         'is_customer',
         'is_door_open',
+        'is_disposed',
         'is_mqtt',
         'is_mqtt_active',
         'is_mqtt_offline_notified',
@@ -741,6 +743,9 @@ class Vend extends Model
                         break;
                     case 'inactive':
                         $query->where('vends.is_active', false)->where('vends.is_testing', false);
+                        break;
+                    case 'disposed':
+                        $query->where('vends.is_disposed', true);
                         break;
                 }
             }

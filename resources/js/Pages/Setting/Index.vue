@@ -1019,6 +1019,7 @@ const filters = ref({
     {id: 'factory', value: 'Factory'},
     {id: 'active', value: 'Active'},
     {id: 'inactive', value: 'Inactive'},
+    {id: 'disposed', value: 'Disposed'},
 ])
 
 onMounted(() => {

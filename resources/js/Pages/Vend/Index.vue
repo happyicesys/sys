@@ -1010,7 +1010,7 @@
               >
                   <div class="flex flex-col">
                       <span class="font-bold">
-                          {{vend.is_testing ? 'Factory' : (vend.is_active ? 'Active' : 'Not Active')}}
+                          {{vend.is_disposed ? 'Disposed' : (vend.is_testing ? 'Factory' : (vend.is_active ? 'Active' : 'Not Active'))}}
                       </span>
                   </div>
 
@@ -1654,6 +1654,7 @@ isActiveFactoryOptions.value = [
     {id: '1', value: 'Factory'},
     {id: '2', value: 'Active'},
     {id: '3', value: 'Not Active'},
+    {id: '4', value: 'Disposed'},
 ]
 lcdMonitorOptions.value = [
     { id: 'undefined', value: 'Undefined'},
@@ -1691,6 +1692,7 @@ statusOptions.value = [
     {id: 'factory', value: 'Factory'},
     {id: 'active', value: 'Active'},
     {id: 'inactive', value: 'Not Active'},
+    {id: 'disposed', value: 'Disposed'},
 ]
 vendModelOptions.value = [
     {id: 'all', value: 'All'},

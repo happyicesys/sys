@@ -39,6 +39,9 @@
                 <span v-if="!vend.is_testing && !vend.is_active">
                   Not Active
                 </span>
+                <span v-if="vend.is_disposed">
+                  Disposed
+                </span>
               </div>
               <!-- <span v-if="vend.delivery_product_mapping_vends" v-for="(deliveryProductMappingVend, index) in vend.delivery_product_mapping_vends">
                 <div
