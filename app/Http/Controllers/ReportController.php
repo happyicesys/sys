@@ -604,13 +604,15 @@ class ReportController extends Controller
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->where(function($query) use ($request) {
+                $query->where('vend_channel_errors.code', '=', 6)
+                    ->orWhere('vend_channel_errors.code', '=', 0)
+                    ->orWhereNull('vend_channel_errors.code')
+                    ->orWhere('is_multiple', '=', true);
+            })
             ->where('vend_transactions.created_at', '>=', Carbon::parse($request->date_from)->startOfDay())
-            ->where('vend_transactions.created_at', '<=', Carbon::parse($request->date_to)->endOfDay())
-            ->where(function($query) {
-                $query->where('error_code_normalized', 0)
-                    ->orWhere('error_code_normalized', 6)
-                    ->orWhere('is_multiple', true);
-            });
+            ->where('vend_transactions.created_at', '<=', Carbon::parse($request->date_to)->endOfDay());
 
         switch($className) {
             case 'categories':
