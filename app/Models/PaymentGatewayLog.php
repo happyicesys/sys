@@ -12,6 +12,8 @@ class PaymentGatewayLog extends Model
     const STATUS_REFUND = 98;
     const STATUS_DECLINE = 99;
 
+    const REFUND_PENDING_MINUTES = 10;
+
     use HasFactory;
 
     protected $fillable = [

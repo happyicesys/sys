@@ -558,6 +558,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/store', [VendSerialNumberController::class, 'store']);
         Route::post('/{id}/update', [VendSerialNumberController::class, 'update']);
         Route::delete('/{id}', [VendSerialNumberController::class, 'delete']);
+        Route::get('/excel', [VendSerialNumberController::class, 'exportExcel']);
     });
 
     Route::prefix('vouchers')->group(function() {
