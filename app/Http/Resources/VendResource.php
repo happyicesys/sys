@@ -197,6 +197,8 @@ class VendResource extends JsonResource
             'vendChannelErrorLogsJson' => isset($this->vend_channel_error_logs_json) ? $this->vend_channel_error_logs_json : null,
             'vendChannelTotalsJson' => isset($this->vend_channel_totals_json) ? $this->vend_channel_totals_json : null,
             'vendConfig' => VendConfigResource::make($this->whenLoaded('vendConfig')),
+            'vendContract' => VendContractResource::make($this->whenLoaded('vendContract')),
+            'vend_contract_id' => isset($this->vend_contract_id) ? $this->vend_contract_id : null,
             'vendModel' => VendModelResource::make($this->whenLoaded('vendModel')),
             'vendPrefix' => VendPrefixResource::make($this->whenLoaded('vendPrefix')),
             'vend_prefix_id' => isset($this->vend_prefix_id) ? $this->vend_prefix_id : null,

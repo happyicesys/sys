@@ -16,6 +16,7 @@ use App\Http\Resources\ProductMappingResource;
 use App\Http\Resources\SellingPriceResource;
 use App\Http\Resources\SimcardResource;
 use App\Http\Resources\VendConfigResource;
+use App\Http\Resources\VendContractResource;
 use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendSerialNumberResource;
@@ -38,6 +39,7 @@ use App\Models\SellingPrice;
 use App\Models\Simcard;
 use App\Models\Vend;
 use App\Models\VendConfig;
+use App\Models\VendContract;
 use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Models\VendSerialNumber;
@@ -152,6 +154,7 @@ class SettingController extends Controller
                 'vends.simcard_id',
                 'vends.upcoming_product_mapping_id',
                 'vends.vend_config_id',
+                'vends.vend_contract_id',
                 'vends.vend_model_id',
                 'vends.vend_prefix_id',
                 'vends.vend_serial_number_id',
@@ -206,6 +209,9 @@ class SettingController extends Controller
             ),
             'vendConfigOptions' => VendConfigResource::collection(
                 VendConfig::orderBy('name')->get()
+            ),
+            'vendContractOptions' => VendContractResource::collection(
+                VendContract::orderBy('name')->get()
             ),
             'vendModelOptions' => VendModelResource::collection(
                 VendModel::orderBy('name')->get()
@@ -295,6 +301,7 @@ class SettingController extends Controller
             'vends.key_id',
             'vends.upcoming_product_mapping_id',
             'vends.vend_config_id',
+            'vends.vend_contract_id',
             'vends.vend_model_id',
             'vends.vend_prefix_id',
             'vends.vend_serial_number_id',
@@ -387,6 +394,9 @@ class SettingController extends Controller
             'vend' => $vend,
             'vendConfigOptions' => VendConfigResource::collection(
                 VendConfig::orderBy('name')->get()
+            ),
+            'vendContractOptions' => VendContractResource::collection(
+                VendContract::orderBy('name')->get()
             ),
             'vendModelOptions' => VendModelResource::collection(
                 VendModel::orderBy('name')->get()

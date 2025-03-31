@@ -89,6 +89,9 @@
                       Name
                     </TableHeadSort>
                     <TableHead>
+                      Desc
+                    </TableHead>
+                    <TableHead>
                     </TableHead>
                   </tr>
                 </thead>
@@ -99,6 +102,9 @@
                       </TableData>
                       <TableData :currentIndex="vendModelIndex" :totalLength="vendModels.length" inputClass="text-left">
                         {{ vendModel.name }}
+                      </TableData>
+                      <TableData :currentIndex="vendModelIndex" :totalLength="vendModels.length" inputClass="text-left whitespace-pre-line">
+                        {{ vendModel.desc }}
                       </TableData>
                       <TableData :currentIndex="vendModelIndex" :totalLength="vendModels.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">

@@ -11,6 +11,7 @@ class VendModel extends Model
 
     protected $fillable = [
         'name',
+        'desc'
     ];
 
     public function vends()

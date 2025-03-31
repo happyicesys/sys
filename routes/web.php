@@ -43,6 +43,7 @@ use App\Http\Controllers\UomController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendController;
 use App\Http\Controllers\VendConfigController;
+use App\Http\Controllers\VendContractController;
 use App\Http\Controllers\VendChannelErrorController;
 use App\Http\Controllers\VendCriteriaController;
 use App\Http\Controllers\VendCriteriaBindingController;
@@ -536,6 +537,13 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [VendConfigController::class, 'delete']);
         Route::post('/{id}/toggle-activate-deactivate', [VendConfigController::class, 'toggleActivateDeactivate']);
         Route::post('/{id}/upload-attachments', [VendConfigController::class, 'uploadAttachment']);
+    });
+
+    Route::prefix('vend-contracts')->group(function() {
+        Route::get('/', [VendContractController::class, 'index'])->name('vend-contracts');
+        Route::post('/store', [VendContractController::class, 'store']);
+        Route::post('/{id}/update', [VendContractController::class, 'update']);
+        Route::delete('/{id}', [VendContractController::class, 'delete']);
     });
 
     Route::prefix('vend-models')->group(function() {

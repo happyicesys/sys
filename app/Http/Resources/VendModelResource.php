@@ -17,6 +17,7 @@ class VendModelResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'desc' => $this->desc,
             'vends' => VendResource::collection($this->whenLoaded('vends')),
         ];
     }

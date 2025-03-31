@@ -210,7 +210,7 @@
                   {{ form.errors.key_id }}
                 </div>
             </div>
-            <div class="sm:col-span-4">
+            <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Operator
                   <span class="text-red-500">
@@ -231,9 +231,30 @@
                 <div class="text-sm text-red-600" v-if="form.errors.operator_id">
                   {{ form.errors.operator_id }}
                 </div>
+                <div class="sm:col-span-3 text-blue-600 text-xs">
+                  ** If change Operator, the Binded Customer's Operator will be changed as well
+                </div>
             </div>
-            <div class="sm:col-span-6 text-blue-600 text-xs">
-              ** If change Operator, the Binded Customer's Operator will be changed as well
+
+
+            <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Contract
+                </label>
+                <MultiSelect
+                  v-model="form.vend_contract_id"
+                  :options="vendContractOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.vend_contract_id">
+                  {{ form.errors.vend_contract_id }}
+                </div>
             </div>
 
             <hr class="sm:col-span-6">
@@ -1104,12 +1125,13 @@ const props = defineProps({
     modemUnitOptions: [Array, Object],
     operatorOptions: Object,
     productMappingOptions: Object,
-    sellingPriceTypeOptions: Array,
+    sellingPriceTypeOptions: [Array, Object],
     simcardOptions: Object,
     type: String,
     upcomingProductMappingOptions: Object,
     vend: Object,
     vendConfigOptions: Object,
+    vendContractOptions: Object,
     vendModelOptions: Object,
     vendPrefixOptions: Object,
     vendSerialNumberOptions: Object,
@@ -1134,6 +1156,7 @@ const statusOptions = ref([
     {id: 'factory', value: 'Factory'},
     {id: 'active', value: 'Active'},
     {id: 'inactive', value: 'Inactive'},
+    {id: 'disposed', value: 'Disposed'},
 ])
 
 const cashlessTerminalOptions = ref([])
@@ -1155,6 +1178,7 @@ const simcardOptions = ref([])
 const upcomingProductMappingOptions = ref([])
 const toast = useToast()
 const vendConfigOptions = ref([])
+const vendContractOptions = ref([])
 const vendModelOptions = ref([])
 const vendPrefixOptions = ref([])
 const vendSerialNumberOptions = ref([])
@@ -1210,6 +1234,7 @@ function getDefaultForm() {
     upcoming_product_mapping_id: '',
     vend_config_id: '',
     vend_config_version: '',
+    vend_contract_id: '',
     vend_model_id: '',
     vend_prefix_id: '',
     vend_serial_number_id: '',
@@ -1287,6 +1312,10 @@ onMounted(() => {
     { id: '', name: '--- Clear ---'},
     ...props.vendConfigOptions.data,
   ]
+  vendContractOptions.value = [
+    { id: '', name: '--- Clear ---'},
+    ...props.vendContractOptions.data,
+  ]
   vendModelOptions.value = [
     { id: '', name: '--- Clear ---'},
     ...props.vendModelOptions.data,
@@ -1328,6 +1357,7 @@ onMounted(() => {
     upcoming_product_mapping_id: props.vend.upcoming_product_mapping_id ? upcomingProductMappingOptions.value.find(upcomingProductMapping => upcomingProductMapping.id === props.vend.upcoming_product_mapping_id) : upcomingProductMappingOptions.value[1],
     vend_config_id: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id) : null : null,
     vend_config_version: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id).version : null : null,
+    vend_contract_id: props.vend ? props.vend.vend_contract_id ? vendContractOptions.value.find(vendContract => vendContract.id == props.vend.vend_contract_id) : null : null,
     vend_model_id: props.vend ? props.vend.vend_model_id ? vendModelOptions.value.find(vendModel => vendModel.id == props.vend.vend_model_id) : null : null,
     vend_prefix_id: props.vend ? props.vend.vend_prefix_id ? vendPrefixOptions.value.find(vendPrefix => vendPrefix.id == props.vend.vend_prefix_id) : null : null,
     vend_serial_number_id: props.vend ? props.vend.vend_serial_number_id ? vendSerialNumberOptions.value.find(vendSerialNumber => vendSerialNumber.id == props.vend.vend_serial_number_id) : null : null,
@@ -1502,6 +1532,7 @@ function saveVend(vendID) {
       status: data.status.id,
       upcoming_product_mapping_id: data.upcoming_product_mapping_id ? data.upcoming_product_mapping_id.id : null,
       vend_config_id: data.vend_config_id ? data.vend_config_id.id : null,
+      vend_contract_id: data.vend_contract_id ? data.vend_contract_id.id : null,
       vend_model_id: data.vend_model_id ? data.vend_model_id.id : null,
       vend_prefix_id: data.vend_prefix_id ? data.vend_prefix_id.id : null,
       vend_serial_number_id: data.vend_serial_number_id ? data.vend_serial_number_id.id : null,

@@ -159,6 +159,7 @@ const navigation = [
             {name: 'Modem Models', href: '/modem-types', permission: 'read modem-models'},
             {name: 'Keys', href: '/keys', permission: 'read keys'},
             {name: 'Serial Numbers', href: '/vend-serial-numbers', permission: 'read serial-numbers'},
+            {name: 'Machine Contracts', href: '/vend-contracts', permission: 'read serial-numbers'},
             {name: 'Telco', href: '/telcos', permission: 'read telcos'},
             {name: 'Simcard', href: '/simcards', permission: 'read simcards'},
             {name: 'Zone', href: '/zones', permission: 'read zones'},

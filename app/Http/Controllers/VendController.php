@@ -2038,6 +2038,7 @@ class VendController extends Controller
             'termination_date' => $request->termination_date,
             'upcoming_product_mapping_id' => $request->upcoming_product_mapping_id,
             'vend_config_id' => $request->vend_config_id,
+            'vend_contract_id' => $request->vend_contract_id,
             'vend_model_id' => $request->vend_model_id,
             'vend_prefix_id' => $request->vend_prefix_id,
             'vend_serial_number_id' => $request->vend_serial_number_id,

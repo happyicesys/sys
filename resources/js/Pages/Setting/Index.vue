@@ -954,6 +954,7 @@ const props = defineProps({
     simcardOptions: Object,
     vends: Object,
     vendConfigOptions: Object,
+    vendContractOptions: Object,
     vendPrefixOptions: Object,
     vendModelOptions: Object,
   })

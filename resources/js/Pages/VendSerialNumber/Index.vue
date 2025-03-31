@@ -82,7 +82,7 @@
             >
             </MultiSelect>
           </div>
-                    <div>
+          <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
 							Machine Prefix
 						</label>
@@ -99,6 +99,60 @@
 						>
 						</MultiSelect>
 					</div>
+          <div>
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Machine Contract
+						</label>
+						<MultiSelect
+							v-model="filters.vendContracts"
+							:options="vendContractOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							mode="tags"
+							class="mt-1"
+						>
+						</MultiSelect>
+					</div>
+          <SearchInput placeholderStr="Customer" v-model="filters.customer" @keyup.enter="onSearchFilterUpdated()">
+            Customer
+          </SearchInput>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Operator
+            </label>
+            <MultiSelect
+                v-model="filters.operators"
+                :options="operatorOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Location Type
+            </label>
+            <MultiSelect
+                v-model="filters.locationTypes"
+                :options="locationTypeOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -179,33 +233,46 @@
                     <TableHeadSort modelName="desc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('desc')" class="max-w-600">
                       Remarks
                     </TableHeadSort>
-                    <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
-                      Machine
-                    </TableHeadSort>
-                    <TableHead colspan="5">
+                    <TableHead colspan="7">
                       Machine Info
                     </TableHead>
-                    <TableHead>
+                    <TableHead colspan="3">
+                      Customer Info
                     </TableHead>
                   </tr>
                   <tr>
-                    <TableHead colspan="4">
+                    <TableHead colspan="3">
                     </TableHead>
-                    <TableHead>
+                    <TableHeadSort modelName="vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_code')">
+                      ID
+                    </TableHeadSort>
+                    <TableHeadSort modelName="vend_model_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_model_name')">
                       Model
-                    </TableHead>
-                    <TableHead>
+                    </TableHeadSort>
+                    <TableHeadSort modelName="vend_status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_status')">
                       Status
-                    </TableHead>
-                    <TableHead>
+                    </TableHeadSort>
+                    <TableHeadSort modelName="vend_begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_begin_date')">
                       Begin Date
-                    </TableHead>
-                    <TableHead>
+                    </TableHeadSort>
+                    <TableHeadSort modelName="vend_config_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_config_name')">
                       Setting Chart
-                    </TableHead>
-                    <TableHead>
+                    </TableHeadSort>
+                    <TableHeadSort modelName="vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefix_name')">
                       Prefix
-                    </TableHead>
+                    </TableHeadSort>
+                    <TableHeadSort modelName="vend_contract_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_contract_name')">
+                      Contract
+                    </TableHeadSort>
+                    <TableHeadSort modelName="customer_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customer_name')">
+                      Name
+                    </TableHeadSort>
+                    <TableHeadSort modelName="operator_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_name')">
+                      Operator
+                    </TableHeadSort>
+                    <TableHeadSort modelName="location_type_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('location_type_name')">
+                      Location Type
+                    </TableHeadSort>
                   </tr>
                 </thead>
                   <tbody class="bg-white">
@@ -217,10 +284,25 @@
                         {{ vendSerialNumber.code }}
                       </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-left whitespace-pre-line max-w-40">
-                        {{ vendSerialNumber.desc }}
+                        <div class="flex flex-col space-y-1">
+                          <span>
+                            {{ vendSerialNumber.desc }}
+                          </span>
+                          <Button
+                            type="button" class="bg-gray-300 hover:bg-gray-400 text-xs text-gray-800 flex space-x-1 w-fit"
+                            @click="onEditClicked(vendSerialNumber)"
+                          >
+                            <PencilSquareIcon class="w-3 h-3"></PencilSquareIcon>
+                            <span>
+                                Edit
+                            </span>
+                          </Button>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
-                        {{ vendSerialNumber.vend_code }}
+                        <Link :href="'/settings/vend/' + vendSerialNumber.vend_id + '/update'" class="text-blue-600">
+                          {{ vendSerialNumber.vend_code }}
+                        </Link>
                       </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_model_name }}
@@ -238,34 +320,16 @@
                         {{ vendSerialNumber.vend_prefix_name }}
                       </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
-                        <div class="flex flex-col justify-center space-y-1">
-                          <Button
-                            type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1 w-fit"
-                            @click="onEditClicked(vendSerialNumber)"
-                          >
-                            <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                            <span>
-                                Edit
-                            </span>
-                          </Button>
-                          <Button
-                            type="button"
-                            class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1 w-fit"
-                            :class="[vendSerialNumber.vends && vendSerialNumber.vends.length > 0 ? 'opacity-50 cursor-not-allowed' : '']"
-                            @click="onDeleteClicked(vendSerialNumber)"
-                            :disabled="vendSerialNumber.vends && vendSerialNumber.vends.length > 0"
-                          >
-                            <span class="flex space-x-1 items-center">
-                              <TrashIcon class="w-4 h-4"></TrashIcon>
-                              <span>
-                                  Delete
-                              </span>
-                            </span>
-                            <span v-if="vendSerialNumber.vends && vendSerialNumber.vends.length > 0">
-                              (Binded)
-                            </span>
-                          </Button>
-                        </div>
+                        {{ vendSerialNumber.vend_contract_name }}
+                      </TableData>
+                      <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-left">
+                        {{ vendSerialNumber.customer_name }}
+                      </TableData>
+                      <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
+                        {{ vendSerialNumber.operator_name }}
+                      </TableData>
+                      <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
+                        {{ vendSerialNumber.location_type_name }}
                       </TableData>
                       </tr>
                 <tr v-if="!vendSerialNumbers.data.length">
@@ -303,10 +367,13 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
+  locationTypeOptions: Object,
+  operatorOptions: Object,
   vendConfigOptions: Object,
+  vendContractOptions: Object,
   vendModelOptions: Object,
   vendPrefixOptions: Object,
   vendSerialNumbers: Object,
@@ -314,9 +381,12 @@ const props = defineProps({
 
 const filters = ref({
   code: '',
+  locationTypes: [],
+  operators: [],
   status: '',
   vend_codes: '',
   vendConfigs: [],
+  vendContracts: [],
   vendModels: [],
   vendPrefixes: [],
   sortKey: '',
@@ -328,8 +398,11 @@ const showModal = ref(false)
 const vendSerialNumber = ref()
 const statusOptions = ref([])
 const type = ref('')
+const locationTypeOptions = ref([])
 const numberPerPageOptions = ref([])
+const operatorOptions = ref([])
 const vendConfigOptions = ref([])
+const vendContractOptions = ref([])
 const vendPrefixOptions = ref([])
 const vendModelOptions = ref([])
 
@@ -342,6 +415,14 @@ onMounted(() => {
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 
+  locationTypeOptions.value = [
+      {id: 'all', value: 'All'},
+      ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
+  ]
+  operatorOptions.value = [
+      {id: 'all', full_name: 'All'},
+      ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
+  ]
   statusOptions.value = [
 			{id: 'all', value: 'All'},
 			{id: 'factory', value: 'Factory'},
@@ -353,6 +434,10 @@ onMounted(() => {
       {id: 'all', value: 'All'},
       ...props.vendConfigOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
+  vendContractOptions.value = [
+      {id: 'all', value: 'All'},
+      ...props.vendContractOptions.data.map((data) => {return {id: data.id, value: data.name}})
+  ]
   vendModelOptions.value = [
       {id: 'all', value: 'All'},
       ...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
@@ -362,6 +447,13 @@ onMounted(() => {
       {id: 'single-ud', value: 'Single UD'},
       ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
+
+  // filters.value.locationType = locationTypeOptions.value[0]
+  // filters.value.operators = operatorOptions.value[0]
+  // filters.value.status = statusOptions.value[0]
+  // filters.value.vendConfigs = vendConfigOptions.value[0]
+  // filters.value.vendModels = vendModelOptions.value[0]
+  // filters.value.vendPrefixes = vendPrefixOptions.value[0]
 })
 
 function onExportExcelClicked() {
@@ -372,7 +464,10 @@ function onExportExcelClicked() {
         url: '/vend-serial-numbers/excel',
         params: {
           ...filters.value,
+          locationTypes: filters.value.locationTypes.map((locationType) => locationType.id),
+          operators: filters.value.operators.map((operator) => operator.id),
           vendConfigs: filters.value.vendConfigs.map((config) => config.id),
+          vendContracts: filters.value.vendContracts.map((contract) => contract.id),
           vendModels: filters.value.vendModels.map((model) => model.id),
           vendPrefixes: filters.value.vendPrefixes.map((prefix) => prefix.id),
           status: filters.value.status.id,
@@ -393,14 +488,6 @@ function onCreateClicked() {
   showModal.value = true
 }
 
-function onDeleteClicked(vendSerialNumber) {
-  const approval = confirm('Are you sure to delete ' + vendSerialNumber.code + '?');
-  if (!approval) {
-      return;
-  }
-  router.delete('/vend-serial-numbers/' + vendSerialNumber.id)
-}
-
 function onEditClicked(model) {
   type.value = 'update'
   vendSerialNumber.value = model
@@ -410,7 +497,10 @@ function onEditClicked(model) {
 function onSearchFilterUpdated() {
   router.get('/vend-serial-numbers', {
       ...filters.value,
+      locationTypes: filters.value.locationTypes.map((location) => location.id),
+      operators: filters.value.operators.map((operator) => operator.id),
       vendConfigs: filters.value.vendConfigs.map((config) => config.id),
+      vendContracts: filters.value.vendContracts.map((contract) => contract.id),
       vendModels: filters.value.vendModels.map((model) => model.id),
       vendPrefixes: filters.value.vendPrefixes.map((prefix) => prefix.id),
       status: filters.value.status.id,

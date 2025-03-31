@@ -22,6 +22,11 @@
                 Name
               </FormInput>
             </div>
+            <div class="sm:col-span-6">
+              <FormTextarea v-model="form.desc" :error="form.errors.desc">
+                Remarks
+              </FormTextarea>
+            </div>
           </div>
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">
@@ -52,6 +57,7 @@
 <script setup>
 import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
+import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
@@ -76,6 +82,7 @@ onMounted(() => {
 function getDefaultForm() {
   return {
     name: '',
+    desc: '',
   }
 }
 

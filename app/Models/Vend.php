@@ -326,6 +326,7 @@ class Vend extends Model
         'vend_channels_json',
         'vend_channel_totals_json',
         'vend_config_id',
+        'vend_contract_id',
         'vend_criteria_score_json',
         'vend_criteria_weightage_json',
         'vend_model_id',
@@ -425,6 +426,11 @@ class Vend extends Model
     public function vendConfig()
     {
         return $this->belongsTo(VendConfig::class);
+    }
+
+    public function vendContract()
+    {
+        return $this->belongsTo(VendContract::class);
     }
 
     public function vendModel()

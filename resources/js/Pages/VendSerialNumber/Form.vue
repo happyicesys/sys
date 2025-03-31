@@ -28,24 +28,43 @@
               </FormTextarea>
             </div>
           </div>
-          <div class="sm:col-span-6">
-            <div class="flex space-x-1 mt-5 justify-end">
+          <div class="sm:col-span-6 pt-2">
+            <div class="flex justify-between">
               <Button
-                class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
-                @click="$emit('modalClose')"
-                form="submit"
+                type="button"
+                class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1 w-fit h-fit"
+                :class="[props.vendSerialNumber.vend ? 'opacity-50 cursor-not-allowed' : '']"
+                @click="onDeleteClicked(form)"
+                :disabled="props.vendSerialNumber.vend"
               >
-                <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                <span>
-                  Back
+                <span class="flex space-x-1 items-center">
+                  <TrashIcon class="w-4 h-4"></TrashIcon>
+                  <span>
+                      Delete
+                  </span>
+                </span>
+                <span v-if="props.vendSerialNumber.vend">
+                  (Binded)
                 </span>
               </Button>
-              <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
-                <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                <span>
-                  Save
-                </span>
-              </Button>
+              <div class="flex space-x-1 mt-5 justify-end">
+                <Button
+                  class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                  @click="$emit('modalClose')"
+                  form="submit"
+                >
+                  <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                  <span>
+                    Back
+                  </span>
+                </Button>
+                <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
+                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                  <span>
+                    Save
+                  </span>
+                </Button>
+              </div>
             </div>
           </div>
         </form>
@@ -59,7 +78,7 @@ import Button from '@/Components/Button.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';
-import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowUturnLeftIcon, CheckCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 
@@ -84,6 +103,14 @@ function getDefaultForm() {
     code: '',
     desc: '',
   }
+}
+
+function onDeleteClicked(vendSerialNumber) {
+  const approval = confirm('Are you sure to delete ' + vendSerialNumber.code + '?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/vend-serial-numbers/' + vendSerialNumber.id)
 }
 
 function submit() {
