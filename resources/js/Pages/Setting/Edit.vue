@@ -36,7 +36,7 @@
                 <span v-if="!vend.is_testing && vend.is_active">
                   Active
                 </span>
-                <span v-if="!vend.is_testing && !vend.is_active">
+                <span v-if="!vend.is_testing && !vend.is_active && !vend.is_disposed">
                   Not Active
                 </span>
                 <span v-if="vend.is_disposed">
@@ -1352,7 +1352,7 @@ onMounted(() => {
     product_mapping_id: props.vend.product_mapping_id ? productMappingOptions.value.find(productMapping =>    productMapping.id == props.vend.product_mapping_id) : null,
     server_price_type: props.vend.server_price_type ? serverPriceTypeOptions.value.find(serverPriceType => serverPriceType.id == props.vend.server_price_type) : null,
     simcard_id: props.vend.simcard_id ? props.vend.simcard_id : null,
-    status: statusOptions.value.find(status => status.id === (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive')),
+    status: statusOptions.value.find(status => status.id == (props.vend.is_disposed == 1 ? 'disposed' : (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive'))),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id == props.vend.operator_id) : null : null,
     upcoming_product_mapping_id: props.vend.upcoming_product_mapping_id ? upcomingProductMappingOptions.value.find(upcomingProductMapping => upcomingProductMapping.id === props.vend.upcoming_product_mapping_id) : upcomingProductMappingOptions.value[1],
     vend_config_id: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id) : null : null,
