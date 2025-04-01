@@ -610,7 +610,7 @@
                           >
                             <div class="flex flex-col">
                               <span class="font-bold">
-                                {{vend.is_testing ? 'Factory' : (vend.is_active ? 'Active' : 'Not Active')}}
+                                {{vend.is_testing ? 'Factory (JB)' : (vend.is_active ? 'Active' : 'Not Active')}}
                               </span>
                             </div>
                           </div>
@@ -1017,7 +1017,7 @@ const filters = ref({
   const now = ref(moment().format('HH:mm:ss'))
   const statusOptions = ref([
     {id: 'all', value: 'All'},
-    {id: 'factory', value: 'Factory'},
+    {id: 'factory', value: 'Factory (JB)'},
     {id: 'active', value: 'Active'},
     {id: 'inactive', value: 'Inactive'},
     {id: 'disposed', value: 'Disposed'},

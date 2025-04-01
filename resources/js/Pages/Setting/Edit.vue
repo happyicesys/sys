@@ -1153,7 +1153,7 @@ const booleanStrictLEDOptions = ref([
     {id: 'false', value: 'No -> Soft'},
 ])
 const statusOptions = ref([
-    {id: 'factory', value: 'Factory'},
+    {id: 'factory', value: 'Factory (JB)'},
     {id: 'active', value: 'Active'},
     {id: 'inactive', value: 'Inactive'},
     {id: 'disposed', value: 'Disposed'},

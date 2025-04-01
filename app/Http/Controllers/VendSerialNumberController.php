@@ -35,6 +35,7 @@ class VendSerialNumberController extends Controller
         ]);
 
         return Inertia::render('VendSerialNumber/Index', [
+                'lcdMonitorOptions' => Vend::LCD_MONITOR_MAPPINGS,
                 'locationTypeOptions' => LocationTypeResource::collection(
                     LocationType::orderBy('sequence')->get()
                 ),
@@ -74,9 +75,9 @@ class VendSerialNumberController extends Controller
                     'Remarks' => $vendSerialNumber->desc,
                     'Machine ID' => $vendSerialNumber->vend_code,
                     'Machine Model' => $vendSerialNumber->vend_model_name,
+                    'LCD Monitor' => $vendSerialNumber->vend_lcd_monitor,
                     'Status' => $vendSerialNumber->vend_status,
                     'Begin Date' => Carbon::parse($vendSerialNumber->vend_begin_date)->toDateString(),
-                    'Setting Chart' => $vendSerialNumber->vend_config_name,
                     'Prefix' => $vendSerialNumber->vend_prefix_name,
                     'Contract' => $vendSerialNumber->vend_contract_name,
                     'Customer' => $vendSerialNumber->customer_name,
@@ -139,8 +140,15 @@ class VendSerialNumberController extends Controller
                 'vends.begin_date as vend_begin_date',
                 DB::raw('
                     CASE
+                    WHEN vends.lcd_monitor_id = 1 THEN "WaveShare 7 inch 1024x600"
+                    WHEN vends.lcd_monitor_id = 2 THEN "WaveShare 10.1 inch 1920x1200"
+                    WHEN vends.lcd_monitor_id = 3 THEN "WaveShare 10.1HP-CAPLCD (Type-C) 1280x800"
+                    ELSE ""
+                    END as vend_lcd_monitor'),
+                DB::raw('
+                    CASE
                     WHEN vends.is_disposed = true THEN "Disposed"
-                    WHEN vends.is_testing = true THEN "Factory"
+                    WHEN vends.is_testing = true THEN "Factory (JB)"
                     WHEN vends.is_active = true THEN "Active"
                     ELSE "Not Active"
                     END as vend_status

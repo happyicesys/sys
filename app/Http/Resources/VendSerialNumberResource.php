@@ -27,6 +27,7 @@ class VendSerialNumberResource extends JsonResource
             'vend_code' => isset($this->vend_code) ? $this->vend_code : null,
             'vend_contract_name' => isset($this->vend_contract_name) ? $this->vend_contract_name : null,
             'vend_begin_date' => isset($this->vend_begin_date) ? Carbon::parse($this->vend_begin_date)->toDateString() : null,
+            'vend_lcd_monitor' => isset($this->vend_lcd_monitor) ? $this->vend_lcd_monitor : null,
             'vend_model_name' => isset($this->vend_model_name) ? $this->vend_model_name : null,
             'vend_config_name' => isset($this->vend_config_name) ? $this->vend_config_name : null,
             'vend_prefix_name' => isset($this->vend_prefix_name) ? $this->vend_prefix_name : null,

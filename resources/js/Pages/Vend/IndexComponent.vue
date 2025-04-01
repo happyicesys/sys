@@ -911,7 +911,7 @@
                               >
                                   <div class="flex flex-col">
                                       <span class="font-bold">
-                                          {{vend.is_disposed ? 'Disposed' : (vend.is_testing ? 'Factory' : (vend.is_active ? 'Active' : 'Not Active'))}}
+                                          {{vend.is_disposed ? 'Disposed' : (vend.is_testing ? 'Factory (JB)' : (vend.is_active ? 'Active' : 'Not Active'))}}
                                       </span>
                                   </div>
 
@@ -1572,7 +1572,7 @@ onMounted(() => {
   ]
   isActiveFactoryOptions.value = [
       {id: 'all', value: 'All'},
-      {id: '1', value: 'Factory'},
+      {id: '1', value: 'Factory (JB)'},
       {id: '2', value: 'Active'},
       {id: '3', value: 'Not Active'},
       {id: '4', value: 'Disposed'},
@@ -1592,7 +1592,7 @@ onMounted(() => {
     sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
     statusOptions.value = [
         {id: 'all', value: 'All'},
-        {id: 'factory', value: 'Factory'},
+        {id: 'factory', value: 'Factory (JB)'},
         {id: 'active', value: 'Active'},
         {id: 'inactive', value: 'Not Active'},
         {id: 'disposed', value: 'Disposed'},

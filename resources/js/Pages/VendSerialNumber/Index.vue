@@ -153,6 +153,22 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                LCD Monitor
+            </label>
+            <MultiSelect
+                v-model="filters.lcd_monitor_id"
+                :options="lcdMonitorOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -249,15 +265,18 @@
                     <TableHeadSort modelName="vend_model_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_model_name')">
                       Model
                     </TableHeadSort>
+                    <TableHeadSort modelName="vend_lcd_monitor" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_lcd_monitor')">
+                      LCD Monitor
+                    </TableHeadSort>
                     <TableHeadSort modelName="vend_status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_status')">
                       Status
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_begin_date')">
                       Begin Date
                     </TableHeadSort>
-                    <TableHeadSort modelName="vend_config_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_config_name')">
+                    <!-- <TableHeadSort modelName="vend_config_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_config_name')">
                       Setting Chart
-                    </TableHeadSort>
+                    </TableHeadSort> -->
                     <TableHeadSort modelName="vend_prefix_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_prefix_name')">
                       Prefix
                     </TableHeadSort>
@@ -307,15 +326,18 @@
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_model_name }}
                       </TableData>
+                      <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
+                        {{ vendSerialNumber.vend_lcd_monitor }}
+                      </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" :inputClass="getStatusClass(vendSerialNumber.vend_status)">
                         {{ vendSerialNumber.vend_status }}
                       </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_begin_date }}
                       </TableData>
-                      <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
+                      <!-- <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_config_name }}
-                      </TableData>
+                      </TableData> -->
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_prefix_name }}
                       </TableData>
@@ -370,6 +392,7 @@ import { ref, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
+  lcdMonitorOptions: [Array, Object],
   locationTypeOptions: Object,
   operatorOptions: Object,
   vendConfigOptions: Object,
@@ -381,6 +404,7 @@ const props = defineProps({
 
 const filters = ref({
   code: '',
+  lcd_monitor_id: '',
   locationTypes: [],
   operators: [],
   status: '',
@@ -393,6 +417,7 @@ const filters = ref({
   sortBy: true,
   numberPerPage: 100,
 })
+const lcdMonitorOptions = ref([])
 const loading = ref(false)
 const showModal = ref(false)
 const vendSerialNumber = ref()
@@ -415,6 +440,10 @@ onMounted(() => {
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 
+  lcdMonitorOptions.value = [
+      { id: 'undefined', value: 'Undefined'},
+      ...Object.entries(props.lcdMonitorOptions).map(([id, name]) => ({id: id, value: name}))
+  ]
   locationTypeOptions.value = [
       {id: 'all', value: 'All'},
       ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
@@ -425,7 +454,7 @@ onMounted(() => {
   ]
   statusOptions.value = [
 			{id: 'all', value: 'All'},
-			{id: 'factory', value: 'Factory'},
+			{id: 'factory', value: 'Factory (JB)'},
 			{id: 'active', value: 'Active'},
 			{id: 'inactive', value: 'Not Active'},
 			{id: 'disposed', value: 'Disposed'},
@@ -458,7 +487,7 @@ onMounted(() => {
 
 function getStatusClass(status) {
   switch(status) {
-    case 'Factory':
+    case 'Factory (JB)':
       return 'text-center'
     case 'Active':
       return 'bg-green-300 text-center'
@@ -479,6 +508,7 @@ function onExportExcelClicked() {
         url: '/vend-serial-numbers/excel',
         params: {
           ...filters.value,
+          lcd_monitor_id: filters.value.lcd_monitor_id.id,
           locationTypes: filters.value.locationTypes.map((locationType) => locationType.id),
           operators: filters.value.operators.map((operator) => operator.id),
           vendConfigs: filters.value.vendConfigs.map((config) => config.id),
@@ -512,6 +542,7 @@ function onEditClicked(model) {
 function onSearchFilterUpdated() {
   router.get('/vend-serial-numbers', {
       ...filters.value,
+      lcd_monitor_id: filters.value.lcd_monitor_id.id,
       locationTypes: filters.value.locationTypes.map((location) => location.id),
       operators: filters.value.operators.map((operator) => operator.id),
       vendConfigs: filters.value.vendConfigs.map((config) => config.id),

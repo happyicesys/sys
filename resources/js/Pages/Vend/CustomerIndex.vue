@@ -2010,7 +2010,7 @@ onMounted(() => {
   ]
   isActiveFactoryOptions.value = [
       {id: 'all', value: 'All'},
-      {id: '1', value: 'Factory'},
+      {id: '1', value: 'Factory (JB)'},
       {id: '2', value: 'Active'},
       {id: '3', value: 'Not Active'},
 			{id: '4', value: 'Disposed'},
@@ -2030,7 +2030,7 @@ onMounted(() => {
 	sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
 	statusOptions.value = [
 			{id: 'all', value: 'All'},
-			{id: 'factory', value: 'Factory'},
+			{id: 'factory', value: 'Factory (JB)'},
 			{id: 'active', value: 'Active'},
 			{id: 'inactive', value: 'Not Active'},
 			{id: 'disposed', value: 'Disposed'},

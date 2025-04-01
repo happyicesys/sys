@@ -24,6 +24,15 @@ class VendSerialNumber extends Model
         return $query->when($request->id, function($query, $search) {
             $query->where('id', $search);
         })
+        ->when($request->lcd_monitor_id, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'undefined') {
+                    $query->whereNull('vends.lcd_monitor_id');
+                }else {
+                    $query->where('vends.lcd_monitor_id', $search);
+                }
+            }
+        })
         ->when($request->code, function($query, $search) {
             $query->where('vend_serial_numbers.code', 'LIKE', "%{$search}%");
         })
