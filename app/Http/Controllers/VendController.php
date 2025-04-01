@@ -2039,6 +2039,7 @@ class VendController extends Controller
             'modem_type_id' => $request->modem_type_id,
             'modem_unit_id' => $request->modem_unit_id,
             'is_active' => $request->is_active,
+            'is_disposed' => $request->is_disposed,
             'is_testing' => $request->is_testing,
             // 'is_using_server_price' => $request->is_using_server_price,
             'product_mapping_id' => $request->product_mapping_id,
