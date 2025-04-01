@@ -137,6 +137,16 @@ trait HasFilter {
         ->when($request->product_name, function($query, $search) {
             $query->where('products.name', 'LIKE', "%{$search}%");
         })
+        ->when($request->vendContracts, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereIn('vends.vend_contract_id', $search);
+            }
+        })
+        ->when($request->vendModels, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereIn('vends.vend_model_id', $search);
+            }
+        })
         ->when($request->vendPrefixes, function($query, $search) {
             if(!in_array('all', $search)){
                 if(in_array('single-ud', $search)) {

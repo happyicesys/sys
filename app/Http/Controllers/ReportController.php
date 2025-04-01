@@ -11,7 +11,9 @@ use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductDBResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\SalesReportResource;
+use App\Http\Resources\VendContractResource;
 use App\Http\Resources\VendDBResource;
+use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendSnapshotDBResource;
@@ -23,6 +25,8 @@ use App\Models\Operator;
 use App\Models\Product;
 use App\Models\UnitCost;
 use App\Models\Vend;
+use App\Models\VendContract;
+use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Models\VendTransaction;
 use App\Traits\GetUserTimezone;
@@ -127,6 +131,12 @@ class ReportController extends Controller
             'reportDateOptions' => $this->getReportDateOptions(),
             'operators' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
+            ),
+            'vendContractOptions' => VendContractResource::collection(
+                VendContract::orderBy('name')->get()
+            ),
+            'vendModelOptions' => VendModelResource::collection(
+                VendModel::orderBy('name')->get()
             ),
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
@@ -603,6 +613,8 @@ class ReportController extends Controller
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+            ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
+            ->leftJoin('vend_models', 'vend_models.id', '=', 'vends.vend_model_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->where(function($query) use ($request) {

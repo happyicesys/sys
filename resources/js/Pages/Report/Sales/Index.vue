@@ -115,6 +115,40 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Machine Model
+            </label>
+            <MultiSelect
+                v-model="filters.vendModels"
+                :options="vendModelOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                mode="tags"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Machine Contract
+						</label>
+						<MultiSelect
+							v-model="filters.vendContracts"
+							:options="vendContractOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
+							mode="tags"
+							class="mt-1"
+						>
+						</MultiSelect>
+					</div>
           <div v-if="filters.currentFilterDate.id != '-1'">
             <label for="text" class="block text-sm font-medium text-gray-700">
               Filter Date
@@ -301,6 +335,8 @@ const props = defineProps({
   reportDateOptions: Object,
   operators: Object,
   totals: [Array, Object],
+  vendContractOptions: Object,
+  vendModelOptions: Object,
   vendPrefixOptions: Object,
 })
 
@@ -322,6 +358,8 @@ const filters = ref({
   sortKey: '',
   sortBy: false,
   numberPerPage: 30,
+  vendContracts: [],
+  vendModels: [],
   vendPrefixes: [],
   visited: false,
 })
@@ -334,6 +372,8 @@ const operatorRole = usePage().props.auth.operatorRole
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const currentUrl = ref()
+const vendContractOptions = ref([])
+const vendModelOptions = ref([])
 const vendPrefixOptions = ref([])
 
 const tabs = ref([
@@ -376,6 +416,14 @@ onMounted(() => {
     {id: 'all', full_name: 'All'},
     ...props.operators.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
+  vendContractOptions.value = [
+      {id: 'all', value: 'All'},
+      ...props.vendContractOptions.data.map((data) => {return {id: data.id, value: data.name}})
+  ]
+  vendModelOptions.value = [
+      {id: 'all', value: 'All'},
+      ...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
+  ]
   vendPrefixOptions.value = [
         {id: 'all', value: 'All'},
         {id: 'single-ud', value: 'Single UD'},
@@ -390,6 +438,12 @@ onMounted(() => {
   filters.value.vendPrefixes = [
     vendPrefixOptions.value[0]
   ]
+  filters.value.vendContracts = [
+    vendContractOptions.value[0]
+  ]
+  filters.value.vendModels = [
+    vendModelOptions.value[0]
+  ]
 
 })
 
@@ -401,6 +455,8 @@ function onSearchFilterUpdated() {
       location_type_id: filters.value.location_type_id.id,
       operators: filters.value.operators.map((operator) => { return operator.id }),
       numberPerPage: filters.value.numberPerPage.id,
+      vendContracts: filters.value.vendContracts.map((vendContract) => { return vendContract.id }),
+      vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
       vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
   }, {
       preserveState: true,
@@ -433,6 +489,8 @@ function onExportExcelClicked() {
             is_binded_customer: filters.value.is_binded_customer.id,
             location_type_id: filters.value.location_type_id.id,
             operators: filters.value.operators.map((operator) => { return operator.id }),
+            vendContracts: filters.value.vendContracts.map((vendContract) => { return vendContract.id }),
+            vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
             vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
         },
         responseType: 'blob',
