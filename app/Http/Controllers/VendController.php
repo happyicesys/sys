@@ -1983,18 +1983,28 @@ class VendController extends Controller
                     $request->merge([
                         'is_active' => false,
                         'is_testing' => true,
+                        'is_disposed' => false,
                     ]);
                     break;
                 case 'active':
                     $request->merge([
                         'is_active' => true,
                         'is_testing' => false,
+                        'is_disposed' => false,
                     ]);
                     break;
                 case 'inactive':
                     $request->merge([
                         'is_active' => false,
                         'is_testing' => false,
+                        'is_disposed' => false,
+                    ]);
+                    break;
+                case 'disposed':
+                    $request->merge([
+                        'is_active' => false,
+                        'is_testing' => false,
+                        'is_disposed' => true,
                     ]);
                     break;
             }
