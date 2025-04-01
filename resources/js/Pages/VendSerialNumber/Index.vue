@@ -307,7 +307,7 @@
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_model_name }}
                       </TableData>
-                      <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
+                      <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" :inputClass="getStatusClass(vendSerialNumber.vend_status)">
                         {{ vendSerialNumber.vend_status }}
                       </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
@@ -455,6 +455,21 @@ onMounted(() => {
   // filters.value.vendModels = vendModelOptions.value[0]
   // filters.value.vendPrefixes = vendPrefixOptions.value[0]
 })
+
+function getStatusClass(status) {
+  switch(status) {
+    case 'Factory':
+      return 'text-center'
+    case 'Active':
+      return 'bg-green-300 text-center'
+    case 'Not Active':
+      return 'text-center'
+    case 'Disposed':
+      return 'bg-red-300 text-center'
+    default:
+      return 'text-center'
+  }
+}
 
 function onExportExcelClicked() {
     // window.open('/vends/transactions/excel', '_blank');
