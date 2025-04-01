@@ -35,7 +35,7 @@
           </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
-              Is Active?
+              Active Product Mapping
             </label>
             <MultiSelect
               v-model="filters.is_active"
@@ -62,6 +62,22 @@
 							placeholder="Select"
 							open-direction="bottom"
 							mode="tags"
+							class="mt-1"
+						>
+						</MultiSelect>
+					</div>
+          <div>
+						<label for="text" class="block text-sm font-medium text-gray-700">
+							Machine Status
+						</label>
+						<MultiSelect
+							v-model="filters.vendStatus"
+							:options="vendStatusOptions"
+							trackBy="id"
+							valueProp="id"
+							label="value"
+							placeholder="Select"
+							open-direction="bottom"
 							class="mt-1"
 						>
 						</MultiSelect>
@@ -384,6 +400,7 @@ const filters = ref({
   name: '',
   product: '',
   vend_code: '',
+  vendStatus: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
@@ -400,6 +417,7 @@ const numberPerPageOptions = ref([])
 const roles = usePage().props.auth.roles
 const permissions = usePage().props.auth.permissions
 const vendPrefixOptions = ref([])
+const vendStatusOptions = ref([])
 
 onMounted(() => {
   booleanOptions.value = [
@@ -417,8 +435,16 @@ onMounted(() => {
     {id: 'single-ud', value: 'Single UD'},
     ...props.vendPrefixOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
+  vendStatusOptions.value = [
+			{id: 'all', value: 'All'},
+			{id: 'factory', value: 'Factory'},
+			{id: 'active', value: 'Active'},
+			{id: 'inactive', value: 'Not Active'},
+			{id: 'disposed', value: 'Disposed'},
+	]
   filters.value.is_active = booleanOptions.value[0]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
+  filters.value.vendStatus = vendStatusOptions.value[2]
 })
 
 function onAttachmentOverviewClicked(model) {
@@ -468,6 +494,7 @@ function onSearchFilterUpdated() {
   router.get('/product-mappings', {
       ...filters.value,
       is_active: filters.value.is_active.id,
+      vendStatus: filters.value.vendStatus.id,
       numberPerPage: filters.value.numberPerPage.id,
       vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
   }, {

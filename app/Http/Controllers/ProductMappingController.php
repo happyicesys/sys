@@ -35,6 +35,7 @@ class ProductMappingController extends Controller
         // dd($request->all());
         $request->merge([
             'is_active' => $request->is_active ? $request->is_active : true,
+            'vendStatus' => $request->vendStatus ? $request->vendStatus : 'active',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 5,
             'sortBy' => $request->sortBy ? $request->sortBy : true,
             'sortKey' => $request->sortKey ? $request->sortKey : 'name'
@@ -48,7 +49,26 @@ class ProductMappingController extends Controller
                     'productMappingItems',
                     'productMappingItems.product:id,code,name,is_active',
                     'productMappingItems.product.thumbnail',
-                    'vends:id,code,name,product_mapping_id,customer_id',
+                    'vends' => function ($query) use ($request) {
+                        $query->select('id', 'code', 'name', 'product_mapping_id', 'customer_id', 'is_active', 'is_testing', 'is_disposed');
+
+                        if ($request->vendStatus) {
+                            switch ($request->vendStatus) {
+                                case 'disposed':
+                                    $query->where('is_disposed', true);
+                                    break;
+                                case 'factory':
+                                    $query->where('is_testing', true);
+                                    break;
+                                case 'active':
+                                    $query->where('is_active', true);
+                                    break;
+                                case 'inactive':
+                                    $query->where('is_active', false);
+                                    break;
+                            }
+                        }
+                    },
                     'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
                     // 'vendPrefixes'
                 ])
@@ -85,6 +105,24 @@ class ProductMappingController extends Controller
                             unset($search[array_search('single-ud', $search)]);
                         }
                         $query->whereIn('vend_prefix_id', $search);
+                    });
+                })
+                ->when($request->vendStatus, function($query, $search) {
+                    $query->whereHas('vends', function($query) use ($search) {
+                        switch($search) {
+                            case 'disposed':
+                                $query->where('is_disposed', true);
+                                break;
+                            case 'factory':
+                                $query->where('is_testing', true);
+                                break;
+                            case 'active':
+                                $query->where('is_active', true);
+                                break;
+                            case 'inactive':
+                                $query->where('is_active', false);
+                                break;
+                        }
                     });
                 })
                 ->when($request->is_active, function($query, $search) use ($request) {

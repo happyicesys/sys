@@ -47,7 +47,7 @@
                   (Binded)
                 </span>
               </Button>
-              <div class="flex space-x-1 mt-5 justify-end">
+              <div class="flex space-x-1 justify-end">
                 <Button
                   class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
                   @click="$emit('modalClose')"
@@ -79,7 +79,7 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import Modal from '@/Components/Modal.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon, TrashIcon } from '@heroicons/vue/20/solid';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, router } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue'
 
 const props = defineProps({
@@ -111,6 +111,7 @@ function onDeleteClicked(vendSerialNumber) {
       return;
   }
   router.delete('/vend-serial-numbers/' + vendSerialNumber.id)
+  emit('modalClose')
 }
 
 function submit() {

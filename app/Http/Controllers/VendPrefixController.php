@@ -20,6 +20,7 @@ class VendPrefixController extends Controller
     public function index(Request $request)
     {
         $request->merge([
+            'vendStatus' => $request->vendStatus ? $request->vendStatus : 'active',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
             'sortKey' => $request->sortKey ? $request->sortKey : 'name',
             'sortBy' => $request->sortBy ? $request->sortBy : true,
@@ -43,7 +44,24 @@ class VendPrefixController extends Controller
                         'operator',
                         'productMappings.upcomingProductMappings',
                         'vendConfigs.attachments',
-                        'vends',
+                        'vends' => function ($query) use ($request) {
+                            if ($request->vendStatus) {
+                                switch ($request->vendStatus) {
+                                    case 'disposed':
+                                        $query->where('is_disposed', true);
+                                        break;
+                                    case 'factory':
+                                        $query->where('is_testing', true);
+                                        break;
+                                    case 'active':
+                                        $query->where('is_active', true);
+                                        break;
+                                    case 'inactive':
+                                        $query->where('is_active', false);
+                                        break;
+                                }
+                            }
+                        },
                     ])
                     ->when($request->product_mapping_id, function($query, $search) {
                         if($search !== 'all') {
@@ -65,6 +83,24 @@ class VendPrefixController extends Controller
                             }
                             $query->whereIn('id', $search);
                         }
+                    })
+                    ->when($request->vendStatus, function($query, $search) {
+                        $query->whereHas('vends', function($query) use ($search) {
+                            switch($search) {
+                                case 'disposed':
+                                    $query->where('is_disposed', true);
+                                    break;
+                                case 'factory':
+                                    $query->where('is_testing', true);
+                                    break;
+                                case 'active':
+                                    $query->where('is_active', true);
+                                    break;
+                                case 'inactive':
+                                    $query->where('is_active', false);
+                                    break;
+                            }
+                        });
                     })
                     ->when($request->sortKey, function($query, $search) use ($request) {
                         $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
