@@ -291,7 +291,24 @@
                 >
                 </MultiSelect>
             </div>
+            <div>
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Machine Contract
+                </label>
+                <MultiSelect
+                    v-model="filters.vendContracts"
+                    :options="vendContractOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    mode="tags"
+                    class="mt-1"
+                >
+                </MultiSelect>
             </div>
+        </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
                 <div class="mt-3">
@@ -668,6 +685,7 @@ const props = defineProps({
     vendTransactions: Object,
     totals: [Object, Array],
     vendChannelErrors: Object,
+    vendContractOptions: Object,
     vendPrefixOptions: Object,
 })
 const authOperator = usePage().props.auth.operator
@@ -679,6 +697,7 @@ const locationTypeOptions = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
+const vendContractOptions = ref([])
 const vendPrefixOptions = ref([])
 const vmcByteOptions = ref([])
 
@@ -721,6 +740,10 @@ onMounted(() => {
         {id: 'all', value: 'All'},
         {id: 'true', value: 'Successful'},
         {id: 'false', value: 'Unsuccessful'},
+    ]
+    vendContractOptions.value = [
+      {id: 'all', value: 'All'},
+      ...props.vendContractOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
     vendPrefixOptions.value = [
         {id: 'all', value: 'All'},
@@ -776,6 +799,7 @@ const filters = ref({
     sortKey: '',
     sortBy: false,
     numberPerPage: 50,
+    vendContracts: [],
     vendPrefixes: [],
     visited: true,
 })
@@ -835,6 +859,7 @@ function onExportExcelClicked() {
             is_refunded: filters.value.is_refunded.id,
             paymentMethod: filters.value.paymentMethod.id,
             numberPerPage: filters.value.numberPerPage.id,
+            vendContracts: filters.value.vendContracts.map((vendContract) => { return vendContract.id }),
             vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
         },
         responseType: 'blob',
@@ -864,6 +889,7 @@ function onSearchFilterUpdated() {
         is_refunded: filters.value.is_refunded.id,
         paymentMethod: filters.value.paymentMethod.id,
         numberPerPage: filters.value.numberPerPage.id,
+        vendContracts: filters.value.vendContracts.map((vendContract) => { return vendContract.id }),
         vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
     }, {
         preserveState: true,

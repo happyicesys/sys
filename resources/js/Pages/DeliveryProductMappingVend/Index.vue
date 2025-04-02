@@ -208,9 +208,9 @@
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-left">
                       {{ deliveryProductMappingVend.platform_ref_id }}
-                      <span class="inline-flex items-center rounded-md bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-800/10" v-if="deliveryProductMappingVend.binded_times > 1">
+                      <!-- <span class="inline-flex items-center rounded-md bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-800/10" v-if="deliveryProductMappingVend.binded_times > 1">
                         {{ deliveryProductMappingVend.binded_times }}
-                      </span>
+                      </span> -->
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                       <span v-if="deliveryProductMappingVend.vend && deliveryProductMappingVend.vend.customer">
@@ -390,7 +390,7 @@ const filters = ref({
   operators: [],
   platform_ref_id: '',
   sortKey: '',
-  sortBy: false,
+  sortBy: true,
   status: '',
   numberPerPage: 100,
 })
@@ -434,7 +434,7 @@ onMounted(() => {
   ]
 
   filters.value.numberPerPage = numberPerPageOptions.value[0]
-  filters.value.is_active = booleanOptions.value[1]
+  filters.value.is_active = booleanOptions.value[0]
   filters.value.delivery_platform_type_id = deliveryPlatformTypeOptions.value.find(deliveryPlatformType => deliveryPlatformType.id === 'all')
   filters.value.delivery_product_mapping_id = deliveryProductMappingOptions.value[0]
   filters.value.operators = authOperator ? [

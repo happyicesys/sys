@@ -366,6 +366,14 @@ class VendTransaction extends Model
                 });
             });
         })
+        ->when($request->vendContracts, function($query, $search) {
+            // dd($search);
+            if(!in_array('all', $search)){
+                $query->whereHas('vend', function($query) use ($search) {
+                    $query->whereIn('vend_contract_id', $search);
+                });
+            }
+        })
         ->when($request->vendPrefixes, function($query, $search) {
             if(!in_array('all', $search)){
                 $query->whereHas('vend', function($query) use ($search) {
@@ -474,6 +482,13 @@ class VendTransaction extends Model
             $query->whereHas('vend.customer.category.categoryGroup', function($query) use ($search) {
                 $query->whereIn('id', $search);
             });
+        })
+        ->when($request->vendContracts, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereHas('vend', function($query) use ($search) {
+                    $query->whereIn('vend_contract_id', $search);
+                });
+            }
         })
         ->when($request->vendPrefixes, function($query, $search) {
             if(!in_array('all', $search)){

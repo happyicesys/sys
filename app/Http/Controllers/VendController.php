@@ -23,6 +23,7 @@ use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendChannelResource;
 use App\Http\Resources\VendChannelErrorResource;
+use App\Http\Resources\VendContractResource;
 use App\Http\Resources\VendFanResource;
 use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendPrefixResource;
@@ -54,6 +55,7 @@ use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
+use App\Models\VendContract;
 use App\Models\VendData;
 use App\Models\VendModel;
 use App\Models\VendPrefix;
@@ -1385,6 +1387,7 @@ class VendController extends Controller
             ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+            ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->filterTransactionIndex($request)
             ->select(
@@ -1408,6 +1411,7 @@ class VendController extends Controller
                 'payment_methods.name AS payment_method_name',
                 'vend_channel_errors.desc AS vend_channel_error_desc',
                 'vend_channel_errors.code AS vend_channel_error_code',
+                'vend_contracts.name AS vend_contract_name',
                 'vend_transactions.interface_type',
                 'vend_transactions.is_multiple',
                 'vend_transactions.is_refunded',
@@ -1523,6 +1527,9 @@ class VendController extends Controller
             ),
             'totals' => $totals,
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
+            'vendContractOptions' => VendContractResource::collection(
+                VendContract::orderBy('name')->get()
+            ),
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
             ),

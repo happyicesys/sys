@@ -25,14 +25,14 @@ class DeliveryProductMappingVendController extends Controller
     {
         $request->merge([
             'date_from' => $request->date_from ? $request->date_from : Carbon::today()->setTimezone($this->getUserTimezone())->startOfWeek(Carbon::SUNDAY)->toDateString(),
-            'date_to' => $request->date_to ? $request->date_to : Carbon::today()->setTimezone($this->getUserTimezone())->toDateString(),
+            'date_to' => $request->date_to ? $request->date_to : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay()->toDateString(),
             'delivery_product_mapping_id' => $request->delivery_product_mapping_id ? $request->delivery_product_mapping_id : 'all',
             'delivery_platform_type_id' => $request->delivery_platform_type_id ? $request->delivery_platform_type_id : 'all',
-            'is_active' => $request->is_active ? $request->is_active : 'true',
+            'is_active' => $request->is_active ? $request->is_active : 'all',
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : '100',
             'status' => $request->status ? $request->status : 'all',
-            'sortBy' => $request->sortBy ? $request->sortBy : false,
-            'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
+            'sortBy' => $request->sortBy ? $request->sortBy : true,
+            'sortKey' => $request->sortKey ? $request->sortKey : 'platform_ref_id',
         ]);
         if(!$request->operators) {
             if(auth()->user()->operator->code == 'HIPL') {
