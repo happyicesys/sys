@@ -70,7 +70,7 @@ class ProductMappingController extends Controller
                         }
                     },
                     'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
-                    // 'vendPrefixes'
+                    'vendPrefixes'
                 ])
                 ->leftJoin('vend_prefixes', function ($join) {
                     $join->on('product_mappings.id', '=', 'vend_prefixes.product_mapping_id')

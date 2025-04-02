@@ -123,7 +123,7 @@ trait HasFilter {
         })
         ->when($request->location_type_id, function($query, $search) {
             if($search != 'all') {
-              $query->where('location_type_id', $search);
+              $query->where('customers.location_type_id', $search);
             }
         })
         ->when($request->operators, function($query, $search) {
