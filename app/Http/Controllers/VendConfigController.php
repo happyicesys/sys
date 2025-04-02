@@ -40,20 +40,22 @@ class VendConfigController extends Controller
                     ])
                     ->withCount([
                         'vends' => function ($query) use ($request) {
-                            if ($request->vendStatus) {
-                                switch ($request->vendStatus) {
-                                    case 'active':
-                                        $query->where('is_active', true);
-                                        break;
-                                    case 'inactive':
-                                        $query->where('is_active', false);
-                                        break;
-                                    case 'factory':
-                                        $query->where('is_testing', true);
-                                        break;
-                                    case 'disposed':
-                                        $query->where('is_disposed', true);
-                                        break;
+                            if($search != 'all') {
+                                if ($request->vendStatus) {
+                                    switch ($request->vendStatus) {
+                                        case 'active':
+                                            $query->where('is_active', true);
+                                            break;
+                                        case 'inactive':
+                                            $query->where('is_active', false);
+                                            break;
+                                        case 'factory':
+                                            $query->where('is_testing', true);
+                                            break;
+                                        case 'disposed':
+                                            $query->where('is_disposed', true);
+                                            break;
+                                    }
                                 }
                             }
                         },
@@ -75,22 +77,24 @@ class VendConfigController extends Controller
                         });
                     })
                     ->when($request->vendStatus, function($query, $search) {
-                        $query->whereHas('vends', function($query) use ($search) {
-                            switch($search) {
-                                case 'disposed':
-                                    $query->where('is_disposed', true);
-                                    break;
-                                case 'factory':
-                                    $query->where('is_testing', true);
-                                    break;
-                                case 'active':
-                                    $query->where('is_active', true);
-                                    break;
-                                case 'inactive':
-                                    $query->where('is_active', false);
-                                    break;
-                            }
-                        });
+                        if($search != 'all') {
+                            $query->whereHas('vends', function($query) use ($search) {
+                                switch($search) {
+                                    case 'disposed':
+                                        $query->where('is_disposed', true);
+                                        break;
+                                    case 'factory':
+                                        $query->where('is_testing', true);
+                                        break;
+                                    case 'active':
+                                        $query->where('is_active', true);
+                                        break;
+                                    case 'inactive':
+                                        $query->where('is_active', false);
+                                        break;
+                                }
+                            });
+                        }
                     })
                     ->when($request->version, function($query, $search) {
                         if($search !== 'all') {

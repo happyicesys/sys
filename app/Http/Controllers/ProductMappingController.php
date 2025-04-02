@@ -52,21 +52,23 @@ class ProductMappingController extends Controller
                     'vends' => function ($query) use ($request) {
                         $query->select('id', 'code', 'name', 'product_mapping_id', 'customer_id', 'is_active', 'is_testing', 'is_disposed');
 
-                        if ($request->vendStatus) {
-                            switch ($request->vendStatus) {
-                                case 'disposed':
-                                    $query->where('is_disposed', true);
-                                    break;
-                                case 'factory':
-                                    $query->where('is_testing', true);
-                                    break;
-                                case 'active':
-                                    $query->where('is_active', true);
-                                    break;
-                                case 'inactive':
-                                    $query->where('is_active', false);
-                                    break;
-                            }
+                        if($search != 'all') {
+                            $query->whereHas('vends', function($query) use ($search) {
+                                switch($search) {
+                                    case 'disposed':
+                                        $query->where('is_disposed', true);
+                                        break;
+                                    case 'factory':
+                                        $query->where('is_testing', true);
+                                        break;
+                                    case 'active':
+                                        $query->where('is_active', true);
+                                        break;
+                                    case 'inactive':
+                                        $query->where('is_active', false);
+                                        break;
+                                }
+                            });
                         }
                     },
                     'vends.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
