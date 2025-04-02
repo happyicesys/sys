@@ -45,22 +45,20 @@ class VendPrefixController extends Controller
                         'productMappings.upcomingProductMappings',
                         'vendConfigs.attachments',
                         'vends' => function ($query) use ($request) {
-                            if($search != 'all') {
-                                if ($request->vendStatus) {
-                                    switch ($request->vendStatus) {
-                                        case 'disposed':
-                                            $query->where('is_disposed', true);
-                                            break;
-                                        case 'factory':
-                                            $query->where('is_testing', true);
-                                            break;
-                                        case 'active':
-                                            $query->where('is_active', true);
-                                            break;
-                                        case 'inactive':
-                                            $query->where('is_active', false);
-                                            break;
-                                    }
+                            if ($request->vendStatus && $request->vendStatus !== 'all') {
+                                switch ($request->vendStatus) {
+                                    case 'disposed':
+                                        $query->where('is_disposed', true);
+                                        break;
+                                    case 'factory':
+                                        $query->where('is_testing', true);
+                                        break;
+                                    case 'active':
+                                        $query->where('is_active', true);
+                                        break;
+                                    case 'inactive':
+                                        $query->where('is_active', false);
+                                        break;
                                 }
                             }
                         },

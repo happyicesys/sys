@@ -40,22 +40,20 @@ class VendConfigController extends Controller
                     ])
                     ->withCount([
                         'vends' => function ($query) use ($request) {
-                            if($search != 'all') {
-                                if ($request->vendStatus) {
-                                    switch ($request->vendStatus) {
-                                        case 'active':
-                                            $query->where('is_active', true);
-                                            break;
-                                        case 'inactive':
-                                            $query->where('is_active', false);
-                                            break;
-                                        case 'factory':
-                                            $query->where('is_testing', true);
-                                            break;
-                                        case 'disposed':
-                                            $query->where('is_disposed', true);
-                                            break;
-                                    }
+                            if ($request->vendStatus and $request->vendStatus !== 'all') {
+                                switch ($request->vendStatus) {
+                                    case 'active':
+                                        $query->where('is_active', true);
+                                        break;
+                                    case 'inactive':
+                                        $query->where('is_active', false);
+                                        break;
+                                    case 'factory':
+                                        $query->where('is_testing', true);
+                                        break;
+                                    case 'disposed':
+                                        $query->where('is_disposed', true);
+                                        break;
                                 }
                             }
                         },
