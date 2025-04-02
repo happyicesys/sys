@@ -108,22 +108,24 @@ class ProductMappingController extends Controller
                     });
                 })
                 ->when($request->vendStatus, function($query, $search) {
-                    $query->whereHas('vends', function($query) use ($search) {
-                        switch($search) {
-                            case 'disposed':
-                                $query->where('is_disposed', true);
-                                break;
-                            case 'factory':
-                                $query->where('is_testing', true);
-                                break;
-                            case 'active':
-                                $query->where('is_active', true);
-                                break;
-                            case 'inactive':
-                                $query->where('is_active', false);
-                                break;
-                        }
-                    });
+                    if($search != 'all') {
+                        $query->whereHas('vends', function($query) use ($search) {
+                            switch($search) {
+                                case 'disposed':
+                                    $query->where('is_disposed', true);
+                                    break;
+                                case 'factory':
+                                    $query->where('is_testing', true);
+                                    break;
+                                case 'active':
+                                    $query->where('is_active', true);
+                                    break;
+                                case 'inactive':
+                                    $query->where('is_active', false);
+                                    break;
+                            }
+                        });
+                    }
                 })
                 ->when($request->is_active, function($query, $search) use ($request) {
                     $query->where('product_mappings.is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
