@@ -124,7 +124,7 @@
               </Button>
 
               <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
-                @click="onExportExcelClicked()"
+                @click.prevent="onExportExcelClicked()"
                 v-if="permissions.includes('export delivery-platform-orders')">
                 <div class="flex space-x-1">
                   <div>
@@ -200,7 +200,14 @@
                       Order Time
                     </TableHeadSort>
                     <TableHead>
-                      Platform
+                      <div class="flex flex-col space-y-2">
+                        <span>
+                          Platform
+                        </span>
+                        <span>
+                          Platform ID
+                        </span>
+                      </div>
                     </TableHead>
                     <TableHead>
                       Order ID
@@ -244,10 +251,17 @@
                       {{ deliveryPlatformOrder.order_created_at }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
-                      {{ deliveryPlatformOrder && deliveryPlatformOrder.deliveryPlatform ? deliveryPlatformOrder.deliveryPlatform.name : null }}
-                      <span v-if="deliveryPlatformOrder.deliveryPlatformOperator">
-                        <br>({{ deliveryPlatformOrder.deliveryPlatformOperator ? deliveryPlatformOrder.deliveryPlatformOperator.type : null }})
-                      </span>
+                      <div class="flex flex-col">
+                        <span>
+                          {{ deliveryPlatformOrder && deliveryPlatformOrder.deliveryPlatform ? deliveryPlatformOrder.deliveryPlatform.name : null }}
+                        </span>
+                        <span v-if="deliveryPlatformOrder.deliveryPlatformOperator">
+                          ({{ deliveryPlatformOrder.deliveryPlatformOperator ? deliveryPlatformOrder.deliveryPlatformOperator.type : null }})
+                        </span>
+                        <span class="text-xs">
+                          {{ deliveryPlatformOrder.deliveryProductMappingVend ? deliveryPlatformOrder.deliveryProductMappingVend.platform_ref_id : null }}
+                        </span>
+                      </div>
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                       <Link :href="'/delivery-platform-orders/' + deliveryPlatformOrder.id + '/edit'" class="text-blue-600">
@@ -441,6 +455,7 @@ import { ArrowDownTrayIcon, BackspaceIcon, ChatBubbleLeftEllipsisIcon, Magnifyin
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
+import SingleSortItem from '@/Components/SingleSortItem.vue';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 

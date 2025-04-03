@@ -4,6 +4,7 @@
       <th>#</th>
       <th>Order Time</th>
       <th>Platform</th>
+      <th>Platform ID</th>
       <th>Order ID</th>
       <th>Short Order ID</th>
       <th>Status</th>
@@ -35,6 +36,9 @@
             {{ $deliveryPlatformOrder->deliveryPlatform->name }}
             <br>
             ({{ $deliveryPlatformOrder->deliveryPlatformOperator->type }})
+          </td>
+          <td>
+            {{ $deliveryPlatformOrder->deliveryProductMappingVend?->platform_ref_id }}
           </td>
           <td>
             {{ $deliveryPlatformOrder->order_id }}
