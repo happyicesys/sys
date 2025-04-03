@@ -87,6 +87,7 @@ class DeliveryProductMappingController extends Controller
         $vend = Vend::findOrFail($request->vend_id);
 
         $deliveryProductMappingVend = DeliveryProductMappingVend::create([
+            'customer_id' => $vend->customer_id,
             'delivery_product_mapping_id' => $deliveryProductMapping->id,
             'platform_ref_id' => $request->platform_ref_id,
             'vend_code' => $vend->code,

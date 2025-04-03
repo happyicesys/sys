@@ -22,6 +22,9 @@
           <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
             Machine ID
           </SearchInput>
+          <SearchInput placeholderStr="Platform ID" v-model="filters.platform_ref_id">
+            Platform ID
+          </SearchInput>
           <DatePicker
               v-model="filters.date_from"
           >
@@ -462,6 +465,7 @@ const filters = ref({
   has_complaint: 'all',
   // operator_id: '',
   operators: [],
+  platform_ref_id: '',
   sortKey: '',
   sortBy: false,
   status: '',

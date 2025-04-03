@@ -197,6 +197,11 @@ class DeliveryPlatformOrder extends Model
         ->when($request->order_id, function($query, $search) {
             $query->where('order_id', 'LIKE', "%{$search}%");
         })
+        ->when($request->platform_ref_id, function($query, $search) {
+            $query->whereHas('deliveryProductMappingVend', function($query) use ($search) {
+                $query->where('platform_ref_id', 'LIKE', "{$search}%");
+            });
+        })
         ->when($request->short_order_id, function($query, $search) {
             $query->where('short_order_id', 'LIKE', "%{$search}%");
         })

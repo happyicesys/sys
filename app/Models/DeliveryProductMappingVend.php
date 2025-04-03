@@ -21,6 +21,8 @@ class DeliveryProductMappingVend extends Model
     protected $table = 'delivery_product_mapping_vend';
 
     protected $fillable = [
+        'customer_id',
+        'delivery_platform_ref_number_id',
         'delivery_product_mapping_id',
         'delivery_product_mapping_vend_channels_json',
         'end_date',
@@ -48,6 +50,11 @@ class DeliveryProductMappingVend extends Model
     public function deliveryPlatformOrders()
     {
         return $this->hasMany(DeliveryPlatformOrder::class);
+    }
+
+    public function deliveryPlatformRefNumber()
+    {
+        return $this->belongsTo(DeliveryPlatformRefNumber::class);
     }
 
     public function deliveryProductMapping()
