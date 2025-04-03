@@ -194,8 +194,8 @@
                     <TableHeadSort modelName="delivery_platform_orders_count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('delivery_platform_orders_count', true)">
                       Count
                     </TableHeadSort>
-                    <TableHead>
-                    </TableHead>
+                    <!-- <TableHead>
+                    </TableHead> -->
                   </tr>
                 </thead>
                 <tbody class="bg-white">
@@ -259,7 +259,7 @@
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-right">
                       {{ deliveryProductMappingVend.delivery_platform_orders_count }}
                     </TableData>
-                    <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
+                    <!-- <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                       <div class="flex flex-col space-y-1">
                         <Button
                           class="flex space-x-1 w-fit"
@@ -284,7 +284,7 @@
                           <span class="text-xs">Unbind VM</span>
                         </Button>
                       </div>
-                    </TableData>
+                    </TableData> -->
 
                     <!-- <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                       <div class="flex justify-center space-x-1">
