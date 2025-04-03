@@ -21,7 +21,7 @@ return new class extends Migration
 
         Schema::table('delivery_product_mapping_vend', function (Blueprint $table) {
             $table->bigInteger('customer_id')->nullable()->index();
-            $table->bigInteger('delivery_platform_ref_number_id')->nullable()->index();
+            $table->bigInteger('delivery_platform_ref_number_id')->nullable()->index('dpmv_dp_ref_num_idx');
         });
     }
 
