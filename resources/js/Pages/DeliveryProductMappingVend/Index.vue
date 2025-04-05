@@ -69,7 +69,7 @@
           </SearchInput>
           <div>
               <label for="text" class="block text-sm font-medium text-gray-700">
-                  Is Active?
+                  Binding Status
               </label>
               <MultiSelect
                   v-model="filters.is_active"
@@ -247,10 +247,10 @@
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                       <span class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 1">
-                        Operating
+                        Binded
                       </span>
                       <span class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10" v-if="deliveryProductMappingVend.is_active == 0">
-                        Paused
+                        Unbinded
                       </span>
                     </TableData>
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-right">
@@ -259,7 +259,7 @@
                     <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-right">
                       {{ deliveryProductMappingVend.delivery_platform_orders_count }}
                     </TableData>
-                    <!-- <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
+                    <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                       <div class="flex flex-col space-y-1">
                         <Button
                           class="flex space-x-1 w-fit"
@@ -284,7 +284,7 @@
                           <span class="text-xs">Unbind VM</span>
                         </Button>
                       </div>
-                    </TableData> -->
+                    </TableData>
 
                     <!-- <TableData :currentIndex="deliveryProductMappingVendIndex" :totalLength="deliveryProductMappingVends.length" inputClass="text-center">
                       <div class="flex justify-center space-x-1">
@@ -410,8 +410,8 @@ const vend = ref()
 onMounted(() => {
   booleanOptions.value = [
       {id: 'all', value: 'All'},
-      {id: 'true', value: 'Yes'},
-      {id: 'false', value: 'No'},
+      {id: 'true', value: 'Binded'},
+      {id: 'false', value: 'Unbinded'},
   ]
   numberPerPageOptions.value = [
     { id: 100, value: 100 },

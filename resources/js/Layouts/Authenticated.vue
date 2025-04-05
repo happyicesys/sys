@@ -159,7 +159,7 @@ const navigation = [
             {name: 'Modem Models', href: '/modem-types', permission: 'read modem-models'},
             {name: 'Keys', href: '/keys', permission: 'read keys'},
             {name: 'Serial Numbers', href: '/vend-serial-numbers', permission: 'read serial-numbers'},
-            {name: 'Machine Contracts', href: '/vend-contracts', permission: 'read serial-numbers'},
+            {name: 'Machine Contracts', href: '/vend-contracts', permission: 'read vend-contracts'},
             {name: 'Telco', href: '/telcos', permission: 'read telcos'},
             {name: 'Simcard', href: '/simcards', permission: 'read simcards'},
             {name: 'Zone', href: '/zones', permission: 'read zones'},
@@ -254,17 +254,17 @@ const navigation = [
             {name: 'Users', href: '/users', permission: 'read users'},
         ]
     },
-    {
-        name: 'Voucher Management',
-        icon: TicketIcon,
-        current: false,
-        href: 'vouchers',
-        permission: 'read vouchers',
-        tagline: null,
-        children: [
-            {name: 'Vouchers', href: '/vouchers', permission: 'read vouchers'},
-        ]
-    },
+    // {
+    //     name: 'Voucher Management',
+    //     icon: TicketIcon,
+    //     current: false,
+    //     href: 'vouchers',
+    //     permission: 'read vouchers',
+    //     tagline: null,
+    //     children: [
+    //         {name: 'Vouchers', href: '/vouchers', permission: 'read vouchers'},
+    //     ]
+    // },
     {
         name: 'Resource Center (Tutorial)',
         icon: BookOpenIcon,

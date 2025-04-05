@@ -10,15 +10,22 @@ class VoucherItem extends Model
     use HasFactory;
 
     protected $fillable = [
-        'product_id',
-        'qty',
+        'code',
+        'member_id',
+        'is_active',
+        'is_redeemed',
+        'redeemed_at',
+        'status',
+        'metadata',
         'voucher_id',
     ];
 
-    public function product()
-    {
-        return $this->belongsTo(Product::class);
-    }
+    protected $casts = [
+        'is_active' => 'boolean',
+        'is_redeemed' => 'boolean',
+        'redeemed_at' => 'datetime',
+        'metadata' => 'json',
+    ];
 
     public function voucher()
     {
