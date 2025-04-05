@@ -9,11 +9,11 @@
         "doctrine/dbal": "^3.0",
         "dsiddharth2/php-zxing": "^1.0",
         "guzzlehttp/guzzle": "^7.2",
-        "inertiajs/inertia-laravel": "^1.0",
+        "inertiajs/inertia-laravel": "^2.0",
         "intervention/image-laravel": "^1.2",
         "itsgoingd/clockwork": "^5.1",
         "khanamiryan/qrcode-detector-decoder": "^2.0",
-        "laravel/framework": "^11.0",
+        "laravel/framework": "^12.0",
         "laravel/horizon": "^5.12",
         "laravel/passport": "^12.0",
         "laravel/tinker": "^2.7",
@@ -37,7 +37,7 @@
         "laravel/sail": "^1.21.4",
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
-        "phpunit/phpunit": "^10",
+        "phpunit/phpunit": "^11",
         "spatie/laravel-ignition": "^2.0"
     },
     "autoload": {
