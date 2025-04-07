@@ -40,13 +40,13 @@ class CreateFVMBackDate extends Command
     public function handle()
     {
         $data = [
-            ['vend' => 1802, 'cash' => 613.70, 'cashless' => 409.71],
-            ['vend' => 1801, 'cash' => 0.00, 'cashless' => 162.16],
-            ['vend' => 1806, 'cash' => 208.00, 'cashless' => 286.20],
-            ['vend' => 1808, 'cash' => 127.00, 'cashless' => 138.79],
-            ['vend' => 1809, 'cash' => 390.00, 'cashless' => 0.00],
-            ['vend' => 1810, 'cash' => 0.00, 'cashless' => 512.07],
+            ['vend' => 1802, 'cash' => 641.00, 'cashless' => 327.50],
+            ['vend' => 1806, 'cash' => 48.00, 'cashless' => 205.80],
+            ['vend' => 1808, 'cash' => 46.50, 'cashless' => 107.67],
+            ['vend' => 1809, 'cash' => 338.10, 'cashless' => 0.00],
+            ['vend' => 1810, 'cash' => 0.00, 'cashless' => 351.91],
         ];
+
 
 
         $dayCountInMonth = Carbon::now()->subMonth()->daysInMonth;
