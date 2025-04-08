@@ -20,10 +20,12 @@ class Setting extends Model
     ];
 
     protected $fillable = [
-        'customer_index_json'
+        'customer_index_json',
+        'payment_gateway_log_refund_scanned_at',
     ];
 
     protected $casts = [
-        'customer_index_json' => 'json'
+        'customer_index_json' => 'json',
+        'payment_gateway_log_refund_scanned_at' => 'datetime'
     ];
 }
