@@ -37,7 +37,7 @@ class RefundPaymentGatewayEveryTenMinutes extends Command
 
         foreach($paymentGatewayLogs as $paymentGatewayLog) {
             switch($paymentGatewayLog->paymentGateway->name) {
-                case 'Omise':
+                case 'omise':
                     RefundOmiseJob::dispatch($paymentGatewayLog->order_id)->onQueue('default');
                     break;
                 default:
