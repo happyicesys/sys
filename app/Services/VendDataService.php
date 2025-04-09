@@ -268,6 +268,7 @@ class VendDataService
             break;
           case 'P':
             SyncP::dispatch($processedInput, $vend)->onQueue('default');
+            $saveVendData = false;
             break;
           default:
             $saveVendData = true;
