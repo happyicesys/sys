@@ -71,13 +71,14 @@
                    Payment Method
                 </label>
                 <MultiSelect
-                    v-model="filters.paymentMethod"
+                    v-model="filters.paymentMethods"
                     :options="paymentMethodOptions"
                     valueProp="id"
                     label="name"
                     placeholder="Select"
                     open-direction="bottom"
                     class="mt-1"
+                    mode="tags"
                 >
                 </MultiSelect>
             </div>
@@ -708,7 +709,7 @@ onMounted(() => {
         ...props.vendChannelErrors.data.map((error) => {return {id: error.id, desc: error.desc}})
     ]
     paymentMethodOptions.value = [
-        {id: '', name: 'All'},
+        {id: 'all', name: 'All'},
         ...props.paymentMethods.data.map((paymethod) => {return {id: paymethod.id, name: paymethod.name}})
     ]
     numberPerPageOptions.value = [
@@ -719,7 +720,7 @@ onMounted(() => {
         { id: 'All', value: 'All' },
     ]
     filters.value.numberPerPage = numberPerPageOptions.value[0]
-    filters.value.paymentMethod = paymentMethodOptions.value[0]
+    filters.value.paymentMethods = [paymentMethodOptions.value[0]]
 
     booleanOptions.value = [
         {id: 'all', value: 'All'},
@@ -793,7 +794,7 @@ const filters = ref({
     is_multiple: '',
     is_payment_received: '',
     is_refunded: '',
-    paymentMethod: '',
+    paymentMethods: [],
     date_from: moment().format('YYYY-MM-DD'),
     date_to: moment().format('YYYY-MM-DD'),
     sortKey: '',
@@ -857,7 +858,7 @@ function onExportExcelClicked() {
             is_multiple: filters.value.is_multiple.id,
             is_payment_received: filters.value.is_payment_received.id,
             is_refunded: filters.value.is_refunded.id,
-            paymentMethod: filters.value.paymentMethod.id,
+            paymentMethods: filters.value.paymentMethods.map((paymentMethod) => { return paymentMethod.id }),
             numberPerPage: filters.value.numberPerPage.id,
             vendContracts: filters.value.vendContracts.map((vendContract) => { return vendContract.id }),
             vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
@@ -887,7 +888,7 @@ function onSearchFilterUpdated() {
         is_multiple: filters.value.is_multiple.id,
         is_payment_received: filters.value.is_payment_received.id,
         is_refunded: filters.value.is_refunded.id,
-        paymentMethod: filters.value.paymentMethod.id,
+        paymentMethods: filters.value.paymentMethods.map((paymentMethod) => { return paymentMethod.id }),
         numberPerPage: filters.value.numberPerPage.id,
         vendContracts: filters.value.vendContracts.map((vendContract) => { return vendContract.id }),
         vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
