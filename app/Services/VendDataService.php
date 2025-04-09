@@ -285,10 +285,12 @@ class VendDataService
         if($vend->apk_ver_json && $vend->apk_ver_json['apkver'] && $vend->apk_ver_json['apkver'] >= 129) {
           PublishMqtt::dispatch('CM'.$vend->code, $response, 0)->onQueue('default');
         }
-
-        $saveVendData = false;
       }
 
+    }
+
+    if($connectionType == 'mqtt') {
+      $saveVendData = false;
     }
 
     if($saveVendData) {
