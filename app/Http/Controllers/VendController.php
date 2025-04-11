@@ -1590,7 +1590,7 @@ class VendController extends Controller
                 'vend:id,code,customer_id,name,label_name,is_active,vend_prefix_id',
                 'vend.customer',
                 'vend.vendPrefix',
-                'vendTransaction',
+                'vendTransaction.vendChannelError',
             ])
             ->filterIndex($request)
             ->where('status', '>=', PaymentGatewayLog::STATUS_APPROVE)
@@ -1612,6 +1612,7 @@ class VendController extends Controller
                 'Amount' => $paymentGatewayLog->amount,
                 'Payment Method' => $paymentGatewayLog->method,
                 'Refunded?' => $paymentGatewayLog->status == '98' ? 'Yes' : 'No',
+                'Error(s)' => $paymentGatewayLog->vendTransaction?->vendChannelError?->desc,
                 'QR Ref ID' => $paymentGatewayLog->qr_ref_id,
             ];
         });
@@ -1889,7 +1890,7 @@ class VendController extends Controller
                 'vend:id,code,customer_id,name,label_name,is_active,vend_prefix_id',
                 'vend.customer',
                 'vend.vendPrefix',
-                'vendTransaction',
+                'vendTransaction.vendChannelError',
             ])
             ->filterIndex($request)
             ->where('status', '>=', PaymentGatewayLog::STATUS_APPROVE)

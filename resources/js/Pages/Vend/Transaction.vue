@@ -574,9 +574,6 @@
                             <span v-if="vendTransaction.vend_channel_error_desc">
                                 {{ vendTransaction.vend_channel_error_desc }}
                             </span>
-                            <span v-if="vendTransaction.vendTransactionJson && vendTransaction.vendTransactionJson['SErr'] && vendTransaction.vendTransactionJson['SErr'] > 0">
-                                {{ vendTransaction.vendTransactionJson['SErr'] }}
-                            </span>
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             <span v-if="vendTransaction.is_payment_received">

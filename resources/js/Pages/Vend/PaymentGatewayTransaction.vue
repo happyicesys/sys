@@ -288,6 +288,9 @@
                             Payment Method
                         </TableHead>
                         <TableHead>
+                            Error(s)
+                        </TableHead>
+                        <TableHead>
                             Refunded?
                         </TableHead>
                         <TableHead>
@@ -346,6 +349,9 @@
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
                             {{ paymentGatewayLog.method }}
+                        </TableData>
+                        <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
+                            {{ paymentGatewayLog.vendTransaction?.vendChannelError?.desc }}
                         </TableData>
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
                             <div class="flex justify-center">
