@@ -259,7 +259,7 @@ vendTempsObj: Object,
 vendFansObj: Object,
 });
 
-const hourDurationFilters = ref([6])
+const hourDurationFilters = ref([6, 12])
 const durationFilters = ref([1, 2, 5, 7, 14])
 const filters = ref({
 datetime_from: props.startDate ? props.startDate : moment().format('YYYY-MM-DD HH:mm:ss'),

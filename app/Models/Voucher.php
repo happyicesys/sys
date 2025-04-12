@@ -27,6 +27,7 @@ class Voucher extends Model
         'member_id',
         'min_value',
         'name',
+        'operator_id',
         'product_json',
         'qty',
         'redeemed_at',

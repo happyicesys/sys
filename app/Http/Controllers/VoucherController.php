@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\OperatorResource;
 use App\Http\Resources\VoucherResource;
+use App\Models\Operator;
 use App\Models\Voucher;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -19,7 +21,10 @@ class VoucherController extends Controller
         ]);
 
         return Inertia::render('Voucher/Index', [
-            'vendContracts' => VoucherResource::collection(
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'vouchers' => VoucherResource::collection(
                 Voucher::query()
                     ->with('vends')
                     ->when($request->name, function($query, $search) {
@@ -34,8 +39,12 @@ class VoucherController extends Controller
         ]);
     }
 
-    public function searchVoucherCode()
+    public function create()
     {
-
+        return Inertia::render('Voucher/Form', [
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+        ]);
     }
 }
