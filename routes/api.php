@@ -59,7 +59,7 @@ Route::prefix('delivery')->group(function() {
 });
 
 Route::prefix('vouchers')->group(function() {
-    Route::post('/search', [VoucherController::class, 'searchVoucherCode']);
+    Route::post('/search', [VoucherController::class, 'search']);
 });
 
 // Internal api

@@ -47,4 +47,47 @@ class VoucherController extends Controller
             ),
         ]);
     }
+
+
+    public function search(Request $request)
+    {
+        $code = $request->code;
+
+        if(!$code) {
+            abort(response([
+                'status_code' => 400,
+                'message' => 'Parameters missing',
+            ], 400));
+        }
+
+        if($code == 'test') {
+            return response([
+                'status_code' => 200,
+                'message' => 'Voucher successfully reedeemed',
+                'voucher' =>
+                [
+                    'id' => 20,
+                    'code' => 'TESTING',
+                    'type' => 'percent',
+                    'channels' => ['14', '22', '15'],
+                    'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
+                    'date_to' => Carbon::today()->addDays(5)->format('Y-m-d'),
+                    'name' => 'Redeem Channel 14, 22, 15 voucher',
+                    'desc' => '',
+                    'status' => 'active',
+                    'min_value' => 200,
+                    'max_promo_value' => 1000,
+                    'qty' => 1,
+                    'value' => null,
+                    'matrix' => []
+                ],
+            ], 200);
+        }
+
+        return response([
+            'status_code' => 404,
+            'message' => 'Voucher not found',
+        ], 404);
+
+    }
 }
