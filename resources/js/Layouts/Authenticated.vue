@@ -254,17 +254,17 @@ const navigation = [
             {name: 'Users', href: '/users', permission: 'read users'},
         ]
     },
-    // {
-    //     name: 'Voucher Management',
-    //     icon: TicketIcon,
-    //     current: false,
-    //     href: 'vouchers',
-    //     permission: 'read vouchers',
-    //     tagline: null,
-    //     children: [
-    //         {name: 'Vouchers', href: '/vouchers', permission: 'read vouchers'},
-    //     ]
-    // },
+    {
+        name: 'Voucher Management',
+        icon: TicketIcon,
+        current: false,
+        href: 'vouchers',
+        permission: 'read vouchers',
+        tagline: null,
+        children: [
+            {name: 'Vouchers', href: '/vouchers', permission: 'read vouchers'},
+        ]
+    },
     {
         name: 'Resource Center (Tutorial)',
         icon: BookOpenIcon,

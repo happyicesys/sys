@@ -78,7 +78,7 @@ class VoucherController extends Controller
                     'min_value' => 200,
                     'max_promo_value' => 1000,
                     'qty' => 1,
-                    'value' => null,
+                    'value' => 10,
                     'matrix' => []
                 ],
             ], 200);
