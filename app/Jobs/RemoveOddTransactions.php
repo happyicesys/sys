@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\Operator;
 use App\Models\PaymentMethod;
 use App\Models\VendTransaction;
 use Carbon\Carbon;
@@ -37,6 +38,8 @@ class RemoveOddTransactions implements ShouldQueue
                 ->orWhere('code', 11);
         })->pluck('id')->toArray();
 
+        $retainOperator = Operator::where('code', 'TEST')->pluck('id')->toArray();
+
         VendTransaction::query()
             ->where(function($query) {
                 $query->where('amount', '=', 20000)
@@ -44,6 +47,7 @@ class RemoveOddTransactions implements ShouldQueue
                     ->orWhere('amount', '=', 10);
             })
             ->whereNotIn('payment_method_id', $retainPaymentMethod)
+            ->whereNotIn('operator_id', $retainOperator)
             ->where('vend_transactions.created_at', '>=', Carbon::parse($this->from)->startOfDay())
             ->where('vend_transactions.created_at', '<=', Carbon::parse($this->to)->endOfDay())
             ->delete();
