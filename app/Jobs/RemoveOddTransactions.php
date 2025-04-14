@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\PaymentMethod;
 use App\Models\VendTransaction;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -30,12 +31,19 @@ class RemoveOddTransactions implements ShouldQueue
      */
     public function handle(): void
     {
+
+        $retainPaymentMethod = PaymentMethod::where(function($query) {
+            $query->where('code', 10)
+                ->orWhere('code', 11);
+        })->pluck('id')->toArray();
+
         VendTransaction::query()
             ->where(function($query) {
                 $query->where('amount', '=', 20000)
                     ->orWhere('amount', '=', 0)
                     ->orWhere('amount', '=', 10);
             })
+            ->whereNotIn('payment_method_id', $retainPaymentMethod)
             ->where('vend_transactions.created_at', '>=', Carbon::parse($this->from)->startOfDay())
             ->where('vend_transactions.created_at', '<=', Carbon::parse($this->to)->endOfDay())
             ->delete();
