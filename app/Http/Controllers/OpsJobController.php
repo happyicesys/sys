@@ -100,8 +100,8 @@ class OpsJobController extends Controller
                 JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
                 JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
                 WHERE ops_job_items.ops_job_id = ops_jobs.id
-                AND ops_job_items.status >= 2
-                ) as picked_amount')
+                AND ops_job_items.status >= ?
+                ) as picked_amount', [OpsJob::STATUS_PICKED])
             ->selectRaw('
                 (SELECT SUM(ops_job_item_channels.picked_qty)
                 FROM ops_job_item_channels
@@ -599,14 +599,16 @@ class OpsJobController extends Controller
                     FROM ops_job_item_channels
                     JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
                     WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
-                    ) as picked_amount');
+                    AND ops_job_items.status >= ?
+                    ) as picked_amount', [OpsJob::STATUS_PICKED]);
 
                 $query->selectRaw('
                     (SELECT SUM(ops_job_item_channels.picked_qty)
                     FROM ops_job_item_channels
                     JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
                     WHERE ops_job_item_channels.ops_job_item_id = ops_job_items.id
-                    ) as picked_count');
+                    AND ops_job_items.status >= ?
+                    ) as picked_count', [OpsJob::STATUS_PICKED]);
 
                 $query->selectRaw('
                     (SELECT SUM(ops_job_item_channels.actual_qty * vend_channels.amount)
