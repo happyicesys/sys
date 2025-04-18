@@ -100,6 +100,7 @@ class OpsJobController extends Controller
                 JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
                 JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
                 WHERE ops_job_items.ops_job_id = ops_jobs.id
+                AND ops_job_items.status >= 2
                 ) as picked_amount')
             ->selectRaw('
                 (SELECT SUM(ops_job_item_channels.picked_qty)
@@ -107,7 +108,8 @@ class OpsJobController extends Controller
                 JOIN vend_channels ON vend_channels.id = ops_job_item_channels.vend_channel_id
                 JOIN ops_job_items ON ops_job_items.id = ops_job_item_channels.ops_job_item_id
                 WHERE ops_job_items.ops_job_id = ops_jobs.id
-                ) as picked_count')
+                AND ops_job_items.status >= ?
+                ) as picked_count', [OpsJob::STATUS_PICKED])
             ->selectRaw('
                 (
                 SELECT SUM(ops_job_item_channels.picked_qty * unit_costs.cost)
@@ -118,9 +120,10 @@ class OpsJobController extends Controller
                 JOIN unit_costs ON unit_costs.product_id = products.id
                 WHERE ops_job_items.ops_job_id = ops_jobs.id
                 AND unit_costs.is_current = true
+                AND ops_job_items.status >= ?
                 ORDER BY unit_costs.date_from DESC, unit_costs.created_at DESC
                 LIMIT 1
-                ) as picked_cost')
+                ) as picked_cost', [OpsJob::STATUS_PICKED])
             ->selectRaw('
                 (SELECT SUM(ops_job_item_channels.actual_qty * vend_channels.amount)
                 FROM ops_job_item_channels

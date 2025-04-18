@@ -571,7 +571,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('vouchers')->group(function() {
         Route::get('/', [VoucherController::class, 'index'])->name('vouchers');
-        Route::get('/create', [VoucherController::class, 'create']);
+        Route::get('/create/{batchType}', [VoucherController::class, 'create']);
     });
 
     Route::prefix('zones')->group(function() {

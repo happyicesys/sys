@@ -10,8 +10,24 @@ class Voucher extends Model
     use HasFactory;
 
     const STATUS_ACTIVE = 1;
-    const STATUS_REDEEMED = 88;
-    const STATUS_CANCELLED = 99;
+    const STATUS_REDEEMED = 2;
+    const STATUS_EXPIRED = 88;
+
+    const TYPE_ITEM = 'item';
+    const TYPE_PERCENT = 'percent';
+    const TYPE_AMOUNT = 'amount';
+
+    const STATUS_MAPPINGS = [
+        self::STATUS_ACTIVE => 'active',
+        self::STATUS_REDEEMED => 'redeemed',
+        self::STATUS_EXPIRED => 'expired',
+    ];
+
+    const TYPE_MAPPINGS = [
+        self::TYPE_ITEM => 'Item',
+        self::TYPE_PERCENT => 'Percent',
+        self::TYPE_AMOUNT => 'Amount',
+    ];
 
     protected $fillable = [
         'code',
@@ -33,6 +49,7 @@ class Voucher extends Model
         'redeemed_at',
         'response_json',
         'status',
+        'type',
         'vend_id',
     ];
 

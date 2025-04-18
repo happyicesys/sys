@@ -1,8 +1,10 @@
 <template>
-  <Head title="Create APK Settings" />
+  <Head title="Create Vouchers" />
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+        Batch Create
+        {{ isUnique ? 'Different Codes' : 'Same Codes' }}
         Vouchers
       </h2>
     </template>
@@ -14,13 +16,13 @@
           <form @submit.prevent="submit" id="submit">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
             <div class="sm:col-span-5">
-              <FormInput v-model="form.name">
+              <FormInput v-model="form.name" required="true">
                 Name
               </FormInput>
             </div>
 
             <div class="sm:col-span-5">
-              <FormTextarea v-model="form.desc">
+              <FormTextarea v-model="form.desc" rows="3">
                 Desc
               </FormTextarea>
             </div>
@@ -28,12 +30,37 @@
             <div class="sm:col-span-3">
               <DatePicker v-model="form.date_from" :error="form.errors.date_from" @input="onDateFromChanged()">
                 Begin Date
+                <span class="text-red-500">*</span>
               </DatePicker>
             </div>
             <div class="sm:col-span-3">
               <DatePicker v-model="form.date_to" :error="form.errors.date_to" :minDate="form.date_from">
                 End Date
+                <span class="text-red-500">*</span>
               </DatePicker>
+            </div>
+
+            <div class="sm:col-span-5">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Type
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.type"
+                  :options="typeOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.type">
+                  {{ form.errors.type }}
+                </div>
             </div>
 
             <div class="sm:col-span-6 py-4">
@@ -61,33 +88,41 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
+import moment from 'moment';
+import MultiSelect from '@/Components/MultiSelect.vue';
 import { CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
+    isUnique: Boolean,
     operatorOptions: Object,
     type: String,
-    vend: Object,
+    typeOptions: [Array, Object],
+    voucher: Object,
   })
 
 const toast = useToast()
+const typeOptions = ref([])
 const form = ref(
   useForm(getDefaultForm())
 )
-const vend = ref([])
+const voucher = ref([])
 
 onMounted(() => {
+  typeOptions.value = props.typeOptions
 
   form.value = useForm(getDefaultForm())
-
 })
 
 function getDefaultForm() {
   return {
+    date_from: moment().format('YYYY-MM-DD'),
+    date_to: '',
     name: '',
     desc: '',
   }

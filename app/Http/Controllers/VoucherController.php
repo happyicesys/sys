@@ -39,12 +39,16 @@ class VoucherController extends Controller
         ]);
     }
 
-    public function create()
+    public function create($batchType)
     {
+        $isUnique = $batchType == 'unique' ? true : false;
+
         return Inertia::render('Voucher/Form', [
+            'isUnique' => $isUnique,
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
+            'typeOptions' => Voucher::TYPE_MAPPINGS,
         ]);
     }
 
