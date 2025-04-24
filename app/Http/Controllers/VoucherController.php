@@ -128,7 +128,7 @@ class VoucherController extends Controller
                 [
                     'id' => 30,
                     'code' => 'freecornetto',
-                    'type' => 'percent',
+                    'type' => 'item',
                     'channels' => ['14', '15', '16', '22'],
                     'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
                     'date_to' => Carbon::today()->addDays(1)->format('Y-m-d'),
