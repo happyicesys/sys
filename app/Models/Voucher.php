@@ -37,19 +37,17 @@ class Voucher extends Model
         'desc',
         'is_active',
         'is_batch_code',
-        'is_redeemed',
         'max_promo_value',
         'max_redemption_count',
-        'member_id',
         'min_value',
         'name',
         'operator_id',
         'product_json',
         'qty',
-        'redeemed_at',
         'response_json',
         'status',
         'type',
+        'value',
         'vend_id',
     ];
 
@@ -58,9 +56,7 @@ class Voucher extends Model
         'date_to' => 'datetime',
         'is_active' => 'boolean',
         'is_batch_code' => 'boolean',
-        'is_redeemed' => 'boolean',
         'product_json' => 'json',
-        'redeemed_at' => 'datetime',
         'response_json' => 'json',
     ];
 

@@ -15,6 +15,16 @@
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 p-5 mb-3">
           <form @submit.prevent="submit" id="submit">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
+            <div class="sm:col-span-3" v-if="isUnique == false">
+              <FormInput v-model="form.code" required="true" placeholderStr="Alphanumeric">
+                Voucher Code (Leave Blank to Auto Generate)
+              </FormInput>
+            </div>
+            <div class="sm:col-span-2" v-if="isUnique == false" >
+              <FormInput v-model="form.qty" required="true" placeholderStr="Numbers only">
+                Qty
+              </FormInput>
+            </div>
             <div class="sm:col-span-5">
               <FormInput v-model="form.name" required="true">
                 Name
@@ -25,6 +35,29 @@
               <FormTextarea v-model="form.desc" rows="3">
                 Desc
               </FormTextarea>
+            </div>
+
+            <div class="sm:col-span-4">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Operator
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.operator_id"
+                  :options="operatorOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="full_name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.operator_id">
+                  {{ form.errors.operator_id }}
+                </div>
             </div>
 
             <div class="sm:col-span-3">
@@ -62,6 +95,51 @@
                   {{ form.errors.type }}
                 </div>
             </div>
+
+            <div class="sm:col-span-2" v-if="form.type && form.type?.id != 'item'">
+              <FormInput v-model="form.name" required="true" placeholderStr="Numbers only">
+                Value
+                  <span v-if="form.type.id == 'percent'">
+                    (%)
+                  </span>
+                  <span v-if="form.type.id == 'amount'">
+                    ($)
+                  </span>
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-2" v-if="form.type">
+              <FormInput v-model="form.min_value" placeholderStr="Numbers only">
+                Mininum Basket Value ($)
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-2" v-if="form.type && form.type?.id != 'item'">
+              <FormInput v-model="form.max_promo_value" placeholderStr="Numbers only">
+                Maximum Promo Value ($)
+              </FormInput>
+            </div>
+
+            <span class="sm:col-span-6">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Product
+                <span class="text-red-500">
+                  *
+                </span>
+              </label>
+              <MultiSelect
+                v-model="form.products"
+                :options="productOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                mode="tags"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </span>
 
             <div class="sm:col-span-6 py-4">
               <span class="flex space-x-1">
@@ -101,11 +179,14 @@ import { useToast } from "vue-toastification";
 const props = defineProps({
     isUnique: Boolean,
     operatorOptions: Object,
+    productOptions: Object,
     type: String,
     typeOptions: [Array, Object],
     voucher: Object,
   })
 
+const operatorOptions = ref([])
+const productOptions = ref([])
 const toast = useToast()
 const typeOptions = ref([])
 const form = ref(
@@ -114,6 +195,8 @@ const form = ref(
 const voucher = ref([])
 
 onMounted(() => {
+  operatorOptions.value = props.operatorOptions.data
+  productOptions.value = props.productOptions.data
   typeOptions.value = props.typeOptions
 
   form.value = useForm(getDefaultForm())
@@ -121,10 +204,18 @@ onMounted(() => {
 
 function getDefaultForm() {
   return {
+    code: '',
     date_from: moment().format('YYYY-MM-DD'),
     date_to: '',
-    name: '',
     desc: '',
+    max_promo_value: '',
+    min_value: '',
+    name: '',
+    operator_id: '',
+    products: [],
+    qty: '',
+    type: '',
+    value: '',
   }
 }
 
@@ -132,7 +223,14 @@ function submit() {
   form.value.clearErrors()
 
   form.value
-    .post('/apk-settings/store', {
+    .transform((data) => ({
+      ...data,
+      is_batch_code: props.isUnique ? true : false,
+      type: data.type?.id,
+      operator_id: data.operator_id?.id,
+      products: data.products?.map((item) => item.id),
+    }))
+    .post('/vouchers/store', {
     onSuccess: () => {
       toast.success("Successfully created, please continue to edit the settings", {
         timeout: 3000

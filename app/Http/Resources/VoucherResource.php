@@ -17,6 +17,7 @@ class VoucherResource extends JsonResource
         return [
             'id' => $this->id,
             'code' => $this->code,
+            'created_at' => $this->created_at,
             'customer_id' => $this->customer_id,
             'customer' => CustomerResource::make($this->whenLoaded('customer')),
             'date_from' => $this->date_from,
@@ -24,20 +25,17 @@ class VoucherResource extends JsonResource
             'desc' => $this->desc,
             'is_active' => $this->is_active,
             'is_batch_code' => $this->is_batch_code,
-            'is_redeemed' => $this->is_redeemed,
             'max_promo_value' => $this->max_promo_value,
             'max_redemption_count' => $this->max_redemption_count,
-            'member_id' => $this->member_id,
             'min_value' => $this->min_value,
             'name' => $this->name,
             'product_json' => $this->product_json,
             'qty' => $this->qty,
-            'redeemed_at' => $this->redeemed_at,
             'response_json' => $this->response_json,
             'status' => $this->status,
+            'value' => $this->value,
             'vend_id' => $this->vend_id,
             'vend' => VendResource::make($this->whenLoaded('vend')),
-            'created_at' => $this->created_at,
         ];
     }
 }
