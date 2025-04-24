@@ -120,6 +120,30 @@ class VoucherController extends Controller
             ], 200);
         }
 
+        if($code == 'freecornetto') {
+            return response([
+                'status_code' => 200,
+                'message' => 'Voucher successfully reedeemed',
+                'voucher' =>
+                [
+                    'id' => 30,
+                    'code' => 'freecornetto',
+                    'type' => 'percent',
+                    'channels' => ['14', '15', '16', '22'],
+                    'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
+                    'date_to' => Carbon::today()->addDays(5)->format('Y-m-d'),
+                    'name' => 'Free Cornetto with order over $10',
+                    'desc' => '',
+                    'status' => 'active',
+                    'min_value' => 1000,
+                    'max_promo_value' => '',
+                    'qty' => 1,
+                    'value' => '',
+                    'matrix' => []
+                ],
+            ], 200);
+        }
+
         return response([
             'status_code' => 404,
             'message' => 'Voucher not found',
