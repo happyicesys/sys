@@ -131,7 +131,7 @@ class VoucherController extends Controller
                     'type' => 'percent',
                     'channels' => ['14', '15', '16', '22'],
                     'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
-                    'date_to' => Carbon::today()->addDays(5)->format('Y-m-d'),
+                    'date_to' => Carbon::today()->addDays(1)->format('Y-m-d'),
                     'name' => 'Free Cornetto with order over $10',
                     'desc' => '',
                     'status' => 'active',
