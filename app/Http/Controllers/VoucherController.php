@@ -79,12 +79,12 @@ class VoucherController extends Controller
                 'voucher' =>
                 [
                     'id' => 20,
-                    'code' => 'TESTING',
+                    'code' => 'test',
                     'type' => 'percent',
                     'channels' => ['14', '22', '15'],
                     'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
                     'date_to' => Carbon::today()->addDays(5)->format('Y-m-d'),
-                    'name' => 'Redeem Channel 14, 22, 15 voucher',
+                    'name' => '10% discount on Item 14,15,and 22.',
                     'desc' => '',
                     'status' => 'active',
                     'min_value' => 200,
@@ -108,7 +108,7 @@ class VoucherController extends Controller
                     'channels' => ['14', '22', '15'],
                     'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
                     'date_to' => Carbon::today()->addDays(5)->format('Y-m-d'),
-                    'name' => 'Redeem Channel 14, 22, 15 voucher',
+                    'name' => '20% discount on Item 14,15,and 22.',
                     'desc' => '',
                     'status' => 'active',
                     'min_value' => 200,
