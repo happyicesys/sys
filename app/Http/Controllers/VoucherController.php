@@ -144,6 +144,30 @@ class VoucherController extends Controller
             ], 200);
         }
 
+        if($code == 'discount2d') {
+            return response([
+                'status_code' => 200,
+                'message' => 'Voucher successfully reedeemed',
+                'voucher' =>
+                [
+                    'id' => 30,
+                    'code' =>'discount2d'
+                    'type' => 'amount',
+                    'channels' => [],
+                    'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
+                    'date_to' => Carbon::today()->addDays(1)->format('Y-m-d'),
+                    'name' => 'Discount 2 Dollar with purchase more than 10',
+                    'desc' => '',
+                    'status' => 'active',
+                    'min_value' => 1000,
+                    'max_promo_value' => null,
+                    'qty' => 1,
+                    'value' => null,
+                    'matrix' => []
+                ],
+            ], 200);
+        }
+
         return response([
             'status_code' => 404,
             'message' => 'Voucher not found',
