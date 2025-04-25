@@ -151,7 +151,7 @@ class VoucherController extends Controller
                 'voucher' =>
                 [
                     'id' => 30,
-                    'code' =>'discount2d'
+                    'code' =>'discount2d',
                     'type' => 'amount',
                     'channels' => [],
                     'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
