@@ -117,9 +117,7 @@ class PaymentGatewayLog extends Model
             }
         })
         ->when($request->order_id, function($query, $search) {
-            $query->whereHas('vendTransaction', function($query) use ($search) {
-                $query->where('order_id', 'LIKE', "{$search}%");
-            });
+            $query->where('order_id', 'LIKE', "{$search}%");
         })
         ->when($request->paymentMethod, function($query, $search) {
             $query->where('payment_method_id', $search);
