@@ -69,5 +69,10 @@ class Voucher extends Model
     {
         return $this->hasMany(Vend::class);
     }
+
+    public function voucherItems()
+    {
+        return $this->hasMany(VoucherItem::class);
+    }
 }
 

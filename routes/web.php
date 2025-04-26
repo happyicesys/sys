@@ -572,7 +572,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('vouchers')->group(function() {
         Route::get('/', [VoucherController::class, 'index'])->name('vouchers');
         Route::get('/create/{batchType}', [VoucherController::class, 'create']);
-        Route::get('/create/{id}/edit', [VoucherController::class, 'edit'])->name('vouchers.edit');
+        Route::get('/edit/{id}', [VoucherController::class, 'edit'])->name('vouchers.edit');
         Route::post('/store', [VoucherController::class, 'store']);
     });
 

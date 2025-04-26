@@ -101,6 +101,9 @@
                     <TableHead>
                       Desc
                     </TableHead>
+                    <TableHeadSort modelName="is_batch_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('is_batch_code')">
+                      Is Unique Voucher Code?
+                    </TableHeadSort>
                     <TableHead>
                     </TableHead>
                   </tr>
@@ -115,6 +118,12 @@
                       </TableData>
                       <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-left whitespace-pre-line">
                         {{ voucher.desc }}
+                      </TableData>
+                      <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-left">
+                        <div class="flex justify-center">
+                            <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="voucher.is_batch_code"/>
+                            <XCircleIcon class="h-4 w-4 text-red-500" aria-hidden="true" v-if="!voucher.is_batch_code"/>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
@@ -174,11 +183,10 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-import Form from '@/Pages/Voucher/Form.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, CheckCircleIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';

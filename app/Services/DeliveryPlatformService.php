@@ -133,11 +133,20 @@ class DeliveryPlatformService
     $this->setDeliveryPlatformOperator($deliveryPlatformOrder->deliveryPlatformOperator);
 
     $dispenseItems = $deliveryPlatformOrder->orderItemVendChannels()->get();
-    $orderID = $this->runningNumberService->getVendOrderID($deliveryPlatformOrder->deliveryProductMappingVend->vend);
 
-    $deliveryPlatformOrder->update([
-      'vend_transaction_order_id' => $orderID,
-    ]);
+    $orderID = null;
+
+    if(!$deliveryPlatformOrder->vend_transaction_order_id) {
+      $orderID = $this->runningNumberService->getVendOrderID($deliveryPlatformOrder->deliveryProductMappingVend->vend);
+
+      $deliveryPlatformOrder->update([
+        'vend_transaction_order_id' => $orderID,
+      ]);
+
+    }else {
+      $orderID = $deliveryPlatformOrder->vend_transaction_order_id;
+    }
+
     $dispenseData = [
       'orderId' => $orderID,
       'paymentMethod' => $deliveryPlatformOrder->deliveryPlatform->paymentMethod->code,

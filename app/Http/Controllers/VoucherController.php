@@ -8,12 +8,20 @@ use App\Http\Resources\VoucherResource;
 use App\Models\Operator;
 use App\Models\Product;
 use App\Models\Voucher;
+use App\Services\VoucherService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class VoucherController extends Controller
 {
+    protected $voucherService;
+
+    public function __construct()
+    {
+        $this->voucherService = new VoucherService();
+    }
+
     public function index(Request $request)
     {
         $request->merge([
@@ -28,7 +36,7 @@ class VoucherController extends Controller
             ),
             'vouchers' => VoucherResource::collection(
                 Voucher::query()
-                    ->with('vends')
+                    ->with('voucherItems')
                     ->when($request->name, function($query, $search) {
                         $query->where('name', 'LIKE', "%{$search}%");
                     })
@@ -45,7 +53,7 @@ class VoucherController extends Controller
     {
         $isUnique = $batchType == 'unique' ? true : false;
 
-        return Inertia::render('Voucher/Form', [
+        return Inertia::render('Voucher/Create', [
             'isUnique' => $isUnique,
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
@@ -57,6 +65,23 @@ class VoucherController extends Controller
                 Product::orderBy('code')->where('is_inventory', true)->where('is_active', true)->get()
             ),
             'typeOptions' => Voucher::TYPE_MAPPINGS,
+        ]);
+    }
+
+    public function edit($id)
+    {
+        $voucher = Voucher::findOrFail($id);
+
+        return Inertia::render('Voucher/Edit', [
+            'isUnique' => $voucher->is_batch_code ? false : true,
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'productOptions' => ProductResource::collection(
+                Product::orderBy('code')->where('is_inventory', true)->where('is_active', true)->get()
+            ),
+            'typeOptions' => Voucher::TYPE_MAPPINGS,
+            'voucher' => new VoucherResource($voucher),
         ]);
     }
 
@@ -176,31 +201,49 @@ class VoucherController extends Controller
 
     public function store(Request $request)
     {
+        if($request->is_batch_code) {
+            $validatedRequest = $request->validate([
+                'code' => 'nullable|string|max:255',
+                'date_from' => 'required|date',
+                'date_to' => 'required|date',
+                'desc' => 'nullable|string|max:255',
+                'is_batch_code' => 'boolean',
+                'max_promo_value' => 'nullable|numeric',
+                'max_redemption_count' => 'nullable|integer',
+                'min_value' => 'nullable|numeric',
+                'name' => 'required|string|max:255',
+                'operators' => 'required|array',
+                'product_json' => 'nullable',
+                'qty' => 'required|integer|min:1',
+                'response_json' => 'nullable|json',
+                'type' => 'required|string|max:255',
+                'value' => 'nullable|numeric|min:0',
+            ]);
+        }else {
+            $validatedRequest = $request->validate([
+                'code' => 'required|string|max:255|unique:App\Models\Voucher,code',
+                'date_from' => 'required|date',
+                'date_to' => 'required|date',
+                'desc' => 'nullable|string|max:255',
+                'is_batch_code' => 'boolean',
+                'max_promo_value' => 'nullable|numeric',
+                'max_redemption_count' => 'nullable|integer',
+                'min_value' => 'nullable|numeric',
+                'name' => 'required|string|max:255',
+                'operators' => 'required|array',
+                'product_json' => 'nullable',
+                'qty' => 'required|integer|min:1',
+                'response_json' => 'nullable|json',
+                'type' => 'required|string|max:255',
+                'value' => 'nullable|numeric|min:0',
+            ]);
+        }
 
-        dd($request->all());
-        $request->validate([
-            'code' => 'nullable|string|max:255',
-            'date_from' => 'required|date',
-            'date_to' => 'required|date',
-            'desc' => 'nullable|string|max:255',
-            'is_batch_code' => 'boolean',
-            'max_promo_value' => 'nullable|numeric',
-            'max_redemption_count' => 'nullable|integer',
-            'min_value' => 'nullable|numeric',
-            'name' => 'required|string|max:255',
-            'product_json' => 'nullable',
-            'qty' => 'required|integer|min:1',
-            'response_json' => 'nullable|json',
-            'type' => 'required|string|max:255',
-            'value' => 'nullable|numeric|min:0',
-        ]);
 
-        $voucher = Voucher::create($request->all());
+        $voucher = Voucher::create($validatedRequest);
 
-        return response([
-            'status_code' => 201,
-            'message' => __('Voucher created successfully'),
-            'voucher' => new VoucherResource($voucher),
-        ], 201);
+        $this->voucherService->syncVoucherItems($voucher);
+
+        return redirect()->route('vouchers.edit', [$voucher->id]);
     }
 }
