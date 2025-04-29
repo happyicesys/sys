@@ -872,6 +872,7 @@ class VendController extends Controller
         $content = base64_encode(json_encode([
             'Type' => 'UPDATELOG',
             'time' => Carbon::now()->timestamp,
+            'date' => Carbon::today()->format('y-m-d'),
             'action' => '',
             'mid' => $vend->code,
         ]));

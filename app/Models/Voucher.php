@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -24,9 +25,9 @@ class Voucher extends Model
     ];
 
     const TYPE_MAPPINGS = [
-        self::TYPE_ITEM => 'Item',
-        self::TYPE_PERCENT => 'Percent',
-        self::TYPE_AMOUNT => 'Amount',
+        self::TYPE_ITEM => 'Free Item',
+        self::TYPE_PERCENT => 'Percent Discount',
+        self::TYPE_AMOUNT => 'Absolute Amount Discount',
     ];
 
     protected $fillable = [
@@ -47,6 +48,7 @@ class Voucher extends Model
         'response_json',
         'status',
         'type',
+        'used_qty',
         'value',
         'vend_id',
     ];
@@ -59,6 +61,14 @@ class Voucher extends Model
         'product_json' => 'json',
         'response_json' => 'json',
     ];
+
+    // getter and setter
+    protected function code(): Attribute
+    {
+        return Attribute::make(
+            set: fn ($value) => strtoupper($value),
+        );
+    }
 
     public function customer()
     {

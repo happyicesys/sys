@@ -36,6 +36,9 @@
           <SearchInput placeholderStr="Name" v-model="filters.name">
             Name
           </SearchInput>
+          <SearchInput placeholderStr="Code" v-model="filters.code">
+            Code
+          </SearchInput>
         </div>
 
 
@@ -102,8 +105,27 @@
                       Desc
                     </TableHead>
                     <TableHeadSort modelName="is_batch_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('is_batch_code')">
-                      Is Unique Voucher Code?
+                      Is Same <br>
+                      Voucher Code?
                     </TableHeadSort>
+                    <TableHead>
+                      Code
+                    </TableHead>
+                    <TableHead>
+                      Qty
+                    </TableHead>
+                    <TableHeadSort modelName="date_from" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('date_from')">
+                      Date From
+                    </TableHeadSort>
+                    <TableHeadSort modelName="date_to" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('date_to')">
+                      Date To
+                    </TableHeadSort>
+                    <TableHeadSort modelName="type" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('type')">
+                      Type
+                    </TableHeadSort>
+                    <TableHead>
+                      Settings
+                    </TableHead>
                     <TableHead>
                     </TableHead>
                   </tr>
@@ -121,22 +143,57 @@
                       </TableData>
                       <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-left">
                         <div class="flex justify-center">
-                            <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="voucher.is_batch_code"/>
-                            <XCircleIcon class="h-4 w-4 text-red-500" aria-hidden="true" v-if="!voucher.is_batch_code"/>
+                            <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="!voucher.is_batch_code"/>
+                            <XCircleIcon class="h-4 w-4 text-red-500" aria-hidden="true" v-if="voucher.is_batch_code"/>
+                        </div>
+                      </TableData>
+                      <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-center">
+                        {{ voucher.code_formatted }}
+                      </TableData>
+                      <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-center">
+                        {{ voucher.qty }}
+                      </TableData>
+                      <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-center">
+                        {{ voucher.date_from_formatted }}
+                      </TableData>
+                      <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-center">
+                        {{ voucher.date_to_formatted }}
+                      </TableData>
+                      <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-center">
+                        {{ voucher.type_name }}
+                      </TableData>
+                      <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-left">
+                        <div class="flex flex-col space-y-2">
+                          <span v-if="voucher.value">
+                            Value: {{ voucher.type == 'percent' ? '' : operatorCountry.currency_symbol }} {{ voucher.value }} {{ voucher.type == 'percent' ? '%' : '' }} <br>
+                          </span>
+                          <span v-if="voucher.min_value">
+                            Min Basket Value: {{ operatorCountry.currency_symbol }} {{ voucher.min_value }} <br>
+                          </span>
+                          <span v-if="voucher.max_promo_value">
+                            Max Basket Value: {{ operatorCountry.currency_symbol }} {{ voucher.max_promo_value }} <br>
+                          </span>
+                          <span v-if="voucher.product_json_mapped">
+                            <span v-for="product in voucher.product_json_mapped">
+                              {{ product.code }} - {{ product.name }} <br>
+                            </span>
+                          </span>
                         </div>
                       </TableData>
                       <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
-                          <Button
-                            type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-                            @click="onEditClicked(voucher)"
-                          >
-                            <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                            <span>
-                                Edit
-                            </span>
-                          </Button>
-                          <Button
+
+                          <Link :href="'/vouchers/edit/' + voucher.id ">
+                            <Button
+                              type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                            >
+                              <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                              <span>
+                                  Edit
+                              </span>
+                            </Button>
+                          </Link>
+                          <!-- <Button
                             type="button"
                             class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex-col space-y-1 w-fit"
                             :class="[voucher.vends && voucher.vends.length > 0 ? 'opacity-50 cursor-not-allowed' : '']"
@@ -152,7 +209,7 @@
                             <span v-if="voucher.vends && voucher.vends.length > 0">
                               (Binded)
                             </span>
-                          </Button>
+                          </Button> -->
                         </div>
                       </TableData>
                       </tr>
@@ -191,7 +248,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   vouchers: Object,
@@ -204,6 +261,7 @@ const filters = ref({
   numberPerPage: 100,
 })
 const isUnique = ref(false)
+const operatorCountry = usePage().props.auth.operatorCountry
 const showModal = ref(false)
 const voucher = ref()
 const type = ref('')

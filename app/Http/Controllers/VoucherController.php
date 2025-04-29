@@ -201,6 +201,12 @@ class VoucherController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge([
+            'product_json' => $request->products ? $request->products : null,
+        ]);
+
+        // dd($request->all());
+
         if($request->is_batch_code) {
             $validatedRequest = $request->validate([
                 'code' => 'nullable|string|max:255',
@@ -212,7 +218,7 @@ class VoucherController extends Controller
                 'max_redemption_count' => 'nullable|integer',
                 'min_value' => 'nullable|numeric',
                 'name' => 'required|string|max:255',
-                'operators' => 'required|array',
+                'operator_id' => 'required',
                 'product_json' => 'nullable',
                 'qty' => 'required|integer|min:1',
                 'response_json' => 'nullable|json',
@@ -230,7 +236,7 @@ class VoucherController extends Controller
                 'max_redemption_count' => 'nullable|integer',
                 'min_value' => 'nullable|numeric',
                 'name' => 'required|string|max:255',
-                'operators' => 'required|array',
+                'operator_id' => 'required',
                 'product_json' => 'nullable',
                 'qty' => 'required|integer|min:1',
                 'response_json' => 'nullable|json',
@@ -244,6 +250,6 @@ class VoucherController extends Controller
 
         $this->voucherService->syncVoucherItems($voucher);
 
-        return redirect()->route('vouchers.edit', [$voucher->id]);
+        return redirect()->route('vouchers');
     }
 }

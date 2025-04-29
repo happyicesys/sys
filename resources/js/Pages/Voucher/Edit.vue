@@ -12,15 +12,46 @@
        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
         <div class="shadow-sm ring-1 ring-black ring-opacity-5 p-5 mb-3">
           <form @submit.prevent="submit" id="submit">
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3">
-            <div class="sm:col-span-3" v-if="isUnique == false">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-2">
+              <div class="sm:col-span-6 flex space-x-1 mb-2">
+                <div
+                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
+                    :class="[voucher.is_active ? 'bg-green-300' : 'bg-red-300']"
+                >
+                  <span v-if="voucher.is_active">
+                    Active
+                  </span>
+                  <span v-if="!voucher.is_active">
+                    Expired
+                  </span>
+                </div>
+              </div>
+              <div class="sm:col-span-6 flex space-x-1 mb-2">
+                <div
+                    class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
+                    :class="[voucher.is_batch_code ? 'bg-yellow-300' : 'bg-green-300']"
+                >
+                  <span v-if="voucher.is_batch_code">
+                    Unique Voucher Code
+                  </span>
+                  <span v-if="!voucher.is_batch_code">
+                    Same Voucher Code
+                  </span>
+                </div>
+              </div>
+            <div class="sm:col-span-2" v-if="voucher.is_batch_code == false">
               <FormInput v-model="form.code" required="true" placeholderStr="Alphanumeric" :error="form.errors['code']" disabled="true">
                 Voucher Code
               </FormInput>
             </div>
-            <div class="sm:col-span-2" v-if="isUnique == false" >
+            <div class="sm:col-span-2" v-if="voucher.is_batch_code == false" >
               <FormInput v-model="form.qty" required="true" placeholderStr="Numbers only" :error="form.errors['qty']" disabled="true">
                 Qty
+              </FormInput>
+            </div>
+            <div class="sm:col-span-2" v-if="voucher.is_batch_code == false" >
+              <FormInput v-model="form.used_qty" placeholderStr="Numbers only" :error="form.errors['qty']" disabled="true">
+                Used Qty
               </FormInput>
             </div>
             <div class="sm:col-span-5">
@@ -52,6 +83,7 @@
                   open-direction="bottom"
                   class="mt-1"
                   mode="tags"
+                  disabled="disabled"
                 >
                 </MultiSelect>
                 <div class="text-sm text-red-600" v-if="form.errors.operators">
@@ -94,6 +126,7 @@
                   placeholder="Select"
                   open-direction="bottom"
                   class="mt-1"
+                  disabled="disabled"
                 >
                 </MultiSelect>
                 <div class="text-sm text-red-600" v-if="form.errors.type">
@@ -102,7 +135,7 @@
             </div>
 
             <div class="sm:col-span-2" v-if="form.type && form.type?.id != 'item'">
-              <FormInput v-model="form.value" required="true" placeholderStr="Numbers only" :error="form.errors['value']">
+              <FormInput v-model="form.value" required="true" placeholderStr="Numbers only" :error="form.errors['value']" disabled="disabled">
                 Value
                   <span v-if="form.type.id == 'percent'">
                     (%)
@@ -114,13 +147,13 @@
             </div>
 
             <div class="sm:col-span-2" v-if="form.type">
-              <FormInput v-model="form.min_value" placeholderStr="Numbers only" :error="form.errors['min_value']">
+              <FormInput v-model="form.min_value" placeholderStr="Numbers only" :error="form.errors['min_value']" disabled="disabled">
                 Mininum Basket Value ($)
               </FormInput>
             </div>
 
             <div class="sm:col-span-2" v-if="form.type && form.type?.id != 'item'">
-              <FormInput v-model="form.max_promo_value" placeholderStr="Numbers only" :error="form.errors['max_promo_value']">
+              <FormInput v-model="form.max_promo_value" placeholderStr="Numbers only" :error="form.errors['max_promo_value']" disabled="disabled">
                 Maximum Promo Value ($)
               </FormInput>
             </div>
@@ -142,6 +175,7 @@
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
+                disabled="disabled"
               >
               </MultiSelect>
               <div class="text-sm text-red-600" v-if="form.errors.products">
@@ -157,7 +191,7 @@
                 >
                   <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
                   <span>
-                    Create
+                    Save
                   </span>
                 </Button>
               </span>
@@ -206,8 +240,20 @@ onMounted(() => {
   operatorOptions.value = props.operatorOptions.data
   productOptions.value = props.productOptions.data
   typeOptions.value = props.typeOptions
+  voucher.value = props.voucher.data
 
-  form.value = useForm(getDefaultForm())
+  form.value = voucher.value ? useForm(
+    {
+      ...voucher.value,
+      date_from: moment(voucher.value.date_from).format('YYYY-MM-DD'),
+      date_to: moment(voucher.value.date_to).format('YYYY-MM-DD'),
+      operator_id: voucher.value ? operatorOptions.value.find(operator => operator.id == voucher.value.operator_id) : [],
+      products: voucher.value ? productOptions.value.filter((item) => {
+        return voucher.value.product_json.includes(item.id)
+      }) : [],
+      type: voucher.value ? { id: voucher.value.type, label: typeOptions.value[voucher.value.type] } : [],
+    }
+  ) : useForm(getDefaultForm())
 })
 
 function getDefaultForm() {

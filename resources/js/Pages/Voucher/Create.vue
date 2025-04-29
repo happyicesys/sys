@@ -45,7 +45,7 @@
                   </span>
                 </label>
                 <MultiSelect
-                  v-model="form.operators"
+                  v-model="form.operator_id"
                   :options="operatorOptions"
                   trackBy="id"
                   valueProp="id"
@@ -53,7 +53,6 @@
                   placeholder="Select"
                   open-direction="bottom"
                   class="mt-1"
-                  mode="tags"
                 >
                 </MultiSelect>
                 <div class="text-sm text-red-600" v-if="form.errors.operators">
@@ -221,7 +220,7 @@ function getDefaultForm() {
     max_promo_value: '',
     min_value: '',
     name: '',
-    operators: [],
+    operator_id: '',
     products: [],
     qty: '',
     type: '',
@@ -237,12 +236,12 @@ function submit() {
       ...data,
       is_batch_code: props.isUnique ? true : false,
       type: data.type?.id,
-      operators: data.operators?.map((item) => item.id),
+      operator_id: data.operator_id?.id,
       products: data.products?.map((item) => item.id),
     }))
     .post('/vouchers/store', {
     onSuccess: () => {
-      toast.success("Successfully created, please continue to edit the settings", {
+      toast.success("Successfully created", {
         timeout: 3000
       });
     },
