@@ -20,7 +20,7 @@
                 Voucher Code
               </FormInput>
             </div>
-            <div class="sm:col-span-2" v-if="isUnique == false" >
+            <div class="sm:col-span-2">
               <FormInput v-model="form.qty" required="true" placeholderStr="Numbers only" :error="form.errors['qty']">
                 Qty
               </FormInput>

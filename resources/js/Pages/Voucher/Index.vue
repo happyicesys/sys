@@ -11,7 +11,7 @@
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-1 lg:px-3">
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
-        <div class="flex justify-end space-x-2">
+        <div class="flex justify-end space-x-2 pb-3">
           <Link href="/vouchers/create/same">
             <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             >
@@ -39,6 +39,36 @@
           <SearchInput placeholderStr="Code" v-model="filters.code">
             Code
           </SearchInput>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Status
+            </label>
+            <MultiSelect
+              v-model="filters.is_active"
+              :options="activeOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            ></MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Is Same Voucher Code?
+            </label>
+            <MultiSelect
+              v-model="filters.is_batch_code"
+              :options="booleanOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            ></MultiSelect>
+          </div>
         </div>
 
 
@@ -104,6 +134,9 @@
                     <TableHead>
                       Desc
                     </TableHead>
+                    <TableHeadSort modelName="is_active" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('is_active')">
+                      Is Active?
+                    </TableHeadSort>
                     <TableHeadSort modelName="is_batch_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('is_batch_code')">
                       Is Same <br>
                       Voucher Code?
@@ -140,6 +173,12 @@
                       </TableData>
                       <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-left whitespace-pre-line">
                         {{ voucher.desc }}
+                      </TableData>
+                      <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-left">
+                        <div class="flex justify-center">
+                            <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="voucher.is_active"/>
+                            <XCircleIcon class="h-4 w-4 text-red-500" aria-hidden="true" v-if="!voucher.is_active"/>
+                        </div>
                       </TableData>
                       <TableData :currentIndex="voucherIndex" :totalLength="vouchers.length" inputClass="text-left">
                         <div class="flex justify-center">
@@ -257,9 +296,11 @@ const props = defineProps({
 const filters = ref({
   name: '',
   sortKey: '',
-  sortBy: true,
+  sortBy: false,
   numberPerPage: 100,
 })
+const activeOptions = ref([])
+const booleanOptions = ref([])
 const isUnique = ref(false)
 const operatorCountry = usePage().props.auth.operatorCountry
 const showModal = ref(false)
@@ -268,6 +309,18 @@ const type = ref('')
 const numberPerPageOptions = ref([])
 
 onMounted(() => {
+  activeOptions.value = [
+    { id: 'all', value: 'All' },
+    { id: 'true', value: 'Active' },
+    { id: 'false', value: 'Expired' },
+  ];
+
+  booleanOptions.value = [
+    { id: 'all', value: 'All' },
+    { id: 'true', value: 'Yes' },
+    { id: 'false', value: 'No' },
+  ];
+
   numberPerPageOptions.value = [
     { id: 100, value: 100 },
     { id: 200, value: 200 },
@@ -301,6 +354,8 @@ function onEditClicked(telcoValue) {
 function onSearchFilterUpdated() {
   router.get('/vouchers', {
       ...filters.value,
+      is_active: filters.value.is_active ? filters.value.is_active.id : '',
+      is_batch_code: filters.value.is_batch_code ? filters.value.is_batch_code.id : '',
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

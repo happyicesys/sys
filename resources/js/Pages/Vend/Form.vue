@@ -99,17 +99,24 @@
             </div>
           </div>
           <div class="sm:col-span-6 flex justify-between">
-            <div class="flex space-x-1 mt-5 justify-start">
-              <Button
-                class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1"
-                @click.prevent="triggerLogUpload(vend.id)"
-              >
-                <ArrowUpTrayIcon class="w-4 h-4"></ArrowUpTrayIcon>
-                <span>
-                  Trigger Log Upload
-                </span>
-              </Button>
-            </div>
+            <div class="flex space-x-2 items-center">
+                <div>
+                  <DatePicker
+                      v-model="form.trigger_log_date"
+                  >
+                      From
+                  </DatePicker>
+                </div>
+                <Button
+                  class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1 h-fit"
+                  @click.prevent="triggerLogUpload(vend.id)"
+                >
+                  <ArrowUpTrayIcon class="w-4 h-4"></ArrowUpTrayIcon>
+                  <span>
+                    Trigger Log Upload
+                  </span>
+                </Button>
+              </div>
           </div>
           <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
           <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
@@ -228,6 +235,7 @@ import FormInput from '@/Components/FormInput.vue';
 import Modal from '@/Components/Modal.vue';
 import { ArrowPathIcon, ArrowUpTrayIcon, ArrowUturnDownIcon, ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { router, useForm } from '@inertiajs/vue3';
+import moment from 'moment';
 import { ref, onMounted } from 'vue'
 
 const props = defineProps({
@@ -257,6 +265,7 @@ function getDefaultForm() {
     begin_date: '',
     serial_num: '',
     termination_date: '',
+    trigger_log_date: moment().format('YYYY-MM-DD'),
     private_key: '',
   }
 }

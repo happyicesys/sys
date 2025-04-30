@@ -84,5 +84,34 @@ class Voucher extends Model
     {
         return $this->hasMany(VoucherItem::class);
     }
+
+    // scopes
+    public function scopeFilterIndex($query, $request)
+    {
+        return $query->when($request->name, function($query, $search) {
+            $query->where('name', 'LIKE', "%{$search}%");
+        })
+        ->when($request->code, function($query, $search) {
+            $query->where(function($query) use ($search) {
+                $query->where('code', 'LIKE', "%{$search}%")
+                    ->orWhereHas('voucherItems', function($query) use ($search) {
+                        $query->where('code', 'LIKE', "%{$search}%");
+                    });
+            });
+        })
+        ->when($request->is_active, function($query, $search) {
+            if($search !== 'all') {
+                $query->where('is_active', filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            }
+        })
+        ->when($request->is_batch_code, function($query, $search) {
+            if($search !== 'all') {
+                $query->where('is_batch_code', !filter_var($search, FILTER_VALIDATE_BOOLEAN));
+            }
+        })
+        ->when($request->sortKey, function($query, $search) use ($request) {
+            $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+        });
+    }
 }
 

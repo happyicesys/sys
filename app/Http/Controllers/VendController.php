@@ -865,14 +865,18 @@ class VendController extends Controller
         return redirect()->back();
     }
 
-    public function triggerLogUpload($id)
+    public function triggerLogUpload(Request $request, $id)
     {
+        $request->merge([
+            'trigger_log_date' => isset($request->trigger_log_date) ? $request->trigger_log_date : Carbon::today()->toDateString(),
+        ]);
+
         $vend = Vend::findOrFail($id);
         $fid = 1;
         $content = base64_encode(json_encode([
             'Type' => 'UPDATELOG',
             'time' => Carbon::now()->timestamp,
-            'date' => Carbon::today()->format('Y-m-d'),
+            'date' => $request->trigger_log_date,
             'action' => '',
             'mid' => $vend->code,
         ]));

@@ -12,6 +12,7 @@ use App\Services\VoucherService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Rap2hpoutre\FastExcel\FastExcel;
 
 class VoucherController extends Controller
 {
@@ -26,8 +27,8 @@ class VoucherController extends Controller
     {
         $request->merge([
             'numberPerPage' => $request->numberPerPage ? $request->numberPerPage : 100,
-            'sortKey' => $request->sortKey ? $request->sortKey : 'name',
-            'sortBy' => $request->sortBy ? $request->sortBy : true,
+            'sortKey' => $request->sortKey ? $request->sortKey : 'created_at',
+            'sortBy' => $request->sortBy ? $request->sortBy : false,
         ]);
 
         return Inertia::render('Voucher/Index', [
@@ -37,12 +38,7 @@ class VoucherController extends Controller
             'vouchers' => VoucherResource::collection(
                 Voucher::query()
                     ->with('voucherItems')
-                    ->when($request->name, function($query, $search) {
-                        $query->where('name', 'LIKE', "%{$search}%");
-                    })
-                    ->when($request->sortKey, function($query, $search) use ($request) {
-                        $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
-                    })
+                    ->filterIndex($request)
                     ->paginate($request->numberPerPage === 'All' ? 10000 : $request->numberPerPage)
                     ->withQueryString()
             ),
@@ -70,7 +66,7 @@ class VoucherController extends Controller
 
     public function edit($id)
     {
-        $voucher = Voucher::findOrFail($id);
+        $voucher = Voucher::with('voucherItems')->find($id);
 
         return Inertia::render('Voucher/Edit', [
             'isUnique' => $voucher->is_batch_code ? false : true,
@@ -81,8 +77,23 @@ class VoucherController extends Controller
                 Product::orderBy('code')->where('is_inventory', true)->where('is_active', true)->get()
             ),
             'typeOptions' => Voucher::TYPE_MAPPINGS,
-            'voucher' => new VoucherResource($voucher),
+            'voucher' => VoucherResource::make($voucher),
         ]);
+    }
+
+    public function exportExcelVoucherCodes(Request $request)
+    {
+        $voucher = Voucher::with('voucherItems')->find($request->id);
+
+        if($voucher->voucherItems()->exists()) {
+            return (new FastExcel($this->yieldOneByOne($voucher->voucherItems)))->download('Voucher_Codes_'.Carbon::now()->toDateTimeString().'.xlsx', function ($voucherItem) {
+                return [
+                    'Code' => $voucherItem->code,
+                    'Status' => Voucher::STATUS_MAPPINGS[$voucherItem->status],
+                    'Redeemed At' => $voucherItem->redeemed_at ? Carbon::parse($voucherItem->redeemed_at)->toDateTimeString() : '',
+                ];
+            });
+        }
     }
 
 
@@ -251,5 +262,11 @@ class VoucherController extends Controller
         $this->voucherService->syncVoucherItems($voucher);
 
         return redirect()->route('vouchers');
+    }
+
+    private function yieldOneByOne($items) {
+        foreach($items as $item) {
+            yield $item;
+        }
     }
 }

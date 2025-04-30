@@ -573,6 +573,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/', [VoucherController::class, 'index'])->name('vouchers');
         Route::get('/create/{batchType}', [VoucherController::class, 'create']);
         Route::get('/edit/{id}', [VoucherController::class, 'edit'])->name('vouchers.edit');
+        Route::get('/excel/codes', [VoucherController::class, 'exportExcelVoucherCodes']);
         Route::post('/store', [VoucherController::class, 'store']);
     });
 

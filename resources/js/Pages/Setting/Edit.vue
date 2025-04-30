@@ -918,9 +918,16 @@
               </div>
             </div>
             <div class="sm:col-span-6 flex justify-between">
-              <div class="flex space-x-1  justify-start">
+              <div class="flex space-x-2 items-center">
+                <div>
+                  <DatePicker
+                      v-model="form.trigger_log_date"
+                  >
+                      From
+                  </DatePicker>
+                </div>
                 <Button
-                  class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1"
+                  class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1 h-fit"
                   @click.prevent="triggerLogUpload(vend.id)"
                 >
                   <ArrowUpTrayIcon class="w-4 h-4"></ArrowUpTrayIcon>
@@ -1228,6 +1235,7 @@ function getDefaultForm() {
     simcard_id: '',
     status: '',
     termination_date: '',
+    trigger_log_date: moment().format('YYYY-MM-DD'),
     is_testing: '',
     is_active: '',
     is_using_server_price: '',
@@ -1354,6 +1362,7 @@ onMounted(() => {
     simcard_id: props.vend.simcard_id ? props.vend.simcard_id : null,
     status: statusOptions.value.find(status => status.id == (props.vend.is_disposed == 1 ? 'disposed' : (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive'))),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id == props.vend.operator_id) : null : null,
+    trigger_log_date: moment().format('YYYY-MM-DD'),
     upcoming_product_mapping_id: props.vend.upcoming_product_mapping_id ? upcomingProductMappingOptions.value.find(upcomingProductMapping => upcomingProductMapping.id === props.vend.upcoming_product_mapping_id) : upcomingProductMappingOptions.value[1],
     vend_config_id: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id) : null : null,
     vend_config_version: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id).version : null : null,

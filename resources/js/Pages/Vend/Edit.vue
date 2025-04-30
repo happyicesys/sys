@@ -499,9 +499,16 @@
               </div>
             </div>
             <div class="sm:col-span-6 flex justify-between">
-              <div class="flex space-x-1 mt-5 justify-start">
+              <div class="flex space-x-2 items-center">
+                <div>
+                  <DatePicker
+                      v-model="form.trigger_log_date"
+                  >
+                      From
+                  </DatePicker>
+                </div>
                 <Button
-                  class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1"
+                  class="bg-yellow-500 hover:bg-yellow-600 text-white flex space-x-1 h-fit"
                   @click.prevent="triggerLogUpload(vend.id)"
                 >
                   <ArrowUpTrayIcon class="w-4 h-4"></ArrowUpTrayIcon>
@@ -691,6 +698,7 @@ function getDefaultForm() {
       },
     },
     termination_date: '',
+    trigger_log_date: moment().format('YYYY-MM-DD'),
     is_testing: '',
     is_active: '',
   }
@@ -704,6 +712,7 @@ onMounted(() => {
     ...props.vend,
     is_active: props.vend.is_active == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
     is_testing: props.vend.is_testing == 1 ? booleanStrictOptions.value.find(option => option.id === 'true') : booleanStrictOptions.value.find(option => option.id === 'false'),
+    trigger_log_date: moment().format('YYYY-MM-DD'),
     customer: {
       ...JSON.parse(JSON.stringify(props.vend.customer)),
       code: props.vend.customer && props.vend.customer.person_id ? props.vend.customer.virtual_customer_code + ' (' + props.vend.customer.virtual_customer_prefix + ')' : (props.vend.customer ? props.vend.customer.code : null),

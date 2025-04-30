@@ -45,6 +45,7 @@ class VoucherResource extends JsonResource
             'used_qty' => $this->used_qty,
             'vend_id' => $this->vend_id,
             'vend' => VendResource::make($this->whenLoaded('vend')),
+            'voucherItems' => VoucherItemResource::collection($this->whenLoaded('voucherItems')),
         ];
     }
 
