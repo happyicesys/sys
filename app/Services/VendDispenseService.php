@@ -22,9 +22,11 @@ class VendDispenseService
     if($type == 'payment-gateway') {
       $paymentGatewayLog = PaymentGatewayLog::find($refID);
 
-      $dispenseRecord = DispenseRecord::create([
-        'payment_gateway_log_id' => $refID,
+      $dispenseRecord = DispenseRecord::updateOrCreate([
         'order_id' => $paymentGatewayLog->order_id,
+      ],
+      [
+        'payment_gateway_log_id' => $refID,
         'vend_id' => $paymentGatewayLog->vend_id,
         'vend_code' => $paymentGatewayLog->vend_code,
       ]);
@@ -32,9 +34,12 @@ class VendDispenseService
       $deliveryPlatformOrder = DeliveryPlatformOrder::find($refID);
       $vendID = Vend::where('code', $deliveryPlatformOrder->vend_code)->first()?->id;
 
-      $dispenseRecord = DispenseRecord::create([
-        'delivery_platform_order_id' => $refID,
+      $dispenseRecord = DispenseRecord::updateOrCreate(
+      [
         'order_id' => $deliveryPlatformOrder->vend_transaction_order_id,
+      ],
+      [
+        'delivery_platform_order_id' => $refID,
         'vend_id' => $vendID,
         'vend_code' => $deliveryPlatformOrder->vend_code,
       ]);

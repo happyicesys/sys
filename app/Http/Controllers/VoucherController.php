@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\VoucherResource;
+use App\Http\Resources\VoucherApiResource;
+use App\Http\Resources\VoucherItemApiResource;
 use App\Models\Operator;
 use App\Models\Product;
 use App\Models\Voucher;
+use App\Models\VoucherItem;
 use App\Services\VoucherService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -100,6 +103,8 @@ class VoucherController extends Controller
     public function search(Request $request)
     {
         $code = $request->code;
+        $dcvendUserID = isset($request->dcvend_user_id) ? $request->dcvend_user_id : null;
+        $vendCode = $request->vend_code;
 
         if(!$code) {
             abort(response([
@@ -203,6 +208,40 @@ class VoucherController extends Controller
                 ],
             ], 200);
         }
+
+        $isSameCode = false;
+
+        $voucher = Voucher::with('voucherItems')->where('code', $code)->first();
+
+        if(!$voucher) {
+            $voucher = VoucherItem::with('voucher')->where('code', $code)->first();
+            $isSameCode = false;
+        }else {
+            $isSameCode = true;
+        }
+
+        if($isSameCode) {
+            if($voucher->status == Voucher::STATUS_ACTIVE) {
+                return response([
+                    'status_code' => 200,
+                    'message' => 'Voucher successfully reedeemed',
+                    'voucher' => VoucherApiResource::make($voucher, $vendCode, $dcvendUserID),
+                ], 200);
+            }
+        }
+
+        if(!$isSameCode) {
+            if($voucher) {
+                if($voucher->status == Voucher::STATUS_ACTIVE) {
+                    return response([
+                        'status_code' => 200,
+                        'message' => 'Voucher successfully reedeemed',
+                        'voucher' => VoucherItemApiResource::make($voucher, $vendCode, $dcvendUserID),
+                    ], 200);
+                }
+            }
+        }
+
 
         return response([
             'status_code' => 404,

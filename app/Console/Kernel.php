@@ -28,6 +28,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('sync:all-cms-vend-code-vend-prefix')->dailyAt('02:00');
         $schedule->command('copy:product-limit-from-yesterday')->daily();
         $schedule->command('refund:payment-gateway-every-ten-minutes')->everyTenMinutes();
+        $schedule->command('sync:voucher-status-daily')->daily();
     }
 
     /**
