@@ -29,6 +29,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('copy:product-limit-from-yesterday')->daily();
         $schedule->command('refund:payment-gateway-every-ten-minutes')->everyTenMinutes();
         $schedule->command('sync:voucher-status-daily')->daily();
+        $schedule->command('release:voucher-lock-every-2-mins')->everyMinute();
     }
 
     /**

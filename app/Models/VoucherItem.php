@@ -11,8 +11,11 @@ class VoucherItem extends Model
 
     protected $fillable = [
         'code',
+        'locked_at',
+        'locked_by_vend_id',
         'member_id',
         'is_active',
+        'is_locked',
         'is_redeemed',
         'redeemed_at',
         'status',

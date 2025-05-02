@@ -9,6 +9,7 @@ use App\Http\Resources\VoucherApiResource;
 use App\Http\Resources\VoucherItemApiResource;
 use App\Models\Operator;
 use App\Models\Product;
+use App\Models\Vend;
 use App\Models\Voucher;
 use App\Models\VoucherItem;
 use App\Services\VoucherService;
@@ -105,6 +106,7 @@ class VoucherController extends Controller
         $code = $request->code;
         $dcvendUserID = isset($request->dcvend_user_id) ? $request->dcvend_user_id : null;
         $vendCode = $request->vend_code;
+        $vend = Vend::where('code', $vendCode)->first();
 
         if(!$code) {
             abort(response([
@@ -231,14 +233,21 @@ class VoucherController extends Controller
         }
 
         if(!$isSameCode) {
-            if($voucher) {
-                if($voucher->status == Voucher::STATUS_ACTIVE) {
-                    return response([
-                        'status_code' => 200,
-                        'message' => 'Voucher successfully reedeemed',
-                        'voucher' => VoucherItemApiResource::make($voucher, $vendCode, $dcvendUserID),
-                    ], 200);
-                }
+            if($voucher->is_locked) {
+                return response([
+                    'status_code' => 400,
+                    'message' => 'Someone is using this voucher, please try again few minutes later',
+                    // 'voucher' => VoucherItemApiResource::make($voucher, $vendCode, $dcvendUserID),
+                ], 400);
+            }
+
+            if($voucher->status == Voucher::STATUS_ACTIVE) {
+                $this->voucherService->lockVoucherCode($voucher, $vend->id);
+                return response([
+                    'status_code' => 200,
+                    'message' => 'Voucher successfully reedeemed',
+                    'voucher' => VoucherItemApiResource::make($voucher, $vendCode, $dcvendUserID),
+                ], 200);
             }
         }
 

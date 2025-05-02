@@ -20,11 +20,20 @@ use App\Jobs\SendDataToDcvend;
 use App\Jobs\Vend\SyncUnitCostJson;
 use App\Jobs\Vend\SyncVendChannelErrorLog;
 use App\Jobs\Vend\SyncVendTransactionTotalsJson;
+use App\Services\VoucherService;
 use Carbon\Carbon;
 use DB;
 
 class VendTransactionService
 {
+    protected $voucherService;
+
+    public function __construct()
+    {
+        $this->voucherService = new VoucherService();
+    }
+
+
     public function create(Vend $vend, $input, $isCurrentTime = true)
     {
         $processedInput = $this->processMapping($vend, $this->processInput($vend, $input));
@@ -71,7 +80,15 @@ class VendTransactionService
                 }
 
                 // ✅ Create and return vend transaction
-                return $this->createVendTransaction($vend, $processedInput, $isCurrentTime);
+                $transaction = $this->createVendTransaction($vend, $processedInput, $isCurrentTime);
+
+                if($processedInput['vouchers']) {
+                    foreach($processedInput['vouchers'] as $voucher) {
+                        $this->voucherService->updateUsedVoucher($voucher['code']);
+                    }
+                }
+
+                return $transaction;
             });
 
             if (!$vendTransaction) {
