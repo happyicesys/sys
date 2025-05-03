@@ -64,19 +64,23 @@ class VoucherService
     if($model instanceof VoucherItem) {
       $voucherItem = VoucherItem::find($model->id);
       $voucherItem->status = Voucher::STATUS_REDEEMED;
+      $voucherItem->is_redeemed = true;
+      $voucherItem->redeemed_at = Carbon::now();
       $voucherItem->save();
 
       $voucher = $voucherItem->voucher;
       $voucher->used_qty += 1;
       $voucher->save();
+
     }
+
   }
 
   public function updateUsedVoucher($voucherCode)
   {
     $voucher = Voucher::where('code', $voucherCode)->first();
 
-    if($voucher and $voucher->is_batch_code) {
+    if($voucher) {
       $this->syncVoucherCount($voucher);
       return;
     }
