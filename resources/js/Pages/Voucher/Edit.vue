@@ -197,7 +197,7 @@
               </span>
             </div>
 
-            <div class="flex flex-col sm:col-span-5 mt-4">
+            <div class="flex flex-col sm:col-span-5 mt-4" v-if="voucherItems.length">
               <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                 <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                   <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
