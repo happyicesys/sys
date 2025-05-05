@@ -248,7 +248,7 @@
                               <span v-if="voucher.is_active && !voucher.is_redeemed">
                                 Active
                               </span>
-                              <span v-if="voucher.is_redeemed">
+                              <span v-if="voucher.is_active && voucher.is_redeemed">
                                 Redeemed
                               </span>
                               <span v-if="!voucher.is_active">
