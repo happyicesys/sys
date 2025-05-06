@@ -245,10 +245,10 @@
                                 class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit"
                                 :class="[voucherItem.is_active ? (voucherItem.is_redeemed ? 'bg-yellow-300' : 'bg-green-300') : 'bg-red-300']"
                             >
-                              <span v-if="voucher.is_active && !voucher.is_redeemed">
+                              <span v-if="voucherItem.is_active && !voucherItem.is_redeemed">
                                 Active
                               </span>
-                              <span v-else-if="voucher.is_active && voucher.is_redeemed">
+                              <span v-else-if="voucherItem.is_active && voucherItem.is_redeemed">
                                 Redeemed
                               </span>
                               <span v-else>
