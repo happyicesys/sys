@@ -369,6 +369,22 @@
 							mode="tags"
             ></MultiSelect>
           </div>
+					<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Delivery Platform
+            </label>
+            <MultiSelect
+                v-model="filters.delivery_platform_id"
+                :options="deliveryPlatformOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
 				</div>
 
 				<div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -922,12 +938,14 @@
 												CMS
 										</div>
 									</a>
-									<div
-											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
-											v-if="vend.delivery_platform_slug == 'grab'"
-									>
-										Grab
-									</div>
+									<span v-if="vend.vend.deliveryProductMappingVends" v-for="(deliveryProductMappingVend, index) in vend.vend.deliveryProductMappingVends">
+										<div
+												class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
+												v-if="deliveryProductMappingVend.deliveryProductMapping && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform"
+										>
+											{{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
+										</div>
+									</span>
 								</span>
 								<span v-else-if="!vend.person_id">
 									<span v-if="permissions.includes('admin-access vend-customers')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
@@ -1841,10 +1859,10 @@
     import axios from 'axios';
 
     const props = defineProps({
-
         cmsEndpoint: String,
         constTempError: Number,
 				dayOptions: [Array, Object],
+				deliveryPlatformOptions: [Array, Object],
         deviceTypes: [Array, Object],
 				driverOptions: Object,
 				frequencyPerWeekOptions: [Array, Object],
@@ -1869,6 +1887,7 @@
         codes: '',
         coinLessThan: '',
         channel_codes: '',
+				delivery_platform_id: '',
         serialNum: '',
         customer: '',
         deviceType: '',
@@ -1915,6 +1934,7 @@
     const booleanOptions = ref([])
     const booleanStrictOptions = ref([])
 		const customerModel = ref([])
+		const deliveryPlatformOptions = ref([])
     const deviceTypeOptions = ref([])
 		const dayOptions = ref([])
     const doorOptions = ref([])
@@ -1972,6 +1992,10 @@ onMounted(() => {
   filters.value.vend_channel_error_id = vendChannelErrorsOptions.value[0]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 
+	deliveryPlatformOptions.value = [
+    {id: 'all', value: 'All'},
+    ...props.deliveryPlatformOptions.data.map((data) => {return {id: data.id, value: data.name}})
+]
 	deviceTypeOptions.value =
 	[
 			{id: 'all', value: 'All'},
@@ -2051,6 +2075,7 @@ onMounted(() => {
 			...props.zoneOptions.data.map((data) => {return {id: data.id, value: data.name}})
 	]
 
+	filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
   filters.value.is_active = booleanOptions.value[1]
   filters.value.deviceType = deviceTypeOptions.value[0]
 	// filters.value.frequency_per_week_status = frequencyPerWeekOptions.value[0]
@@ -2216,6 +2241,7 @@ function getVendsField() {
 	function onSearchFilterUpdated() {
     router.get(baseUrl.value, {
         ...filters.value,
+				delivery_platform_id: filters.value.delivery_platform_id.id,
         deviceType: filters.value.deviceType.id,
         errors: filters.value.errors.map((error) => { return error.id }),
 				frequency_per_week_status: filters.value.frequency_per_week_status.map((frequency) => { return frequency.id }),
@@ -2327,6 +2353,7 @@ function onExportChannelExcelClicked() {
       url: '/vends/channels/excel',
       params: {
           ...filters.value,
+					delivery_platform_id: filters.value.delivery_platform_id.id,
           deviceType: filters.value.deviceType.id,
           errors: filters.value.errors.map((error) => { return error.id }),
 					frequency_per_week_status: filters.value.frequency_per_week_status.id,

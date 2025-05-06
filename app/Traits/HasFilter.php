@@ -207,6 +207,19 @@ trait HasFilter {
 
             $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->where('vend_channels.is_active', true)->pluck('vend_id'));
         })
+        ->when($request->delivery_platform_id, function($query, $search) use ($request){
+            if($search != 'all') {
+                if($request->indexType == 'customers') {
+                    $query->whereHas('vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform', function($query) use ($search) {
+                        $query->where('id', $search);
+                    });
+                }else {
+                    $query->whereHas('deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform', function($query) use ($search) {
+                        $query->where('id', $search);
+                    });
+                }
+            }
+        })
         ->when($request->deviceType, function($query, $search) {
             if($search != 'all') {
                 $query->where('apk_ver_json->deviceType', $search);

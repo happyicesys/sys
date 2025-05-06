@@ -7,6 +7,7 @@ use App\Http\Resources\CountryResource;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CustomerResource;
+use App\Http\Resources\DeliveryPlatformResource;
 use App\Http\Resources\KeyResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\ModemTypeResource;
@@ -29,6 +30,7 @@ use App\Models\Category;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CategoryGroup;
+use App\Models\DeliveryPlatform;
 use App\Models\Key;
 use App\Models\LocationType;
 use App\Models\ModemType;
@@ -183,6 +185,9 @@ class SettingController extends Controller
                 CategoryGroup::where('classname', $className)->orderBy('name')->get()
             ),
             'cmsEndpoint' => env('CMS_URL'),
+            'deliveryPlatformOptions' => DeliveryPlatformResource::collection(
+                DeliveryPlatform::orderBy('name')->get()
+            ),
             'keyOptions' => KeyResource::collection(
                 Key::orderBy('name')->get()
             ),

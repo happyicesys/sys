@@ -367,6 +367,22 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Delivery Platform
+            </label>
+            <MultiSelect
+                v-model="filters.delivery_platform_id"
+                :options="deliveryPlatformOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
       </div>
 
       <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -714,6 +730,14 @@
                         CMS
                     </div>
                 </a>
+                <span v-if="vend.deliveryProductMappingVends" v-for="(deliveryProductMappingVend, index) in vend.deliveryProductMappingVends">
+                  <div
+                      class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
+                      v-if="deliveryProductMappingVend.deliveryProductMapping && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform"
+                  >
+                    {{ deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform.name }}
+                  </div>
+                </span>
             </span>
             <span v-else-if="!vend.person_id">
                 <span v-if="permissions.includes('admin-access vend-machines')" :class="[vend.customer_is_active || vend.is_testing ? 'text-gray-800' : 'text-gray-400']">
@@ -1500,6 +1524,7 @@ font-size:13px;
   const props = defineProps({
       cmsEndpoint: String,
       constTempError: Number,
+      deliveryPlatformOptions: [Array, Object],
       deviceTypes: [Array, Object],
       indexType: String,
       lcdMonitorOptions: Object,
@@ -1524,6 +1549,7 @@ font-size:13px;
       codes: '',
       coinLessThan: '',
       channel_codes: '',
+      delivery_platform_id: '',
       serialNum: '',
       customer: '',
       deviceType: '',
@@ -1569,6 +1595,7 @@ font-size:13px;
   const baseUrl = ref(props.indexType === 'customers' ? '/vends/customers' : '/vends')
   const booleanOptions = ref([])
   const booleanStrictOptions = ref([])
+  const deliveryPlatformOptions = ref([])
   const deviceTypeOptions = ref([])
   const doorOptions = ref([])
   const enableOptions = ref([])
@@ -1639,6 +1666,10 @@ booleanStrictOptions.value = [
     {id: 'true', value: 'Yes'},
     {id: 'false', value: 'No'},
 ]
+deliveryPlatformOptions.value = [
+    {id: 'all', value: 'All'},
+    ...props.deliveryPlatformOptions.data.map((data) => {return {id: data.id, value: data.name}})
+]
 enableOptions.value = [
     {id: 'all', value: 'All'},
     {id: 'true', value: 'Enabled'},
@@ -1707,6 +1738,7 @@ vendPrefixOptions.value = [
 
 filters.value.has_customer = booleanOptions.value[0]
 filters.value.is_active = booleanOptions.value[1]
+filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
 filters.value.deviceType = deviceTypeOptions.value[0]
 filters.value.is_door_open = doorOptions.value[0]
 filters.value.is_mqtt = booleanOptions.value[0]
@@ -1803,6 +1835,7 @@ function onShowAllFiltersClicked() {
 function onSearchFilterUpdated() {
   router.get(baseUrl.value, {
       ...filters.value,
+      delivery_platform_id: filters.value.delivery_platform_id.id,
       deviceType: filters.value.deviceType.id,
       errors: filters.value.errors.map((error) => { return error.id }),
       has_customer: filters.value.has_customer.id,
@@ -1912,6 +1945,7 @@ axios({
     url: '/vends/channels/excel',
     params: {
         ...filters.value,
+        delivery_platform_id: filters.value.delivery_platform_id.id,
         deviceType: filters.value.deviceType.id,
         errors: filters.value.errors.map((error) => { return error.id }),
         has_customer: filters.value.has_customer.id,

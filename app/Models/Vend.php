@@ -684,6 +684,13 @@ class Vend extends Model
 
             $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->where('vend_channels.is_active', true)->pluck('vend_id'));
         })
+        ->when($request->delivery_platform_id, function($query, $search) {
+            if($search != 'all') {
+                $query->whereHas('deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform', function($query) use ($search) {
+                    $query->where('id', $search);
+                });
+            }
+        })
         ->when($request->serialNum, function($query, $search) {
             $query->where('serial_num', 'LIKE', "%{$search}%");
         })

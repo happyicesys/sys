@@ -353,6 +353,22 @@
           <SearchInput placeholderStr="Serial Num" v-model="filters.vend_serial_number_code" v-if="permissions.includes('admin-access vend-settings')" @keyup.enter="onSearchFilterUpdated()">
             Serial Num
           </SearchInput>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+                Delivery Platform
+            </label>
+            <MultiSelect
+                v-model="filters.delivery_platform_id"
+                :options="deliveryPlatformOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -943,6 +959,7 @@ const props = defineProps({
     categories: Object,
     categoryGroups: Object,
     cmsEndpoint: String,
+    deliveryPlatformOptions: Object,
     keyOptions: Object,
     lcdMonitorOptions: Object,
     ledMatrixPanelOptions: Object,
@@ -966,6 +983,7 @@ const filters = ref({
     customer_name: '',
     categories: [],
     categoryGroups: [],
+    delivery_platform_id: '',
     key_id: '',
     lcd_monitor_id: '',
     led_matrix_panel_id: '',
@@ -993,6 +1011,7 @@ const filters = ref({
   const categoryOptions = ref([])
   const categoryGroupOptions = ref([])
   const cashlessTerminalOptions = ref([])
+  const deliveryPlatformOptions = ref([])
   const initBinded = usePage().props.initBinded
   const keyOptions = ref([])
   const loading = ref(false)
@@ -1038,6 +1057,10 @@ onMounted(() => {
     ]
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
+    deliveryPlatformOptions.value = [
+        {id: 'all', value: 'All'},
+        ...props.deliveryPlatformOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    ]
     booleanOptions.value = [
         {id: 'all', value: 'All'},
         {id: 'true', value: 'Yes'},
@@ -1100,6 +1123,7 @@ onMounted(() => {
 		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
 	] : operatorOptions.value[0]
 
+      filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
     // filters.value.is_active = booleanOptions.value[1]
     filters.value.is_binded_customer = initBinded && (roles[0] == 'superadmin' || roles[0] == 'admin' ||  roles[0] == 'supervisor' || roles[0] == 'driver') ? booleanOptions.value[1] : booleanOptions.value[0]
     // filters.value.is_testing = booleanOptions.value[2]
@@ -1131,6 +1155,7 @@ function onSearchFilterUpdated() {
       categories: filters.value.categories.map((category) => { return category.id }),
       categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
       cashless_terminal_id: filters.value.cashless_terminal_id.id,
+      delivery_platform_id: filters.value.delivery_platform_id.id,
       // location_type_id: filters.value.locationType.id,
       lcd_monitor_id: filters.value.lcd_monitor_id.id,
       led_matrix_panel_id: filters.value.led_matrix_panel_id.id,

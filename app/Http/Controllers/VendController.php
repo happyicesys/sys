@@ -11,6 +11,7 @@ use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CategoryGroupResource;
 use App\Http\Resources\CountryResource;
 use App\Http\Resources\CustomerResource;
+use App\Http\Resources\DeliveryPlatformResource;
 use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\ModemTypeResource;
 use App\Http\Resources\ModemUnitResource;
@@ -39,6 +40,7 @@ use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Country;
 use App\Models\Customer;
+use App\Models\DeliveryPlatform;
 use App\Models\LocationType;
 use App\Models\ModemType;
 use App\Models\ModemUnit;
@@ -157,6 +159,7 @@ class VendController extends Controller
 
         $vends = Vend::query()
             ->with([
+                'deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform',
                 'vendChannels' => function($query) {
                     $query->select('*')
                         ->selectRaw("(SELECT amount FROM selling_prices WHERE
@@ -279,6 +282,9 @@ class VendController extends Controller
         return Inertia::render('Vend/Index', [
             'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
+            'deliveryPlatformOptions' => DeliveryPlatformResource::collection(
+                DeliveryPlatform::orderBy('name')->get()
+            ),
             'deviceTypes' => Vend::DEVICE_TYPE_MAPPINGS,
             'indexType' => $request->indexType,
             'lcdMonitorOptions' => Vend::LCD_MONITOR_MAPPINGS,
@@ -385,7 +391,8 @@ class VendController extends Controller
                     $query->where('created_at', '>=', Carbon::today()->subDays(29));
                 },
                 'vend.vendChannels.vendChannelErrorLogs.vendChannelError',
-                'vend.modemUnit'
+                'vend.modemUnit',
+                'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform'
             ])
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
@@ -727,6 +734,9 @@ class VendController extends Controller
             'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
             'dayOptions' => Customer::DAYS_MAPPING,
+            'deliveryPlatformOptions' => DeliveryPlatformResource::collection(
+                DeliveryPlatform::orderBy('name')->get()
+            ),
             'deviceTypes' => Vend::DEVICE_TYPE_MAPPINGS,
             'driverOptions' => UserResource::collection(
                 User::whereHas('roles', function($query) use ($request) {
