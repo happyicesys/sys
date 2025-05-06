@@ -86,10 +86,11 @@ class GetPurchaseConfirm implements ShouldQueue
 
           PublishMqtt::dispatch('CM'.$this->vend->code, $fid.','.$contentLength.','.$content.','.$md5)->onQueue('high');
           // $this->mqttService->publish('CM'.$this->vend->code, $fid.','.$contentLength.','.$content.','.$md5);
-        }else {
-          PublishMqtt::dispatch('CM'.$this->vend->code, 'This order id not found or QR is expired')->onQueue('high');
-          // $this->mqttService->publish('CM'.$this->vend->code, 'This order id not found or QR is expired');
-          throw new \Exception('This order id not found or QR is expired', 404);
         }
+        // else {
+        //   PublishMqtt::dispatch('CM'.$this->vend->code, 'This order id not found or QR is expired')->onQueue('high');
+        //   // $this->mqttService->publish('CM'.$this->vend->code, 'This order id not found or QR is expired');
+        //   throw new \Exception('This order id not found or QR is expired', 404);
+        // }
     }
 }
