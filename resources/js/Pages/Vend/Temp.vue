@@ -389,6 +389,10 @@ router.visit(
 );
 })
 
+watch(() => props.vendTempsObj, () => {
+  getVendTempsData();
+});
+
 function onCustomDatetimeSearched() {
 router.get(
   '/vends/' +
