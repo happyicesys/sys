@@ -259,9 +259,9 @@ vendTempsObj: Object,
 vendFansObj: Object,
 });
 
-usePoll(2000, {
-  only: ['vendTempsObj'],
-});
+// usePoll(2000, {
+//   only: ['vendTempsObj'],
+// });
 
 const hourDurationFilters = ref([6, 12])
 const durationFilters = ref([1, 2, 5, 7, 14])
@@ -389,9 +389,9 @@ router.visit(
 );
 })
 
-watch(() => props.vendTempsObj, () => {
-  getVendTempsData();
-});
+// watch(() => props.vendTempsObj, () => {
+//   getVendTempsData();
+// });
 
 function onCustomDatetimeSearched() {
 router.get(
