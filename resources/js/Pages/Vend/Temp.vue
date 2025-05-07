@@ -241,7 +241,7 @@ import DatetimePicker from '@/Components/DatetimePicker.vue';
 import Graph from '@/Components/Graph.vue';
 import { ArrowDownTrayIcon, ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
 import { ref, onBeforeMount, watch } from 'vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, router, usePage, usePoll } from '@inertiajs/vue3';
 import moment from 'moment';
 
 const props = defineProps({
@@ -257,6 +257,10 @@ fans: [String, Object, Array],
 vendObj: Object,
 vendTempsObj: Object,
 vendFansObj: Object,
+});
+
+usePoll(2000, {
+  only: ['vendTempsObj'],
 });
 
 const hourDurationFilters = ref([6, 12])
