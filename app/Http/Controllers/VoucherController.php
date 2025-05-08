@@ -6,6 +6,7 @@ use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\VoucherResource;
 use App\Http\Resources\VoucherApiResource;
+use App\Http\Resources\VoucherCheckingApiResource;
 use App\Http\Resources\VoucherItemApiResource;
 use App\Models\Operator;
 use App\Models\Product;
@@ -104,6 +105,7 @@ class VoucherController extends Controller
     public function search(Request $request)
     {
         $code = $request->code;
+        $codeArr = [];
         $dcvendUserID = isset($request->dcvend_user_id) ? $request->dcvend_user_id : null;
         $vendCode = $request->vend_code;
         $vend = Vend::where('code', $vendCode)->first();
@@ -115,147 +117,224 @@ class VoucherController extends Controller
             ], 400));
         }
 
-        if($code == 'test') {
-            return response([
-                'status_code' => 200,
-                'message' => 'Voucher successfully reedeemed',
-                'voucher' =>
-                [
-                    'id' => 20,
-                    'code' => 'test',
-                    'type' => 'percent',
-                    'channels' => ['14', '22', '15'],
-                    'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
-                    'date_to' => Carbon::today()->addDays(5)->format('Y-m-d'),
-                    'name' => '10% discount on Item 14,15,and 22.',
-                    'desc' => '',
-                    'status' => 'active',
-                    'min_value' => 200,
-                    'max_promo_value' => 1000,
-                    'qty' => 1,
-                    'value' => 10,
-                    'matrix' => []
-                ],
-            ], 200);
-        }
-
-        if($code == 'test20') {
-            return response([
-                'status_code' => 200,
-                'message' => 'Voucher successfully reedeemed',
-                'voucher' =>
-                [
-                    'id' => 30,
-                    'code' => 'test20',
-                    'type' => 'percent',
-                    'channels' => ['14', '22', '15'],
-                    'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
-                    'date_to' => Carbon::today()->addDays(5)->format('Y-m-d'),
-                    'name' => '20% discount on Item 14,15,and 22.',
-                    'desc' => '',
-                    'status' => 'active',
-                    'min_value' => 200,
-                    'max_promo_value' => 2000,
-                    'qty' => 1,
-                    'value' => 20,
-                    'matrix' => []
-                ],
-            ], 200);
-        }
-
-        if($code == 'freecornetto') {
-            return response([
-                'status_code' => 200,
-                'message' => 'Voucher successfully reedeemed',
-                'voucher' =>
-                [
-                    'id' => 30,
-                    'code' => 'freecornetto',
-                    'type' => 'item',
-                    'channels' => ['14', '15', '16', '22'],
-                    'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
-                    'date_to' => Carbon::today()->addDays(1)->format('Y-m-d'),
-                    'name' => 'Free Cornetto with order over $10',
-                    'desc' => '',
-                    'status' => 'active',
-                    'min_value' => 1000,
-                    'max_promo_value' => null,
-                    'qty' => 1,
-                    'value' => null,
-                    'matrix' => []
-                ],
-            ], 200);
-        }
-
-        if($code == 'discount2d') {
-            return response([
-                'status_code' => 200,
-                'message' => 'Voucher successfully reedeemed',
-                'voucher' =>
-                [
-                    'id' => 30,
-                    'code' =>'discount2d',
-                    'type' => 'amount',
-                    'channels' => [],
-                    'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
-                    'date_to' => Carbon::today()->addDays(1)->format('Y-m-d'),
-                    'name' => 'Discount 2 Dollar with purchase more than 10',
-                    'desc' => '',
-                    'status' => 'active',
-                    'min_value' => 1000,
-                    'max_promo_value' => null,
-                    'qty' => 1,
-                    'value' => null,
-                    'matrix' => []
-                ],
-            ], 200);
-        }
-
-        $isSameCode = false;
-
-        $voucher = Voucher::with('voucherItems')->where('code', $code)->first();
-
-        if(!$voucher) {
-            $voucher = VoucherItem::with('voucher')->where('code', $code)->first();
-            $isSameCode = false;
+        if(is_array($code)) {
+            $codeArr = $code;
         }else {
-            $isSameCode = true;
-        }
-
-        if($isSameCode) {
-            if($voucher->status == Voucher::STATUS_ACTIVE) {
+            if($code == 'test') {
                 return response([
                     'status_code' => 200,
                     'message' => 'Voucher successfully reedeemed',
-                    'voucher' => VoucherApiResource::make($voucher, $vendCode, $dcvendUserID),
+                    'voucher' =>
+                    [
+                        'id' => 20,
+                        'code' => 'test',
+                        'type' => 'percent',
+                        'channels' => ['14', '22', '15'],
+                        'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
+                        'date_to' => Carbon::today()->addDays(5)->format('Y-m-d'),
+                        'name' => '10% discount on Item 14,15,and 22.',
+                        'desc' => '',
+                        'status' => 'active',
+                        'min_value' => 200,
+                        'max_promo_value' => 1000,
+                        'qty' => 1,
+                        'value' => 10,
+                        'matrix' => []
+                    ],
                 ], 200);
             }
+
+            if($code == 'test20') {
+                return response([
+                    'status_code' => 200,
+                    'message' => 'Voucher successfully reedeemed',
+                    'voucher' =>
+                    [
+                        'id' => 30,
+                        'code' => 'test20',
+                        'type' => 'percent',
+                        'channels' => ['14', '22', '15'],
+                        'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
+                        'date_to' => Carbon::today()->addDays(5)->format('Y-m-d'),
+                        'name' => '20% discount on Item 14,15,and 22.',
+                        'desc' => '',
+                        'status' => 'active',
+                        'min_value' => 200,
+                        'max_promo_value' => 2000,
+                        'qty' => 1,
+                        'value' => 20,
+                        'matrix' => []
+                    ],
+                ], 200);
+            }
+
+            if($code == 'freecornetto') {
+                return response([
+                    'status_code' => 200,
+                    'message' => 'Voucher successfully reedeemed',
+                    'voucher' =>
+                    [
+                        'id' => 30,
+                        'code' => 'freecornetto',
+                        'type' => 'item',
+                        'channels' => ['14', '15', '16', '22'],
+                        'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
+                        'date_to' => Carbon::today()->addDays(1)->format('Y-m-d'),
+                        'name' => 'Free Cornetto with order over $10',
+                        'desc' => '',
+                        'status' => 'active',
+                        'min_value' => 1000,
+                        'max_promo_value' => null,
+                        'qty' => 1,
+                        'value' => null,
+                        'matrix' => []
+                    ],
+                ], 200);
+            }
+
+            if($code == 'discount2d') {
+                return response([
+                    'status_code' => 200,
+                    'message' => 'Voucher successfully reedeemed',
+                    'voucher' =>
+                    [
+                        'id' => 30,
+                        'code' =>'discount2d',
+                        'type' => 'amount',
+                        'channels' => [],
+                        'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
+                        'date_to' => Carbon::today()->addDays(1)->format('Y-m-d'),
+                        'name' => 'Discount 2 Dollar with purchase more than 10',
+                        'desc' => '',
+                        'status' => 'active',
+                        'min_value' => 1000,
+                        'max_promo_value' => null,
+                        'qty' => 1,
+                        'value' => null,
+                        'matrix' => []
+                    ],
+                ], 200);
+            }
+
+            $codeArr = [$code];
         }
 
-        if(!$isSameCode) {
-            if($voucher->is_locked) {
+        if(count($codeArr) == 1) {
+
+            $isSameCode = false;
+
+            $voucher = Voucher::with('voucherItems')->whereIn('code', $codeArr)->first();
+
+            if(!$voucher) {
+                $voucher = VoucherItem::with('voucher')->whereIn('code', $codeArr)->first();
+                $isSameCode = false;
+            }else {
+                $isSameCode = true;
+            }
+
+            if(!$voucher) {
                 return response([
                     'status_code' => 400,
-                    'message' => 'Someone is using this voucher, please try again few minutes later',
-                    // 'voucher' => VoucherItemApiResource::make($voucher, $vendCode, $dcvendUserID),
+                    'message' => 'Voucher not found',
                 ], 400);
             }
 
-            if($voucher->status == Voucher::STATUS_ACTIVE) {
-                $this->voucherService->lockVoucherCode($voucher, $vend->id);
+            if($isSameCode) {
+                if($voucher->status == Voucher::STATUS_ACTIVE) {
+                    return response([
+                        'status_code' => 200,
+                        'message' => 'Voucher successfully reedeemed',
+                        'voucher' => VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID),
+                    ], 200);
+                }
+
+                if($voucher->status == Voucher::STATUS_REDEEMED) {
+                    return response([
+                        'status_code' => 400,
+                        'message' => 'Voucher already redeemed',
+                        'voucher' => VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID),
+                    ], 400);
+                }
+
+                if($voucher->status == Voucher::STATUS_EXPIRED) {
+                    return response([
+                        'status_code' => 400,
+                        'message' => 'Voucher expired',
+                        'voucher' => VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID),
+                    ], 400);
+                }
+            }
+
+            if(!$isSameCode) {
+                // if($voucher->is_locked) {
+                //     return response([
+                //         'status_code' => 400,
+                //         'message' => 'Someone is using this voucher, please try again few minutes later',
+                //         // 'voucher' => VoucherItemApiResource::make($voucher, $vendCode, $dcvendUserID),
+                //     ], 400);
+                // }
+
+                if($voucher->status == Voucher::STATUS_ACTIVE) {
+                    // $this->voucherService->lockVoucherCode($voucher, $vend->id);
+                    return response([
+                        'status_code' => 200,
+                        'message' => 'Voucher successfully reedeemed',
+                        'voucher' => VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID),
+                    ], 200);
+                }
+
+                if($voucher->status == Voucher::STATUS_REDEEMED) {
+                    return response([
+                        'status_code' => 400,
+                        'message' => 'Voucher already redeemed',
+                        'voucher' => VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID),
+                    ], 400);
+                }
+
+                if($voucher->status == Voucher::STATUS_EXPIRED) {
+                    return response([
+                        'status_code' => 400,
+                        'message' => 'Voucher expired',
+                        'voucher' => VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID),
+                    ], 400);
+                }
+            }
+        }else {
+            $vouchers = Voucher::with('voucherItems')
+            ->whereIn('code', $codeArr)
+            ->get();
+
+            $voucherItems = VoucherItem::with('voucher')
+                ->whereIn('code', $codeArr)
+                ->get();
+
+            $merged = collect()
+                ->merge($vouchers)
+                ->merge($voucherItems);
+
+            // Check if any voucher is redeemed or expired
+            $hasInvalid = $merged->contains(function ($voucher) {
+                $status = $voucher->status ?? ($voucher->voucher->status ?? null);
+                return in_array($status, [Voucher::STATUS_REDEEMED, Voucher::STATUS_EXPIRED]);
+            });
+
+            if ($hasInvalid) {
+                return response([
+                    'status_code' => 400,
+                    'message' => "Voucher already expired or redeemed",
+                    'vouchers' => VoucherCheckingApiResource::collection($merged, $vendCode, $dcvendUserID),
+                ], 400);
+            }
+
+            // All vouchers are valid
+            if ($merged->isNotEmpty()) {
                 return response([
                     'status_code' => 200,
-                    'message' => 'Voucher successfully reedeemed',
-                    'voucher' => VoucherItemApiResource::make($voucher, $vendCode, $dcvendUserID),
+                    'message' => 'Vouchers successfully reedeemed',
+                    'vouchers' => VoucherCheckingApiResource::collection($merged, $vendCode, $dcvendUserID),
                 ], 200);
             }
         }
-
-
-        return response([
-            'status_code' => 404,
-            'message' => 'Voucher not found',
-        ], 404);
     }
 
     public function store(Request $request)
