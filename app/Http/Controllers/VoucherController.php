@@ -106,26 +106,25 @@ class VoucherController extends Controller
     {
         $code = $request->code;
         $codeArr = [];
-        $dcvendUserID = isset($request->dcvend_user_id) ? $request->dcvend_user_id : null;
+        $dcvendUserID = $request->dcvend_user_id ?? null;
         $vendCode = $request->vend_code;
         $vend = Vend::where('code', $vendCode)->first();
 
-        if(!$code) {
-            abort(response([
+        if (!$code) {
+            return response([
                 'status_code' => 400,
                 'message' => 'Parameters missing',
-            ], 400));
+            ], 400);
         }
 
-        if(is_array($code)) {
+        if (is_array($code)) {
             $codeArr = $code;
-        }else {
-            if($code == 'test') {
+        } else {
+            if ($code == 'test') {
                 return response([
                     'status_code' => 200,
                     'message' => 'Voucher successfully reedeemed',
-                    'voucher' =>
-                    [
+                    'voucher' => [
                         'id' => 20,
                         'code' => 'test',
                         'type' => 'percent',
@@ -144,12 +143,11 @@ class VoucherController extends Controller
                 ], 200);
             }
 
-            if($code == 'test20') {
+            if ($code == 'test20') {
                 return response([
                     'status_code' => 200,
                     'message' => 'Voucher successfully reedeemed',
-                    'voucher' =>
-                    [
+                    'voucher' => [
                         'id' => 30,
                         'code' => 'test20',
                         'type' => 'percent',
@@ -168,12 +166,11 @@ class VoucherController extends Controller
                 ], 200);
             }
 
-            if($code == 'freecornetto') {
+            if ($code == 'freecornetto') {
                 return response([
                     'status_code' => 200,
                     'message' => 'Voucher successfully reedeemed',
-                    'voucher' =>
-                    [
+                    'voucher' => [
                         'id' => 30,
                         'code' => 'freecornetto',
                         'type' => 'item',
@@ -192,14 +189,13 @@ class VoucherController extends Controller
                 ], 200);
             }
 
-            if($code == 'discount2d') {
+            if ($code == 'discount2d') {
                 return response([
                     'status_code' => 200,
                     'message' => 'Voucher successfully reedeemed',
-                    'voucher' =>
-                    [
+                    'voucher' => [
                         'id' => 30,
-                        'code' =>'discount2d',
+                        'code' => 'discount2d',
                         'type' => 'amount',
                         'channels' => [],
                         'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
@@ -219,123 +215,104 @@ class VoucherController extends Controller
             $codeArr = [$code];
         }
 
-        if(count($codeArr) == 1) {
-
+        if (count($codeArr) === 1) {
             $isSameCode = false;
 
             $voucher = Voucher::with('voucherItems')->whereIn('code', $codeArr)->first();
 
-            if(!$voucher) {
+            if (!$voucher) {
                 $voucher = VoucherItem::with('voucher')->whereIn('code', $codeArr)->first();
                 $isSameCode = false;
-            }else {
+            } else {
                 $isSameCode = true;
             }
 
-            if(!$voucher) {
+            if (!$voucher) {
                 return response([
                     'status_code' => 400,
                     'message' => 'Voucher not found',
                 ], 400);
             }
 
-            if($isSameCode) {
-                if($voucher->status == Voucher::STATUS_ACTIVE) {
-                    return response([
-                        'status_code' => 200,
-                        'message' => 'Voucher successfully reedeemed',
-                        'voucher' => VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID),
-                    ], 200);
-                }
+            $resource = new VoucherCheckingApiResource($voucher, $vendCode, $dcvendUserID);
+            $data = $resource->toArray($request);
 
-                if($voucher->status == Voucher::STATUS_REDEEMED) {
-                    return response([
-                        'status_code' => 400,
-                        'message' => 'Voucher already redeemed',
-                        'voucher' => VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID),
-                    ], 400);
-                }
-
-                if($voucher->status == Voucher::STATUS_EXPIRED) {
-                    return response([
-                        'status_code' => 400,
-                        'message' => 'Voucher expired',
-                        'voucher' => VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID),
-                    ], 400);
-                }
+            if (empty($data['channels'])) {
+                return response([
+                    'status_code' => 400,
+                    'message' => 'Product not available for this machine, please try at other machine',
+                ], 400);
             }
 
-            if(!$isSameCode) {
-                // if($voucher->is_locked) {
-                //     return response([
-                //         'status_code' => 400,
-                //         'message' => 'Someone is using this voucher, please try again few minutes later',
-                //         // 'voucher' => VoucherItemApiResource::make($voucher, $vendCode, $dcvendUserID),
-                //     ], 400);
-                // }
+            $status = $voucher->status ?? ($voucher->voucher->status ?? null);
 
-                if($voucher->status == Voucher::STATUS_ACTIVE) {
-                    // $this->voucherService->lockVoucherCode($voucher, $vend->id);
-                    return response([
-                        'status_code' => 200,
-                        'message' => 'Voucher successfully reedeemed',
-                        'voucher' => VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID),
-                    ], 200);
-                }
-
-                if($voucher->status == Voucher::STATUS_REDEEMED) {
-                    return response([
-                        'status_code' => 400,
-                        'message' => 'Voucher already redeemed',
-                        'voucher' => VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID),
-                    ], 400);
-                }
-
-                if($voucher->status == Voucher::STATUS_EXPIRED) {
-                    return response([
-                        'status_code' => 400,
-                        'message' => 'Voucher expired',
-                        'voucher' => VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID),
-                    ], 400);
-                }
+            if ($status == Voucher::STATUS_ACTIVE) {
+                return response([
+                    'status_code' => 200,
+                    'message' => 'Voucher successfully reedeemed',
+                    'voucher' => $data,
+                ], 200);
             }
-        }else {
-            $vouchers = Voucher::with('voucherItems')
-            ->whereIn('code', $codeArr)
-            ->get();
 
-            $voucherItems = VoucherItem::with('voucher')
-                ->whereIn('code', $codeArr)
-                ->get();
+            if ($status == Voucher::STATUS_REDEEMED) {
+                return response([
+                    'status_code' => 400,
+                    'message' => 'Voucher already redeemed',
+                    'voucher' => $data,
+                ], 400);
+            }
 
-            $merged = collect()
-                ->merge($vouchers)
-                ->merge($voucherItems);
+            if ($status == Voucher::STATUS_EXPIRED) {
+                return response([
+                    'status_code' => 400,
+                    'message' => 'Voucher expired',
+                    'voucher' => $data,
+                ], 400);
+            }
+        } else {
+            $vouchers = Voucher::with('voucherItems')->whereIn('code', $codeArr)->get();
+            $voucherItems = VoucherItem::with('voucher')->whereIn('code', $codeArr)->get();
 
-            // Check if any voucher is redeemed or expired
-            $hasInvalid = $merged->contains(function ($voucher) {
-                $status = $voucher->status ?? ($voucher->voucher->status ?? null);
-                return in_array($status, [Voucher::STATUS_REDEEMED, Voucher::STATUS_EXPIRED]);
+            $merged = collect()->merge($vouchers)->merge($voucherItems);
+
+            $resources = $merged->map(function ($voucher) use ($vendCode, $dcvendUserID, $request) {
+                $resource = new VoucherCheckingApiResource($voucher, $vendCode, $dcvendUserID);
+                return $resource->toArray($request);
             });
+
+            $hasInvalid = $resources->contains(function ($voucher) {
+                return in_array($voucher['status'], ['redeemed', 'expired']);
+            });
+
+            $hasEmptyChannels = $resources->contains(function ($voucher) {
+                return empty($voucher['channels']);
+            });
+
+            if ($hasEmptyChannels) {
+                return response([
+                    'status_code' => 400,
+                    'message' => 'Some products not available for this machine, please try at other machine',
+                ], 400);
+            }
 
             if ($hasInvalid) {
                 return response([
                     'status_code' => 400,
-                    'message' => "Voucher already expired or redeemed",
-                    'vouchers' => VoucherCheckingApiResource::collection($merged, $vendCode, $dcvendUserID),
+                    'message' => 'Voucher already expired or redeemed',
+                    'vouchers' => $resources,
                 ], 400);
             }
 
-            // All vouchers are valid
-            if ($merged->isNotEmpty()) {
+            if ($resources->isNotEmpty()) {
                 return response([
                     'status_code' => 200,
                     'message' => 'Vouchers successfully reedeemed',
-                    'vouchers' => VoucherCheckingApiResource::collection($merged, $vendCode, $dcvendUserID),
+                    'vouchers' => $resources,
                 ], 200);
             }
         }
     }
+
 
     public function store(Request $request)
     {

@@ -88,7 +88,7 @@ class VoucherService
     $voucherItem = VoucherItem::where('code', $voucherCode)->first();
 
     if($voucherItem) {
-      ReleaseVoucherLock::dispatch($voucherItem);
+      // ReleaseVoucherLock::dispatch($voucherItem);
       $this->syncVoucherCount($voucherItem);
       return;
     }

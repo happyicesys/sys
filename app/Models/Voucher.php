@@ -70,6 +70,30 @@ class Voucher extends Model
         );
     }
 
+    protected function maxPromoValue(): Attribute
+    {
+        return Attribute::make(
+            set: fn ($value) => $value * 100,
+            get: fn ($value) => $value / 100,
+        );
+    }
+
+    protected function minValue(): Attribute
+    {
+        return Attribute::make(
+            set: fn ($value) => $value * 100,
+            get: fn ($value) => $value / 100,
+        );
+    }
+
+    protected function value(): Attribute
+    {
+        return Attribute::make(
+            set: fn ($value) => $value * 100,
+            get: fn ($value) => $value / 100,
+        );
+    }
+
     public function customer()
     {
         return $this->belongsTo(Customer::class);

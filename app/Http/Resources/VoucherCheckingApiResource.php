@@ -25,9 +25,9 @@ class VoucherCheckingApiResource extends JsonResource
     public function toArray(Request $request): array
     {
         // Detect base model (Voucher or VoucherItem)
-        $isVoucherItem = $this instanceof VoucherItem;
+        $isVoucherItem = $this->resource instanceof VoucherItem;
 
-        $voucher = $isVoucherItem ? $this->voucher : $this;
+        $voucher = $isVoucherItem ? $this->voucher : $this->resource;
 
         return [
             'id' => $voucher->id,
@@ -53,6 +53,7 @@ class VoucherCheckingApiResource extends JsonResource
             $productIDArr = json_decode($productIDArr, true);
         }
 
+
         if (!is_array($productIDArr) || count($productIDArr) === 0) {
             return []; // safely return empty result
         }
@@ -66,7 +67,8 @@ class VoucherCheckingApiResource extends JsonResource
         return VendChannel::where('vend_id', $vend->id)
             ->where('is_active', true)
             ->whereIn('product_id', $productIDArr)
-            ->pluck('code');
+            ->pluck('code')
+            ->toArray();
     }
 
 }
