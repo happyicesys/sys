@@ -1770,6 +1770,7 @@ class VendController extends Controller
                         'is_multiple' => $vendTransaction->is_multiple ? 'Yes' : 'No',
                         'multiple_qty' => 0,
                         'txn_src' => $vendTransaction->interface_type,
+                        'member_id' => $vendTransaction->vend_transaction_json && isset($vendTransaction->vend_transaction_json['dcvend_user_id']) ? $vendTransaction->vend_transaction_json['dcvend_user_id'] : '',
                     ];
                 }
             }
