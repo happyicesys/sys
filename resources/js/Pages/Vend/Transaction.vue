@@ -276,22 +276,6 @@
                     APK Ver
                 </SearchInput>
             </div>
-            <div class="col-span-5 md:col-span-1">
-                <label for="text" class="block text-sm font-medium text-gray-700">
-                    Is Member?
-                </label>
-                <MultiSelect
-                    v-model="filters.is_member"
-                    :options="booleanOptions"
-                    trackBy="id"
-                    valueProp="id"
-                    label="value"
-                    placeholder="Select"
-                    open-direction="bottom"
-                    class="mt-1"
-                >
-                </MultiSelect>
-            </div>
             <div>
                 <label for="text" class="block text-sm font-medium text-gray-700">
                     Machine Contract
@@ -308,6 +292,27 @@
                     class="mt-1"
                 >
                 </MultiSelect>
+            </div>
+            <div class="col-span-5 md:col-span-1">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Is Member?
+                </label>
+                <MultiSelect
+                    v-model="filters.is_member"
+                    :options="booleanOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
+            <div class="col-span-5 md:col-span-1">
+                <SearchInput placeholderStr="Member ID" v-model="filters.member_code" @keyup.enter="onSearchFilterUpdated()">
+                    Member ID
+                </SearchInput>
             </div>
         </div>
 
@@ -783,6 +788,7 @@ const filters = ref({
     product_name: '',
     errors: [],
     location_type_id: '',
+    member_code: '',
     operators: [],
     order_id: '',
     interface_type: '',

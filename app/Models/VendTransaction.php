@@ -289,6 +289,9 @@ class VendTransaction extends Model
                 }
             }
         })
+        ->when($request->member_code, function($query, $search) {
+            $query->where('vend_transactions.vend_transaction_json->dcvend_user_id', $search);
+        })
         ->when($request->order_id, function($query, $search) {
             $query->where('vend_transactions.order_id', 'LIKE', "%{$search}%");
         })
