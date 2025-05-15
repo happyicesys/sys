@@ -55,8 +55,8 @@
                   class="mt-1"
                 >
                 </MultiSelect>
-                <div class="text-sm text-red-600" v-if="form.errors.operators">
-                  {{ form.errors.operators }}
+                <div class="text-sm text-red-600" v-if="form.errors.operator_id">
+                  {{ form.errors.operator_id }}
                 </div>
             </div>
 

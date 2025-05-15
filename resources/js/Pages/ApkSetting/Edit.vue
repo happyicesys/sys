@@ -118,6 +118,43 @@
                 </div>
                 <div class="relative flex justify-center ">
                   <div class="flex flex-col items-center">
+                    <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> DCVend </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sm:col-span-5">
+              <FormInput v-model="form.dcvendFreePlanPromoValue">
+                <div class="text-base">
+                  Free Plan Promo Rate
+                </div>
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-5">
+              <FormInput v-model="form.dcvendGoldPlanPromoValue">
+                <div class="text-base">
+                  Gold Plan Promo Rate
+                </div>
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-5">
+              <FormInput v-model="form.dcvendPlatinumPlanPromoValue">
+                <div class="text-base">
+                  Platinum Plan Promo Rate
+                </div>
+              </FormInput>
+            </div>
+
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center ">
+                  <div class="flex flex-col items-center">
                     <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Default Video(s) </span>
                     <span class="text-sm">
                       (device file location: Internal Memory/Android/data/com.venderroute/files/DefaultMedia/Videos)
@@ -1252,6 +1289,10 @@ function getDefaultForm() {
     campaignItems: [],
 
     vend_id: '',
+
+    dcvendFreePlanPromoValue: '',
+    dcvendGoldPlanPromoValue: '',
+    dcvendPlatinumPlanPromoValue: '',
   }
 }
 

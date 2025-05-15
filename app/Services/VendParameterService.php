@@ -56,6 +56,10 @@ class VendParameterService
             'selectedPricingSource' => 'machine',
 
             'enableDebugMode' => false,
+
+            "dcvendFreePlanPromoValue" => 15,
+            "dcvendGoldPlanPromoValue" => 30,
+            "dcvendPlatinumPlanPromoValue" => 30,
         ];
 
         return $parameters;
@@ -108,6 +112,10 @@ class VendParameterService
             'selectedPricingSource' => $parameters['selectedPricingSource'],
 
             'enableDebugMode' => $parameters['enableDebugMode'],
+
+            "dcvendFreePlanPromoValue" => $parameters['dcvendFreePlanPromoValue'],
+            "dcvendGoldPlanPromoValue" => $parameters['dcvendGoldPlanPromoValue'],
+            "dcvendPlatinumPlanPromoValue" => $parameters['dcvendPlatinumPlanPromoValue'],
         ];
 
         return $settings;
