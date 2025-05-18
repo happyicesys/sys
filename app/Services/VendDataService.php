@@ -246,11 +246,11 @@ class VendDataService
           case 'REFILL':
             break;
           case 'REQQR':
-              $timezone = $vend->operator->timezone ?? 'Asia/Singapore';
-              $nowHour = Carbon::now($timezone)->format('H');
-              if ($nowHour >= 0 && $nowHour < 6) {
-                  break;
-              }
+              // $timezone = $vend->operator->timezone ?? 'Asia/Singapore';
+              // $nowHour = Carbon::now($timezone)->format('H');
+              // if ($nowHour >= 0 && $nowHour < 6) {
+              //     break;
+              // }
               GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
               break;
           case 'STATIS1':
