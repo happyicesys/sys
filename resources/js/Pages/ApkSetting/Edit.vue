@@ -125,7 +125,7 @@
             </div>
 
             <div class="sm:col-span-5">
-              <FormInput v-model="form.dcvendFreePlanPromoValue">
+              <FormInput v-model="form.dcvendFreePlanPromoValue" disabled="true">
                 <div class="text-base">
                   Free Plan Promo Rate
                 </div>
@@ -133,7 +133,7 @@
             </div>
 
             <div class="sm:col-span-5">
-              <FormInput v-model="form.dcvendGoldPlanPromoValue">
+              <FormInput v-model="form.dcvendGoldPlanPromoValue" disabled="true">
                 <div class="text-base">
                   Gold Plan Promo Rate
                 </div>
@@ -141,7 +141,7 @@
             </div>
 
             <div class="sm:col-span-5">
-              <FormInput v-model="form.dcvendPlatinumPlanPromoValue">
+              <FormInput v-model="form.dcvendPlatinumPlanPromoValue" disabled="true">
                 <div class="text-base">
                   Platinum Plan Promo Rate
                 </div>
