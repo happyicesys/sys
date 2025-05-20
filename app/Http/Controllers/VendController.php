@@ -339,18 +339,24 @@ class VendController extends Controller
             }
         }
 
-        if(!$request->operators) {
-            if(auth()->user()->operator->code == 'HIPL') {
-                $request->merge(['operators' => [
-                    auth()->user()->operator_id,
-                    Operator::where('code', 'HIMD')->first()?->id,
-                    Operator::where('code', 'LEA')->first()?->id,
-                    Operator::where('code', 'DCVIC')->first()?->id,
-                ]]);
-            }else {
-                $request->merge(['operators' => [auth()->user()->operator_id]]);
+        if (!$request->operators) {
+            $userOperator = auth()->user()->operator;
+
+            if ($userOperator && $userOperator->code === 'HIPL') {
+                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'DCVIC'];
+
+                $operatorIds = Operator::whereIn('code', $relatedCodes)
+                    ->pluck('id')
+                    ->filter()
+                    ->values()
+                    ->toArray();
+
+                $request->merge(['operators' => $operatorIds]);
+            } else {
+                $request->merge(['operators' => [$userOperator?->id]]);
             }
         }
+
         $request->merge([
             'indexType' => 'customers',
             'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
@@ -487,109 +493,66 @@ class VendController extends Controller
 
             ->leftJoin(DB::raw('
                 (
-                    SELECT
-                        last_ops_jobs_inner.customer_id,
-                        last_ops_jobs_inner.acc_total_amount,
-                        last_ops_jobs_inner.acc_total_count,
-                        last_ops_jobs_inner.amount,
-                        last_ops_jobs_inner.cash_amount,
-                        last_ops_jobs_inner.count
-                    FROM
-                    (
-                        SELECT
-                            ops_job_items.customer_id,
-                            ops_job_items.cash_amount,
-                            ops_job_items.acc_total_amount,
-                            ops_job_items.acc_total_count,
-                            SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount,
-                            SUM(ops_job_item_channels.actual_qty) AS count,
-                            ROW_NUMBER() OVER (PARTITION BY ops_job_items.customer_id ORDER BY ops_job_items.created_at DESC) AS rn
-                        FROM
-                            ops_job_item_channels
-                        INNER JOIN
-                            vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
-                        INNER JOIN
-                            ops_job_items ON ops_job_item_channels.ops_job_item_id = ops_job_items.id
-                        INNER JOIN
-                            ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
-                        WHERE
-                            ops_job_items.status >= 3
-                            AND ops_job_items.status <> 99
-                            AND ops_jobs.date < CURDATE() + INTERVAL 1 DAY
-                        GROUP BY
-                            ops_job_items.customer_id, ops_job_items.created_at
-                    ) AS last_ops_jobs_inner
-                    WHERE last_ops_jobs_inner.rn = 1
+                    SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
+                        SUM(oji_c.actual_qty * vc.amount) AS amount,
+                        SUM(oji_c.actual_qty) AS count
+                    FROM ops_job_items oji
+                    INNER JOIN (
+                        SELECT customer_id, MAX(created_at) AS max_created_at
+                        FROM ops_job_items
+                        WHERE status >= 3 AND status <> 99
+                        GROUP BY customer_id
+                    ) latest ON latest.customer_id = oji.customer_id AND oji.created_at = latest.max_created_at
+                    INNER JOIN ops_job_item_channels oji_c ON oji.id = oji_c.ops_job_item_id
+                    INNER JOIN vend_channels vc ON oji_c.vend_channel_id = vc.id
+                    INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
+                    WHERE oji.status >= 3 AND oji.status <> 99 AND oj.date < CURDATE() + INTERVAL 1 DAY
+                    GROUP BY oji.customer_id
                 ) AS last_ops_jobs
             '), 'last_ops_jobs.customer_id', '=', 'customers.id')
             ->leftJoin(DB::raw('
                 (
-                    SELECT
-                        last_second_ops_jobs_inner.customer_id,
-                        last_second_ops_jobs_inner.acc_total_amount,
-                        last_second_ops_jobs_inner.acc_total_count,
-                        last_second_ops_jobs_inner.amount,
-                        last_second_ops_jobs_inner.cash_amount,
-                        last_second_ops_jobs_inner.count
-                    FROM
-                    (
-                        SELECT
-                            ops_job_items.customer_id,
-                            ops_job_items.cash_amount,
-                            ops_job_items.acc_total_amount,
-                            ops_job_items.acc_total_count,
-                            SUM(ops_job_item_channels.actual_qty * vend_channels.amount) AS amount,
-                            SUM(ops_job_item_channels.actual_qty) AS count,
-                            ROW_NUMBER() OVER (PARTITION BY ops_job_items.customer_id ORDER BY ops_job_items.created_at DESC) AS rn
-                        FROM
-                            ops_job_item_channels
-                        INNER JOIN
-                            vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
-                        INNER JOIN
-                            ops_job_items ON ops_job_item_channels.ops_job_item_id = ops_job_items.id
-                        INNER JOIN
-                            ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
-                        WHERE
-                            ops_job_items.status >= 3
-                            AND ops_job_items.status <> 99
-                            AND ops_jobs.date < CURDATE() + INTERVAL 1 DAY
-                        GROUP BY
-                            ops_job_items.customer_id, ops_job_items.created_at
-                    ) AS last_second_ops_jobs_inner
-                    WHERE last_second_ops_jobs_inner.rn = 2 -- This selects the second-to-last row
+                    SELECT oji.customer_id, oji.cash_amount, oji.acc_total_amount, oji.acc_total_count,
+                        SUM(oji_c.actual_qty * vc.amount) AS amount,
+                        SUM(oji_c.actual_qty) AS count
+                    FROM ops_job_items oji
+                    INNER JOIN (
+                        SELECT customer_id, MAX(created_at) AS second_max_created_at
+                        FROM ops_job_items
+                        WHERE status >= 3 AND status <> 99
+                        AND created_at < (
+                            SELECT MAX(created_at)
+                            FROM ops_job_items oji2
+                            WHERE oji2.customer_id = ops_job_items.customer_id
+                                AND oji2.status >= 3 AND oji2.status <> 99
+                        )
+                        GROUP BY customer_id
+                    ) second_latest ON second_latest.customer_id = oji.customer_id AND oji.created_at = second_latest.second_max_created_at
+                    INNER JOIN ops_job_item_channels oji_c ON oji.id = oji_c.ops_job_item_id
+                    INNER JOIN vend_channels vc ON oji_c.vend_channel_id = vc.id
+                    INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
+                    WHERE oji.status >= 3 AND oji.status <> 99 AND oj.date < CURDATE() + INTERVAL 1 DAY
+                    GROUP BY oji.customer_id
                 ) AS last_second_ops_jobs
             '), 'last_second_ops_jobs.customer_id', '=', 'customers.id')
             ->leftJoin(DB::raw('
                 (
-                    SELECT
-                        next_ops_jobs_inner.customer_id,
-                        next_ops_jobs_inner.amount,
-                        next_ops_jobs_inner.cash_amount,
-                        next_ops_jobs_inner.count
-                    FROM
-                    (
-                        SELECT
-                            ops_job_items.customer_id,
-                            ops_job_items.cash_amount,
-                            SUM(ops_job_item_channels.picked_qty * vend_channels.amount) AS amount,
-                            SUM(ops_job_item_channels.picked_qty) AS count,
-                            ROW_NUMBER() OVER (PARTITION BY ops_job_items.customer_id ORDER BY ops_job_items.created_at ASC) AS rn
-                        FROM
-                            ops_job_item_channels
-                        INNER JOIN
-                            vend_channels ON ops_job_item_channels.vend_channel_id = vend_channels.id
-                        INNER JOIN
-                            ops_job_items ON ops_job_item_channels.ops_job_item_id = ops_job_items.id
-                        INNER JOIN
-                            ops_jobs ON ops_job_items.ops_job_id = ops_jobs.id
-                        WHERE
-                            ops_job_items.status < 3
-                            AND ops_jobs.date >= CURDATE()
-                        GROUP BY
-                            ops_job_items.customer_id, ops_job_items.created_at
-                    ) AS next_ops_jobs_inner
-                    WHERE next_ops_jobs_inner.rn = 1
-                ) AS next_ops_jobs
+                    SELECT oji.customer_id, oji.cash_amount,
+                        SUM(ojic.picked_qty * vc.amount) AS amount,
+                        SUM(ojic.picked_qty) AS count
+                    FROM ops_job_items oji
+                    INNER JOIN (
+                        SELECT customer_id, MIN(created_at) AS min_created_at
+                        FROM ops_job_items
+                        WHERE status < 3
+                        GROUP BY customer_id
+                    ) next_job ON next_job.customer_id = oji.customer_id AND oji.created_at = next_job.min_created_at
+                    INNER JOIN ops_job_item_channels ojic ON oji.id = ojic.ops_job_item_id
+                    INNER JOIN vend_channels vc ON ojic.vend_channel_id = vc.id
+                    INNER JOIN ops_jobs oj ON oji.ops_job_id = oj.id
+                    WHERE oji.status < 3 AND oj.date >= CURDATE()
+                    GROUP BY oji.customer_id
+                    ) AS next_ops_jobs
             '), 'next_ops_jobs.customer_id', '=', 'customers.id')
             ->leftJoin(DB::raw('(
                 SELECT SUM(ops_job_item_channels.actual_qty) AS qty,
@@ -726,6 +689,23 @@ class VendController extends Controller
                             })/100,
         ];
 
+        $driverOptions = UserResource::collection(
+            User::whereHas('roles', function($query) {
+                $query->whereIn('name', ['admin', 'driver', 'supervisor', 'technician']);
+            })->orderBy('name')->get()
+        );
+
+        $products = Product::query()
+            ->with(['thumbnail', 'isAvailableUpdatedBy'])
+            ->when($request->operators, function ($query, $search) {
+                $query->whereIn('operator_id', $search);
+            })
+            ->select('id', 'code', 'desc', 'name', 'is_available', 'is_available_updated_at', 'is_available_updated_by')
+            ->where('is_active', true)
+            ->where('is_inventory', true)
+            ->orderBy('code')
+            ->get();
+
         return Inertia::render('Vend/CustomerIndex', [
             'cmsEndpoint' => env('CMS_URL'),
             'constTempError' => VendTemp::TEMPERATURE_ERROR,
@@ -734,39 +714,18 @@ class VendController extends Controller
                 DeliveryPlatform::orderBy('name')->get()
             ),
             'deviceTypes' => Vend::DEVICE_TYPE_MAPPINGS,
-            'driverOptions' => UserResource::collection(
-                User::whereHas('roles', function($query) use ($request) {
-                    $query
-                        ->whereIn('name', ['admin', 'driver', 'supervisor', 'technician']);
-                })->orderBy('name')->get()
-            ),
+            'driverOptions' => UserResource::collection($driverOptions),
             'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
             'indexType' => $request->indexType,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
             'mapApiKey' => $this->mapService->getMapApiKeyByUser(auth()->user()),
-            'nextDeliveryDriverOptions' => UserResource::collection(
-                User::whereHas('roles', function($query) use ($request) {
-                    $query
-                        ->whereIn('name', ['admin', 'driver', 'supervisor', 'technician']);
-                })->orderBy('name')->get()
-            ),
+            'nextDeliveryDriverOptions' => UserResource::collection($driverOptions),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
-            'productOptions' => ProductResource::collection(
-                Product::query()
-                    ->with(['thumbnail', 'isAvailableUpdatedBy'])
-                    ->when($request->operators, function($query, $search) {
-                        $query->whereIn('operator_id', $search);
-                    })
-                    ->select('id', 'code', 'desc', 'name', 'is_available', 'is_available_updated_at', 'is_available_updated_by')
-                    ->where('is_active', true)
-                    ->where('is_inventory', true)
-                    ->orderBy('code')
-                    ->get()
-            ),
+            'productOptions' => ProductResource::collection($products),
             'sellingPriceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'totals' => $totals,
             'vends' => VendResource::collection($vends),

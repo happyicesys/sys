@@ -205,7 +205,14 @@ trait HasFilter {
                 $search = [$search];
             }
 
-            $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->where('vend_channels.is_active', true)->pluck('vend_id'));
+            // $query->whereIn('vends.id', DB::table('vend_channels')->select('vend_id')->whereIn('code', $search)->where('vend_channels.is_active', true)->pluck('vend_id'));
+            $query->whereExists(function ($sub) use ($search) {
+                $sub->select(DB::raw(1))
+                    ->from('vend_channels')
+                    ->whereRaw('vend_channels.vend_id = vends.id')
+                    ->where('vend_channels.is_active', true)
+                    ->whereIn('vend_channels.code', $search);
+            });
         })
         ->when($request->delivery_platform_id, function($query, $search) use ($request){
             if($search != 'all') {
