@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\OpsJob;
 use App\Events\VendChannelSaved;
 use Carbon\Carbon;
+use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -44,7 +45,7 @@ class VendChannel extends Model
 
     public function latestOpsJobItemChannel()
     {
-        return $this->hasOne(OpsJobItemChannel::class)->whereNotNull('actual_qty')->whereHas('opsJobItem', function($query) {
+        return $this->hasOne(OpsJobItemChannel::class)->whereHas('opsJobItem', function($query) {
             $query->where('status', '>=', OpsJob::STATUS_DELIVERED)
                 ->where('status', '<>', OpsJob::STATUS_CANCELLED);
         })->orderByDesc('created_at');
@@ -103,6 +104,22 @@ class VendChannel extends Model
     {
         return $this->daysVendTransactions(6,0)->isError()->latest();
     }
+
+    // attributes
+    public function getServerAmountAttribute()
+    {
+        $serverPriceType = $this->vend?->server_price_type;
+
+        if (!$serverPriceType || !$this->product_id) {
+            return null;
+        }
+
+        return DB::table('selling_prices')
+            ->where('product_id', $this->product_id)
+            ->where('type', $serverPriceType)
+            ->value('amount');
+    }
+
 
     // scopes
     public function scopeFilterIndex($query, $request)

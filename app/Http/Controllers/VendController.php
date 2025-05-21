@@ -222,6 +222,7 @@ class VendController extends Controller
                 // 'vends.vend_channels_json',
                 'vends.vend_channel_totals_json',
                 'vends.vend_channel_error_logs_json',
+                'vends.vend_channels_json',
                 'vends.vend_transaction_totals_json',
                 'vends.vend_type_id',
                 'vends.virtual_vend_records_thirty_days_amount_average',
@@ -386,7 +387,7 @@ class VendController extends Controller
                             selling_prices.product_id = vend_channels.product_id AND
                             selling_prices.type = (SELECT server_price_type FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
                 },
-                'vend.vendChannels.latestOpsJobItemChannel',
+                'vend.vendChannels.latestOpsJobItemChannel:id,actual_qty,vend_channel_id',
                 'vend.vendChannels.product.thumbnail',
                 'vend.vendChannels.product.sellingPrices',
                 'vend.vendChannels.vendChannelErrorLogs' => function($query) {
@@ -394,7 +395,10 @@ class VendController extends Controller
                 },
                 'vend.vendChannels.vendChannelErrorLogs.vendChannelError',
                 'vend.modemUnit',
-                'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform'
+                'vend.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
+                'vend.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',
+                'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator:id,delivery_platform_id',
+                'vend.deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform:id,name'
             ])
             ->leftJoin('vends', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
@@ -604,6 +608,7 @@ class VendController extends Controller
                 DB::raw('CASE WHEN customers.is_active THEN vends.vend_channel_error_logs_json ELSE customers.snap_vend_channel_error_logs_json END AS vend_channel_error_logs_json'),
                 'customers.totals_json AS vend_transaction_totals_json',
                 'vends.vend_type_id',
+                'vends.vend_channels_json',
                 'vends.virtual_vend_records_thirty_days_amount_average',
                 'customers.id AS customer_id',
                 DB::raw("customers.account_manager_json->>'$.name' AS account_manager_name"),

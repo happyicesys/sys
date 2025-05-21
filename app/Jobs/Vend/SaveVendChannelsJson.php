@@ -16,7 +16,7 @@ class SaveVendChannelsJson implements ShouldQueue
     //
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $tries = 0;
+    public $tries = 1;
     public $timeout = 5;
 
     protected $originalVendChannelData;
@@ -73,7 +73,35 @@ class SaveVendChannelsJson implements ShouldQueue
 
         $vend->update([
             'original_vend_channels_json' => $this->originalVendChannelData,
-            'vend_channels_json' => $vend->vendChannels,
+            'vend_channels_json' => $vend->vendChannels->map(function ($channel) use ($vend) {
+
+                $sellingPriceType = $vend->customer?->selling_price_type;
+                $sellingPrice = $channel->product?->sellingPrices
+                    ?->firstWhere('type', $sellingPriceType);
+
+                return [
+                    'id' => $channel->id,
+                    'amount' => $channel->amount/ 100,
+                    'amount2' => $channel->amount2/ 100,
+                    'code' => $channel->code,
+                    'discount_group' => $channel->discount_group,
+                    'error_rate_json' => $channel->error_rate_json,
+                    'sku_code' => $channel->sku_code,
+                    'qty' => $channel->qty,
+                    'capacity' => $channel->capacity,
+                    'product' => $channel->product ? [
+                        'id' => $channel->product->id,
+                        'code' => $channel->product->code,
+                        'name' => $channel->product->name,
+                        'thumbnail' => $channel->product->thumbnail ? $channel->product->thumbnail->only(['id', 'full_url', 'modelable_id', 'modelable_type', 'type']) : null,
+                        'is_available' => $channel->product->is_available,
+                    ] : null,
+                    'qty_sold_at' => $channel->qty_sold_at,
+                    'last_stock_in_qty' => $channel->latestOpsJobItemChannel?->actual_qty ?? null,
+                    'server_amount' => $channel->server_amount ?? null,
+                    'ref_price' => $sellingPrice ? $sellingPrice->amount / 100 : null,
+                ];
+            }),
             'vend_channel_totals_json' => collect($totals),
         ]);
     }

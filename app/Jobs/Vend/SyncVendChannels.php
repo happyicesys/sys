@@ -226,7 +226,7 @@ class SyncVendChannels implements ShouldQueue
         }
     }
 
-    private function getValidVendChanne($channel)
+    private function getValidVendChannel($channel)
     {
         if($channel['capacity'] > 0 and $channel['channel_code'] >= 10 and $channel['channel_code'] <= 69) {
             return true;
