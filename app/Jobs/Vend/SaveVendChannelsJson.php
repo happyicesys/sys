@@ -89,6 +89,7 @@ class SaveVendChannelsJson implements ShouldQueue
                     'sku_code' => $channel->sku_code,
                     'qty' => $channel->qty,
                     'capacity' => $channel->capacity,
+                    'is_active' => $channel->is_active,
                     'product' => $channel->product ? [
                         'id' => $channel->product->id,
                         'code' => $channel->product->code,
@@ -96,7 +97,6 @@ class SaveVendChannelsJson implements ShouldQueue
                         'thumbnail' => $channel->product->thumbnail ? $channel->product->thumbnail->only(['id', 'full_url', 'modelable_id', 'modelable_type', 'type']) : null,
                         'is_available' => $channel->product->is_available,
                     ] : null,
-                    'qty_sold_at' => $channel->qty_sold_at,
                     'last_stock_in_qty' => $channel->latestOpsJobItemChannel?->actual_qty ?? null,
                     'server_amount' => $channel->server_amount ?? null,
                     'ref_price' => $sellingPrice ? $sellingPrice->amount / 100 : null,
