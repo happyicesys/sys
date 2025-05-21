@@ -40,7 +40,9 @@ class SaveVendChannelsJson implements ShouldQueue
     public function handle()
     {
         $vend = Vend::with([
-            'vendChannels.product.thumbnail'
+            'vendChannels.product.thumbnail',
+            'vendChannels.latestOpsJobItemChannel',
+            'vendChannels.vendChannelErrorLogs.vendChannelError'
             ])->findOrFail($this->vendId);
 
         $vendTotals = [
@@ -103,7 +105,13 @@ class SaveVendChannelsJson implements ShouldQueue
                     'qty_sold_at_date_formatted' => $channel->qty_sold_at ? $channel->qty_sold_at->format('ymd') : null,
                     'qty_sold_at_time_formatted' => $channel->qty_sold_at ? $channel->qty_sold_at->format('h:i a') : null,
                     'qty_sold_at_human_formatted' => $channel->qty_sold_at ? $channel->qty_sold_at->shortRelativeDiffForHumans() : null,
-
+                    'vendChannelErrorLogs' => $channel->vendChannelErrorLogs->map(function ($errorLog) {
+                        return [
+                            'id' => $errorLog->id,
+                            'created_at' => $errorLog->created_at->format('ymd h:i a'),
+                            'desc' => $errorLog->vendChannelError->desc,
+                        ];
+                    }),
                 ];
             }),
             'vend_channel_totals_json' => collect($totals),
