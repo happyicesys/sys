@@ -108,8 +108,10 @@ class SaveVendChannelsJson implements ShouldQueue
                     'vendChannelErrorLogs' => $channel->vendChannelErrorLogs->map(function ($errorLog) {
                         return [
                             'id' => $errorLog->id,
+                            'code' => $errorLog->vendChannelError->code,
                             'created_at' => $errorLog->created_at->format('ymd h:i a'),
                             'desc' => $errorLog->vendChannelError->desc,
+                            'is_error_cleared' => $errorLog->is_error_cleared,
                         ];
                     }),
                 ];

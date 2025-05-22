@@ -160,19 +160,19 @@ class VendController extends Controller
         $vends = Vend::query()
             ->with([
                 'deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform',
-                'vendChannels' => function($query) {
-                    $query->select('*')
-                        ->selectRaw("(SELECT amount FROM selling_prices WHERE
-                            selling_prices.product_id = vend_channels.product_id AND
-                            selling_prices.type = (SELECT server_price_type FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
-                },
-                // 'vendChannels.latestOpsJobItemChannel',
-                'vendChannels.product.thumbnail',
-                'vendChannels.product.sellingPrices',
-                'vendChannels.vendChannelErrorLogs' => function($query) {
-                    $query->where('created_at', '>=', Carbon::today()->subDays(29));
-                },
-                'vendChannels.vendChannelErrorLogs.vendChannelError',
+                // 'vendChannels' => function($query) {
+                //     $query->select('*')
+                //         ->selectRaw("(SELECT amount FROM selling_prices WHERE
+                //             selling_prices.product_id = vend_channels.product_id AND
+                //             selling_prices.type = (SELECT server_price_type FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
+                // },
+                // // 'vendChannels.latestOpsJobItemChannel',
+                // 'vendChannels.product.thumbnail',
+                // 'vendChannels.product.sellingPrices',
+                // 'vendChannels.vendChannelErrorLogs' => function($query) {
+                //     $query->where('created_at', '>=', Carbon::today()->subDays(29));
+                // },
+                // 'vendChannels.vendChannelErrorLogs.vendChannelError',
             ])
             ->leftJoin('customers', 'vends.customer_id', '=', 'customers.id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
@@ -381,19 +381,19 @@ class VendController extends Controller
                 'nextOpsJobItem.opsJob:id,code,date,delivered_by',
                 'nextOpsJobItem.opsJob.deliveredBy:id,name,username',
                 'nextOpsJobItem.opsJobItemChannels.vendChannel',
-                'vend.vendChannels' => function($query) {
-                    $query->select('*')
-                        ->selectRaw("(SELECT amount FROM selling_prices WHERE
-                            selling_prices.product_id = vend_channels.product_id AND
-                            selling_prices.type = (SELECT server_price_type FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
-                },
-                'vend.vendChannels.latestOpsJobItemChannel:id,actual_qty,vend_channel_id',
-                'vend.vendChannels.product.thumbnail',
-                'vend.vendChannels.product.sellingPrices',
-                'vend.vendChannels.vendChannelErrorLogs' => function($query) {
-                    $query->where('created_at', '>=', Carbon::today()->subDays(29));
-                },
-                'vend.vendChannels.vendChannelErrorLogs.vendChannelError',
+                // 'vend.vendChannels' => function($query) {
+                //     $query->select('*')
+                //         ->selectRaw("(SELECT amount FROM selling_prices WHERE
+                //             selling_prices.product_id = vend_channels.product_id AND
+                //             selling_prices.type = (SELECT server_price_type FROM vends WHERE vends.id = vend_channels.vend_id) LIMIT 1) AS server_amount");
+                // },
+                // 'vend.vendChannels.latestOpsJobItemChannel:id,actual_qty,vend_channel_id',
+                // 'vend.vendChannels.product.thumbnail',
+                // 'vend.vendChannels.product.sellingPrices',
+                // 'vend.vendChannels.vendChannelErrorLogs' => function($query) {
+                //     $query->where('created_at', '>=', Carbon::today()->subDays(29));
+                // },
+                // 'vend.vendChannels.vendChannelErrorLogs.vendChannelError',
                 'vend.modemUnit',
                 'vend.deliveryProductMappingVends:id,vend_id,delivery_product_mapping_id',
                 'vend.deliveryProductMappingVends.deliveryProductMapping:id,delivery_platform_operator_id',

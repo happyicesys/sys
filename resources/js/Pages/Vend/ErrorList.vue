@@ -42,7 +42,7 @@
                         {{ errorLog.created_at }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-left text-gray 700">
-                        {{ errorLog.vendChannelError.desc }}
+                        {{ errorLog.desc }}
                       </td>
                     </tr>
                     <tr v-if="!channel.vendChannelErrorLogs.length">
