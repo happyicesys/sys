@@ -21,6 +21,7 @@ use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -39,7 +40,12 @@ class DashboardController extends Controller
         $productGraph = $this->getProductGraph($request);
         $bestPerformer = $this->getBestPerformer($request);
         $vendCount = $this->getVendCount($request);
-        $monthGraphData = $this->getMonthGraphData($request);
+        // $monthGraphData = $this->getMonthGraphData($request);
+        $monthGraphData = Cache::remember(
+            'month_graph_data_' . auth()->id(),
+            300, // cache duration in seconds (5 minutes)
+            fn () => $this->getMonthGraphData($request)
+        );
         $activeMachineGraphData = $this->getActiveMachineGraphData($request);
         $monthlyAnalytics = $this->getMonthlyAnalytics($request);
 
@@ -284,24 +290,36 @@ class DashboardController extends Controller
             }
         }
 
-        $activeMachineGraph = VendRecord::query()
-            ->whereBetween('date', [$lastYear->startOfDay(), $thisYear->endOfDay()])
-            ->whereIn('date', function ($query) {
-                $query->select(DB::raw('MAX(date)'))->from('vend_records')->groupBy('year', 'month');
+        // Subquery: latest date per (year, month)
+        $latestSub = DB::table('vend_records')
+            ->selectRaw('MAX(date) as latest_date, year, month')
+            ->groupBy('year', 'month');
+
+        $activeMachineGraph = DB::table('vend_records')
+            ->joinSub($latestSub, 'latest', function ($join) {
+                $join->on('vend_records.date', '=', 'latest.latest_date')
+                     ->on('vend_records.year', '=', 'latest.year')
+                     ->on('vend_records.month', '=', 'latest.month');
             })
-            ->filterIndex($request)
-            ->whereNotIn('vend_id', function ($query) {
-                $query->select('id')->from('vends')->where(function ($query) {
-                    $query->where('is_testing', true)
-                        ->orWhereNull('customer_id');
-                });
+            ->whereBetween('vend_records.date', [$lastYear->startOfDay(), $thisYear->endOfDay()])
+            ->whereNotIn('vend_records.vend_id', function ($query) {
+                $query->select('id')
+                    ->from('vends')
+                    ->where(function ($query) {
+                        $query->where('is_testing', true)
+                            ->orWhereNull('customer_id');
+                    });
+            })
+            ->when(method_exists(new \App\Models\VendRecord, 'scopeFilterIndex'), function ($query) use ($request) {
+                // Apply filterIndex() scope only if it exists
+                \App\Models\VendRecord::applyScope($query, 'filterIndex', $request);
             })
             ->select(
-                'date',
-                DB::raw('MONTH(date) as month'),
-                DB::raw('MONTHNAME(date) as monthname'),
-                DB::raw('YEAR(date) as year'),
-                DB::raw('COUNT(vend_id) AS count')
+                'vend_records.date',
+                DB::raw('MONTH(vend_records.date) as month'),
+                DB::raw('MONTHNAME(vend_records.date) as monthname'),
+                DB::raw('YEAR(vend_records.date) as year'),
+                DB::raw('COUNT(vend_records.vend_id) as count')
             )
             ->groupBy('year', 'month')
             ->orderBy('month', 'asc')
@@ -314,6 +332,7 @@ class DashboardController extends Controller
         return $activeMonths;
     }
 
+
     private function getMonthlyAnalytics(Request $request)
     {
         $request->merge([
@@ -322,8 +341,22 @@ class DashboardController extends Controller
             'monthlyTypeName' => $request->monthlyTypeName ?? 'location-type'
         ]);
 
-        $modelName = $this->getModelName($request->monthlyTypeName);
-        $items = $this->getMonthlySalesQuery($request, $modelName)->get();
+        // Generate a unique cache key based on request filters
+        $cacheKey = 'monthly_analytics_' . auth()->id() . '_' . md5(json_encode([
+            $request->monthlyDateFrom,
+            $request->monthlyDateTo,
+            $request->monthlyTypeName,
+            $request->operators,
+            $request->locationType,
+            $request->vendPrefixes,
+            $request->customer,
+        ]));
+
+        // Use Cache::remember to store for 5 minutes (adjustable)
+        $items = Cache::remember($cacheKey, 300, function () use ($request) {
+            $modelName = $this->getModelName($request->monthlyTypeName);
+            return $this->getMonthlySalesQuery($request, $modelName)->get();
+        });
 
         $monthsByModel = [];
         $months = Month::all();
@@ -336,8 +369,8 @@ class DashboardController extends Controller
                         'current' => $currentMonthNumber == $month->number,
                         'month_short_name' => $month->short_name,
                         'amount' => $item->amount ? $item->amount / 100 : 0,
-                        'vend_count' => $item->count ? $item->count : 0,
-                        'average' => $item->average / 100 ? $item->average / 100 : 0,
+                        'vend_count' => $item->count ?? 0,
+                        'average' => $item->average ? $item->average / 100 : 0,
                     ];
                 }
                 if (!$item->id && $item->month == $month->number) {
@@ -345,8 +378,8 @@ class DashboardController extends Controller
                         'current' => $currentMonthNumber == $month->number,
                         'month_short_name' => $month->short_name,
                         'amount' => $item->amount ? $item->amount / 100 : 0,
-                        'vend_count' => $item->count ? $item->count : 0,
-                        'average' => $item->average / 100 ? $item->average / 100 : 0,
+                        'vend_count' => $item->count ?? 0,
+                        'average' => $item->average ? $item->average / 100 : 0,
                     ];
                 }
             }
@@ -354,6 +387,7 @@ class DashboardController extends Controller
 
         return collect($monthsByModel)->sortKeys();
     }
+
 
     private function getModelName($monthlyTypeName)
     {

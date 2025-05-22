@@ -57,6 +57,12 @@ class VendRecord extends Model
     }
 
     // scopes
+
+    public static function applyScope($query, $scope, ...$params)
+    {
+        return (new static)->$scope(...$params)->getQuery();
+    }
+
     public function scopeFilterIndex($query, $request)
     {
         $query = $query->when($request->has('visited'), function($query, $search) use ($request) {

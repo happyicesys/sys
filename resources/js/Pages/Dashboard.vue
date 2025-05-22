@@ -611,11 +611,11 @@
                 preserveScroll: true,
                 replace: true,
                 onSuccess: (page) => {
-                    router.reload({
-                        only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'vendCount'],
-                        preserveState: true,
-                        preserveScroll: true,
-                    })
+                    // router.reload({
+                    //     only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'vendCount'],
+                    //     preserveState: true,
+                    //     preserveScroll: true,
+                    // })
                     syncDashboardData()
                 },
             }
