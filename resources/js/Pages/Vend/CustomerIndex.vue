@@ -1081,7 +1081,7 @@
 											<span :class="[vend.is_active || vend.is_testing ? (channel['qty'] <= 2 && channel['qty'] > 0 ? 'text-blue-700' : (channel['qty'] == 0 ? 'text-red-700' : 'text-green-700')) : 'text-gray-400']">
 													{{channel.qty}}/{{channel.capacity}}
 											</span>
-											<span class="text-gray-500" v-if="channel.last_stock_in_qty">
+											<span class="text-gray-500" v-if="channel.last_stock_in_qty != null">
 													({{channel.last_stock_in_qty}})
 											</span>
 									</span>
