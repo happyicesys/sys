@@ -100,7 +100,7 @@ class SaveVendChannelsJson implements ShouldQueue
                         'is_available' => $channel->product->is_available,
                     ] : null,
                     'last_stock_in_qty' => $channel->latestOpsJobItemChannel?->actual_qty ?? null,
-                    'server_amount' => $channel->server_amount ?? null,
+                    'server_amount' => $channel->server_amount ? $channel->server_amount/ 100 : null,
                     'ref_price' => $sellingPrice ? $sellingPrice->amount / 100 : null,
                     'qty_sold_at_date_formatted' => $channel->qty_sold_at ? $channel->qty_sold_at->format('ymd') : null,
                     'qty_sold_at_time_formatted' => $channel->qty_sold_at ? $channel->qty_sold_at->format('h:i a') : null,
