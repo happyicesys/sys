@@ -1327,6 +1327,190 @@ class VendController extends Controller
         // return $vend->apkSettings[0]->settings_parameter_json;
     }
 
+    // public function transactionIndex(Request $request)
+    // {
+    //     if(!$request->operators) {
+    //         if(auth()->user()->operator->code == 'HIPL') {
+    //             $request->merge(['operators' => [
+    //                 auth()->user()->operator_id,
+    //                 Operator::where('code', 'HIMD')->first()?->id,
+    //                 Operator::where('code', 'LEA')->first()?->id,
+    //                 Operator::where('code', 'DCVIC')->first()?->id,
+    //             ]]);
+    //         }else {
+    //             $request->merge(['operators' => [auth()->user()->operator_id]]);
+    //         }
+    //     }
+    //     $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'transaction_datetime']);
+    //     $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
+    //     $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
+
+    //     $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
+    //     $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
+    //     $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
+    //     $className = get_class(new Customer());
+
+    //     $vendTransactions = VendTransaction::query()
+    //         ->with([
+    //             'vendTransactionItems.product',
+    //             'vendTransactionItems.vendChannelError',
+    //         ])
+    //         ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+    //         ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+    //         ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+    //         ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
+    //         ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
+    //         ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+    //         ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+    //         ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
+    //         ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+    //         ->filterTransactionIndex($request)
+    //         ->select(
+    //             'vend_transactions.id',
+    //             'vend_transactions.order_id',
+    //             'vend_transactions.transaction_datetime',
+    //             'vends.code AS vend_code',
+    //             'vend_prefixes.name AS vend_prefix_name',
+    //             'customers.code AS customer_code',
+    //             'customers.name AS customer_name',
+    //             'customers.person_id',
+    //             'customers.virtual_customer_prefix',
+    //             'customers.virtual_customer_code',
+    //             'operators.code AS operator_code',
+    //             'vend_transactions.vend_channel_code',
+    //             'products.code AS product_code',
+    //             'products.name AS product_name',
+    //             'vend_channels.amount AS vend_channel_amount',
+    //             'vend_channels.amount2 AS vend_channel_amount2',
+    //             'vend_transactions.amount',
+    //             'payment_methods.name AS payment_method_name',
+    //             'vend_channel_errors.desc AS vend_channel_error_desc',
+    //             'vend_channel_errors.code AS vend_channel_error_code',
+    //             'vend_contracts.name AS vend_contract_name',
+    //             'vend_transactions.interface_type',
+    //             'vend_transactions.is_multiple',
+    //             'vend_transactions.is_refunded',
+    //             'vend_transaction_items_json',
+    //             'vend_transactions.is_payment_received',
+    //             'vend_transactions.items_json',
+    //             'vend_transactions.vend_transaction_json'
+    //         )->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
+    //         ->withQueryString();
+
+    //         $totals = VendTransaction::query()
+    //         ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+    //         ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id')
+    //         ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+    //         ->filterTransactionIndex($request)
+    //         ->whereNotIn('vend_transactions.vend_id', function($query) {
+    //             $query->select('id')
+    //                 ->from('vends')
+    //                 ->where('is_testing', true);
+    //         })
+    //         ->select(
+    //             DB::raw('CAST(COUNT(CASE
+    //                 WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
+    //                 THEN 1
+    //                 ELSE NULL
+    //                 END) AS SIGNED) AS success_count'),
+    //             DB::raw('CAST(ROUND(COALESCE(SUM(CASE
+    //                 WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
+    //                 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS SIGNED) AS success_amount'),
+    //             DB::raw('CAST(COUNT(CASE
+    //                 WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL) AND is_multiple = false AND delivery_platform_orders.id IS NULL
+    //                 THEN 1
+    //                 ELSE NULL
+    //                 END) AS SIGNED) AS single_success_count'),
+    //             DB::raw('CAST(ROUND(COALESCE(SUM(CASE
+    //                 WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL) AND is_multiple = false AND delivery_platform_orders.id IS NULL
+    //                 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS SIGNED) AS single_success_amount'),
+    //             DB::raw('CAST(COUNT(CASE
+    //                 WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL) AND is_multiple = true AND delivery_platform_orders.id IS NULL
+    //                 THEN 1
+    //                 ELSE NULL
+    //                 END) AS SIGNED) AS multiple_success_count'),
+    //             DB::raw('CAST(ROUND(COALESCE(SUM(CASE
+    //                 WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL) AND is_multiple = true AND delivery_platform_orders.id IS NULL
+    //                 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS SIGNED) AS multiple_success_amount'),
+    //             DB::raw('CAST(COUNT(CASE
+    //                 WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL) AND delivery_platform_orders.id IS NOT NULL
+    //                 THEN 1
+    //                 ELSE NULL
+    //                 END) AS SIGNED) AS delivery_platform_success_count'),
+    //             DB::raw('CAST(ROUND(COALESCE(SUM(CASE
+    //                 WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL) AND delivery_platform_orders.id IS NOT NULL
+    //                 THEN vend_transactions.amount ELSE 0 END), 0), 2) AS SIGNED) AS delivery_platform_success_amount'),
+    //             DB::raw('CAST(ROUND(COALESCE(SUM(vend_transactions.amount), 0), 2) AS SIGNED) AS amount'),
+    //             DB::raw('CAST(COUNT(*) AS SIGNED) AS total_count'),
+    //             DB::raw('CAST(SUM(CASE
+    //                         WHEN is_multiple = 1 AND delivery_platform_orders.id IS NOT NULL
+    //                         THEN 1 ELSE 0
+    //                         END) AS SIGNED) AS multiple_count_delivery_platform'),
+    //             DB::raw('CAST(SUM(CASE
+    //                         WHEN is_multiple = 1 AND delivery_platform_orders.id IS NULL
+    //                         THEN 1 ELSE 0
+    //                         END) AS SIGNED) AS multiple_count_machine'),
+    //             DB::raw('CAST(SUM(CASE
+    //                                 WHEN vend_transactions.is_multiple = 1
+    //                                 THEN (SELECT COUNT(*) FROM vend_transaction_items WHERE vend_transaction_items.vend_transaction_id = vend_transactions.id)
+    //                                 ELSE 1
+    //                                 END) AS SIGNED) AS total_qty'),
+
+    //             DB::raw('CAST(SUM(CASE
+    //                                 WHEN vend_transactions.is_multiple = 1
+    //                                 THEN (SELECT COUNT(*) FROM vend_transaction_items WHERE vend_transaction_items.vend_transaction_id = vend_transactions.id AND (vend_channel_error_code = 0 OR vend_channel_error_code = 6 OR vend_channel_error_code IS NULL))
+    //                                 WHEN vend_transactions.is_multiple = 0 AND (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
+    //                                 THEN 1
+    //                                 ELSE 0
+    //                                 END) AS SIGNED) AS success_total_qty'),
+    //             DB::raw('ROUND(COALESCE(SUM(CASE
+    //                                 WHEN vend_transactions.is_multiple = 1
+    //                                 THEN (SELECT COUNT(*) FROM vend_transaction_items WHERE vend_transaction_items.vend_transaction_id = vend_transactions.id AND (vend_channel_error_code = 0 OR vend_channel_error_code = 6 OR vend_channel_error_code IS NULL))
+    //                                 WHEN vend_transactions.is_multiple = 0 AND (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
+    //                                 THEN 1
+    //                                 ELSE 0
+    //                                 END), 0) * 100.0 / NULLIF(SUM(CASE
+    //                                 WHEN vend_transactions.is_multiple = 1
+    //                                 THEN (SELECT COUNT(*) FROM vend_transaction_items WHERE vend_transaction_items.vend_transaction_id = vend_transactions.id)
+    //                                 ELSE 1
+    //                                 END), 0), 2) AS success_total_qty_rate'),
+    //             DB::raw('ROUND(COUNT(CASE
+    //                                 WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
+    //                                 THEN 1
+    //                                 ELSE NULL
+    //                                 END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS success_count_rate')
+    //         )
+    //         ->first();
+    //         // dd($totals->toArray());
+
+    //     return Inertia::render('Vend/Transaction', [
+    //         'categories' => CategoryResource::collection(
+    //             Category::where('classname', $className)->orderBy('name')->get()
+    //         ),
+    //         'categoryGroups' => CategoryGroupResource::collection(
+    //             CategoryGroup::where('classname', $className)->orderBy('name')->get()
+    //         ),
+    //         'locationTypeOptions' => LocationTypeResource::collection(
+    //             LocationType::orderBy('sequence')->get()
+    //         ),
+    //         'operatorOptions' => OperatorResource::collection(
+    //             Operator::orderBy('name')->get()
+    //         ),
+    //         'paymentMethods' => PaymentMethodResource::collection(PaymentMethod::orderBy('name')->get()),
+    //         'vendTransactions' => VendTransactionResource::collection(
+    //             $vendTransactions
+    //         ),
+    //         'totals' => $totals,
+    //         'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
+    //         'vendContractOptions' => VendContractResource::collection(
+    //             VendContract::orderBy('name')->get()
+    //         ),
+    //         'vendPrefixOptions' => VendPrefixResource::collection(
+    //             VendPrefix::orderBy('name')->get()
+    //         ),
+    //     ]);
+    // }
+
     public function transactionIndex(Request $request)
     {
         if(!$request->operators) {
@@ -1482,46 +1666,79 @@ class VendController extends Controller
             // )
             // ->first();
 
-            $itemStats = DB::table('vend_transaction_items')
-                ->select([
-                    'vend_transaction_id',
-                    DB::raw('COUNT(*) as total_items'),
-                    DB::raw('COUNT(CASE WHEN vend_channel_error_code IN (0,6) OR vend_channel_error_code IS NULL THEN 1 END) as success_items'),
-                ])
-                ->groupBy('vend_transaction_id');
+        $itemStats = DB::table('vend_transaction_items')
+            ->select([
+                'vend_transaction_id',
+                DB::raw('COUNT(*) as total_items'),
+                DB::raw('COUNT(CASE WHEN vend_channel_error_code IN (0,6) OR vend_channel_error_code IS NULL THEN 1 END) as success_items'),
+            ])
+            ->groupBy('vend_transaction_id');
 
-            $totals = VendTransaction::query()
-                ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
-                ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id')
-                ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-                ->leftJoinSub($itemStats, 'item_stats', function ($join) {
-                    $join->on('vend_transactions.id', '=', 'item_stats.vend_transaction_id');
-                })
-                ->filterTransactionIndex($request)
-                ->whereNotIn('vend_transactions.vend_id', function($query) {
-                    $query->select('id')->from('vends')->where('is_testing', true);
-                })
-                ->select([
-                    DB::raw('CAST(COUNT(CASE
-                        WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
-                        THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
+        $totals = VendTransaction::query()
+            ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->leftJoin('delivery_platform_orders', 'delivery_platform_orders.vend_transaction_id', '=', 'vend_transactions.id')
+            ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+            ->leftJoinSub($itemStats, 'item_stats', function ($join) {
+                $join->on('vend_transactions.id', '=', 'item_stats.vend_transaction_id');
+            })
+            ->filterTransactionIndex($request)
+            ->whereNotIn('vend_transactions.vend_id', function($query) {
+                $query->select('id')->from('vends')->where('is_testing', true);
+            })
+            ->select([
+                DB::raw('CAST(COUNT(CASE
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
+                    THEN 1 ELSE NULL END) AS SIGNED) AS success_count'),
 
-                    DB::raw('ROUND(COALESCE(SUM(CASE
-                        WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
-                        THEN vend_transactions.amount ELSE 0 END), 0), 2) AS success_amount'),
+                DB::raw('ROUND(COALESCE(SUM(CASE
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS success_amount'),
 
-                    DB::raw('COUNT(*) AS total_count'),
+                DB::raw('COUNT(*) AS total_count'),
 
-                    DB::raw('SUM(item_stats.total_items) AS total_qty'),
-                    DB::raw('SUM(item_stats.success_items) AS success_total_qty'),
+                // total_qty: COALESCE to 1 when no item rows
+                DB::raw('SUM(COALESCE(item_stats.total_items, 1)) AS total_qty'),
 
-                    DB::raw('ROUND(SUM(item_stats.success_items) * 100.0 / NULLIF(SUM(item_stats.total_items), 0), 2) AS success_total_qty_rate'),
+                // success_total_qty: use item_stats OR 1 for single transaction success
+                DB::raw('CAST(SUM(CASE
+                    WHEN item_stats.success_items IS NOT NULL THEN item_stats.success_items
+                    WHEN item_stats.success_items IS NULL AND (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
+                         AND is_multiple = 0 THEN 1
+                    ELSE 0
+                END) AS SIGNED) AS success_total_qty'),
 
-                    DB::raw('ROUND(COUNT(CASE
-                        WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
-                        THEN 1 ELSE NULL END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS success_count_rate')
-                ])
-                ->first();
+                // success_total_qty_rate: percent of success qty out of total qty
+                DB::raw('ROUND(SUM(CASE
+                    WHEN item_stats.success_items IS NOT NULL THEN item_stats.success_items
+                    WHEN item_stats.success_items IS NULL AND (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
+                         AND is_multiple = 0 THEN 1
+                    ELSE 0
+                END) * 100.0 / NULLIF(SUM(COALESCE(item_stats.total_items, 1)), 0), 2) AS success_total_qty_rate'),
+
+                DB::raw('ROUND(COUNT(CASE
+                    WHEN vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL OR is_multiple = true
+                    THEN 1 ELSE NULL END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS success_count_rate'),
+                DB::raw('CAST(COUNT(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
+                        AND delivery_platform_orders.id IS NOT NULL
+                    THEN 1 ELSE NULL END) AS SIGNED) AS delivery_platform_success_count'),
+
+                DB::raw('CAST(ROUND(COALESCE(SUM(CASE
+                    WHEN (vend_channel_errors.code = 0 OR vend_channel_errors.code = 6 OR vend_channel_errors.code IS NULL)
+                        AND delivery_platform_orders.id IS NOT NULL
+                    THEN vend_transactions.amount ELSE 0 END), 0), 2) AS SIGNED) AS delivery_platform_success_amount'),
+
+                DB::raw('CAST(SUM(CASE
+                    WHEN is_multiple = 1 AND delivery_platform_orders.id IS NOT NULL
+                    THEN 1 ELSE 0 END) AS SIGNED) AS multiple_count_delivery_platform'),
+
+                DB::raw('CAST(SUM(CASE
+                    WHEN is_multiple = 1 AND delivery_platform_orders.id IS NULL
+                    THEN 1 ELSE 0 END) AS SIGNED) AS multiple_count_machine')
+
+            ])
+            ->first();
+
 
 
         return Inertia::render('Vend/Transaction', [
