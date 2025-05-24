@@ -1061,28 +1061,28 @@
 						<div class="flex flex-col space-y-2">
 							<ul
 							class="sm:grid sm:grid-cols-[1fr_1fr] hover:cursor-pointer"
-							v-if="vend.vendChannelsJson"
+							v-if="vend.vendChannels"
 							@click="onChannelOverviewClicked(vend)"
 							>
-								<li v-for="(channel, channelIndex) in vend.vendChannelsJson"
+								<li v-for="(channel, channelIndex) in vend.vendChannels"
 										class="quick-look"
 										:class="[
-											channelIndex > 0 && (String(channel.code)[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '',
+											channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '',
 											channel.product && !channel.product.is_available ? 'bg-gray-300' : ''
 										]"
 								>
-									<span :class="[channelIndex > 0 && (String(channel.code)[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
+									<span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
 											<span :class="[vend.is_active || vend.is_testing ? compareRefPrice(vend, channel) : 'text-gray-600']">
-													#{{channel.code}}
+													#{{channel['code']}}
 											</span>,
 											<span :class="[vend.is_active || vend.is_testing ? 'text-blue-600' : 'text-gray-500']">
-													{{channel.capacity - channel.qty}},
+													{{channel['capacity'] - channel['qty']}},
 											</span>
 											<span :class="[vend.is_active || vend.is_testing ? (channel['qty'] <= 2 && channel['qty'] > 0 ? 'text-blue-700' : (channel['qty'] == 0 ? 'text-red-700' : 'text-green-700')) : 'text-gray-400']">
-													{{channel.qty}}/{{channel.capacity}}
+													{{channel['qty']}}/{{channel['capacity']}}
 											</span>
-											<span class="text-gray-500" v-if="channel.last_stock_in_qty != null">
-													({{channel.last_stock_in_qty}})
+											<span class="text-gray-500" v-if="channel.latestOpsJobItemChannel">
+													({{channel.latestOpsJobItemChannel.actual_qty}})
 											</span>
 									</span>
 								</li>
@@ -2125,8 +2125,7 @@ function getVendsField() {
 			...props.vends,
 			data: props.vends.data.map((data) => {return {
 					...data,
-					// vendChannels: props.indexType === 'customers' ? data.vend.vendChannels : data.vendChannels,
-					vendChannelsJson: props.indexType === 'customers' ? data.vend.vendChannelsJson : data.vendChannelsJson,
+					vendChannels: props.indexType === 'customers' ? data.vend.vendChannels : data.vendChannels,
 			}})
 	}
 }

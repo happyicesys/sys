@@ -886,14 +886,14 @@
             <div class="flex flex-col space-y-2">
               <ul
               class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer"
-              v-if="vend.vendChannelsJson"
+              v-if="vend.vendChannels"
               @click="onChannelOverviewClicked(vend)"
               >
-                <li v-for="(channel, channelIndex) in vend.vendChannelsJson"
+                <li v-for="(channel, channelIndex) in vend.vendChannels"
                     class="quick-look"
-                    :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
+                    :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '']"
                 >
-                <span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
+                <span :class="[channelIndex > 0 && (String(channel['code'])[0] !== String(vend.vendChannels[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
                     <span :class="[vend.is_active || vend.is_testing ? 'text-black' : 'text-gray-600']">
                         #{{channel['code']}},
                     </span>
@@ -1761,7 +1761,7 @@ function getVendsField() {
       ...props.vends,
       data: props.vends.data.map((data) => {return {
           ...data,
-          vendChannelsJson: props.indexType === 'customers' ? data.vend.vendChannelsJson : data.vendChannelsJson,
+          vendChannels: props.indexType === 'customers' ? data.vend.vendChannels : data.vendChannels,
       }})
   }
 }

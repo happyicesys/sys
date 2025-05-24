@@ -161,49 +161,48 @@
                         {{ (channel.amount2).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                       </td>
                       <td class=" py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center">
-                        {{ (channel.server_amount ?? 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                        {{ (channel.server_amount).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
                       </td>
                       <td
                         class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800"
                       >
-                      <!-- {{ getSellingPrice(channel) ? ((getSellingPrice(channel)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})) : null }} -->
+                      {{ getSellingPrice(channel) ? ((getSellingPrice(channel)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})) : null }}
 
                         <!-- {{ channel.product && channel.product.selling_prices[0] ? (channel.product.selling_prices[0].amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }} -->
-                        {{ channel.ref_price ? (channel.ref_price).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
                       </td>
                       <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                         {{ channel.discount_group }}
                       </td>
                       <td class="py-1 pl-1 pr-1 text-xs font-medium sm:pl-1 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                         <span
-                          v-if="channel.vendChannelErrorLogs
-                                && channel.vendChannelErrorLogs[0]
-                                && channel.vendChannelErrorLogs[0].is_error_cleared == 0"
+                          v-if="channel.vend_channel_error_logs
+                                && channel.vend_channel_error_logs[0]
+                                && channel.vend_channel_error_logs[0].is_error_cleared == 0"
                         >
                             <div
                               :class="[
-                                  channel.vendChannelErrorLogs[0].code == 4 ||
-                                  channel.vendChannelErrorLogs[0].code == 5 ||
-                                  channel.vendChannelErrorLogs[0].code == 7 ?
+                                  channel.vend_channel_error_logs[0].vend_channel_error.code == 4 ||
+                                  channel.vend_channel_error_logs[0].vend_channel_error.code == 5 ||
+                                  channel.vend_channel_error_logs[0].vend_channel_error.code == 7 ?
                                   ' text-blue-800' :
                                   ' text-red-800'
                                   ]">
                               <span class="font-bold">
-                              ({{ channel.vendChannelErrorLogs[0].code }})
+                              ({{ channel.vend_channel_error_logs[0].vend_channel_error.code }})
                               </span>
                               <div>
-                                {{formatDatetime(channel.vendChannelErrorLogs[0].created_at)}}
+                                {{formatDatetime(channel.vend_channel_error_logs[0].created_at)}}
                               </div>
                             </div>
                         </span>
                       </td>
-                      <td class="py-1 pl-1 pr-1 text-xs font-medium sm:pl-1 text-center">
+                      <td class="py-1 pl-1 pr-1 text-xs font-medium sm:pl-1 text-center" :class="[vend.is_active ? 'text-gray-900' : 'text-gray-400']">
                         <div class="flex flex-col space-y-3 w-full hover:cursor-pointer" @click="onChannelErrorClicked(channel)">
                             <span
                             v-if="channel.error_rate_json && 'three_days_error_rate' in channel.error_rate_json"
                             :class="[
                                 channel.is_active ?
-                                (channel.error_rate_json.three_days_error_rate >= 3 ? 'text-red-700' : 'text-green-700') :
+                                (channel.error_rate_json['three_days_error_rate'] >= 3 ? 'text-red-700' : 'text-green-700') :
                                 'text-gray-400'
                             ]">
                               {{channel.error_rate_json['three_days_error_rate'].toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}}%
@@ -336,7 +335,7 @@ onMounted(() => {
   // loadChannelsErrorRate()
   productOptions.value = props.productOptions.data.map((data) => {return {id: data.id, full_name: data.full_name + (data.desc ?  ' ' + data.desc  : '')}})
 
-  channels.value = props.vend.vendChannelsJson.map((channel) => {
+  channels.value = props.vend.vendChannels.map((channel) => {
     return {
       ...channel,
       product: channel.product ? {
