@@ -664,6 +664,11 @@ class Vend extends Model
                 $query->where('vends.cashless_terminal_id', $search);
             }
         })
+        ->when($request->cashless_mfg, function($query, $search) {
+            if($search != 'all') {
+                $query->where('acb_vmc_pa_json->CSHL_MFG', '=', $search);
+            }
+        })
         ->when($request->account_manager_name, function($query, $search) {
             $query->where('customers.account_manager_json->name', 'LIKE', "{$search}%");
         })

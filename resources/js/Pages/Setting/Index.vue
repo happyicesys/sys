@@ -176,8 +176,8 @@
                 Cashless Terminal
             </label>
             <MultiSelect
-                v-model="filters.cashless_terminal_id"
-                :options="cashlessTerminalOptions"
+                v-model="filters.cashless_mfg"
+                :options="cashlessMfgOptions"
                 trackBy="id"
                 valueProp="id"
                 label="value"
@@ -958,6 +958,7 @@ const props = defineProps({
     cashlessTerminalOptions: Object,
     categories: Object,
     categoryGroups: Object,
+    cashlessMfgOptions: [Array, Object],
     cmsEndpoint: String,
     deliveryPlatformOptions: Object,
     keyOptions: Object,
@@ -983,6 +984,7 @@ const filters = ref({
     customer_name: '',
     categories: [],
     categoryGroups: [],
+    cashless_mfg: '',
     delivery_platform_id: '',
     key_id: '',
     lcd_monitor_id: '',
@@ -1054,6 +1056,10 @@ onMounted(() => {
     cashlessTerminalOptions.value = [
         {id: 'all', value: 'All'},
         ...props.cashlessTerminalOptions.data.map((data) => {return {id: data.id, value: data.code}})
+    ]
+    cashlessMfgOptions.value = [
+        {id: 'all', value: 'All'},
+        ...Object.entries(props.cashlessMfgOptions).map(([id, name]) => ({id: id, value: name}))
     ]
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
@@ -1155,6 +1161,7 @@ function onSearchFilterUpdated() {
       categories: filters.value.categories.map((category) => { return category.id }),
       categoryGroups: filters.value.categoryGroups.map((categoryGroup) => { return categoryGroup.id }),
       cashless_terminal_id: filters.value.cashless_terminal_id.id,
+      cashless_mfg: filters.value.cashless_mfg.id,
       delivery_platform_id: filters.value.delivery_platform_id.id,
       // location_type_id: filters.value.locationType.id,
       lcd_monitor_id: filters.value.lcd_monitor_id.id,

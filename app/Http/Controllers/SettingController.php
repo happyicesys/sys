@@ -178,6 +178,16 @@ class SettingController extends Controller
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
                 CashlessTerminal::orderBy('code')->get()
             ),
+            'cashlessMfgOptions' => Vend::query()
+                ->select(DB::raw("DISTINCT JSON_UNQUOTE(JSON_EXTRACT(acb_vmc_pa_json, '$.CSHL_MFG')) AS value"))
+                ->whereNotNull('acb_vmc_pa_json')
+                ->whereRaw("JSON_EXTRACT(acb_vmc_pa_json, '$.CSHL_MFG') IS NOT NULL")
+                ->orderBy('value')
+                ->get()
+                ->pluck('value')
+                ->filter() // remove null/empty strings
+                ->unique()
+                ->values(),
             'categories' => CategoryResource::collection(
                 Category::where('classname', $className)->orderBy('name')->get()
             ),
