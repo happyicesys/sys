@@ -126,7 +126,18 @@
               </FormInput>
             </div>
 
-            <span class="sm:col-span-6">
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-start">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Product(s) </span>
+                </div>
+              </div>
+            </div>
+
+            <span class="sm:col-span-5">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Product
                 <span class="text-red-500">
@@ -134,21 +145,92 @@
                 </span>
               </label>
               <MultiSelect
-                v-model="form.products"
+                v-model="form.product"
                 :options="productOptions"
                 trackBy="id"
                 valueProp="id"
                 label="full_name"
-                mode="tags"
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
               >
               </MultiSelect>
-              <div class="text-sm text-red-600" v-if="form.errors.products">
-                {{ form.errors.products }}
+              <div class="text-sm text-red-600" v-if="form.errors.product_json">
+                {{ form.errors.product_json }}
               </div>
             </span>
+            <div class="sm:col-span-1 flex justify-start items-center">
+              <Button
+                type="button"
+                @click="addProduct(form.product)"
+                class="bg-green-500 hover:bg-green-600 text-white h-fit"
+                :class="[
+                  !form.products ?
+                  'opacity-50 cursor-not-allowed' : ''
+                  ]"
+                :disabled="!form.products"
+              >
+                <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                <span>
+                  Add
+                </span>
+              </Button>
+            </div>
+            <div class="sm:col-span-6 flex flex-col mt-3">
+              <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+                <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                  <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            #
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            ID
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Name
+                          </th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white">
+                        <tr v-for="(product, productIndex) in products" :key="productIndex" :class="productIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            {{ productIndex + 1 }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ product.code }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ product.name }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 text-sm text-center">
+                            <Button
+                              class="bg-red-400 hover:bg-red-500 text-white"
+                              @click.prevent="removeProduct(product)"
+                              :class="[
+                                !form.products ?
+                                'opacity-50 cursor-not-allowed' : ''
+                                ]"
+                              :disabled="!form.products"
+                            >
+                              <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                            </Button>
+                          </td>
+                        </tr>
+                        <tr v-if="!products.length">
+                          <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
+                            No Results Found
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <div class="sm:col-span-6 py-4">
               <span class="flex space-x-1">
@@ -180,28 +262,35 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { CheckCircleIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
+    dcvendMemberTypeMappings: [Array, Object],
     isUnique: Boolean,
     operatorOptions: Object,
     productOptions: Object,
     type: String,
     typeOptions: [Array, Object],
     voucher: Object,
+    voucherModeMappings: [Array, Object],
+    voucherPlatformMappings: [Array, Object],
   })
 
+const dcvendMemberTypeMappings = ref(props.dcvendMemberTypeMappings)
 const operatorOptions = ref([])
 const productOptions = ref([])
+const products = ref([])
 const toast = useToast()
 const typeOptions = ref([])
 const form = ref(
   useForm(getDefaultForm())
 )
 const voucher = ref([])
+const voucherModeMappings = ref(props.voucherModeMappings)
+const voucherPlatformMappings = ref(props.voucherPlatformMappings)
 
 onMounted(() => {
   operatorOptions.value = props.operatorOptions.data
@@ -210,6 +299,28 @@ onMounted(() => {
 
   form.value = useForm(getDefaultForm())
 })
+
+function addProduct(product) {
+  if (!product || !product.id) {
+    return
+  }
+
+  const existingProduct = products.value.find((p) => p.id === product.id)
+  if (existingProduct) {
+    toast.error("Product already added", {
+      timeout: 3000
+    });
+    return
+  }
+
+  products.value.push({
+    id: product.id,
+    code: product.code,
+    name: product.name,
+  })
+
+  form.value.product = null
+}
 
 function getDefaultForm() {
   return {
@@ -228,6 +339,13 @@ function getDefaultForm() {
   }
 }
 
+function removeProduct(product) {
+  const index = products.value.findIndex((p) => p.id === product.id)
+  if (index !== -1) {
+    products.value.splice(index, 1)
+  }
+}
+
 function submit() {
   form.value.clearErrors()
 
@@ -237,7 +355,7 @@ function submit() {
       is_batch_code: props.isUnique ? true : false,
       type: data.type?.id,
       operator_id: data.operator_id?.id,
-      products: data.products?.map((item) => item.id),
+      products: products.value?.map((item) => item.id),
     }))
     .post('/vouchers/store', {
     onSuccess: () => {

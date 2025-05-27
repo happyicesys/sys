@@ -66,6 +66,9 @@ class VoucherController extends Controller
                 Product::orderBy('code')->where('is_inventory', true)->where('is_active', true)->get()
             ),
             'typeOptions' => Voucher::TYPE_MAPPINGS,
+            'dcvendMemberTypeMappings' => Voucher::DCVEND_MEMBER_TYPE_MAPPINGS,
+            'voucherModeMappings' => Voucher::VOUCHER_MODE_MAPPINGS,
+            'voucherPlatformMappings' => Voucher::VOUCHER_PLATFORM_MAPPINGS,
         ]);
     }
 
@@ -333,7 +336,7 @@ class VoucherController extends Controller
                 'max_redemption_count' => 'nullable|integer',
                 'min_value' => 'nullable|numeric',
                 'name' => 'required|string|max:255',
-                'operator_id' => 'required',
+                'operator_id' => 'nullable',
                 'product_json' => 'nullable',
                 'qty' => 'required|integer|min:1',
                 'response_json' => 'nullable|json',
@@ -351,7 +354,7 @@ class VoucherController extends Controller
                 'max_redemption_count' => 'nullable|integer',
                 'min_value' => 'nullable|numeric',
                 'name' => 'required|string|max:255',
-                'operator_id' => 'required',
+                'operator_id' => 'nullable',
                 'product_json' => 'nullable',
                 'qty' => 'required|integer|min:1',
                 'response_json' => 'nullable|json',
@@ -364,6 +367,42 @@ class VoucherController extends Controller
         $voucher = Voucher::create($validatedRequest);
 
         $this->voucherService->syncVoucherItems($voucher);
+
+        return redirect()->route('vouchers');
+    }
+
+    public function update(Request $request, $id)
+    {
+        $voucher = Voucher::find($id);
+
+        if (!$voucher) {
+            return response([
+                'status_code' => 404,
+                'message' => 'Voucher not found',
+            ], 404);
+        }
+
+        $validatedRequest = $request->validate([
+            'code' => 'required',
+            'date_from' => 'required|date',
+            'date_to' => 'required|date',
+            'desc' => 'nullable|string|max:255',
+            'is_batch_code' => 'boolean',
+            'max_promo_value' => 'nullable|numeric',
+            'max_redemption_count' => 'nullable|integer',
+            'min_value' => 'nullable|numeric',
+            'name' => 'required|string|max:255',
+            'operator_id' => 'nullable',
+            'product_json' => 'nullable',
+            'qty' => 'required|integer|min:1',
+            'response_json' => 'nullable|json',
+            'type' => 'required|string|max:255',
+            'value' => 'nullable|numeric|min:0',
+        ]);
+
+        $voucher->update($validatedRequest);
+
+        // $this->voucherService->syncVoucherItems($voucher);
 
         return redirect()->route('vouchers');
     }

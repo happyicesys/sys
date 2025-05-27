@@ -40,12 +40,13 @@ class DashboardController extends Controller
         $productGraph = $this->getProductGraph($request);
         $bestPerformer = $this->getBestPerformer($request);
         $vendCount = $this->getVendCount($request);
-        // $monthGraphData = $this->getMonthGraphData($request);
-        $monthGraphData = Cache::remember(
-            'month_graph_data_' . auth()->id(),
-            300, // cache duration in seconds (5 minutes)
-            fn () => $this->getMonthGraphData($request)
-        );
+        $monthGraphData = $this->getMonthGraphData($request);
+        // $monthGraphData = Cache::remember(
+        //     'month_graph_data_' . auth()->id(),
+        //     300, // cache duration in seconds (5 minutes)
+        //     fn () => $this->getMonthGraphData($request)
+        // );
+
         $activeMachineGraphData = $this->getActiveMachineGraphData($request);
         $monthlyAnalytics = $this->getMonthlyAnalytics($request);
 
@@ -342,21 +343,24 @@ class DashboardController extends Controller
         ]);
 
         // Generate a unique cache key based on request filters
-        $cacheKey = 'monthly_analytics_' . auth()->id() . '_' . md5(json_encode([
-            $request->monthlyDateFrom,
-            $request->monthlyDateTo,
-            $request->monthlyTypeName,
-            $request->operators,
-            $request->locationType,
-            $request->vendPrefixes,
-            $request->customer,
-        ]));
+        // $cacheKey = 'monthly_analytics_' . auth()->id() . '_' . md5(json_encode([
+        //     $request->monthlyDateFrom,
+        //     $request->monthlyDateTo,
+        //     $request->monthlyTypeName,
+        //     $request->operators,
+        //     $request->locationType,
+        //     $request->vendPrefixes,
+        //     $request->customer,
+        // ]));
 
         // Use Cache::remember to store for 5 minutes (adjustable)
-        $items = Cache::remember($cacheKey, 300, function () use ($request) {
-            $modelName = $this->getModelName($request->monthlyTypeName);
-            return $this->getMonthlySalesQuery($request, $modelName)->get();
-        });
+        // $items = Cache::remember($cacheKey, 300, function () use ($request) {
+        //     $modelName = $this->getModelName($request->monthlyTypeName);
+        //     return $this->getMonthlySalesQuery($request, $modelName)->get();
+        // });
+
+        $modelName = $this->getModelName($request->monthlyTypeName);
+        $items = $this->getMonthlySalesQuery($request, $modelName)->get();
 
         $monthsByModel = [];
         $months = Month::all();

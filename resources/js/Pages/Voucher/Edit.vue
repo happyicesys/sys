@@ -158,7 +158,7 @@
               </FormInput>
             </div>
 
-            <span class="sm:col-span-6">
+            <!-- <span class="sm:col-span-6">
               <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                 Product
                 <span class="text-red-500">
@@ -181,7 +181,114 @@
               <div class="text-sm text-red-600" v-if="form.errors.products">
                 {{ form.errors.products }}
               </div>
+            </span> -->
+
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-start">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Product(s) </span>
+                </div>
+              </div>
+            </div>
+
+            <span class="sm:col-span-5">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Product
+                <span class="text-red-500">
+                  *
+                </span>
+              </label>
+              <MultiSelect
+                v-model="form.products"
+                :options="productOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                disabled="disabled"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.products">
+                {{ form.errors.products }}
+              </div>
             </span>
+            <div class="sm:col-span-1 flex justify-start items-center" v-if="form.id">
+              <Button
+                type="button"
+                @click="addProduct"
+                class="bg-green-500 hover:bg-green-600 text-white h-fit"
+                :class="[
+                  !form.products || true ?
+                  'opacity-50 cursor-not-allowed' : ''
+                  ]"
+                :disabled="!form.products || true"
+              >
+                <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                <span>
+                  Add
+                </span>
+              </Button>
+            </div>
+            <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+              <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+                <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                  <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            #
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            ID
+                          </th>
+                          <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                            Name
+                          </th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white">
+                        <tr v-for="(product, productIndex) in form.products" :key="productIndex" :class="productIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                            {{ productIndex + 1 }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ product.code }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                            {{ product.name }}
+                          </td>
+                          <td class="whitespace-nowrap py-4 text-sm text-center">
+                            <Button
+                              class="bg-red-400 hover:bg-red-500 text-white"
+                              @click.prevent="removeProduct(product)"
+                              :class="[
+                                !form.products || true ?
+                                'opacity-50 cursor-not-allowed' : ''
+                                ]"
+                              :disabled="!form.products || true"
+                            >
+                              <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                            </Button>
+                          </td>
+                        </tr>
+                        <tr v-if="!form.products.length">
+                          <td colspan="4" class="whitespace-nowrap py-4 text-sm font-medium text-black-600 text-center">
+                            No Results Found
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <div class="sm:col-span-6 py-4">
               <span class="flex space-x-1">
@@ -286,7 +393,7 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -324,9 +431,11 @@ onMounted(() => {
       date_from: moment(voucher.value.date_from).format('YYYY-MM-DD'),
       date_to: moment(voucher.value.date_to).format('YYYY-MM-DD'),
       operator_id: voucher.value ? operatorOptions.value.find(operator => operator.id == voucher.value.operator_id) : [],
-      products: voucher.value ? productOptions.value.filter((item) => {
-        return voucher.value.product_json.includes(item.id)
-      }) : [],
+      products: voucher.value
+        ? voucher.value.product_json.map((id) =>
+            productOptions.value.find((item) => item.id === id)
+          ).filter(Boolean)
+        : [],
       type: voucher.value ? { id: voucher.value.type, label: typeOptions.value[voucher.value.type] } : [],
     }
   ) : useForm(getDefaultForm())
@@ -373,14 +482,14 @@ function submit() {
   form.value
     .transform((data) => ({
       ...data,
-      is_batch_code: props.isUnique ? true : false,
+      is_batch_code: props.is_batch_code,
       type: data.type?.id,
       operators: data.operators?.map((item) => item.id),
       products: data.products?.map((item) => item.id),
     }))
-    .post('/vouchers/store', {
+    .post('/vouchers/' + form.value.id + '/update', {
     onSuccess: () => {
-      toast.success("Successfully created, please continue to edit the settings", {
+      toast.success("Successfully updated", {
         timeout: 3000
       });
     },

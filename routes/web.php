@@ -575,6 +575,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/edit/{id}', [VoucherController::class, 'edit'])->name('vouchers.edit');
         Route::get('/excel/codes', [VoucherController::class, 'exportExcelVoucherCodes']);
         Route::post('/store', [VoucherController::class, 'store']);
+        Route::post('/{id}/update', [VoucherController::class, 'update']);
     });
 
     Route::prefix('zones')->group(function() {

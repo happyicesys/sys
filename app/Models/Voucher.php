@@ -30,6 +30,40 @@ class Voucher extends Model
         self::TYPE_AMOUNT => 'Absolute Amount Discount',
     ];
 
+    const DCVEND_MEMBER_TYPE_ALL = '1';
+    const DCVEND_MEMBER_TYPE_CONVERTED = '2';
+    const DCVEND_MEMBER_TYPE_NON_CONVERTED_FREE = '3';
+    const DCVEND_MEMBER_TYPE_GOLD = '4';
+    const DCVEND_MEMBER_TYPE_PLATINUM = '5';
+
+    const DCVEND_MEMBER_TYPE_MAPPINGS = [
+        self::DCVEND_MEMBER_TYPE_ALL => 'All',
+        self::DCVEND_MEMBER_TYPE_CONVERTED => 'Converted Member',
+        self::DCVEND_MEMBER_TYPE_NON_CONVERTED_FREE => 'Non Converted Free Member',
+        self::DCVEND_MEMBER_TYPE_GOLD => 'Gold Member',
+        self::DCVEND_MEMBER_TYPE_PLATINUM => 'Platinum Member',
+    ];
+
+    const VOUCHER_MODE_ONE_TIME = '1';
+    const VOUCHER_MODE_RECURRING = '2';
+
+    const VOUCHER_MODE_MAPPINGS = [
+        self::VOUCHER_MODE_ONE_TIME => 'One Time',
+        self::VOUCHER_MODE_RECURRING => 'Recurring',
+    ];
+
+    const VOUCHER_PLATFORM_ALL = '1';
+    const VOUCHER_PLATFORM_NORMAL = '2';
+    const VOUCHER_PLATFORM_DCVEND = '3';
+
+    const VOUCHER_PLATFORM_MAPPINGS = [
+        self::VOUCHER_PLATFORM_ALL => 'All',
+        self::VOUCHER_PLATFORM_NORMAL => 'Normal',
+        self::VOUCHER_PLATFORM_DCVEND => 'DC Vend',
+    ];
+
+
+
     protected $fillable = [
         'code',
         'customer_id',
