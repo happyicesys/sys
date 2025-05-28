@@ -237,6 +237,8 @@ class VoucherController extends Controller
                 ], 400);
             }
 
+
+
             $resource = new VoucherCheckingApiResource($voucher, $vendCode, $dcvendUserID);
             $data = $resource->toArray($request);
 
