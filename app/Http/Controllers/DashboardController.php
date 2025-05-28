@@ -21,7 +21,7 @@ use App\Traits\GetUserTimezone;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
+// use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -314,6 +314,9 @@ class DashboardController extends Controller
             ->when(method_exists(new \App\Models\VendRecord, 'scopeFilterIndex'), function ($query) use ($request) {
                 // Apply filterIndex() scope only if it exists
                 \App\Models\VendRecord::applyScope($query, 'filterIndex', $request);
+            })
+            ->when('operators', function ($query) use ($request) {
+                $query->whereIn('vend_records.operator_id', $request->operators);
             })
             ->select(
                 'vend_records.date',
