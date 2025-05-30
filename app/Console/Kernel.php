@@ -20,7 +20,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('delete:vend-data')->dailyAt('01:30');
         $schedule->command('delete:vend-temp')->dailyAt('01:30');
         $schedule->command('sync:vend-online-status')->everyMinute();
-        $schedule->command('sync:totals-json')->dailyAt('01:00');
+        $schedule->command('sync:totals-json')->dailyAt('00:30');
         $schedule->command('sync:product-unit-costs-timing')->dailyAt('00:05');
         $schedule->command('export:vends-status')->monthly();
         $schedule->command('store:previous-day-vend-records')->daily();
