@@ -37,112 +37,123 @@ class SyncVendTransactionTotalsJson implements ShouldQueue
      */
     public function handle()
     {
-        if($this->model instanceof Vend) {
+        if ($this->model instanceof Vend) {
             $vend = $this->model;
-            $customer = $this->model->customer;
-        } else if($this->model instanceof Customer){
-            $vend = $this->model->vend;
+            $customer = $vend->customer;
+        } elseif ($this->model instanceof Customer) {
             $customer = $this->model;
+            $vend = $customer->vend;
         } else {
             return;
         }
 
-        if($vend) {
+        if ($vend) {
+            $todayTxns = $vend->daysVendTransactions(0, 0);
+            $todayAmount = (int)$todayTxns->clone()->isSuccessful()->sum('amount');
+            $todayCount = $todayTxns->clone()->isSuccessful()->count();
+            $todayAllCount = $todayTxns->count();
+            $todayErrorCount = $todayTxns->clone()->isError()->count();
+            $todayRevenue = (int)$todayTxns->clone()->isSuccessful()->sum('revenue');
+            $todayGrossProfit = (int)$todayTxns->clone()->isSuccessful()->sum('gross_profit');
 
-            $todayAmount = (int)$vend->daysVendTransactions(0,0)->isSuccessful()->sum('amount');
-            $todayCount = $vend->daysVendTransactions(0,0)->isSuccessful()->count();
-            $todayAllCount = $vend->daysVendTransactions(0,0)->count();
-            $todayErrorCount = $vend->daysVendTransactions(0,0)->isError()->count();
-            $todayRevenue = (int)$vend->daysVendTransactions(0,0)->isSuccessful()->sum('revenue');
-            $todayGrossProfit = (int)$vend->daysVendTransactions(0,0)->isSuccessful()->sum('gross_profit');
+            $records1 = $vend->daysVendRecords(1, 1)->get();
+            $records2 = $vend->daysVendRecords(2, 0)->get();
+            $records6 = $vend->daysVendRecords(6, 0)->get();
+            $records29 = $vend->daysVendRecords(29, 0)->get();
+            $lifetime = $vend->lifetimeVendRecords;
+
+            $daysSinceStart = max((int) Carbon::parse($vend->begin_date ?: now())->diffInDays(Carbon::parse($vend->termination_date ?: now())), 1);
+            $daysFor30 = $vend->begin_date && Carbon::parse($vend->begin_date)->diffInDays(now()) < 30
+                ? max(Carbon::parse($vend->begin_date)->diffInDays(now()), 1)
+                : 30;
+
+            $recordsFor30 = $vend->daysVendRecords($daysFor30 - 1, 0)->get();
 
             $vend->update([
                 'vend_transaction_totals_json' => [
                     'today_amount' => $todayAmount,
                     'today_count' => $todayCount,
-                    'yesterday_amount' => (int)$vend->daysVendRecords(1,1)->sum('total_amount'),
-                    'yesterday_count' => (int)$vend->daysVendRecords(1,1)->sum('total_count'),
-                    'three_days_amount' => (int)$vend->daysVendRecords(2,0)->sum('total_amount') + $todayAmount,
-                    'three_days_count' => (int)$vend->daysVendRecords(2,0)->sum('total_count') + $todayCount,
-                    'three_days_all_count' => (int)$vend->daysVendRecords(2,0)->sum('all_total_count') + $todayAllCount,
-                    'three_days_error_count' => (int)$vend->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount,
-                    'three_days_error_rate' => ($vend->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount) > 0 ? (($vend->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount) / ($vend->daysVendRecords(2,0)->sum('all_total_count') + $todayAllCount)) * 100 : 0,
-                    'seven_days_amount' => (int)$vend->daysVendRecords(6,0)->sum('total_amount') + $todayAmount,
-                    'seven_days_count' => (int)$vend->daysVendRecords(6,0)->sum('total_count') + $todayCount,
-                    'seven_days_all_count' => (int)$vend->daysVendRecords(6,0)->sum('all_total_count') + $todayAllCount,
-                    'seven_days_error_count' => (int)$vend->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount,
-                    'seven_days_error_rate' => ($vend->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount) > 0 ? (($vend->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount) / ($vend->daysVendRecords(6,0)->sum('all_total_count') + $todayAllCount)) * 100 : 0,
-                    'thirty_days_amount' => (int)$vend->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
-                    'thirty_days_count' => (int)$vend->daysVendRecords(29,0)->sum('total_count') + $todayCount,
-                    'thirty_days_revenue' => (int)$vend->daysVendRecords(29,0)->sum('revenue') + $todayRevenue,
-                    'thirty_days_gross_profit' => (int)$vend->daysVendRecords(29,0)->sum('gross_profit') + $todayGrossProfit,
-                    'vend_records_amount_latest' => (int)$vend->lifetimeVendRecords->sum('total_amount') + $todayAmount,
-                    'vend_records_amount_average_day' =>
-                    // ((int)$vend->lifetimeVendRecords->sum('total_amount') + $todayAmount)/
-                    // (((int)($vend->begin_date ? Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?: Carbon::now())) : 1)) == 0 ?
-                    // ((int)($vend->begin_date ? Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?: Carbon::now())) : 1)) : 1),
-                    ((int)$vend->lifetimeVendRecords->sum('total_amount') + $todayAmount) / (($days = (int)($vend->begin_date ? Carbon::parse($vend->begin_date)->diffInDays(Carbon::parse($vend->termination_date ?: Carbon::now())) : 1)) == 0 ? 1 : $days),
-                    'vend_records_thirty_days_amount' => (int)$vend->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
-                    'vend_records_thirty_days_amount_average' =>
-                        ((int)$vend->daysVendRecords(($vend->begin_date && Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) < 29 ?
-                        (Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($vend->begin_date)->diffInDays(Carbon::now())) :
-                        29),0)->sum('total_amount') + $todayAmount)/
-                        (
-                            $vend->begin_date && Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) < 30 ?
-                            (Carbon::parse($vend->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($vend->begin_date)->diffInDays(Carbon::now())) :
-                            30
-                        ),
+                    'yesterday_amount' => (int)$records1->sum('total_amount'),
+                    'yesterday_count' => (int)$records1->sum('total_count'),
+                    'three_days_amount' => (int)$records2->sum('total_amount') + $todayAmount,
+                    'three_days_count' => (int)$records2->sum('total_count') + $todayCount,
+                    'three_days_all_count' => (int)$records2->sum('all_total_count') + $todayAllCount,
+                    'three_days_error_count' => (int)$records2->sum('error_count') + $todayErrorCount,
+                    'three_days_error_rate' => ($records2->sum('error_count') + $todayErrorCount) > 0
+                        ? (($records2->sum('error_count') + $todayErrorCount) / ($records2->sum('all_total_count') + $todayAllCount)) * 100
+                        : 0,
+                    'seven_days_amount' => (int)$records6->sum('total_amount') + $todayAmount,
+                    'seven_days_count' => (int)$records6->sum('total_count') + $todayCount,
+                    'seven_days_all_count' => (int)$records6->sum('all_total_count') + $todayAllCount,
+                    'seven_days_error_count' => (int)$records6->sum('error_count') + $todayErrorCount,
+                    'seven_days_error_rate' => ($records6->sum('error_count') + $todayErrorCount) > 0
+                        ? (($records6->sum('error_count') + $todayErrorCount) / ($records6->sum('all_total_count') + $todayAllCount)) * 100
+                        : 0,
+                    'thirty_days_amount' => (int)$records29->sum('total_amount') + $todayAmount,
+                    'thirty_days_count' => (int)$records29->sum('total_count') + $todayCount,
+                    'thirty_days_revenue' => (int)$records29->sum('revenue') + $todayRevenue,
+                    'thirty_days_gross_profit' => (int)$records29->sum('gross_profit') + $todayGrossProfit,
+                    'vend_records_amount_latest' => (int)$lifetime->sum('total_amount') + $todayAmount,
+                    'vend_records_amount_average_day' => ((int)$lifetime->sum('total_amount') + $todayAmount) / $daysSinceStart,
+                    'vend_records_thirty_days_amount' => (int)$records29->sum('total_amount') + $todayAmount,
+                    'vend_records_thirty_days_amount_average' => ((int)$recordsFor30->sum('total_amount') + $todayAmount) / $daysFor30,
                 ]
             ]);
         }
 
-        if($customer) {
-            $todayAmount = (int)$customer->daysVendTransactions(0,0)->isSuccessful()->sum('amount');
-            $todayCount = $customer->daysVendTransactions(0,0)->isSuccessful()->count();
-            $todayAllCount = $customer->daysVendTransactions(0,0)->count();
-            $todayErrorCount = $customer->daysVendTransactions(0,0)->isError()->count();
-            $todayRevenue = (int)$customer->daysVendTransactions(0,0)->isSuccessful()->sum('revenue');
-            $todayGrossProfit = (int)$customer->daysVendTransactions(0,0)->isSuccessful()->sum('gross_profit');
+        if ($customer) {
+            $todayTxns = $customer->daysVendTransactions(0, 0);
+            $todayAmount = (int)$todayTxns->clone()->isSuccessful()->sum('amount');
+            $todayCount = $todayTxns->clone()->isSuccessful()->count();
+            $todayAllCount = $todayTxns->count();
+            $todayErrorCount = $todayTxns->clone()->isError()->count();
+            $todayRevenue = (int)$todayTxns->clone()->isSuccessful()->sum('revenue');
+            $todayGrossProfit = (int)$todayTxns->clone()->isSuccessful()->sum('gross_profit');
+
+            $records1 = $customer->daysVendRecords(1, 1)->get();
+            $records2 = $customer->daysVendRecords(2, 0)->get();
+            $records6 = $customer->daysVendRecords(6, 0)->get();
+            $records29 = $customer->daysVendRecords(29, 0)->get();
+            $lifetime = $customer->lifetimeVendRecords;
+
+            $daysSinceStart = max((int) Carbon::parse($customer->begin_date ?: now())->diffInDays(Carbon::parse($customer->termination_date ?: now())), 1);
+            $daysFor30 = $customer->begin_date && Carbon::parse($customer->begin_date)->diffInDays(now()) < 30
+                ? max(Carbon::parse($customer->begin_date)->diffInDays(now()), 1)
+                : 30;
+
+            $recordsFor30 = $customer->daysVendRecords($daysFor30 - 1, 0)->get();
 
             $customer->update([
                 'totals_json' => [
                     'today_amount' => $todayAmount,
                     'today_count' => $todayCount,
-                    'yesterday_amount' => (int)$customer->daysVendRecords(1,1)->sum('total_amount'),
-                    'yesterday_count' => (int)$customer->daysVendRecords(1,1)->sum('total_count'),
-                    'three_days_amount' => (int)$customer->daysVendRecords(2,0)->sum('total_amount') + $todayAmount,
-                    'three_days_count' => (int)$customer->daysVendRecords(2,0)->sum('total_count') + $todayCount,
-                    'three_days_all_count' => (int)$customer->daysVendRecords(2,0)->sum('all_total_count') + $todayAllCount,
-                    'three_days_error_count' => (int)$customer->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount,
-                    'three_days_error_rate' => ($customer->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount) > 0 ? (($customer->daysVendRecords(2,0)->sum('error_count') + $todayErrorCount) / ($customer->daysVendRecords(2,0)->sum('all_total_count') + $todayAllCount)) * 100 : 0,
-                    'seven_days_amount' => (int)$customer->daysVendRecords(6,0)->sum('total_amount') + $todayAmount,
-                    'seven_days_count' => (int)$customer->daysVendRecords(6,0)->sum('total_count') + $todayCount,
-                    'seven_days_all_count' => (int)$customer->daysVendRecords(6,0)->sum('all_total_count') + $todayAllCount,
-                    'seven_days_error_count' => (int)$customer->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount,
-                    'seven_days_error_rate' => ($customer->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount) > 0 ? (($customer->daysVendRecords(6,0)->sum('error_count') + $todayErrorCount) / ($customer->daysVendRecords(6,0)->sum('all_total_count') + $todayAllCount)) * 100 : 0,
-                    'thirty_days_amount' => (int)$customer->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
-                    'thirty_days_count' => (int)$customer->daysVendRecords(29,0)->sum('total_count') + $todayCount,
-                    'thirty_days_revenue' => (int)$customer->daysVendRecords(29,0)->sum('revenue') + $todayRevenue,
-                    'thirty_days_gross_profit' => (int)$customer->daysVendRecords(29,0)->sum('gross_profit') + $todayGrossProfit,
-                    'vend_records_amount_latest' => (int)$customer->lifetimeVendRecords->sum('total_amount') + $todayAmount,
-                    'vend_records_amount_average_day' =>
-                        // ((int)$customer->lifetimeVendRecords->sum('total_amount') + $todayAmount)/
-                        // ($customer->begin_date ?
-                        // (((int)($customer->begin_date ? Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?: Carbon::now())) : 1)) == 0 ?
-                        // ((int)($customer->begin_date ? Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?: Carbon::now())) : 1)) : 1) : 1),
-                        ((int)$customer->lifetimeVendRecords->sum('total_amount') + $todayAmount) / (($days = ($customer->begin_date ? Carbon::parse($customer->begin_date)->diffInDays(Carbon::parse($customer->termination_date ?: Carbon::now())) : 1)) == 0 ? 1 : $days),
-                    'vend_records_thirty_days_amount' => (int)$customer->daysVendRecords(29,0)->sum('total_amount') + $todayAmount,
-                    'vend_records_thirty_days_amount_average' =>
-                        ((int)$customer->daysVendRecords(($customer->begin_date && Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) < 29 ?
-                        (Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($customer->begin_date)->diffInDays(Carbon::now())) :
-                        29),0)->sum('total_amount') + $todayAmount)/
-                        (
-                            $customer->begin_date && Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) < 30 ?
-                            (Carbon::parse($customer->begin_date)->diffInDays(Carbon::now()) == 0 ? 1 : Carbon::parse($customer->begin_date)->diffInDays(Carbon::now())) :
-                            30
-                        ),
+                    'yesterday_amount' => (int)$records1->sum('total_amount'),
+                    'yesterday_count' => (int)$records1->sum('total_count'),
+                    'three_days_amount' => (int)$records2->sum('total_amount') + $todayAmount,
+                    'three_days_count' => (int)$records2->sum('total_count') + $todayCount,
+                    'three_days_all_count' => (int)$records2->sum('all_total_count') + $todayAllCount,
+                    'three_days_error_count' => (int)$records2->sum('error_count') + $todayErrorCount,
+                    'three_days_error_rate' => ($records2->sum('error_count') + $todayErrorCount) > 0
+                        ? (($records2->sum('error_count') + $todayErrorCount) / ($records2->sum('all_total_count') + $todayAllCount)) * 100
+                        : 0,
+                    'seven_days_amount' => (int)$records6->sum('total_amount') + $todayAmount,
+                    'seven_days_count' => (int)$records6->sum('total_count') + $todayCount,
+                    'seven_days_all_count' => (int)$records6->sum('all_total_count') + $todayAllCount,
+                    'seven_days_error_count' => (int)$records6->sum('error_count') + $todayErrorCount,
+                    'seven_days_error_rate' => ($records6->sum('error_count') + $todayErrorCount) > 0
+                        ? (($records6->sum('error_count') + $todayErrorCount) / ($records6->sum('all_total_count') + $todayAllCount)) * 100
+                        : 0,
+                    'thirty_days_amount' => (int)$records29->sum('total_amount') + $todayAmount,
+                    'thirty_days_count' => (int)$records29->sum('total_count') + $todayCount,
+                    'thirty_days_revenue' => (int)$records29->sum('revenue') + $todayRevenue,
+                    'thirty_days_gross_profit' => (int)$records29->sum('gross_profit') + $todayGrossProfit,
+                    'vend_records_amount_latest' => (int)$lifetime->sum('total_amount') + $todayAmount,
+                    'vend_records_amount_average_day' => ((int)$lifetime->sum('total_amount') + $todayAmount) / $daysSinceStart,
+                    'vend_records_thirty_days_amount' => (int)$records29->sum('total_amount') + $todayAmount,
+                    'vend_records_thirty_days_amount_average' => ((int)$recordsFor30->sum('total_amount') + $todayAmount) / $daysFor30,
                 ]
             ]);
         }
     }
+
 }

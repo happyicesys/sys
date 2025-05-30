@@ -30,7 +30,7 @@ class SyncVendTransactionTotalsJson extends Command
      */
     public function handle()
     {
-        $vends = Vend::has('customer')->where('is_active', true)->get();
+        $vends = Vend::with('customer')->has('customer')->where('is_active', true)->get();
 
         foreach($vends as $vend) {
             SyncTotalsJson::dispatch($vend);
