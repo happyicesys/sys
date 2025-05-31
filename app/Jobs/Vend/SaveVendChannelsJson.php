@@ -17,7 +17,7 @@ class SaveVendChannelsJson implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 1;
-    public $timeout = 5;
+    public $timeout = 10;
 
     protected $originalVendChannelData;
     protected $vendId;
@@ -41,6 +41,7 @@ class SaveVendChannelsJson implements ShouldQueue
     {
         $vend = Vend::with([
             'vendChannels.product.thumbnail',
+            'vendChannels.product.sellingPrices',
             'vendChannels.latestOpsJobItemChannel',
             'vendChannels.vendChannelErrorLogs.vendChannelError'
             ])->findOrFail($this->vendId);
