@@ -315,8 +315,61 @@ class DashboardController extends Controller
                 // Apply filterIndex() scope only if it exists
                 \App\Models\VendRecord::applyScope($query, 'filterIndex', $request);
             })
-            ->when('operators', function ($query) use ($request) {
+            ->when($request->operators, function ($query) use ($request) {
                 $query->whereIn('vend_records.operator_id', $request->operators);
+            })
+            ->when($request->codes, function ($query, $search) {
+                if (strpos($search, ',') !== false) {
+                    $search = explode(',', $search);
+                    $query->whereIn('vend_records.vend_id', function ($subQuery) use ($search) {
+                        $subQuery->select('id')
+                            ->from('vends')
+                            ->whereIn('code', $search);
+                    });
+                } else {
+                    $query->whereIn('vend_records.vend_id', function ($subQuery) use ($search) {
+                        $subQuery->select('id')
+                            ->from('vends')
+                            ->where('code', 'like', '%' . $search . '%');
+                    });
+                }
+            })
+            ->when($request->customer, function ($query, $search) {
+                if (strpos($search, '-') !== false) {
+                    $searchArray = explode('-', $search);
+                    $query->whereIn('vend_records.customer_id', function ($subQuery) use ($searchArray) {
+                        $subQuery->select('id')
+                            ->from('customers')
+                            ->where('virtual_customer_prefix', $searchArray[0])
+                            ->where('virtual_customer_code', 'like', "{$searchArray[1]}%");
+                    });
+                } else {
+                    $query->whereIn('vend_records.customer_id', function ($subQuery) use ($search) {
+                        $subQuery->select('id')
+                            ->from('customers')
+                            ->where('virtual_customer_prefix', 'like', "{$search}%")
+                            ->orWhere('virtual_customer_code', 'like', "{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%");
+                    });
+                }
+            })
+            ->when($request->vendPrefixes, function($query, $search) {
+                if(!in_array('all', $search)){
+                    if(in_array('single-ud', $search)) {
+                        $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
+                        unset($search[array_search('single-ud', $search)]);
+                    }
+                    $query->whereIn('vend_records.vend_prefix_id', $search);
+                }
+            })
+            ->when($request->locationType, function($query, $search) {
+                if($search != 'all') {
+                    $query->whereIn('vend_records.customer_id', function ($subQuery) use ($search) {
+                        $subQuery->select('id')
+                            ->from('customers')
+                            ->where('location_type_id', $search);
+                    });
+                }
             })
             ->select(
                 'vend_records.date',

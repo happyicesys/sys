@@ -960,9 +960,6 @@ class Vend extends Model
                 }
                 $query->whereIn('vends.vend_prefix_id', $search);
             }
-            // $query->whereHas('vendPrefix', function($query) use ($search) {
-            //     $query->whereIn('id', $search);
-            // });
         })
         ->when($request->vendRecordsThirtyDaysAmountAverageLessThan, function($query, $search) {
             $query->where('virtual_vend_records_thirty_days_amount_average', '<=', $search*100);

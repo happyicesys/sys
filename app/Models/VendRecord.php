@@ -117,7 +117,7 @@ class VendRecord extends Model
         })
         ->when($request->location_type_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereIn('customer_id', function($query) use ($search) {
+                $query->whereIn('vend_records.customer_id', function($query) use ($search) {
                     $query->select('id')->from('customers')->where('location_type_id', $search);
                 });
             }
