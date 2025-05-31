@@ -362,7 +362,8 @@ class DashboardController extends Controller
                     $query->whereIn('vend_records.vend_prefix_id', $search);
                 }
             })
-            ->when($request->locationType, function($query, $search) {
+            ->when($request->locationType, function($query, $search) use ($request) {
+                // dd($request->all(), $search);
                 if($search != 'all') {
                     $query->whereIn('vend_records.customer_id', function ($subQuery) use ($search) {
                         $subQuery->select('id')

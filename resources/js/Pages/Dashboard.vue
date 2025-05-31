@@ -602,6 +602,7 @@
         router.visit(
             route('dashboard', {
                 ...filters.value,
+                locationType: filters.value.locationType.id,
                 location_type_id: filters.value.locationType.id,
                 operators: filters.value.operators.map((operator) => { return operator.id }),
                 vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
