@@ -56,7 +56,7 @@ const navigation = [
         icon: CreditCardIcon,
         current: false,
         href: 'payment-gateway-transactions',
-        permission: 'read transactions',
+        permission: 'read payment-gateway-transactions',
         tagline: null,
     },
     {

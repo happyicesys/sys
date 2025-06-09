@@ -82,6 +82,10 @@ class RolePermissionSyncSeeder extends Seeder
             ['admin-access'],
             ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer']],
 
+            ['payment-gateway-transactions',
+            ['read', 'export'],
+            ['superadmin', 'admin', 'supervisor', 'technician']],
+
             ['operations',
             ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
             ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl']],
@@ -256,11 +260,11 @@ class RolePermissionSyncSeeder extends Seeder
 
             ['resource-centers',
             ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee', 'licensee']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee']],
 
             ['resource-center-operators',
             ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee', 'licensee']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'driver', 'operator_admin', 'operator_viewer', 'operator_3pl', 'franchisee']],
 
             ['resource-center-operators',
             ['admin-access'],
