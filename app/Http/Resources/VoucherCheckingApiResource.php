@@ -40,8 +40,8 @@ class VoucherCheckingApiResource extends JsonResource
             'name' => $voucher->name,
             'desc' => $voucher->desc,
             'status' => Voucher::STATUS_MAPPINGS[$statusKey] ?? 'active',
-            'min_value' => $voucher->min_value * 100,
-            'max_promo_value' => $voucher->max_promo_value * 100,
+            'min_value' => $voucher->min_value != null ? $voucher->min_value * 100 : null,
+            'max_promo_value' => $voucher->max_promo_value != null ? $voucher->max_promo_value * 100 : null,
             'qty' => $this->qty ?? 1,
             'value' => $voucher->value * 100,
             'matrix' => []
