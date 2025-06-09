@@ -1,10 +1,12 @@
 <?php
 
 namespace App\Services;
+use App\Http\Resources\VoucherCheckingApiResource;
 use App\Jobs\ReleaseVoucherLock;
 use App\Models\Voucher;
 use App\Models\VoucherItem;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Http;
 
 class VoucherService
 {
@@ -26,6 +28,25 @@ class VoucherService
       $voucherItem->locked_by_vend_id = $vendID;
       $voucherItem->save();
     }
+  }
+
+  public function syncDCVendVouchers(Voucher $voucher, $action = 'create')
+  {
+    // action has 3 options, create, update, delete
+    $endpoint = env('DCVEND_URL') . '/api/v1/vouchers/sync';
+
+    Http::post($endpoint, [
+      'action' => $action,
+      'dcvend_member_type' => $voucher->dcvend_member_type,
+      'dcvend_qty_per_member' => $voucher->dcvend_qty_per_member,
+      'is_dcvend' => $voucher->is_dcvend,
+      'is_recurring' => $voucher->is_recurring,
+      'valid_duration' => $voucher->valid_duration,
+      'valid_unit' => $voucher->valid_unit,
+      'voucher' => VoucherCheckingApiResource::make($voucher, null, null),
+    ]);
+
+    return true;
   }
 
   public function syncVoucherItems(Voucher $voucher)

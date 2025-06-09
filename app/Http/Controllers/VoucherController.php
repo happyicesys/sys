@@ -67,9 +67,31 @@ class VoucherController extends Controller
             ),
             'typeOptions' => Voucher::TYPE_MAPPINGS,
             'dcvendMemberTypeMappings' => Voucher::DCVEND_MEMBER_TYPE_MAPPINGS,
+            'validDurationMappings' => Voucher::VALID_DURATION_MAPPINGS,
+            'validUnitMappings' => Voucher::VALID_UNIT_MAPPINGS,
             'voucherModeMappings' => Voucher::VOUCHER_MODE_MAPPINGS,
             'voucherPlatformMappings' => Voucher::VOUCHER_PLATFORM_MAPPINGS,
         ]);
+    }
+
+    public function delete(Request $request, $id)
+    {
+        $voucher = Voucher::find($id);
+
+        if (!$voucher) {
+            return response([
+                'status_code' => 404,
+                'message' => 'Voucher not found',
+            ], 404);
+        }
+
+        if($voucher->is_dcvend) {
+            $this->voucherService->syncDCVendVouchers($voucher, 'delete');
+        }
+
+        $voucher->delete();
+
+        return redirect()->route('vouchers');
     }
 
     public function edit($id)
@@ -85,6 +107,9 @@ class VoucherController extends Controller
                 Product::orderBy('code')->where('is_inventory', true)->where('is_active', true)->get()
             ),
             'typeOptions' => Voucher::TYPE_MAPPINGS,
+            'dcvendMemberTypeMappings' => Voucher::DCVEND_MEMBER_TYPE_MAPPINGS,
+            'validDurationMappings' => Voucher::VALID_DURATION_MAPPINGS,
+            'validUnitMappings' => Voucher::VALID_UNIT_MAPPINGS,
             'voucher' => VoucherResource::make($voucher),
         ]);
     }
@@ -102,6 +127,39 @@ class VoucherController extends Controller
                 ];
             });
         }
+    }
+
+    public function getDCVends()
+    {
+        $vouchers = Voucher::where('is_dcvend', true)
+            ->with('voucherItems')
+            ->get();
+
+        return VoucherCheckingApiResource::collection($vouchers);
+    }
+
+    public function getVoucherDetails(Request $request)
+    {
+        // return $request->all();
+        $codes = $request->codes;
+        $dcvendUserID = $request->dcvend_user_id ?? null;
+        $vendCode = $request->vend_code;
+
+        if (!$codes) {
+            return [];
+        }
+
+        $results = [];
+        foreach($codes as $codeIndex => $code) {
+            $voucher = Voucher::with('voucherItems')->where('code', $code)->first()
+                ?? VoucherItem::with('voucher')->where('code', $code)->first();
+
+            if($voucher) {
+                $results[$codeIndex] = VoucherCheckingApiResource::make($voucher, $vendCode, $dcvendUserID);
+            }
+        }
+
+        return $results;
     }
 
 
@@ -123,51 +181,6 @@ class VoucherController extends Controller
         if (is_array($code)) {
             $codeArr = $code;
         } else {
-            if ($code == 'test') {
-                return response([
-                    'status_code' => 200,
-                    'message' => 'Voucher successfully reedeemed',
-                    'voucher' => [
-                        'id' => 20,
-                        'code' => 'test',
-                        'type' => 'percent',
-                        'channels' => ['14', '22', '15'],
-                        'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
-                        'date_to' => Carbon::today()->addDays(5)->format('Y-m-d'),
-                        'name' => '10% discount on Item 14,15,and 22.',
-                        'desc' => '',
-                        'status' => 'active',
-                        'min_value' => 200,
-                        'max_promo_value' => 1000,
-                        'qty' => 1,
-                        'value' => 10,
-                        'matrix' => []
-                    ],
-                ], 200);
-            }
-
-            if ($code == 'test20') {
-                return response([
-                    'status_code' => 200,
-                    'message' => 'Voucher successfully reedeemed',
-                    'voucher' => [
-                        'id' => 30,
-                        'code' => 'test20',
-                        'type' => 'percent',
-                        'channels' => ['14', '22', '15'],
-                        'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
-                        'date_to' => Carbon::today()->addDays(5)->format('Y-m-d'),
-                        'name' => '20% discount on Item 14,15,and 22.',
-                        'desc' => '',
-                        'status' => 'active',
-                        'min_value' => 200,
-                        'max_promo_value' => 2000,
-                        'qty' => 1,
-                        'value' => 20,
-                        'matrix' => []
-                    ],
-                ], 200);
-            }
 
             if ($code == 'freecornetto') {
                 return response([
@@ -181,29 +194,6 @@ class VoucherController extends Controller
                         'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
                         'date_to' => Carbon::today()->addDays(1)->format('Y-m-d'),
                         'name' => 'Free Cornetto with order over $10',
-                        'desc' => '',
-                        'status' => 'active',
-                        'min_value' => 1000,
-                        'max_promo_value' => null,
-                        'qty' => 1,
-                        'value' => null,
-                        'matrix' => []
-                    ],
-                ], 200);
-            }
-
-            if ($code == 'discount2d') {
-                return response([
-                    'status_code' => 200,
-                    'message' => 'Voucher successfully reedeemed',
-                    'voucher' => [
-                        'id' => 30,
-                        'code' => 'discount2d',
-                        'type' => 'amount',
-                        'channels' => [],
-                        'date_from' => Carbon::today()->subDays(5)->format('Y-m-d'),
-                        'date_to' => Carbon::today()->addDays(1)->format('Y-m-d'),
-                        'name' => 'Discount 2 Dollar with purchase more than 10',
                         'desc' => '',
                         'status' => 'active',
                         'min_value' => 1000,
@@ -323,17 +313,20 @@ class VoucherController extends Controller
     {
         $request->merge([
             'product_json' => $request->products ? $request->products : null,
+            'is_dcvend' => $request->is_dcvend == 'true' ? true : false,
+            'is_recurring' => $request->is_recurring == 'true' ? true : false,
         ]);
-
-        // dd($request->all());
 
         if($request->is_batch_code) {
             $validatedRequest = $request->validate([
                 'code' => 'nullable|string|max:255',
                 'date_from' => 'required|date',
                 'date_to' => 'required|date',
+                'dcvend_member_type' => 'nullable|string|max:255',
+                'dcvend_qty_per_member' => 'nullable|integer',
                 'desc' => 'nullable|string|max:255',
-                'is_batch_code' => 'boolean',
+                'is_dcvend' => 'nullable',
+                'is_recurring' => 'nullable',
                 'max_promo_value' => 'nullable|numeric',
                 'max_redemption_count' => 'nullable|integer',
                 'min_value' => 'nullable|numeric',
@@ -343,6 +336,8 @@ class VoucherController extends Controller
                 'qty' => 'required|integer|min:1',
                 'response_json' => 'nullable|json',
                 'type' => 'required|string|max:255',
+                'valid_duration' => 'nullable|integer',
+                'valid_unit' => 'nullable|string|max:255',
                 'value' => 'nullable|numeric|min:0',
             ]);
         }else {
@@ -350,8 +345,11 @@ class VoucherController extends Controller
                 'code' => 'required|string|max:255|unique:App\Models\Voucher,code',
                 'date_from' => 'required|date',
                 'date_to' => 'required|date',
+                'dcvend_member_type' => 'nullable|string|max:255',
+                'dcvend_qty_per_member' => 'nullable|integer',
                 'desc' => 'nullable|string|max:255',
-                'is_batch_code' => 'boolean',
+                'is_dcvend' => 'nullable',
+                'is_recurring' => 'nullable',
                 'max_promo_value' => 'nullable|numeric',
                 'max_redemption_count' => 'nullable|integer',
                 'min_value' => 'nullable|numeric',
@@ -361,14 +359,19 @@ class VoucherController extends Controller
                 'qty' => 'required|integer|min:1',
                 'response_json' => 'nullable|json',
                 'type' => 'required|string|max:255',
+                'valid_duration' => 'nullable|integer',
+                'valid_unit' => 'nullable|string|max:255',
                 'value' => 'nullable|numeric|min:0',
             ]);
         }
 
-
         $voucher = Voucher::create($validatedRequest);
 
         $this->voucherService->syncVoucherItems($voucher);
+
+        if($voucher->is_dcvend) {
+            $this->voucherService->syncDCVendVouchers($voucher, 'create');
+        }
 
         return redirect()->route('vouchers');
     }
@@ -384,12 +387,20 @@ class VoucherController extends Controller
             ], 404);
         }
 
+        $request->merge([
+            'is_dcvend' => $request->is_dcvend == 'true' ? true : false,
+            'is_recurring' => $request->is_recurring == 'true' ? true : false,
+        ]);
+
         $validatedRequest = $request->validate([
             'code' => 'required',
             'date_from' => 'required|date',
             'date_to' => 'required|date',
+            'dcvend_member_type' => 'nullable|string|max:255',
+            'dcvend_qty_per_member' => 'nullable|integer',
             'desc' => 'nullable|string|max:255',
-            'is_batch_code' => 'boolean',
+            'is_dcvend' => 'nullable',
+            'is_recurring' => 'nullable',
             'max_promo_value' => 'nullable|numeric',
             'max_redemption_count' => 'nullable|integer',
             'min_value' => 'nullable|numeric',
@@ -399,6 +410,8 @@ class VoucherController extends Controller
             'qty' => 'required|integer|min:1',
             'response_json' => 'nullable|json',
             'type' => 'required|string|max:255',
+            'valid_duration' => 'nullable|integer',
+            'valid_unit' => 'nullable|string|max:255',
             'value' => 'nullable|numeric|min:0',
         ]);
 

@@ -30,18 +30,26 @@ class Voucher extends Model
         self::TYPE_AMOUNT => 'Absolute Amount Discount',
     ];
 
+
+    // temporary hardcoded at both sides
     const DCVEND_MEMBER_TYPE_ALL = '1';
-    const DCVEND_MEMBER_TYPE_CONVERTED = '2';
-    const DCVEND_MEMBER_TYPE_NON_CONVERTED_FREE = '3';
+    const DCVEND_MEMBER_TYPE_FREE = '2';
+    const DCVEND_MEMBER_TYPE_CONVERTED = '3';
     const DCVEND_MEMBER_TYPE_GOLD = '4';
-    const DCVEND_MEMBER_TYPE_PLATINUM = '5';
 
     const DCVEND_MEMBER_TYPE_MAPPINGS = [
-        self::DCVEND_MEMBER_TYPE_ALL => 'All',
-        self::DCVEND_MEMBER_TYPE_CONVERTED => 'Converted Member',
-        self::DCVEND_MEMBER_TYPE_NON_CONVERTED_FREE => 'Non Converted Free Member',
-        self::DCVEND_MEMBER_TYPE_GOLD => 'Gold Member',
-        self::DCVEND_MEMBER_TYPE_PLATINUM => 'Platinum Member',
+        self::DCVEND_MEMBER_TYPE_ALL => 'All Members',
+        self::DCVEND_MEMBER_TYPE_FREE => 'Free Members',
+        self::DCVEND_MEMBER_TYPE_CONVERTED => 'Converted Members',
+        self::DCVEND_MEMBER_TYPE_GOLD => 'Gold Members',
+    ];
+
+    const RENEWAL_MODE_ONE_TIME = '0';
+    const RENEWAL_MODE_RENEW_EVERY_MONTH = '1';
+
+    const RENEWAL_MODE_MAPPINGS = [
+        self::RENEWAL_MODE_ONE_TIME => 'One Time',
+        self::RENEWAL_MODE_RENEW_EVERY_MONTH => 'Renew Every Month',
     ];
 
     const VOUCHER_MODE_ONE_TIME = '1';
@@ -62,16 +70,31 @@ class Voucher extends Model
         self::VOUCHER_PLATFORM_DCVEND => 'DC Vend',
     ];
 
+    const VALID_DURATION_MAPPINGS = [
+        '1' => '1',
+        '3' => '3',
+        '5' => '5',
+        '7' => '7',
+        '14' => '14',
+    ];
 
+    const VALID_UNIT_MAPPINGS = [
+        'day' => 'Day(s)',
+        'month' => 'Month(s)',
+    ];
 
     protected $fillable = [
         'code',
         'customer_id',
         'date_from',
         'date_to',
+        'dcvend_member_type',
+        'dcvend_qty_per_member',
         'desc',
         'is_active',
         'is_batch_code',
+        'is_dcvend',
+        'is_recurring',
         'max_promo_value',
         'max_redemption_count',
         'min_value',
@@ -83,6 +106,8 @@ class Voucher extends Model
         'status',
         'type',
         'used_qty',
+        'valid_duration',
+        'valid_unit',
         'value',
         'vend_id',
     ];
@@ -92,6 +117,7 @@ class Voucher extends Model
         'date_to' => 'datetime',
         'is_active' => 'boolean',
         'is_batch_code' => 'boolean',
+        'is_dcvend' => 'boolean',
         'product_json' => 'json',
         'response_json' => 'json',
     ];

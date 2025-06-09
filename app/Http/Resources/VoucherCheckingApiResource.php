@@ -22,12 +22,13 @@ class VoucherCheckingApiResource extends JsonResource
         $this->dcvendUserID = $dcvendUserID;
     }
 
-    public function toArray(Request $request): array
+    public function toArray($request): array
     {
         // Detect base model (Voucher or VoucherItem)
         $isVoucherItem = $this->resource instanceof VoucherItem;
 
         $voucher = $isVoucherItem ? $this->voucher : $this->resource;
+        $statusKey = $this->status ?? $voucher->status;
 
         return [
             'id' => $voucher->id,
@@ -38,7 +39,7 @@ class VoucherCheckingApiResource extends JsonResource
             'date_to' => optional($voucher->date_to)->format('Y-m-d'),
             'name' => $voucher->name,
             'desc' => $voucher->desc,
-            'status' => Voucher::STATUS_MAPPINGS[$this->status ?? $voucher->status],
+            'status' => Voucher::STATUS_MAPPINGS[$statusKey] ?? 'active',
             'min_value' => $voucher->min_value * 100,
             'max_promo_value' => $voucher->max_promo_value * 100,
             'qty' => $this->qty ?? 1,

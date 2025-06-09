@@ -74,7 +74,7 @@
                   </span>
                 </label>
                 <MultiSelect
-                  v-model="form.operators"
+                  v-model="form.operator_id"
                   :options="operatorOptions"
                   trackBy="id"
                   valueProp="id"
@@ -82,12 +82,11 @@
                   placeholder="Select"
                   open-direction="bottom"
                   class="mt-1"
-                  mode="tags"
                   disabled="disabled"
                 >
                 </MultiSelect>
-                <div class="text-sm text-red-600" v-if="form.errors.operators">
-                  {{ form.errors.operators }}
+                <div class="text-sm text-red-600" v-if="form.errors.operator_id">
+                  {{ form.errors.operator_id }}
                 </div>
             </div>
 
@@ -158,30 +157,138 @@
               </FormInput>
             </div>
 
-            <!-- <span class="sm:col-span-6">
-              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                Product
-                <span class="text-red-500">
-                  *
-                </span>
-              </label>
-              <MultiSelect
-                v-model="form.products"
-                :options="productOptions"
-                trackBy="id"
-                valueProp="id"
-                label="full_name"
-                mode="tags"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-                disabled="disabled"
-              >
-              </MultiSelect>
-              <div class="text-sm text-red-600" v-if="form.errors.products">
-                {{ form.errors.products }}
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-start">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded"> Audiences </span>
+                </div>
               </div>
-            </span> -->
+            </div>
+
+            <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Is DCVend?
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.is_dcvend"
+                  :options="booleanOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  disabled="disabled"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.is_dcvend">
+                  {{ form.errors.is_dcvend }}
+                </div>
+            </div>
+
+            <div class="sm:col-span-3" v-if="form.is_dcvend && form.is_dcvend.id == 'true'">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  DCVend Member Type
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.dcvend_member_type"
+                  :options="dcvendMemberTypeMappings"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  disabled="disabled"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.dcvend_member_type">
+                  {{ form.errors.dcvend_member_type }}
+                </div>
+            </div>
+
+            <div class="sm:col-span-2" v-if="(form.is_dcvend && form.is_dcvend.id == 'true') && (form.dcvend_member_type && form.dcvend_member_type.id == 4)">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Refresh Qty After Renew Plan
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.is_recurring"
+                  :options="booleanOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  disabled="disabled"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.is_recurring">
+                  {{ form.errors.is_recurring }}
+                </div>
+            </div>
+
+            <div class="sm:col-span-2" v-if="form.is_dcvend && form.is_dcvend.id == 'true'">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Voucher Valid Duration Unit
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.valid_unit"
+                  :options="validUnitMappings"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  disabled="disabled"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.valid_unit">
+                  {{ form.errors.valid_unit }}
+                </div>
+            </div>
+
+            <div class="sm:col-span-2" v-if="form.is_dcvend && form.is_dcvend.id == 'true'">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Voucher Valid Duration
+                  <span class="text-red-500">
+                    *
+                  </span>
+                </label>
+                <MultiSelect
+                  v-model="form.valid_duration"
+                  :options="validDurationMappings"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  disabled="disabled"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.valid_duration">
+                  {{ form.errors.valid_duration }}
+                </div>
+            </div>
+
+
 
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
@@ -301,6 +408,15 @@
                     Save
                   </span>
                 </Button>
+                <Button
+                  class="bg-red-500 hover:bg-red-600 text-white flex space-x-1"
+                  @click.prevent="deleteVoucher(voucher.id)"
+                >
+                  <XCircleIcon class="w-4 h-4"></XCircleIcon>
+                  <span>
+                    Delete
+                  </span>
+                </Button>
               </span>
             </div>
 
@@ -393,20 +509,25 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
+    dcvendMemberTypeMappings: [Array, Object],
     isUnique: Boolean,
     operatorOptions: Object,
     productOptions: Object,
     type: String,
     typeOptions: [Array, Object],
+    validDurationMappings: [Array, Object],
+    validUnitMappings: [Array, Object],
     voucher: Object,
   })
 
+const booleanOptions = ref([])
+const dcvendMemberTypeMappings = ref(props.dcvendMemberTypeMappings)
 const loading = ref(false)
 const operatorOptions = ref([])
 const productOptions = ref([])
@@ -415,10 +536,16 @@ const typeOptions = ref([])
 const form = ref(
   useForm(getDefaultForm())
 )
+const validDurationMappings = ref(props.validDurationMappings)
+const validUnitMappings = ref(props.validUnitMappings)
 const voucher = ref([])
 const voucherItems = ref([])
 
 onMounted(() => {
+  booleanOptions.value = [
+      {id: 'true', value: 'Yes'},
+      {id: 'false', value: 'No'},
+  ]
   operatorOptions.value = props.operatorOptions.data
   productOptions.value = props.productOptions.data
   typeOptions.value = props.typeOptions
@@ -430,6 +557,11 @@ onMounted(() => {
       ...voucher.value,
       date_from: moment(voucher.value.date_from).format('YYYY-MM-DD'),
       date_to: moment(voucher.value.date_to).format('YYYY-MM-DD'),
+      dcvend_member_type: voucher.value.dcvend_member_type ? { id: voucher.value.dcvend_member_type, value: dcvendMemberTypeMappings.value[voucher.value.dcvend_member_type] } : [],
+      is_dcvend: voucher.value.is_dcvend ? { id: 'true', value: 'Yes' } : { id: 'false', value: 'No' },
+      is_recurring: voucher.value.is_recurring ? { id: 'true', value: 'Yes' } : { id: 'false', value: 'No' },
+      valid_duration: voucher.value.valid_duration ? { id: voucher.value.valid_duration, value: validDurationMappings.value[voucher.value.valid_duration] } : [],
+      valid_unit: voucher.value.valid_unit ? { id: voucher.value.valid_unit, value: validUnitMappings.value[voucher.value.valid_unit] } : [],
       operator_id: voucher.value ? operatorOptions.value.find(operator => operator.id == voucher.value.operator_id) : [],
       products: voucher.value
         ? voucher.value.product_json.map((id) =>
@@ -440,6 +572,22 @@ onMounted(() => {
     }
   ) : useForm(getDefaultForm())
 })
+
+function deleteVoucher(id) {
+  if (confirm('Are you sure you want to delete this voucher, and its binding?')) {
+    form.value
+      .delete('/vouchers/' + id, {
+        onSuccess: () => {
+          toast.success("Successfully deleted", {
+            timeout: 3000
+          });
+          router.visit('/vouchers')
+        },
+        preserveState: true,
+        replace: true,
+      })
+  }
+}
 
 function onExportExcelClicked() {
     loading.value = true
@@ -464,14 +612,21 @@ function getDefaultForm() {
     code: '',
     date_from: moment().format('YYYY-MM-DD'),
     date_to: '',
+    dcvend_member_type: '',
+    dcvend_qty_per_member: '',
     desc: '',
+    is_dcvend: '',
+    is_recurring: '',
     max_promo_value: '',
     min_value: '',
     name: '',
     operators: [],
+    operator_id: '',
     products: [],
     qty: '',
     type: '',
+    valid_duration: '',
+    valid_unit: '',
     value: '',
   }
 }
@@ -486,6 +641,10 @@ function submit() {
       type: data.type?.id,
       operators: data.operators?.map((item) => item.id),
       products: data.products?.map((item) => item.id),
+      is_dcvend: data.is_dcvend?.id,
+      dcvend_member_type: data.dcvend_member_type?.id,
+      valid_duration: data.valid_duration?.id,
+      valid_unit: data.valid_unit?.id,
     }))
     .post('/vouchers/' + form.value.id + '/update', {
     onSuccess: () => {

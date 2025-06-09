@@ -1012,6 +1012,7 @@ const filters = ref({
   const booleanOptions = ref([])
   const categoryOptions = ref([])
   const categoryGroupOptions = ref([])
+  const cashlessMfgOptions = ref([])
   const cashlessTerminalOptions = ref([])
   const deliveryPlatformOptions = ref([])
   const initBinded = usePage().props.initBinded

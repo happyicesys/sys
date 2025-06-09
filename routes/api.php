@@ -59,7 +59,9 @@ Route::prefix('delivery')->group(function() {
 });
 
 Route::prefix('vouchers')->group(function() {
+    Route::get('/dcvend', [VoucherController::class, 'getDCVends']);
     Route::post('/search', [VoucherController::class, 'search']);
+    Route::post('/details', [VoucherController::class, 'getVoucherDetails']);
 });
 
 // Internal api
