@@ -232,12 +232,12 @@ class VoucherController extends Controller
             $resource = new VoucherCheckingApiResource($voucher, $vendCode, $dcvendUserID);
             $data = $resource->toArray($request);
 
-            if (empty($data['channels'])) {
-                return response([
-                    'status_code' => 400,
-                    'message' => 'Product not available for this machine, please try at other machine',
-                ], 400);
-            }
+            // if (empty($data['channels'])) {
+            //     return response([
+            //         'status_code' => 400,
+            //         'message' => 'Product not available for this machine, please try at other machine',
+            //     ], 400);
+            // }
 
             $status = $voucher->status ?? ($voucher->voucher->status ?? null);
 
