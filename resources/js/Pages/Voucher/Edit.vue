@@ -563,7 +563,7 @@ onMounted(() => {
       valid_duration: voucher.value.valid_duration ? { id: voucher.value.valid_duration, value: validDurationMappings.value[voucher.value.valid_duration] } : [],
       valid_unit: voucher.value.valid_unit ? { id: voucher.value.valid_unit, value: validUnitMappings.value[voucher.value.valid_unit] } : [],
       operator_id: voucher.value ? operatorOptions.value.find(operator => operator.id == voucher.value.operator_id) : [],
-      products: voucher.value
+      products: voucher.value && voucher.value.product_json
         ? voucher.value.product_json.map((id) =>
             productOptions.value.find((item) => item.id === id)
           ).filter(Boolean)
