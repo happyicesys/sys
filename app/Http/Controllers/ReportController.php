@@ -691,12 +691,14 @@ class ReportController extends Controller
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
             ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
             ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
-            ->whereIn('error_code_normalized', [0, 6]);
+            ->whereColumn('qty', 'success_qty');
 
         $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
         $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
 
         $currentMonthFormatted = $currentDate->format('Y-m');
+
+        // dd($queryVendTransactions->get()->toArray());
 
         $queryVendTransactions = $queryVendTransactions
             ->select(

@@ -93,7 +93,7 @@ trait HasFilter {
                 $search = explode(',', $search);
                 $query->whereIn('vends.code', $search);
             }else {
-                $query->where('vends.code', 'LIKE', "%{$search}%");
+                $query->where('vends.code', 'LIKE', "{$search}%");
             }
         })
         ->when($request->customer_code, function($query, $search) {
