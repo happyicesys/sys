@@ -304,6 +304,8 @@
                             <span v-if="permissions.includes('admin-access vends')">
                                 <a class="text-blue-700" target="_blank" :href="'/customers/' + deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.id + '/edit'">
                                     {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.virtual_customer_code }}
+                                    <br>
+                                    {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend && deliveryPlatformOrder.deliveryProductMappingVend.vend.vendPrefix ? deliveryPlatformOrder.deliveryProductMappingVend.vend.vendPrefix.name : '' }}
                                     <!-- ({{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.virtual_customer_prefix }}) -->
                                     <br>
                                     {{ deliveryPlatformOrder.deliveryProductMappingVend && deliveryPlatformOrder.deliveryProductMappingVend.vend.customer.name }}

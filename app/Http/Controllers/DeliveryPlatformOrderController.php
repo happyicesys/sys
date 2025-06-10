@@ -193,15 +193,17 @@ class DeliveryPlatformOrderController extends Controller
             'deliveryPlatform:id,name,country_id,slug',
             'deliveryPlatformOrderItems',
             'deliveryProductMappingVend.deliveryProductMapping:id,name',
-            'deliveryProductMappingVend.vend:id,code,name,customer_id',
+            'deliveryProductMappingVend.vend:id,code,name,customer_id,vend_prefix_id',
             'deliveryProductMappingVend.vend.customer:id,code,is_active,name,person_id,virtual_customer_prefix,virtual_customer_code',
+            'deliveryProductMappingVend.vend.vendPrefix',
             'deliveryProductMappingVend.deliveryPlatformCampaignItemVends.deliveryPlatformCampaignItem',
             'deliveryPlatformOperator',
             'deliveryPlatformOrderComplaint',
             'deliveryPlatformOrderItems.deliveryProductMappingItem.product:id,code,name,is_active',
             'deliveryPlatformOrderItems.deliveryProductMappingItem.product.thumbnail',
             'deliveryPlatformOrderItems.orderItemVendChannels',
-            'vendTransaction'
+            'vendTransaction',
+
         ])
         ->filterIndex($request)
         ->when($request->sortKey, function($query, $search) use ($request) {

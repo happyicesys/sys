@@ -43,7 +43,7 @@ class VoucherCheckingApiResource extends JsonResource
             'min_value' => $voucher->min_value != null ? $voucher->min_value * 100 : null,
             'max_promo_value' => $voucher->max_promo_value != null ? $voucher->max_promo_value * 100 : null,
             'qty' => $this->qty ?? 1,
-            'value' => $voucher->value * 100,
+            'value' => $voucher->type == Voucher::TYPE_PERCENT ? $voucher->value : $voucher->value * 100,
             'matrix' => []
         ];
     }

@@ -210,7 +210,7 @@
                             Min Basket Value: {{ operatorCountry.currency_symbol }} {{ voucher.min_value }} <br>
                           </span>
                           <span v-if="voucher.max_promo_value">
-                            Max Basket Value: {{ operatorCountry.currency_symbol }} {{ voucher.max_promo_value }} <br>
+                            Max Promo Value: {{ operatorCountry.currency_symbol }} {{ voucher.max_promo_value }} <br>
                           </span>
                           <span v-if="voucher.product_json_mapped">
                             <span v-for="product in voucher.product_json_mapped">
