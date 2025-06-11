@@ -43,7 +43,7 @@ class SyncOnlineStatus implements ShouldQueue
     public function handle(): void
     {
         // Use chunking to process Vends in batches
-        Vend::chunk(100, function($vends) {
+        Vend::has('customer')->where('is_active', true)->chunk(100, function($vends) {
             foreach($vends as $vend) {
                 // Sync online status
                 $vend->is_online = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) < 15 ? true : false;
@@ -64,7 +64,7 @@ class SyncOnlineStatus implements ShouldQueue
 
                 // Send offline notification mail after 60 minutes
                 if ($vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 60 && !$vend->is_offline_notification_sent) {
-                    // Mail::to($this->emailRecipients)->send(new VendOfflineNotificationMail($vend));
+                    Mail::to($this->emailRecipients)->send(new VendOfflineNotificationMail($vend));
                     $vend->is_offline_notification_sent = true;
                 }
 
@@ -72,7 +72,7 @@ class SyncOnlineStatus implements ShouldQueue
                 if ($vend->is_mqtt) {
                     $vend->is_mqtt_active = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) < 15;
                     if ($vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) > 60 && !$vend->is_mqtt_offline_notified) {
-                        // Mail::to($this->emailRecipients)->send(new VendMqttOfflineNotificationMail($vend));
+                        Mail::to($this->emailRecipients)->send(new VendMqttOfflineNotificationMail($vend));
                         $vend->is_mqtt_offline_notified = true;
                     }
                 }
