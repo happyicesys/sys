@@ -20,6 +20,7 @@ use App\Models\Uom;
 use App\Traits\GetUserTimezone;
 use App\Services\CmsService;
 use App\Services\TagBindingService;
+use App\Services\VendTransactionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -30,10 +31,15 @@ class ProductController extends Controller
 {
     use GetUserTimezone;
 
+    protected $cmsService;
+    protected $tagBindingService;
+    protected $vendTransactionService;
+
     public function __construct()
     {
         $this->cmsService = new CmsService();
         $this->tagBindingService = new TagBindingService();
+        $this->vendTransactionService = new VendTransactionService();
         $this->middleware(['permission:read products']);
     }
 

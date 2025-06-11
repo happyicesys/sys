@@ -420,4 +420,13 @@ class VendTransactionService
         return $data;
     }
 
+    public function syncAllTotalsJson()
+    {
+        $vends = Vend::with('customer')->has('customer')->where('is_active', true)->get();
+
+        foreach($vends as $vend) {
+            SyncVendTransactionTotalsJson::dispatch($vend)->onQueue('default');
+        }
+    }
+
 }
