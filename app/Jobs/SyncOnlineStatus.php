@@ -62,6 +62,13 @@ class SyncOnlineStatus implements ShouldQueue
                     }
                 }
 
+                if ($vend->is_online && $vend->is_offline_notification_sent) {
+                    $vend->is_offline_notification_sent = false;
+                }
+                if ($vend->is_mqtt && $vend->is_mqtt_active && $vend->is_mqtt_offline_notified) {
+                    $vend->is_mqtt_offline_notified = false;
+                }
+
                 // Send offline notification mail after 60 minutes
                 if ($vend->last_updated_at && $vend->last_updated_at->diffInMinutes(Carbon::now()) >= 60 && !$vend->is_offline_notification_sent) {
                     Mail::to($this->emailRecipients)->send(new VendOfflineNotificationMail($vend));
