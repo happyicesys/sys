@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Mail\VendMqttOfflineNotificationMail;
 use App\Mail\VendOfflineNotificationMail;
+use App\Mail\VendPowerRestoredNotificationMail;
 use App\Models\ModemUnit;
 use App\Models\Vend;
 use App\Jobs\PublishMqtt;
@@ -63,6 +64,7 @@ class SyncOnlineStatus implements ShouldQueue
                 }
 
                 if ($vend->is_online && $vend->is_offline_notification_sent) {
+                    Mail::to($this->emailRecipients)->send(new VendPowerRestoredNotificationMail($vend));
                     $vend->is_offline_notification_sent = false;
                 }
                 if ($vend->is_mqtt && $vend->is_mqtt_active && $vend->is_mqtt_offline_notified) {

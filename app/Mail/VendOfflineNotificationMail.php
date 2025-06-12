@@ -44,7 +44,7 @@ class VendOfflineNotificationMail extends Mailable
     public function build()
     {
         return $this
-            ->subject('VM Offline Alert >= 1hour ('.$this->now->format('y-m-d').')')
+            ->subject('ID: '.$this->vend->code.' VM Offline Alert >= 1hour ('.$this->now->format('y-m-d').')')
             ->view('emails.vend-offline-notification');
     }
 }

@@ -7,11 +7,12 @@ use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Mail\Mailables\Content;
 use Illuminate\Queue\SerializesModels;
 
-class VendMqttOfflineNotificationMail extends Mailable
+class VendPowerRestoredNotificationMail extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -43,7 +44,7 @@ class VendMqttOfflineNotificationMail extends Mailable
     public function build()
     {
         return $this
-            ->subject('ID: '.$this->vend->code.' VM MQTT Offline Alert > 30 mins ('.$this->now->format('y-m-d').')')
-            ->view('emails.vend-mqtt-offline-notification');
+            ->subject('ID: '.$this->vend->code.' VM Power Restored ('.$this->now->format('y-m-d').')')
+            ->view('emails.vend-offline-notification');
     }
 }
