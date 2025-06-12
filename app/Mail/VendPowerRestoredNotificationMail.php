@@ -16,6 +16,7 @@ class VendPowerRestoredNotificationMail extends Mailable
 {
     use Queueable, SerializesModels;
 
+    public $baseUrl;
     public $now;
     public $vend;
 
@@ -26,6 +27,7 @@ class VendPowerRestoredNotificationMail extends Mailable
      */
     public function __construct(Vend $vend)
     {
+        $this->baseUrl = env('APP_URL');
         $this->now = Carbon::now();
         $this->vend = $vend;
     }
@@ -45,6 +47,6 @@ class VendPowerRestoredNotificationMail extends Mailable
     {
         return $this
             ->subject('ID: '.$this->vend->code.' VM Power Restored ('.$this->now->format('y-m-d').')')
-            ->view('emails.vend-offline-notification');
+            ->view('emails.power-restored-alert');
     }
 }

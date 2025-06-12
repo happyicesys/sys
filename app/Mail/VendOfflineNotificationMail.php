@@ -16,6 +16,7 @@ class VendOfflineNotificationMail extends Mailable
 {
     use Queueable, SerializesModels;
 
+    public $baseUrl;
     public $now;
     public $vend;
 
@@ -26,6 +27,7 @@ class VendOfflineNotificationMail extends Mailable
      */
     public function __construct(Vend $vend)
     {
+        $this->baseUrl = env('APP_URL');
         $this->now = Carbon::now();
         $this->vend = $vend;
     }

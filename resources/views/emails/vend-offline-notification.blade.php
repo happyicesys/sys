@@ -6,7 +6,7 @@
     <div class="px-4 py-5 sm:px-6">
       <h3 class="text-lg leading-6 font-medium text-gray-900">
         <span>
-          <a href="/vends/customers?codes={{$vend->code}}">
+          <a href="{{$baseUrl}}/vends/customers?codes={{$vend->code}}">
               #ID: {{$vend->code}}
           </a>
         </span>
