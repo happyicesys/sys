@@ -30,8 +30,8 @@ class SyncVoucherStatus implements ShouldQueue
             $voucher->status = Voucher::STATUS_EXPIRED;
 
             foreach ($voucher->voucherItems as $voucherItem) {
-                if ($voucherItem->status !== VoucherItem::STATUS_REDEEMED) {
-                    $voucherItem->status = VoucherItem::STATUS_EXPIRED;
+                if ($voucherItem->status !== Voucher::STATUS_REDEEMED) {
+                    $voucherItem->status = Voucher::STATUS_EXPIRED;
                     $voucherItem->save();
                 }
             }

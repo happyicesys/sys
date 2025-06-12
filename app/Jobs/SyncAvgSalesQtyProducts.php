@@ -17,6 +17,7 @@ class SyncAvgSalesQtyProducts implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $date;
+
     /**
      * Create a new job instance.
      */
@@ -34,15 +35,21 @@ class SyncAvgSalesQtyProducts implements ShouldQueue
             $startDate = Carbon::parse($this->date)->subDays(28)->startOfDay();
             $endDate = Carbon::parse($this->date)->endOfDay();
 
-            Product::chunk(20, function ($products) use ($startDate, $endDate) {
+            // Step 1: Aggregate all transaction counts per product
+            $counts = VendTransaction::selectRaw('product_id, COUNT(*) as total')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->groupBy('product_id')
+                ->pluck('total', 'product_id'); // [product_id => total]
+
+            // Step 2: Loop through products in chunks
+            Product::chunk(50, function ($products) use ($counts) {
                 foreach ($products as $product) {
-                    $totalQuantity = VendTransaction::where('product_id', $product->id)
-                        ->whereBetween('created_at', [$startDate, $endDate])
-                        ->count();
+                    $count = $counts[$product->id] ?? 0;
+                    $avg = $count / 4;
 
-                    $avgSevenDaysCount = $totalQuantity / 4;
-
-                    $product->update(['avg_seven_days_count' => $avgSevenDaysCount]);
+                    $product->update([
+                        'avg_seven_days_count' => $avg
+                    ]);
                 }
             });
 
