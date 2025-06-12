@@ -20,6 +20,7 @@ use App\Models\Uom;
 use App\Traits\GetUserTimezone;
 use App\Services\CmsService;
 use App\Services\TagBindingService;
+use App\Services\VendChannelService;
 use App\Services\VendTransactionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -33,12 +34,14 @@ class ProductController extends Controller
 
     protected $cmsService;
     protected $tagBindingService;
+    protected $vendChannelService;
     protected $vendTransactionService;
 
     public function __construct()
     {
         $this->cmsService = new CmsService();
         $this->tagBindingService = new TagBindingService();
+        $this->vendChannelService = new VendChannelService();
         $this->vendTransactionService = new VendTransactionService();
         $this->middleware(['permission:read products']);
     }
@@ -323,6 +326,8 @@ class ProductController extends Controller
         $product->is_active = !$product->is_active;
         $product->save();
 
+        $this->vendChannelService->syncAllVendChannelsJson($product->vendChannels->pluck('vend_id')->toArray());
+
         return redirect()->route('products');
     }
 
@@ -333,6 +338,8 @@ class ProductController extends Controller
         $product->is_available_updated_by = auth()->user()->id;
         $product->is_available_updated_at = Carbon::now();
         $product->save();
+
+        $this->vendChannelService->syncAllVendChannelsJson($product->vendChannels->pluck('vend_id')->toArray());
     }
 
     public function bindUom(Request $request, $productId)
@@ -440,6 +447,8 @@ class ProductController extends Controller
         // Encode the updated array back to JSON and save it
         $product->max_ops_job_pick_limit_json = $maxOpsJobPickLimitJson;
         $product->save();
+
+        $this->vendChannelService->syncAllVendChannelsJson($product->vendChannels->pluck('vend_id')->toArray());
 
         return redirect()->back();
     }
