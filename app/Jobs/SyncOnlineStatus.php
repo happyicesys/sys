@@ -80,7 +80,7 @@ class SyncOnlineStatus implements ShouldQueue
                 // Handle MQTT status
                 if ($vend->is_mqtt) {
                     $vend->is_mqtt_active = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) < 15;
-                    if ($vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) > 60 && !$vend->is_mqtt_offline_notified) {
+                    if ($vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes(Carbon::now()) > 30 && !$vend->is_mqtt_offline_notified) {
                         Mail::to($this->emailRecipients)->send(new VendMqttOfflineNotificationMail($vend));
                         $vend->is_mqtt_offline_notified = true;
                     }

@@ -19,6 +19,7 @@ class VendOfflineNotificationMail extends Mailable
     public $baseUrl;
     public $now;
     public $vend;
+    public $vendModelName;
 
     /**
      * Create a new message instance.
@@ -30,6 +31,7 @@ class VendOfflineNotificationMail extends Mailable
         $this->baseUrl = env('APP_URL');
         $this->now = Carbon::now();
         $this->vend = $vend;
+        $this->vendModelName = $vend->vendModel ? $vend->vendModel->name : '';
     }
 
     // public function envelope()
@@ -46,7 +48,7 @@ class VendOfflineNotificationMail extends Mailable
     public function build()
     {
         return $this
-            ->subject('ID: '.$this->vend->code.' VM Offline Alert >= 1hour ('.$this->now->format('y-m-d').')')
+            ->subject('ID: '.$this->vend->code.' ('. $this->vendModelName .') VM Offline Alert >= 1hour ('.$this->now->format('y-m-d').')')
             ->view('emails.vend-offline-notification');
     }
 }

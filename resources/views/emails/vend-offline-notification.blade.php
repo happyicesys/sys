@@ -5,11 +5,9 @@
 <div class="bg-white shadow overflow-hidden sm:rounded-lg">
     <div class="px-4 py-5 sm:px-6">
       <h3 class="text-lg leading-6 font-medium text-gray-900">
-        <span>
-          <a href="{{$baseUrl}}/vends/customers?codes={{$vend->code}}">
-              #ID: {{$vend->code}}
-          </a>
-        </span>
+        <a href="{{$baseUrl}}/vends/customers?codes={{$vend->code}}" style="color: #1a0dab; text-decoration: underline;">
+            #ID: {{$vend->code}}
+        </a>
       </h3>
       <h3 class="text-lg leading-6 font-medium text-gray-900">
         @if($vend and $vend->customer)
