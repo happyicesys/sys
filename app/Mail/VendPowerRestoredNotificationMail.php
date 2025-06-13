@@ -19,7 +19,7 @@ class VendPowerRestoredNotificationMail extends Mailable
     public $baseUrl;
     public $now;
     public $vend;
-    public $vendModelName;
+    public $vendPrefixName;
 
     /**
      * Create a new message instance.
@@ -31,7 +31,7 @@ class VendPowerRestoredNotificationMail extends Mailable
         $this->baseUrl = env('APP_URL');
         $this->now = Carbon::now();
         $this->vend = $vend;
-        $this->vendModelName = $vend->vendModel ? $vend->vendModel->name : '';
+        $this->vendPrefixName = $vend->vendPrefix ? $vend->vendPrefix->name : '';
     }
 
     // public function envelope()
@@ -48,7 +48,7 @@ class VendPowerRestoredNotificationMail extends Mailable
     public function build()
     {
         return $this
-            ->subject('ID: '.$this->vend->code.' ('. $this->vendModelName .') VM Power Restored ('.$this->now->format('y-m-d').')')
+            ->subject('ID: '.$this->vend->code.' Machine Back Online ('.$this->now->format('y-m-d').')')
             ->view('emails.power-restored-alert');
     }
 }
