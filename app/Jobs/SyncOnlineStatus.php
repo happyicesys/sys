@@ -43,12 +43,13 @@ class SyncOnlineStatus implements ShouldQueue
                 $now = Carbon::now();
 
                 // Update online status
-                $vend->is_online = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes($now) < 15;
-                $vend->is_temp_active = $vend->temp_updated_at && $vend->temp_updated_at->diffInMinutes($now) < 15;
+                // 15 to 3 minutes for online check
+                $vend->is_online = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes($now) < 3;
+                $vend->is_temp_active = $vend->temp_updated_at && $vend->temp_updated_at->diffInMinutes($now) < 3;
 
                 // Handle MQTT status
                 if ($vend->is_mqtt) {
-                    $vend->is_mqtt_active = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes($now) < 15;
+                    $vend->is_mqtt_active = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes($now) < 3;
 
                     // MQTT offline notification
                     if (
@@ -56,7 +57,7 @@ class SyncOnlineStatus implements ShouldQueue
                         $vend->mqtt_last_updated_at->diffInMinutes($now) > 30 &&
                         !$vend->is_mqtt_offline_notified
                     ) {
-                        Mail::to($this->emailRecipients)->send(new VendMqttOfflineNotificationMail($vend));
+                        // Mail::to($this->emailRecipients)->send(new VendMqttOfflineNotificationMail($vend));
                         $vend->is_mqtt_offline_notified = true;
                     }
                 }
@@ -94,9 +95,10 @@ class SyncOnlineStatus implements ShouldQueue
                 }
 
                 // Send offline notification if fully offline for 60+ mins
+                // 60 to 40 minutes for online check
                 if (
                     $vend->last_updated_at &&
-                    $vend->last_updated_at->diffInMinutes($now) >= 60 &&
+                    $vend->last_updated_at->diffInMinutes($now) >= 40 &&
                     !$vend->is_offline_notification_sent
                 ) {
                     Mail::to($this->emailRecipients)->send(new VendOfflineNotificationMail($vend));
