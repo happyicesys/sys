@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Mail\VendPowerRestoredNotificationMail;
 use App\Models\Vend;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -9,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Mail;
 
 class UpdateHttpLastUpdated implements ShouldQueue
 {
@@ -32,7 +34,21 @@ class UpdateHttpLastUpdated implements ShouldQueue
     public function handle(): void
     {
         $this->vend->update([
-            'last_updated_at' => Carbon::now()
+            'last_updated_at' => Carbon::now(),
+            'is_online' => true,
         ]);
+
+        if($this->vend->is_offline_notification_sent) {
+            Mail::to([
+                'daniel.ma@happyice.com.sg',
+                'kent@happyice.com.sg',
+                // 'stephen@happyice.com.sg',
+                'brianlee@happyice.com.my',
+                'technician1@happyice.com.sg',
+            ])->send(new VendPowerRestoredNotificationMail($this->vend));
+            $this->vend->update([
+                'is_offline_notification_sent' => false,
+            ]);
+        }
     }
 }

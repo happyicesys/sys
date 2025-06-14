@@ -379,17 +379,21 @@ function getSellingPrice(channel) {
 
 
 function compareSellingPrice(channel) {
-  let type = props.vend && props.vend.customer ? props.vend.customer.selling_price_type : props.vend.selling_price_type
+  // let type = props.vend && props.vend.customer ? props.vend.customer.selling_price_type : props.vend.selling_price_type
 
-  if(channel && channel.product && channel.product.sellingPrices) {
-    let sellingPrice = channel.product.sellingPrices.find((sellingPrice) => sellingPrice.type == type)
-    if(sellingPrice) {
-      if(channel.amount != sellingPrice.amount/ 100) {
-        return 'text-red-500'
-      }
-    }else {
-      return 'text-red-500'
-    }
+  // if(channel && channel.product && channel.product.sellingPrices) {
+  //   let sellingPrice = channel.product.sellingPrices.find((sellingPrice) => sellingPrice.type == type)
+  //   if(sellingPrice) {
+  //     if(channel.amount != sellingPrice.amount/ 100) {
+  //       return 'text-red-500'
+  //     }
+  //   }else {
+  //     return 'text-red-500'
+  //   }
+  // }
+
+  if(channel.amount && channel.ref_price && channel.amount != channel.ref_price) {
+    return 'text-red-500'
   }
 
   return 'text-gray-800'

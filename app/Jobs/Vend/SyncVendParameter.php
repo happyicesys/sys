@@ -107,6 +107,7 @@ class SyncVendParameter implements ShouldQueue
                 }
             }
             $vend->temp_updated_at = Carbon::now();
+            $vend->is_temp_active = true;
             $vend->save();
     }
 

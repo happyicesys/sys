@@ -43,13 +43,12 @@ class SyncOnlineStatus implements ShouldQueue
                 $now = Carbon::now();
 
                 // Update online status
-                // 15 to 3 minutes for online check
-                $vend->is_online = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes($now) < 3;
-                $vend->is_temp_active = $vend->temp_updated_at && $vend->temp_updated_at->diffInMinutes($now) < 3;
+                $vend->is_online = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes($now) < 15;
+                $vend->is_temp_active = $vend->temp_updated_at && $vend->temp_updated_at->diffInMinutes($now) < 15;
 
                 // Handle MQTT status
                 if ($vend->is_mqtt) {
-                    $vend->is_mqtt_active = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes($now) < 3;
+                    $vend->is_mqtt_active = $vend->mqtt_last_updated_at && $vend->mqtt_last_updated_at->diffInMinutes($now) < 15;
 
                     // MQTT offline notification
                     if (
@@ -98,7 +97,7 @@ class SyncOnlineStatus implements ShouldQueue
                 // 60 to 40 minutes for online check
                 if (
                     $vend->last_updated_at &&
-                    $vend->last_updated_at->diffInMinutes($now) >= 40 &&
+                    $vend->last_updated_at->diffInMinutes($now) >= 50 &&
                     !$vend->is_offline_notification_sent
                 ) {
                     Mail::to($this->emailRecipients)->send(new VendOfflineNotificationMail($vend));
