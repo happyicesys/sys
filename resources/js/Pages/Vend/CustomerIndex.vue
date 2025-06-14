@@ -1697,7 +1697,7 @@
 								</span>
 								<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
-									:class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-green-200' : 'bg-red-200')]"
+									:class="[vend.is_testing ? 'bg-gray-200' : (vend.is_active ? 'bg-blue-200' : 'bg-red-200')]"
 								>
 										<div class="flex flex-col">
 												<span class="font-bold">
