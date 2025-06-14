@@ -12,7 +12,7 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Queue\SerializesModels;
 
-class VendPowerRestoredNotificationMail extends Mailable
+class VendPowerRestoredNotificationMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

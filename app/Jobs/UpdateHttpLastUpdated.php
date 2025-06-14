@@ -45,7 +45,7 @@ class UpdateHttpLastUpdated implements ShouldQueue
                 // 'stephen@happyice.com.sg',
                 'brianlee@happyice.com.my',
                 'technician1@happyice.com.sg',
-            ])->send(new VendPowerRestoredNotificationMail($this->vend));
+            ])->queue(new VendPowerRestoredNotificationMail($this->vend));
             $this->vend->update([
                 'is_offline_notification_sent' => false,
             ]);

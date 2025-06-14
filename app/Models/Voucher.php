@@ -79,6 +79,7 @@ class Voucher extends Model
     ];
 
     const VALID_UNIT_MAPPINGS = [
+        'plan' => 'According to Member Plan',
         'day' => 'Day(s)',
         'month' => 'Month(s)',
     ];

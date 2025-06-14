@@ -2104,17 +2104,9 @@ filters.value.status = statusOptions.value[2]
 })
 
 function compareRefPrice(vend, channel) {
-let type = vend && vend.customer ? vend.customer.selling_price_type : vend.selling_price_type
-
-if(channel.product && channel.product.sellingPrices) {
-	let sellingPrice = channel.product.sellingPrices.find((sellingPrice) => sellingPrice.type == type)
-	if(sellingPrice) {
-		if(channel.amount != sellingPrice.amount/ 100) {
-			return 'text-red-500'
-		}
-	}else {
-		return 'text-red-500'
-	}
+// let type = vend && vend.customer ? vend.customer.selling_price_type : vend.selling_price_type
+if(channel && channel.amount && channel.amount != channel.ref_price) {
+	return 'text-red-500'
 }
 
 return 'text-gray-900'

@@ -89,7 +89,7 @@ class SyncOnlineStatus implements ShouldQueue
                 $httpRecovered = $vend->is_online;
                 $mqttRecovered = !$vend->is_mqtt_offline_notified || $vend->is_mqtt_active;
                 if (($httpRecovered || $mqttRecovered) && $vend->is_offline_notification_sent) {
-                    Mail::to($this->emailRecipients)->send(new VendPowerRestoredNotificationMail($vend));
+                    Mail::to($this->emailRecipients)->queue(new VendPowerRestoredNotificationMail($vend));
                     $vend->is_offline_notification_sent = false;
                 }
 
@@ -100,7 +100,7 @@ class SyncOnlineStatus implements ShouldQueue
                     $vend->last_updated_at->diffInMinutes($now) >= 50 &&
                     !$vend->is_offline_notification_sent
                 ) {
-                    Mail::to($this->emailRecipients)->send(new VendOfflineNotificationMail($vend));
+                    Mail::to($this->emailRecipients)->queue(new VendOfflineNotificationMail($vend));
                     $vend->is_offline_notification_sent = true;
                 }
 

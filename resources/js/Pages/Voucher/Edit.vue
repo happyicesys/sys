@@ -264,7 +264,7 @@
                 </div>
             </div>
 
-            <div class="sm:col-span-2" v-if="form.is_dcvend && form.is_dcvend.id == 'true'">
+            <div class="sm:col-span-2" v-if="form.is_dcvend && form.is_dcvend.id == 'true' && (form.valid_unit && form.valid_unit.id != 'plan')">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Voucher Valid Duration
                   <span class="text-red-500">
