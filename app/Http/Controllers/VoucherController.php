@@ -315,6 +315,8 @@ class VoucherController extends Controller
             'product_json' => $request->products ? $request->products : null,
             'is_dcvend' => $request->is_dcvend == 'true' ? true : false,
             'is_recurring' => $request->is_recurring == 'true' ? true : false,
+            'min_value' => $request->min_value ? $request->min_value : null,
+            'max_promo_value' => $request->max_promo_value ? $request->max_promo_value : null,
         ]);
 
         if($request->is_batch_code) {

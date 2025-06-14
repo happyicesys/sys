@@ -148,12 +148,14 @@
             <div class="sm:col-span-2" v-if="form.type">
               <FormInput v-model="form.min_value" placeholderStr="Numbers only" :error="form.errors['min_value']" disabled="disabled">
                 Mininum Basket Value ($)
+                <ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'If left empty, means no min is enforced', html: true }"></ExclamationCircleIcon>
               </FormInput>
             </div>
 
             <div class="sm:col-span-2" v-if="form.type && form.type?.id != 'item'">
               <FormInput v-model="form.max_promo_value" placeholderStr="Numbers only" :error="form.errors['max_promo_value']" disabled="disabled">
                 Maximum Promo Value ($)
+                <ExclamationCircleIcon class="min-w-5 w-5 h-5 self-center pl-1 text-sky-500" v-tooltip="{ content: 'Applicable for percent discount, when left empty, means no limit on maximum', html: true }"></ExclamationCircleIcon>
               </FormInput>
             </div>
 
@@ -509,10 +511,11 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, ExclamationCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 
 const props = defineProps({
     dcvendMemberTypeMappings: [Array, Object],

@@ -400,6 +400,7 @@ import { BackspaceIcon, CheckCircleIcon, ExclamationCircleIcon, PlusCircleIcon }
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
+import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 
 const props = defineProps({
     dcvendMemberTypeMappings: [Array, Object],
