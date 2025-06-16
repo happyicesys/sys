@@ -48,7 +48,7 @@ class VendPowerRestoredNotificationMail extends Mailable implements ShouldQueue
     public function build()
     {
         return $this
-            ->subject('ID: '.$this->vend->code.' Machine Back Online ('.$this->now->format('y-m-d').')')
+        ->subject('ID: '.$this->vend->code.' Machine Offline Alert >= 50 mins ('.$this->now->format('y-m-d').') - Recovered')
             ->view('emails.power-restored-alert');
     }
 }

@@ -38,7 +38,13 @@ class SyncOnlineStatus implements ShouldQueue
 
     public function handle(): void
     {
-        Vend::has('customer')->where('is_active', true)->where('is_testing', false)->whereNotIn('code', ['808', '6001', '6002'])->chunk(100, function($vends) {
+        Vend::has('customer')
+            ->where('is_active', true)
+            ->where('is_testing', false)
+            ->whereNotIn('code', ['808', '6001', '6002'])
+            ->where('operator_id', '!=', 23)
+            ->chunk(100, function($vends) {
+
             foreach($vends as $vend) {
                 $now = Carbon::now();
 
