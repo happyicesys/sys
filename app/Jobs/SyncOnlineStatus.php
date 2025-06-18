@@ -27,13 +27,24 @@ class SyncOnlineStatus implements ShouldQueue
     public function __construct()
     {
         $this->mqttService = new MqttService();
-        $this->emailRecipients = [
-            'daniel.ma@happyice.com.sg',
-            'kent@happyice.com.sg',
-            // 'stephen@happyice.com.sg',
-            'brianlee@happyice.com.my',
-            'technician1@happyice.com.sg',
-        ];
+
+        if(env('APP_URL') == 'https://idn-sys.happyice.net') {
+            $this->emailRecipients = [
+                'daniel.ma@happyice.com.sg',
+                'brianlee@happyice.com.my',
+                'it.gentong@gmail.com',
+                'afa7heaven@gmail.com',
+                'arganopraiskoti@gmail.com',
+                'yardizhen@gmail.com'
+            ];
+        }else {
+            $this->emailRecipients = [
+                'daniel.ma@happyice.com.sg',
+                'kent@happyice.com.sg',
+                'brianlee@happyice.com.my',
+                'technician1@happyice.com.sg'
+            ];
+        }
     }
 
     public function handle(): void
