@@ -35,7 +35,8 @@ class SyncOnlineStatus implements ShouldQueue
                 'it.gentong@gmail.com',
                 'afa7heaven@gmail.com',
                 'arganopraiskoti@gmail.com',
-                'yardizhen@gmail.com'
+                'yardizhen@gmail.com',
+                'Rhpmail@gmail.com'
             ];
         }else {
             $this->emailRecipients = [
