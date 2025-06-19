@@ -159,7 +159,6 @@ class VendTransaction extends Model
         ->when($request->date_to, function($query, $search) {
             $query->where('vend_transactions.transaction_datetime', '<=', $search);
         });
-        // dd($request->all(), $query->toSql(), $query->getBindings());
 
         $query->when($request->has('visited'), function($query, $search) use ($request) {
             if($request->visited == 'true') {

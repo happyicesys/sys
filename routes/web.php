@@ -501,6 +501,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/{id}/temp/{type}/excel', [VendController::class, 'exportTempExcel']);
         Route::get('/transactions', [VendController::class, 'transactionIndex'])->name('vends-transactions');
         Route::get('/transactions/excel', [VendController::class, 'exportTransactionExcel']);
+        Route::get('/transactions/export-csv', [VendController::class, 'exportTransactionCsv'])->name('vends.transactions.export-csv');
         Route::get('/payment-gateway-transactions', [VendController::class, 'paymentGatewayTransactionIndex'])->name('payment-gateway-transactions');
         Route::get('/payment-gateway-transactions/excel', [VendController::class, 'exportPaymentGatewayTransactionExcel']);
         Route::get('/vend-snapshots/excel/{vendSnapshotId}', [VendController::class, 'exportVendSnapshotExcel']);

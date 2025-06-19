@@ -32,6 +32,7 @@ use App\Http\Resources\VendTransactionResource;
 use App\Http\Resources\VendTransactionItemResource;
 use App\Http\Resources\VendTempResource;
 use App\Http\Resources\ZoneResource;
+use App\Jobs\ExportVendTransactionCsv;
 use App\Jobs\SyncVendCustomerCms;
 use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Mail\VendChannelErrorLogsMail;
@@ -41,6 +42,7 @@ use App\Models\CategoryGroup;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\DeliveryPlatform;
+use App\Models\ExportJob;
 use App\Models\LocationType;
 use App\Models\ModemType;
 use App\Models\ModemUnit;
@@ -86,6 +88,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
 use Imagick;
 use Inertia\Inertia;
@@ -1470,6 +1473,13 @@ class VendController extends Controller
             ->first();
 
 
+        $latestExports = ExportJob::where('user_id', auth()->id())
+            ->where('type', 'vend_transaction')
+            ->with('attachment')
+            ->latest()
+            ->limit(3)
+            ->get();
+
 
         return Inertia::render('Vend/Transaction', [
             'categories' => CategoryResource::collection(
@@ -1478,6 +1488,7 @@ class VendController extends Controller
             'categoryGroups' => CategoryGroupResource::collection(
                 CategoryGroup::where('classname', $className)->orderBy('name')->get()
             ),
+            'latestExports' => $latestExports,
             'locationTypeOptions' => LocationTypeResource::collection(
                 LocationType::orderBy('sequence')->get()
             ),
@@ -1581,150 +1592,149 @@ class VendController extends Controller
         });
     }
 
+    public function exportTransactionCsv(Request $request)
+    {
+        $filename = 'vend_transactions_' . now()->format('Ymd_His') . '.csv';
+
+        $job = ExportJob::create([
+            'user_id' => auth()->id(),
+            'type' => 'vend_transaction',
+            'status' => 'pending',
+            'filename' => $filename,
+        ]);
+
+        ExportVendTransactionCsv::dispatch($job->id, $request->all(), auth()->id());
+
+        return back()->with('message', 'Export started! You can check it later in the export list.');
+    }
+
+
     public function exportTransactionExcel(Request $request)
     {
-        $request->merge(['sortKey' => $request->sortKey ? $request->sortKey : 'transaction_datetime']);
-        $request->merge(['sortBy' => $request->sortBy ? $request->sortBy : false]);
-        $request->date_from =  $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay();
-        $request->date_to =  $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay();
+        $request->merge(['sortKey' => $request->sortKey ?? 'transaction_datetime']);
+        $request->merge(['sortBy' => $request->sortBy ?? false]);
 
-        $vendTransactions = VendTransaction::query()
-        ->with([
-            'vendTransactionItems.product',
-            'vendTransactionItems.vendChannelError',
-            'vendTransactionItems.unitCost',
-        ])
-        ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
-        ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
-        ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
-        ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
-        ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
-        ->leftJoin('unit_costs', 'unit_costs.id', '=', 'vend_transactions.unit_cost_id')
-        ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
-        ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
-        ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
-        ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
-        ->filterTransactionIndex($request)
-        ->select(
-            'vend_transactions.id',
-            'vend_transactions.order_id',
-            'vend_transactions.transaction_datetime',
-            'vends.code AS vend_code',
-            'vends.name AS vend_name',
-            'vend_prefixes.name AS vend_prefix_name',
-            'customers.id AS customer_id',
-            'customers.code AS customer_code',
-            'customers.name AS customer_name',
-            'customers.person_id',
-            'customers.virtual_customer_prefix',
-            'customers.virtual_customer_code',
-            'location_types.name AS location_type_name',
-            'operators.code AS operator_code',
-            'products.code AS product_code',
-            'products.name AS product_name',
-            'payment_methods.name AS payment_method_name',
-            'unit_costs.cost',
-            'vend_channels.amount AS vend_channel_amount',
-            'vend_channels.amount2 AS vend_channel_amount2',
-            'vend_channel_errors.desc AS vend_channel_error_desc',
-            'vend_channel_errors.code AS vend_channel_error_code',
-            'vend_transactions.amount',
-            'vend_transactions.interface_type',
-            'vend_transactions.is_multiple',
-            'vend_transactions.is_refunded',
-            'vend_transactions.revenue',
-            'vend_transactions.is_payment_received',
-            'vend_transactions.items_json',
-            'vend_transactions.vend_channel_code',
-            'vend_transactions.vend_transaction_json'
-        )
-        ->get();
+        $timezone = $this->getUserTimezone();
+        $request->date_from = $request->date_from
+            ? Carbon::parse($request->date_from)->setTimezone($timezone)->startOfDay()
+            : Carbon::today()->setTimezone($timezone)->startOfDay();
+
+        $request->date_to = $request->date_to
+            ? Carbon::parse($request->date_to)->setTimezone($timezone)->endOfDay()
+            : Carbon::today()->setTimezone($timezone)->endOfDay();
 
         $data = [];
-        foreach($vendTransactions as $vendTransaction) {
-            $data[] = [
-                'order_id' => $vendTransaction->order_id,
-                'transaction_datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
-                'machine_id' => $vendTransaction->vend_code ? $vendTransaction->vend_code : '',
-                'machine_prefix' => $vendTransaction->vend_prefix_name ?
-                                    $vendTransaction->vend_prefix_name :
-                                    '',
-                'customer_id' => $vendTransaction->customer_id + 20000,
-                'customer_code' => $vendTransaction->person_id ?
-                                    $vendTransaction->virtual_customer_code :
-                                    '',
-                'customer_name' => $vendTransaction->customer_name,
-                'channel' => $vendTransaction->vend_channel_code ? $vendTransaction->vend_channel_code : '',
-                'product_code' => $vendTransaction->product_code,
-                'product_name' => $vendTransaction->product_name,
-                'price_type' => $vendTransaction->vend_channel_amount ==  $vendTransaction->amount ?
-                                'P1' :
-                                ($vendTransaction->vend_channel_amount2 ==  $vendTransaction->amount ? 'P2' : '' ),
-                'amount' => $vendTransaction->amount/ 100,
-                'amount_breakdown' => $vendTransaction->is_multiple ? ($vendTransaction->amount - VendTransactionItem::withSum('vendChannel', 'amount')->whereIn('id', $vendTransaction->vendTransactionItems->pluck('id'))->get()->sum('vend_channel_sum_amount'))/ 100 : $vendTransaction->amount/ 100,
-                // 'sales_before_gst' => $vendTransaction->revenue/ 100,
-                'unit_cost' => $vendTransaction->cost ?
-                                $vendTransaction->cost/100 :
-                                '',
-                'payment_method' => $vendTransaction->payment_method_name,
-                'error_code' => $vendTransaction->vend_channel_error_code,
-                'location_type' => $vendTransaction->location_type_name,
-                'operator' => $vendTransaction->operator_code,
-                'is_successful' => $vendTransaction->vend_channel_error_code ? ($vendTransaction->vend_channel_error_code == 0 || $vendTransaction->vend_channel_error_code == 6 ? 'Successful' : "Unsuccessful") : 'Successful',
-                'is_refunded' => $vendTransaction->is_refunded ? 'Yes' : '',
-                'is_multiple' => $vendTransaction->is_multiple ? 'Yes' : 'No',
-                'multiple_qty' => $vendTransaction->is_multiple ? $vendTransaction->vendTransactionItems->count() : 1,
-                'txn_src' => $vendTransaction->interface_type,
-                'member_id' => $vendTransaction->vend_transaction_json && isset($vendTransaction->vend_transaction_json['dcvend_user_id']) ? $vendTransaction->vend_transaction_json['dcvend_user_id'] : '',
-            ];
 
-            if($vendTransaction->vendTransactionItems) {
-                $vendTransactionItems = $vendTransaction
-                    ->vendTransactionItems()
-                    ->with([
-                        'vendChannel:id,code,amount',
-                        'product:id,code,name',
-                        'unitCost:id,cost',
-                        'vendChannelError:id,code,desc',
-                    ])
-                    ->get();
-                foreach($vendTransaction->vendTransactionItems as $vendTransactionItem) {
+        VendTransaction::query()
+            ->with([
+                'vendTransactionItems.vendChannel:id,code,amount',
+                'vendTransactionItems.product:id,code,name',
+                'vendTransactionItems.unitCost:id,cost',
+                'vendTransactionItems.vendChannelError:id,code,desc',
+            ])
+            ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+            ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+            ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+            ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+            ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
+            ->leftJoin('unit_costs', 'unit_costs.id', '=', 'vend_transactions.unit_cost_id')
+            ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
+            ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->filterTransactionIndex($request)
+            ->select([
+                'vend_transactions.*',
+                'vends.code AS vend_code',
+                'vends.name AS vend_name',
+                'vend_prefixes.name AS vend_prefix_name',
+                'customers.id AS customer_id',
+                'customers.code AS customer_code',
+                'customers.name AS customer_name',
+                'customers.person_id',
+                'customers.virtual_customer_code',
+                'location_types.name AS location_type_name',
+                'operators.code AS operator_code',
+                'products.code AS product_code',
+                'products.name AS product_name',
+                'payment_methods.name AS payment_method_name',
+                'unit_costs.cost',
+                'vend_channels.amount AS vend_channel_amount',
+                'vend_channels.amount2 AS vend_channel_amount2',
+                'vend_channel_errors.desc AS vend_channel_error_desc',
+                'vend_channel_errors.code AS vend_channel_error_code'
+            ])
+            ->chunk(500, function ($transactions) use (&$data) {
+                foreach ($transactions as $txn) {
+                    $txn_json = is_array($txn->vend_transaction_json) ? $txn->vend_transaction_json : json_decode($txn->vend_transaction_json, true);
+                    $main_amount = $txn->amount / 100;
+
+                    $multipleBreakdown = $txn->is_multiple
+                        ? ($txn->amount - $txn->vendTransactionItems->sum(fn ($item) => $item->vendChannel?->amount ?? 0)) / 100
+                        : $main_amount;
+
                     $data[] = [
-                        'order_id' => $vendTransaction->order_id,
-                        'transaction_datetime' => Carbon::parse($vendTransaction->transaction_datetime)->toDateTimeString(),
-                        'machine_id' => $vendTransaction->vend_code ? $vendTransaction->vend_code : '',
-                        'machine_prefix' =>  $vendTransaction->vend_prefix_name ? $vendTransaction->vend_prefix_name : '',
-                        'customer_id' => $vendTransaction->customer_id + 20000,
-                        'customer_code' => $vendTransaction->person_id ?
-                                            $vendTransaction->virtual_customer_code :
-                                            '',
-                        'customer_name' => $vendTransaction->customer_name,
-                        'channel' => (int)$vendTransactionItem->vend_channel_code,
-                        'product_code' => $vendTransactionItem->product ? $vendTransactionItem->product->code : '',
-                        'product_name' => $vendTransactionItem->product ? $vendTransactionItem->product->name : '',
-                        'price_type' => 'P1',
-                        'amount' => '',
-                        'amount_breakdown' => $vendTransactionItem->vendChannel ? $vendTransactionItem->vendChannel->amount/100 : '',
-                        // 'sales_before_gst' => '',
-                        'unit_cost' => $vendTransactionItem->unitCost ?
-                                        $vendTransactionItem->unitCost->cost :
-                                        '',
-                        'payment_method' => $vendTransaction->payment_method_name,
-                        'error_code' => $vendTransactionItem->vendChannelError ? $vendTransactionItem->vendChannelError->code : '',
-                        'location_type' => $vendTransaction->location_type_name,
-                        'operator' => $vendTransaction->operator_code,
-                        'is_successful' => $vendTransactionItem->vendChannelError ? ($vendTransactionItem->vendChannelError->code == 0 || $vendTransactionItem->vendChannelError->code == 6 ? 'Successful' : "Unsuccessful") : 'Successful',
-                        'is_refunded' => '',
-                        'is_multiple' => $vendTransaction->is_multiple ? 'Yes' : 'No',
-                        'multiple_qty' => 0,
-                        'txn_src' => $vendTransaction->interface_type,
-                        'member_id' => $vendTransaction->vend_transaction_json && isset($vendTransaction->vend_transaction_json['dcvend_user_id']) ? $vendTransaction->vend_transaction_json['dcvend_user_id'] : '',
+                        'order_id' => $txn->order_id,
+                        'transaction_datetime' => Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
+                        'machine_id' => $txn->vend_code ?? '',
+                        'machine_prefix' => $txn->vend_prefix_name ?? '',
+                        'customer_id' => $txn->customer_id + 20000,
+                        'customer_code' => $txn->person_id ? $txn->virtual_customer_code : '',
+                        'customer_name' => $txn->customer_name,
+                        'channel' => $txn->vend_channel_code ?? '',
+                        'product_code' => $txn->product_code,
+                        'product_name' => $txn->product_name,
+                        'price_type' => $txn->vend_channel_amount == $txn->amount ? 'P1' : ($txn->vend_channel_amount2 == $txn->amount ? 'P2' : ''),
+                        'amount' => $main_amount,
+                        'amount_breakdown' => $multipleBreakdown,
+                        'unit_cost' => $txn->cost ? $txn->cost / 100 : '',
+                        'payment_method' => $txn->payment_method_name,
+                        'error_code' => $txn->vend_channel_error_code,
+                        'location_type' => $txn->location_type_name,
+                        'operator' => $txn->operator_code,
+                        'is_successful' => in_array($txn->vend_channel_error_code, [null, 0, 6]) ? 'Successful' : 'Unsuccessful',
+                        'is_refunded' => $txn->is_refunded ? 'Yes' : '',
+                        'is_multiple' => $txn->is_multiple ? 'Yes' : 'No',
+                        'multiple_qty' => $txn->is_multiple ? $txn->vendTransactionItems->count() : 1,
+                        'txn_src' => $txn->interface_type,
+                        'member_id' => $txn_json['dcvend_user_id'] ?? '',
                     ];
+
+                    foreach ($txn->vendTransactionItems as $item) {
+                        $data[] = [
+                            'order_id' => $txn->order_id,
+                            'transaction_datetime' => Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
+                            'machine_id' => $txn->vend_code ?? '',
+                            'machine_prefix' => $txn->vend_prefix_name ?? '',
+                            'customer_id' => $txn->customer_id + 20000,
+                            'customer_code' => $txn->person_id ? $txn->virtual_customer_code : '',
+                            'customer_name' => $txn->customer_name,
+                            'channel' => (int)$item->vend_channel_code,
+                            'product_code' => $item->product->code ?? '',
+                            'product_name' => $item->product->name ?? '',
+                            'price_type' => 'P1',
+                            'amount' => '',
+                            'amount_breakdown' => $item->vendChannel ? $item->vendChannel->amount / 100 : '',
+                            'unit_cost' => $item->unitCost ? $item->unitCost->cost / 100 : '',
+                            'payment_method' => $txn->payment_method_name,
+                            'error_code' => $item->vendChannelError->code ?? '',
+                            'location_type' => $txn->location_type_name,
+                            'operator' => $txn->operator_code,
+                            'is_successful' => in_array($item->vendChannelError->code ?? null, [null, 0, 6]) ? 'Successful' : 'Unsuccessful',
+                            'is_refunded' => '',
+                            'is_multiple' => $txn->is_multiple ? 'Yes' : 'No',
+                            'multiple_qty' => 0,
+                            'txn_src' => $txn->interface_type,
+                            'member_id' => $txn_json['dcvend_user_id'] ?? '',
+                        ];
+                    }
                 }
-            }
-        }
-        return (new FastExcel($this->yieldOneByOne($data)))->download('Vend_transactions_'.Carbon::now()->toDateTimeString().'.xlsx');
+            });
+
+        return (new FastExcel(collect($data)))
+            ->download('Vend_transactions_' . now()->format('Ymd_His') . '.xlsx');
     }
+
 
     public function exportVendSnapshotExcel($vendSnapshotId)
     {
