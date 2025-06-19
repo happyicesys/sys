@@ -19,6 +19,8 @@ class ExportVendTransactionCsv implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $tries = 1;
+
     protected $jobId;
     protected $requestData;
     protected $userID;
