@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Operator;
 use App\Models\VendTransaction;
+use App\Models\VendTransactionItem;
 use App\Models\ExportJob;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
@@ -25,8 +26,7 @@ class ExportVendTransactionCsv implements ShouldQueue
     protected $requestData;
     protected $userID;
 
-
-    public function __construct($jobId, Array $requestData, $userID = null)
+    public function __construct($jobId, array $requestData, $userID = null)
     {
         $this->jobId = $jobId;
         $this->requestData = $requestData;
@@ -38,7 +38,7 @@ class ExportVendTransactionCsv implements ShouldQueue
         $job = ExportJob::find($this->jobId);
         if (!$job) return;
 
-        $user = User::find($this->user->id ?? $job->user_id);
+        $user = User::find($this->userID ?? $job->user_id);
 
         try {
             $request = new Request($this->requestData);
@@ -49,25 +49,24 @@ class ExportVendTransactionCsv implements ShouldQueue
                 'sortBy' => $request->sortBy ?? false
             ]);
 
-            if(!$request->operators) {
-                if($user->operator->code == 'HIPL') {
+            if (!$request->operators) {
+                if ($user->operator->code == 'HIPL') {
                     $request->merge(['operators' => [
                         $user->operator_id,
                         Operator::where('code', 'HIMD')->first()?->id,
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'DCVIC')->first()?->id,
                     ]]);
-                }else {
+                } else {
                     $request->merge(['operators' => [$user->operator_id]]);
                 }
             }
+
             $filename = 'vend_transactions_' . now()->format('Ymd_His') . '.csv';
             $spacesPath = "sys/exports/{$filename}";
 
-            // 1. Use in-memory temp stream
             $stream = fopen('php://temp', 'r+');
 
-            // 2. Write CSV Header
             fputcsv($stream, [
                 '#', 'Order ID', 'Transaction Datetime', 'Machine ID', 'Machine Prefix',
                 'Customer ID', 'Customer Code', 'Customer Name', 'Channel',
@@ -77,14 +76,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                 'Multiple Qty', 'TXN Source', 'Member ID',
             ]);
 
-            // 3. Write CSV rows
-            $vendTransactions = VendTransaction::query()
-                ->with([
-                    'vendTransactionItems.vendChannel:id,code,amount',
-                    'vendTransactionItems.product:id,code,name',
-                    'vendTransactionItems.unitCost:id,cost',
-                    'vendTransactionItems.vendChannelError:id,code,desc',
-                ])
+            VendTransaction::query()
                 ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
                 ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
                 ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
@@ -115,21 +107,35 @@ class ExportVendTransactionCsv implements ShouldQueue
                     'vend_channels.amount AS vend_channel_amount',
                     'vend_channels.amount2 AS vend_channel_amount2',
                     'vend_channel_errors.code AS vend_channel_error_code',
-                ]);
+                ])
+                ->orderBy('vend_transactions.id')
+                ->chunkById(500, function ($transactions) use ($stream) {
+                    $transactionIds = $transactions->pluck('id');
 
-                $vendTransactions->orderBy('transaction_datetime', 'desc')
-                ->chunk(500, function ($transactions) use ($stream) {
+                    // 🔁 Pull related vendTransactionItems for current chunk
+                    $items = VendTransactionItem::with([
+                        'vendChannel:id,code,amount',
+                        'product:id,code,name',
+                        'unitCost:id,cost',
+                        'vendChannelError:id,code,desc',
+                    ])
+                    ->whereIn('vend_transaction_id', $transactionIds)
+                    ->get()
+                    ->groupBy('vend_transaction_id');
+
                     foreach ($transactions as $transactionIndex => $txn) {
                         $txn_json = is_array($txn->vend_transaction_json)
                             ? $txn->vend_transaction_json
                             : json_decode($txn->vend_transaction_json, true);
 
+                        $txnItems = $items[$txn->id] ?? collect();
+
                         $main_amount = $txn->amount / 100;
                         $multipleBreakdown = $txn->is_multiple
-                            ? ($txn->amount - $txn->vendTransactionItems->sum(fn ($item) => $item->vendChannel?->amount ?? 0)) / 100
+                            ? ($txn->amount - $txnItems->sum(fn ($item) => $item->vendChannel?->amount ?? 0)) / 100
                             : $main_amount;
 
-                        // Parent row
+                        // ✏️ Write parent row
                         fputcsv($stream, [
                             $transactionIndex + 1,
                             $txn->order_id,
@@ -153,12 +159,13 @@ class ExportVendTransactionCsv implements ShouldQueue
                             in_array($txn->vend_channel_error_code, [null, 0, 6]) ? 'Successful' : 'Unsuccessful',
                             $txn->is_refunded ? 'Yes' : '',
                             $txn->is_multiple ? 'Yes' : 'No',
-                            $txn->is_multiple ? $txn->vendTransactionItems->count() : 1,
+                            $txn->is_multiple ? $txnItems->count() : 1,
                             $txn->interface_type,
                             $txn_json['dcvend_user_id'] ?? '',
                         ]);
 
-                        foreach ($txn->vendTransactionItems as $item) {
+                        // ✏️ Write child item rows
+                        foreach ($txnItems as $item) {
                             fputcsv($stream, [
                                 '',
                                 $txn->order_id,
@@ -188,14 +195,18 @@ class ExportVendTransactionCsv implements ShouldQueue
                             ]);
                         }
                     }
-                });
+                }, 'vend_transactions.id');
 
-            // 4. Rewind stream and upload to Spaces
+
             rewind($stream);
-            Storage::disk('public')->put($spacesPath, $stream, 'public');
-            $url = Storage::disk('public')->url($spacesPath);
 
-            // 5. Save attachment
+            // Upload to DigitalOcean Spaces
+            Storage::disk('digitaloceanspaces')->put($spacesPath, $stream, [
+                'visibility' => 'public',
+            ]);
+
+            $url = Storage::disk('digitaloceanspaces')->url($spacesPath);
+
             $job->attachment()->create([
                 'type' => 2,
                 'file_name' => $filename,
