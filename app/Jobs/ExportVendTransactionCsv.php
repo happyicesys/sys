@@ -109,7 +109,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                     'vend_channel_errors.code AS vend_channel_error_code',
                 ])
                 ->orderBy('vend_transactions.id')
-                ->chunkById(500, function ($transactions) use ($stream) {
+                ->chunk(500, function ($transactions) use ($stream) {
                     $transactionIds = $transactions->pluck('id');
 
                     // 🔁 Pull related vendTransactionItems for current chunk
@@ -195,7 +195,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                             ]);
                         }
                     }
-                }, 'vend_transactions.id');
+                });
 
 
             rewind($stream);
