@@ -39,18 +39,18 @@ class UpdateMqttLastUpdated implements ShouldQueue
             'mqtt_last_updated_at' => Carbon::now(),
         ]);
 
-        if($this->vend->is_offline_notification_sent) {
-            Mail::to([
-                'daniel.ma@happyice.com.sg',
-                'kent@happyice.com.sg',
-                // 'stephen@happyice.com.sg',
-                'brianlee@happyice.com.my',
-                'technician1@happyice.com.sg',
-            ])->queue(new VendPowerRestoredNotificationMail($this->vend));
-            $this->vend->update([
-                'is_offline_notification_sent' => false,
-                'is_mqtt_offline_notified' => false,
-            ]);
-        }
+        // if($this->vend->is_offline_notification_sent) {
+        //     Mail::to([
+        //         'daniel.ma@happyice.com.sg',
+        //         'kent@happyice.com.sg',
+        //         // 'stephen@happyice.com.sg',
+        //         'brianlee@happyice.com.my',
+        //         'technician1@happyice.com.sg',
+        //     ])->queue(new VendPowerRestoredNotificationMail($this->vend));
+        //     $this->vend->update([
+        //         'is_offline_notification_sent' => false,
+        //         'is_mqtt_offline_notified' => false,
+        //     ]);
+        // }
     }
 }

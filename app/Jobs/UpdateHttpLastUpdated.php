@@ -38,17 +38,17 @@ class UpdateHttpLastUpdated implements ShouldQueue
             'is_online' => true,
         ]);
 
-        if($this->vend->is_offline_notification_sent) {
-            Mail::to([
-                'daniel.ma@happyice.com.sg',
-                'kent@happyice.com.sg',
-                // 'stephen@happyice.com.sg',
-                'brianlee@happyice.com.my',
-                'technician1@happyice.com.sg',
-            ])->queue(new VendPowerRestoredNotificationMail($this->vend));
-            $this->vend->update([
-                'is_offline_notification_sent' => false,
-            ]);
-        }
+        // if($this->vend->is_offline_notification_sent) {
+        //     Mail::to([
+        //         'daniel.ma@happyice.com.sg',
+        //         'kent@happyice.com.sg',
+        //         // 'stephen@happyice.com.sg',
+        //         'brianlee@happyice.com.my',
+        //         'technician1@happyice.com.sg',
+        //     ])->queue(new VendPowerRestoredNotificationMail($this->vend));
+        //     $this->vend->update([
+        //         'is_offline_notification_sent' => false,
+        //     ]);
+        // }
     }
 }

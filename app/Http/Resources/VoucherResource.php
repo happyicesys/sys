@@ -9,6 +9,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class VoucherResource extends JsonResource
 {
+    private static $cachedProducts = null;
     /**
      * Transform the resource into an array.
      *
@@ -58,20 +59,28 @@ class VoucherResource extends JsonResource
 
     private function mapProductJson($productIDs)
     {
-        $products = [];
-        // dd($productIDs);
-        foreach ($productIDs as $productID) {
-            $product = Product::with('thumbnail')->find($productID);
-            if ($product) {
-                $products[] = [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'code' => $product->code,
-                    'thumbnail_url' => $product->thumbnail->full_url ?? null,
-                ];
-            }
+        // 全部 product ID
+        $allIds = collect($productIDs)->unique()->values();
+
+        if (self::$cachedProducts === null) {
+            self::$cachedProducts = Product::with('thumbnail')
+                ->whereIn('id', $allIds)
+                ->get()
+                ->keyBy('id');
         }
-        return $products;
+
+        return $allIds->map(function ($id) {
+            $product = self::$cachedProducts->get($id);
+            if (!$product) return null;
+
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'code' => $product->code,
+                'thumbnail_url' => $product->thumbnail->full_url ?? null,
+            ];
+        })->filter()->values()->all();
     }
+
 
 }
