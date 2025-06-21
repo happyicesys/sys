@@ -16,7 +16,9 @@
           </span>
         @endif
       </h3>
-      <p class="mt-1 max-w-2xl text-sm text-gray-500">Last Detected Time ({{$vend->last_updated_at->format('y-m-d h:ia')}})</p>
+      <p class="mt-1 max-w-2xl text-sm text-gray-500">
+        Last Detected Time ({{ optional($vend->last_updated_at)->format('y-m-d h:ia') ?? 'N/A' }})
+      </p>
     </div>
   </div>
 @endsection
