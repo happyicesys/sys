@@ -53,7 +53,7 @@ class SyncOnlineStatus implements ShouldQueue
         Vend::has('customer')
             ->where('is_active', true)
             ->where('is_testing', false)
-            ->whereNotIn('code', ['808', '6001', '6002'])
+            ->whereNotIn('code', ['808', '6001', '6002', '831'])
             ->where('operator_id', '!=', 23)
             ->chunk(100, function($vends) {
 
