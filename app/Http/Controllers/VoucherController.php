@@ -389,6 +389,7 @@ class VoucherController extends Controller
                 'dcvend_member_type' => 'nullable|string|max:255',
                 'dcvend_qty_per_member' => 'nullable|integer',
                 'desc' => 'nullable|string|max:255',
+                'is_batch_code' => 'nullable|boolean',
                 'is_dcvend' => 'nullable',
                 'is_recurring' => 'nullable',
                 'max_promo_value' => 'nullable|numeric',
@@ -413,6 +414,7 @@ class VoucherController extends Controller
                 'dcvend_member_type' => 'nullable|string|max:255',
                 'dcvend_qty_per_member' => 'nullable|integer',
                 'desc' => 'nullable|string|max:255',
+                'is_batch_code' => 'nullable|boolean',
                 'is_dcvend' => 'nullable',
                 'is_recurring' => 'nullable',
                 'max_promo_value' => 'nullable|numeric',
@@ -430,6 +432,8 @@ class VoucherController extends Controller
                 'vends' => 'nullable|array',
             ]);
         }
+
+        // dd($validatedRequest, $request->all());
 
         $voucher = Voucher::create($validatedRequest);
 

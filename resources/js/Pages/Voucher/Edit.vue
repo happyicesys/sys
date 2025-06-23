@@ -590,7 +590,7 @@ onMounted(() => {
     full_name: `${vend.code} - ${vend.customer?.name || ''}`,
   }))
 
-console.log(voucher.value)
+
   form.value = voucher.value ? useForm(
     {
       ...voucher.value,
