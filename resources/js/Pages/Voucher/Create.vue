@@ -53,10 +53,39 @@
                   placeholder="Select"
                   open-direction="bottom"
                   class="mt-1"
+                  @selected="onOperatorChanged"
                 >
                 </MultiSelect>
                 <div class="text-sm text-red-600" v-if="form.errors.operator_id">
                   {{ form.errors.operator_id }}
+                </div>
+            </div>
+
+            <div class="sm:col-span-6">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  <div class="flex space-x-1 items-center">
+                    <span>
+                      Machine(s)
+                    </span>
+                    <span class="text-red-500 text-xs">
+                      Default to all if not selected
+                    </span>
+                  </div>
+                </label>
+                <MultiSelect
+                  v-model="form.vends"
+                  :options="vendOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="full_name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  mode="tags"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.vends">
+                  {{ form.errors.vends }}
                 </div>
             </div>
 
@@ -397,12 +426,13 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { BackspaceIcon, CheckCircleIcon, ExclamationCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 
 const props = defineProps({
+    batchType: String,
     dcvendMemberTypeMappings: [Array, Object],
     isUnique: Boolean,
     operatorOptions: Object,
@@ -411,6 +441,7 @@ const props = defineProps({
     typeOptions: [Array, Object],
     validDurationMappings: [Array, Object],
     validUnitMappings: [Array, Object],
+    vendOptions: [Array, Object],
     voucher: Object,
     voucherModeMappings: [Array, Object],
     voucherPlatformMappings: [Array, Object],
@@ -428,6 +459,7 @@ const form = ref(
 )
 const validDurationMappings = ref(props.validDurationMappings)
 const validUnitMappings = ref(props.validUnitMappings)
+const vendOptions = ref()
 const voucher = ref([])
 const voucherModeMappings = ref(props.voucherModeMappings)
 const voucherPlatformMappings = ref(props.voucherPlatformMappings)
@@ -440,6 +472,10 @@ onMounted(() => {
   operatorOptions.value = props.operatorOptions.data
   productOptions.value = props.productOptions.data
   typeOptions.value = props.typeOptions
+  vendOptions.value = props.vendOptions.data?.map((vend) => ({
+    id: vend.id,
+    full_name: `${vend.code} - ${vend.customer?.name || ''}`,
+  }))
 
   form.value = useForm(getDefaultForm())
   form.value.is_dcvend = booleanOptions.value[1]
@@ -487,7 +523,26 @@ function getDefaultForm() {
     valid_duration: '',
     valid_unit: '',
     value: '',
+    vends: [],
   }
+}
+
+function onOperatorChanged() {
+  router.reload({
+    only: ['vendOptions'],
+    data: {
+      operator_id: form.value.operator_id?.id,
+    },
+    replace: true,
+    preserveState: true,
+    onSuccess: page => {
+      vendOptions.value = page.props.vendOptions.data?.map((vend) => ({
+        id: vend.id,
+        full_name: `${vend.code} - ${vend.customer?.name || ''}`,
+      }))
+      console.log(page.props.vendOptions.data)
+    }
+  })
 }
 
 function removeProduct(product) {
@@ -512,6 +567,7 @@ function submit() {
       dcvend_member_type: data.dcvend_member_type?.id,
       valid_unit: data.valid_unit?.id,
       valid_duration: data.valid_duration?.id,
+      vends: data.vends?.map((vend) => vend.id),
     }))
     .post('/vouchers/store', {
     onSuccess: () => {

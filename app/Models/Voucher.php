@@ -160,9 +160,9 @@ class Voucher extends Model
         return $this->belongsTo(Customer::class);
     }
 
-    public function vend()
+    public function vends()
     {
-        return $this->hasMany(Vend::class);
+        return $this->belongsToMany(Vend::class)->withTimestamps();
     }
 
     public function voucherItems()

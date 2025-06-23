@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
+use App\Http\Resources\VendResource;
 use App\Http\Resources\VoucherResource;
 use App\Http\Resources\VoucherApiResource;
 use App\Http\Resources\VoucherCheckingApiResource;
@@ -50,15 +51,13 @@ class VoucherController extends Controller
         ]);
     }
 
-    public function create($batchType)
+    public function create($batchType, Request $request)
     {
         $isUnique = $batchType == 'unique' ? true : false;
 
         return Inertia::render('Voucher/Create', [
+            'batchType' => $batchType,
             'isUnique' => $isUnique,
-            'operatorOptions' => OperatorResource::collection(
-                Operator::orderBy('name')->get()
-            ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
@@ -69,6 +68,17 @@ class VoucherController extends Controller
             'dcvendMemberTypeMappings' => Voucher::DCVEND_MEMBER_TYPE_MAPPINGS,
             'validDurationMappings' => Voucher::VALID_DURATION_MAPPINGS,
             'validUnitMappings' => Voucher::VALID_UNIT_MAPPINGS,
+            'vendOptions' => VendResource::collection(
+                Vend::with([
+                'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
+            ])
+            ->when($request->operator_id, function($query, $search) {
+                $query->where('operator_id', $search);
+            })
+            ->has('customer')
+            ->where('is_active', true)
+            ->orderBy('code')
+            ->get()),
             'voucherModeMappings' => Voucher::VOUCHER_MODE_MAPPINGS,
             'voucherPlatformMappings' => Voucher::VOUCHER_PLATFORM_MAPPINGS,
         ]);
@@ -94,9 +104,9 @@ class VoucherController extends Controller
         return redirect()->route('vouchers');
     }
 
-    public function edit($id)
+    public function edit($id, Request $request)
     {
-        $voucher = Voucher::with('voucherItems')->find($id);
+        $voucher = Voucher::with(['vends', 'voucherItems'])->find($id);
 
         return Inertia::render('Voucher/Edit', [
             'isUnique' => $voucher->is_batch_code ? false : true,
@@ -110,6 +120,17 @@ class VoucherController extends Controller
             'dcvendMemberTypeMappings' => Voucher::DCVEND_MEMBER_TYPE_MAPPINGS,
             'validDurationMappings' => Voucher::VALID_DURATION_MAPPINGS,
             'validUnitMappings' => Voucher::VALID_UNIT_MAPPINGS,
+            'vendOptions' => VendResource::collection(
+                Vend::with([
+                'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
+            ])
+            ->when($request->operator_id, function($query, $search) {
+                $query->where('operator_id', $search);
+            })
+            ->has('customer')
+            ->where('is_active', true)
+            ->orderBy('code')
+            ->get()),
             'voucher' => VoucherResource::make($voucher),
         ]);
     }
@@ -162,7 +183,6 @@ class VoucherController extends Controller
         return $results;
     }
 
-
     public function search(Request $request)
     {
         $code = $request->code;
@@ -171,21 +191,20 @@ class VoucherController extends Controller
         $vendCode = $request->vend_code;
         $vend = Vend::where('code', $vendCode)->first();
 
-        if (!$code) {
+        if (!$code || !$vend) {
             return response([
                 'status_code' => 400,
-                'message' => 'Parameters missing',
+                'message' => 'Parameters missing or invalid machine',
             ], 400);
         }
 
         if (is_array($code)) {
             $codeArr = $code;
         } else {
-
             if ($code == 'freecornetto') {
                 return response([
                     'status_code' => 200,
-                    'message' => 'Voucher successfully reedeemed',
+                    'message' => 'Voucher successfully redeemed',
                     'voucher' => [
                         'id' => 30,
                         'code' => 'freecornetto',
@@ -211,10 +230,14 @@ class VoucherController extends Controller
         if (count($codeArr) === 1) {
             $isSameCode = false;
 
-            $voucher = Voucher::with('voucherItems')->whereIn('code', $codeArr)->first();
+            $voucher = Voucher::with(['vends', 'voucherItems'])
+                ->whereIn('code', $codeArr)
+                ->first();
 
             if (!$voucher) {
-                $voucher = VoucherItem::with('voucher')->whereIn('code', $codeArr)->first();
+                $voucher = VoucherItem::with(['voucher.vends', 'voucher'])
+                    ->whereIn('code', $codeArr)
+                    ->first();
                 $isSameCode = false;
             } else {
                 $isSameCode = true;
@@ -227,24 +250,42 @@ class VoucherController extends Controller
                 ], 400);
             }
 
+            // Check operator match
+            $voucherOperatorId = $isSameCode ? $voucher->operator_id : ($voucher->voucher->operator_id ?? null);
+            if ($voucherOperatorId && $voucherOperatorId != $vend->operator_id) {
+                return response([
+                    'status_code' => 400,
+                    'message' => 'Voucher not valid for this machine (operator mismatch)',
+                ], 400);
+            }
 
+            // Check vend-machine restriction
+            $allowedVends = $isSameCode
+                ? $voucher->vends
+                : ($voucher->voucher->vends ?? collect());
+
+            if ($allowedVends->isNotEmpty()) {
+                $isAllowedVend = $allowedVends->contains(function ($allowedVend) use ($vend) {
+                    return $allowedVend->id == $vend->id;
+                });
+
+                if (!$isAllowedVend) {
+                    return response([
+                        'status_code' => 400,
+                        'message' => 'Voucher not valid for this machine (machine mismatch)',
+                    ], 400);
+                }
+            }
 
             $resource = new VoucherCheckingApiResource($voucher, $vendCode, $dcvendUserID);
             $data = $resource->toArray($request);
-
-            // if (empty($data['channels'])) {
-            //     return response([
-            //         'status_code' => 400,
-            //         'message' => 'Product not available for this machine, please try at other machine',
-            //     ], 400);
-            // }
 
             $status = $voucher->status ?? ($voucher->voucher->status ?? null);
 
             if ($status == Voucher::STATUS_ACTIVE) {
                 return response([
                     'status_code' => 200,
-                    'message' => 'Voucher successfully reedeemed',
+                    'message' => 'Voucher successfully redeemed',
                     'voucher' => $data,
                 ], 200);
             }
@@ -265,15 +306,37 @@ class VoucherController extends Controller
                 ], 400);
             }
         } else {
-            $vouchers = Voucher::with('voucherItems')->whereIn('code', $codeArr)->get();
-            $voucherItems = VoucherItem::with('voucher')->whereIn('code', $codeArr)->get();
+            $vouchers = Voucher::with(['vends', 'voucherItems'])
+                ->whereIn('code', $codeArr)
+                ->get();
+            $voucherItems = VoucherItem::with(['voucher.vends', 'voucher'])
+                ->whereIn('code', $codeArr)
+                ->get();
 
             $merged = collect()->merge($vouchers)->merge($voucherItems);
 
-            $resources = $merged->map(function ($voucher) use ($vendCode, $dcvendUserID, $request) {
-                $resource = new VoucherCheckingApiResource($voucher, $vendCode, $dcvendUserID);
-                return $resource->toArray($request);
-            });
+            $resources = $merged
+                ->filter(function ($voucher) use ($vend) {
+                    $operatorId = $voucher->operator_id ?? ($voucher->voucher->operator_id ?? null);
+                    $vendList = $voucher->vends ?? ($voucher->voucher->vends ?? collect());
+
+                    // Operator check
+                    if ($operatorId && $operatorId != $vend->operator_id) {
+                        return false;
+                    }
+
+                    // Vend-machine check
+                    if ($vendList->isNotEmpty()) {
+                        return $vendList->contains(function ($v) use ($vend) {
+                            return $v->id == $vend->id;
+                        });
+                    }
+
+                    return true;
+                })
+                ->map(function ($voucher) use ($vendCode, $dcvendUserID, $request) {
+                    return (new VoucherCheckingApiResource($voucher, $vendCode, $dcvendUserID))->toArray($request);
+                });
 
             $hasInvalid = $resources->contains(function ($voucher) {
                 return in_array($voucher['status'], ['redeemed', 'expired']);
@@ -301,13 +364,12 @@ class VoucherController extends Controller
             if ($resources->isNotEmpty()) {
                 return response([
                     'status_code' => 200,
-                    'message' => 'Vouchers successfully reedeemed',
+                    'message' => 'Vouchers successfully redeemed',
                     'vouchers' => $resources,
                 ], 200);
             }
         }
     }
-
 
     public function store(Request $request)
     {
@@ -341,6 +403,7 @@ class VoucherController extends Controller
                 'valid_duration' => 'nullable|integer',
                 'valid_unit' => 'nullable|string|max:255',
                 'value' => 'nullable|numeric|min:0',
+                'vends' => 'nullable|array',
             ]);
         }else {
             $validatedRequest = $request->validate([
@@ -364,12 +427,17 @@ class VoucherController extends Controller
                 'valid_duration' => 'nullable|integer',
                 'valid_unit' => 'nullable|string|max:255',
                 'value' => 'nullable|numeric|min:0',
+                'vends' => 'nullable|array',
             ]);
         }
 
         $voucher = Voucher::create($validatedRequest);
 
         $this->voucherService->syncVoucherItems($voucher);
+
+        if($request->vends) {
+            $voucher->vends()->sync($request->vends);
+        }
 
         if($voucher->is_dcvend) {
             $this->voucherService->syncDCVendVouchers($voucher, 'create');

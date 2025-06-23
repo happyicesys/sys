@@ -90,6 +90,35 @@
                 </div>
             </div>
 
+            <div class="sm:col-span-6">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                <div class="flex space-x-1 items-center">
+                  <span>
+                    Machine(s)
+                  </span>
+                  <span class="text-red-500 text-xs">
+                    Default to all if not selected
+                  </span>
+                </div>
+              </label>
+              <MultiSelect
+                v-model="form.vends"
+                :options="vendOptions"
+                trackBy="id"
+                valueProp="id"
+                label="full_name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                :disabled="true"
+                mode="tags"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.vends">
+                {{ form.errors.vends }}
+              </div>
+            </div>
+
             <div class="sm:col-span-3">
               <DatePicker v-model="form.date_from" @input="onDateFromChanged()">
                 Begin Date
@@ -526,6 +555,7 @@ const props = defineProps({
     typeOptions: [Array, Object],
     validDurationMappings: [Array, Object],
     validUnitMappings: [Array, Object],
+    vendOptions: [Array, Object],
     voucher: Object,
   })
 
@@ -541,6 +571,7 @@ const form = ref(
 )
 const validDurationMappings = ref(props.validDurationMappings)
 const validUnitMappings = ref(props.validUnitMappings)
+const vendOptions = ref([])
 const voucher = ref([])
 const voucherItems = ref([])
 
@@ -554,7 +585,12 @@ onMounted(() => {
   typeOptions.value = props.typeOptions
   voucher.value = props.voucher.data
   voucherItems.value = props.voucher?.data.voucherItems
+  vendOptions.value = props.vendOptions.data?.map((vend) => ({
+    id: vend.id,
+    full_name: `${vend.code} - ${vend.customer?.name || ''}`,
+  }))
 
+console.log(voucher.value)
   form.value = voucher.value ? useForm(
     {
       ...voucher.value,
@@ -572,6 +608,9 @@ onMounted(() => {
           ).filter(Boolean)
         : [],
       type: voucher.value ? { id: voucher.value.type, label: typeOptions.value[voucher.value.type] } : [],
+      vends: voucher.value.vends ? voucher.value.vends.map((vend) =>
+        vendOptions.value.find((v) => v.id === vend.id)
+      ) : []
     }
   ) : useForm(getDefaultForm())
 })

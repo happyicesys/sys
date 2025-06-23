@@ -565,6 +565,11 @@ class Vend extends Model
         return $this->belongsTo(VendType::class);
     }
 
+    public function vouchers()
+    {
+        return $this->belongsToMany(Voucher::class)->withTimestamps();
+    }
+
     public function daysVendTransactions($from = 0, $to = 0)
     {
         return $this->vendTransactions()
