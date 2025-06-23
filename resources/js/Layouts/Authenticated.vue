@@ -154,6 +154,7 @@ const navigation = [
             // {name: 'Tags', href: '/tags'},
             // {name: 'Tax', href: '/taxes'},
             // {name: 'UOM', href: '/uoms'},
+            {name: 'HID Card', href: '/hid-cards', permission: 'read hid-cards'},
             {name: 'Location Types', href: '/location-types', permission: 'read location-types'},
             {name: 'Machine Models', href: '/vend-models', permission: 'read vend-models'},
             {name: 'Modem Models', href: '/modem-types', permission: 'read modem-models'},

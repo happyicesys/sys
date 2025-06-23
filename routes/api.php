@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DeliveryPlatformController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\HidCardController;
 use App\Http\Controllers\OpsJobController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\SettingController;
@@ -56,6 +57,10 @@ Route::prefix('delivery')->group(function() {
     });
     Route::post('/order/search/{dispenseSearch?}', [DeliveryPlatformController::class, 'searchGrabOrder']);
     Route::post('/order/complaint', [DeliveryPlatformController::class, 'submitGrabOrderComplaint']);
+});
+
+Route::prefix('hid-cards')->group(function() {
+    Route::post('/search', [HidCardController::class, 'search']);
 });
 
 Route::prefix('vouchers')->group(function() {

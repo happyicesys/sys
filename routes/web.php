@@ -16,6 +16,7 @@ use App\Http\Controllers\DeliveryPlatformController;
 use App\Http\Controllers\DeliveryPlatformOrderController;
 use App\Http\Controllers\DeliveryProductMappingController;
 use App\Http\Controllers\DeliveryProductMappingVendController;
+use App\Http\Controllers\HidCardController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\KeyController;
 use App\Http\Controllers\LocationTypeController;
@@ -245,6 +246,13 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/create', [VendCriteriaBindingController::class, 'create']);
         Route::post('/{id}/update', [VendCriteriaBindingController::class, 'update']);
         Route::delete('/{id}', [VendCriteriaBindingController::class, 'delete']);
+    });
+
+    Route::prefix('hid-cards')->group(function() {
+        Route::get('/', [HidCardController::class, 'index'])->name('hid-cards');
+        Route::post('/create', [HidCardController::class, 'create']);
+        Route::post('/{id}/update', [HidCardController::class, 'update']);
+        Route::delete('/{id}', [HidCardController::class, 'delete']);
     });
 
     Route::prefix('holidays')->group(function() {
