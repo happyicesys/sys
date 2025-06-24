@@ -95,6 +95,11 @@ onMounted(() => {
     ...props.hidCard,
     operator_id: props.hidCard.operator ? props.hidCard.operator : null,
   }) : useForm(getDefaultForm())
+
+  // remove first option, which is all operatorOptions
+  if (Array.isArray(operatorOptions.value) && operatorOptions.value.length > 0) {
+    operatorOptions.value = operatorOptions.value.filter(option => option.id !== 'all')
+  }
 })
 
 function getDefaultForm() {
