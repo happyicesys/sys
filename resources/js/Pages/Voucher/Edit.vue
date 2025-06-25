@@ -358,7 +358,6 @@
             <div class="sm:col-span-1 flex justify-start items-center" v-if="form.id">
               <Button
                 type="button"
-                @click="addProduct"
                 class="bg-green-500 hover:bg-green-600 text-white h-fit"
                 :class="[
                   !form.products || true ?
@@ -371,6 +370,16 @@
                   Add
                 </span>
               </Button>
+            </div>
+            <div class="sm:col-span-3">
+              <label class="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  v-model="form.is_random_channel_sequence"
+                  class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                />
+                <span>Randomize Channel Sequence</span>
+              </label>
             </div>
             <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
               <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
@@ -540,7 +549,7 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import moment from 'moment';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, ExclamationCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowDownTrayIcon, BackspaceIcon, CheckCircleIcon, ExclamationCircleIcon, PlusCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -598,6 +607,7 @@ onMounted(() => {
       date_to: moment(voucher.value.date_to).format('YYYY-MM-DD'),
       dcvend_member_type: voucher.value.dcvend_member_type ? { id: voucher.value.dcvend_member_type, value: dcvendMemberTypeMappings.value[voucher.value.dcvend_member_type] } : [],
       is_dcvend: voucher.value.is_dcvend ? { id: 'true', value: 'Yes' } : { id: 'false', value: 'No' },
+      is_random_channel_sequence: voucher.value.is_random_channel_sequence ?? false,
       is_recurring: voucher.value.is_recurring ? { id: 'true', value: 'Yes' } : { id: 'false', value: 'No' },
       valid_duration: voucher.value.valid_duration ? { id: voucher.value.valid_duration, value: validDurationMappings.value[voucher.value.valid_duration] } : [],
       valid_unit: voucher.value.valid_unit ? { id: voucher.value.valid_unit, value: validUnitMappings.value[voucher.value.valid_unit] } : [],
@@ -658,6 +668,7 @@ function getDefaultForm() {
     dcvend_qty_per_member: '',
     desc: '',
     is_dcvend: '',
+    is_random_channel_sequence: false,
     is_recurring: '',
     max_promo_value: '',
     min_value: '',
@@ -677,26 +688,30 @@ function submit() {
   form.value.clearErrors()
 
   form.value
-    .transform((data) => ({
-      ...data,
-      is_batch_code: props.is_batch_code,
-      type: data.type?.id,
-      operators: data.operators?.map((item) => item.id),
-      products: data.products?.map((item) => item.id),
-      is_dcvend: data.is_dcvend?.id,
-      dcvend_member_type: data.dcvend_member_type?.id,
-      valid_duration: data.valid_duration?.id,
-      valid_unit: data.valid_unit?.id,
-    }))
-    .post('/vouchers/' + form.value.id + '/update', {
+  .transform((data) => ({
+    ...data,
+    is_batch_code: props.is_batch_code,
+    type: data.type?.id,
+    operators: data.operators?.map((item) => item.id),
+    products: data.products?.map((item) => item.id),
+    is_dcvend: data.is_dcvend?.id,
+    is_random_channel_sequence: data.is_random_channel_sequence,
+    dcvend_member_type: data.dcvend_member_type?.id,
+    valid_duration: data.valid_duration?.id,
+    valid_unit: data.valid_unit?.id,
+  }))
+  .post('/vouchers/' + form.value.id + '/update', {
     onSuccess: () => {
-      toast.success("Successfully updated", {
-        timeout: 3000
-      });
+      toast.success("Successfully updated", { timeout: 3000 });
+    },
+    onError: (errors) => {
+      console.error("Validation errors:", errors);
+      toast.error("Failed to update. Please check your form.", { timeout: 3000 });
     },
     preserveState: true,
     replace: true,
   })
+
 }
 
 </script>

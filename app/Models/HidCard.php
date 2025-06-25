@@ -15,4 +15,9 @@ class HidCard extends Model
     {
         return $this->belongsTo(Operator::class);
     }
+
+    public function vends()
+    {
+        return $this->belongsToMany(Vend::class)->withTimestamps();
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Scopes\OperatorTransactionFilterScope;
+use App\Models\Scopes\OperatorUserTransactionFilterScope;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -24,6 +25,7 @@ class VendTransaction extends Model
     protected static function booted()
     {
         static::addGlobalScope(new OperatorTransactionFilterScope);
+        static::addGlobalScope(new OperatorUserTransactionFilterScope);
     }
 
     protected $casts = [

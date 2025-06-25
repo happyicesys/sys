@@ -95,6 +95,7 @@ class Voucher extends Model
         'is_active',
         'is_batch_code',
         'is_dcvend',
+        'is_random_channel_sequence',
         'is_recurring',
         'max_promo_value',
         'max_redemption_count',
@@ -119,6 +120,7 @@ class Voucher extends Model
         'is_active' => 'boolean',
         'is_batch_code' => 'boolean',
         'is_dcvend' => 'boolean',
+        'is_random_channel_sequence' => 'boolean',
         'product_json' => 'json',
         'response_json' => 'json',
     ];

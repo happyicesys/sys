@@ -99,6 +99,16 @@ class VoucherController extends Controller
             $this->voucherService->syncDCVendVouchers($voucher, 'delete');
         }
 
+        if($voucher->voucherItems()->exists()) {
+            $voucher->voucherItems()->each(function($voucherItem) {
+                $voucherItem->delete();
+            });
+        }
+
+        if($voucher->vends()->exists()) {
+            $voucher->vends()->detach();
+        }
+
         $voucher->delete();
 
         return redirect()->route('vouchers');
@@ -376,6 +386,7 @@ class VoucherController extends Controller
         $request->merge([
             'product_json' => $request->products ? $request->products : null,
             'is_dcvend' => $request->is_dcvend == 'true' ? true : false,
+            'is_random_channel_sequence' => $request->boolean('is_random_channel_sequence'),
             'is_recurring' => $request->is_recurring == 'true' ? true : false,
             'min_value' => $request->min_value ? $request->min_value : null,
             'max_promo_value' => $request->max_promo_value ? $request->max_promo_value : null,
@@ -415,6 +426,7 @@ class VoucherController extends Controller
                 'dcvend_qty_per_member' => 'nullable|integer',
                 'desc' => 'nullable|string|max:255',
                 'is_batch_code' => 'nullable|boolean',
+                'is_random_channel_sequence' => 'nullable|boolean',
                 'is_dcvend' => 'nullable',
                 'is_recurring' => 'nullable',
                 'max_promo_value' => 'nullable|numeric',
@@ -463,37 +475,26 @@ class VoucherController extends Controller
 
         $request->merge([
             'is_dcvend' => $request->is_dcvend == 'true' ? true : false,
+            'is_random_channel_sequence' => $request->boolean('is_random_channel_sequence'),
             'is_recurring' => $request->is_recurring == 'true' ? true : false,
         ]);
 
         $validatedRequest = $request->validate([
-            'code' => 'required',
-            'date_from' => 'required|date',
-            'date_to' => 'required|date',
             'dcvend_member_type' => 'nullable|string|max:255',
             'dcvend_qty_per_member' => 'nullable|integer',
             'desc' => 'nullable|string|max:255',
-            'is_dcvend' => 'nullable',
-            'is_recurring' => 'nullable',
-            'max_promo_value' => 'nullable|numeric',
-            'max_redemption_count' => 'nullable|integer',
-            'min_value' => 'nullable|numeric',
+            'is_random_channel_sequence' => 'nullable|boolean',
             'name' => 'required|string|max:255',
-            'operator_id' => 'nullable',
-            'product_json' => 'nullable',
             'qty' => 'required|integer|min:1',
             'response_json' => 'nullable|json',
-            'type' => 'required|string|max:255',
-            'valid_duration' => 'nullable|integer',
-            'valid_unit' => 'nullable|string|max:255',
-            'value' => 'nullable|numeric|min:0',
         ]);
+
 
         $voucher->update($validatedRequest);
 
         // $this->voucherService->syncVoucherItems($voucher);
 
-        return redirect()->route('vouchers');
+        return redirect()->route('vouchers.edit', ['id' => $voucher->id])->with('success', 'Voucher updated successfully');
     }
 
     private function yieldOneByOne($items) {

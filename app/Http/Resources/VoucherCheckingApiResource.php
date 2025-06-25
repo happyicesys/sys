@@ -30,11 +30,18 @@ class VoucherCheckingApiResource extends JsonResource
         $voucher = $isVoucherItem ? $this->voucher : $this->resource;
         $statusKey = $this->status ?? $voucher->status;
 
+        $channels = $this->getVendChannelsByProducts($voucher->product_json);
+
+        // ✅ Shuffle if voucher has is_random_channel_sequence enabled
+        if ($voucher->is_random_channel_sequence && count($channels) > 1) {
+            shuffle($channels);
+        }
+
         return [
             'id' => $voucher->id,
             'code' => $this->code ?? $voucher->code,
             'type' => $voucher->type,
-            'channels' => $this->getVendChannelsByProducts($voucher->product_json),
+            'channels' => $channels,
             'date_from' => optional($voucher->date_from)->format('Y-m-d'),
             'date_to' => optional($voucher->date_to)->format('Y-m-d'),
             'name' => $voucher->name,
@@ -44,7 +51,7 @@ class VoucherCheckingApiResource extends JsonResource
             'max_promo_value' => $voucher->max_promo_value != null ? $voucher->max_promo_value * 100 : null,
             'qty' => $this->qty ?? 1,
             'value' => $voucher->type == Voucher::TYPE_PERCENT ? $voucher->value : $voucher->value * 100,
-            'matrix' => []
+            'matrix' => [],
         ];
     }
 

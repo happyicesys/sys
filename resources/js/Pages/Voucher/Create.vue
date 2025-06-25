@@ -339,6 +339,17 @@
                 </span>
               </Button>
             </div>
+            <div class="sm:col-span-3">
+              <label class="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  v-model="form.is_random_channel_sequence"
+                  class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                />
+                <span>Randomize Channel Sequence</span>
+              </label>
+            </div>
+
             <div class="sm:col-span-6 flex flex-col mt-3">
               <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
                 <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
@@ -459,7 +470,7 @@ const form = ref(
 )
 const validDurationMappings = ref(props.validDurationMappings)
 const validUnitMappings = ref(props.validUnitMappings)
-const vendOptions = ref()
+const vendOptions = ref([])
 const voucher = ref([])
 const voucherModeMappings = ref(props.voucherModeMappings)
 const voucherPlatformMappings = ref(props.voucherPlatformMappings)
@@ -512,6 +523,7 @@ function getDefaultForm() {
     dcvend_qty_per_member: '',
     desc: '',
     is_dcvend: '',
+    is_random_channel_sequence: false,
     is_recurring: '',
     max_promo_value: '',
     min_value: '',
@@ -536,11 +548,11 @@ function onOperatorChanged() {
     replace: true,
     preserveState: true,
     onSuccess: page => {
+      vendOptions.value = []
       vendOptions.value = page.props.vendOptions.data?.map((vend) => ({
         id: vend.id,
         full_name: `${vend.code} - ${vend.customer?.name || ''}`,
       }))
-      console.log(page.props.vendOptions.data)
     }
   })
 }
@@ -568,6 +580,7 @@ function submit() {
       valid_unit: data.valid_unit?.id,
       valid_duration: data.valid_duration?.id,
       vends: data.vends?.map((vend) => vend.id),
+      is_random_channel_sequence: data.is_random_channel_sequence, // ← Added line
     }))
     .post('/vouchers/store', {
     onSuccess: () => {

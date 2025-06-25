@@ -41,6 +41,34 @@
               </div>
             </div>
           </div>
+          <div class="sm:col-span-6 mt-2">
+            <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              <div class="flex space-x-1 items-center">
+                <span>
+                  Machine(s)
+                </span>
+                <span class="text-red-500 text-xs">
+                  Default to all if not selected
+                </span>
+              </div>
+            </label>
+            <MultiSelect
+              v-model="form.vends"
+              :options="vendOptions"
+              trackBy="id"
+              valueProp="id"
+              label="full_name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              mode="tags"
+            >
+            </MultiSelect>
+            <div class="text-sm text-red-600" v-if="form.errors.vends">
+              {{ form.errors.vends }}
+            </div>
+          </div>
+
           <div class="sm:col-span-6">
             <div class="flex space-x-1 mt-5 justify-end">
               <Button
@@ -74,13 +102,15 @@ import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import axios from 'axios';
 
 const props = defineProps({
   hidCard: Object,
   operatorOptions: [Array, Object],
   type: String,
   showModal: Boolean,
+  vendOptions: [Array, Object]
 })
 
 const emit = defineEmits(['modalClose'])
@@ -89,8 +119,14 @@ const form = ref(
   useForm(getDefaultForm())
 )
 const operatorOptions = ref(props.operatorOptions || [])
+const vendOptions = ref([])
 
 onMounted(() => {
+  vendOptions.value = props.vendOptions.data?.map((vend) => ({
+    id: vend.id,
+    full_name: `${vend.code} - ${vend.customer?.name || ''}`,
+  }))
+
   form.value = props.hidCard ? useForm({
     ...props.hidCard,
     operator_id: props.hidCard.operator ? props.hidCard.operator : null,
@@ -102,10 +138,26 @@ onMounted(() => {
   }
 })
 
+watch(
+  () => form.value.operator_id,
+  (newOperator) => {
+    if (newOperator && newOperator.id) {
+      emit('fetchVends', newOperator.id)
+    }
+  }
+)
+
+function fetchVends(operatorId) {
+  axios.get(`/api/vends?operator_id=${operatorId}`).then(response => {
+    vendOptions.value = response.data
+  })
+}
+
 function getDefaultForm() {
   return {
     value: '',
     operator_id: '',
+    vends: [],
   }
 }
 
@@ -117,6 +169,7 @@ function submit() {
     .transform((data) => ({
       ...data,
       operator_id: data.operator_id ? data.operator_id?.id : null,
+      vends: data.vends?.map((vend) => vend.id),
     }))
     .post('/hid-cards/create', {
       onSuccess: () => {
@@ -132,6 +185,7 @@ function submit() {
       .transform((data) => ({
         ...data,
         operator_id: data.operator_id ? data.operator_id?.id : null,
+        vends: data.vends?.map((vend) => vend.id),
       }))
       .post('/hid-cards/' + form.value.id + '/update', {
       onSuccess: () => {

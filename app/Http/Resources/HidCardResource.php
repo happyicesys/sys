@@ -21,6 +21,7 @@ class HidCardResource extends JsonResource
             'operator' => new OperatorResource($this->whenLoaded('operator')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+            'vends' => VendResource::collection($this->whenLoaded('vends')),
         ];
     }
 }

@@ -87,6 +87,9 @@ class ExportVendTransactionCsv implements ShouldQueue
                 ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
                 ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
                 ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+                ->when($user->vends()->exists(), function ($query) use ($user) {
+                    $query->whereIn('vend_transactions.vend_id', $user->vends->pluck('id'));
+                })
                 ->filterTransactionIndex($request)
                 ->select([
                     'vend_transactions.*',

@@ -34,6 +34,7 @@ class VoucherResource extends JsonResource
             'is_active' => $this->is_active,
             'is_batch_code' => $this->is_batch_code,
             'is_dcvend' => $this->is_dcvend,
+            'is_random_channel_sequence' => $this->is_random_channel_sequence,
             'is_recurring' => $this->is_recurring,
             'max_promo_value' => $this->max_promo_value,
             'max_redemption_count' => $this->max_redemption_count,

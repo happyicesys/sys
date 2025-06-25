@@ -249,11 +249,17 @@ Route::middleware(['auth', 'cors'])->group(function() {
     });
 
     Route::prefix('hid-cards')->group(function() {
-        Route::get('/', [HidCardController::class, 'index'])->name('hid-cards');
-        Route::post('/create', [HidCardController::class, 'create']);
-        Route::post('/{id}/update', [HidCardController::class, 'update']);
-        Route::delete('/{id}', [HidCardController::class, 'delete']);
+        Route::get('/', [HidCardController::class, 'index'])->name('hid-cards'); // List
+
+        Route::get('/create', [HidCardController::class, 'create'])->name('hid-cards.create'); // Form page
+        Route::post('/', [HidCardController::class, 'store'])->name('hid-cards.store'); // Form submit
+
+        Route::get('/{id}/edit', [HidCardController::class, 'edit'])->name('hid-cards.edit'); // Edit page
+        Route::post('/{id}/update', [HidCardController::class, 'update'])->name('hid-cards.update'); // Edit submit
+
+        Route::delete('/{id}', [HidCardController::class, 'delete'])->name('hid-cards.delete'); // Delete
     });
+
 
     Route::prefix('holidays')->group(function() {
         Route::get('/', [HolidayController::class, 'index'])->name('holidays');

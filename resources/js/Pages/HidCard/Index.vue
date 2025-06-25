@@ -13,7 +13,7 @@
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="flex justify-end">
           <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          @click="onCreateClicked()"
+          @click="router.visit('/hid-cards/create')"
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
@@ -127,7 +127,7 @@
                         <div class="flex justify-center space-x-1">
                           <Button
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-                            @click="onEditClicked(hidCard)"
+                            @click="router.visit(`/hid-cards/${hidCard.id}/edit`)"
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
@@ -158,22 +158,14 @@
       </div>
     </div>
   </div>
-  <Form
-      v-if="showModal"
-      :hidCard="hidCard"
-      :operatorOptions="operatorOptions"
-      :type="type"
-      :showModal="showModal"
-      @modalClose="onModalClose"
-  >
-  </Form>
   </BreezeAuthenticatedLayout>
 </template>
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-import Form from '@/Pages/HidCard/Form.vue';
+import Create from '@/Pages/HidCard/Create.vue';
+import Edit from '@/Pages/HidCard/Edit.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
@@ -187,6 +179,7 @@ import { Head, router } from '@inertiajs/vue3';
 const props = defineProps({
   hidCards: Object,
   operatorOptions: [Array, Object],
+  vendOptions: [Array, Object],
 })
 
 const filters = ref({
@@ -197,7 +190,6 @@ const filters = ref({
   numberPerPage: 100,
 })
 const operatorOptions = ref([])
-const showModal = ref(false)
 const hidCard = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
@@ -218,24 +210,12 @@ onMounted(() => {
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
 
-function onCreateClicked() {
-  type.value = 'create'
-  hidCard.value = null
-  showModal.value = true
-}
-
 function onDeleteClicked(hidCard) {
   const approval = confirm('Are you sure to delete ' + hidCard.value + '?');
   if (!approval) {
       return;
   }
   router.delete('/hid-cards/' + hidCard.id)
-}
-
-function onEditClicked(hidCardValue) {
-  type.value = 'update'
-  hidCard.value = hidCardValue
-  showModal.value = true
 }
 
 function onSearchFilterUpdated() {
@@ -259,7 +239,4 @@ function sortTable(sortKey) {
   onSearchFilterUpdated()
 }
 
-function onModalClose() {
-  showModal.value = false
-}
 </script>
