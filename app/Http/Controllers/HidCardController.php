@@ -37,18 +37,6 @@ class HidCardController extends Controller
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
             ),
-            'vendOptions' => VendResource::collection(
-                    Vend::with([
-                    'customer:id,code,name,person_id,virtual_customer_code,virtual_customer_prefix,is_active,operator_id',
-                ])
-                ->when($request->operator_id, function($query, $search) {
-                    $query->where('operator_id', $search);
-                })
-                ->has('customer')
-                ->where('is_active', true)
-                ->orderBy('code')
-                ->get()
-            ),
         ]);
     }
 
