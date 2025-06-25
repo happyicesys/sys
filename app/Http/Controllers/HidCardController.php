@@ -124,7 +124,7 @@ class HidCardController extends Controller
         if (!$hidCard) {
             return response()->json([
                 'status_code' => 404,
-                'message' => 'HID card not found',
+                'message' => 'Sorry, invalid HID card',
             ], 404);
         }
 
