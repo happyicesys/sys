@@ -749,6 +749,20 @@ class VendController extends Controller
         ]);
     }
 
+    public function deleteLatestExportTransaction($id)
+    {
+        $exportJob = ExportJob::findOrFail($id);
+
+        if($exportJob->attachment) {
+            Storage::disk('digitaloceanspaces')->delete($exportJob->attachment->local_url);
+            $exportJob->attachment->delete();
+        }
+
+        $exportJob->delete();
+
+        return redirect()->back();
+    }
+
     public function searchVendCode($vendCode)
     {
         $vends = Vend::query()

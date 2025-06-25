@@ -412,26 +412,27 @@
                     class="h-2 w-2 mt-1 rounded-full bg-gray-300 ring-1 ring-gray-400"
                     ></div>
                 </div>
-                <div class="flex-1 rounded-md bg-white px-3 py-3 shadow ring-1 ring-gray-200 ring-inset">
-                    <div class="flex justify-between items-center">
-                    <p class="text-sm font-medium text-gray-900">
+
+                <div class="flex-1 flex items-center justify-between rounded-md bg-white px-3 py-3 shadow ring-1 ring-gray-200 ring-inset">
+                    <div class="flex items-center gap-x-2 overflow-hidden">
+                    <p class="text-sm font-medium text-gray-900 truncate max-w-xs">
                         {{ latestExport.filename }}
                     </p>
-                    <span class="text-xs text-gray-500">
-                        <span v-if="latestExport.status === 'completed'">
-                        <a
-                            :href="latestExport.attachment?.full_url"
-                            target="_blank"
-                            class="text-indigo-600 hover:underline"
-                        >
-                            Download
-                        </a>
-                        </span>
-                        <span v-else class="italic text-gray-500">
+                    <span v-if="latestExport.status === 'completed'" class="text-xs text-indigo-600 hover:underline shrink-0">
+                        <a :href="latestExport.attachment?.full_url" target="_blank">Download</a>
+                    </span>
+                    <span v-else class="text-xs italic text-gray-500 shrink-0">
                         ({{ latestExport.status }})
-                        </span>
                     </span>
                     </div>
+
+                    <button
+                    @click="deleteExport(latestExport.id)"
+                    class="text-gray-400 hover:text-red-600 ml-2"
+                    title="Remove"
+                    >
+                    <XMarkIcon class="h-5 w-5" />
+                    </button>
                 </div>
                 </li>
             </ul>
@@ -727,7 +728,7 @@ import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
-import { MagnifyingGlassIcon, BackspaceIcon, CheckCircleIcon, ArrowDownTrayIcon } from '@heroicons/vue/20/solid';
+import { MagnifyingGlassIcon, BackspaceIcon, CheckCircleIcon, ArrowDownTrayIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import moment from 'moment';
 import SearchInput from '@/Components/SearchInput.vue';
@@ -760,6 +761,7 @@ const booleanOptions = ref([])
 const successfulOptions = ref([])
 const categoryOptions = ref([])
 const categoryGroupOptions = ref([])
+const latestExports = ref([])
 const loadingCsv = ref(false)
 const locationTypeOptions = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
@@ -797,6 +799,7 @@ onMounted(() => {
     ]
     categoryOptions.value = props.categories.data.map((data) => {return {id: data.id, name: data.name}})
     categoryGroupOptions.value = props.categoryGroups.data.map((data) => {return {id: data.id, name: data.name}})
+    latestExports.value = props.latestExports
     locationTypeOptions.value = [
         {id: 'all', value: 'All'},
         ...props.locationTypeOptions.data.map((data) => {return {id: data.id, value: data.name}})
@@ -906,6 +909,11 @@ const numberPerPageOptions = ref([])
 //         loading.value = false
 //     })
 // }
+
+const deleteExport = (id) => {
+    latestExports.value = latestExports.value.filter(e => e.id !== id)
+    axios.delete(`/vends/transactions/latest-exports/${id}`)
+}
 
 function onExportCsvClicked() {
     loadingCsv.value = true
