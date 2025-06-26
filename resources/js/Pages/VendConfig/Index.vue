@@ -26,22 +26,6 @@
             Name
           </SearchInput>
           <div>
-            <label for="text" class="block text-sm font-medium text-gray-700">
-              Active Setting Charts
-            </label>
-            <MultiSelect
-              v-model="filters.is_active"
-              :options="booleanOptions"
-              trackBy="id"
-              valueProp="id"
-              label="value"
-              placeholder="Select"
-              open-direction="bottom"
-              class="mt-1"
-            >
-            </MultiSelect>
-          </div>
-          <div>
 						<label for="text" class="block text-sm font-medium text-gray-700">
 							Machine Prefix
 						</label>
@@ -90,6 +74,22 @@
 						>
 						</MultiSelect>
 					</div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Setting Chart Status
+            </label>
+            <MultiSelect
+              v-model="filters.is_active"
+              :options="booleanOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
 
@@ -338,8 +338,8 @@ const filters = ref({
 })
 const attachments = ref([])
 const booleanOptions = ref([
-    {id: 'true', value: 'Yes'},
-    {id: 'false', value: 'No'},
+    {id: 'true', value: 'Active'},
+    {id: 'false', value: 'Inactive'},
 ])
 const model = ref()
 const showAttachmentOverviewModal = ref(false)
