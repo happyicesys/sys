@@ -36,7 +36,7 @@ class RolePermissionSyncSeeder extends Seeder
         $permissionsData = [
             ['dashboard',
             ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer', 'licensee']],
+            ['superadmin', 'admin', 'supervisor', 'operator_admin', 'operator_viewer', 'licensee', 'hid_user']],
 
             ['dashboard',
             ['admin-access'],
@@ -76,7 +76,7 @@ class RolePermissionSyncSeeder extends Seeder
 
             ['transactions',
             ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer', 'franchisee', 'licensee']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'operator_viewer', 'franchisee', 'licensee', 'hid_user']],
 
             ['transactions',
             ['admin-access'],
@@ -152,7 +152,7 @@ class RolePermissionSyncSeeder extends Seeder
 
             ['data-settings',
             ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'operator_viewer', 'licensee']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'operator_viewer', 'hid_user']],
 
             ['cashless-providers',
             ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
@@ -164,7 +164,7 @@ class RolePermissionSyncSeeder extends Seeder
 
             ['hid-cards',
             ['read', 'create', 'update', 'delete', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'licensee']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'hid_user']],
 
             ['vend-models',
             ['read', 'create', 'update', 'delete', 'export', 'admin-access'],

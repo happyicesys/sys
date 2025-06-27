@@ -158,9 +158,7 @@ class HidCardController extends Controller
             'operator_id' => $request->operator_id,
         ]);
 
-        if ($request->filled('vends')) {
-            $hidCard->vends()->sync($request->vends);
-        }
+        $hidCard->vends()->sync($request->vends);
 
         return redirect()->route('hid-cards')->with('success', 'HID Card created.');
     }
@@ -175,9 +173,7 @@ class HidCardController extends Controller
         $hidCard = HidCard::findOrFail($hidCardID);
         $hidCard->update($request->all());
 
-        if($request->vends) {
-            $hidCard->vends()->sync($request->vends);
-        }
+        $hidCard->vends()->sync($request->vends);
 
         return redirect()->route('hid-cards.edit', ['id' => $hidCard->id])->with('success', 'Voucher updated successfully');
     }
