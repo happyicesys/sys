@@ -669,6 +669,9 @@
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.vendTransactionJson && vendTransaction.vendTransactionJson['dcvend_user_id'] ? vendTransaction.vendTransactionJson['dcvend_user_id'] : null }}
                         </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            {{ vendTransaction.metaJson && vendTransaction.metaJson['hid_card_id'] ? vendTransaction.metaJson['hid_card_id'] : null }}
+                        </TableData>
                       </tr>
                       <tr v-if="vendTransaction.vendTransactionItems" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItems" class="divide-x">
                         <td v-if="vendTransactionItemIndex == 0" class="border-b border-gray-200" colspan="7" :rowspan="vendTransaction.vendTransactionItems.length"></td>
