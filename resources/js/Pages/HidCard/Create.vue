@@ -95,6 +95,7 @@ const props = defineProps({
   vendOptions: [Array, Object],
 })
 
+const authOperator = usePage().props.auth.operator
 const operatorOptions = ref([])
 const vendOptions = ref([])
 
@@ -106,6 +107,7 @@ onMounted(() => {
     id: vend.id,
     full_name: `${vend.code} - ${vend.customer?.name || ''}`,
   }))
+  form.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
 })
 
 function getDefaultForm() {

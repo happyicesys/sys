@@ -152,7 +152,7 @@ class RolePermissionSyncSeeder extends Seeder
 
             ['data-settings',
             ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'operator_viewer']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'operator_viewer', 'licensee']],
 
             ['cashless-providers',
             ['read', 'create', 'update', 'delete', 'export', 'admin-access'],
@@ -164,7 +164,7 @@ class RolePermissionSyncSeeder extends Seeder
 
             ['hid-cards',
             ['read', 'create', 'update', 'delete', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'opeartor_admin', 'licensee']],
 
             ['vend-models',
             ['read', 'create', 'update', 'delete', 'export', 'admin-access'],

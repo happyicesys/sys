@@ -207,6 +207,7 @@ onMounted(() => {
       return { id: data.id, code: data.code, full_name: data.full_name };
     }),
   ];
+  filters.value.operator_id = operatorOptions.value[0]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
 })
 

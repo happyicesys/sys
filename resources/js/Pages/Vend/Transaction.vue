@@ -314,6 +314,11 @@
                     Member ID
                 </SearchInput>
             </div>
+            <div class="col-span-5 md:col-span-1">
+                <SearchInput placeholderStr="HID Card ID" v-model="filters.hid_card_id" @keyup.enter="onSearchFilterUpdated()">
+                    HID Card ID
+                </SearchInput>
+            </div>
         </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -568,6 +573,9 @@
                         <TableHead>
                             Member ID
                         </TableHead>
+                        <TableHead>
+                            HID Card ID
+                        </TableHead>
                       </tr>
                   </thead>
                   <tbody class="bg-white">
@@ -660,7 +668,6 @@
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.vendTransactionJson && vendTransaction.vendTransactionJson['dcvend_user_id'] ? vendTransaction.vendTransactionJson['dcvend_user_id'] : null }}
-                            <!-- <CheckCircleIcon class="h-4 w-4 text-green-500" aria-hidden="true" v-if="vendTransaction.vendTransactionJson && vendTransaction.vendTransactionJson['dcvend_user_id']"></CheckCircleIcon> -->
                         </TableData>
                       </tr>
                       <tr v-if="vendTransaction.vendTransactionItems" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItems" class="divide-x">

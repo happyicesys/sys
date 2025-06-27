@@ -221,6 +221,9 @@ class VendTransaction extends Model
                 });
             }
         })
+        ->when($request->hid_card_id, function($query, $search) {
+            $query->where('vend_transactions.meta_json->hid_card_id', 'LIKE', "%{$search}%");
+        })
         ->when($request->has('interface_type'), function($query, $search) use ($request) {
             if($request->interface_type != 'all') {
                 $query->where('interface_type', $request->interface_type);

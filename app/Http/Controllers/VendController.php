@@ -1409,6 +1409,7 @@ class VendController extends Controller
                 'vend_transaction_items_json',
                 'vend_transactions.is_payment_received',
                 'vend_transactions.items_json',
+                'vend_transactions.meta_json',
                 'vend_transactions.vend_transaction_json'
             )->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();

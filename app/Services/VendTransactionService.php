@@ -188,6 +188,7 @@ class VendTransactionService
                 'vend_prefix_id' => $vend->vendPrefix()->exists() ? $vend->vendPrefix->id : null,
                 'vend_prefix_name' => $vend->vendPrefix()->exists() ? $vend->vendPrefix->name : null,
                 'vouchers' => $input['vouchers'],
+                'hid_card_id' => $input['hid_card_id'] ?? null,
             ]
         ]);
 
@@ -291,6 +292,7 @@ class VendTransactionService
             'vendChannelErrorID' => $vendChannelError ? $vendChannelError->id : null,
             'vendChannelID' => $vendChannel ? $vendChannel->id : 0,
             'vouchers' => isset($input['vouchers']) ? $input['vouchers'] : null,
+            'hid_card_id' => isset($input['hid_card_id']) ? $input['hid_card_id'] : null,
         ];
     }
 
@@ -313,6 +315,7 @@ class VendTransactionService
         $data['children'] = [];
         $data['qty'] = 1;
         $data['vouchers'] = isset($input['vouchers']) ? $input['vouchers'] : null;
+        $data['hid_card_id'] = isset($input['hid_card_id']) ? $input['hid_card_id'] : null;
 
         if(isset($input['SErr']) and ($input['SErr'] == 0 or $input['SErr'] == 6)) {
             $data['success_qty'] = 1;
