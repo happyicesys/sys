@@ -23,8 +23,8 @@
         </div>
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Name" v-model="filters.name">
-            Name
+          <SearchInput placeholderStr="Card Value" v-model="filters.value">
+            Card Value
           </SearchInput>
 
           <div>
