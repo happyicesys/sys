@@ -36,6 +36,7 @@ class VendRecord extends Model
         'total_count', //this total count is for success transaction
         'vend_code',
         'vend_id',
+        'vend_model_id',
         'vend_prefix_id',
         'year',
     ];
@@ -54,6 +55,16 @@ class VendRecord extends Model
     public function vend()
     {
         return $this->belongsTo(Vend::class);
+    }
+
+    public function vendPrefix()
+    {
+        return $this->belongsTo(VendPrefix::class);
+    }
+
+    public function vendModel()
+    {
+        return $this->belongsTo(VendModel::class);
     }
 
     // scopes
@@ -131,6 +142,9 @@ class VendRecord extends Model
             if(!in_array('all', $search)){
                 $query->whereIn('vend_records.operator_id', $search);
             }
+        })
+        ->when($request->vendModels, function($query, $search) {
+            $query->whereIn('vend_records.vend_model_id', $search);
         })
         ->when($request->vendPrefixes, function($query, $search) {
             if(in_array('single-ud', $search)) {

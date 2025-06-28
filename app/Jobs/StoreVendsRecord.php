@@ -45,6 +45,7 @@ class StoreVendsRecord implements ShouldQueue
             ->select(
                 'vends.id AS vend_id',
                 'vends.code',
+                'vends.vend_model_id',
                 'vends.vend_prefix_id',
                 'vend_transactions.id',
                 'customers.id AS customer_id',
@@ -185,6 +186,7 @@ class StoreVendsRecord implements ShouldQueue
                 'total_amount' => $vend->total_amount,
                 'total_count' => $vend->total_count,
                 'vend_code' => $vend->code,
+                'vend_model_id' => $vend->vend_model_id,
                 'vend_prefix_id' => $vend->vend_prefix_id,
                 'year' => $vend->year,
             ]);
@@ -220,6 +222,7 @@ class StoreVendsRecord implements ShouldQueue
                         'operator_id' => $vend->operator_id,
                         'year' => Carbon::parse($date)->year,
                         'vend_code' => $vend->code,
+                        'vend_model_id' => $vend->vend_model_id ?? 0,
                         'vend_prefix_id' => $vend->vend_prefix_id,
                     ]);
                 }

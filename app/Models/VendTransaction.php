@@ -383,6 +383,13 @@ class VendTransaction extends Model
                 });
             }
         })
+        ->when($request->vendModels, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereHas('vend', function($query) use ($search) {
+                    $query->whereIn('vend_model_id', $search);
+                });
+            }
+        })
         ->when($request->vendPrefixes, function($query, $search) {
             if(!in_array('all', $search)){
                 $query->whereHas('vend', function($query) use ($search) {

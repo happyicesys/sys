@@ -38,6 +38,23 @@
                         </SearchInput>
                         <div>
                             <label for="text" class="block text-sm font-medium text-gray-700">
+                                Machine Model
+                            </label>
+                            <MultiSelect
+                                v-model="filters.vendModels"
+                                :options="vendModelOptions"
+                                trackBy="id"
+                                valueProp="id"
+                                label="value"
+                                placeholder="Select"
+                                open-direction="bottom"
+                                mode="tags"
+                                class="mt-1"
+                            >
+                            </MultiSelect>
+                        </div>
+                        <div>
+                            <label for="text" class="block text-sm font-medium text-gray-700">
                                 Machine Prefix
                             </label>
                             <MultiSelect
@@ -379,6 +396,7 @@
         productGraphData: Object,
         performerGraphData: Object,
         vendCount: Number,
+        vendModelOptions: Object,
         vendPrefixOptions: Object,
     });
     const filters = ref({
@@ -389,6 +407,7 @@
         locationType: '',
         operators: [],
         monthlyTypeName: 'location-type',
+        vendModels: [],
         vendPrefixes: [],
     })
     const authOperator = usePage().props.auth.operator
@@ -559,6 +578,7 @@
             },
         }
     })
+    const vendModelOptions = ref([])
     const vendPrefixOptions = ref([])
 
 
@@ -570,6 +590,10 @@
         operatorOptions.value = [
             {id: 'all', full_name: 'All'},
             ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
+        ]
+        vendModelOptions.value = [
+            {id: 'all', value: 'All'},
+            ...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
         ]
         vendPrefixOptions.value = [
             {id: 'single-ud', value: 'Single UD'},
@@ -605,6 +629,7 @@
                 locationType: filters.value.locationType.id,
                 location_type_id: filters.value.locationType.id,
                 operators: filters.value.operators.map((operator) => { return operator.id }),
+                vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
                 vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
             }),{
                 only: ['activeMachineGraphData', 'dayGraphData', 'monthGraphData', 'monthsByModel', 'productGraphData', 'performerGraphData', 'vendCount'],

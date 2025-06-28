@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\MonthResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\OptionResource;
+use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendTransactionGraphResource;
 use App\Models\Category;
@@ -14,6 +15,7 @@ use App\Models\LocationType;
 use App\Models\Month;
 use App\Models\Operator;
 use App\Models\Vend;
+use App\Models\VendModel;
 use App\Models\VendPrefix;
 use App\Models\VendRecord;
 use App\Models\VendTransaction;
@@ -65,6 +67,9 @@ class DashboardController extends Controller
             'productGraphData' => VendTransactionGraphResource::collection($productGraph),
             'performerGraphData' => VendTransactionGraphResource::collection($bestPerformer),
             'vendCount' => $vendCount,
+            'vendModelOptions' => VendModelResource::collection(
+                VendModel::orderBy('name')->get()
+            ),
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()
             ),
@@ -351,6 +356,11 @@ class DashboardController extends Controller
                             ->orWhere('virtual_customer_code', 'like', "{$search}%")
                             ->orWhere('name', 'like', "%{$search}%");
                     });
+                }
+            })
+            ->when($request->vendModels, function($query, $search) {
+                if(!in_array('all', $search)){
+                    $query->whereIn('vend_records.vend_model_id', $search);
                 }
             })
             ->when($request->vendPrefixes, function($query, $search) {
