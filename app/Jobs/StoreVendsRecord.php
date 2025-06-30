@@ -222,7 +222,7 @@ class StoreVendsRecord implements ShouldQueue
                         'operator_id' => $vend->operator_id,
                         'year' => Carbon::parse($date)->year,
                         'vend_code' => $vend->code,
-                        'vend_model_id' => $vend->vend_model_id ?? 0,
+                        'vend_model_id' => $vend->vend_model_id ?? null,
                         'vend_prefix_id' => $vend->vend_prefix_id,
                     ]);
                 }

@@ -153,6 +153,12 @@ class HidCardController extends Controller
             'operator_id' => 'required',
         ]);
 
+        $checkReplication = HidCard::where('value', $request->value)->where('operator_id', $request->operator_id)->first();
+
+        if($checkReplication) {
+            return redirect()->back()->withErrors(['value' => 'HID Card already exists for this operator.']);
+        }
+
         $hidCard = HidCard::create([
             'value' => $request->value,
             'operator_id' => $request->operator_id,
@@ -171,6 +177,15 @@ class HidCardController extends Controller
         ]);
 
         $hidCard = HidCard::findOrFail($hidCardID);
+
+        if($hidCard->value != $request->value) {
+            $checkReplication = HidCard::where('value', $request->value)->where('operator_id', $request->operator_id)->first();
+
+            if($checkReplication) {
+                return redirect()->back()->withErrors(['value' => 'HID Card already exists for this operator.']);
+            }
+        }
+
         $hidCard->update($request->all());
 
         $hidCard->vends()->sync($request->vends);
