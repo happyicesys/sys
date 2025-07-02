@@ -16,6 +16,8 @@ class HidCardResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'email' => $this->email,
+            'name' => $this->name,
             'value' => $this->value,
             'operator_id' => $this->operator_id,
             'operator' => new OperatorResource($this->whenLoaded('operator')),

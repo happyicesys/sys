@@ -246,6 +246,7 @@ class VendDataService
           case 'REFILL':
             break;
           case 'REQQR':
+              // temporary disabled for now
               // $timezone = $vend->operator->timezone ?? 'Asia/Singapore';
               // $nowHour = Carbon::now($timezone)->format('H');
               // if ($nowHour >= 0 && $nowHour < 6) {

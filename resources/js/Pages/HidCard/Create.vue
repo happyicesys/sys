@@ -17,13 +17,30 @@
                   <FormInput
                     v-model="form.value"
                     required
-                    placeholderStr="Enter value"
+                    placeholderStr="Card value"
                     :error="form.errors.value"
                   >
                     Card Value
                   </FormInput>
                 </div>
-
+                <div class="sm:col-span-3">
+                  <FormInput
+                    v-model="form.name"
+                    placeholderStr="Name"
+                    :error="form.errors.name"
+                  >
+                    Name
+                  </FormInput>
+                </div>
+                <div class="sm:col-span-3">
+                  <FormInput
+                    v-model="form.email"
+                    placeholderStr="Email"
+                    :error="form.errors.email"
+                  >
+                    Email
+                  </FormInput>
+                </div>
                 <div class="sm:col-span-6">
                   <label class="text-sm font-medium text-gray-700">
                     Operator <span class="text-red-500">*</span>
@@ -112,6 +129,8 @@ onMounted(() => {
 
 function getDefaultForm() {
   return {
+    name: '',
+    email: '',
     value: '',
     operator_id: '',
     vends: [],

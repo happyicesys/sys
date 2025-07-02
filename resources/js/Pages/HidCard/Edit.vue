@@ -23,7 +23,24 @@
                     Card Value
                   </FormInput>
                 </div>
-
+                <div class="sm:col-span-3">
+                  <FormInput
+                    v-model="form.name"
+                    placeholderStr="Name"
+                    :error="form.errors.name"
+                  >
+                    Name
+                  </FormInput>
+                </div>
+                <div class="sm:col-span-3">
+                  <FormInput
+                    v-model="form.email"
+                    placeholderStr="Email"
+                    :error="form.errors.email"
+                  >
+                    Email
+                  </FormInput>
+                </div>
                 <div class="sm:col-span-6">
                   <label class="text-sm font-medium text-gray-700">
                     Operator <span class="text-red-500">*</span>
@@ -108,6 +125,8 @@ const form = ref(useForm(getDefaultForm()))
 function getDefaultForm() {
   return {
     id: props.hidCard.id,
+    name: props.hidCard.name ?? '',
+    email: props.hidCard.email ?? '',
     value: props.hidCard.value ?? '',
     operator_id: props.hidCard.operator ?? '',
     vends: props.hidCard.vends?.map(v => ({

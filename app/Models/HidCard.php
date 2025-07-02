@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class HidCard extends Model
 {
     protected $fillable = [
+        'email',
+        'name',
         'operator_id',
         'value',
     ];

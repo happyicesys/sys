@@ -8,8 +8,10 @@ use App\Http\Resources\VendResource;
 use App\Models\HidCard;
 use App\Models\Operator;
 use App\Models\Vend;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Rap2hpoutre\FastExcel\FastExcel;
 
 class HidCardController extends Controller
 {
@@ -26,7 +28,9 @@ class HidCardController extends Controller
                         $query->where('value', 'LIKE', "{$search}%");
                     })
                     ->when($request->operator_id, function($query, $search) {
-                        $query->where('operator_id', $search);
+                        if($search !== 'all') {
+                            $query->where('operator_id', $search);
+                        }
                     })
                     ->when($sortKey, function($query, $search) use ($sortBy) {
                         $query->orderBy($search, filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
@@ -102,6 +106,36 @@ class HidCardController extends Controller
         return redirect()->route('hid-cards');
     }
 
+    public function exportExcel(Request $request)
+    {
+        // Defensive fallback to prevent empty sortKey issues
+        $sortKey = $request->sortKey ?: 'created_at';
+        $sortBy = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+
+        $hidCards = HidCard::with('operator')
+            ->when($request->value, function($query, $search) {
+                $query->where('value', 'LIKE', "{$search}%");
+            })
+            ->when($request->operator_id, function($query, $search) {
+                if($search !== 'all') {
+                    $query->where('operator_id', $search);
+                }
+            })
+            ->orderBy($sortKey, $sortBy)
+            ->get();
+
+        return (new FastExcel($this->yieldOneByOne($hidCards)))
+            ->download('HID_Cards_'.Carbon::now()->format('Ymd_His').'.xlsx', function ($hidCard) {
+                return [
+                    'Card Value' => $hidCard->value,
+                    'Operator' => $hidCard->operator?->code,
+                    'Name' => $hidCard->name,
+                    'Email' => $hidCard->email,
+                ];
+            });
+    }
+
+
     public function search(Request $request)
     {
         $hidCardValue = $request->hid_card_id;
@@ -162,6 +196,8 @@ class HidCardController extends Controller
         $hidCard = HidCard::create([
             'value' => $request->value,
             'operator_id' => $request->operator_id,
+            'email' => $request->email,
+            'name' => $request->name,
         ]);
 
         $hidCard->vends()->sync($request->vends);
@@ -175,6 +211,7 @@ class HidCardController extends Controller
             'value' => 'required',
             'operator_id' => 'required',
         ]);
+        // dd($request->all());
 
         $hidCard = HidCard::findOrFail($hidCardID);
 
@@ -191,6 +228,12 @@ class HidCardController extends Controller
         $hidCard->vends()->sync($request->vends);
 
         return redirect()->route('hid-cards.edit', ['id' => $hidCard->id])->with('success', 'Voucher updated successfully');
+    }
+
+    private function yieldOneByOne($items) {
+        foreach($items as $item) {
+            yield $item;
+        }
     }
 
 }

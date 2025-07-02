@@ -255,6 +255,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/', [HidCardController::class, 'store'])->name('hid-cards.store'); // Form submit
 
         Route::get('/{id}/edit', [HidCardController::class, 'edit'])->name('hid-cards.edit'); // Edit page
+        Route::get('/excel', [HidCardController::class, 'exportExcel']);
         Route::post('/{id}/update', [HidCardController::class, 'update'])->name('hid-cards.update'); // Edit submit
 
         Route::delete('/{id}', [HidCardController::class, 'delete'])->name('hid-cards.delete'); // Delete
