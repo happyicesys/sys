@@ -79,7 +79,7 @@ class User extends Authenticatable
         // return '/vends/customers';
         $currentRole = (int)$this->roles()->first()->id;
 
-        if($currentRole == 19) {
+        if($currentRole == 19 or $currentRole == 21) {
             return '/dashboard';
         }else {
             return '/vends/customers';
