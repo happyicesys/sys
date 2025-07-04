@@ -24,6 +24,12 @@ class HidCardController extends Controller
         return Inertia::render('HidCard/Index', [
             'hidCards' => HidCardResource::collection(
                 HidCard::with('operator')
+                    ->when($request->name, function($query, $search) {
+                        $query->where('name', 'LIKE', "%{$search}%");
+                    })
+                    ->when($request->email, function($query, $search) {
+                        $query->where('email', 'LIKE', "%{$search}%");
+                    })
                     ->when($request->value, function($query, $search) {
                         $query->where('value', 'LIKE', "{$search}%");
                     })
@@ -112,10 +118,15 @@ class HidCardController extends Controller
             'sortKey' => $request->sortKey ? $request->sortKey : 'value',
             'sortBy' => $request->sortBy ? $request->sortBy : true,
         ]);
-        // dd($request->all());
 
         $hidCards = HidCard::query()
             ->with('operator')
+            ->when($request->name, function($query, $search) {
+                $query->where('name', 'LIKE', "%{$search}%");
+            })
+            ->when($request->email, function($query, $search) {
+                $query->where('email', 'LIKE', "%{$search}%");
+            })
             ->when($request->value, function($query, $search) {
                 $query->where('value', 'LIKE', "{$search}%");
             })

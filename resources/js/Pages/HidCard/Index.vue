@@ -26,7 +26,12 @@
           <SearchInput placeholderStr="Card Value" v-model="filters.value">
             Card Value
           </SearchInput>
-
+          <SearchInput placeholderStr="Name" v-model="filters.name">
+            Name
+          </SearchInput>
+          <SearchInput placeholderStr="Email" v-model="filters.email">
+            Email
+          </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Operator
@@ -211,6 +216,8 @@ const props = defineProps({
 })
 
 const filters = ref({
+  name: '',
+  email: '',
   value: '',
   operator_id: '',
   sortKey: '',
