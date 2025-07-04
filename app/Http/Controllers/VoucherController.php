@@ -261,6 +261,7 @@ class VoucherController extends Controller
             }
 
             // Check operator match
+            // dd($voucher->operator_id, $vend->operator_id, $vend->customer->operator_id);
             $voucherOperatorId = $isSameCode ? $voucher->operator_id : ($voucher->voucher->operator_id ?? null);
             if ($voucherOperatorId && $voucherOperatorId != $vend->operator_id) {
                 return response([

@@ -108,11 +108,14 @@ class HidCardController extends Controller
 
     public function exportExcel(Request $request)
     {
-        // Defensive fallback to prevent empty sortKey issues
-        $sortKey = $request->sortKey ?: 'created_at';
-        $sortBy = filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
+        $request->merge([
+            'sortKey' => $request->sortKey ? $request->sortKey : 'value',
+            'sortBy' => $request->sortBy ? $request->sortBy : true,
+        ]);
+        // dd($request->all());
 
-        $hidCards = HidCard::with('operator')
+        $hidCards = HidCard::query()
+            ->with('operator')
             ->when($request->value, function($query, $search) {
                 $query->where('value', 'LIKE', "{$search}%");
             })
@@ -121,11 +124,12 @@ class HidCardController extends Controller
                     $query->where('operator_id', $search);
                 }
             })
-            ->orderBy($sortKey, $sortBy)
+            ->when($request->sortKey, function($query, $search) use ($request) {
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            })
             ->get();
 
-        return (new FastExcel($this->yieldOneByOne($hidCards)))
-            ->download('HID_Cards_'.Carbon::now()->format('Ymd_His').'.xlsx', function ($hidCard) {
+            return (new FastExcel($this->yieldOneByOne($hidCards)))->download('HIDCards'.Carbon::now()->toDateTimeString().'.xlsx', function ($hidCard) {
                 return [
                     'Card Value' => $hidCard->value,
                     'Operator' => $hidCard->operator?->code,
