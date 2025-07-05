@@ -423,11 +423,14 @@
                     <p class="text-sm font-medium text-gray-900 truncate max-w-xs">
                         {{ latestExport.filename }}
                     </p>
-                    <span v-if="latestExport.status === 'completed'" class="text-xs text-indigo-600 hover:underline shrink-0">
-                        <a :href="latestExport.attachment?.full_url" target="_blank">Download</a>
+                    <span v-if="latestExport.status === 'completed' && latestExport.attachment?.full_url" class="text-xs text-indigo-600 hover:underline">
+                        <a :href="latestExport.attachment.full_url" target="_blank">Download</a>
                     </span>
-                    <span v-else class="text-xs italic text-gray-500 shrink-0">
-                        ({{ latestExport.status }})
+                    <span v-else-if="latestExport.status === 'failed'" class="text-xs text-red-500 italic">
+                        Failed
+                    </span>
+                    <span v-else class="text-xs italic text-gray-500">
+                        Processing...
                     </span>
                     </div>
 
@@ -745,7 +748,7 @@ import SearchInput from '@/Components/SearchInput.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { Head, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -782,7 +785,10 @@ const vendContractOptions = ref([])
 const vendPrefixOptions = ref([])
 const vmcByteOptions = ref([])
 
+let intervalId = null;
+
 onMounted(() => {
+    intervalId = setInterval(fetchLatestExports, 15000);
     filters.value.visited = true
     vendChannelErrorOptions.value = [
         {'id': 'errors_only', 'desc': 'Errors Only'},
@@ -855,6 +861,10 @@ onMounted(() => {
     filters.value.is_refunded = booleanOptions.value[0]
 })
 
+onUnmounted(() => {
+    clearInterval(intervalId);
+});
+
 const filters = ref({
     apk_ver: '',
     codes: '',
@@ -923,6 +933,12 @@ const numberPerPageOptions = ref([])
 const deleteExport = (id) => {
     latestExports.value = latestExports.value.filter(e => e.id !== id)
     axios.delete(`/vends/transactions/latest-exports/${id}`)
+}
+
+function fetchLatestExports() {
+    axios.get('/vends/transactions/latest-exports').then(response => {
+        latestExports.value = response.data;
+    });
 }
 
 function onExportCsvClicked() {

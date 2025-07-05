@@ -33,6 +33,7 @@ use App\Http\Resources\VendTransactionItemResource;
 use App\Http\Resources\VendTempResource;
 use App\Http\Resources\ZoneResource;
 use App\Jobs\ExportVendTransactionCsv;
+use App\Jobs\ExportVendTransactionCsvChunk;
 use App\Jobs\SyncVendCustomerCms;
 use App\Jobs\Vend\SaveVendChannelsJson;
 use App\Mail\VendChannelErrorLogsMail;
@@ -43,6 +44,7 @@ use App\Models\Country;
 use App\Models\Customer;
 use App\Models\DeliveryPlatform;
 use App\Models\ExportJob;
+use App\Models\ExportJobChunk;
 use App\Models\LocationType;
 use App\Models\ModemType;
 use App\Models\ModemUnit;
@@ -1488,11 +1490,11 @@ class VendController extends Controller
             ->first();
 
 
-        $latestExports = ExportJob::where('user_id', auth()->id())
+        $latestExports = ExportJob::with('attachment')
+            ->where('user_id', auth()->id())
             ->where('type', 'vend_transaction')
-            ->with('attachment')
             ->latest()
-            ->limit(3)
+            ->limit(5)
             ->get();
 
 
@@ -1609,16 +1611,58 @@ class VendController extends Controller
 
     public function exportTransactionCsv(Request $request)
     {
-        $filename = 'vend_transactions_' . now()->format('Ymd_His') . '.csv';
+        $filenameBase = 'vend_transactions_' . now()->format('Ymd_His');
+        $user = auth()->user();
 
         $job = ExportJob::create([
-            'user_id' => auth()->id(),
+            'user_id' => $user->id,
             'type' => 'vend_transaction',
             'status' => 'pending',
-            'filename' => $filename,
+            'filename' => $filenameBase,
         ]);
 
-        ExportVendTransactionCsv::dispatch($job->id, $request->all(), auth()->id());
+        $baseQuery = VendTransaction::query()
+            ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
+            ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
+            ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+            ->leftJoin('payment_methods', 'payment_methods.id', '=', 'vend_transactions.payment_method_id')
+            ->leftJoin('products', 'products.id', '=', 'vend_transactions.product_id')
+            ->leftJoin('unit_costs', 'unit_costs.id', '=', 'vend_transactions.unit_cost_id')
+            ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_transactions.vend_channel_id')
+            ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->when($user->vends()->exists(), function ($query) use ($user) {
+                $query->whereIn('vend_transactions.vend_id', $user->vends->pluck('id'));
+            })
+            ->filterTransactionIndex($request);
+
+        $totalRows = $baseQuery->count();
+        $chunkSize = 20000;
+
+        if ($totalRows <= $chunkSize) {
+            // ✅ Small export, dispatch direct CSV (no zip)
+            ExportVendTransactionCsv::dispatch($job->id, $request->all(), $user->id);
+        } else {
+            // ✅ Large export, split into chunks
+            $totalChunks = ceil($totalRows / $chunkSize);
+
+            for ($i = 0; $i < $totalChunks; $i++) {
+                ExportJobChunk::create([
+                    'export_job_id' => $job->id,
+                    'chunk_index' => $i,
+                    'status' => 'pending',
+                ]);
+
+                ExportVendTransactionCsvChunk::dispatch(
+                    $job->id,
+                    $request->all(),
+                    $user->id,
+                    $i,
+                    $chunkSize
+                );
+            }
+        }
 
         return back()->with('message', 'Export started! You can check it later in the export list.');
     }
@@ -1782,6 +1826,17 @@ class VendController extends Controller
             ];
         });
     }
+
+    public function latestExports()
+    {
+        return ExportJob::with('attachment')
+            ->where('user_id', auth()->id())
+            ->where('type', 'vend_transaction')
+            ->latest()
+            ->limit(5)
+            ->get();
+    }
+
 
     private function yieldOneByOne($items) {
         foreach($items as $item) {
