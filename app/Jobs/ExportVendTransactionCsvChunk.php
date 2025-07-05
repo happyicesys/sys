@@ -81,7 +81,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
             $stream = fopen('php://temp', 'r+');
 
             fputcsv($stream, [
-                '#', 'Order ID', 'Transaction Datetime', 'Machine ID', 'Machine Prefix',
+                'Order ID', 'Transaction Datetime', 'Machine ID', 'Machine Prefix',
                 'Customer ID', 'Customer Code', 'Customer Name', 'Channel',
                 'Product Code', 'Product Name', 'Price Type', 'Amount', 'Amount Breakdown',
                 'Unit Cost', 'Payment Method', 'Error Code', 'Location Type',
@@ -155,7 +155,6 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
 
                         // ✏️ Write parent row
                         fputcsv($stream, [
-                            $transactionIndex + 1,
                             $txn->order_id,
                             Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
                             $txn->vend_code ?? '',
@@ -185,7 +184,6 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                         // ✏️ Write child item rows
                         foreach ($txnItems as $item) {
                             fputcsv($stream, [
-                                '',
                                 $txn->order_id,
                                 Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
                                 $txn->vend_code ?? '',
