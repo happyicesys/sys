@@ -303,6 +303,6 @@ class VendDataService
       CreateVendData::dispatch($originalInput, $processedInput, $ipAddress, $connectionType)->onQueue('default');
     }
 
-    return $response;
+    return response()->json($response);
   }
 }

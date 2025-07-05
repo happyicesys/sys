@@ -1109,78 +1109,61 @@ class VendController extends Controller
     public function getVendAllChannelThumnails($vendCode)
     {
         $vendChannels = VendChannel::query()
-        ->with([
-            'product.thumbnail',
-            'product.category',
-            'product.tagBindings.tag',
-            'vend.productMapping',
-        ])
-        ->whereHas('vend', function($query) use ($vendCode) {
-            $query->where('code', $vendCode);
-        })
-        ->where('is_active', true)
-        ->where('capacity', '>', 0)
-        ->orderBy('code', 'asc')
-        ->get();
+            ->with([
+                'product.thumbnail',
+                'product.category',
+                'product.tagBindings.tag',
+                'vend.productMapping',
+            ])
+            ->whereHas('vend', fn($q) => $q->where('code', $vendCode))
+            ->where('is_active', true)
+            ->where('capacity', '>', 0)
+            ->orderBy('code', 'asc')
+            ->get();
 
-        if($vendChannels) {
-            $dataArr = [];
-            foreach($vendChannels as $vendChannelIndex => $vendChannel) {
-                $productMappingItem = ProductMappingItem::where('product_mapping_id', $vendChannel->vend->product_mapping_id)->where('channel_code', (int)$vendChannel->code)->first();
-
-                // dd($vendChannel->vend->product_mapping_id, (int)$vendChannel->code, $productMappingItem);
-                $serverPrice = null;
-                if($productMappingItem and $vendChannel->vend->server_price_type) {
-                    if($sellingPrice = SellingPrice::where('type', $vendChannel->vend->server_price_type)->where('product_id', $productMappingItem->product_id)->first()) {
-                        $serverPrice = $sellingPrice->amount;
-                    }
-                }
-
-                $dataArr[$vendChannelIndex] = [
-                    'vend_code' => $vendChannel->vend->code,
-                    'channel_code' => $vendChannel->code,
-                    'product_id' => null,
-                    'product_code' => null,
-                    'product_name' => null,
-                    'thumbnail' => null,
-                    'server_price' => $serverPrice,
-                ];
-                if($vendChannel->product) {
-                    $dataArr[$vendChannelIndex] = [
-                        ...$dataArr[$vendChannelIndex],
-                        'product_id' => $vendChannel->product->id,
-                        'product_code' => $vendChannel->product->code,
-                        'product_name' => $vendChannel->product->name,
-                        'product_sub_category' => $vendChannel->product->category ? $vendChannel->product->category->name : null,
-                    ];
-                    if($vendChannel->product->thumbnail) {
-                        $dataArr[$vendChannelIndex] = [
-                            ...$dataArr[$vendChannelIndex],
-                            'thumbnail' => $vendChannel->product->thumbnail->full_url,
-                        ];
-                    }
-                    if($vendChannel->product->translated_names_json) {
-                        foreach($vendChannel->product->translated_names_json as $lang => $value) {
-                            $dataArr[$vendChannelIndex] = [
-                                ...$dataArr[$vendChannelIndex],
-                                'product_name_'.$value['id'] => $value['name'],
-                            ];
-                        }
-                    }
-                    if($vendChannel->product->tagBindings) {
-                        foreach($vendChannel->product->tagBindings as $tagBinding) {
-                            $dataArr[$vendChannelIndex]['labels'][] = [
-                                'name' => $tagBinding->tag?->name,
-                            ];
-                        }
-                    }
-
-                }
-            }
-            return response()->json($dataArr, 200);
+        if ($vendChannels->isEmpty()) {
+            return response()->json([], 200);
         }
 
-        return false;
+        $productMappingItems = ProductMappingItem::where('product_mapping_id', $vendChannels->first()->vend->product_mapping_id ?? null)
+            ->whereIn('channel_code', $vendChannels->pluck('code')->map(fn($c) => (int)$c))
+            ->get()
+            ->keyBy('channel_code');
+
+        $dataArr = [];
+        foreach ($vendChannels as $index => $vendChannel) {
+            $productMappingItem = $productMappingItems->get((int)$vendChannel->code);
+
+            $serverPrice = null;
+            if ($productMappingItem && $vendChannel->vend->server_price_type) {
+                $sellingPrice = SellingPrice::where('type', $vendChannel->vend->server_price_type)
+                    ->where('product_id', $productMappingItem->product_id)
+                    ->first();
+                $serverPrice = $sellingPrice?->amount;
+            }
+
+            $data = [
+                'vend_code' => $vendChannel->vend->code,
+                'channel_code' => $vendChannel->code,
+                'product_id' => $vendChannel->product?->id,
+                'product_code' => $vendChannel->product?->code,
+                'product_name' => $vendChannel->product?->name,
+                'product_sub_category' => $vendChannel->product?->category?->name,
+                'thumbnail' => $vendChannel->product?->thumbnail?->full_url,
+                'server_price' => $serverPrice,
+                'labels' => $vendChannel->product?->tagBindings->map(fn($tb) => ['name' => $tb->tag?->name])->toArray() ?? [],
+            ];
+
+            if ($vendChannel->product?->translated_names_json) {
+                foreach ($vendChannel->product->translated_names_json as $lang => $value) {
+                    $data['product_name_' . $value['id']] = $value['name'];
+                }
+            }
+
+            $dataArr[] = $data;
+        }
+
+        return response()->json($dataArr, 200);
     }
 
     public function getVendBannerImage($vendCode)
