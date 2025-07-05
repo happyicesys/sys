@@ -21,6 +21,6 @@ class ExportJob extends Model
 
     public function attachment()
     {
-        return $this->morphOne(Attachment::class, 'modelable');
+        return $this->morphOne(Attachment::class, 'modelable')->latestOfMany();
     }
 }
