@@ -300,15 +300,7 @@ class VendDataService
     }
 
     if($saveVendData) {
-      // CreateVendData::dispatch($originalInput, $processedInput, $ipAddress, $connectionType)->onQueue('default');
-      VendData::create([
-        'connection' => $connectionType,
-        'ip_address' => $ipAddress,
-        'processed' => $processedInput,
-        'type' => isset($processedInput['Type']) ? $processedInput['Type'] : null,
-        'value' => $originalInput,
-        'vend_code' => isset($originalInput['m']) ? $originalInput['m'] : null,
-      ]);
+      CreateVendData::dispatch($originalInput, $processedInput, $ipAddress, $connectionType, $type, $isKeep)->onQueue('default');
     }
 
     return $response;

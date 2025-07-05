@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\CreateDeliveryPlatformCampaign;
+use App\Jobs\CreateVendData;
 use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformCampaign;
@@ -74,11 +75,15 @@ class DeliveryPlatformCampaignService
       case 'grab':
         $response = $this->model->updateCampaign($deliveryPlatformCampaignItemVend->platform_ref_id, $this->mapGrabCampaignParam($deliveryPlatformCampaignItemVend));
 
-        VendData::create([
-          'connection' => 'GRAB-CAMPAIGN-UPDATE',
-          'processed' => $response,
-          'value' => $response,
-        ]);
+        CreateVendData::dispatch(
+          $response,       // originalInput
+          $response,       // processedInput
+          null,            // ipAddress
+          'grab',          // connectionType (better clarity than null)
+          'GRAB-CAMPAIGN-UPDATE' // type
+        )->onQueue('default');
+
+
         if($response['success']) {
           return $response['data'];
         }
