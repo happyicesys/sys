@@ -34,11 +34,6 @@ class UnitCost extends Model
         );
     }
 
-    public function operator()
-    {
-        return $this->belongsTo(Operator::class);
-    }
-
     // relationships
     public function product()
     {

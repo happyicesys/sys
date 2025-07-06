@@ -41,7 +41,7 @@ class VendTransactionService
             'customer.locationType',
             'customer.operator',
             'vendPrefix',
-            'productMapping.productMappingItems.product.unitCosts.operator',
+            'productMapping.productMappingItems.product.unitCosts',
         ]);
 
         $processedInput = $this->processMapping($vend, $this->processInput($vend, $input));
