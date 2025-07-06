@@ -518,7 +518,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/transactions/excel', [VendController::class, 'exportTransactionExcel']);
         Route::get('/transactions/export-csv', [VendController::class, 'exportTransactionCsv'])->name('vends.transactions.export-csv');
         Route::delete('/transactions/latest-exports/{id}', [VendController::class, 'deleteLatestExportTransaction']);
-        Route::get('/vends/transactions/latest-exports', [VendController::class, 'latestExports']);
+        // Route::get('/vends/transactions/latest-exports', [VendController::class, 'latestExports']);
         Route::get('/payment-gateway-transactions', [VendController::class, 'paymentGatewayTransactionIndex'])->name('payment-gateway-transactions');
         Route::get('/payment-gateway-transactions/excel', [VendController::class, 'exportPaymentGatewayTransactionExcel']);
         Route::get('/vend-snapshots/excel/{vendSnapshotId}', [VendController::class, 'exportVendSnapshotExcel']);

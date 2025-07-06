@@ -788,7 +788,7 @@ const vmcByteOptions = ref([])
 let intervalId = null;
 
 onMounted(() => {
-    intervalId = setInterval(fetchLatestExports, 15000);
+    // intervalId = setInterval(fetchLatestExports, 15000);
     filters.value.visited = true
     vendChannelErrorOptions.value = [
         {'id': 'errors_only', 'desc': 'Errors Only'},
@@ -935,11 +935,11 @@ const deleteExport = (id) => {
     axios.delete(`/vends/transactions/latest-exports/${id}`)
 }
 
-function fetchLatestExports() {
-    axios.get('/vends/transactions/latest-exports').then(response => {
-        latestExports.value = response.data;
-    });
-}
+// function fetchLatestExports() {
+//     axios.get('/vends/transactions/latest-exports').then(response => {
+//         latestExports.value = response.data;
+//     });
+// }
 
 function onExportCsvClicked() {
     loadingCsv.value = true

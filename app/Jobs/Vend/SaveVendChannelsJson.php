@@ -40,26 +40,32 @@ class SaveVendChannelsJson implements ShouldQueue
     public function handle()
     {
         $vend = Vend::with([
+            'customer',
             'vendChannels.product.thumbnail',
             'vendChannels.product.sellingPrices',
             'vendChannels.latestOpsJobItemChannel',
-            'vendChannels.vendChannelErrorLogs.vendChannelError'
+            'vendChannels.vendChannelErrorLogs.vendChannelError',
+            'vendChannelsWithoutClaw',
             ])->findOrFail($this->vendId);
 
+        $vendChannelsWithoutClaw = $vend->vendChannelsWithoutClaw;
+        $vendChannels = $vend->vendChannels;
+
+
         $vendTotals = [
-            'vendChannelsTotalQtyWithoutClaw' => $vend->vendChannelsTotalQtyWithoutClaw,
-            'vendChannelsTotalCapacityWithoutClaw' => $vend->vendChannelsTotalCapacityWithoutClaw,
-            'vendChannelsOutOfStock' => $vend->vendChannelsOutOfStock,
-            'vendChannelsErrorLogsActive' => $vend->vendChannelsErrorLogsActive,
-            'vendChannelsCount' => $vend->vendChannelsCount,
+            'vendChannelsTotalQtyWithoutClaw' => $vendChannelsWithoutClaw->sum('qty'),
+            'vendChannelsTotalCapacityWithoutClaw' => $vendChannelsWithoutClaw->sum('capacity'),
+            'vendChannelsOutOfStock' => $vendChannels->where('qty', 0)->count(),
+            'vendChannelsErrorLogsActive' => $this->calculateActiveErrorLogs($vendChannels),
+            'vendChannelsCount' => $vendChannels->count(),
         ];
+
         $totals = [
             'qty'
                 => $vendTotals['vendChannelsTotalQtyWithoutClaw'],
             'capacity'
                 => $vendTotals['vendChannelsTotalCapacityWithoutClaw'],
-            'sales'
-                => $vendTotals['vendChannelsTotalCapacityWithoutClaw'] - $vendTotals['vendChannelsTotalQtyWithoutClaw'],
+            'sales' => max(0, $vendTotals['vendChannelsTotalCapacityWithoutClaw'] - $vendTotals['vendChannelsTotalQtyWithoutClaw']),
             'balancePercent'
                 => $vendTotals['vendChannelsTotalCapacityWithoutClaw'] ? round($vendTotals['vendChannelsTotalQtyWithoutClaw']/ $vendTotals['vendChannelsTotalCapacityWithoutClaw'] * 100) : 0,
             'outOfStock'
@@ -117,7 +123,22 @@ class SaveVendChannelsJson implements ShouldQueue
                     }),
                 ];
             }),
-            'vend_channel_totals_json' => collect($totals),
+            'vend_channel_totals_json' => $totals,
         ]);
     }
+
+    private function calculateActiveErrorLogs($vendChannels)
+    {
+        return $vendChannels->reduce(function ($carry, $vendChannel) {
+            $activeErrorCount = $vendChannel->vendChannelErrorLogs->reduce(function ($innerCarry, $errorLog) {
+                if (!$errorLog->is_error_cleared &&
+                    !in_array($errorLog->vendChannelError->code, [4, 5, 7])) {
+                    $innerCarry++;
+                }
+                return $innerCarry;
+            }, 0);
+            return $carry + $activeErrorCount;
+        }, 0);
+    }
+
 }

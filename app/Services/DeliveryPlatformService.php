@@ -298,143 +298,218 @@ class DeliveryPlatformService
     return $this->deliveryPlatformOperator;
   }
 
+  // public function getMenu($platformRefId = null, $vendCode = null)
+  // {
+  //   $deliveryProductMappingVend = DeliveryProductMappingVend::query()
+  //     ->when($platformRefId, function($query) use ($platformRefId) {
+  //       return $query->where('platform_ref_id', $platformRefId);
+  //     })
+  //     ->where('vend_code', $vendCode)
+  //     ->where('is_active', true)
+  //     ->first();
+
+  //   if(!$deliveryProductMappingVend) {
+  //     throw new \Exception('No Vending Machine found for this Platform Ref ID.');
+  //   }
+
+  //   $this->deliveryPlatformOperator = $deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
+  //   $this->setDeliveryPlatformOperator($deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator);
+
+  //   switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
+  //     case 'grab':
+  //       $response = [];
+
+  //       if($this->deliveryPlatformOperator->externalOauthToken()->exists()) {
+  //         $scope = $this->deliveryPlatformOperator->externalOauthToken->scopes;
+  //       }
+
+  //       if($scope === 'mart.partner_api') {
+  //         $deliveryProductMappingVendObj = DeliveryProductMappingVend::query()
+  //         ->with([
+  //           'deliveryProductMapping' => function($query) {
+  //             $query->select(
+  //               'id',
+  //               DB::raw('json_unquote(json_extract(category_json, "$.id")) AS platform_category_id'),
+  //               DB::raw('json_unquote(json_extract(category_json, "$.name")) AS platform_category_name'),
+  //               'delivery_platform_operator_id',
+  //               'is_active',
+  //               'name',
+  //               'operator_id'
+  //             );
+  //           },
+  //           'deliveryProductMapping.operator:id,name,country_id',
+  //           'deliveryProductMapping.operator.country:id,name,code,currency_name,currency_symbol,currency_exponent',
+  //           'deliveryProductMappingVendChannels' => function($query) {
+  //             $query->select(
+  //               'id',
+  //               'amount',
+  //               'delivery_product_mapping_item_id',
+  //               'delivery_product_mapping_vend_id',
+  //               'order_qty',
+  //               'is_active',
+  //               'vend_channel_code',
+  //               'vend_channel_id'
+  //             );
+  //           },
+  //           'deliveryProductMappingVendChannels.deliveryProductMappingVend:id',
+  //         ])
+  //         ->where('id', $deliveryProductMappingVend->id)
+  //         ->select(
+  //           'id',
+  //           'delivery_product_mapping_id',
+  //           'platform_ref_id',
+  //           'vend_id',
+  //           'vend_code'
+  //         )
+  //         ->first();
+
+  //         $response = [
+  //           'merchantID' => (string)$deliveryProductMappingVendObj->platform_ref_id,
+  //           'partnerMerchantID' => (string)$deliveryProductMappingVendObj->vend_code,
+  //           'currency' => $this->getGrabMenuCurrency($deliveryProductMappingVendObj),
+  //           'sellingTimes' => [$this->getGrabMenuSellingTimes()],
+  //           'categories' => [[
+  //             ...$this->getGrabMenuCategoriesDefault($deliveryProductMappingVendObj),
+  //             'subCategories' => $this->getGrabMenuSubCategoriesItems($deliveryProductMappingVendObj->deliveryProductMappingVendChannels()->pluck('id'))
+  //           ]],
+  //         ];
+  //       }
+
+  //       if($scope === 'food.partner_api') {
+  //         $deliveryProductMappingVendObj = DeliveryProductMappingVend::query()
+  //         ->with([
+  //           'deliveryProductMapping' => function($query) {
+  //             $query->select(
+  //               'id',
+  //               DB::raw('json_unquote(json_extract(category_json, "$.id")) AS platform_category_id'),
+  //               DB::raw('json_unquote(json_extract(category_json, "$.name")) AS platform_category_name'),
+  //               'delivery_platform_operator_id',
+  //               'is_active',
+  //               'name',
+  //               'operator_id'
+  //             );
+  //           },
+  //           'deliveryProductMapping.operator:id,name,country_id',
+  //           'deliveryProductMapping.operator.country:id,name,code,currency_name,currency_symbol,currency_exponent',
+  //           'deliveryProductMappingVendChannels' => function($query) {
+  //             $query->select(
+  //               'id',
+  //               'amount',
+  //               'delivery_product_mapping_item_id',
+  //               'delivery_product_mapping_vend_id',
+  //               'order_qty',
+  //               'is_active',
+  //               'vend_channel_code',
+  //               'vend_channel_id'
+  //             );
+  //           },
+  //           'deliveryProductMappingVendChannels.deliveryProductMappingVend:id',
+  //         ])
+  //         ->where('id', $deliveryProductMappingVend->id)
+  //         ->select(
+  //           'id',
+  //           'delivery_product_mapping_id',
+  //           'platform_ref_id',
+  //           'vend_id',
+  //           'vend_code'
+  //         )
+  //         ->first();
+  //         // dd($deliveryProductMappingVendObj->toArray());
+
+  //         $response = [
+  //           'merchantID' => (string)$deliveryProductMappingVendObj->platform_ref_id,
+  //           'partnerMerchantID' => (string)$deliveryProductMappingVendObj->vend_code,
+  //           'currency' => $this->getGrabMenuCurrency($deliveryProductMappingVendObj),
+  //           'sellingTimes' => [$this->getGrabMenuSellingTimes()],
+  //           'categories' => $this->getGrabMenuSubCategoriesItems($deliveryProductMappingVendObj->deliveryProductMappingVendChannels()->pluck('id')),
+  //         ];
+  //       }
+
+  //       if($response) {
+  //         $deliveryProductMappingVend->update([
+  //           'last_menu_json' => $response,
+  //         ]);
+  //       }
+
+  //       return $response;
+  //     break;
+  //   }
+  // }
   public function getMenu($platformRefId = null, $vendCode = null)
   {
-    $deliveryProductMappingVend = DeliveryProductMappingVend::query()
-      ->when($platformRefId, function($query) use ($platformRefId) {
-        return $query->where('platform_ref_id', $platformRefId);
-      })
-      ->where('vend_code', $vendCode)
-      ->where('is_active', true)
-      ->first();
+      $deliveryProductMappingVend = DeliveryProductMappingVend::query()
+          ->when($platformRefId, fn($q) => $q->where('platform_ref_id', $platformRefId))
+          ->where('vend_code', $vendCode)
+          ->where('is_active', true)
+          ->firstOrFail();
 
-    if(!$deliveryProductMappingVend) {
-      throw new \Exception('No Vending Machine found for this Platform Ref ID.');
-    }
+      $deliveryProductMapping = $deliveryProductMappingVend->deliveryProductMapping;
+      $deliveryPlatformOperator = $deliveryProductMapping->deliveryPlatformOperator;
+      $this->setDeliveryPlatformOperator($deliveryPlatformOperator);
 
-    $this->deliveryPlatformOperator = $deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator;
-    $this->setDeliveryPlatformOperator($deliveryProductMappingVend->deliveryProductMapping->deliveryPlatformOperator);
+      if ($deliveryPlatformOperator->deliveryPlatform->slug !== 'grab') {
+          throw new \Exception('Unsupported platform.');
+      }
 
-    switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
-      case 'grab':
-        $response = [];
+      if (!$deliveryPlatformOperator->externalOauthToken()->exists()) {
+          throw new \Exception('Missing OAuth token.');
+      }
 
-        if($this->deliveryPlatformOperator->externalOauthToken()->exists()) {
-          $scope = $this->deliveryPlatformOperator->externalOauthToken->scopes;
-        }
+      $scope = $deliveryPlatformOperator->externalOauthToken->scopes;
 
-        if($scope === 'mart.partner_api') {
-          $deliveryProductMappingVendObj = DeliveryProductMappingVend::query()
+      if (!in_array($scope, ['mart.partner_api', 'food.partner_api'])) {
+          throw new \Exception('Unsupported scope.');
+      }
+
+      // Fetch once, shared for both scopes
+      $deliveryProductMappingVendObj = DeliveryProductMappingVend::query()
           ->with([
-            'deliveryProductMapping' => function($query) {
-              $query->select(
-                'id',
-                DB::raw('json_unquote(json_extract(category_json, "$.id")) AS platform_category_id'),
-                DB::raw('json_unquote(json_extract(category_json, "$.name")) AS platform_category_name'),
-                'delivery_platform_operator_id',
-                'is_active',
-                'name',
-                'operator_id'
-              );
-            },
-            'deliveryProductMapping.operator:id,name,country_id',
-            'deliveryProductMapping.operator.country:id,name,code,currency_name,currency_symbol,currency_exponent',
-            'deliveryProductMappingVendChannels' => function($query) {
-              $query->select(
-                'id',
-                'amount',
-                'delivery_product_mapping_item_id',
-                'delivery_product_mapping_vend_id',
-                'order_qty',
-                'is_active',
-                'vend_channel_code',
-                'vend_channel_id'
-              );
-            },
-            'deliveryProductMappingVendChannels.deliveryProductMappingVend:id',
+              'deliveryProductMapping' => fn($q) =>
+                  $q->select(
+                      'id',
+                      DB::raw('json_unquote(json_extract(category_json, "$.id")) AS platform_category_id'),
+                      DB::raw('json_unquote(json_extract(category_json, "$.name")) AS platform_category_name'),
+                      'delivery_platform_operator_id',
+                      'is_active',
+                      'name',
+                      'operator_id'
+                  )
+                  ->with([
+                      'operator:id,name,country_id',
+                      'operator.country:id,name,code,currency_name,currency_symbol,currency_exponent'
+                  ]),
+              'deliveryProductMappingVendChannels:id,amount,delivery_product_mapping_item_id,delivery_product_mapping_vend_id,order_qty,is_active,vend_channel_code,vend_channel_id'
           ])
-          ->where('id', $deliveryProductMappingVend->id)
-          ->select(
-            'id',
-            'delivery_product_mapping_id',
-            'platform_ref_id',
-            'vend_id',
-            'vend_code'
-          )
-          ->first();
+          ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_id', 'vend_code')
+          ->findOrFail($deliveryProductMappingVend->id);
 
-          $response = [
-            'merchantID' => (string)$deliveryProductMappingVendObj->platform_ref_id,
-            'partnerMerchantID' => (string)$deliveryProductMappingVendObj->vend_code,
-            'currency' => $this->getGrabMenuCurrency($deliveryProductMappingVendObj),
-            'sellingTimes' => [$this->getGrabMenuSellingTimes()],
-            'categories' => [[
+      // Use eager-loaded collection to avoid extra query
+      $vendChannelIds = $deliveryProductMappingVendObj->deliveryProductMappingVendChannels->pluck('id');
+
+      // Build shared structure
+      $response = [
+          'merchantID' => (string) $deliveryProductMappingVendObj->platform_ref_id,
+          'partnerMerchantID' => (string) $deliveryProductMappingVendObj->vend_code,
+          'currency' => $this->getGrabMenuCurrency($deliveryProductMappingVendObj),
+          'sellingTimes' => [$this->getGrabMenuSellingTimes()],
+      ];
+
+      if ($scope === 'mart.partner_api') {
+          $response['categories'] = [[
               ...$this->getGrabMenuCategoriesDefault($deliveryProductMappingVendObj),
-              'subCategories' => $this->getGrabMenuSubCategoriesItems($deliveryProductMappingVendObj->deliveryProductMappingVendChannels()->pluck('id'))
-            ]],
-          ];
-        }
+              'subCategories' => $this->getGrabMenuSubCategoriesItems($vendChannelIds),
+          ]];
+      } elseif ($scope === 'food.partner_api') {
+          $response['categories'] = $this->getGrabMenuSubCategoriesItems($vendChannelIds);
+      }
 
-        if($scope === 'food.partner_api') {
-          $deliveryProductMappingVendObj = DeliveryProductMappingVend::query()
-          ->with([
-            'deliveryProductMapping' => function($query) {
-              $query->select(
-                'id',
-                DB::raw('json_unquote(json_extract(category_json, "$.id")) AS platform_category_id'),
-                DB::raw('json_unquote(json_extract(category_json, "$.name")) AS platform_category_name'),
-                'delivery_platform_operator_id',
-                'is_active',
-                'name',
-                'operator_id'
-              );
-            },
-            'deliveryProductMapping.operator:id,name,country_id',
-            'deliveryProductMapping.operator.country:id,name,code,currency_name,currency_symbol,currency_exponent',
-            'deliveryProductMappingVendChannels' => function($query) {
-              $query->select(
-                'id',
-                'amount',
-                'delivery_product_mapping_item_id',
-                'delivery_product_mapping_vend_id',
-                'order_qty',
-                'is_active',
-                'vend_channel_code',
-                'vend_channel_id'
-              );
-            },
-            'deliveryProductMappingVendChannels.deliveryProductMappingVend:id',
-          ])
-          ->where('id', $deliveryProductMappingVend->id)
-          ->select(
-            'id',
-            'delivery_product_mapping_id',
-            'platform_ref_id',
-            'vend_id',
-            'vend_code'
-          )
-          ->first();
-          // dd($deliveryProductMappingVendObj->toArray());
+      $deliveryProductMappingVend->update([
+          'last_menu_json' => $response,
+      ]);
 
-          $response = [
-            'merchantID' => (string)$deliveryProductMappingVendObj->platform_ref_id,
-            'partnerMerchantID' => (string)$deliveryProductMappingVendObj->vend_code,
-            'currency' => $this->getGrabMenuCurrency($deliveryProductMappingVendObj),
-            'sellingTimes' => [$this->getGrabMenuSellingTimes()],
-            'categories' => $this->getGrabMenuSubCategoriesItems($deliveryProductMappingVendObj->deliveryProductMappingVendChannels()->pluck('id')),
-          ];
-        }
-
-        if($response) {
-          $deliveryProductMappingVend->update([
-            'last_menu_json' => $response,
-          ]);
-        }
-
-        return $response;
-      break;
-    }
+      return $response;
   }
+
 
   public function getOauth(DeliveryPlatformOperator $deliveryPlatformOperator)
   {
