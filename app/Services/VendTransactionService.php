@@ -37,9 +37,17 @@ class VendTransactionService
 
     public function create(Vend $vend, $input, $isCurrentTime = true)
     {
+        $vend->loadMissing([
+            'customer.locationType',
+            'customer.operator',
+            'vendPrefix',
+            'productMapping.productMappingItems.product.unitCosts.operator',
+        ]);
+
         $processedInput = $this->processMapping($vend, $this->processInput($vend, $input));
 
         DB::statement("SET innodb_lock_wait_timeout = 5"); // Prevent long waits
+        DB::statement('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
 
         try {
             // 🔥 Store the result of the transaction
@@ -83,6 +91,7 @@ class VendTransactionService
                 }
 
                 // ✅ Create and return vend transaction
+
                 $transaction = $this->createVendTransaction($vend, $processedInput, $isCurrentTime);
 
                 if($processedInput['vouchers']) {
@@ -92,7 +101,7 @@ class VendTransactionService
                 }
 
                 return $transaction;
-            });
+            }, 3); // Retry up to 3 times
 
             if (!$vendTransaction) {
                 return; // Prevent further execution if duplicate order ID
@@ -159,6 +168,9 @@ class VendTransactionService
 
     private function createVendTransaction($vend, $input, $isCurrentTime)
     {
+        $customer = $vend->customer;
+        $vendPrefix = $vend->vendPrefix;
+
         $vendTransaction = VendTransaction::create([
             'transaction_datetime' => $isCurrentTime ? Carbon::now() : Carbon::parse($input['time']),
             'amount' => $input['amount'],
@@ -177,19 +189,19 @@ class VendTransactionService
             'vend_transaction_json' => $input['originalJson'],
             // 'payment_gateway_log_id' => $input['paymentGatewayLogID'],
             'product_id' => $input['productID'],
-            'customer_id' => $vend->customer()->exists() ? $vend->customer->id : null,
-            'location_type_id' => $vend->customer()->exists() && $vend->customer->locationType()->exists() ? $vend->customer->locationType->id : null,
-            'operator_id' => $vend->customer()->exists() && $vend->customer->operator()->exists() ? $vend->customer->operator->id : 1,
+            'customer_id' => $customer?->id ?? null,
+            'location_type_id' => $customer?->locationType?->id ?? null,
+            'operator_id' => $customer?->operator?->id ?? 1,
             'unit_cost_id' => $input['unitCostID'],
             'gst_vat_rate' => $input['gstVatRate'],
             'meta_json' => [
                 'apk_ver' => isset($vend->apk_ver_json['apkver']) ? $vend->apk_ver_json['apkver'] : null,
                 'firmware_ver' => isset($vend->firmware_ver) ? dechex($vend->firmware_ver) : null,
                 'vend_code' => $vend->code,
-                'customer_code' => $vend->customer()->exists() ? $vend->customer->id + 20000 : null,
-                'customer_name' => $vend->customer()->exists() ? $vend->customer->name : null,
-                'vend_prefix_id' => $vend->vendPrefix()->exists() ? $vend->vendPrefix->id : null,
-                'vend_prefix_name' => $vend->vendPrefix()->exists() ? $vend->vendPrefix->name : null,
+                'customer_code' => $customer?->id + 20000 ?? null,
+                'customer_name' => $customer?->name ?? null,
+                'vend_prefix_id' => $vendPrefix?->id ?? null,
+                'vend_prefix_name' => $vendPrefix?->name ?? null,
                 'vouchers' => $input['vouchers'],
                 'hid_card_id' => $input['hid_card_id'] ?? null,
             ]
