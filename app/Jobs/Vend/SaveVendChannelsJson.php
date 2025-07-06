@@ -82,7 +82,7 @@ class SaveVendChannelsJson implements ShouldQueue
 
         $vend->update([
             'original_vend_channels_json' => $this->originalVendChannelData,
-            'vend_channels_json' => $vend->vendChannels->map(function ($channel) use ($vend) {
+            'vend_channels_json' => $vendChannels->map(function ($channel) use ($vend) {
 
                 $sellingPriceType = $vend->customer?->selling_price_type;
                 $sellingPrice = $channel->product?->sellingPrices
@@ -112,7 +112,7 @@ class SaveVendChannelsJson implements ShouldQueue
                     'qty_sold_at_date_formatted' => $channel->qty_sold_at ? $channel->qty_sold_at->format('ymd') : null,
                     'qty_sold_at_time_formatted' => $channel->qty_sold_at ? $channel->qty_sold_at->format('h:i a') : null,
                     'qty_sold_at_human_formatted' => $channel->qty_sold_at ? $channel->qty_sold_at->shortRelativeDiffForHumans() : null,
-                    'vendChannelErrorLogs' => $channel->vendChannelErrorLogs->map(function ($errorLog) {
+                    'vendChannelErrorLogs' => $channel->vendChannelErrorLogs?->map(function ($errorLog) {
                         return [
                             'id' => $errorLog->id,
                             'code' => $errorLog->vendChannelError->code,
