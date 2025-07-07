@@ -1106,7 +1106,66 @@ class VendController extends Controller
             // return DCVendResource::collection($vends);
     }
 
-    public function getVendAllChannelThumnails($vendCode)
+    // public function getVendAllChannelThumbnails($vendCode)
+    // {
+    //     $vendChannels = VendChannel::query()
+    //         ->with([
+    //             'product.thumbnail',
+    //             'product.category',
+    //             'product.tagBindings.tag',
+    //             'vend.productMapping',
+    //         ])
+    //         ->whereHas('vend', fn($q) => $q->where('code', $vendCode))
+    //         ->where('is_active', true)
+    //         ->where('capacity', '>', 0)
+    //         ->orderBy('code', 'asc')
+    //         ->get();
+
+    //     if ($vendChannels->isEmpty()) {
+    //         return response()->json([], 200);
+    //     }
+
+    //     $productMappingItems = ProductMappingItem::where('product_mapping_id', $vendChannels->first()->vend->product_mapping_id ?? null)
+    //         ->whereIn('channel_code', $vendChannels->pluck('code')->map(fn($c) => (int)$c))
+    //         ->get()
+    //         ->keyBy('channel_code');
+
+    //     $dataArr = [];
+    //     foreach ($vendChannels as $index => $vendChannel) {
+    //         $productMappingItem = $productMappingItems->get((int)$vendChannel->code);
+
+    //         $serverPrice = null;
+    //         if ($productMappingItem && $vendChannel->vend->server_price_type) {
+    //             $sellingPrice = SellingPrice::where('type', $vendChannel->vend->server_price_type)
+    //                 ->where('product_id', $productMappingItem->product_id)
+    //                 ->first();
+    //             $serverPrice = $sellingPrice?->amount;
+    //         }
+
+    //         $data = [
+    //             'vend_code' => $vendChannel->vend->code,
+    //             'channel_code' => $vendChannel->code,
+    //             'product_id' => $vendChannel->product?->id,
+    //             'product_code' => $vendChannel->product?->code,
+    //             'product_name' => $vendChannel->product?->name,
+    //             'product_sub_category' => $vendChannel->product?->category?->name,
+    //             'thumbnail' => $vendChannel->product?->thumbnail?->full_url,
+    //             'server_price' => $serverPrice,
+    //             'labels' => $vendChannel->product?->tagBindings->map(fn($tb) => ['name' => $tb->tag?->name])->toArray() ?? [],
+    //         ];
+
+    //         if ($vendChannel->product?->translated_names_json) {
+    //             foreach ($vendChannel->product->translated_names_json as $lang => $value) {
+    //                 $data['product_name_' . $value['id']] = $value['name'];
+    //             }
+    //         }
+
+    //         $dataArr[] = $data;
+    //     }
+
+    //     return response()->json($dataArr, 200);
+    // }
+    public function getVendAllChannelThumbnails($vendCode)
     {
         $vendChannels = VendChannel::query()
             ->with([
@@ -1125,22 +1184,32 @@ class VendController extends Controller
             return response()->json([], 200);
         }
 
-        $productMappingItems = ProductMappingItem::where('product_mapping_id', $vendChannels->first()->vend->product_mapping_id ?? null)
-            ->whereIn('channel_code', $vendChannels->pluck('code')->map(fn($c) => (int)$c))
+        $productMappingId = $vendChannels->first()?->vend?->product_mapping_id;
+        if (!$productMappingId) {
+            return response()->json([], 200);
+        }
+
+        $channelCodes = $vendChannels->pluck('code')->map(fn($c) => (int)$c)->toArray();
+
+        $productMappingItems = ProductMappingItem::where('product_mapping_id', $productMappingId)
+            ->whereIn('channel_code', $channelCodes)
             ->get()
             ->keyBy('channel_code');
 
-        $dataArr = [];
-        foreach ($vendChannels as $index => $vendChannel) {
-            $productMappingItem = $productMappingItems->get((int)$vendChannel->code);
+        $sellingPrices = [];
+        $serverPriceType = $vendChannels->first()?->vend?->server_price_type;
+        if ($serverPriceType) {
+            $productIds = $productMappingItems->pluck('product_id')->unique()->toArray();
+            $sellingPrices = SellingPrice::where('type', $serverPriceType)
+                ->whereIn('product_id', $productIds)
+                ->get()
+                ->keyBy('product_id');
+        }
 
-            $serverPrice = null;
-            if ($productMappingItem && $vendChannel->vend->server_price_type) {
-                $sellingPrice = SellingPrice::where('type', $vendChannel->vend->server_price_type)
-                    ->where('product_id', $productMappingItem->product_id)
-                    ->first();
-                $serverPrice = $sellingPrice?->amount;
-            }
+        $dataArr = [];
+        foreach ($vendChannels as $vendChannel) {
+            $productMappingItem = $productMappingItems->get((int)$vendChannel->code);
+            $serverPrice = $productMappingItem ? ($sellingPrices[$productMappingItem->product_id]->amount ?? null) : null;
 
             $data = [
                 'vend_code' => $vendChannel->vend->code,
@@ -1165,6 +1234,7 @@ class VendController extends Controller
 
         return response()->json($dataArr, 200);
     }
+
 
     public function getVendBannerImage($vendCode)
     {
