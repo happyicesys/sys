@@ -31,11 +31,13 @@ class InitTodayVendRecords implements ShouldQueue
     {
         $vends = Vend::query()
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
             ->select(
                 'vends.id as id',
                 'vends.code as code',
                 'vends.operator_id',
                 'vends.vend_prefix_id',
+                'location_types.id as location_type_id',
                 'customers.id as customer_id'
             )
             ->where('customers.is_active', true)
@@ -48,6 +50,7 @@ class InitTodayVendRecords implements ShouldQueue
             ], [
                 'customer_id' => $vend->customer_id,
                 'day' => Carbon::yesterday()->day,
+                'location_type_id' => $vend->location_type_id,
                 'month' => Carbon::yesterday()->month,
                 'monthname' => Carbon::yesterday()->format('F'),
                 'operator_id' => $vend->operator_id,

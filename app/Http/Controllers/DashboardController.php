@@ -376,11 +376,7 @@ class DashboardController extends Controller
             ->when($request->locationType, function($query, $search) use ($request) {
                 // dd($request->all(), $search);
                 if($search != 'all') {
-                    $query->whereIn('vend_records.customer_id', function ($subQuery) use ($search) {
-                        $subQuery->select('id')
-                            ->from('customers')
-                            ->where('location_type_id', $search);
-                    });
+                    $query->where('vend_records.location_type_id', $search);
                 }
             })
             ->select(
@@ -480,9 +476,7 @@ class DashboardController extends Controller
         $vendRecords = VendRecord::query()
             ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'customers.id', '=', 'vend_records.customer_id')
-            ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
-            // ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-            // ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            ->leftJoin('location_types', 'vend_records.location_type_id', '=', 'location_types.id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_records.operator_id')
             ->whereBetween('vend_records.date', [Carbon::parse($request->monthlyDateFrom), Carbon::parse($request->monthlyDateTo)])
             ->filterIndex($request)
@@ -492,9 +486,6 @@ class DashboardController extends Controller
             ->select('vend_records.date', DB::raw('COUNT(DISTINCT(vend_records.vend_id)) as count'));
 
         switch ($className) {
-            // case 'categories':
-            //     $vendRecords->selectRaw('categories.id as id');
-            //     break;
             case 'location_types':
                 $vendRecords->selectRaw('location_types.id as id');
                 break;
@@ -508,15 +499,12 @@ class DashboardController extends Controller
         $query = VendRecord::query()
             ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
             ->leftJoin('customers', 'customers.id', '=', 'vend_records.customer_id')
-            ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
+            ->leftJoin('location_types', 'vend_records.location_type_id', '=', 'location_types.id')
             // ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             // ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_records.operator_id')
             ->leftJoinSub($vendRecords, 'x', function ($join) use ($className) {
                 switch ($className) {
-                    // case 'categories':
-                    //     $join->on('categories.id', '=', 'x.id');
-                    //     break;
                     case 'location_types':
                         $join->on('location_types.id', '=', 'x.id');
                         break;
@@ -533,9 +521,6 @@ class DashboardController extends Controller
             });
 
         switch ($className) {
-            // case 'categories':
-            //     $query->selectRaw('categories.id as id')->selectRaw('categories.name as name');
-            //     break;
             case 'location_types':
                 $query->selectRaw('location_types.id as id')->selectRaw('location_types.name as name');
                 break;
@@ -544,7 +529,8 @@ class DashboardController extends Controller
                 break;
         }
 
-        $query->selectRaw('SUM(vend_records.total_count) AS count')
+        $query
+            // ->selectRaw('SUM(vend_records.total_count) AS count')
             ->selectRaw('SUM(vend_records.total_amount) AS amount')
             ->selectRaw('COUNT(DISTINCT(vend_records.vend_id)) AS vend_count')
             ->selectRaw('AVG(vend_records.total_amount) AS average')

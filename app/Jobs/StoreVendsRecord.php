@@ -38,6 +38,7 @@ class StoreVendsRecord implements ShouldQueue
             ->join('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->leftJoin('delivery_platform_orders', 'vend_transactions.id', '=', 'delivery_platform_orders.vend_transaction_id')
             ->leftJoin('customers', 'vend_transactions.customer_id', '=', 'customers.id')
+            ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
             ->leftJoin('vend_channel_errors', 'vend_transactions.vend_channel_error_id', '=', 'vend_channel_errors.id')
             ->where('vend_transactions.transaction_datetime', '>', Carbon::parse($this->from)->setTimezone('Asia/Singapore')->startOfDay())
             ->where('vend_transactions.transaction_datetime', '<', Carbon::parse($this->to)->setTimezone('Asia/Singapore')->endOfDay())
@@ -49,6 +50,7 @@ class StoreVendsRecord implements ShouldQueue
                 'vends.vend_prefix_id',
                 'vend_transactions.id',
                 'customers.id AS customer_id',
+                'location_types.id AS location_type_id',
                 DB::raw('DATE(vend_transactions.transaction_datetime) as date'),
                 DB::raw('DAY(vend_transactions.transaction_datetime) as day'),
                 DB::raw('MONTH(vend_transactions.transaction_datetime) as month'),
@@ -175,6 +177,7 @@ class StoreVendsRecord implements ShouldQueue
                 'failure_amount' => $vend->failure_amount,
                 'failure_count' => $vend->failure_count,
                 'gross_profit' => $vend->gross_profit,
+                'location_type_id' => $vend->location_type_id ?? null,
                 'month' => $vend->month,
                 'monthname' => $vend->month_name,
                 'online_failure_amount' => $vend->online_failure_amount,
@@ -197,12 +200,14 @@ class StoreVendsRecord implements ShouldQueue
             foreach($vendWithTransactions as $date => $vendIDs) {
                 $vendWithoutTransactions = Vend::query()
                 ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+                ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
                 ->select(
                     'vends.id as id',
                     'vends.code as code',
                     'vends.operator_id',
                     'vends.vend_prefix_id',
-                    'customers.id as customer_id'
+                    'customers.id as customer_id',
+                    'location_types.id as location_type_id'
                 )
                 ->where('customers.is_active', true)
                 ->whereNotIn('vends.id', $vendIDs)
@@ -217,6 +222,7 @@ class StoreVendsRecord implements ShouldQueue
                     ], [
                         'customer_id' => $vend->customer_id,
                         'day' => Carbon::parse($date)->day,
+                        'location_type_id' => $vend->location_type_id ?? null,
                         'month' => Carbon::parse($date)->month,
                         'monthname' => Carbon::parse($date)->format('F'),
                         'operator_id' => $vend->operator_id,

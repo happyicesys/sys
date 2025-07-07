@@ -24,6 +24,7 @@ class VendRecord extends Model
         'failure_amount', //this failure amount is for failure transaction, other than [0, 6]
         'failure_count', //this failure count is for failure transaction, other than [0, 6]
         'gross_profit', //this gp is for success transaction
+        'location_type_id',
         'month',
         'monthname',
         'online_failure_amount',
@@ -45,6 +46,11 @@ class VendRecord extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function locationType()
+    {
+        return $this->belongsTo(LocationType::class);
     }
 
     public function operator()
@@ -128,9 +134,7 @@ class VendRecord extends Model
         })
         ->when($request->location_type_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereIn('vend_records.customer_id', function($query) use ($search) {
-                    $query->select('id')->from('customers')->where('location_type_id', $search);
-                });
+                $query->where('vend_records.location_type_id', $search);
             }
         })
         ->when($request->operator_id, function($query, $search) {
