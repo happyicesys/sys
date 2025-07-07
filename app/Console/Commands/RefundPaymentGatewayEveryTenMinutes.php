@@ -30,15 +30,17 @@ class RefundPaymentGatewayEveryTenMinutes extends Command
     {
         $setting = Setting::first();
 
+        $now = now();
+
         $paymentGatewayLogs = PaymentGatewayLog::query()
             ->with('paymentGateway')
             ->where('status', PaymentGatewayLog::STATUS_APPROVE)
             ->where('approved_at', '>=', $setting->payment_gateway_log_refund_scanned_at)
-            ->where('approved_at', '<=', now()->subMinutes(PaymentGatewayLog::REFUND_PENDING_MINUTES))
+            ->where('approved_at', '<=', $now->subMinutes(PaymentGatewayLog::REFUND_PENDING_MINUTES))
             ->where('is_dispensed', false)
             ->get();
 
-        $setting->payment_gateway_log_refund_scanned_at = now();
+        $setting->payment_gateway_log_refund_scanned_at = $now;
         $setting->save();
 
         foreach($paymentGatewayLogs as $paymentGatewayLog) {
