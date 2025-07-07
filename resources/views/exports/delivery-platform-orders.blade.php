@@ -109,6 +109,7 @@
               <td></td>
               <td></td>
               <td></td>
+              <td></td>
               <td>
                 {{ $deliveryPlatformOrderItem->product->code }}
               </td>

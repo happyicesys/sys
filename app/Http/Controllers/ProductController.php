@@ -142,8 +142,11 @@ class ProductController extends Controller
         if($request->operators == null) {
             if(auth()->user()->operator->code == 'HIPL') {
                 $request->merge(['operators' => [
-                    auth()->user()->operator_id, Operator::where('code', 'HIMD')->first()?->id,
-                    auth()->user()->operator_id, Operator::where('code', 'LEA')->first()?->id,
+                    auth()->user()->operator_id,
+                    Operator::where('code', 'HIMD')->first()?->id,
+                    Operator::where('code', 'LEA')->first()?->id,
+                    Operator::where('code', 'DCVIC')->first()?->id,
+                    Operator::where('code', 'HIESG')->first()?->id,
                 ]]);
             }else {
                 $request->merge(['operators' => auth()->user()->operator_id]);

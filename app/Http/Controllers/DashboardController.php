@@ -85,6 +85,7 @@ class DashboardController extends Controller
                     Operator::where('code', 'HIMD')->first()?->id,
                     Operator::where('code', 'LEA')->first()?->id,
                     Operator::where('code', 'DCVIC')->first()?->id,
+                    Operator::where('code', 'HIESG')->first()?->id,
                 ]]);
             }else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);

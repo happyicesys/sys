@@ -1127,7 +1127,12 @@ onMounted(() => {
     // filters.value.locationType = locationTypeOptions.value[0]
     filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
-		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
+		...authOperator.code == 'HIPL' ? [
+      operatorOptions.value.find(operator => operator.code == 'HIMD'),
+      operatorOptions.value.find(operator => operator.code == 'LEA'),
+			operatorOptions.value.find(operator => operator.code == 'DCVIC'),
+      operatorOptions.value.find(operator => operator.code == 'HIESG'),
+    ] : [],
 	] : operatorOptions.value[0]
 
       filters.value.delivery_platform_id = deliveryPlatformOptions.value[0]
