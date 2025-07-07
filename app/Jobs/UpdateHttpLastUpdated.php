@@ -19,13 +19,13 @@ class UpdateHttpLastUpdated implements ShouldQueue
     public $tries = 0;
     public $timeout = 2;
 
-    protected $vend;
+    protected $vendID;
     /**
      * Create a new job instance.
      */
-    public function __construct(Vend $vend)
+    public function __construct($vendID)
     {
-        $this->vend = $vend;
+        $this->vendID = $vendID;
     }
 
     /**
@@ -33,7 +33,12 @@ class UpdateHttpLastUpdated implements ShouldQueue
      */
     public function handle(): void
     {
-        $this->vend->update([
+        $vend = Vend::find($this->vendID);
+        if (!$vend) {
+            return;
+        }
+
+        $vend->update([
             'last_updated_at' => Carbon::now(),
             'is_online' => true,
         ]);
