@@ -319,6 +319,22 @@
                     HID Card ID
                 </SearchInput>
             </div>
+            <div class="col-span-5 md:col-span-1">
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Is Voucher?
+                </label>
+                <MultiSelect
+                    v-model="filters.is_voucher"
+                    :options="booleanOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                >
+                </MultiSelect>
+            </div>
         </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -579,6 +595,9 @@
                         <TableHead>
                             HID Card ID
                         </TableHead>
+                        <TableHead>
+                            Voucher
+                        </TableHead>
                       </tr>
                   </thead>
                   <tbody class="bg-white">
@@ -674,6 +693,19 @@
                         </TableData>
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransaction.metaJson && vendTransaction.metaJson['hid_card_id'] ? vendTransaction.metaJson['hid_card_id'] : null }}
+                        </TableData>
+                        <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
+                            <div
+                                class="inline-flex rounded px-0.5 py-0.5 text-xs border w-fit bg-blue-100 text-blue-800 border-blue-300"
+                                v-if="vendTransaction.metaJson && vendTransaction.metaJson['vouchers']"
+                            >
+                                <div class="flex space-x-1">
+                                    <span class="font-semibold grow-0">
+                                        {{ vendTransaction.metaJson['vouchers'][0].code }}
+                                    </span>
+                                </div>
+                            </div>
+
                         </TableData>
                       </tr>
                       <tr v-if="vendTransaction.vendTransactionItems" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItems" class="divide-x">
@@ -887,6 +919,7 @@ const filters = ref({
     is_multiple: '',
     is_payment_received: '',
     is_refunded: '',
+    is_voucher: '',
     paymentMethods: [],
     date_from: moment().format('YYYY-MM-DD'),
     date_to: moment().format('YYYY-MM-DD'),
@@ -960,6 +993,7 @@ function onExportCsvClicked() {
             is_multiple: filters.value.is_multiple.id,
             is_payment_received: filters.value.is_payment_received.id,
             is_refunded: filters.value.is_refunded.id,
+            is_voucher: filters.value.is_voucher ? filters.value.is_voucher.id : '',
             paymentMethods: filters.value.paymentMethods.map(pm => pm.id),
             numberPerPage: filters.value.numberPerPage.id,
             vendContracts: filters.value.vendContracts.map(vc => vc.id),
@@ -1002,6 +1036,7 @@ function onExportExcelClicked() {
             is_multiple: filters.value.is_multiple.id,
             is_payment_received: filters.value.is_payment_received.id,
             is_refunded: filters.value.is_refunded.id,
+            is_voucher: filters.value.is_voucher ? filters.value.is_voucher.id : '',
             paymentMethods: filters.value.paymentMethods.map((paymentMethod) => { return paymentMethod.id }),
             numberPerPage: filters.value.numberPerPage.id,
             vendContracts: filters.value.vendContracts.map((vendContract) => { return vendContract.id }),
@@ -1032,6 +1067,7 @@ function onSearchFilterUpdated() {
         is_multiple: filters.value.is_multiple.id,
         is_payment_received: filters.value.is_payment_received.id,
         is_refunded: filters.value.is_refunded.id,
+        is_voucher: filters.value.is_voucher ? filters.value.is_voucher.id : '',
         paymentMethods: filters.value.paymentMethods.map((paymentMethod) => { return paymentMethod.id }),
         numberPerPage: filters.value.numberPerPage.id,
         vendContracts: filters.value.vendContracts.map((vendContract) => { return vendContract.id }),

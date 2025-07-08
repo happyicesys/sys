@@ -273,6 +273,15 @@ class VendTransaction extends Model
                 }
             }
         })
+        ->when($request->is_voucher, function($query, $search) {
+            if($search != 'all') {
+                if($search == 'true') {
+                    $query->whereNotNull('meta_json->vouchers');
+                }else {
+                    $query->whereNull('meta_json->vouchers');
+                }
+            }
+        })
         ->when($isPaymentReceived, function($query, $search) {
             if($search != 'all') {
                 if($search == 'true') {

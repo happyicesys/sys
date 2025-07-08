@@ -1674,6 +1674,7 @@ class VendController extends Controller
             'status' => 'pending',
             'filename' => $filenameBase,
         ]);
+        // dd($request->all());
 
         $baseQuery = VendTransaction::query()
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')

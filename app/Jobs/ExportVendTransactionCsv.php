@@ -73,7 +73,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                 'Product Code', 'Product Name', 'Price Type', 'Amount', 'Amount Breakdown',
                 'Unit Cost', 'Payment Method', 'Error Code', 'Location Type',
                 'Operator', 'Is Successful', 'Is Refunded', 'Is Multiple',
-                'Multiple Qty', 'TXN Source', 'Member ID',
+                'Multiple Qty', 'TXN Source', 'Member ID', 'Voucher',
             ]);
 
             VendTransaction::query()
@@ -131,6 +131,10 @@ class ExportVendTransactionCsv implements ShouldQueue
                             ? $txn->vend_transaction_json
                             : json_decode($txn->vend_transaction_json, true);
 
+                        $meta_json = is_array($txn->meta_json)
+                            ? $txn->meta_json
+                            : json_decode($txn->meta_json, true);
+
                         $txnItems = $items[$txn->id] ?? collect();
 
                         $main_amount = $txn->amount / 100;
@@ -164,6 +168,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                             $txn->is_multiple ? $txnItems->count() : 1,
                             $txn->interface_type,
                             $txn_json['dcvend_user_id'] ?? '',
+                            $meta_json['vouchers'] ? $meta_json['vouchers'][0]['code'] : '',
                         ]);
 
                         // ✏️ Write child item rows
