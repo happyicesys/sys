@@ -471,74 +471,141 @@ class DashboardController extends Controller
         }
     }
 
+    // private function getMonthlySalesQuery($request, $className)
+    // {
+    //     $vendRecords = VendRecord::query()
+    //         ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
+    //         ->leftJoin('customers', 'customers.id', '=', 'vend_records.customer_id')
+    //         ->leftJoin('location_types', 'vend_records.location_type_id', '=', 'location_types.id')
+    //         ->leftJoin('operators', 'operators.id', '=', 'vend_records.operator_id')
+    //         ->whereBetween('vend_records.date', [Carbon::parse($request->monthlyDateFrom), Carbon::parse($request->monthlyDateTo)])
+    //         ->filterIndex($request)
+    //         ->whereNotIn('vend_records.vend_id', function ($query) {
+    //             $query->select('id')->from('vends')->where('is_testing', true);
+    //         })
+    //         ->select('vend_records.date', DB::raw('COUNT(DISTINCT(vend_records.vend_id)) as count'));
+
+    //     switch ($className) {
+    //         case 'location_types':
+    //             $vendRecords->selectRaw('location_types.id as id');
+    //             break;
+    //         case 'operators':
+    //             $vendRecords->selectRaw('operators.id as id');
+    //             break;
+    //     }
+
+    //     $vendRecords = $vendRecords->groupBy('id', 'vend_records.date');
+
+    //     $query = VendRecord::query()
+    //         ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
+    //         ->leftJoin('customers', 'customers.id', '=', 'vend_records.customer_id')
+    //         ->leftJoin('location_types', 'vend_records.location_type_id', '=', 'location_types.id')
+    //         // ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+    //         // ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+    //         ->leftJoin('operators', 'operators.id', '=', 'vend_records.operator_id')
+    //         ->leftJoinSub($vendRecords, 'x', function ($join) use ($className) {
+    //             switch ($className) {
+    //                 case 'location_types':
+    //                     $join->on('location_types.id', '=', 'x.id');
+    //                     break;
+    //                 case 'operators':
+    //                     $join->on('operators.id', '=', 'x.id');
+    //                     break;
+    //             }
+    //             $join->on('vend_records.date', '=', 'x.date');
+    //         })
+    //         ->whereBetween('vend_records.date', [Carbon::parse($request->monthlyDateFrom), Carbon::parse($request->monthlyDateTo)])
+    //         ->filterIndex($request)
+    //         ->whereNotIn('vend_records.vend_id', function ($query) {
+    //             $query->select('id')->from('vends')->where('is_testing', true);
+    //         });
+
+    //     switch ($className) {
+    //         case 'location_types':
+    //             $query->selectRaw('location_types.id as id')->selectRaw('location_types.name as name');
+    //             break;
+    //         case 'operators':
+    //             $query->selectRaw('operators.id as id')->selectRaw('operators.name as name');
+    //             break;
+    //     }
+
+    //     $query
+    //         // ->selectRaw('SUM(vend_records.total_count) AS count')
+    //         ->selectRaw('SUM(vend_records.total_amount) AS amount')
+    //         ->selectRaw('COUNT(DISTINCT(vend_records.vend_id)) AS vend_count')
+    //         ->selectRaw('AVG(vend_records.total_amount) AS average')
+    //         ->selectRaw('vend_records.month')
+    //         ->selectRaw('ROUND(AVG(x.count), 2) AS count')
+    //         ->groupBy('id', 'vend_records.month')
+    //         ->orderBy('name', 'asc');
+
+    //     return $query;
+    // }
+
     private function getMonthlySalesQuery($request, $className)
-    {
-        $vendRecords = VendRecord::query()
-            ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
-            ->leftJoin('customers', 'customers.id', '=', 'vend_records.customer_id')
-            ->leftJoin('location_types', 'vend_records.location_type_id', '=', 'location_types.id')
-            ->leftJoin('operators', 'operators.id', '=', 'vend_records.operator_id')
-            ->whereBetween('vend_records.date', [Carbon::parse($request->monthlyDateFrom), Carbon::parse($request->monthlyDateTo)])
-            ->filterIndex($request)
-            ->whereNotIn('vend_records.vend_id', function ($query) {
-                $query->select('id')->from('vends')->where('is_testing', true);
-            })
-            ->select('vend_records.date', DB::raw('COUNT(DISTINCT(vend_records.vend_id)) as count'));
+{
+    $dateFrom = Carbon::parse($request->monthlyDateFrom);
+    $dateTo = Carbon::parse($request->monthlyDateTo);
 
-        switch ($className) {
-            case 'location_types':
-                $vendRecords->selectRaw('location_types.id as id');
-                break;
-            case 'operators':
-                $vendRecords->selectRaw('operators.id as id');
-                break;
-        }
+    // Subquery: daily active vend count per id (location_type_id/operator) & date
+    $dailyActive = VendRecord::query()
+        ->selectRaw('vend_records.location_type_id as location_type_id')
+        ->selectRaw('vend_records.operator_id as operator_id')
+        ->selectRaw('vend_records.date as date')
+        ->selectRaw('COUNT(DISTINCT vend_records.vend_id) as daily_active_count')
+        ->leftJoin('vends as v2', function($join) {
+            $join->on('vend_records.vend_id', '=', 'v2.id')
+                ->where('v2.is_testing', true);
+        })
+        ->whereBetween('vend_records.date', [$dateFrom, $dateTo])
+        ->whereNull('v2.id') // replaces NOT IN for efficiency
+        ->when($request->operators, fn($q) => $q->whereIn('vend_records.operator_id', $request->operators))
+        ->groupBy('vend_records.date');
 
-        $vendRecords = $vendRecords->groupBy('id', 'vend_records.date');
-
-        $query = VendRecord::query()
-            ->leftJoin('vends', 'vend_records.vend_id', '=', 'vends.id')
-            ->leftJoin('customers', 'customers.id', '=', 'vend_records.customer_id')
-            ->leftJoin('location_types', 'vend_records.location_type_id', '=', 'location_types.id')
-            // ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
-            // ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
-            ->leftJoin('operators', 'operators.id', '=', 'vend_records.operator_id')
-            ->leftJoinSub($vendRecords, 'x', function ($join) use ($className) {
-                switch ($className) {
-                    case 'location_types':
-                        $join->on('location_types.id', '=', 'x.id');
-                        break;
-                    case 'operators':
-                        $join->on('operators.id', '=', 'x.id');
-                        break;
-                }
-                $join->on('vend_records.date', '=', 'x.date');
-            })
-            ->whereBetween('vend_records.date', [Carbon::parse($request->monthlyDateFrom), Carbon::parse($request->monthlyDateTo)])
-            ->filterIndex($request)
-            ->whereNotIn('vend_records.vend_id', function ($query) {
-                $query->select('id')->from('vends')->where('is_testing', true);
-            });
-
-        switch ($className) {
-            case 'location_types':
-                $query->selectRaw('location_types.id as id')->selectRaw('location_types.name as name');
-                break;
-            case 'operators':
-                $query->selectRaw('operators.id as id')->selectRaw('operators.name as name');
-                break;
-        }
-
-        $query
-            // ->selectRaw('SUM(vend_records.total_count) AS count')
-            ->selectRaw('SUM(vend_records.total_amount) AS amount')
-            ->selectRaw('COUNT(DISTINCT(vend_records.vend_id)) AS vend_count')
-            ->selectRaw('AVG(vend_records.total_amount) AS average')
-            ->selectRaw('vend_records.month')
-            ->selectRaw('ROUND(AVG(x.count), 2) AS count')
-            ->groupBy('id', 'vend_records.month')
-            ->orderBy('name', 'asc');
-
-        return $query;
+    if ($className === 'location_types') {
+        $dailyActive->groupBy('vend_records.location_type_id');
+    } elseif ($className === 'operators') {
+        $dailyActive->groupBy('vend_records.operator_id');
     }
+
+    $query = VendRecord::query()
+        ->selectRaw('vend_records.month')
+        ->selectRaw('SUM(vend_records.total_amount) as amount')
+        ->selectRaw('COUNT(DISTINCT vend_records.vend_id) as vend_count')
+        ->selectRaw('AVG(vend_records.total_amount) as average')
+        ->leftJoin('vends as v2', function($join) {
+            $join->on('vend_records.vend_id', '=', 'v2.id')
+                ->where('v2.is_testing', true);
+        })
+        ->leftJoinSub($dailyActive, 'daily_active', function($join) use ($className) {
+            $join->on('vend_records.date', '=', 'daily_active.date');
+            if ($className === 'location_types') {
+                $join->on('vend_records.location_type_id', '=', 'daily_active.location_type_id');
+            } elseif ($className === 'operators') {
+                $join->on('vend_records.operator_id', '=', 'daily_active.operator_id');
+            }
+        })
+        ->whereBetween('vend_records.date', [$dateFrom, $dateTo])
+        ->whereNull('v2.id') // replaces NOT IN
+        ->when($request->operators, fn($q) => $q->whereIn('vend_records.operator_id', $request->operators));
+
+    if ($className === 'location_types') {
+        $query->leftJoin('location_types', 'vend_records.location_type_id', '=', 'location_types.id')
+              ->selectRaw('location_types.id as id')
+              ->selectRaw('location_types.name as name')
+              ->groupBy('location_types.id', 'vend_records.month')
+              ->orderBy('location_types.name', 'asc');
+    } elseif ($className === 'operators') {
+        $query->leftJoin('operators', 'vend_records.operator_id', '=', 'operators.id')
+              ->selectRaw('operators.id as id')
+              ->selectRaw('operators.name as name')
+              ->groupBy('operators.id', 'vend_records.month')
+              ->orderBy('operators.name', 'asc');
+    }
+
+    $query->selectRaw('ROUND(AVG(daily_active.daily_active_count), 2) as average_active_count');
+
+    return $query;
+}
+
 }

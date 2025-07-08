@@ -36,6 +36,7 @@
                 :class="[props.vendSerialNumber.vend ? 'opacity-50 cursor-not-allowed' : '']"
                 @click="onDeleteClicked(form)"
                 :disabled="props.vendSerialNumber.vend"
+                v-if="props.vendSerialNumber"
               >
                 <span class="flex space-x-1 items-center">
                   <TrashIcon class="w-4 h-4"></TrashIcon>
