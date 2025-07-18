@@ -37,7 +37,16 @@
                       class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit bg-green-300"
                       v-if="customer.person_id"
                     >
-                      <div class="flex flex-col"> From CMS </div>
+                      <a
+                          target="_blank"
+                          :href="cmsEndpoint + '/person/' + customer.person_id + '/edit'"
+                          class=""
+                          v-if="customer.person_id"
+                        >
+                        <div class="flex flex-col">
+                          From CMS
+                        </div>
+                      </a>
                     </div>
                   </div>
 
@@ -672,6 +681,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
 const props = defineProps({
+  cmsEndpoint: String,
   vendOptions: Object,
   countries: Object,
   days: Object,

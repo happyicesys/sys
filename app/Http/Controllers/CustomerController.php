@@ -309,6 +309,7 @@ class CustomerController extends Controller
         ->find($id);
 
         return Inertia::render('Customer/Edit', [
+            'cmsEndpoint' => env('CMS_URL'),
             'countries' => CountryResource::collection(Country::orderBy('sequence')->orderBy('name')->get()),
             'days' => Customer::DAYS_MAPPING,
             'frequencyPerWeekOptions' => Customer::FREQUENCY_PER_WEEK_STATUSES_MAPPING,
