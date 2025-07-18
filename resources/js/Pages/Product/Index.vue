@@ -12,16 +12,17 @@
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="flex justify-end mb-4">
-          <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          @click="onCreateClicked()"
+          <Link href="/products/create" class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           v-if="permissions.includes('create products')"
           >
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
               Create
             </span>
-          </Button>
+          </Link>
         </div>
+        <!-- @click="onCreateClicked()"
+          v-if="permissions.includes('create products')" -->
           <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="Code" v-model="filters.code">
@@ -343,15 +344,15 @@
                       </TableData>
                       <TableData :currentIndex="productIndex" :totalLength="products.length" inputClass="text-center">
                         <div class="flex justify-center space-x-1">
-                          <Button
+                          <Link
+                            :href="'/products/' + product.id + '/edit'"
                             type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-                            @click="onEditClicked(product)"
                           >
                             <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
                             <span>
                                 Edit
                             </span>
-                          </Button>
+                          </Link>
                         </div>
                       </TableData>
                       </tr>
@@ -400,7 +401,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import { ref, onMounted, watch } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, Link } from '@inertiajs/vue3';
 
 const props = defineProps({
   categories: Object,
@@ -515,6 +516,7 @@ function onCreateClicked() {
   type.value = 'create'
   product.value = null
   showModal.value = true
+
 }
 
 function onDeleteClicked(product) {

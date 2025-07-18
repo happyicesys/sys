@@ -41,6 +41,8 @@ class Product extends Model
         'is_available_updated_at',
         'is_available_updated_by',
         'is_commission',
+        'is_healthier_choice',
+        'is_halal',
         'is_inventory',
         'is_supermarket_fee',
         'max_ops_job_pick_limit_json',
@@ -48,6 +50,7 @@ class Product extends Model
         'measurement_unit',
         'measurement_value',
         'name',
+        'nutri_grade',
         'operator_id',
         'product_sub_category_id',
         'remarks',
@@ -57,7 +60,14 @@ class Product extends Model
     protected $casts = [
         'max_ops_job_pick_limit_json' => 'json',
         'translated_names_json' => 'json',
-        'is_available_updated_at' => 'datetime'
+        'is_available_updated_at' => 'datetime',
+        'is_active' => 'boolean',
+        'is_available' => 'boolean',
+        'is_commission' => 'boolean',
+        'is_healthier_choice' => 'boolean',
+        'is_halal' => 'boolean',
+        'is_inventory' => 'boolean',
+        'is_supermarket_fee' => 'boolean',
     ];
 
     // relationships

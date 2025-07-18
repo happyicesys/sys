@@ -102,6 +102,50 @@ class ProductController extends Controller
 
     public function create(Request $request)
     {
+        // categories: Object,
+        // categoryGroups: Object,
+        // languageOptions: [Array, Object],
+        // measurementUnitOptions: Object,
+        // priceTypeOptions: Object,
+        // uoms: Object,
+        // type: String,
+        // operatorOptions: Object,
+        // permissions: [Array, Object],
+        // productTagOptions: Object,
+        $className = get_class(new Product());
+
+        return Inertia::render('Product/Create', [
+            'categories' => CategoryResource::collection(
+                Category::where('classname', $className)
+                    ->orderBy('name')
+                    ->get()
+            ),
+            'categoryGroups' => CategoryGroupResource::collection(
+                    CategoryGroup::where('classname', $className)
+                        ->orderBy('name')
+                        ->get()
+            ),
+            'languageOptions' => config('language'),
+            'measurementUnitOptions' => Product::MEASUREMENT_UNIT_MAPPINGS,
+            'operatorOptions' => OperatorResource::collection(
+                Operator::all()
+            ),
+            'priceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
+            'productTagOptions' => TagResource::collection(
+                Tag::where('classname', $className)
+                    ->orderBy('name')
+                    ->get()
+            ),
+            'uoms' => UomResource::collection(
+                Uom::query()
+                    ->orderBy('sequence')
+                    ->get()
+            ),
+        ]);
+    }
+
+    public function store(Request $request)
+    {
         $request->validate([
             'code' => 'required',
             'name' => 'required',
@@ -133,7 +177,7 @@ class ProductController extends Controller
             ]);
         }
 
-        return redirect()->route('products');
+        return redirect()->route('products.edit', ['id' => $product->id])->with('success', 'Product saved successfully');
     }
 
     public function availability(Request $request)
@@ -402,6 +446,56 @@ class ProductController extends Controller
         $sellingPrice->delete();
 
         return redirect()->route('products');
+    }
+
+    public function edit(Request $request, $productId)
+    {
+        $product = Product::with([
+            'attachments',
+            'category',
+            'categoryGroup',
+            'latestUnitCost',
+            'operator',
+            'productUoms.uom',
+            'sellingPrices',
+            'tagBindings.tag',
+            'thumbnail',
+            'unitCosts' => function($query) {
+                $query->orderBy('date_from', 'desc')->orderBy('created_at', 'desc');
+            },
+        ])->findOrFail($productId);
+
+        $className = get_class(new Product());
+
+        return Inertia::render('Product/Edit', [
+            'categories' => CategoryResource::collection(
+                Category::where('classname', $className)
+                    ->orderBy('name')
+                    ->get()
+            ),
+            'categoryGroups' => CategoryGroupResource::collection(
+                CategoryGroup::where('classname', $className)
+                    ->orderBy('name')
+                    ->get()
+            ),
+            'languageOptions' => config('language'),
+            'measurementUnitOptions' => Product::MEASUREMENT_UNIT_MAPPINGS,
+            'operatorOptions' => OperatorResource::collection(
+                Operator::all()
+            ),
+            'priceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
+            'productTagOptions' => TagResource::collection(
+                Tag::where('classname', $className)
+                    ->orderBy('name')
+                    ->get()
+            ),
+            'uoms' => UomResource::collection(
+                Uom::query()
+                    ->orderBy('sequence')
+                    ->get()
+            ),
+            'product' => ProductResource::make($product),
+        ]);
     }
 
     public function updateMaxOpsJobPickLimit(Request $request, $productID)

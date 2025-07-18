@@ -249,7 +249,7 @@
                     <TableHeadSort modelName="desc" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('desc')" class="max-w-600">
                       Remarks
                     </TableHeadSort>
-                    <TableHead colspan="7">
+                    <TableHead colspan="8">
                       Machine Info
                     </TableHead>
                     <TableHead colspan="3">
@@ -273,6 +273,9 @@
                     </TableHeadSort>
                     <TableHeadSort modelName="vend_begin_date" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_begin_date')">
                       Begin Date
+                    </TableHeadSort>
+                    <TableHeadSort modelName="vend_config_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_config_name')">
+                      Setting Chart
                     </TableHeadSort>
                     <!-- <TableHeadSort modelName="vend_config_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('vend_config_name')">
                       Setting Chart
@@ -335,9 +338,9 @@
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_begin_date }}
                       </TableData>
-                      <!-- <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
+                      <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_config_name }}
-                      </TableData> -->
+                      </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.vend_prefix_name }}
                       </TableData>
