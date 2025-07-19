@@ -495,7 +495,7 @@
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
                     <div class="flex justify-between items-center">
                         <span class="truncate text-xs font-medium text-gray-600">
-                            Delivery Platform
+                            From Delivery Platform:
                         </span>
                         <span>
                             {{(totals['multiple_count_delivery_platform'] ? totals['multiple_count_delivery_platform'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
@@ -503,7 +503,7 @@
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="truncate text-xs font-medium text-gray-600">
-                            Machine
+                            From Machine:
                         </span>
                         <span>
                             {{(totals['multiple_count_machine'] ? totals['multiple_count_machine'] : 0).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}

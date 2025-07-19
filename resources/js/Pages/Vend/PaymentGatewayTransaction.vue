@@ -264,7 +264,7 @@
                             Order ID
                         </TableHead>
                         <TableHead>
-                            Dispensed?
+                            Dispense Attempted?
                         </TableHead>
                         <TableHead>
                             Found in Transactions?
