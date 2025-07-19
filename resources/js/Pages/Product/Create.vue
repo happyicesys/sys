@@ -163,6 +163,33 @@
                 >
                 </MultiSelect>
               </div>
+              <div class="sm:col-span-2">
+                <label class="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <input
+                    type="checkbox"
+                    v-model="form.is_healthier_choice"
+                    class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                    :disabled="!permissions.includes('update products')"
+                  />
+                  <span>Is Healthier Choice</span>
+                </label>
+              </div>
+              <div class="sm:col-span-2">
+                <label class="flex items-center space-x-2 text-sm font-medium text-gray-700">
+                  <input
+                    type="checkbox"
+                    v-model="form.is_halal"
+                    class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"
+                    :disabled="!permissions.includes('update products')"
+                  />
+                  <span>Is Halal</span>
+                </label>
+              </div>
+              <div class="sm:col-span-2">
+                <FormInput v-model="form.nutri_grade" :error="form.errors.nutri_grade" :disabled="!permissions.includes('update products')">
+                  Nutri Grade
+                </FormInput>
+              </div>
 
               <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
                 <div class="relative">
@@ -577,11 +604,14 @@ function getDefaultForm() {
     thumbnail: '',
     is_inventory: 1,
     is_commission: '',
+    is_halal: '',
+    is_healthier_choice: '',
     is_supermarket_fee: '',
     category_id: '',
     measurement_count: '',
     measurement_value: '',
     measurement_unit: '',
+    nutri_grade: '',
     operator_id: '',
     selling_price_amount: '',
     selling_price_type: '',

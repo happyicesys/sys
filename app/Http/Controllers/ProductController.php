@@ -294,6 +294,7 @@ class ProductController extends Controller
 
     public function update(Request $request, $productId)
     {
+        // dd($request->all());
         $request->validate([
             'code' => 'required',
             'name' => 'required',
