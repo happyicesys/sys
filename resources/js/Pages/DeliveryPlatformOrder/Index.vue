@@ -25,17 +25,6 @@
           <SearchInput placeholderStr="Platform ID" v-model="filters.platform_ref_id">
             Platform ID
           </SearchInput>
-          <DatePicker
-              v-model="filters.date_from"
-          >
-              From
-          </DatePicker>
-          <DatePicker
-              v-model="filters.date_to"
-              :minDate="filters.date_from"
-          >
-              To
-          </DatePicker>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Operator
@@ -101,6 +90,49 @@
             >
             </MultiSelect>
           </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Has Complaint?
+            </label>
+            <MultiSelect
+              v-model="filters.has_complaint"
+              :options="booleanOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Date Filter Type
+            </label>
+            <MultiSelect
+              v-model="filters.date_filter_type"
+              :options="dateFilterTypeOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
+          </div>
+          <DatePicker
+              v-model="filters.date_from"
+          >
+              From
+          </DatePicker>
+          <DatePicker
+              v-model="filters.date_to"
+              :minDate="filters.date_from"
+          >
+              To
+          </DatePicker>
         </div>
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -463,6 +495,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   cmsEndpoint: String,
+  dateFilterTypeOptions: [Object, Array],
   deliveryPlatformOrders: Object,
   // deliveryPlatformOperatorOptions: Object,
   deliveryPlatformTypeOptions: [Array, Object],
@@ -476,6 +509,7 @@ const filters = ref({
   order_id: '',
   short_order_id: '',
   vend_code: '',
+  date_filter_type: 'order_created_at',
   date_from: moment().format('YYYY-MM-DD'),
   date_to: moment().format('YYYY-MM-DD'),
   delivery_platform_type_id: '',
@@ -489,6 +523,7 @@ const filters = ref({
   numberPerPage: 100,
 })
 const authOperator = usePage().props.auth.operator
+const dateFilterTypeOptions = ref([])
 const deliveryPlatformOperatorOptions = ref([])
 const deliveryPlatformOrder = ref()
 const deliveryPlatformTypeOptions = ref([])
@@ -519,6 +554,9 @@ onMounted(() => {
   //   ...props.deliveryPlatformOperatorOptions.data.map((data) => {
   //   return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
   // ]
+  dateFilterTypeOptions.value = Object.keys(props.dateFilterTypeOptions).map((dateFilterType, index) => {
+    return {id: dateFilterType, value: props.dateFilterTypeOptions[dateFilterType]}
+  })
   deliveryPlatformTypeOptions.value = [
     {id: 'all', name: 'All'},
     ...Object.keys(props.deliveryPlatformTypeOptions).map((deliveryPlatformType, index) => {return {id: deliveryPlatformType, name: deliveryPlatformType}})
@@ -527,6 +565,7 @@ onMounted(() => {
 			{id: 'all', full_name: 'All'},
       ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
+  filters.value.date_filter_type = dateFilterTypeOptions.value[0]
   filters.value.delivery_platform_type_id = deliveryPlatformTypeOptions.value.find(deliveryPlatformType => deliveryPlatformType.id === 'all')
   filters.value.has_complaint = booleanOptions.value[0]
   // filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
@@ -571,6 +610,7 @@ function onExportExcelClicked() {
         url: '/delivery-platform-orders/excel',
         params: {
           ...filters.value,
+          date_filter_type: filters.value.date_filter_type.id,
           delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
           operators: filters.value.operators.map(operator => operator.id),
           has_complaint: filters.value.has_complaint.id,
@@ -589,6 +629,7 @@ function onExportExcelClicked() {
 function onSearchFilterUpdated() {
   router.get('/delivery-platform-orders', {
       ...filters.value,
+      date_filter_type: filters.value.date_filter_type.id,
       delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
       // operator_id: filters.value.operator_id.id,
       operators: filters.value.operators.map(operator => operator.id),

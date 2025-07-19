@@ -34,6 +34,7 @@ class DeliveryPlatformOrderController extends Controller
     public function index(Request $request)
     {
         $request->merge([
+            'date_filter_type' => $request->date_filter_type ? $request->date_filter_type : 'order_created_at',
             'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->startOfDay(),
             'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->setTimezone($this->getUserTimezone())->endOfDay(),
             'delivery_platform_type_id' => $request->delivery_platform_type_id ? $request->delivery_platform_type_id : 'all',
@@ -81,6 +82,7 @@ class DeliveryPlatformOrderController extends Controller
             // 'deliveryPlatformOperatorOptions' => DeliveryPlatformOperatorResource::collection(
             //     DeliveryPlatformOperator::with('deliveryPlatform')->get()
             // ),
+            'dateFilterTypeOptions' => DeliveryPlatformOrder::DATE_FILTER_MAPPING,
             'deliveryPlatformTypeOptions' => DeliveryPlatformOperator::DELIVERY_PLATFORM_TYPES,
             'deliveryPlatformOrders' => DeliveryPlatformOrderResource::collection(
                     $query

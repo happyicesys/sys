@@ -36,12 +36,14 @@ class Voucher extends Model
     const DCVEND_MEMBER_TYPE_FREE = '2';
     const DCVEND_MEMBER_TYPE_CONVERTED = '3';
     const DCVEND_MEMBER_TYPE_GOLD = '4';
+    // const DCVEND_MEMBER_TYPE_NEW = '5';
 
     const DCVEND_MEMBER_TYPE_MAPPINGS = [
         self::DCVEND_MEMBER_TYPE_ALL => 'All Members',
         self::DCVEND_MEMBER_TYPE_FREE => 'Free Members',
         self::DCVEND_MEMBER_TYPE_CONVERTED => 'Converted Members',
         self::DCVEND_MEMBER_TYPE_GOLD => 'Gold Members',
+        // self::DCVEND_MEMBER_TYPE_NEW => 'New Members',
     ];
 
     const RENEWAL_MODE_ONE_TIME = '0';

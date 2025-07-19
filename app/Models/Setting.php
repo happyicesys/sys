@@ -20,11 +20,13 @@ class Setting extends Model
     ];
 
     protected $fillable = [
+        'access_all_operator_ids_array',
         'customer_index_json',
         'payment_gateway_log_refund_scanned_at',
     ];
 
     protected $casts = [
+        'access_all_operator_ids_array' => 'array',
         'customer_index_json' => 'json',
         'payment_gateway_log_refund_scanned_at' => 'datetime'
     ];

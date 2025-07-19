@@ -36,6 +36,12 @@ class DeliveryPlatformOrder extends Model
     const STATUS_CANCELLED = 98;
     const STATUS_FAILED = 99;
 
+    const DATE_FILTER_MAPPING = [
+        'order_created_at' => 'Order Creation',
+        'dispensed_at' => 'Dispensed',
+        'final_status_at' => 'Delivered or Cancelled',
+    ];
+
     const GRAB_STATUS_MAPPING = [
         Grab::STATE_PENDING => self::STATUS_PENDING,
         Grab::STATE_ACCEPTED => self::STATUS_ACCEPTED,
@@ -68,8 +74,10 @@ class DeliveryPlatformOrder extends Model
         'delivery_platform_id',
         'delivery_platform_operator_id',
         'delivery_product_mapping_vend_id',
+        'dispensed_at',
         'driver_phone_number',
         'driver_request_json',
+        'final_status_at',
         'is_cancelled',
         'is_edited',
         'is_verified',
@@ -97,7 +105,9 @@ class DeliveryPlatformOrder extends Model
         'campaign_json' => 'json',
         'collected_datetime' => 'datetime',
         'delivered_datetime' => 'datetime',
+        'dispensed_at' => 'datetime',
         'driver_request_json' => 'json',
+        'final_status_at' => 'datetime',
         'order_created_at' => 'datetime',
         'order_json' => 'json',
         'request_history_json' => 'json',
@@ -160,7 +170,6 @@ class DeliveryPlatformOrder extends Model
     // scopes
     public function scopeFilterIndex($query, $request)
     {
-
         $query = $query
         ->when($request->vend_code, function($query, $search) use ($request) {
             $query->where('delivery_platform_orders.vend_code', 'LIKE', "{$search}%");
@@ -205,13 +214,37 @@ class DeliveryPlatformOrder extends Model
         ->when($request->short_order_id, function($query, $search) {
             $query->where('short_order_id', 'LIKE', "%{$search}%");
         })
-
-        ->when($request->date_from, function ($query, $search) {
-            $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
+        ->when($request->date_filter_type, function($query, $search) use ($request) {
+            // dd($search);
+            if($search == 'order_created_at') {
+                $query->when($request->date_from, function ($query, $search) {
+                    $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
+                })
+                ->when($request->date_to, function ($query, $search) {
+                    $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
+                });
+            }elseif($search == 'dispensed_at') {
+                $query->when($request->date_from, function ($query, $search) {
+                    $query->where('dispensed_at', '>=', Carbon::parse($search)->startOfDay());
+                })
+                ->when($request->date_to, function ($query, $search) {
+                    $query->where('dispensed_at', '<=', Carbon::parse($search)->endOfDay());
+                });
+            }elseif($search == 'final_status_at') {
+                $query->when($request->date_from, function ($query, $search) {
+                    $query->where('final_status_at', '>=', Carbon::parse($search)->startOfDay());
+                })
+                ->when($request->date_to, function ($query, $search) {
+                    $query->where('final_status_at', '<=', Carbon::parse($search)->endOfDay());
+                });
+            }
         })
-        ->when($request->date_to, function ($query, $search) {
-            $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
-        })
+        // ->when($request->date_from, function ($query, $search) {
+        //     $query->where('order_created_at', '>=', Carbon::parse($search)->startOfDay());
+        // })
+        // ->when($request->date_to, function ($query, $search) {
+        //     $query->where('order_created_at', '<=', Carbon::parse($search)->endOfDay());
+        // })
         ->when($request->status, function ($query, $search) {
             if($search != 'all') {
                 $query->where('status', $search);

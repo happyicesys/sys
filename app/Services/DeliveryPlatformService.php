@@ -281,12 +281,24 @@ class DeliveryPlatformService
             'datetime' => Carbon::now()->toDateTimeString(),
           ]),
         ]);
+
         $this->syncOrderQtyBasedOnStatus($deliveryPlatformOrder);
         $this->handleLastMileTimediff($deliveryPlatformOrder);
 
-        // if($input['state'] === 'ACCEPTED') {
-        //   $this->deliveryProductMappingService->syncVendChannelOrderQtyByDeliveryOrder($deliveryPlatformOrder, false);
-        // }
+        switch($input['state']) {
+          case DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATUS_DISPENSED]:
+            $deliveryPlatformOrder->update([
+              'dispensed_at' => Carbon::now(),
+            ]);
+            break;
+
+          case DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATUS_DELIVERED]:
+          case DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATUS_CANCELLED]:
+            $deliveryPlatformOrder->update([
+              'final_status_at' => Carbon::now(),
+            ]);
+            break;
+        }
       break;
     }
 

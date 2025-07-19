@@ -92,11 +92,11 @@ class RolePermissionSyncSeeder extends Seeder
 
             ['vend-settings',
             ['read', 'export', 'create', 'update', 'delete', 'admin-access'],
-            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'operator_admin', 'production_jb']],
 
             ['machine-view',
             ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'production_jb']],
 
             ['machine-settings',
             ['read', 'export'],
