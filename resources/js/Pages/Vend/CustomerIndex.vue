@@ -1041,6 +1041,7 @@
 					</TableData>
 					<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
+						{{ vend.vendChannelsJson }}
 						<div class="flex flex-col space-y-2">
 							<ul
 							class="sm:grid sm:grid-cols-[1fr_1fr] hover:cursor-pointer"
