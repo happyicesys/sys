@@ -296,7 +296,7 @@
                           </td>
                           <td class="whitespace-pre-line py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                             <div class="flex flex-col space-y-2 max-w-24">
-                              <Link :href="'/vends/customers?codes=' + opsJobItem.vend.code" class="text-blue-700">
+                              <Link :href="'/vends/customers?codes=' + opsJobItem.vend.code" class="text-blue-700" v-if="opsJobItem && opsJobItem.vend">
                                 <span>
                                   {{ opsJobItem.vend.code }}
                                 </span>

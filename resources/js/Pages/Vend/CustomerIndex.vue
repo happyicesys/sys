@@ -2098,14 +2098,18 @@ return 'text-gray-900'
 
 function getVendsField() {
 	return {
-			...props.vends,
-			data: props.vends.data.map((data) => {return {
-					...data,
-					// vendChannels: props.indexType === 'customers' ? data.vend.vendChannels : data.vendChannels,
-					vendChannelsJson: props.indexType === 'customers' ? data.vend.vendChannelsJson : data.vendChannelsJson,
-			}})
+		...props.vends,
+		data: props.vends.data.map((data) => {
+			return {
+				...data,
+				vendChannelsJson: props.indexType === 'customers'
+					? data.vend.vendChannelsJson
+					: data.vendChannelsJson,
+			}
+		})
 	}
 }
+
 
 function getVendRecordsAmountAverageDayClass(amount) {
 		if(amount >= 3000) {
