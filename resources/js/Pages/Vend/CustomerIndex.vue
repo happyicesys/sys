@@ -921,7 +921,7 @@
 											CMS
 									</div>
 								</a>
-								<span v-if="vend.vend.deliveryProductMappingVends" v-for="(deliveryProductMappingVend, index) in vend.vend.deliveryProductMappingVends">
+								<span v-if="vend.vend && vend.vend.deliveryProductMappingVends" v-for="(deliveryProductMappingVend, index) in vend.vend.deliveryProductMappingVends">
 									<div
 											class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border w-fit text-gray-800 bg-green-400"
 											v-if="deliveryProductMappingVend.deliveryProductMapping && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator && deliveryProductMappingVend.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform"
