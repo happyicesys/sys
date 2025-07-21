@@ -1041,14 +1041,13 @@
 					</TableData>
 					<!-- class="sm:grid sm:grid-cols-[105px_minmax(110px,_1fr)_100px] hover:cursor-pointer" -->
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-left">
-						{{ vend.vendChannelsJson }}
 						<div class="flex flex-col space-y-2">
 							<ul
 							class="sm:grid sm:grid-cols-[1fr_1fr] hover:cursor-pointer"
-							v-if="vend.vendChannelsJson"
+							v-if="vend && vend.vend && vend.vend.vendChannelsJson"
 							@click="onChannelOverviewClicked(vend)"
 							>
-								<li v-for="(channel, channelIndex) in vend.vendChannelsJson"
+								<li v-for="(channel, channelIndex) in vend.vend.vendChannelsJson"
 										class="quick-look"
 										:class="[
 											channelIndex > 0 && (String(channel.code)[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '',
