@@ -2103,7 +2103,7 @@ function getVendsField() {
 			return {
 				...data,
 				vendChannelsJson: props.indexType === 'customers'
-					? data.vend.vendChannelsJson
+					? data.vend?.vendChannelsJson
 					: data.vendChannelsJson,
 			}
 		})
