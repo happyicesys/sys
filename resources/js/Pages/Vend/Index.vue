@@ -1636,6 +1636,7 @@ font-size:13px;
   const now = ref(moment().format('HH:mm:ss'))
 
 onMounted(() => {
+  console.log(props.vends)
 filters.value.visited = true
 vendChannelErrorsOptions.value = [
     // {'id': '', 'desc': 'All'},
