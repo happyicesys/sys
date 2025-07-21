@@ -1044,10 +1044,10 @@
 						<div class="flex flex-col space-y-2">
 							<ul
 							class="sm:grid sm:grid-cols-[1fr_1fr] hover:cursor-pointer"
-							v-if="vend && vend.vend && vend.vend.vendChannelsJson"
+							v-if="vend && vend.vendChannelsJson"
 							@click="onChannelOverviewClicked(vend)"
 							>
-								<li v-for="(channel, channelIndex) in vend.vend.vendChannelsJson"
+								<li v-for="(channel, channelIndex) in vend.vendChannelsJson"
 										class="quick-look"
 										:class="[
 											channelIndex > 0 && (String(channel.code)[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '',
@@ -2102,8 +2102,7 @@ function getVendsField() {
 			...props.vends,
 			data: props.vends.data.map((data) => {return {
 					...data,
-					// vendChannels: props.indexType === 'customers' ? data.vend.vendChannels : data.vendChannels,
-					vendChannelsJson: props.indexType === 'customers' ? data.vend?.vendChannelsJson : data.vendChannelsJson,
+					// vendChannelsJson: props.indexType === 'customers' ? data.vend?.vendChannelsJson : data.vendChannelsJson,
 			}})
 	}
 }
