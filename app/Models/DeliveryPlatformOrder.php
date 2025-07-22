@@ -37,9 +37,9 @@ class DeliveryPlatformOrder extends Model
     const STATUS_FAILED = 99;
 
     const DATE_FILTER_MAPPING = [
-        'order_created_at' => 'Order Creation',
-        'dispensed_at' => 'Dispensed',
-        'final_status_at' => 'Delivered or Cancelled',
+        'order_created_at' => 'Order Creation Time',
+        'dispensed_at' => 'Dispensed Time',
+        'final_status_at' => 'Delivered or Cancelled Time',
     ];
 
     const GRAB_STATUS_MAPPING = [
