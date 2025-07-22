@@ -286,14 +286,8 @@ class DeliveryPlatformService
         $this->handleLastMileTimediff($deliveryPlatformOrder);
 
         switch($input['state']) {
-          case DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATUS_DISPENSED]:
-            $deliveryPlatformOrder->update([
-              'dispensed_at' => Carbon::now(),
-            ]);
-            break;
-
-          case DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATUS_DELIVERED]:
-          case DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATUS_CANCELLED]:
+          case strtoupper(DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_DELIVERED]):
+          case strtoupper(DeliveryPlatformOrder::STATUS_MAPPING[DeliveryPlatformOrder::STATUS_CANCELLED]):
             $deliveryPlatformOrder->update([
               'final_status_at' => Carbon::now(),
             ]);
