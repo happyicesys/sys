@@ -396,7 +396,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/uom-binding', [ProductController::class, 'bindUom']);
         Route::delete('/product-uoms/{productUomId}', [ProductController::class, 'deleteProductUom']);
         Route::get('/create', [ProductController::class, 'create']);
-        Route::get('/{id}/edit', [ProductController::class, 'edit']);
+        Route::get('/{id}/edit', [ProductController::class, 'edit'])->name('products.edit');
         Route::post('/store', [ProductController::class, 'store']);
         Route::post('/{id}/update', [ProductController::class, 'update']);
         Route::delete('/{id}', [ProductController::class, 'delete']);

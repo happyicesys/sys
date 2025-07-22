@@ -486,15 +486,16 @@
             </div>
             <div class="sm:col-span-6">
               <div class="flex space-x-1 mt-5 pt-5 justify-end">
-                <Link
-                  class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
-                  href="/products"
-                  form="submit"
-                >
-                  <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
-                  <span>
-                    Back
-                  </span>
+                <Link href="/products">
+                  <Button
+                    class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1"
+                    form="submit"
+                  >
+                    <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
+                    <span>
+                      Back
+                    </span>
+                  </Button>
                 </Link>
                 <Button type="button" v-if="form.id && permissions.includes('update products')" @click="toggleActivateDeactivate" class="text-white" :class="[form.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
                   <div>

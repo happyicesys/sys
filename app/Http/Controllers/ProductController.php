@@ -154,6 +154,11 @@ class ProductController extends Controller
             'operator_id.required' => 'Please choose the operator.',
         ]);
 
+        $request->merge([
+            'is_halal' => $request->is_halal ? true : false,
+            'is_healthier_choice' => $request->is_healthier_choice ? true : false,
+        ]);
+
         $product = new Product();
         $product = $product->fill($request->all());
         if(!$request->operator_id) {
