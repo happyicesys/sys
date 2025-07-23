@@ -5,6 +5,7 @@ use App\Models\ModemUnit;
 use App\Models\Vend;
 use App\Models\VendData;
 use App\Jobs\PublishMqtt;
+use App\Jobs\SendHttpDataToLogServer;
 use App\Jobs\SyncAcbVmcPa;
 use App\Jobs\SyncAcbStatus;
 use App\Jobs\SyncDeliveryPlatformMenu;
@@ -300,7 +301,10 @@ class VendDataService
     }
 
     if($saveVendData) {
-      CreateVendData::dispatch($originalInput, $processedInput, $ipAddress, $connectionType)->onQueue('default');
+      if(env('APP_ENV') == 'production' && env('LOG_SERVER_URL') && env('LOG_SERVER_ACCESS_TOKEN')) {
+        SendHttpDataToLogServer::dispatch($originalInput)->onQueue('default');
+      }
+      // CreateVendData::dispatch($originalInput, $processedInput, $ipAddress, $connectionType)->onQueue('default');
     }
 
     return response()->json($response);
