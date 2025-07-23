@@ -1019,7 +1019,7 @@
                   >
                     <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
                     <span>
-                      Sync Channels List
+                      Push Products Info to Machine
                     </span>
                 </Button>
                 <Button

@@ -151,7 +151,7 @@
                   >
                     <ArrowUpCircleIcon class="w-4 h-4"></ArrowUpCircleIcon>
                     <span>
-                      Sync Channels List
+                      Push Products Info to Machine
                     </span>
                 </Button>
               </span>
