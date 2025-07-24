@@ -952,6 +952,11 @@ class Vend extends Model
                 $query->whereIn('vends.vend_config_id', $search);
             }
         })
+        ->when($request->vendContracts, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereIn('vend_contract_id', $search);
+            }
+        })
         ->when($request->vendModels, function($query, $search) {
             if(!in_array('all', $search)){
                 $query->whereIn('vends.vend_model_id', $search);

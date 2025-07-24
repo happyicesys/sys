@@ -491,6 +491,11 @@ trait HasFilter {
                 $query->where('vends.vend_config_id', $search);
             }
         })
+        ->when($request->vendContracts, function($query, $search) {
+            if(!in_array('all', $search)){
+                $query->whereIn('vend_contract_id', $search);
+            }
+        })
         ->when($request->vend_model_id, function($query, $search) {
             if($search != 'all') {
                 $query->where('vends.vend_model_id', $search);

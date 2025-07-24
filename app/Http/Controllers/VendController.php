@@ -739,6 +739,9 @@ class VendController extends Controller
             'totals' => $totals,
             'vends' => VendResource::collection($vends),
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
+            'vendContractOptions' => VendContractResource::collection(
+                VendContract::orderBy('name')->get()
+            ),
             'vendModelOptions' => VendModelResource::collection(
                 VendModel::orderBy('name')->get()
             ),
@@ -1579,6 +1582,9 @@ class VendController extends Controller
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
             'vendContractOptions' => VendContractResource::collection(
                 VendContract::orderBy('name')->get()
+            ),
+            'vendModelOptions' => VendModelResource::collection(
+                VendModel::orderBy('name')->get()
             ),
             'vendPrefixOptions' => VendPrefixResource::collection(
                 VendPrefix::orderBy('name')->get()

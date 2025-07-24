@@ -385,6 +385,23 @@
 					>
 					</MultiSelect>
 				</div>
+				<div :class="[showAllFilters ? 'block' : 'hidden']" v-if="permissions.includes('admin-access vend-customers')">
+						<label for="text" class="block text-sm font-medium text-gray-700">
+								Machine Contract
+						</label>
+						<MultiSelect
+								v-model="filters.vendContracts"
+								:options="vendContractOptions"
+								trackBy="id"
+								valueProp="id"
+								label="value"
+								placeholder="Select"
+								open-direction="bottom"
+								mode="tags"
+								class="mt-1"
+						>
+						</MultiSelect>
+				</div>
 			</div>
 
 			<div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -1859,6 +1876,7 @@ font-size:13px;
 			totals: [Array, Object],
 			vends: Object,
 			vendChannelErrors: Object,
+			vendContractOptions: Object,
 			vendModelOptions: Object,
 			vendPrefixOptions: Object,
 			zoneOptions: Object,
@@ -1907,6 +1925,7 @@ font-size:13px;
 			vendRecordsThirtyDaysAmountAverageLessThan: '',
 			sortBy: true,
 			numberPerPage: '',
+			vendContracts: [],
 			visited: true,
 			zones: [],
 	})
@@ -1947,6 +1966,7 @@ font-size:13px;
 
 	const vends = ref(getVendsField())
 	const vendChannelErrorsOptions = ref([])
+	const vendContractOptions = ref([])
 	const vendModelOptions = ref([])
 	const vendPrefixOptions = ref([])
 	const zoneOptions = ref([])
@@ -2043,7 +2063,10 @@ statusOptions.value = [
 		{id: 'inactive', value: 'Not Active'},
 		{id: 'disposed', value: 'Disposed'},
 ]
-
+vendContractOptions.value = [
+		{id: 'all', value: 'All'},
+		...props.vendContractOptions.data.map((data) => {return {id: data.id, value: data.name}})
+	]
 vendModelOptions.value = [
 		{id: 'all', value: 'All'},
 		...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
@@ -2237,6 +2260,7 @@ function onSearchFilterUpdated() {
 			// is_testing: filters.value.is_testing.id,
 			status: filters.value.status.id,
 			// vend_prefix_id: filters.value.vend_prefix_id.id,
+			vendContracts: filters.value.vendContracts.map(vc => vc.id),
 			vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
 			vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
 			zones: filters.value.zones.map((zone) => { return zone.id }),
@@ -2347,6 +2371,7 @@ axios({
 				is_testing: filters.value.is_testing.id,
 				status: filters.value.status.id,
 				// vend_prefix_id: filters.value.vend_prefix_id.id,
+				vendContracts: filters.value.vendContracts.map(vc => vc.id),
 				vendModels: filters.value.vendModels.map((vendModel) => { return vendModel.id }),
 				vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
 				zones: filters.value.zones.map((zone) => { return zone.id }),

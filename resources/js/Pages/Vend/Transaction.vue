@@ -335,6 +335,23 @@
                 >
                 </MultiSelect>
             </div>
+            <div>
+                <label for="text" class="block text-sm font-medium text-gray-700">
+                    Machine Model
+                </label>
+                <MultiSelect
+                    v-model="filters.vendModels"
+                    :options="vendModelOptions"
+                    trackBy="id"
+                    valueProp="id"
+                    label="value"
+                    placeholder="Select"
+                    open-direction="bottom"
+                    class="mt-1"
+                    mode="tags"
+                >
+                </MultiSelect>
+            </div>
         </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -799,6 +816,7 @@ const props = defineProps({
     totals: [Object, Array],
     vendChannelErrors: Object,
     vendContractOptions: Object,
+    vendModelOptions: Object,
     vendPrefixOptions: Object,
 })
 const authOperator = usePage().props.auth.operator
@@ -865,6 +883,10 @@ onMounted(() => {
       {id: 'all', value: 'All'},
       ...props.vendContractOptions.data.map((data) => {return {id: data.id, value: data.name}})
     ]
+    vendModelOptions.value = [
+		{id: 'all', value: 'All'},
+		...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
+    ]
     vendPrefixOptions.value = [
         {id: 'all', value: 'All'},
         {id: 'single-ud', value: 'Single UD'},
@@ -927,6 +949,7 @@ const filters = ref({
     sortBy: false,
     numberPerPage: 50,
     vendContracts: [],
+    vendModels: [],
     vendPrefixes: [],
     visited: true,
 })
@@ -935,6 +958,7 @@ const vendChannelErrorOptions = ref([])
 const loading = ref(false)
 const paymentMethodOptions = ref([])
 const numberPerPageOptions = ref([])
+const vendModelOptions = ref([])
 
 // function onExportExcelClicked() {
 //     // window.open('/vends/transactions/excel', '_blank');
@@ -997,6 +1021,7 @@ function onExportCsvClicked() {
             paymentMethods: filters.value.paymentMethods.map(pm => pm.id),
             numberPerPage: filters.value.numberPerPage.id,
             vendContracts: filters.value.vendContracts.map(vc => vc.id),
+            vendModels: filters.value.vendModels.map(vm => vm.id),
             vendPrefixes: filters.value.vendPrefixes.map(vp => vp.id),
             errors: filters.value.errors.map(e => e.id),
         },
@@ -1040,6 +1065,7 @@ function onExportExcelClicked() {
             paymentMethods: filters.value.paymentMethods.map((paymentMethod) => { return paymentMethod.id }),
             numberPerPage: filters.value.numberPerPage.id,
             vendContracts: filters.value.vendContracts.map((vendContract) => { return vendContract.id }),
+            vendModels: filters.value.vendModels.map(vm => vm.id),
             vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
         },
         responseType: 'blob',
@@ -1071,6 +1097,7 @@ function onSearchFilterUpdated() {
         paymentMethods: filters.value.paymentMethods.map((paymentMethod) => { return paymentMethod.id }),
         numberPerPage: filters.value.numberPerPage.id,
         vendContracts: filters.value.vendContracts.map((vendContract) => { return vendContract.id }),
+        vendModels: filters.value.vendModels.map(vm => vm.id),
         vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
     }, {
         preserveState: true,
