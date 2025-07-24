@@ -550,7 +550,7 @@ class VendController extends Controller
                         SUM(ojic.picked_qty) AS count
                     FROM ops_job_items oji
                     INNER JOIN (
-                        SELECT customer_id, MIN(created_at) AS min_created_at
+                        SELECT customer_id, MAX(created_at) AS min_created_at
                         FROM ops_job_items
                         WHERE status < 3
                         GROUP BY customer_id
