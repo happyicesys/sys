@@ -168,7 +168,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                             $txn->is_multiple ? $txnItems->count() : 1,
                             $txn->interface_type,
                             $txn_json['dcvend_user_id'] ?? '',
-                            $meta_json['vouchers'] ? $meta_json['vouchers'][0]['code'] : '',
+                            isset($meta_json['vouchers']) && $meta_json['vouchers'] ? $meta_json['vouchers'][0]['code'] : '',
                         ]);
 
                         // ✏️ Write child item rows

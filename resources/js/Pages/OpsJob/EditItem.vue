@@ -1034,6 +1034,19 @@
               </Button>
             </span>
             <span>
+              <!-- <Button
+                  type="button"
+                  class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-gray-300 hover:bg-gray-400 text-gray-800 w-full md:w-fit"
+                  @click="onSaveClicked()"
+                  v-if="opsJobItem.status == 1"
+              >
+                <span class="flex space-x-1 items-center">
+                  <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                  <span>
+                    Save
+                  </span>
+                </span>
+              </Button> -->
               <Button
                   type="button"
                   class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
@@ -1311,6 +1324,7 @@ function onConfirmClicked() {
     channels: channels.value.map((channel) => {
       return {
         id: channel.ops_job_item_channel_id,
+        code: channel.code,
         capacity: channel.capacity,
         picked: channel.picked,
         qty: channel.qty,
@@ -1322,6 +1336,36 @@ function onConfirmClicked() {
     preserveScroll: true,
     onSuccess: () => {
       toast.success("Successfully Updated", {
+        timeout: 3000
+      });
+      router.reload({
+        only: ['opsJobItem'],
+        replace: true,
+        preserveState: true,
+        onSuccess: page => {
+          loadingData()
+        }
+      })
+    }
+  })
+}
+
+function onSaveClicked() {
+  router.post(`/ops-jobs/items/${opsJobItem.value.id}/save`, {
+    channels: channels.value.map((channel) => {
+      return {
+        id: channel.ops_job_item_channel_id,
+        code: channel.code,
+        capacity: channel.capacity,
+        picked: channel.picked,
+        qty: channel.qty,
+        refill: channel.refill,
+      }
+    }),
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success("Successfully Saved", {
         timeout: 3000
       });
       router.reload({

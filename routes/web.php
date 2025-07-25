@@ -327,6 +327,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/items/{itemID}/edit', [OpsJobController::class, 'editItem']);
         Route::post('/items/{itemId}/confirm', [OpsJobController::class, 'confirmItem']);
         Route::post('/items/{itemId}/verify', [OpsJobController::class, 'verifyItem']);
+        Route::post('/items/{itemID}/save', [OpsJobController::class, 'saveItem']);
         Route::post('/item-channels/{itemChannelId}/settle-error', [OpsJobController::class, 'settleItemChannelError']);
         Route::post('/items/{itemID}/upload-attachments', [OpsJobController::class, 'uploadItemAttachments']);
         Route::post('/items/{itemID}/cash-collected', [OpsJobController::class, 'itemCashCollected']);

@@ -297,7 +297,7 @@ class OpsJobController extends Controller
                     'status' => OpsJob::STATUS_PICKED,
                     'picked_by' => auth()->id(),
                     'picked_at' => Carbon::now(),
-                    'unfo_picked_at' => null,
+                    'undo_picked_at' => null,
                     'undo_picked_by' => null,
                 ]);
 
@@ -422,6 +422,25 @@ class OpsJobController extends Controller
         }
 
         return redirect()->back();
+    }
+
+    public function saveItem(Request $request, $id)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($id);
+
+        if ($request->channels) {
+            dd($request->channels);
+            foreach ($request->channels as $channel) {
+                $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
+                if ($opsJobItemChannel) {
+                    $opsJobItemChannel->update([
+                        'qty' => $channel['qty'],
+                    ]);
+                }
+            }
+        }
+
+        return redirect()->back()->with('success', 'Quantities saved successfully.');
     }
 
     public function qtyList(Request $request, $status = 3)
@@ -1096,6 +1115,14 @@ class OpsJobController extends Controller
                 $opsJobItem->undo_picked_at = Carbon::now();
                 $opsJobItem->undo_picked_by = auth()->id();
                 $opsJobItem->save();
+
+                // ✅ Restore saved `picked_before_qty` to `qty`
+                // foreach ($opsJobItem->opsJobItemChannels as $channel) {
+                //     $channel->update([
+                //         'qty' => $channel->picked_before_qty,
+                //         'picked_qty' => 0, // optionally reset picked_qty too
+                //     ]);
+                // }
                 break;
             case OpsJob::STATUS_DELIVERED:
                 $opsJobItem->status = OpsJob::STATUS_PICKED;
