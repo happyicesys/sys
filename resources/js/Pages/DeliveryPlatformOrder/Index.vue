@@ -231,6 +231,12 @@
                     <TableHeadSort modelName="order_created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('order_created_at')">
                       Order Time
                     </TableHeadSort>
+                    <TableHeadSort modelName="dispensed_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('dispensed_at')">
+                      Dispensed Time
+                    </TableHeadSort>
+                    <TableHeadSort modelName="final_status_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('final_status_at')">
+                      Final Status Time
+                    </TableHeadSort>
                     <TableHead>
                       <div class="flex flex-col space-y-2">
                         <span>
@@ -281,6 +287,12 @@
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                       {{ deliveryPlatformOrder.order_created_at }}
+                    </TableData>
+                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
+                      {{ deliveryPlatformOrder.dispensed_at }}
+                    </TableData>
+                    <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
+                      {{ deliveryPlatformOrder.final_status_at }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformOrderIndex" :totalLength="deliveryPlatformOrders.length" inputClass="text-center">
                       <div class="flex flex-col">
