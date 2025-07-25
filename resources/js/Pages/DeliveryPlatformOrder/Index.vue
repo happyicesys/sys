@@ -235,7 +235,7 @@
                       Dispensed Time
                     </TableHeadSort>
                     <TableHeadSort modelName="final_status_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('final_status_at')">
-                      Final Status Time
+                      Delivered/ Cancelled Time
                     </TableHeadSort>
                     <TableHead>
                       <div class="flex flex-col space-y-2">
