@@ -1034,7 +1034,7 @@
               </Button>
             </span>
             <span>
-              <!-- <Button
+              <Button
                   type="button"
                   class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-gray-300 hover:bg-gray-400 text-gray-800 w-full md:w-fit"
                   @click="onSaveClicked()"
@@ -1046,7 +1046,7 @@
                     Save
                   </span>
                 </span>
-              </Button> -->
+              </Button>
               <Button
                   type="button"
                   class="px-2 py-2 mt-2 ml-1 text-md  flex space-x-1 bg-yellow-400 hover:bg-yellow-500 text-gray-800 w-full md:w-fit"
@@ -1163,6 +1163,32 @@ function loadingData() {
   }) : useForm(getDefaultForm())
 
   channels.value = props.opsJobItem.data.opsJobItemChannels.map((opsJobItemChannel) => {
+
+    // picked logic
+    let pickedQty = 0
+    if (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available) {
+      if (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null) {
+        if (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit > opsJobItemChannel.vendChannel.capacity &&
+          opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= opsJobItemChannel.vendChannel.qty) {
+            pickedQty = opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty
+        } else if (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit <= opsJobItemChannel.vendChannel.capacity &&
+          opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= opsJobItemChannel.vendChannel.qty) {
+            pickedQty = opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit - opsJobItemChannel.vendChannel.qty
+        } else {
+          pickedQty = 0
+        }
+      } else {
+        pickedQty = opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty
+      }
+
+      if(opsJobItemChannel.saved_picked_qty != null) {
+        // if qty is set, use it instead of calculated pickedQty
+        pickedQty = opsJobItemChannel.saved_picked_qty
+      }
+    } else {
+      pickedQty = opsJobItemChannel.picked_qty
+    }
+
     return {
       ...opsJobItemChannel.vendChannel,
       id: opsJobItemChannel.id,
@@ -1172,19 +1198,20 @@ function loadingData() {
       ops_job_item_channel_id: opsJobItemChannel.id,
       picked_limit: opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null ? opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit : null,
       before_picked: opsJobItemChannel.picked_before_qty,
-      picked: props.opsJobItem.data.status < 2 ?
-        (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available ?
-        (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null ? (
-        (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit > opsJobItemChannel.vendChannel.capacity &&
-          opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= opsJobItemChannel.vendChannel.qty) ?
-          (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) :
-          ((opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit <= opsJobItemChannel.vendChannel.capacity &&
-          opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= opsJobItemChannel.vendChannel.qty) ?
-          (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit - opsJobItemChannel.vendChannel.qty)
-        :0)
-        )
-          : opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) : 0) :
-        opsJobItemChannel.picked_qty,
+      picked: pickedQty,
+      // picked: props.opsJobItem.data.status < 2 ?
+      //   (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available ?
+      //   (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null ? (
+      //   (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit > opsJobItemChannel.vendChannel.capacity &&
+      //     opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= opsJobItemChannel.vendChannel.qty) ?
+      //     (opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) :
+      //     ((opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit <= opsJobItemChannel.vendChannel.capacity &&
+      //     opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= opsJobItemChannel.vendChannel.qty) ?
+      //     (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit - opsJobItemChannel.vendChannel.qty)
+      //   :0)
+      //   )
+      //     : opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty) : 0) :
+      //   opsJobItemChannel.picked_qty,
       before_refill: opsJobItemChannel.actual_before_qty,
       refill: props.opsJobItem.data.status == 2 ? opsJobItemChannel.picked_qty : opsJobItemChannel.actual_qty,
       product: opsJobItemChannel.vendChannel.product ? {

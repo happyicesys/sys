@@ -28,6 +28,7 @@ class OpsJobItemChannelResource extends JsonResource
             'picked_qty' => $this->picked_qty,
             'product_id' => $this->product_id,
             'qty' => $this->qty,
+            'saved_picked_qty' => $this->saved_picked_qty,
             'vendChannel' => VendChannelResource::make($this->whenLoaded('vendChannel')),
             'vend_channel_id' => $this->vend_channel_id,
             'vend_channel_code' => $this->vend_channel_code,

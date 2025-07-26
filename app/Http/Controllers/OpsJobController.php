@@ -308,6 +308,7 @@ class OpsJobController extends Controller
                             'picked_before_qty' => $channel['qty'],
                             'picked_qty' => $channel['picked'],
                             'qty' => $channel['qty'],
+                            'saved_picked_qty' => $channel['picked'],
                         ]);
                     }
                 }
@@ -429,12 +430,13 @@ class OpsJobController extends Controller
         $opsJobItem = OpsJobItem::findOrFail($id);
 
         if ($request->channels) {
-            dd($request->channels);
+            // dd($request->channels);
             foreach ($request->channels as $channel) {
+
                 $opsJobItemChannel = $opsJobItem->opsJobItemChannels->where('id', $channel['id'])->first();
                 if ($opsJobItemChannel) {
                     $opsJobItemChannel->update([
-                        'qty' => $channel['qty'],
+                        'saved_picked_qty' => $channel['picked'],
                     ]);
                 }
             }
@@ -1117,12 +1119,12 @@ class OpsJobController extends Controller
                 $opsJobItem->save();
 
                 // ✅ Restore saved `picked_before_qty` to `qty`
-                // foreach ($opsJobItem->opsJobItemChannels as $channel) {
-                //     $channel->update([
-                //         'qty' => $channel->picked_before_qty,
-                //         'picked_qty' => 0, // optionally reset picked_qty too
-                //     ]);
-                // }
+                foreach ($opsJobItem->opsJobItemChannels as $channel) {
+                    $channel->update([
+                        'qty' => $channel->picked_before_qty,
+                        'picked_qty' => 0, // optionally reset picked_qty too
+                    ]);
+                }
                 break;
             case OpsJob::STATUS_DELIVERED:
                 $opsJobItem->status = OpsJob::STATUS_PICKED;
