@@ -31,7 +31,7 @@ class VendPrefixController extends Controller
                 Operator::orderBy('name')->get()
             ),
             'productMappingOptions' => ProductMappingResource::collection(
-                ProductMapping::orderBy('name')->get()
+                ProductMapping::select(['id', 'name'])->orderBy('name')->get()
             ),
             'vendConfigOptions' => VendConfigResource::collection(
                 VendConfig::query()
