@@ -130,8 +130,16 @@ class VendSerialNumberController extends Controller
             ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
             ->leftJoin('location_types', 'location_types.id', '=', 'customers.location_type_id')
             ->leftJoin('operators', 'operators.id', '=', 'customers.operator_id')
+            ->leftJoin('addresses', function($query) {
+                $query->on('addresses.modelable_id', '=', 'customers.id')
+                        ->where('addresses.modelable_type', '=', 'App\Models\Customer')
+                        ->where('addresses.type', '=', 2)
+                        ->limit(1);
+            })
             ->select(
+                'addresses.postcode AS postcode',
                 'customers.name as customer_name',
+                'customers.virtual_customer_code as customer_virtual_code',
                 'location_types.name as location_type_name',
                 'operators.name as operator_name',
                 'vend_serial_numbers.*',

@@ -252,7 +252,7 @@
                     <TableHead colspan="8">
                       Machine Info
                     </TableHead>
-                    <TableHead colspan="3">
+                    <TableHead colspan="4">
                       Customer Info
                     </TableHead>
                   </tr>
@@ -287,7 +287,10 @@
                       Contract
                     </TableHeadSort>
                     <TableHeadSort modelName="customer_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('customer_name')">
-                      Name
+                      Customer Name
+                    </TableHeadSort>
+                    <TableHeadSort modelName="postcode" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('postcode')">
+                      Postcode
                     </TableHeadSort>
                     <TableHeadSort modelName="operator_name" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_name')">
                       Operator
@@ -348,7 +351,11 @@
                         {{ vendSerialNumber.vend_contract_name }}
                       </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-left">
+                        {{ vendSerialNumber.customer_virtual_code }} ({{ vendSerialNumber.vend_prefix_name }}) <br>
                         {{ vendSerialNumber.customer_name }}
+                      </TableData>
+                      <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
+                        {{ vendSerialNumber.postcode }}
                       </TableData>
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumber.operator_name }}
