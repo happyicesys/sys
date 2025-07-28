@@ -149,7 +149,7 @@
                             {{ apkSetting.vends?.length }} Machine(s)
                           </span>
                           <ul class="divide-y divide-gray-200">
-                            <li class="flex py-1 px-3 space-x-2" v-for="(vend, vendIndex) in apkSetting.vends">
+                            <li class="flex py-1 px-3 space-x-2 items-center" v-for="(vend, vendIndex) in apkSetting.vends">
                               <span>
                                 {{ vendIndex + 1 }}.
                               </span>
@@ -183,6 +183,13 @@
                                       {{ vend.customer.name }}
                                   </span>
                               </span>
+                              <Button
+                                    type="button" class="bg-red-300 hover:bg-red-400 px-2 py-1 text-xs text-red-800 flex space-x-1 h-fit ml-5"
+                                    @click="onUnbindVendClicked(vend)"
+                                    v-if="permissions.includes('admin-access vends')"
+                                  >
+                                    <TrashIcon class="w-3 h-3"></TrashIcon>
+                                  </Button>
                             </li>
                           </ul>
                         </div>
@@ -294,6 +301,17 @@ function onDeleteClicked(apkSetting) {
       return;
   }
   router.delete('/apk-settings/' + apkSetting.id)
+}
+
+function onUnbindVendClicked(vend) {
+  const approval = confirm('Are you sure to unbind mapping for ' + vend.code + '?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/apk-settings/unbind-vend/' + vend.id, {
+      preserveState: true,
+      replace: true,
+  })
 }
 
 function onSearchFilterUpdated() {

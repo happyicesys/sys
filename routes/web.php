@@ -102,6 +102,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/upload-campaign-videos', [ApkSettingController::class, 'uploadCampaignVideos']);
         Route::post('/{id}/upload-images', [ApkSettingController::class, 'uploadImages']);
         Route::post('/{id}/upload-videos', [ApkSettingController::class, 'uploadVideos']);
+        Route::delete('/unbind-vend/{vendId}', [ApkSettingController::class, 'unbindVend']);
     });
 
     Route::prefix('attachments')->group(function() {

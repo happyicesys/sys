@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\PublishMqtt;
 use App\Models\ApkSetting;
+use App\Models\ApkSettingVend;
 use App\Models\CampaignItem;
 use App\Models\Operator;
 use App\Models\Product;
@@ -168,6 +169,20 @@ class ApkSettingController extends Controller
         }
 
         return redirect()->route('apk-settings.edit', [$apkSetting->id]);
+    }
+
+    public function unbindVend($vendID)
+    {
+        // dd($vendID);
+        $vend = Vend::findOrFail($vendID);
+        $apkSetting = $vend->apkSettingVend;
+
+        if($apkSetting) {
+            $apkSettingVend = ApkSettingVend::findOrFail($apkSetting->id);
+            $apkSettingVend->delete();
+        }
+
+        return redirect()->back();
     }
 
     public function update(Request $request, $id)
