@@ -80,7 +80,8 @@ class VendSerialNumberController extends Controller
                     'Begin Date' => Carbon::parse($vendSerialNumber->vend_begin_date)->toDateString(),
                     'Prefix' => $vendSerialNumber->vend_prefix_name,
                     'Contract' => $vendSerialNumber->vend_contract_name,
-                    'Customer' => $vendSerialNumber->customer_name,
+                    'Customer Name' => $vendSerialNumber->customer_virtual_code . ' (' .  $vendSerialNumber->vend_prefix_name . ') ' . $vendSerialNumber->customer_name,
+                    'Postcode' => $vendSerialNumber->postcode,
                     'Operator' => $vendSerialNumber->operator_name,
                     'Location Type' => $vendSerialNumber->location_type_name,
                 ];
