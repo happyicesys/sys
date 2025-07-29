@@ -25,7 +25,7 @@ class ProductMappingResource extends JsonResource
             'attachments' => AttachmentResource::collection($this->whenLoaded('attachments')),
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'productMappingItems' => ProductMappingItemResource::collection($this->whenLoaded('productMappingItems')),
-            'productMappingItemsJson' => $this->product_mapping_items_json,
+            // 'productMappingItemsJson' => $this->product_mapping_items_json,
             'selling_price_type' => $this->selling_price_type,
             'vends' => VendResource::collection($this->whenLoaded('vends')),
             'vends_count' => isset($this->vends_count) ? $this->vends_count : null,

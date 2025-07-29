@@ -136,7 +136,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(apkSetting, apkSettingIndex) in apkSettings.data" :key="apkSetting.id" class="divide-x divide-gray-200 odd:bg-white even:bg-gray-100">
+                    <tr v-for="(apkSetting, apkSettingIndex) in apkSettings.data" :key="apkSetting.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="apkSettingIndex" :totalLength="apkSettings.length" inputClass="text-center">
                         {{ apkSettings.meta.from + apkSettingIndex }}
                       </TableData>

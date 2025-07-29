@@ -283,7 +283,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(opsJob, opsJobIndex) in opsJobs.data" :key="opsJob.id" class="divide-x divide-gray-200">
+                    <tr v-for="(opsJob, opsJobIndex) in opsJobs.data" :key="opsJob.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="opsJobIndex" :totalLength="opsJobs.length" inputClass="text-center">
                         {{ opsJobs.meta.from + opsJobIndex }}
                       </TableData>

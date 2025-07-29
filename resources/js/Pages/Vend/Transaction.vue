@@ -619,7 +619,7 @@
                   </thead>
                   <tbody class="bg-white">
                     <template v-for="(vendTransaction, vendTransactionIndex) in vendTransactions.data" :key="vendTransaction.id">
-                      <tr class="divide-x" :class="vendTransaction.is_multiple ? 'divide-x bg-gray-100' : ''">
+                      <tr class="divide-x divide-y-2 divide-gray-300" :class="vendTransaction.is_multiple ? 'divide-x divide-y-2 bg-gray-100' : ''">
                         <TableData :currentIndex="vendTransactionIndex" :totalLength="vendTransactions.length" inputClass="text-center">
                             {{ vendTransactions.meta.from + vendTransactionIndex }}
                         </TableData>

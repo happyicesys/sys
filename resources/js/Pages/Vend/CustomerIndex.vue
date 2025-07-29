@@ -888,7 +888,7 @@
 			</thead>
 			<tbody class="bg-white">
 				<tr v-for="(vend, vendIndex) in vends.data" :key="vendIndex"
-					class="divide-x divide-gray-200">
+					class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="isShowOperationDiv">
 						<input type="checkbox" v-model="vend.is_selected" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
 					</TableData>

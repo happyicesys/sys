@@ -300,7 +300,7 @@
                   </thead>
                   <tbody class="bg-white">
                     <template v-for="(paymentGatewayLog, paymentGatewayLogIndex) in paymentGatewayLogs.data" :key="paymentGatewayLog.id">
-                      <tr class="divide-x" :class="paymentGatewayLog.is_multiple ? 'divide-x bg-gray-100' : ''">
+                      <tr class="divide-x divide-y-2 divide-gray-300" :class="paymentGatewayLog.is_multiple ? 'divide-x divide-y-2 bg-gray-100' : ''">
                         <TableData :currentIndex="paymentGatewayLogIndex" :totalLength="paymentGatewayLogs.length" inputClass="text-center">
                             {{ paymentGatewayLogs.meta.from + paymentGatewayLogIndex }}
                         </TableData>
