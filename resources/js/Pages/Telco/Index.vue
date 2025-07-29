@@ -93,7 +93,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(telco, telcoIndex) in telcos.data" :key="telco.id" class="divide-x divide-gray-200">
+                    <tr v-for="(telco, telcoIndex) in telcos.data" :key="telco.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="telcoIndex" :totalLength="telcos.length" inputClass="text-center">
                         {{ telcos.meta.from + telcoIndex }}
                       </TableData>

@@ -34,7 +34,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(vendCriteria, vendCriteriaIndex) in vendCriterias.data" :key="vendCriteria.id" class="divide-x divide-gray-200">
+                    <tr v-for="(vendCriteria, vendCriteriaIndex) in vendCriterias.data" :key="vendCriteria.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="vendCriteriaIndex" :totalLength="vendCriterias.length" inputClass="text-center">
                         {{ vendCriterias.meta.from + vendCriteriaIndex }}
                       </TableData>

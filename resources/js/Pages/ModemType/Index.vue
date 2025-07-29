@@ -93,7 +93,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(modemType, modemTypeIndex) in modemTypes.data" :key="modemType.id" class="divide-x divide-gray-200">
+                    <tr v-for="(modemType, modemTypeIndex) in modemTypes.data" :key="modemType.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="modemTypeIndex" :totalLength="modemTypes.length" inputClass="text-center">
                         {{ modemTypes.meta.from + modemTypeIndex }}
                       </TableData>

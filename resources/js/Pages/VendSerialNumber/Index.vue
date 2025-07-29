@@ -301,7 +301,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(vendSerialNumber, vendSerialNumberIndex) in vendSerialNumbers.data" :vendSerialNumber="vendSerialNumber.id" class="divide-x divide-gray-200">
+                    <tr v-for="(vendSerialNumber, vendSerialNumberIndex) in vendSerialNumbers.data" :vendSerialNumber="vendSerialNumber.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="vendSerialNumberIndex" :totalLength="vendSerialNumbers.length" inputClass="text-center">
                         {{ vendSerialNumbers.meta.from + vendSerialNumberIndex }}
                       </TableData>

@@ -98,7 +98,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(vendChannelError, vendChannelErrorIndex) in vendChannelErrors.data" :key="vendChannelError.id" class="divide-x divide-gray-200">
+                    <tr v-for="(vendChannelError, vendChannelErrorIndex) in vendChannelErrors.data" :key="vendChannelError.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="vendChannelErrorIndex" :totalLength="vendChannelErrors.length" inputClass="text-center">
                         {{ vendChannelErrors.meta.from + vendChannelErrorIndex }}
                       </TableData>

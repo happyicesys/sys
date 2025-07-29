@@ -93,7 +93,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(permission, permissionIndex) in permissions.data" :key="permission.id" class="divide-x divide-gray-200">
+                    <tr v-for="(permission, permissionIndex) in permissions.data" :key="permission.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="permissionIndex" :totalLength="permissions.length" inputClass="text-center">
                         {{ permissions.meta.from + permissionIndex }}
                       </TableData>

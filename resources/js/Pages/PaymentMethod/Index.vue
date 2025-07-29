@@ -93,7 +93,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(paymentMethod, paymentMethodIndex) in paymentMethods.data" :key="paymentMethod.id" class="divide-x divide-gray-200">
+                    <tr v-for="(paymentMethod, paymentMethodIndex) in paymentMethods.data" :key="paymentMethod.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="paymentMethodIndex" :totalLength="paymentMethods.length" inputClass="text-center">
                         {{ paymentMethods.meta.from + paymentMethodIndex }}
                       </TableData>

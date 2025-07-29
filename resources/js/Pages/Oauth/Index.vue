@@ -43,7 +43,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(client, clientIndex) in clients" :key="client.id" class="divide-x divide-gray-200">
+                    <tr v-for="(client, clientIndex) in clients" :key="client.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="clientIndex" :totalLength="clients.length" inputClass="text-center">
                         {{ clientIndex + 1 }}
                       </TableData>

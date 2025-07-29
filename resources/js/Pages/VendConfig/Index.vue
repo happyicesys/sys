@@ -175,7 +175,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(vendConfig, vendConfigIndex) in vendConfigs.data" :key="vendConfig.id" class="divide-x divide-gray-200">
+                    <tr v-for="(vendConfig, vendConfigIndex) in vendConfigs.data" :key="vendConfig.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="vendConfigIndex" :totalLength="vendConfigs.length" inputClass="text-center">
                         {{ vendConfigs.meta.from + vendConfigIndex }}
                       </TableData>

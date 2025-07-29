@@ -118,7 +118,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(simcard, telcoIndex) in simcards.data" :key="simcard.id" class="divide-x divide-gray-200">
+                    <tr v-for="(simcard, telcoIndex) in simcards.data" :key="simcard.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="telcoIndex" :totalLength="simcards.length" inputClass="text-center">
                         {{ simcards.meta.from + telcoIndex }}
                       </TableData>

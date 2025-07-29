@@ -93,7 +93,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(cashlessProvider, cashlessProviderIndex) in cashlessProviders.data" :key="cashlessProvider.id" class="divide-x divide-gray-200">
+                    <tr v-for="(cashlessProvider, cashlessProviderIndex) in cashlessProviders.data" :key="cashlessProvider.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="cashlessProviderIndex" :totalLength="cashlessProviders.length" inputClass="text-center">
                         {{ cashlessProviders.meta.from + cashlessProviderIndex }}
                       </TableData>

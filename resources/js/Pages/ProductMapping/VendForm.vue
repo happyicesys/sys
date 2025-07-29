@@ -38,16 +38,16 @@
                 <dt class="text-sm font-medium text-gray-500">Channel - Product</dt>
                 <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
                   <ul role="list" class="divide-y divide-gray-200 rounded-md border border-gray-200">
-                    <li v-for="productMappingItem in productMapping.productMappingItemsJson" class="flex items-center justify-between py-3 pl-3 pr-4 text-sm">
+                    <li v-for="productMappingItem in productMapping.productMappingItems" class="flex items-center justify-between py-3 pl-3 pr-4 text-sm">
                       <div class="flex w-0 flex-1 space-x-2 items-center">
                         <span class="text-blue-700 text-md pr-2">
-                          {{ productMappingItem['channel_code'] }}
+                          {{ productMappingItem.channel_code }}
                         </span>
-                        <span v-if="productMappingItem['product']['code']">
-                          {{ productMappingItem['product']['code'] }}
+                        <span v-if="productMappingItem.product">
+                          {{ productMappingItem.product.code }}
                         </span>
                         <span>
-                          - {{ productMappingItem['product']['name'] }}
+                          - {{ productMappingItem.product.name }}
                         </span>
                       </div>
                     </li>

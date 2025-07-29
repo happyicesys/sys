@@ -96,7 +96,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(tax, taxIndex) in taxes.data" :key="tax.id" class="divide-x divide-gray-200">
+                    <tr v-for="(tax, taxIndex) in taxes.data" :key="tax.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="taxIndex" :totalLength="taxes.length" inputClass="text-center">
                         {{ taxes.meta.from + taxIndex }}
                       </TableData>

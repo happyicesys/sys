@@ -145,7 +145,7 @@
                   </thead>
                   <tbody class="bg-white">
                       <tr v-for="(user, userIndex) in users.data" :key="user.id"
-                          class="divide-x divide-gray-200">
+                          class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                           <TableData :currentIndex="userIndex" :totalLength="users.length" inputClass="text-center">
                               {{ users.meta.from + userIndex }}
                           </TableData>

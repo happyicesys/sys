@@ -139,7 +139,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(hidCard, hidCardIndex) in hidCards.data" :key="hidCard.id" class="divide-x divide-gray-200">
+                    <tr v-for="(hidCard, hidCardIndex) in hidCards.data" :key="hidCard.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="hidCardIndex" :totalLength="hidCards.length" inputClass="text-center">
                         {{ hidCards.meta.from + hidCardIndex }}
                       </TableData>

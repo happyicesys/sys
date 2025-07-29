@@ -234,7 +234,7 @@
                       GM (%)
                     </TableHeadSort>
                   </tr>
-                  <tr class="divide-x divide-gray-200">
+                  <tr class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                     <TableHead colspan="3">
                     </TableHead>
                     <TableData inputClass="text-right font-semibold">
@@ -276,7 +276,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(locationType, locationTypeIndex) in locationTypes.data" :key="locationType.id" class="divide-x divide-gray-200">
+                    <tr v-for="(locationType, locationTypeIndex) in locationTypes.data" :key="locationType.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="locationTypeIndex" :totalLength="locationTypes.length" inputClass="text-center">
                         {{ locationTypes.meta.from + locationTypeIndex }}
                       </TableData>

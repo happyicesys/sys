@@ -93,7 +93,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(status, statusIndex) in statuses.data" :key="status.id" class="divide-x divide-gray-200">
+                    <tr v-for="(status, statusIndex) in statuses.data" :key="status.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="statusIndex" :totalLength="statuses.length" inputClass="text-center">
                         {{ statuses.meta.from + statusIndex }}
                       </TableData>

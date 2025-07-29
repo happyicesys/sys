@@ -115,7 +115,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(category, categoryIndex) in categories.data" :key="category.id" class="divide-x divide-gray-200">
+                    <tr v-for="(category, categoryIndex) in categories.data" :key="category.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="categoryIndex" :totalLength="categories.length" inputClass="text-center">
                         {{ categories.meta.from + categoryIndex }}
                       </TableData>

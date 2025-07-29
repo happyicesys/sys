@@ -112,7 +112,7 @@
                   </tr>
                 </thead>
                   <tbody class="bg-white">
-                    <tr v-for="(cashlessTerminal, telcoIndex) in cashlessTerminals.data" :key="cashlessTerminal.id" class="divide-x divide-gray-200">
+                    <tr v-for="(cashlessTerminal, telcoIndex) in cashlessTerminals.data" :key="cashlessTerminal.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                       <TableData :currentIndex="telcoIndex" :totalLength="cashlessTerminals.length" inputClass="text-center">
                         {{ cashlessTerminals.meta.from + telcoIndex }}
                       </TableData>

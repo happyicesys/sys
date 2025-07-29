@@ -107,7 +107,7 @@
                     </thead>
                     <tbody class="bg-white">
                         <tr v-for="(profile, profileIndex) in profiles.data" :key="profile.id"
-                            class="divide-x divide-gray-200">
+                            class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
                             <TableData :currentIndex="profileIndex" :totalLength="profiles.length" inputClass="text-center">
                                 {{ profiles.meta.from + profileIndex }}
                             </TableData>
