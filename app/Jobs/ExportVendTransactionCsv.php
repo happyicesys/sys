@@ -73,7 +73,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                 'Product Code', 'Product Name', 'Price Type', 'Amount', 'Amount Breakdown',
                 'Unit Cost', 'Payment Method', 'Error Code', 'Location Type',
                 'Operator', 'Is Successful', 'Is Refunded', 'Is Multiple',
-                'Multiple Qty', 'TXN Source', 'Member ID', 'Voucher',
+                'Multiple Qty', 'TXN Source', 'Member ID', 'HID Card ID', 'Voucher',
             ]);
 
             VendTransaction::query()
@@ -168,6 +168,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                             $txn->is_multiple ? $txnItems->count() : 1,
                             $txn->interface_type,
                             $txn_json['dcvend_user_id'] ?? '',
+                            isset($meta_json['hid_card_id']) ? $meta_json['hid_card_id'] : '',
                             isset($meta_json['vouchers']) && $meta_json['vouchers'] ? $meta_json['vouchers'][0]['code'] : '',
                         ]);
 
@@ -198,6 +199,8 @@ class ExportVendTransactionCsv implements ShouldQueue
                                 0,
                                 $txn->interface_type,
                                 $txn_json['dcvend_user_id'] ?? '',
+                                '',
+                                '',
                             ]);
                         }
                     }
