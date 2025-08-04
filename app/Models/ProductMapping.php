@@ -24,7 +24,7 @@ class ProductMapping extends Model
     }
 
     protected $casts = [
-        'product_mapping_items_json' => 'json',
+        // 'product_mapping_items_json' => 'json',
     ];
 
     protected $fillable = [
@@ -32,7 +32,7 @@ class ProductMapping extends Model
         'remarks',
         'is_active',
         'operator_id',
-        'product_mapping_items_json',
+        // 'product_mapping_items_json',
         'selling_price_type',
     ];
 

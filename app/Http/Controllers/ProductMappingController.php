@@ -244,7 +244,7 @@ class ProductMappingController extends Controller
         $productMapping->upcomingProductMappings()->sync($request->upcomingProductMappings);
 
         if($request->productMappingItems) {
-           $productMapping->product_mapping_items_json =  $request->productMappingItems;
+        //    $productMapping->product_mapping_items_json =  $request->productMappingItems;
            $productMapping->productMappingItems()->delete();
            foreach($request->productMappingItems as $productMappingItem) {
                 $productMapping->productMappingItems()->create([
