@@ -1787,7 +1787,7 @@ class VendController extends Controller
                 'vend_channels.amount AS vend_channel_amount',
                 'vend_channels.amount2 AS vend_channel_amount2',
                 'vend_channel_errors.desc AS vend_channel_error_desc',
-                'vend_channel_errors.code AS vend_channel_error_code'
+                'vend_channel_errors.code AS vend_channel_error_code',
             ])
             ->chunk(500, function ($transactions) use (&$data) {
                 foreach ($transactions as $txn) {
@@ -1823,6 +1823,9 @@ class VendController extends Controller
                         'multiple_qty' => $txn->is_multiple ? $txn->vendTransactionItems->count() : 1,
                         'txn_src' => $txn->interface_type,
                         'member_id' => $txn_json['dcvend_user_id'] ?? '',
+                        'hid_card_id' => $txn->meta_json['hid_card_id'] ?? '',
+                        'voucher' => isset($txn->meta_json['vouchers']) ? $txn->meta_json['vouchers'][0]['code'] : '',
+
                     ];
 
                     foreach ($txn->vendTransactionItems as $item) {
