@@ -1843,7 +1843,7 @@ class VendController extends Controller
                             'price_type' => 'P1',
                             'amount' => '',
                             'amount_breakdown' => $item->vendChannel ? $item->vendChannel->amount / 100 : '',
-                            'unit_cost' => $item->unitCost ? $item->unitCost->cost / 100 : '',
+                            'unit_cost' => $item->unitCost ? $item->unitCost->cost : '',
                             'payment_method' => $txn->payment_method_name,
                             'error_code' => $item->vendChannelError->code ?? '',
                             'location_type' => $txn->location_type_name,

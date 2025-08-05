@@ -188,7 +188,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                                 'P1',
                                 '',
                                 $item->vendChannel ? $item->vendChannel->amount / 100 : '',
-                                $item->unitCost ? $item->unitCost->cost / 100 : '',
+                                $item->unitCost ? $item->unitCost->cost : '',
                                 $txn->payment_method_name,
                                 $item->vendChannelError->code ?? '',
                                 $txn->location_type_name,
