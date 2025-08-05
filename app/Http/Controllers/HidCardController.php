@@ -112,6 +112,44 @@ class HidCardController extends Controller
         return redirect()->route('hid-cards');
     }
 
+    public function exportCsv(Request $request)
+    {
+        $request->merge([
+            'sortKey' => $request->sortKey ? $request->sortKey : 'value',
+            'sortBy' => $request->sortBy ? $request->sortBy : true,
+        ]);
+
+        $hidCards = HidCard::query()
+            ->with('operator')
+            ->when($request->name, function($query, $search) {
+                $query->where('name', 'LIKE', "%{$search}%");
+            })
+            ->when($request->email, function($query, $search) {
+                $query->where('email', 'LIKE', "%{$search}%");
+            })
+            ->when($request->value, function($query, $search) {
+                $query->where('value', 'LIKE', "{$search}%");
+            })
+            ->when($request->operator_id, function($query, $search) {
+                if($search !== 'all') {
+                    $query->where('operator_id', $search);
+                }
+            })
+            ->when($request->sortKey, function($query, $search) use ($request) {
+                $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
+            })
+            ->get();
+
+        return (new FastExcel($this->yieldOneByOne($hidCards)))->download('HIDCards'.Carbon::now()->toDateTimeString().'.csv', function ($hidCard) {
+            return [
+                'Card Value' => $hidCard->value,
+                'Operator' => $hidCard->operator?->code,
+                'Name' => $hidCard->name,
+                'Email' => $hidCard->email,
+            ];
+        });
+    }
+
     public function exportExcel(Request $request)
     {
         $request->merge([
