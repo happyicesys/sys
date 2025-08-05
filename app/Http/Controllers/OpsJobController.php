@@ -1105,6 +1105,17 @@ class OpsJobController extends Controller
         return redirect()->back();
     }
 
+    public function toggleIsIgnoreLimit(Request $request, $id)
+    {
+        $opsJobItem = OpsJobItem::findOrFail($id);
+
+        $opsJobItem->update([
+            'is_ignore_limit' => !$opsJobItem->is_ignore_limit,
+        ]);
+
+        return redirect()->back();
+    }
+
     public function undoItemStatus($id)
     {
         $opsJobItem = OpsJobItem::findOrFail($id);

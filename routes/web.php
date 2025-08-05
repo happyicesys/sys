@@ -323,6 +323,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/item/create', [OpsJobController::class, 'createItem']);
         Route::post('/items/{itemId}/update', [OpsJobController::class, 'updateItem']);
         Route::post('/items/{itemId}/update/remarks', [OpsJobController::class, 'updateItemRemarks']);
+        Route::post('/items/{itemID}/toggle/is-ignore-limit', [OpsJobController::class, 'toggleIsIgnoreLimit']);
         Route::post('/{id}/create-cms-empty-invoices', [OpsJobController::class, 'createCmsEmptyInvoices']);
         Route::post('/{id}/sync-cms-invoices', [OpsJobController::class, 'syncCmsInvoices']);
         Route::delete('/items/{itemId}', [OpsJobController::class, 'deleteItem']);

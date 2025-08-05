@@ -224,7 +224,33 @@
               </div>
             </dl>
           </div>
-          <div class="flex md:justify-end mb-2 px-4 py-3">
+          <div class="flex md:justify-between mb-2 px-4 py-3">
+            <Button
+                type="button"
+                class="px-2 py-2 ml-1 text-xs md:text-md flex space-x-1 bg-yellow-500 hover:bg-yellow-600 text-black w-full md:w-fit"
+                @click.prevent="onIsIgnoreLimitClicked()"
+                v-if="!opsJobItem.is_ignore_limit"
+            >
+              <span class="flex space-x-1 items-center">
+                <StopCircleIcon class="w-4 h-4"></StopCircleIcon>
+                <span>
+                  Bypass Qty Limit
+                </span>
+              </span>
+            </Button>
+            <Button
+                type="button"
+                class="px-2 py-2 ml-1 text-xs md:text-md flex space-x-1 bg-yellow-500 hover:bg-yellow-600 text-black w-full md:w-fit"
+                @click.prevent="onIsIgnoreLimitClicked()"
+                v-if="opsJobItem.is_ignore_limit"
+            >
+              <span class="flex space-x-1 items-center">
+                <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                <span>
+                  Abide Qty Limit
+                </span>
+              </span>
+            </Button>
             <Button
                 type="button"
                 class="px-2 py-2 ml-1 text-xs md:text-md flex space-x-1 bg-green-500 hover:bg-green-600 text-white w-full md:w-fit"
@@ -372,7 +398,7 @@
                                 <span>
                                   {{ channel.picked }}
                                 </span>
-                                <span class="text-xs text-red-500" v-if="channel.picked_limit != null">
+                                <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
                                   limited ({{ channel.picked_limit }})
                                 </span>
                               </span>
@@ -382,7 +408,7 @@
                               <select name="channel_picked" id="channel_picked" class="rounded" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : 'text-black']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                                 <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                               </select>
-                              <span class="text-xs text-red-500" v-if="channel.picked_limit != null">
+                              <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
                                 limited ({{ channel.picked_limit }})
                               </span>
                             </div>
@@ -639,7 +665,7 @@
                             <span>
                               {{ channel.picked }}
                             </span>
-                            <span class="text-xs text-red-500" v-if="channel.picked_limit != null">
+                            <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
                               limited ({{ channel.picked_limit }})
                             </span>
                           </div>
@@ -649,7 +675,7 @@
                             <select name="channel_picked" id="channel_picked" class="rounded w-fit" :class="[channel.picked != (channel.capacity - channel.qty) ? 'text-red-500' : '']" v-model="channel.picked" :disabled="channel.product && !channel.product.is_available" v-if="opsJobItem.status < 2">
                               <option v-for="n in channel.capacity + 1" :key="n-1" :value="n-1">{{ n-1 }}</option>
                             </select>
-                            <span class="text-xs text-red-500" v-if="channel.picked_limit != null">
+                            <span class="text-xs text-red-500" v-if="channel.picked_limit != null && !opsJobItem.is_ignore_limit">
                               limited ({{ channel.picked_limit }})
                             </span>
                           </div>
@@ -1130,7 +1156,7 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import {ArrowUturnLeftIcon, ArrowRightEndOnRectangleIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ComputerDesktopIcon, FlagIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import {ArrowUturnLeftIcon, ArrowRightEndOnRectangleIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ComputerDesktopIcon, FlagIcon, StopCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
@@ -1167,7 +1193,7 @@ function loadingData() {
     // picked logic
     let pickedQty = 0
     if (opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.is_available) {
-      if (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null) {
+      if (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null && !opsJobItem.value.is_ignore_limit) {
         if (opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit > opsJobItemChannel.vendChannel.capacity &&
           opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit >= opsJobItemChannel.vendChannel.qty) {
             pickedQty = opsJobItemChannel.vendChannel.capacity - opsJobItemChannel.vendChannel.qty
@@ -1196,7 +1222,7 @@ function loadingData() {
       error_settled_at_formatted: opsJobItemChannel.error_settled_at_formatted,
       is_error_settle: opsJobItemChannel.is_error_settle,
       ops_job_item_channel_id: opsJobItemChannel.id,
-      picked_limit: opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null ? opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit : null,
+      picked_limit: opsJobItemChannel.vendChannel.product && opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit != null && !opsJobItem.is_ignore_limit ? opsJobItemChannel.vendChannel.product.max_ops_job_pick_limit : null,
       before_picked: opsJobItemChannel.picked_before_qty,
       picked: pickedQty,
       // picked: props.opsJobItem.data.status < 2 ?
@@ -1443,6 +1469,29 @@ function onCashCollectedClicked() {
           loadingData()
         }
       })
+    }
+  })
+}
+
+function onIsIgnoreLimitClicked() {
+  const approval = confirm('Are you sure to toggle Qty Limit Check?');
+  if (!approval) {
+      return;
+  }
+  router.post('/ops-jobs/items/' + opsJobItem.value.id + '/toggle/is-ignore-limit', {}, {
+    preserveScroll: true,
+    onSuccess: () => {
+      router.reload({
+        only: ['opsJobItem'],
+        replace: true,
+        preserveState: true,
+        onSuccess: page => {
+          loadingData()
+        }
+      })
+      toast.success("Successfully Saved", {
+        timeout: 3000
+      });
     }
   })
 }
