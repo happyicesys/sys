@@ -168,7 +168,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             $txn->customer_name,
                             $txn->vend_channel_code ?? '',
                             $txn->product_code,
-                            $txn->product_name,
+                            $txn->vend_channel_code == 0 && !$txn->product_code ? 'Multiple Puchase' : $txn->product_name,
                             $txn->vend_channel_amount == $txn->amount ? 'P1' : ($txn->vend_channel_amount2 == $txn->amount ? 'P2' : ''),
                             $main_amount,
                             $multipleBreakdown,

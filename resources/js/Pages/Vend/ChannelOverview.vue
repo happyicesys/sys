@@ -192,7 +192,7 @@
                               ({{ channel.vendChannelErrorLogs[0].code }})
                               </span>
                               <div>
-                                {{formatDatetime(channel.vendChannelErrorLogs[0].created_at)}}
+                                {{channel.vendChannelErrorLogs[0].created_at}}
                               </div>
                             </div>
                         </span>
