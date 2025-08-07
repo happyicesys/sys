@@ -798,8 +798,7 @@ import TableData from '@/Components/TableData.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted, onUnmounted } from 'vue';
-import { router } from '@inertiajs/vue3';
-import { Head, usePage } from '@inertiajs/vue3';
+import { Head, usePage, router, usePoll } from '@inertiajs/vue3';
 import axios from 'axios';
 import fileDownload from 'js-file-download'
 import { useToast } from "vue-toastification";
@@ -960,6 +959,12 @@ const paymentMethodOptions = ref([])
 const numberPerPageOptions = ref([])
 const vendModelOptions = ref([])
 
+// let {start, stop} = usePoll(2000, {
+//     only: ['latestExports']
+// }, {
+//     autoStart: false,
+// })
+
 // function onExportExcelClicked() {
 //     // window.open('/vends/transactions/excel', '_blank');
 //     loading.value = true
@@ -1031,6 +1036,18 @@ function onExportCsvClicked() {
         toast.success("Exporting, please visit back or refresh after a while", {
         timeout: 5000
       });
+
+        // Start polling for latest exports
+        // start()
+
+        router.reload({
+            only: ['latestExports'],
+            replace: true,
+            preserveState: true,
+            onSuccess: page => {
+                latestExports.value = page.props.latestExports
+            }
+        })
         // fileDownload(response.data, 'Vending_Transaction_' + moment().format('YYMMDDhhmmss') + '.csv')
     })
     .catch(error => {
