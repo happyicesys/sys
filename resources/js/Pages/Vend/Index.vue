@@ -237,7 +237,7 @@
         <SearchInput :class="[showAllFilters ? 'block' : 'hidden']"  placeholderStr="Number" v-model="filters.coinLessThan" @keyup.enter="onSearchFilterUpdated()">
           Coin Amount &lt;&lt;
         </SearchInput>
-        <div :class="[showAllFilters ? 'block' : 'hidden']">
+        <div>
           <label for="text" class="block text-sm font-medium text-gray-700">
             Machine Prefix
           </label>
