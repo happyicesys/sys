@@ -193,7 +193,9 @@
                           <tbody class="bg-white">
                             <tr v-for="(productMappingItem, productMappingItemIndex) in productMappingItems" :key="productMappingItem.id" :class="productMappingItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                                {{ productMappingItemIndex + 1 }}
+                                <select v-model="productMappingItem.sequence" @change="onSequenceChanged(productMappingItem)">
+                                  <option v-for="n in productMappingItems.length" :key="n" :value="n">{{ n }}</option>
+                                </select>
                               </td>
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                                 {{ productMappingItem.channel_code }}
@@ -351,7 +353,14 @@ onMounted(() => {
     ...Object.entries(props.priceTypeOptions).map(([id, name]) => ({id: id, name: name}))
   ]
   productOptions.value = props.products.data;
-  productMappingItems.value = props.productMapping ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems)) : [];
+
+  console.log('productMapping', props.productMapping.data.productMappingItems)
+  productMappingItems.value = props.productMapping
+  ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems)).map((item, index) => ({
+      ...item,
+      sequence: item.sequence !== null && item.sequence !== undefined ? item.sequence : index + 1,
+    }))
+  : []
   upcomingProductMappingOptions.value = props.upcomingProductMappingOptions.data.map((data) => ({ id: data.id, value: data.name }));
 
   form.value = props.productMapping ? useForm({
@@ -372,6 +381,31 @@ function getDefaultForm() {
     upcomingProductMappings: [],
   }
 }
+
+function onSequenceChanged(changedItem) {
+  // Separate items into non-null and null
+  const nonNullItems = productMappingItems.value.filter(item => item.sequence !== null && item !== changedItem);
+  const nullItems = productMappingItems.value.filter(item => item.sequence === null);
+
+  // Clamp changedItem.sequence to valid range
+  const maxSequence = nonNullItems.length + 1;
+  let newSequence = parseInt(changedItem.sequence);
+  if (isNaN(newSequence) || newSequence < 1) newSequence = 1;
+  if (newSequence > maxSequence) newSequence = maxSequence;
+
+  // Insert changedItem at the correct spot
+  nonNullItems.splice(newSequence - 1, 0, changedItem);
+
+  // Reassign sequence 1…n
+  nonNullItems.forEach((item, index) => {
+    item.sequence = index + 1;
+  });
+
+  // Merge back null items at the bottom (unchanged)
+  productMappingItems.value = [...nonNullItems, ...nullItems];
+}
+
+
 
 function submit() {
   form.value.clearErrors()

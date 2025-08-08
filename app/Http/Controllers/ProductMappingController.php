@@ -46,9 +46,9 @@ class ProductMappingController extends Controller
             'productMappings' => ProductMappingResource::collection(
                 ProductMapping::with([
                     'attachments',
-                    'productMappingItems',
-                    'productMappingItems.product:id,code,name,is_active',
-                    'productMappingItems.product.thumbnail',
+                    'productMappingItemsBySequence',
+                    'productMappingItemsBySequence.product:id,code,name,is_active',
+                    'productMappingItemsBySequence.product.thumbnail',
                     'vends' => function ($query) use ($request) {
                         $query->select('id', 'code', 'name', 'product_mapping_id', 'customer_id', 'is_active', 'is_testing', 'is_disposed');
 
@@ -190,12 +190,12 @@ class ProductMappingController extends Controller
 
         $productMapping = ProductMapping::with([
             'attachments',
-            'productMappingItems',
-            'productMappingItems.product:id,code,name,is_active,category_id,category_group_id',
-            'productMappingItems.product.thumbnail',
-            'productMappingItems.product.category',
-            'productMappingItems.product.categoryGroup',
-            'productMappingItems.product.sellingPrices' => function($query) use ($request) {
+            'productMappingItemsBySequence',
+            'productMappingItemsBySequence.product:id,code,name,is_active,category_id,category_group_id',
+            'productMappingItemsBySequence.product.thumbnail',
+            'productMappingItemsBySequence.product.category',
+            'productMappingItemsBySequence.product.categoryGroup',
+            'productMappingItemsBySequence.product.sellingPrices' => function($query) use ($request) {
                 if($request->selling_price_type) {
                     $query->where('type', $request->selling_price_type);
                 }
@@ -251,6 +251,7 @@ class ProductMappingController extends Controller
                     'channel_code' => $productMappingItem['channel_code'],
                     'product_id' => $productMappingItem['product']['id'],
                     'selling_price_id' => isset($productMappingItem['selling_price_id']) ? $productMappingItem['selling_price_id'] : null,
+                    'sequence' => isset($productMappingItem['sequence']) ? $productMappingItem['sequence'] : null,
                 ]);
            }
         }

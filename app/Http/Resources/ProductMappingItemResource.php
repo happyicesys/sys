@@ -21,6 +21,7 @@ class ProductMappingItemResource extends JsonResource
             'productMapping' => ProductMappingResource::make($this->whenLoaded('productMapping')),
             'selling_price_id' => $this->selling_price_id,
             'sellingPrice' => SellingPriceResource::make($this->whenLoaded('sellingPrice')),
+            'sequence' => $this->sequence,
             'server_amount' => isset($this->server_amount) && $this->server_amount != null ? $this->server_amount : null,
         ];
     }

@@ -1170,69 +1170,80 @@ class VendController extends Controller
     // }
     public function getVendAllChannelThumbnails($vendCode)
     {
-        $vendChannels = VendChannel::query()
-            ->with([
-                'product.thumbnail',
-                'product.category',
-                'product.tagBindings.tag',
-                'vend.productMapping',
-            ])
-            ->whereHas('vend', fn($q) => $q->where('code', $vendCode))
-            ->where('is_active', true)
-            ->where('capacity', '>', 0)
-            ->orderBy('code', 'asc')
-            ->get();
+        $vend = Vend::with([
+            'vendChannels.product.thumbnail',
+            'vendChannels.product.category',
+            'vendChannels.product.tagBindings.tag',
+            'productMapping.productMappingItems',
+        ])->where('code', $vendCode)->first();
 
-        if ($vendChannels->isEmpty()) {
+        if (!$vend || $vend->vendChannels->isEmpty()) {
             return response()->json([], 200);
         }
 
-        $productMappingId = $vendChannels->first()?->vend?->product_mapping_id;
-        if (!$productMappingId) {
+        $productMappingItems = $vend->productMapping?->productMappingItems->keyBy('channel_code');
+
+        if (!$productMappingItems) {
             return response()->json([], 200);
         }
 
-        $channelCodes = $vendChannels->pluck('code')->map(fn($c) => (int)$c)->toArray();
+        $serverPriceType = $vend->server_price_type;
 
-        $productMappingItems = ProductMappingItem::where('product_mapping_id', $productMappingId)
-            ->whereIn('channel_code', $channelCodes)
-            ->get()
-            ->keyBy('channel_code');
+        // Get product IDs from mapping items
+        $productIds = $productMappingItems->pluck('product_id')->unique()->toArray();
 
+        // Get relevant selling prices if needed
         $sellingPrices = [];
-        $serverPriceType = $vendChannels->first()?->vend?->server_price_type;
         if ($serverPriceType) {
-            $productIds = $productMappingItems->pluck('product_id')->unique()->toArray();
             $sellingPrices = SellingPrice::where('type', $serverPriceType)
                 ->whereIn('product_id', $productIds)
                 ->get()
                 ->keyBy('product_id');
         }
 
+        // Sort vendChannels by productMappingItem.sequence, then code
+        $sortedVendChannels = $vend->vendChannels->sort(function ($a, $b) use ($productMappingItems) {
+            $seqA = $productMappingItems->get((int)$a->code)?->sequence;
+            $seqB = $productMappingItems->get((int)$b->code)?->sequence;
+
+            $hasSeqA = $seqA !== null;
+            $hasSeqB = $seqB !== null;
+
+            if ($hasSeqA && !$hasSeqB) return -1;
+            if (!$hasSeqA && $hasSeqB) return 1;
+
+            if ($seqA !== $seqB) return $seqA <=> $seqB;
+
+            return (int)$a->code <=> (int)$b->code;
+        })->values();
+
         $dataArr = [];
-        foreach ($vendChannels as $vendChannel) {
+
+        foreach ($sortedVendChannels as $vendChannel) {
+            $product = $vendChannel->product;
             $productMappingItem = $productMappingItems->get((int)$vendChannel->code);
             $serverPrice = $productMappingItem ? ($sellingPrices[$productMappingItem->product_id]->amount ?? null) : null;
 
             $data = [
-                'vend_code' => $vendChannel->vend->code,
+                'vend_code' => $vend->code,
                 'channel_code' => $vendChannel->code,
-                'product_id' => $vendChannel->product?->id,
-                'product_code' => $vendChannel->product?->code,
-                'product_name' => $vendChannel->product?->name,
-                'product_desc' => $vendChannel->product?->desc,
-                'product_is_halal' => $vendChannel->product?->is_halal,
-                'product_is_healthier_choice' => $vendChannel->product?->is_healthier_choice,
-                'product_nutri_grade' => $vendChannel->product?->nutri_grade,
-                'product_sub_category' => $vendChannel->product?->category?->name,
-                'product_volumn_weight' => $vendChannel->product?->measurement_value,
-                'thumbnail' => $vendChannel->product?->thumbnail?->full_url,
+                'product_id' => $product?->id,
+                'product_code' => $product?->code,
+                'product_name' => $product?->name,
+                'product_desc' => $product?->desc,
+                'product_is_halal' => $product?->is_halal,
+                'product_is_healthier_choice' => $product?->is_healthier_choice,
+                'product_nutri_grade' => $product?->nutri_grade,
+                'product_sub_category' => $product?->category?->name,
+                'product_volumn_weight' => $product?->measurement_value,
+                'sequence' => $productMappingItem?->sequence,
+                'thumbnail' => $product?->thumbnail?->full_url,
                 'server_price' => $serverPrice,
-                'labels' => $vendChannel->product?->tagBindings->map(fn($tb) => ['name' => $tb->tag?->name])->toArray() ?? [],
+                'labels' => $product?->tagBindings->map(fn($tb) => ['name' => $tb->tag?->name])->toArray() ?? [],
             ];
 
-            if ($vendChannel->product?->translated_names_json) {
-                foreach ($vendChannel->product->translated_names_json as $lang => $value) {
+            if ($product?->translated_names_json) {
+                foreach ($product->translated_names_json as $lang => $value) {
                     $data['product_name_' . $value['id']] = $value['name'];
                 }
             }
@@ -1242,7 +1253,6 @@ class VendController extends Controller
 
         return response()->json($dataArr, 200);
     }
-
 
     public function getVendBannerImage($vendCode)
     {

@@ -15,6 +15,7 @@ class ProductMappingItem extends Model
         'product_id',
         'product_mapping_id',
         'selling_price_id',
+        'sequence',
         'server_amount',
     ];
 
