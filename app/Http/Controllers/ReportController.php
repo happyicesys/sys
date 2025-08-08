@@ -1006,9 +1006,10 @@ class ReportController extends Controller
 
         $vendSnapshots = $this->filterOperatorVendTransactionDB($vendSnapshots);
         $vendSnapshots = $this->filterVendsDB($vendSnapshots, $request);
+
+
         $vendSnapshots = $vendSnapshots
             ->when($request->currentMonth, function($query, $search) {
-                // dd('here', $search->copy()->startOfMonth()->toDateString());
                 $query
                     ->where('vend_snapshots.created_at', '>=', $search->copy()->startOfMonth()->addDay()->startOfDay())
                     ->where('vend_snapshots.created_at', '<=', $search->copy()->endOfMonth()->addDay()->endOfDay());

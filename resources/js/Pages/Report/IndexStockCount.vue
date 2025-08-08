@@ -536,6 +536,7 @@ onMounted(() => {
       router.get('/reports/stock-count', {
           ...filters.value,
           currentMonth: filters.value.currentMonth.id,
+          locationType: filters.value.locationType.id,
           location_type_id: filters.value.locationType.id,
           operators: filters.value.operators.map((operator) => { return operator.id }),
           is_binded_customer: filters.value.is_binded_customer.id,
