@@ -34,7 +34,6 @@ class VendTransaction extends Model
         'meta_json' => 'json',
         'transaction_datetime' => 'datetime',
         'vend_transaction_json' => 'json',
-        'vend_transaction_items_json' => 'json',
     ];
 
     protected $fillable = [
@@ -68,7 +67,6 @@ class VendTransaction extends Model
         'vend_prefix_id',
         'vend_id',
         'vend_transaction_json',
-        'vend_transaction_items_json',
         'unit_cost',
         'unit_cost_id',
     ];
