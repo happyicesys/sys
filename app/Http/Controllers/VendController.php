@@ -1480,7 +1480,6 @@ class VendController extends Controller
                 'vend_transactions.interface_type',
                 'vend_transactions.is_multiple',
                 'vend_transactions.is_refunded',
-                'vend_transaction_items_json',
                 'vend_transactions.is_payment_received',
                 'vend_transactions.items_json',
                 'vend_transactions.meta_json',
