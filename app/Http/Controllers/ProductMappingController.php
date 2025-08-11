@@ -46,9 +46,9 @@ class ProductMappingController extends Controller
             'productMappings' => ProductMappingResource::collection(
                 ProductMapping::with([
                     'attachments',
-                    'productMappingItemsBySequence',
-                    'productMappingItemsBySequence.product:id,code,name,is_active',
-                    'productMappingItemsBySequence.product.thumbnail',
+                    'productMappingItems',
+                    'productMappingItems.product:id,code,name,is_active',
+                    'productMappingItems.product.thumbnail',
                     'vends' => function ($query) use ($request) {
                         $query->select('id', 'code', 'name', 'product_mapping_id', 'customer_id', 'is_active', 'is_testing', 'is_disposed');
 
@@ -190,16 +190,17 @@ class ProductMappingController extends Controller
 
         $productMapping = ProductMapping::with([
             'attachments',
-            'productMappingItemsBySequence',
-            'productMappingItemsBySequence.product:id,code,name,is_active,category_id,category_group_id',
-            'productMappingItemsBySequence.product.thumbnail',
-            'productMappingItemsBySequence.product.category',
-            'productMappingItemsBySequence.product.categoryGroup',
-            'productMappingItemsBySequence.product.sellingPrices' => function($query) use ($request) {
+            'productMappingItems',
+            'productMappingItems.product:id,code,name,is_active,category_id,category_group_id',
+            'productMappingItems.product.thumbnail',
+            'productMappingItems.product.category',
+            'productMappingItems.product.categoryGroup',
+            'productMappingItems.product.sellingPrices' => function($query) use ($request) {
                 if($request->selling_price_type) {
                     $query->where('type', $request->selling_price_type);
                 }
             },
+            'productMappingItemsBySequence.product:id,code,name,is_active',
             'upcomingProductMappings',
             'vends:id,code,name,product_mapping_id,customer_id',
             'vends.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',

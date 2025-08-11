@@ -114,7 +114,7 @@
                     Product
                   </label>
                   <MultiSelect
-                    v-model="form.product_id"
+                    v-model="form.bind_product_id"
                     :options="productOptions"
                     trackBy="id"
                     valueProp="id"
@@ -124,8 +124,8 @@
                     class="mt-1"
                   >
                   </MultiSelect>
-                  <div class="text-sm text-red-600" v-if="form.errors.product_id">
-                    {{ form.errors.product_id }}
+                  <div class="text-sm text-red-600" v-if="form.errors.bind_product_id">
+                    {{ form.errors.bind_product_id }}
                   </div>
                 </div>
 
@@ -134,8 +134,8 @@
                     type="button"
                     @click.prevent="bindProductMappingItem()"
                     class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
-                    :class="[!form.channel_code || !form.product_id ? 'opacity-50 cursor-not-allowed' : '']"
-                    :disabled="!form.channel_code || !form.product_id"
+                    :class="[!form.channel_code || !form.bind_product_id ? 'opacity-50 cursor-not-allowed' : '']"
+                    :disabled="!form.channel_code || !form.bind_product_id"
                   >
                     <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                     <span>
@@ -151,9 +151,9 @@
                         <table class="min-w-full divide-y divide-gray-300">
                           <thead class="bg-gray-50">
                             <tr>
-                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                              <!-- <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 #
-                              </th>
+                              </th> -->
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 Channel Code
                               </th>
@@ -169,22 +169,6 @@
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 SubCategory
                               </th>
-                              <!-- <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                                Server Price ({{ operatorCountry.currency_symbol }}) <br>
-                                <MultiSelect
-                                    v-model="form.selling_price_type"
-                                    :options="priceTypeOptions"
-                                    trackBy="id"
-                                    valueProp="id"
-                                    label="name"
-                                    placeholder="Select"
-                                    open-direction="bottom"
-                                    class="mt-1 w-full min-w-36"
-                                    @selected="onSellingPriceChanged"
-                                  >
-                                  </MultiSelect>
-
-                              </th> -->
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 Action
                               </th>
@@ -192,11 +176,6 @@
                           </thead>
                           <tbody class="bg-white">
                             <tr v-for="(productMappingItem, productMappingItemIndex) in productMappingItems" :key="productMappingItem.id" :class="productMappingItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
-                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                                <select v-model="productMappingItem.sequence" @change="onSequenceChanged(productMappingItem)">
-                                  <option v-for="n in productMappingItems.length" :key="n" :value="n">{{ n }}</option>
-                                </select>
-                              </td>
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                                 {{ productMappingItem.channel_code }}
                               </td>
@@ -223,15 +202,10 @@
                                   {{ productMappingItem.product.category.name }}
                                 </span>
                               </td>
-                              <!-- <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                                <span v-if="form.selling_price_type && productMappingItem.product && productMappingItem.product.sellingPrices">
-                                  {{((productMappingItem.product.sellingPrices[0].amount)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
-                                </span>
-                              </td> -->
                               <td class="whitespace-nowrap py-4 text-sm text-center">
                                 <Button
                                   class="bg-red-400 hover:bg-red-500 text-white"
-                                  @click="unbindProductMappingItem(productMappingItem)"
+                                  @click.prevent="unbindProductMappingItem(productMappingItem)"
                                 >
                                   <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                                 </Button>
@@ -248,11 +222,118 @@
                     </div>
                   </div>
                 </div>
+
+
+                <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
+                  <div class="relative">
+                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                      <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center">
+                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Product Mapping Sequence </span>
+                    </div>
+                  </div>
+                </div>
+
+              <!-- Sequence select -->
+              <div class="sm:col-span-2" v-if="form.id">
+                <label class="flex justify-start text-sm font-medium text-gray-700">Sequence</label>
+                <select v-model="form.sequence" class="mt-1 block w-full rounded-md border-gray-300">
+                  <option v-for="n in availableSequences" :key="n" :value="n">{{ n }}</option>
+                </select>
+              </div>
+
+              <!-- Binded Product -->
+              <div class="sm:col-span-3" v-if="form.id">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Binded Channel - Product
+                </label>
+                <MultiSelect
+                  ref="seqProdSelect"
+                  v-model="form.sequence_product_id"
+                  :options="sequenceProductOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="full_name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1 w-full"
+                />
+              </div>
+
+                <!-- Set sequence button -->
+                <div class="sm:col-span-1" v-if="form.id">
+                  <Button
+                    type="button"
+                    @click.prevent="updateProductSequence"
+                    class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
+                  >
+                    <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                    <span>Set</span>
+                  </Button>
+                </div>
+
+
+                <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
+                  <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+                    <div class="inline-block min-w-full py-1 align-middle md:px-4 lg:px-6">
+                      <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg pb-24">
+                        <table class="min-w-full divide-y divide-gray-300">
+                          <thead class="bg-gray-50">
+                            <tr>
+                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                                #
+                              </th>
+                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                                Channel Code
+                              </th>
+                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                                Product
+                              </th>
+                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                                Action
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody class="bg-white">
+                            <tr v-for="(productMappingItem, index) in sortedProductMappingItems" :key="productMappingItem.id" :class="index % 2 === 0 ? undefined : 'bg-gray-50'">
+                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                                {{ productMappingItem.sequence }} <!-- Sequence column -->
+                              </td>
+                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                                {{ productMappingItem.channel_code }}
+                              </td>
+                              <td class="py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                                <span v-if="productMappingItem.product.code">
+                                  {{ productMappingItem.product.code }} -
+                                </span>
+                                <span>{{ productMappingItem.product.name }}</span>
+                              </td>
+                              <td class="whitespace-nowrap py-4 text-sm text-center">
+                                <Button
+                                  class="bg-red-400 hover:bg-red-500 text-white"
+                                  @click.prevent="unbindProductMappingItem(productMappingItem)"
+                                >
+                                  <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                                </Button>
+                              </td>
+                            </tr>
+                            <tr v-if="!sortedProductMappingItems.length">
+                              <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
+                                No Records Found
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div class="sm:col-span-6 mt-5 ">
-                <div class="flex justify-between">
-                  <div class="flex space-x-1 justify-start">
+                <div class="flex justify-between flex-col md:flex-row space-y-1">
+                  <div class="flex space-x-1 justify-start flex-col md:flex-row space-y-1">
                     <Button type="button" class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1" v-if="form.id" @click="replicateProductMapping()">
                       <DocumentDuplicateIcon class="w-4 h-4"></DocumentDuplicateIcon>
                       <span>
@@ -283,10 +364,10 @@
                     </Button>
                   </div>
 
-                  <div class="flex space-x-1 justify-end">
+                  <div class="flex space-x-1 justify-end flex-col md:flex-row space-y-1">
                     <Link :href="'/product-mappings'">
                       <Button
-                        type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 h-full"
+                        type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 h-full w-full"
                       >
                         <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                         <span>
@@ -295,12 +376,27 @@
                       </Button>
                     </Link>
 
-                    <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
-                      <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                      <span>
-                        Save
-                      </span>
-                    </Button>
+                    <!-- Notice if sequence incomplete -->
+
+                    <div class="flex flex-col">
+                      <Button
+                        type="submit"
+                        class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
+                        :class="[{ 'opacity-50 cursor-not-allowed': !isSequenceComplete }]"
+                        :disabled="!isSequenceComplete"
+                      >
+                        <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                        <span>Save</span>
+                      </Button>
+                      <div
+                        v-if="!isSequenceComplete"
+                        class="w-full mb-3 rounded-md border border-red-300 bg-red-50 text-red-700 text-sm px-3 py-2"
+                      >
+                        {{ sequenceDiagnostics.message || 'Please complete the "Product Mapping Sequence".' }}
+                      </div>
+                    </div>
+
+
                   </div>
                 </div>
 
@@ -322,8 +418,16 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted } from 'vue'
+import {
+  ArrowUturnLeftIcon,
+  BackspaceIcon,
+  CheckCircleIcon,
+  DocumentDuplicateIcon,
+  FolderMinusIcon,
+  FolderPlusIcon,
+  PlusCircleIcon
+} from '@heroicons/vue/20/solid';
+import { computed, ref, onMounted, nextTick } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
@@ -336,37 +440,74 @@ const props = defineProps({
 
 const emit = defineEmits(['modalClose'])
 
-const form = ref(
-  useForm(getDefaultForm())
-)
+const form = ref(useForm(getDefaultForm()))
 const operatorCountry = usePage().props.auth.operatorCountry
 const priceTypeOptions = ref([])
 const productOptions = ref([])
 const productMappingItems = ref([])
+const seqProdSelect = ref(null)
 const toast = useToast()
 const upcomingProductMappingOptions = ref([])
 
 onMounted(() => {
-
   priceTypeOptions.value = [
     {id: '', name: '--- Clear ---' },
     ...Object.entries(props.priceTypeOptions).map(([id, name]) => ({id: id, name: name}))
   ]
   productOptions.value = props.products.data;
 
-  console.log('productMapping', props.productMapping.data.productMappingItems)
   productMappingItems.value = props.productMapping
-  ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems)).map((item, index) => ({
-      ...item,
-      sequence: item.sequence !== null && item.sequence !== undefined ? item.sequence : index + 1,
-    }))
-  : []
+    ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems)).map(item => ({
+        ...item,
+        sequence: item.sequence !== null && item.sequence !== undefined ? item.sequence : null,
+      }))
+    : []
+
   upcomingProductMappingOptions.value = props.upcomingProductMappingOptions.data.map((data) => ({ id: data.id, value: data.name }));
 
-  form.value = props.productMapping ? useForm({
-    ...props.productMapping.data,
-    // selling_price_type: priceTypeOptions.value.find((data) => data.id == props.productMapping.data.selling_price_type),
-  }) : useForm(getDefaultForm());
+  form.value = props.productMapping
+    ? useForm({ ...props.productMapping.data })
+    : useForm(getDefaultForm());
+})
+
+const sortedProductMappingItems = computed(() => {
+  return [...productMappingItems.value].filter(
+    item => item.product && item.product.id && item.channel_code && item.sequence
+  ).sort((a, b) => (a.sequence ?? Infinity) - (b.sequence ?? Infinity));
+})
+
+// sequences already used
+const usedSequences = computed(() => new Set(
+  productMappingItems.value
+    .map(i => Number(i.sequence))
+    .filter(n => Number.isFinite(n))
+))
+
+// free sequence numbers
+const availableSequences = computed(() => {
+  const max = productMappingItems.value.length
+  const all = Array.from({ length: max }, (_, i) => i + 1)
+  return all.filter(n => !usedSequences.value.has(n))
+})
+
+// products without sequence yet
+const sequenceProductOptions = computed(() => {
+  const seen = new Set()
+  return productMappingItems.value
+    .filter(i => i.sequence == null)
+    .filter(i => {
+      const pid = i.product?.id ?? i.product_id
+      if (seen.has(pid)) return false
+      seen.add(pid)
+      return true
+    })
+    .map(i => {
+      const p = i.product
+      const id = p?.id ?? i.product_id
+      const code = p?.code ? `${p.code} - ` : ''
+      const name = p?.name ?? ''
+      return { id, full_name: `(${i.channel_code}) ${code}${name}` }
+    })
 })
 
 function getDefaultForm() {
@@ -376,129 +517,175 @@ function getDefaultForm() {
     is_active: '',
     remarks: '',
     channel_code: '',
-    product_id: '',
+    bind_product_id: '',
+    sequence_product_id: '',
     server_amount: '',
     upcomingProductMappings: [],
   }
 }
 
-function onSequenceChanged(changedItem) {
-  // Separate items into non-null and null
-  const nonNullItems = productMappingItems.value.filter(item => item.sequence !== null && item !== changedItem);
-  const nullItems = productMappingItems.value.filter(item => item.sequence === null);
-
-  // Clamp changedItem.sequence to valid range
-  const maxSequence = nonNullItems.length + 1;
-  let newSequence = parseInt(changedItem.sequence);
-  if (isNaN(newSequence) || newSequence < 1) newSequence = 1;
-  if (newSequence > maxSequence) newSequence = maxSequence;
-
-  // Insert changedItem at the correct spot
-  nonNullItems.splice(newSequence - 1, 0, changedItem);
-
-  // Reassign sequence 1…n
-  nonNullItems.forEach((item, index) => {
-    item.sequence = index + 1;
-  });
-
-  // Merge back null items at the bottom (unchanged)
-  productMappingItems.value = [...nonNullItems, ...nullItems];
-}
-
-
-
 function submit() {
-  form.value.clearErrors()
+  if (!isSequenceComplete.value) {
+    toast.error(sequenceDiagnostics.value.message || 'Please complete the Product Mapping Sequence.');
+    return;
+  }
+
+  form.value.clearErrors();
   form.value
     .transform((data) => ({
       ...data,
-      // selling_price_type: data.selling_price_type?.id,
-      productMappingItems: productMappingItems.value.map((item) => ({
+      productMappingItems: productMappingItems.value.map(item => ({
         ...item,
+        sequence: item.sequence,
       })),
-      upcomingProductMappings: JSON.parse(JSON.stringify(form.value.upcomingProductMappings)).map((data) => data.id),
+      upcomingProductMappings: JSON.parse(JSON.stringify(form.value.upcomingProductMappings)).map((d) => d.id),
       is_active: data.is_active.id,
     }))
     .post('/product-mappings/' + form.value.id + '/update', {
-      onSuccess: () => {
-        emit('modalClose')
-      },
+      onSuccess: () => emit('modalClose'),
       preserveState: true,
       replace: true,
-    })
+    });
 }
 
+
 function bindProductMappingItem() {
-  if (productMappingItems.value.map(function (productMapping) { return productMapping.channel_code; }).indexOf(form.value.channel_code) < 0) {
-    productMappingItems.value.push({ product: form.value.product_id, channel_code: form.value.channel_code })
-    productMappingItems.value.sort((a, b) => a.channel_code - b.channel_code)
+  if (!productMappingItems.value.some(item => item.channel_code === form.value.channel_code)) {
+    productMappingItems.value.push({
+      product: form.value.bind_product_id,
+      channel_code: form.value.channel_code,
+      sequence: null, // initially unsequenced
+    });
+    sortProductMappingItems();
   }
 }
 
-function getDefaultSellingPriceId(productMappingItem) {
-  return productMappingItem.product?.sellingPrices.filter((data) => data.id === productMappingItem.selling_price_id).map((data) => ({ id: data.id, full_name: 'P' + data.type + ' (' + (data.amount/100).toFixed(2) + ')' }))
+function sortProductMappingItems() {
+  productMappingItems.value = [...productMappingItems.value].sort((a, b) => (a.sequence ?? Infinity) - (b.sequence ?? Infinity));
 }
 
-function onSellingPriceChanged() {
-  router.reload({
-    only: ['productMapping'],
-    data: {
-      selling_price_type: form.value.selling_price_type?.id,
-    },
-    replace: true,
-    preserveState: true,
-    onSuccess: page => {
-      productMappingItems.value = page.props.productMapping.data.productMappingItems.map(item => ({
-        ...item,
-        selling_price_id: getDefaultSellingPriceId(item)[0], // Ensure the list has initialized IDs
-      }))
-    }
-  })
+function isSequenceTaken(seq) {
+  return productMappingItems.value.some(item => item.sequence === seq);
 }
 
-function onServerAmountChanged(id, amount) {
-  router.post('/product-mappings/items/' + id + '/update', {
-    server_amount: amount,
-  },{
-    onSuccess: () => {
-    },
-    preserveState: true,
-    preserveScroll: true,
-    replace: true,
-  })
+// when clicking delete, just reset the sequence so it appears back in dropdown
+function unbindProductMappingItem(productMappingItem) {
+  productMappingItem.sequence = null
+  sortProductMappingItems()
 }
 
-function productMappingItemOptionsMapping(productMappingItem) {
-  return productMappingItem.product?.sellingPrices.map((data) => ({ id: data.id, full_name: 'P' + data.type + ' (' + (data.amount/100).toFixed(2) + ')' }))
+function updateProductSequence() {
+  const pid = form.value.sequence_product_id?.id ?? form.value.sequence_product_id;
+  const newSeq = Number(form.value.sequence);
+
+  if (!pid || !newSeq) {
+    toast.error("Choose a product and a sequence.");
+    return;
+  }
+
+  const target = productMappingItems.value.find(i =>
+    (i.product && i.product.id === pid) || i.product_id === pid
+  );
+  if (!target) {
+    toast.error("Selected product is not bound.");
+    return;
+  }
+
+  const holder = productMappingItems.value.find(i => i !== target && i.sequence === newSeq);
+  if (holder) holder.sequence = target.sequence;
+
+  target.sequence = newSeq;
+  sortProductMappingItems();
+
+  // ✅ reset the product picker
+  form.value.sequence_product_id = null;
+  // (optional) keep the sequence value, or reset it too:
+  // form.value.sequence = null;
+
+  // (optional) clear/close UI if your component exposes these
+  nextTick(() => {
+    seqProdSelect.value?.clear?.();
+    seqProdSelect.value?.close?.();
+    seqProdSelect.value?.blur?.();
+  });
 }
+
 
 function toggleActivateDeactivate() {
   form.value.post('/product-mappings/' + form.value.id + '/toggle-activate-deactivate', {
-    onSuccess: () => {
-      emit('modalClose')
-    },
+    onSuccess: () => emit('modalClose'),
     preserveState: true,
     replace: true,
   })
-}
-
-function unbindProductMappingItem(productMappingItem) {
-  productMappingItems.value.splice(productMappingItems.value.indexOf(productMappingItem), 1)
 }
 
 function replicateProductMapping() {
   router.post('/product-mappings/replicate',
+    { id: form.value.id },
     {
-      id: form.value.id,
-    },
-    {
-      onSuccess: () => {
-        toast.success("Mappings replicated", {
-          timeout: 3000
-        });
-      },
+      onSuccess: () => { toast.success("Mappings replicated", { timeout: 3000 }); },
       preserveState: false,
       replace: true,
     })
 }
+
+const sequenceDiagnostics = computed(() => {
+  // If nothing is shown in the sequence table, allow Save
+  if (!sortedProductMappingItems.value?.length) {
+    return { hasIssue: false, message: '' };
+  }
+
+  const items = productMappingItems.value || [];
+  const total = items.length;
+
+  // collect only valid sequences (>= 1)
+  const sequenced = items
+    .map(i => {
+      const n = typeof i.sequence === 'number' ? i.sequence : parseInt(i.sequence, 10);
+      return Number.isInteger(n) && n >= 1 ? n : null;
+    })
+    .filter(n => n !== null);
+
+  const k = sequenced.length;              // how many are sequenced
+  const nullCount = total - k;
+
+  // Case 1: all null -> OK
+  if (total > 0 && k === 0) {
+    return { hasIssue: false, message: '' };
+  }
+
+  // Case 2: fully sequenced -> must be 1..N, no dups
+  if (k === total) {
+    const set = new Set(sequenced);
+    const duplicates = sequenced
+      .filter((s, idx, arr) => arr.indexOf(s) !== idx)
+      .filter((v, i, a) => a.indexOf(v) === i)
+      .sort((a, b) => a - b);
+
+    const missing = [];
+    for (let n = 1; n <= total; n++) {
+      if (!set.has(n)) missing.push(n);
+    }
+
+    const hasIssue = duplicates.length > 0 || missing.length > 0;
+    const parts = [];
+    if (duplicates.length) parts.push(`duplicate sequence(s): ${duplicates.join(', ')}`);
+    if (missing.length) parts.push(`missing sequence number(s): ${missing.join(', ')}`);
+
+    return { hasIssue, message: parts.length ? `Please complete the Product Mapping Sequence — ${parts.join(' · ')}.` : '' };
+  }
+
+  // Case 3: partial -> invalid
+  return {
+    hasIssue: true,
+    message: `Please complete the Product Mapping Sequence — ${nullCount} item(s) without a sequence. Either assign all sequences (1..${total}) or clear them all.`
+  };
+});
+
+
+
+const isSequenceComplete = computed(() => !sequenceDiagnostics.value.hasIssue);
+
 </script>
+
+
