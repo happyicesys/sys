@@ -18,6 +18,8 @@ class SalesReportResource extends JsonResource
             'id' => $this->id,
             'code' => isset($this->code) ? $this->code : null,
             'name' => isset($this->name) ? $this->name : null,
+            'vend_model_name' => isset($this->vend_model_name) ? $this->vend_model_name : null,
+            'location_type_name' => isset($this->location_type_name) ? $this->location_type_name : null,
             'count' => isset($this->count) ? $this->count : 0,
             'amount' => isset($this->amount) ? $this->amount/100 : 0,
         ];

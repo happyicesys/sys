@@ -609,13 +609,13 @@ class ReportController extends Controller
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
             ->leftJoin('products', 'vend_transactions.product_id', '=', 'products.id')
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
-            ->leftJoin('location_types', 'customers.location_type_id', '=', 'location_types.id')
+            ->leftJoin('location_types', 'vend_transactions.location_type_id', '=', 'location_types.id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
-            ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
-            ->leftJoin('vend_models', 'vend_models.id', '=', 'vends.vend_model_id')
-            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vend_transactions.vend_contract_id')
+            ->leftJoin('vend_models', 'vend_models.id', '=', 'vend_transactions.vend_model_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vend_transactions.vend_prefix_id')
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->where(function($query) use ($request) {
                 $query->where('vend_channel_errors.code', '=', 6)
@@ -653,13 +653,17 @@ class ReportController extends Controller
                 $transactionsQuery
                     ->selectRaw('vends.id as id')
                     ->selectRaw('vends.code as code')
-                    ->selectRaw('CASE WHEN customers.id THEN CONCAT(customers.virtual_customer_code," (", customers.virtual_customer_prefix,") - ", customers.name) ELSE vends.name END as name');
+                    ->selectRaw('CASE WHEN customers.id THEN CONCAT(customers.virtual_customer_code," (", customers.virtual_customer_prefix,") - ", customers.name) ELSE vends.name END as name')
+                    ->selectRaw('vend_models.name as vend_model_name')
+                    ->selectRaw('location_types.name as location_type_name');
                 break;
             case 'customers':
                 $transactionsQuery
                     ->selectRaw('customers.id as id')
                     ->selectRaw('customers.id + 20000 as code')
-                    ->selectRaw('CASE WHEN customers.person_id THEN CONCAT(customers.virtual_customer_code, " - ", customers.name) ELSE customers.name END as name');
+                    ->selectRaw('CASE WHEN customers.person_id THEN CONCAT(customers.virtual_customer_code, " - ", customers.name) ELSE customers.name END as name')
+                    ->selectRaw('vend_models.name as vend_model_name')
+                    ->selectRaw('location_types.name as location_type_name');
                 break;
         }
 

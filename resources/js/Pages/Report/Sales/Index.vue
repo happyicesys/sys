@@ -14,8 +14,13 @@
         <div class="pb-3 mb-2">
           <div class="sm:hidden">
             <label for="tabs" class="sr-only">Select a tab</label>
-            <select id="tabs" name="tabs" class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm" @change="onTabChanged($event)">
+            <!-- <select id="tabs" name="tabs" class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm" @change="onTabChanged($event)">
               <option v-for="tab in tabs" :key="tab" :value="tab.href" :selected="tab.current">
+                {{ tab.name }}
+              </option>
+            </select> -->
+            <select id="tabs" name="tabs" class="block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm" @change="onTabChanged($event)">
+              <option v-for="tab in tabs" :key="tab.href" :value="tab.href" :selected="tab.href === currentPath">
                 {{ tab.name }}
               </option>
             </select>
@@ -23,12 +28,18 @@
           <div class="hidden sm:block">
             <div class="border-b border-gray-200">
               <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                <Link v-for="tab in tabs" :key="tab.name"
-                :class="[tab.current ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:border-gray-200 hover:text-gray-700', 'flex whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium']"
-                :href="tab.href"
+                <Link
+                  v-for="tab in tabs"
+                  :key="tab.name"
+                  :class="[
+                    tab.href === currentPath ? 'border-indigo-500 text-indigo-600'
+                                            : 'border-transparent text-gray-500 hover:border-gray-200 hover:text-gray-700',
+                    'flex whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium'
+                  ]"
+                  :href="tab.href"
                 >
                   {{ tab.name }}
-              </Link>
+                </Link>
               </nav>
             </div>
           </div>
@@ -261,6 +272,12 @@
                     <TableHead>
                       Name
                     </TableHead>
+                    <TableHead v-if="showVendCustomerCols">
+                      Machine Model
+                    </TableHead>
+                    <TableHead v-if="showVendCustomerCols">
+                      Location Type
+                    </TableHead>
                     <TableHeadSort modelName="count" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('count')">
                       Count
                     </TableHeadSort>
@@ -269,7 +286,8 @@
                     </TableHeadSort>
                   </tr>
                   <tr class="divide-x divide-gray-200">
-                    <TableHead colspan="3">
+                    <!-- <TableHead :colspan="tab.slug == 'vend' || tab.slug == 'customer' ? 5 : 3"> -->
+                    <TableHead :colspan="showVendCustomerCols ? 5 : 3">
                     </TableHead>
                     <TableData inputClass="text-right font-semibold">
                       {{totals['total_count'].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}}
@@ -290,6 +308,13 @@
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-left">
                         {{ item.name }}
                       </TableData>
+                      <TableData v-if="showVendCustomerCols" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-left">
+                        {{ item.vend_model_name || '' }}
+                      </TableData>
+                      <TableData v-if="showVendCustomerCols" :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-left">
+                        {{ item.location_type_name || '' }}
+                      </TableData>
+
                       <TableData :currentIndex="itemIndex" :totalLength="items.length" inputClass="text-right">
                         {{ item.count.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) }}
                       </TableData>
@@ -323,9 +348,8 @@ import { ArrowDownTrayIcon, BackspaceIcon, MagnifyingGlassIcon } from '@heroicon
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { Head, Link, usePage, router } from '@inertiajs/vue3';
+import { ref, onMounted, computed, watch } from 'vue';
 
 const props = defineProps({
   categories: Object,
@@ -377,17 +401,31 @@ const vendModelOptions = ref([])
 const vendPrefixOptions = ref([])
 
 const tabs = ref([
-  { name: 'Operator', href: '/reports/sales/operator', current: false },
-  { name: 'Vending Machines', href: '/reports/sales/vend', current: false },
-  { name: 'Customer', href: '/reports/sales/customer', current: false },
-  { name: 'Product', href: '/reports/sales/product', current: false },
-  { name: 'Category', href: '/reports/sales/category', current: false },
-  { name: 'Location Type', href: '/reports/sales/location-type', current: false },
+  { name: 'Operator', slug: 'operator', href: '/reports/sales/operator', current: false },
+  { name: 'Vending Machines', slug: 'vend', href: '/reports/sales/vend', current: false },
+  { name: 'Customer', slug: 'customer', href: '/reports/sales/customer', current: false },
+  { name: 'Product', slug: 'product', href: '/reports/sales/product', current: false },
+  { name: 'Category', slug: 'category', href: '/reports/sales/category', current: false },
+  { name: 'Location Type', slug: 'location-type', href: '/reports/sales/location-type', current: false },
 ])
 
+const page = usePage();
+const currentPath = computed(() => page.url.split('?')[0]);
+
+const currentTab = computed(() =>
+  tabs.value.find(t => t.href === currentPath.value) ?? tabs.value[0]
+);
+
+const showVendCustomerCols = computed(() =>
+  ['vend', 'customer'].includes(currentTab.value.slug)
+);
+
+watch(currentPath, (p) => { currentUrl.value = p; });
+
 onMounted(() => {
-  currentUrl.value = window.location.pathname
-  tabs.value.find(tab => tab.href === window.location.pathname).current = true
+  currentUrl.value = currentPath.value;
+  // currentUrl.value = window.location.pathname
+  // tabs.value.find(tab => tab.href === window.location.pathname).current = true
   filters.value.visited = true
   numberPerPageOptions.value = [
     { id: 30, value: 30 },

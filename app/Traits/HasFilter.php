@@ -123,12 +123,12 @@ trait HasFilter {
         })
         ->when($request->location_type_id, function($query, $search) {
             if($search != 'all') {
-              $query->where('customers.location_type_id', $search);
+              $query->where('vend_transactions.location_type_id', $search);
             }
         })
         ->when($request->operators, function($query, $search) {
             if(!in_array('all', $search)){
-                $query->whereIn('vends.operator_id', $search);
+                $query->whereIn('vend_transactions.operator_id', $search);
             }
         })
         ->when($request->product_code, function($query, $search) {
@@ -139,12 +139,12 @@ trait HasFilter {
         })
         ->when($request->vendContracts, function($query, $search) {
             if(!in_array('all', $search)){
-                $query->whereIn('vends.vend_contract_id', $search);
+                $query->whereIn('vend_transactions.vend_contract_id', $search);
             }
         })
         ->when($request->vendModels, function($query, $search) {
             if(!in_array('all', $search)){
-                $query->whereIn('vends.vend_model_id', $search);
+                $query->whereIn('vend_transactions.vend_model_id', $search);
             }
         })
         ->when($request->vendPrefixes, function($query, $search) {
@@ -153,7 +153,7 @@ trait HasFilter {
                     $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
                     unset($search[array_search('single-ud', $search)]);
                 }
-                $query->whereIn('vends.vend_prefix_id', $search);
+                $query->whereIn('vend_transactions.vend_prefix_id', $search);
             }
         });
 
