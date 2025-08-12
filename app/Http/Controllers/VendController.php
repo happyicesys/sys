@@ -1453,7 +1453,7 @@ class VendController extends Controller
             ->leftJoin('vend_channel_errors', 'vend_channel_errors.id', '=', 'vend_transactions.vend_channel_error_id')
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
-            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vend_transactions.vend_prefix_id')
             ->filterTransactionIndex($request)
             ->select(
                 'vend_transactions.id',

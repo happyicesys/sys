@@ -346,9 +346,10 @@ class VendTransaction extends Model
         })
         ->when($request->location_type_id, function($query, $search) {
             if($search != 'all') {
-                $query->whereIn('vend_transactions.customer_id', function($query) use ($search) {
-                    $query->select('id')->from('customers')->where('location_type_id', $search);
-                });
+                $query->where('vend_transactions.location_type_id', $search);
+                // $query->whereIn('vend_transactions.customer_id', function($query) use ($search) {
+                //     $query->select('id')->from('customers')->where('location_type_id', $search);
+                // });
             }
         })
         ->when($request->operator_id, function($query, $search) {
@@ -386,29 +387,35 @@ class VendTransaction extends Model
             });
         })
         ->when($request->vendContracts, function($query, $search) {
-            // dd($search);
             if(!in_array('all', $search)){
-                $query->whereHas('vend', function($query) use ($search) {
-                    $query->whereIn('vend_contract_id', $search);
-                });
+                $query->whereIn('vend_transactions.vend_contract_id', $search);
+                // $query->whereHas('vend', function($query) use ($search) {
+                //     $query->whereIn('vend_contract_id', $search);
+                // });
             }
         })
         ->when($request->vendModels, function($query, $search) {
             if(!in_array('all', $search)){
-                $query->whereHas('vend', function($query) use ($search) {
-                    $query->whereIn('vend_model_id', $search);
-                });
+                $query->whereIn('vend_transactions.vend_model_id', $search);
+                // $query->whereHas('vend', function($query) use ($search) {
+                //     $query->whereIn('vend_model_id', $search);
+                // });
             }
         })
         ->when($request->vendPrefixes, function($query, $search) {
             if(!in_array('all', $search)){
-                $query->whereHas('vend', function($query) use ($search) {
-                    if(in_array('single-ud', $search)) {
-                        $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
-                        unset($search[array_search('single-ud', $search)]);
-                    }
-                    $query->whereIn('vend_prefix_id', $search);
-                });
+                if(in_array('single-ud', $search)) {
+                    $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
+                    unset($search[array_search('single-ud', $search)]);
+                }
+                $query->whereIn('vend_transactions.vend_prefix_id', $search);
+                // $query->whereHas('vend', function($query) use ($search) {
+                //     if(in_array('single-ud', $search)) {
+                //         $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
+                //         unset($search[array_search('single-ud', $search)]);
+                //     }
+                //     $query->whereIn('vend_prefix_id', $search);
+                // });
             }
         })
         ->when($request->sortKey, function($query, $search) use ($request) {
