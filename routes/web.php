@@ -353,8 +353,8 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/gp/category/excel', [ReportController::class, 'exportUnitCostCategoryExcel']);
         Route::get('/gp/location-type/excel', [ReportController::class, 'exportUnitCostLocationTypeExcel']);
 
-        Route::get('/stock-count', [ReportController::class, 'indexStockCount']);
-        Route::get('/stock-count/excel', [ReportController::class, 'exportStockCountChannelExcel']);
+        Route::get('/snapshot', [ReportController::class, 'indexSnapshot']);
+        Route::get('/snapshot/excel', [ReportController::class, 'exportSnapshotChannelExcel']);
     });
 
     Route::prefix('resource-centers')->group(function() {
@@ -419,8 +419,11 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/update/vends', [ProductMappingController::class, 'bindVends']);
         Route::post('/{id}/upload-attachments', [ProductMappingController::class, 'uploadAttachment']);
         Route::delete('/{id}', [ProductMappingController::class, 'delete']);
+        Route::post('/{id}/items/create', [ProductMappingController::class, 'createItem']);
         Route::post('/items/{itemID}/update', [ProductMappingController::class, 'updateItem']);
         Route::post('/replicate', [ProductMappingController::class, 'replicate']);
+        Route::post('/items/{item}/sequence', [ProductMappingController::class, 'updateItemSequence']);
+
     });
 
     Route::prefix('profiles')->group(function() {

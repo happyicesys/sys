@@ -335,7 +335,7 @@ class ReportController extends Controller
         ]);
     }
 
-    public function indexStockCount(Request $request)
+    public function indexSnapshot(Request $request)
     {
         if(!$request->operators) {
             if(auth()->user()->operator->code == 'HIPL') {
@@ -355,12 +355,12 @@ class ReportController extends Controller
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
         $className = get_class(new Customer());
 
-        $vendSnapshots = $this->getStockCountQuery($request);
+        $vendSnapshots = $this->getSnapshotQuery($request);
         // dd($vendSnapshots->get()->toArray());
         $vendSnapshots = $vendSnapshots->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 
-        return Inertia::render('Report/IndexStockCount', [
+        return Inertia::render('Report/IndexSnapshot', [
             'categories' => CategoryResource::collection(
                 Category::where('classname', $className)->orderBy('name')->get()
             ),
@@ -491,7 +491,7 @@ class ReportController extends Controller
         });
     }
 
-    public function exportStockCountChannelExcel(Request $request)
+    public function exportSnapshotChannelExcel(Request $request)
     {
         $request->merge(['currentMonth' => isset($request->currentMonth) ? Carbon::createFromFormat('Y-m', $request->currentMonth)->setTimezone($this->getUserTimezone()) : Carbon::today()->setTimezone($this->getUserTimezone())]);
         $request->merge(['visited' => isset($request->visited) ? $request->visited : true]);
@@ -500,7 +500,7 @@ class ReportController extends Controller
         $request->sortKey = $request->sortKey ? $request->sortKey : 'month_number';
         $request->sortBy = $request->sortBy ? $request->sortBy : false;
 
-        $vendSnapshots = $this->getStockCountQuery($request);
+        $vendSnapshots = $this->getSnapshotQuery($request);
         $vendSnapshots = $vendSnapshots->get();
         $vendChannelsArr = [];
         foreach ($vendSnapshots as $vendSnapshot) {
@@ -980,7 +980,7 @@ class ReportController extends Controller
         return $locationTypes;
     }
 
-    private function getStockCountQuery($request)
+    private function getSnapshotQuery($request)
     {
         $vendSnapshots = DB::table('vend_snapshots')
             ->leftJoin('vends', 'vends.id', '=', 'vend_snapshots.vend_id')

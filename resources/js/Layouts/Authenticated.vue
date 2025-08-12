@@ -204,7 +204,7 @@ const navigation = [
         permission: 'read reports',
         tagline: null,
         children: [
-            {name: 'Month End Stock Count', href: '/reports/stock-count'},
+            {name: 'Machine Monthly Snapshot', href: '/reports/snapshot'},
             {name: 'Sales Report', href: '/reports/sales/operator'},
             {name: 'GP by VM', href: '/reports/gp/vend'},
             {name: 'GP by Product', href: '/reports/gp/product'},

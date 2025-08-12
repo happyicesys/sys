@@ -181,6 +181,43 @@ class ProductMappingController extends Controller
         return redirect()->route('product-mappings');
     }
 
+
+    public function createItem(Request $request, $productMappingId)
+    {
+        $validated = $request->validate([
+            'channel_code' => ['required'],
+            'product_id'   => ['required','exists:products,id'],
+            'sequence'     => ['nullable','integer','min:1'],
+        ]);
+
+        return DB::transaction(function () use ($validated, $productMappingId) {
+            // Normalize seq: ensure null or >=1 int
+            $seq = array_key_exists('sequence', $validated)
+                 ? ($validated['sequence'] !== null ? (int)$validated['sequence'] : null)
+                 : null;
+
+            // Create item without risky mass-assign
+            $item = new ProductMappingItem();
+            $item->product_mapping_id = $productMappingId;
+            $item->channel_code       = $validated['channel_code'];
+            $item->product_id         = $validated['product_id'];
+            $item->sequence           = null; // set after clearing others
+            $item->save();
+
+            // If a sequence was provided, clear duplicates atomically then set
+            if ($seq !== null) {
+                ProductMappingItem::where('product_mapping_id', $productMappingId)
+                    ->where('sequence', $seq)
+                    ->update(['sequence' => null]);
+
+                $item->sequence = $seq;
+                $item->save();
+            }
+
+            return redirect()->back();
+        });
+    }
+
     public function edit(Request $request, $id)
     {
         $productMappingInit = ProductMapping::findOrFail($id);
@@ -196,10 +233,15 @@ class ProductMappingController extends Controller
         $sortDesc = filter_var($request->input('sortBy'), FILTER_VALIDATE_BOOLEAN); // bool
         $dir      = $sortDesc ? 'DESC' : 'ASC';
 
+        if(!in_array($sortKey, ['sequence', 'channel_code'])) {
+            // default to sequence if not specified
+            $sortKey = 'channel_code';
+        }
+
         $productMapping = ProductMapping::with([
             'attachments',
             // apply ordering here
-            'productMappingItems' => function ($q) use ($sortKey, $dir) {
+            'productMappingItemsNormalSequence' => function ($q) use ($sortKey, $dir) {
                 if ($sortKey === 'sequence') {
                     // nulls last, then sequence asc/desc, then channel_code as tiebreaker
                     $q->orderByRaw('CASE WHEN sequence IS NULL THEN 1 ELSE 0 END ASC')
@@ -213,16 +255,16 @@ class ProductMappingController extends Controller
                 }
                 // else: leave DB default order
             },
-            'productMappingItems.product:id,code,name,is_active,category_id,category_group_id',
-            'productMappingItems.product.thumbnail',
-            'productMappingItems.product.category',
-            'productMappingItems.product.categoryGroup',
-            'productMappingItems.product.sellingPrices' => function($query) use ($request) {
+            'productMappingItemsNormalSequence.product:id,code,name,is_active,category_id,category_group_id',
+            'productMappingItemsNormalSequence.product.thumbnail',
+            'productMappingItemsNormalSequence.product.category',
+            'productMappingItemsNormalSequence.product.categoryGroup',
+            'productMappingItemsNormalSequence.product.sellingPrices' => function($query) use ($request) {
                 if($request->selling_price_type) {
                     $query->where('type', $request->selling_price_type);
                 }
             },
-            'productMappingItemsBySequence.product:id,code,name,is_active',
+            'productMappingItemsNormalSequence.product:id,code,name,is_active',
             'upcomingProductMappings',
             'vends:id,code,name,product_mapping_id,customer_id',
             'vends.customer:id,code,name,person_id,virtual_customer_prefix,virtual_customer_code',
@@ -293,6 +335,34 @@ class ProductMappingController extends Controller
         $productMappingItem->save();
 
         return redirect()->route('product-mappings.edit', ['id' => $productMappingItem->productMapping->id]);
+    }
+
+    public function updateItemSequence(Request $request, ProductMappingItem $item)
+    {
+        $data = $request->validate([
+            'sequence' => ['nullable','integer','min:1'],
+        ]);
+        return DB::transaction(function () use ($item, $data) {
+            $seq = $data['sequence'] ?? null;
+
+            if ($seq !== null) {
+                // "latest wins": clear others with the same seq
+                ProductMappingItem::where('product_mapping_id', $item->product_mapping_id)
+                    ->where('id', '!=', $item->id)
+                    ->where('sequence', $seq)
+                    ->update(['sequence' => null]);
+
+                // set this item
+                $item->sequence = $seq;
+                $item->save();
+            } else {
+                // allow clearing
+                $item->sequence = null;
+                $item->save();
+            }
+
+            return redirect()->back();
+        });
     }
 
     public function uploadAttachment(Request $request, $id)

@@ -105,7 +105,7 @@
                 </div>
 
                 <div class="sm:col-span-1" v-if="form.id">
-                  <label class="flex justify-start text-sm font-medium text-gray-700">Sequence</label>
+                  <label class="flex justify-start text-sm font-medium text-gray-700">Display Sequence</label>
                   <select v-model="form.sequence" class="mt-1 block w-full rounded-md border-gray-300">
                     <option v-for="n in productMappingItems.length + 1" :key="n" :value="n">{{ n }}</option>
                   </select>
@@ -162,17 +162,17 @@
                               </th> -->
                               <TableHeadSort
                                 modelName="sequence"
-                                :sortKey="sortKey"
-                                :sortBy="sortBy"
-                                @sortTable="onSortTable"
+                                :sortKey="form.sortKey"
+                                :sortBy="form.sortBy"
+                                @sort-table="sortTable('sequence')"
                               >
-                                #
+                                Display Sequence
                               </TableHeadSort>
                               <TableHeadSort
                                 modelName="channel_code"
-                                :sortKey="sortKey"
-                                :sortBy="sortBy"
-                                @sortTable="onSortTable"
+                                :sortKey="form.sortKey"
+                                :sortBy="form.sortBy"
+                                @sort-table="sortTable('channel_code')"
                               >
                                 Channel Code
                               </TableHeadSort>
@@ -211,7 +211,7 @@
                           </thead>
                           <tbody class="bg-white">
                             <tr
-                                v-for="(productMappingItem, idx) in sortedItems"
+                                v-for="(productMappingItem, idx) in productMappingItems"
                                 :key="productMappingItem.id ?? productMappingItem.channel_code ?? idx"
                                 :class="idx % 2 === 0 ? undefined : 'bg-gray-50'"
                               >
@@ -368,8 +368,6 @@ const operatorCountry = usePage().props.auth.operatorCountry
 const priceTypeOptions = ref([])
 const productOptions = ref([])
 const productMappingItems = ref([])
-const sortKey = ref(null)
-const sortBy  = ref(false)
 const toast = useToast()
 const upcomingProductMappingOptions = ref([])
 
@@ -390,14 +388,11 @@ onMounted(() => {
     ...props.productMapping.data,
     // selling_price_type: priceTypeOptions.value.find((data) => data.id == props.productMapping.data.selling_price_type),
   }) : useForm(getDefaultForm());
+
+  form.value.sortKey = usePage().props.sortKey || ''
+  form.value.sortBy  = !!usePage().props.sortBy
 })
 
-// compare helper for channel_code
-function cmpStrNum(a, b) {
-  const an = +a, bn = +b
-  const bothNum = Number.isFinite(an) && Number.isFinite(bn)
-  return bothNum ? (an - bn) : String(a ?? '').localeCompare(String(b ?? ''))
-}
 
 function getDefaultForm() {
   return {
@@ -409,66 +404,36 @@ function getDefaultForm() {
     product_id: '',
     server_amount: '',
     sequence: '',
+    sortKey: '',
+    sortBy: false,
     upcomingProductMappings: [],
   }
 }
 
-const sortedItems = computed(() => {
-  const arr = productMappingItems.value.slice()
-  if (!sortKey.value) return arr
-
-  const dir = sortBy.value ? -1 : 1 // true=DESC
-  if (sortKey.value === 'sequence') {
-    return arr.sort((A, B) => {
-      const a = Number.isFinite(+A.sequence) ? +A.sequence : Infinity
-      const b = Number.isFinite(+B.sequence) ? +B.sequence : Infinity
-      if (a !== b) return dir * (a - b)
-      return dir * cmpStrNum(A.channel_code, B.channel_code) // tiebreaker
-    })
-  }
-  if (sortKey.value === 'channel_code') {
-    return arr.sort((A, B) => dir * cmpStrNum(A.channel_code, B.channel_code))
-  }
-  return arr
-})
 
 function onSequenceChanged(changedItem) {
-  // If cleared to "—"
-  if (changedItem.sequence === null || changedItem.sequence === undefined) {
-    return;
-  }
+  router.post('/product-mappings/items/' + changedItem.id + '/sequence', {
+    sequence: changedItem.sequence,
+  }, {
+    onSuccess: () => {
+      toast.success("Sequence updated", {
+        timeout: 3000
+      });
+      productMappingItems.value = props.productMapping
+      ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems))
+      : []
 
-  // Coerce & clamp
-  const total = productMappingItems.value.length;
-  let n = Number(changedItem.sequence);
-  if (!Number.isFinite(n)) { changedItem.sequence = null; return; }
-  n = Math.min(Math.max(Math.trunc(n), 1), total);
-
-  // Assign to the changed row
-  changedItem.sequence = n;
-
-  // Remove this number from everyone else
-  productMappingItems.value.forEach(item => {
-    if (item !== changedItem && item.sequence === n) {
-      item.sequence = null; // or '' if you prefer empty
-    }
-  });
+      router.reload({
+        only: ['productMappingItems'],
+        replace: true,
+        preserveState: true,
+      })
+    },
+    preserveState: true,
+    preserveScroll: true,
+    replace: true,
+  })
 }
-
-function onSortTable(key) {
-  if (sortKey.value !== key) {
-    sortKey.value = key
-    sortBy.value  = false   // start ASC
-    return
-  }
-  if (sortBy.value === false) { // ASC -> DESC
-    sortBy.value = true
-    return
-  }
-  // DESC -> clear
-  sortKey.value = null
-}
-
 
 function submit() {
   form.value.clearErrors()
@@ -492,50 +457,26 @@ function submit() {
 }
 
 function bindProductMappingItem() {
-  const code = (form.value.channel_code ?? '').toString().trim();
-  const productIdOrObj = form.value.product_id;
 
-  if (!code || !productIdOrObj) return;
-
-  // prevent duplicate channel_code rows
-  const existsIdx = productMappingItems.value.findIndex(pm => pm.channel_code == code);
-  if (existsIdx >= 0) return;
-
-  // clamp sequence
-  const afterAddCount = productMappingItems.value.length + 1;
-  let seq = form.value.sequence;
-  if (seq === null || seq === undefined || !Number.isFinite(Number(seq))) {
-    seq = null;
-  } else {
-    seq = Math.trunc(Number(seq));
-    if (seq < 1) seq = 1;
-    if (seq > afterAddCount) seq = afterAddCount;
-  }
-
-  // ensure the product is an object so UI (thumbnail/name) works before save
-  let productObj = productIdOrObj;
-  if (productObj && typeof productObj !== 'object') {
-    productObj = productOptions.value.find(p => p.id === productIdOrObj) || { id: productIdOrObj };
-  }
-
-  const newItem = {
-    product: productObj,
-    channel_code: code,
-    sequence: seq,
-  };
-
-    // enforce uniqueness: clear same sequence from others
-  if (seq !== null) {
-    const previous = productMappingItems.value.find(item => item.sequence === seq);
-    if (previous) previous.sequence = null;
-  }
-
-  productMappingItems.value.push(newItem);
-
-  // keep your existing channel_code sort (if you want to keep it)
-  // productMappingItems.value.sort((a, b) => a.channel_code - b.channel_code);
-
-
+  router.post('/product-mappings/' + form.value.id + '/items/create', {
+    channel_code: form.value.channel_code,
+    product_id: form.value.product_id.id,
+    sequence: form.value.sequence,
+    productMappingId: form.value.id,
+  }, {
+    onSuccess: (page) => {
+      // update the product mapping items
+      productMappingItems.value = props.productMapping
+      ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems))
+      : []
+      toast.success("Product Mapping Item added", {
+        timeout: 3000
+      });
+    },
+    preserveState: true,
+    preserveScroll: true,
+    replace: true,
+  })
   // reset quick-add fields
   form.value.channel_code = '';
   form.value.product_id = '';
@@ -545,6 +486,30 @@ function bindProductMappingItem() {
 function getDefaultSellingPriceId(productMappingItem) {
   return productMappingItem.product?.sellingPrices.filter((data) => data.id === productMappingItem.selling_price_id).map((data) => ({ id: data.id, full_name: 'P' + data.type + ' (' + (data.amount/100).toFixed(2) + ')' }))
 }
+
+function onSearchFilterUpdated() {
+  router.reload({
+    // ask for the prop that actually contains the items
+    only: ['productMapping', 'sortKey', 'sortBy'],
+    data: {
+      sortKey: form.value.sortKey,
+      sortBy: form.value.sortBy,
+    },
+    replace: true,
+    preserveState: true,
+    preserveScroll: true,
+    onSuccess: page => {
+      productMappingItems.value = page.props.productMapping.data.productMappingItems.map(item => ({
+        ...item,
+        selling_price_id: getDefaultSellingPriceId(item)[0],
+      }))
+      // keep the UI arrows in sync
+      form.value.sortKey = page.props.sortKey
+      form.value.sortBy  = page.props.sortBy
+    }
+  })
+}
+
 
 function onSellingPriceChanged() {
   router.reload({
@@ -587,6 +552,12 @@ function preventHashNav(e) {
 
 function productMappingItemOptionsMapping(productMappingItem) {
   return productMappingItem.product?.sellingPrices.map((data) => ({ id: data.id, full_name: 'P' + data.type + ' (' + (data.amount/100).toFixed(2) + ')' }))
+}
+
+function sortTable(sortKey) {
+  form.value.sortKey = sortKey;
+  form.value.sortBy = !form.value.sortBy;
+  onSearchFilterUpdated();
 }
 
 function toggleActivateDeactivate() {

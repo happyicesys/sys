@@ -65,6 +65,11 @@ class ProductMapping extends Model
         return $this->hasMany(ProductMappingItem::class)->orderBy('channel_code', 'asc');
     }
 
+    public function productMappingItemsNormalSequence()
+    {
+        return $this->hasMany(ProductMappingItem::class);
+    }
+
     public function productMappingItemsBySequence()
     {
         return $this->hasMany(ProductMappingItem::class)
