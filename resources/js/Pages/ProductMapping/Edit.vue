@@ -104,7 +104,13 @@
                   </div>
                 </div>
 
-                <div class="sm:col-span-2" v-if="form.id">
+                <div class="sm:col-span-1" v-if="form.id">
+                  <label class="flex justify-start text-sm font-medium text-gray-700">Sequence</label>
+                  <select v-model="form.sequence" class="mt-1 block w-full rounded-md border-gray-300">
+                    <option v-for="n in productMappingItems.length + 1" :key="n" :value="n">{{ n }}</option>
+                  </select>
+                </div>
+                <div class="sm:col-span-1" v-if="form.id">
                   <FormInput v-model="form.channel_code" :error="form.errors.channel_code" placeholderStr="Channel ID">
                     Channel ID
                   </FormInput>
@@ -114,7 +120,7 @@
                     Product
                   </label>
                   <MultiSelect
-                    v-model="form.bind_product_id"
+                    v-model="form.product_id"
                     :options="productOptions"
                     trackBy="id"
                     valueProp="id"
@@ -124,8 +130,8 @@
                     class="mt-1"
                   >
                   </MultiSelect>
-                  <div class="text-sm text-red-600" v-if="form.errors.bind_product_id">
-                    {{ form.errors.bind_product_id }}
+                  <div class="text-sm text-red-600" v-if="form.errors.product_id">
+                    {{ form.errors.product_id }}
                   </div>
                 </div>
 
@@ -134,8 +140,8 @@
                     type="button"
                     @click.prevent="bindProductMappingItem()"
                     class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
-                    :class="[!form.channel_code || !form.bind_product_id ? 'opacity-50 cursor-not-allowed' : '']"
-                    :disabled="!form.channel_code || !form.bind_product_id"
+                    :class="[!form.channel_code || !form.product_id ? 'opacity-50 cursor-not-allowed' : '']"
+                    :disabled="!form.channel_code || !form.product_id"
                   >
                     <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
                     <span>
@@ -149,14 +155,27 @@
                     <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
                       <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg pb-24">
                         <table class="min-w-full divide-y divide-gray-300">
-                          <thead class="bg-gray-50">
+                          <thead class="bg-gray-50" @click.capture="preventHashNav">
                             <tr>
                               <!-- <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 #
                               </th> -->
-                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                              <TableHeadSort
+                                modelName="sequence"
+                                :sortKey="sortKey"
+                                :sortBy="sortBy"
+                                @sortTable="onSortTable"
+                              >
+                                #
+                              </TableHeadSort>
+                              <TableHeadSort
+                                modelName="channel_code"
+                                :sortKey="sortKey"
+                                :sortBy="sortBy"
+                                @sortTable="onSortTable"
+                              >
                                 Channel Code
-                              </th>
+                              </TableHeadSort>
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 Thumbnail
                               </th>
@@ -169,13 +188,39 @@
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 SubCategory
                               </th>
+                              <!-- <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                                Server Price ({{ operatorCountry.currency_symbol }}) <br>
+                                <MultiSelect
+                                    v-model="form.selling_price_type"
+                                    :options="priceTypeOptions"
+                                    trackBy="id"
+                                    valueProp="id"
+                                    label="name"
+                                    placeholder="Select"
+                                    open-direction="bottom"
+                                    class="mt-1 w-full min-w-36"
+                                    @selected="onSellingPriceChanged"
+                                  >
+                                  </MultiSelect>
+
+                              </th> -->
                               <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
                                 Action
                               </th>
                             </tr>
                           </thead>
                           <tbody class="bg-white">
-                            <tr v-for="(productMappingItem, productMappingItemIndex) in productMappingItems" :key="productMappingItem.id" :class="productMappingItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                            <tr
+                                v-for="(productMappingItem, idx) in sortedItems"
+                                :key="productMappingItem.id ?? productMappingItem.channel_code ?? idx"
+                                :class="idx % 2 === 0 ? undefined : 'bg-gray-50'"
+                              >
+                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                                <select v-model="productMappingItem.sequence" @change="onSequenceChanged(productMappingItem)">
+                                  <option :value="null"></option>
+                                  <option v-for="n in productMappingItems.length" :key="n" :value="n">{{ n }}</option>
+                                </select>
+                              </td>
                               <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                                 {{ productMappingItem.channel_code }}
                               </td>
@@ -202,124 +247,22 @@
                                   {{ productMappingItem.product.category.name }}
                                 </span>
                               </td>
+                              <!-- <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                                <span v-if="form.selling_price_type && productMappingItem.product && productMappingItem.product.sellingPrices">
+                                  {{((productMappingItem.product.sellingPrices[0].amount)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                                </span>
+                              </td> -->
                               <td class="whitespace-nowrap py-4 text-sm text-center">
                                 <Button
                                   class="bg-red-400 hover:bg-red-500 text-white"
-                                  @click.prevent="unbindProductMappingItem(productMappingItem)"
+                                  @click="unbindProductMappingItem(productMappingItem)"
                                 >
                                   <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
                                 </Button>
                               </td>
                             </tr>
                             <tr v-if="!productMappingItems.length">
-                              <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
-                                No Records Found
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-
-                <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3" v-if="form.id">
-                  <div class="relative">
-                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                      <div class="w-full border-t border-gray-300"></div>
-                    </div>
-                    <div class="relative flex justify-center">
-                      <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md"> Product Mapping Sequence </span>
-                    </div>
-                  </div>
-                </div>
-
-              <!-- Sequence select -->
-              <div class="sm:col-span-2" v-if="form.id">
-                <label class="flex justify-start text-sm font-medium text-gray-700">Sequence</label>
-                <select v-model="form.sequence" class="mt-1 block w-full rounded-md border-gray-300">
-                  <option v-for="n in availableSequences" :key="n" :value="n">{{ n }}</option>
-                </select>
-              </div>
-
-              <!-- Binded Product -->
-              <div class="sm:col-span-3" v-if="form.id">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                  Binded Channel - Product
-                </label>
-                <MultiSelect
-                  ref="seqProdSelect"
-                  v-model="form.sequence_product_id"
-                  :options="sequenceProductOptions"
-                  trackBy="id"
-                  valueProp="id"
-                  label="full_name"
-                  placeholder="Select"
-                  open-direction="bottom"
-                  class="mt-1 w-full"
-                />
-              </div>
-
-                <!-- Set sequence button -->
-                <div class="sm:col-span-1" v-if="form.id">
-                  <Button
-                    type="button"
-                    @click.prevent="updateProductSequence"
-                    class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-6"
-                  >
-                    <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
-                    <span>Set</span>
-                  </Button>
-                </div>
-
-
-                <div class="sm:col-span-6 flex flex-col mt-3" v-if="form.id">
-                  <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
-                    <div class="inline-block min-w-full py-1 align-middle md:px-4 lg:px-6">
-                      <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg pb-24">
-                        <table class="min-w-full divide-y divide-gray-300">
-                          <thead class="bg-gray-50">
-                            <tr>
-                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                                #
-                              </th>
-                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                                Channel Code
-                              </th>
-                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                                Product
-                              </th>
-                              <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
-                                Action
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody class="bg-white">
-                            <tr v-for="(productMappingItem, index) in sortedProductMappingItems" :key="productMappingItem.id" :class="index % 2 === 0 ? undefined : 'bg-gray-50'">
-                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
-                                {{ productMappingItem.sequence }} <!-- Sequence column -->
-                              </td>
-                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
-                                {{ productMappingItem.channel_code }}
-                              </td>
-                              <td class="py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
-                                <span v-if="productMappingItem.product.code">
-                                  {{ productMappingItem.product.code }} -
-                                </span>
-                                <span>{{ productMappingItem.product.name }}</span>
-                              </td>
-                              <td class="whitespace-nowrap py-4 text-sm text-center">
-                                <Button
-                                  class="bg-red-400 hover:bg-red-500 text-white"
-                                  @click.prevent="unbindProductMappingItem(productMappingItem)"
-                                >
-                                  <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
-                                </Button>
-                              </td>
-                            </tr>
-                            <tr v-if="!sortedProductMappingItems.length">
-                              <td colspan="5" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
+                              <td colspan="7" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
                                 No Records Found
                               </td>
                             </tr>
@@ -332,8 +275,8 @@
               </div>
 
               <div class="sm:col-span-6 mt-5 ">
-                <div class="flex justify-between flex-col md:flex-row space-y-1">
-                  <div class="flex space-x-1 justify-start flex-col md:flex-row space-y-1">
+                <div class="flex justify-between">
+                  <div class="flex space-x-1 justify-start">
                     <Button type="button" class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1" v-if="form.id" @click="replicateProductMapping()">
                       <DocumentDuplicateIcon class="w-4 h-4"></DocumentDuplicateIcon>
                       <span>
@@ -364,10 +307,10 @@
                     </Button>
                   </div>
 
-                  <div class="flex space-x-1 justify-end flex-col md:flex-row space-y-1">
+                  <div class="flex space-x-1 justify-end">
                     <Link :href="'/product-mappings'">
                       <Button
-                        type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 h-full w-full"
+                        type="button" class="bg-gray-300 hover:bg-gray-400 text-gray-700 flex space-x-1 h-full"
                       >
                         <ArrowUturnLeftIcon class="w-4 h-4"></ArrowUturnLeftIcon>
                         <span>
@@ -376,27 +319,12 @@
                       </Button>
                     </Link>
 
-                    <!-- Notice if sequence incomplete -->
-
-                    <div class="flex flex-col">
-                      <Button
-                        type="submit"
-                        class="bg-green-500 hover:bg-green-600 text-white flex space-x-1"
-                        :class="[{ 'opacity-50 cursor-not-allowed': !isSequenceComplete }]"
-                        :disabled="!isSequenceComplete"
-                      >
-                        <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
-                        <span>Save</span>
-                      </Button>
-                      <div
-                        v-if="!isSequenceComplete"
-                        class="w-full mb-3 rounded-md border border-red-300 bg-red-50 text-red-700 text-sm px-3 py-2"
-                      >
-                        {{ sequenceDiagnostics.message || 'Please complete the "Product Mapping Sequence".' }}
-                      </div>
-                    </div>
-
-
+                    <Button type="submit" class="bg-green-500 hover:bg-green-600 text-white flex space-x-1">
+                      <CheckCircleIcon class="w-4 h-4"></CheckCircleIcon>
+                      <span>
+                        Save
+                      </span>
+                    </Button>
                   </div>
                 </div>
 
@@ -417,17 +345,10 @@ import DropzoneFileInput from '@/Components/DropzoneFileInput.vue';
 import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
+import TableHeadSort from '@/Components/TableHeadSort.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import {
-  ArrowUturnLeftIcon,
-  BackspaceIcon,
-  CheckCircleIcon,
-  DocumentDuplicateIcon,
-  FolderMinusIcon,
-  FolderPlusIcon,
-  PlusCircleIcon
-} from '@heroicons/vue/20/solid';
-import { computed, ref, onMounted, nextTick } from 'vue'
+import { ArrowUturnLeftIcon, BackspaceIcon, CheckCircleIcon, DocumentDuplicateIcon, FolderMinusIcon, FolderPlusIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
+import { ref, onMounted, computed } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 
@@ -440,16 +361,20 @@ const props = defineProps({
 
 const emit = defineEmits(['modalClose'])
 
-const form = ref(useForm(getDefaultForm()))
+const form = ref(
+  useForm(getDefaultForm())
+)
 const operatorCountry = usePage().props.auth.operatorCountry
 const priceTypeOptions = ref([])
 const productOptions = ref([])
 const productMappingItems = ref([])
-const seqProdSelect = ref(null)
+const sortKey = ref(null)
+const sortBy  = ref(false)
 const toast = useToast()
 const upcomingProductMappingOptions = ref([])
 
 onMounted(() => {
+
   priceTypeOptions.value = [
     {id: '', name: '--- Clear ---' },
     ...Object.entries(props.priceTypeOptions).map(([id, name]) => ({id: id, name: name}))
@@ -457,58 +382,22 @@ onMounted(() => {
   productOptions.value = props.products.data;
 
   productMappingItems.value = props.productMapping
-    ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems)).map(item => ({
-        ...item,
-        sequence: item.sequence !== null && item.sequence !== undefined ? item.sequence : null,
-      }))
-    : []
-
+  ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems))
+  : []
   upcomingProductMappingOptions.value = props.upcomingProductMappingOptions.data.map((data) => ({ id: data.id, value: data.name }));
 
-  form.value = props.productMapping
-    ? useForm({ ...props.productMapping.data })
-    : useForm(getDefaultForm());
+  form.value = props.productMapping ? useForm({
+    ...props.productMapping.data,
+    // selling_price_type: priceTypeOptions.value.find((data) => data.id == props.productMapping.data.selling_price_type),
+  }) : useForm(getDefaultForm());
 })
 
-const sortedProductMappingItems = computed(() => {
-  return [...productMappingItems.value].filter(
-    item => item.product && item.product.id && item.channel_code && item.sequence
-  ).sort((a, b) => (a.sequence ?? Infinity) - (b.sequence ?? Infinity));
-})
-
-// sequences already used
-const usedSequences = computed(() => new Set(
-  productMappingItems.value
-    .map(i => Number(i.sequence))
-    .filter(n => Number.isFinite(n))
-))
-
-// free sequence numbers
-const availableSequences = computed(() => {
-  const max = productMappingItems.value.length
-  const all = Array.from({ length: max }, (_, i) => i + 1)
-  return all.filter(n => !usedSequences.value.has(n))
-})
-
-// products without sequence yet
-const sequenceProductOptions = computed(() => {
-  const seen = new Set()
-  return productMappingItems.value
-    .filter(i => i.sequence == null)
-    .filter(i => {
-      const pid = i.product?.id ?? i.product_id
-      if (seen.has(pid)) return false
-      seen.add(pid)
-      return true
-    })
-    .map(i => {
-      const p = i.product
-      const id = p?.id ?? i.product_id
-      const code = p?.code ? `${p.code} - ` : ''
-      const name = p?.name ?? ''
-      return { id, full_name: `(${i.channel_code}) ${code}${name}` }
-    })
-})
+// compare helper for channel_code
+function cmpStrNum(a, b) {
+  const an = +a, bn = +b
+  const bothNum = Number.isFinite(an) && Number.isFinite(bn)
+  return bothNum ? (an - bn) : String(a ?? '').localeCompare(String(b ?? ''))
+}
 
 function getDefaultForm() {
   return {
@@ -517,175 +406,216 @@ function getDefaultForm() {
     is_active: '',
     remarks: '',
     channel_code: '',
-    bind_product_id: '',
-    sequence_product_id: '',
+    product_id: '',
     server_amount: '',
+    sequence: '',
     upcomingProductMappings: [],
   }
 }
 
-function submit() {
-  if (!isSequenceComplete.value) {
-    toast.error(sequenceDiagnostics.value.message || 'Please complete the Product Mapping Sequence.');
+const sortedItems = computed(() => {
+  const arr = productMappingItems.value.slice()
+  if (!sortKey.value) return arr
+
+  const dir = sortBy.value ? -1 : 1 // true=DESC
+  if (sortKey.value === 'sequence') {
+    return arr.sort((A, B) => {
+      const a = Number.isFinite(+A.sequence) ? +A.sequence : Infinity
+      const b = Number.isFinite(+B.sequence) ? +B.sequence : Infinity
+      if (a !== b) return dir * (a - b)
+      return dir * cmpStrNum(A.channel_code, B.channel_code) // tiebreaker
+    })
+  }
+  if (sortKey.value === 'channel_code') {
+    return arr.sort((A, B) => dir * cmpStrNum(A.channel_code, B.channel_code))
+  }
+  return arr
+})
+
+function onSequenceChanged(changedItem) {
+  // If cleared to "—"
+  if (changedItem.sequence === null || changedItem.sequence === undefined) {
     return;
   }
 
-  form.value.clearErrors();
-  form.value
-    .transform((data) => ({
-      ...data,
-      productMappingItems: productMappingItems.value.map(item => ({
-        ...item,
-        sequence: item.sequence,
-      })),
-      upcomingProductMappings: JSON.parse(JSON.stringify(form.value.upcomingProductMappings)).map((d) => d.id),
-      is_active: data.is_active.id,
-    }))
-    .post('/product-mappings/' + form.value.id + '/update', {
-      onSuccess: () => emit('modalClose'),
-      preserveState: true,
-      replace: true,
-    });
-}
+  // Coerce & clamp
+  const total = productMappingItems.value.length;
+  let n = Number(changedItem.sequence);
+  if (!Number.isFinite(n)) { changedItem.sequence = null; return; }
+  n = Math.min(Math.max(Math.trunc(n), 1), total);
 
+  // Assign to the changed row
+  changedItem.sequence = n;
 
-function bindProductMappingItem() {
-  if (!productMappingItems.value.some(item => item.channel_code === form.value.channel_code)) {
-    productMappingItems.value.push({
-      product: form.value.bind_product_id,
-      channel_code: form.value.channel_code,
-      sequence: null, // initially unsequenced
-    });
-    sortProductMappingItems();
-  }
-}
-
-function sortProductMappingItems() {
-  productMappingItems.value = [...productMappingItems.value].sort((a, b) => (a.sequence ?? Infinity) - (b.sequence ?? Infinity));
-}
-
-function isSequenceTaken(seq) {
-  return productMappingItems.value.some(item => item.sequence === seq);
-}
-
-// when clicking delete, just reset the sequence so it appears back in dropdown
-function unbindProductMappingItem(productMappingItem) {
-  productMappingItem.sequence = null
-  sortProductMappingItems()
-}
-
-function updateProductSequence() {
-  const pid = form.value.sequence_product_id?.id ?? form.value.sequence_product_id;
-  const newSeq = Number(form.value.sequence);
-
-  if (!pid || !newSeq) {
-    toast.error("Choose a product and a sequence.");
-    return;
-  }
-
-  const target = productMappingItems.value.find(i =>
-    (i.product && i.product.id === pid) || i.product_id === pid
-  );
-  if (!target) {
-    toast.error("Selected product is not bound.");
-    return;
-  }
-
-  const holder = productMappingItems.value.find(i => i !== target && i.sequence === newSeq);
-  if (holder) holder.sequence = target.sequence;
-
-  target.sequence = newSeq;
-  sortProductMappingItems();
-
-  // ✅ reset the product picker
-  form.value.sequence_product_id = null;
-  // (optional) keep the sequence value, or reset it too:
-  // form.value.sequence = null;
-
-  // (optional) clear/close UI if your component exposes these
-  nextTick(() => {
-    seqProdSelect.value?.clear?.();
-    seqProdSelect.value?.close?.();
-    seqProdSelect.value?.blur?.();
+  // Remove this number from everyone else
+  productMappingItems.value.forEach(item => {
+    if (item !== changedItem && item.sequence === n) {
+      item.sequence = null; // or '' if you prefer empty
+    }
   });
 }
 
+function onSortTable(key) {
+  if (sortKey.value !== key) {
+    sortKey.value = key
+    sortBy.value  = false   // start ASC
+    return
+  }
+  if (sortBy.value === false) { // ASC -> DESC
+    sortBy.value = true
+    return
+  }
+  // DESC -> clear
+  sortKey.value = null
+}
+
+
+function submit() {
+  form.value.clearErrors()
+  form.value
+    .transform((data) => ({
+      ...data,
+      // selling_price_type: data.selling_price_type?.id,
+      productMappingItems: productMappingItems.value.map((item) => ({
+        ...item,
+      })),
+      upcomingProductMappings: JSON.parse(JSON.stringify(form.value.upcomingProductMappings)).map((data) => data.id),
+      is_active: data.is_active.id,
+    }))
+    .post('/product-mappings/' + form.value.id + '/update', {
+      onSuccess: () => {
+        emit('modalClose')
+      },
+      preserveState: true,
+      replace: true,
+    })
+}
+
+function bindProductMappingItem() {
+  const code = (form.value.channel_code ?? '').toString().trim();
+  const productIdOrObj = form.value.product_id;
+
+  if (!code || !productIdOrObj) return;
+
+  // prevent duplicate channel_code rows
+  const existsIdx = productMappingItems.value.findIndex(pm => pm.channel_code == code);
+  if (existsIdx >= 0) return;
+
+  // clamp sequence
+  const afterAddCount = productMappingItems.value.length + 1;
+  let seq = form.value.sequence;
+  if (seq === null || seq === undefined || !Number.isFinite(Number(seq))) {
+    seq = null;
+  } else {
+    seq = Math.trunc(Number(seq));
+    if (seq < 1) seq = 1;
+    if (seq > afterAddCount) seq = afterAddCount;
+  }
+
+  // ensure the product is an object so UI (thumbnail/name) works before save
+  let productObj = productIdOrObj;
+  if (productObj && typeof productObj !== 'object') {
+    productObj = productOptions.value.find(p => p.id === productIdOrObj) || { id: productIdOrObj };
+  }
+
+  const newItem = {
+    product: productObj,
+    channel_code: code,
+    sequence: seq,
+  };
+
+    // enforce uniqueness: clear same sequence from others
+  if (seq !== null) {
+    const previous = productMappingItems.value.find(item => item.sequence === seq);
+    if (previous) previous.sequence = null;
+  }
+
+  productMappingItems.value.push(newItem);
+
+  // keep your existing channel_code sort (if you want to keep it)
+  // productMappingItems.value.sort((a, b) => a.channel_code - b.channel_code);
+
+
+  // reset quick-add fields
+  form.value.channel_code = '';
+  form.value.product_id = '';
+  form.value.sequence = null;
+}
+
+function getDefaultSellingPriceId(productMappingItem) {
+  return productMappingItem.product?.sellingPrices.filter((data) => data.id === productMappingItem.selling_price_id).map((data) => ({ id: data.id, full_name: 'P' + data.type + ' (' + (data.amount/100).toFixed(2) + ')' }))
+}
+
+function onSellingPriceChanged() {
+  router.reload({
+    only: ['productMapping'],
+    data: {
+      selling_price_type: form.value.selling_price_type?.id,
+    },
+    replace: true,
+    preserveState: true,
+    onSuccess: page => {
+      productMappingItems.value = page.props.productMapping.data.productMappingItems.map(item => ({
+        ...item,
+        selling_price_id: getDefaultSellingPriceId(item)[0], // Ensure the list has initialized IDs
+      }))
+    }
+  })
+}
+
+function onServerAmountChanged(id, amount) {
+  router.post('/product-mappings/items/' + id + '/update', {
+    server_amount: amount,
+  },{
+    onSuccess: () => {
+    },
+    preserveState: true,
+    preserveScroll: true,
+    replace: true,
+  })
+}
+
+function preventHashNav(e) {
+  const a = e.target.closest('a');
+  if (!a) return;
+  const href = a.getAttribute('href');
+  // only cancel hash anchors in the header
+  if ((href === '#' || href === '' || href?.startsWith('#')) && a.closest('thead')) {
+    e.preventDefault(); // stops the scroll-to-top
+  }
+}
+
+function productMappingItemOptionsMapping(productMappingItem) {
+  return productMappingItem.product?.sellingPrices.map((data) => ({ id: data.id, full_name: 'P' + data.type + ' (' + (data.amount/100).toFixed(2) + ')' }))
+}
 
 function toggleActivateDeactivate() {
   form.value.post('/product-mappings/' + form.value.id + '/toggle-activate-deactivate', {
-    onSuccess: () => emit('modalClose'),
+    onSuccess: () => {
+      emit('modalClose')
+    },
     preserveState: true,
     replace: true,
   })
 }
 
+function unbindProductMappingItem(productMappingItem) {
+  productMappingItems.value.splice(productMappingItems.value.indexOf(productMappingItem), 1)
+}
+
 function replicateProductMapping() {
   router.post('/product-mappings/replicate',
-    { id: form.value.id },
     {
-      onSuccess: () => { toast.success("Mappings replicated", { timeout: 3000 }); },
+      id: form.value.id,
+    },
+    {
+      onSuccess: () => {
+        toast.success("Mappings replicated", {
+          timeout: 3000
+        });
+      },
       preserveState: false,
       replace: true,
     })
 }
-
-const sequenceDiagnostics = computed(() => {
-  // If nothing is shown in the sequence table, allow Save
-  if (!sortedProductMappingItems.value?.length) {
-    return { hasIssue: false, message: '' };
-  }
-
-  const items = productMappingItems.value || [];
-  const total = items.length;
-
-  // collect only valid sequences (>= 1)
-  const sequenced = items
-    .map(i => {
-      const n = typeof i.sequence === 'number' ? i.sequence : parseInt(i.sequence, 10);
-      return Number.isInteger(n) && n >= 1 ? n : null;
-    })
-    .filter(n => n !== null);
-
-  const k = sequenced.length;              // how many are sequenced
-  const nullCount = total - k;
-
-  // Case 1: all null -> OK
-  if (total > 0 && k === 0) {
-    return { hasIssue: false, message: '' };
-  }
-
-  // Case 2: fully sequenced -> must be 1..N, no dups
-  if (k === total) {
-    const set = new Set(sequenced);
-    const duplicates = sequenced
-      .filter((s, idx, arr) => arr.indexOf(s) !== idx)
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .sort((a, b) => a - b);
-
-    const missing = [];
-    for (let n = 1; n <= total; n++) {
-      if (!set.has(n)) missing.push(n);
-    }
-
-    const hasIssue = duplicates.length > 0 || missing.length > 0;
-    const parts = [];
-    if (duplicates.length) parts.push(`duplicate sequence(s): ${duplicates.join(', ')}`);
-    if (missing.length) parts.push(`missing sequence number(s): ${missing.join(', ')}`);
-
-    return { hasIssue, message: parts.length ? `Please complete the Product Mapping Sequence — ${parts.join(' · ')}.` : '' };
-  }
-
-  // Case 3: partial -> invalid
-  return {
-    hasIssue: true,
-    message: `Please complete the Product Mapping Sequence — ${nullCount} item(s) without a sequence. Either assign all sequences (1..${total}) or clear them all.`
-  };
-});
-
-
-
-const isSequenceComplete = computed(() => !sequenceDiagnostics.value.hasIssue);
-
 </script>
-
-

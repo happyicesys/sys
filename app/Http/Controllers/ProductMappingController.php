@@ -184,13 +184,35 @@ class ProductMappingController extends Controller
     public function edit(Request $request, $id)
     {
         $productMappingInit = ProductMapping::findOrFail($id);
+
+        // carry forward selected price type
         $request->merge([
-            'selling_price_type' => $request->selling_price_type ? $request->selling_price_type  : ($productMappingInit->selling_price_type ? $productMappingInit->selling_price_type : null),
+            'selling_price_type' => $request->selling_price_type
+                ?: ($productMappingInit->selling_price_type ?: null),
         ]);
+
+        // read sort inputs (sortBy=true => DESC, false => ASC)
+        $sortKey  = $request->input('sortKey');                // 'sequence' | 'channel_code' | null
+        $sortDesc = filter_var($request->input('sortBy'), FILTER_VALIDATE_BOOLEAN); // bool
+        $dir      = $sortDesc ? 'DESC' : 'ASC';
 
         $productMapping = ProductMapping::with([
             'attachments',
-            'productMappingItems',
+            // apply ordering here
+            'productMappingItems' => function ($q) use ($sortKey, $dir) {
+                if ($sortKey === 'sequence') {
+                    // nulls last, then sequence asc/desc, then channel_code as tiebreaker
+                    $q->orderByRaw('CASE WHEN sequence IS NULL THEN 1 ELSE 0 END ASC')
+                      ->orderBy('sequence', $dir)
+                      ->orderByRaw('CAST(channel_code AS UNSIGNED), channel_code');
+                } elseif ($sortKey === 'channel_code') {
+                    // try numeric sort, fall back to lexical; keep a stable tiebreaker
+                    $q->orderByRaw("CASE WHEN channel_code REGEXP '^[0-9]+$' THEN 0 ELSE 1 END ASC")
+                      ->orderByRaw("CAST(channel_code AS UNSIGNED) $dir")
+                      ->orderBy('channel_code', $dir);
+                }
+                // else: leave DB default order
+            },
             'productMappingItems.product:id,code,name,is_active,category_id,category_group_id',
             'productMappingItems.product.thumbnail',
             'productMappingItems.product.category',
@@ -208,25 +230,26 @@ class ProductMappingController extends Controller
 
         return Inertia::render('ProductMapping/Edit', [
             'priceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
-            'productMapping' => ProductMappingResource::make($productMapping),
+            'productMapping'   => ProductMappingResource::make($productMapping),
             'upcomingProductMappingOptions' => ProductMappingResource::collection(
                 ProductMapping::query()
-                ->whereHas('vendPrefixes', function($query) use ($productMapping) {
-                    $query->whereIn('vend_prefix_id', $productMapping->vendPrefixes->pluck('id'));
-                })
-                ->where('id', '!=', $id)
-                ->orderBy('name')
-                ->get()
+                    ->whereHas('vendPrefixes', function($query) use ($productMapping) {
+                        $query->whereIn('vend_prefix_id', $productMapping->vendPrefixes->pluck('id'));
+                    })
+                    ->where('id', '!=', $id)
+                    ->orderBy('name')
+                    ->get()
             ),
             'products' => ProductResource::collection(
-                Product::with([
-                    'thumbnail'
-                ])
-                ->where('is_inventory', true)
-                ->where('is_active', true)
-                ->orderBy('code')
-                ->get()
+                Product::with(['thumbnail'])
+                    ->where('is_inventory', true)
+                    ->where('is_active', true)
+                    ->orderBy('code')
+                    ->get()
             ),
+            // send current sort back so the header arrows know what to show
+            'sortKey' => $sortKey,
+            'sortBy'  => $sortDesc,
         ]);
     }
 
@@ -245,14 +268,13 @@ class ProductMappingController extends Controller
         $productMapping->upcomingProductMappings()->sync($request->upcomingProductMappings);
 
         if($request->productMappingItems) {
-        //    $productMapping->product_mapping_items_json =  $request->productMappingItems;
            $productMapping->productMappingItems()->delete();
            foreach($request->productMappingItems as $productMappingItem) {
                 $productMapping->productMappingItems()->create([
                     'channel_code' => $productMappingItem['channel_code'],
                     'product_id' => $productMappingItem['product']['id'],
                     'selling_price_id' => isset($productMappingItem['selling_price_id']) ? $productMappingItem['selling_price_id'] : null,
-                    'sequence' => isset($productMappingItem['sequence']) ? $productMappingItem['sequence'] : null,
+                    'sequence' => $productMappingItem['sequence'],
                 ]);
            }
         }
