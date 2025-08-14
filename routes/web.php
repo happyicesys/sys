@@ -355,6 +355,8 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
         Route::get('/snapshot', [ReportController::class, 'indexSnapshot']);
         Route::get('/snapshot/excel', [ReportController::class, 'exportSnapshotChannelExcel']);
+
+        Route::get('/stock-count', [ReportController::class, 'indexStockCount']);
     });
 
     Route::prefix('resource-centers')->group(function() {

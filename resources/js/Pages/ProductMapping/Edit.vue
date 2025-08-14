@@ -237,12 +237,12 @@
                                   {{ productMappingItem.product.name }}
                                 </span>
                               </td>
-                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                                 <span v-if="productMappingItem.product.category && productMappingItem.product.categoryGroup">
                                   {{ productMappingItem.product.categoryGroup.name }}
                                 </span>
                               </td>
-                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                              <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
                                 <span v-if="productMappingItem.product.category">
                                   {{ productMappingItem.product.category.name }}
                                 </span>

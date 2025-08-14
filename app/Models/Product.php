@@ -126,6 +126,11 @@ class Product extends Model
         return $this->hasMany(SellingPrice::class)->orderBy('type', 'asc');
     }
 
+    public function stockCountItems()
+    {
+        return $this->hasMany(StockCountItem::class);
+    }
+
     public function tagBindings()
     {
         return $this->morphMany(TagBinding::class, 'modelable');

@@ -86,4 +86,23 @@ trait HasMonthOption{
 
     return $processedOptions;
   }
+
+  public function getReportStockCountDateOptions()
+  {
+    $date = Carbon::today()->setTimezone($this->getUserTimezone());
+    $processedOptions = [];
+    $options = [
+      Carbon::today()->toDateString().','.Carbon::today()->toDateString() => 'Today',
+      Carbon::yesterday()->toDateString().','.Carbon::yesterday()->toDateString() => 'Yesterday',
+    ];
+
+    foreach($options as $optionIndex => $option) {
+      $processedOptions [] = [
+        'id' => $optionIndex,
+        'name' => $option,
+      ];
+    }
+
+    return $processedOptions;
+  }
 }

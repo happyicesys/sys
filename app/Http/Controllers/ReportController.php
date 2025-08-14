@@ -10,7 +10,10 @@ use App\Http\Resources\LocationTypeResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductDBResource;
 use App\Http\Resources\ProductResource;
+use App\Http\Resources\ProductStockCountResource;
 use App\Http\Resources\SalesReportResource;
+use App\Http\Resources\StockCountResource;
+use App\Http\Resources\StockCountItemResource;
 use App\Http\Resources\VendContractResource;
 use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendModelResource;
@@ -23,6 +26,8 @@ use App\Models\Customer;
 use App\Models\LocationType;
 use App\Models\Operator;
 use App\Models\Product;
+use App\Models\StockCount;
+use App\Models\StockCountItem;
 use App\Models\UnitCost;
 use App\Models\Vend;
 use App\Models\VendContract;
@@ -380,6 +385,115 @@ class ReportController extends Controller
             'vendSnapshots' => VendSnapshotDBResource::collection($vendSnapshots),
         ]);
     }
+
+    public function indexStockCount(Request $request)
+    {
+        // ---- Operators default
+        if(!$request->operators) {
+            if(auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [
+                    auth()->user()->operator_id,
+                    Operator::where('code', 'HIMD')->first()?->id,
+                    Operator::where('code', 'LEA')->first()?->id,
+                    Operator::where('code', 'DCVIC')->first()?->id,
+                    Operator::where('code', 'HIESG')->first()?->id,
+                ]]);
+            }else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+
+        // ---- Date range from preset/custom
+        $cfd = $request->input('currentFilterDate');
+
+        // Frontend might send an object {id: "..."}; normalize to id string
+        if (is_array($cfd) && isset($cfd['id'])) {
+            $cfd = $cfd['id'];
+            $request->merge(['currentFilterDate' => $cfd]);
+        }
+
+        if ($cfd) {
+            if ($cfd !== '-1') {
+                // Expect "YYYY-MM-DD,YYYY-MM-DD"
+                [$df, $dt] = explode(',', (string)$cfd);
+                $request->merge(['date_from' => $df, 'date_to' => $dt]);
+            } else {
+                $tz = $this->getUserTimezone();
+                $df = Carbon::parse($request->date)->setTimezone($tz)->toDateString();
+                $dt = Carbon::parse($request->date)->setTimezone($tz)->toDateString();
+                $request->merge(['date_from' => $df, 'date_to' => $dt]);
+            }
+        } else {
+            $today = Carbon::today($this->getUserTimezone())->toDateString();
+            $request->merge(['date_from' => $today, 'date_to' => $today]);
+        }
+
+        // Swap if user sent from > to
+        if (strtotime($request->date_from) > strtotime($request->date_to)) {
+            $tmp = $request->date_from;
+            $request->merge(['date_from' => $request->date_to, 'date_to' => $tmp]);
+        }
+
+        // ---- Misc defaults
+        $request->merge(['visited' => $request->boolean('visited')]); // default false
+        // keep sortKey/sortBy as they’ll be used by the pivot query for allowed keys
+        $request->merge([
+            'sortKey' => $request->input('sortKey', 'product_code'),
+            'sortBy'  => $request->input('sortBy', false),
+        ]);
+        // numberPerPage is read inside the pivot query
+        if (!$request->filled('numberPerPage')) {
+            $request->merge(['numberPerPage' => 100]);
+        }
+
+        // ---- Use the server-side pivot (D0/D1/D2)
+        [$paginator, $pivotDates, $totals] = $this->getStockCountPivot3dQuery($request);
+
+        $stockCounts = [
+            'data' => ProductStockCountResource::collection(
+                collect($paginator->items())
+            )->resolve(), // plain array of transformed rows
+
+            // links array (works across Laravel versions)
+            'links' => method_exists($paginator, 'linkCollection')
+                ? $paginator->linkCollection()->toArray()
+                : ($paginator->toArray()['links'] ?? []),
+
+            // meta block your Paginator component expects
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'from'         => $paginator->firstItem(),
+                'last_page'    => $paginator->lastPage(),
+                'path'         => $paginator->path(),
+                'per_page'     => $paginator->perPage(),
+                'to'           => $paginator->lastItem(),
+                'total'        => $paginator->total(),
+            ],
+        ];
+
+        // ---- Render
+        return Inertia::render('Report/IndexStockCount', [
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
+            ),
+            'operatorOptions' => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'productOptions' => ProductResource::collection(
+                Product::where('is_inventory', true)->orderBy('name')->orderBy('code')->get()
+            ),
+            'reportDateOptions' => $this->getReportStockCountDateOptions(),
+            'vendPrefixOptions' => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
+
+            // Pivot payload (note: this is a DB paginator, not Eloquent models)
+            'stockCounts' => $stockCounts,   // rows have *_d0/_d1/_d2 fields
+            'pivotDates'  => $pivotDates,    // { d0, d1, d2 } for table headers
+            'totals'      => $totals,
+        ]);
+    }
+
 
     public function exportUnitCostVendExcel(Request $request)
     {
@@ -1022,6 +1136,173 @@ class ReportController extends Controller
 
         return $vendSnapshots;
     }
+
+    private function getStockCountQuery($request)
+    {
+        // read sort inputs (sortBy=true => DESC, false => ASC)
+        $sortKey  = $request->input('sortKey');                // 'sequence' | 'channel_code' | null
+        $sortDesc = filter_var($request->input('sortBy'), FILTER_VALIDATE_BOOLEAN); // bool
+        $dir      = $sortDesc ? 'DESC' : 'ASC';
+
+        if(!$sortKey) {
+            // default to sequence if not specified
+            $sortKey = 'product_code';
+        }
+
+        $stockCounts = StockCount::query()
+            ->with([
+                'stockCountItems' => function ($q) use ($sortKey, $dir) {
+                    if($sortKey === 'stock_value_amount') {
+                        $q->orderBy('stock_value_amount', $dir);
+                    }else if($sortKey === 'qty_vend') {
+                        $q->orderBy('qty_vend', $dir);
+                    }else if($sortKey === 'qty_warehouse') {
+                        $q->orderBy('qty_warehouse', $dir);
+                    }else if($sortKey === 'stock_cost_amount') {
+                        $q->orderBy('stock_cost_amount', $dir);
+                    }
+                },
+                'stockCountItems.product' => function ($q) use ($sortKey, $dir) {
+                    if ($sortKey === 'product_code') {
+                        // nulls last, then sequence asc/desc, then channel_code as tiebreaker
+                        $q->orderByRaw("CAST(code AS UNSIGNED) $dir")
+                          ->orderBy('code', $dir);
+
+                    }
+                },
+                'stockCountItems.product.thumbnail'
+            ])
+            ->filterIndex($request)
+            ->groupBy();
+
+        return $stockCounts;
+    }
+
+    private function getStockCountPivot3dQuery(Request $request)
+    {
+        $tz  = $this->getUserTimezone();
+        $end = Carbon::parse($request->date_to ?? Carbon::today($tz), $tz)->toDateString();
+        $d0  = $end;
+        $d1  = Carbon::parse($end)->subDay()->toDateString();
+        $d2  = Carbon::parse($end)->subDays(2)->toDateString();
+
+        // Build YYYY-MM-DD from (year, month, day)
+        $dateSql = "DATE(CONCAT(sc.year,'-',LPAD(sc.month,2,'0'),'-',LPAD(sc.day,2,'0')))";
+
+        $q = DB::table('stock_count_items as sci')
+            ->join('stock_counts as sc', 'sc.id', '=', 'sci.stock_count_id')
+            ->join('products as p', 'p.id', '=', 'sci.product_id')
+
+            // ---- Filters (mirror scopeFilterIndex)
+            ->when($request->operators, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) {
+                    $q->whereIn('sc.operator_id', $ids);
+                }
+            })
+            ->when($request->vendPrefixes, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) {
+                    $q->whereIn('sc.vend_prefix_id', $ids);
+                }
+            })
+            ->when($request->location_type_id ?? $request->locationType, function ($q, $val) {
+                if ($val !== 'all') $q->whereIn('sc.location_type_id', (array) $val);
+            })
+            ->when($request->codes, function ($q, $codes) {
+                $codes = is_string($codes)
+                    ? array_values(array_filter(array_map('trim', explode(',', $codes))))
+                    : (array) $codes;
+
+                $q->whereExists(function ($sq) use ($codes) {
+                    $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
+                    if (count($codes) > 1) {
+                        $sq->whereIn('v.code', $codes);
+                    } elseif (count($codes) === 1) {
+                        $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
+                    }
+                });
+            })
+            ->when($request->products, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) {
+                    $q->whereIn('sci.product_id', $ids);
+                }
+            })
+
+            // ---- Only 3 dates (D0, D1, D2)
+            ->whereIn(DB::raw($dateSql), [$d0, $d1, $d2])
+
+            // ---- Select (money divided by 100)
+            ->select([
+                'p.id   as product_id',
+                'p.code as product_code',
+                'p.name as product_name',
+
+                DB::raw("SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d0"),
+                DB::raw("SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d1"),
+                DB::raw("SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d2"),
+
+                DB::raw("MAX(CASE WHEN {$dateSql} = '{$d0}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d0"),
+                DB::raw("MAX(CASE WHEN {$dateSql} = '{$d1}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d1"),
+                DB::raw("MAX(CASE WHEN {$dateSql} = '{$d2}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d2"),
+
+                DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d0"),
+                DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d1"),
+                DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d2"),
+
+                DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sci.stock_cost_amount  ELSE 0 END) / 100, 2) AS stock_cost_d0"),
+                DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sci.stock_cost_amount  ELSE 0 END) / 100, 2) AS stock_cost_d1"),
+                DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sci.stock_cost_amount  ELSE 0 END) / 100, 2) AS stock_cost_d2"),
+            ])
+            ->groupBy('p.id', 'p.code', 'p.name');
+
+        // ---- Sorting (allow only safe keys)
+        $sortKey = $request->input('sortKey', 'product_code');
+        $desc    = filter_var($request->input('sortBy', false), FILTER_VALIDATE_BOOLEAN);
+        $dir     = $desc ? 'desc' : 'asc';
+
+        $allowed = [
+            'product_code',
+            'qty_vend_d0', 'qty_vend_d1', 'qty_vend_d2',
+            'qty_warehouse_d0', 'qty_warehouse_d1', 'qty_warehouse_d2',
+            'stock_value_d0', 'stock_value_d1', 'stock_value_d2',
+            'stock_cost_d0', 'stock_cost_d1', 'stock_cost_d2',
+        ];
+        if (!in_array($sortKey, $allowed, true)) $sortKey = 'product_code';
+
+        // numeric-aware sort for product_code
+        if ($sortKey === 'product_code') {
+            $q->orderByRaw('CAST(product_code AS UNSIGNED) '.$dir)->orderBy('product_code', $dir);
+        } else {
+            $q->orderBy($sortKey, $dir);
+        }
+
+        $totals = DB::query()
+            ->fromSub((clone $q)->reorder(), 'rows') // reorder() clears ORDER BY
+            ->selectRaw('
+                SUM(stock_value_d0)   AS stock_value_d0,
+                SUM(qty_vend_d0)      AS qty_vend_d0,
+                SUM(qty_warehouse_d0) AS qty_warehouse_d0,
+                SUM(stock_cost_d0)    AS stock_cost_d0,
+
+                SUM(stock_value_d1)   AS stock_value_d1,
+                SUM(qty_vend_d1)      AS qty_vend_d1,
+                SUM(qty_warehouse_d1) AS qty_warehouse_d1,
+                SUM(stock_cost_d1)    AS stock_cost_d1,
+
+                SUM(stock_value_d2)   AS stock_value_d2,
+                SUM(qty_vend_d2)      AS qty_vend_d2,
+                SUM(qty_warehouse_d2) AS qty_warehouse_d2,
+                SUM(stock_cost_d2)    AS stock_cost_d2
+            ')
+            ->first();
+
+        // ---- Pagination
+        $perPage = ($request->numberPerPage === 'All') ? 10000 : ((int)($request->numberPerPage ?? 100));
+        $paginator = $q->paginate($perPage)->appends($request->query());
+
+        // return paginator + the actual D0/D1/D2 dates for header labels
+        return [$paginator, ['d0' => $d0, 'd1' => $d1, 'd2' => $d2], $totals];
+    }
+
 
     private function getSalesSubTotal($dataCols)
     {
