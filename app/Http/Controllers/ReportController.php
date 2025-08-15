@@ -43,6 +43,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 use Rap2hpoutre\FastExcel\FastExcel;
 
 class ReportController extends Controller
@@ -524,6 +525,123 @@ class ReportController extends Controller
             ];
         });
     }
+
+    public function exportStockCountExcel(Request $request)
+    {
+        // ------- mirror the defaults/normalization from indexStockCount -------
+
+        // Default operators
+        if(!$request->operators) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [
+                    auth()->user()->operator_id,
+                    Operator::where('code', 'HIMD')->first()?->id,
+                    Operator::where('code', 'LEA')->first()?->id,
+                    Operator::where('code', 'DCVIC')->first()?->id,
+                    Operator::where('code', 'HIESG')->first()?->id,
+                ]]);
+            } else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+
+        // Date range from preset/custom
+        $cfd = $request->input('currentFilterDate');
+        if (is_array($cfd) && isset($cfd['id'])) {
+            $cfd = $cfd['id'];
+            $request->merge(['currentFilterDate' => $cfd]);
+        }
+
+        if ($cfd) {
+            if ($cfd !== '-1') {
+                [$df, $dt] = explode(',', (string)$cfd);
+                $request->merge(['date_from' => $df, 'date_to' => $dt]);
+            } else {
+                $tz = $this->getUserTimezone();
+                $df = Carbon::parse($request->date)->setTimezone($tz)->toDateString();
+                $dt = Carbon::parse($request->date)->setTimezone($tz)->toDateString();
+                $request->merge(['date_from' => $df, 'date_to' => $dt]);
+            }
+        } else {
+            $today = Carbon::today($this->getUserTimezone())->toDateString();
+            $request->merge(['date_from' => $today, 'date_to' => $today]);
+        }
+
+        // Swap if needed
+        if (strtotime($request->date_from) > strtotime($request->date_to)) {
+            $tmp = $request->date_from;
+            $request->merge(['date_from' => $request->date_to, 'date_to' => $tmp]);
+        }
+
+        // Sorting & page size (export = all)
+        $request->merge([
+            'visited'       => $request->boolean('visited'),
+            'sortKey'       => $request->input('sortKey', 'product_code'),
+            'sortBy'        => $request->input('sortBy', false),
+            'numberPerPage' => 'All', // <- export all rows
+        ]);
+
+        // ------- get the same pivot rows/totals you use on the page -------
+        [$paginator, $pivotDates, $totals] = $this->getStockCountPivot3dQuery($request);
+        $rows = collect($paginator->items());
+
+        $d0 = Carbon::parse($pivotDates['d0'])->toDateString(); // e.g. 2025-08-13
+        $d1 = Carbon::parse($pivotDates['d1'])->toDateString();
+        $d2 = Carbon::parse($pivotDates['d2'])->toDateString();
+
+        // Build a flat export dataset with dated column headers
+        $exportRows = $rows->map(function ($r) use ($d0, $d1, $d2) {
+            // $r is stdClass from the query
+            return [
+                'Product ID'                   => $r->product_code,
+                'Product Name'                 => $r->product_name,
+
+                "{$d0} Stock Value"            => (float) ($r->stock_value_d0 ?? 0),
+                "{$d0} Qty in Machine"         => (int)   ($r->qty_vend_d0 ?? 0),
+                "{$d0} Qty in Warehouse"       => (int)   ($r->qty_warehouse_d0 ?? 0),
+                "{$d0} Stock Cost"             => (float) ($r->stock_cost_d0 ?? 0),
+
+                "{$d1} Stock Value"            => (float) ($r->stock_value_d1 ?? 0),
+                "{$d1} Qty in Machine"         => (int)   ($r->qty_vend_d1 ?? 0),
+                "{$d1} Qty in Warehouse"       => (int)   ($r->qty_warehouse_d1 ?? 0),
+                "{$d1} Stock Cost"             => (float) ($r->stock_cost_d1 ?? 0),
+
+                "{$d2} Stock Value"            => (float) ($r->stock_value_d2 ?? 0),
+                "{$d2} Qty in Machine"         => (int)   ($r->qty_vend_d2 ?? 0),
+                "{$d2} Qty in Warehouse"       => (int)   ($r->qty_warehouse_d2 ?? 0),
+                "{$d2} Stock Cost"             => (float) ($r->stock_cost_d2 ?? 0),
+            ];
+        });
+
+        // Append a subtotal row (matches the <tfoot> on the page)
+        $exportRows->push([
+            'Product ID'                     => 'Subtotal',
+            'Product Name'                   => null,
+
+            "{$d0} Stock Value"              => (float) ($totals->stock_value_d0 ?? 0),
+            "{$d0} Qty in Machine"           => (int)   ($totals->qty_vend_d0 ?? 0),
+            "{$d0} Qty in Warehouse"         => (int)   ($totals->qty_warehouse_d0 ?? 0),
+            "{$d0} Stock Cost"               => (float) ($totals->stock_cost_d0 ?? 0),
+
+            "{$d1} Stock Value"              => (float) ($totals->stock_value_d1 ?? 0),
+            "{$d1} Qty in Machine"           => (int)   ($totals->qty_vend_d1 ?? 0),
+            "{$d1} Qty in Warehouse"         => (int)   ($totals->qty_warehouse_d1 ?? 0),
+            "{$d1} Stock Cost"               => (float) ($totals->stock_cost_d1 ?? 0),
+
+            "{$d2} Stock Value"              => (float) ($totals->stock_value_d2 ?? 0),
+            "{$d2} Qty in Machine"           => (int)   ($totals->qty_vend_d2 ?? 0),
+            "{$d2} Qty in Warehouse"         => (int)   ($totals->qty_warehouse_d2 ?? 0),
+            "{$d2} Stock Cost"               => (float) ($totals->stock_cost_d2 ?? 0),
+        ]);
+
+        // Stream the file
+        return (new FastExcel($this->yieldOneByOne($exportRows)))
+            ->download('Stock_Count_'.Carbon::now()->format('Ymd_His').'.xlsx', function ($row) {
+                // $row is already a key=>value array with the headers we want
+                return $row;
+            });
+    }
+
 
     public function exportUnitCostProductExcel(Request $request)
     {

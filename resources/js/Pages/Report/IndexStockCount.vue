@@ -366,7 +366,7 @@
                         </td>
                     </tr>
                     </tbody>
-                    <tfoot class="bg-gray-50 font-normal">
+                    <tfoot class="bg-gray-50 font-normal"  v-if="!(stockCounts.data && stockCounts.data.length)">
                         <tr>
                             <td colspan="30" class="w-1 bg-gray-300 p-0" aria-hidden="true">.</td>
                         </tr>
@@ -612,7 +612,7 @@ function onExportExcelClicked() {
       },
       responseType: 'blob',
   }).then(response => {
-      fileDownload(response.data, 'Vending_Channels_' + moment().format('YYMMDDhhmmss') +'.xlsx')
+      fileDownload(response.data, 'Stock_Count_' + moment().format('YYMMDDhhmmss') +'.xlsx')
   }).catch(error => {
       console.log(error)
   }).finally(() => {
