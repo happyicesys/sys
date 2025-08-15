@@ -190,6 +190,26 @@
                   </MultiSelect>
               </div>
           </div>
+          <dl class="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <dt class="truncate text-sm font-medium text-gray-500">Cash Sales ({{ operatorCountry.currency_symbol }})</dt>
+                <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                    {{((totals['cash_sales_amount'] ? totals['cash_sales_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                </dd>
+            </div>
+            <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <dt class="truncate text-sm font-medium text-gray-500">Cashless Sales ({{ operatorCountry.currency_symbol }})</dt>
+                <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                    {{((totals['cashless_sales_amount'] ? totals['cashless_sales_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                </dd>
+            </div>
+            <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
+                <dt class="truncate text-sm font-medium text-gray-500">Coin Float ({{ operatorCountry.currency_symbol }})</dt>
+                <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
+                    {{((totals['coin_float_amount'] ? totals['coin_float_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
+                </dd>
+            </div>
+        </dl>
       </div>
 
        <div class="mt-6 flex flex-col">

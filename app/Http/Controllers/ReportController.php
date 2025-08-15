@@ -1186,14 +1186,14 @@ class ReportController extends Controller
         $d1  = Carbon::parse($end)->subDay()->toDateString();
         $d2  = Carbon::parse($end)->subDays(2)->toDateString();
 
-        // Build YYYY-MM-DD from (year, month, day)
+        // Uses sc.* (stock_counts) alias, so we can reuse it in both queries
         $dateSql = "DATE(CONCAT(sc.year,'-',LPAD(sc.month,2,'0'),'-',LPAD(sc.day,2,'0')))";
 
+        // --- your existing per-product 3-day pivot (unchanged) --------------------
         $q = DB::table('stock_count_items as sci')
             ->join('stock_counts as sc', 'sc.id', '=', 'sci.stock_count_id')
             ->join('products as p', 'p.id', '=', 'sci.product_id')
-
-            // ---- Filters (mirror scopeFilterIndex)
+            // filters
             ->when($request->operators, function ($q, $ids) {
                 if (is_array($ids) && !in_array('all', $ids, true)) {
                     $q->whereIn('sc.operator_id', $ids);
@@ -1226,57 +1226,44 @@ class ReportController extends Controller
                     $q->whereIn('sci.product_id', $ids);
                 }
             })
-
-            // ---- Only 3 dates (D0, D1, D2)
             ->whereIn(DB::raw($dateSql), [$d0, $d1, $d2])
-
-            // ---- Select (money divided by 100)
             ->select([
                 'p.id   as product_id',
                 'p.code as product_code',
                 'p.name as product_name',
-
                 DB::raw("SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d0"),
                 DB::raw("SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d1"),
                 DB::raw("SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d2"),
-
                 DB::raw("MAX(CASE WHEN {$dateSql} = '{$d0}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d0"),
                 DB::raw("MAX(CASE WHEN {$dateSql} = '{$d1}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d1"),
                 DB::raw("MAX(CASE WHEN {$dateSql} = '{$d2}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d2"),
-
                 DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d0"),
                 DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d1"),
                 DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d2"),
-
                 DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sci.stock_cost_amount  ELSE 0 END) / 100, 2) AS stock_cost_d0"),
                 DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sci.stock_cost_amount  ELSE 0 END) / 100, 2) AS stock_cost_d1"),
                 DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sci.stock_cost_amount  ELSE 0 END) / 100, 2) AS stock_cost_d2"),
             ])
             ->groupBy('p.id', 'p.code', 'p.name');
 
-        // ---- Sorting (allow only safe keys)
+        // sorting (unchanged) …
         $sortKey = $request->input('sortKey', 'product_code');
         $desc    = filter_var($request->input('sortBy', false), FILTER_VALIDATE_BOOLEAN);
         $dir     = $desc ? 'desc' : 'asc';
-
-        $allowed = [
-            'product_code',
-            'qty_vend_d0', 'qty_vend_d1', 'qty_vend_d2',
-            'qty_warehouse_d0', 'qty_warehouse_d1', 'qty_warehouse_d2',
-            'stock_value_d0', 'stock_value_d1', 'stock_value_d2',
-            'stock_cost_d0', 'stock_cost_d1', 'stock_cost_d2',
-        ];
+        $allowed = ['product_code','qty_vend_d0','qty_vend_d1','qty_vend_d2',
+                    'qty_warehouse_d0','qty_warehouse_d1','qty_warehouse_d2',
+                    'stock_value_d0','stock_value_d1','stock_value_d2',
+                    'stock_cost_d0','stock_cost_d1','stock_cost_d2'];
         if (!in_array($sortKey, $allowed, true)) $sortKey = 'product_code';
-
-        // numeric-aware sort for product_code
         if ($sortKey === 'product_code') {
             $q->orderByRaw('CAST(product_code AS UNSIGNED) '.$dir)->orderBy('product_code', $dir);
         } else {
             $q->orderBy($sortKey, $dir);
         }
 
+        // totals from the pivot rows (unchanged)
         $totals = DB::query()
-            ->fromSub((clone $q)->reorder(), 'rows') // reorder() clears ORDER BY
+            ->fromSub((clone $q)->reorder(), 'rows')
             ->selectRaw('
                 SUM(stock_value_d0)   AS stock_value_d0,
                 SUM(qty_vend_d0)      AS qty_vend_d0,
@@ -1295,13 +1282,57 @@ class ReportController extends Controller
             ')
             ->first();
 
-        // ---- Pagination
-        $perPage = ($request->numberPerPage === 'All') ? 10000 : ((int)($request->numberPerPage ?? 100));
+        // --- NEW: money KPIs from stock_counts (D0 only) --------------------------
+        // If you want D0+D1+D2 together, replace ->where(DB::raw($dateSql), $d0)
+        // with ->whereIn(DB::raw($dateSql), [$d0,$d1,$d2])
+        $kpis = DB::table('stock_counts as sc')
+            ->when($request->operators, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) {
+                    $q->whereIn('sc.operator_id', $ids);
+                }
+            })
+            ->when($request->vendPrefixes, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) {
+                    $q->whereIn('sc.vend_prefix_id', $ids);
+                }
+            })
+            ->when($request->location_type_id ?? $request->locationType, function ($q, $val) {
+                if ($val !== 'all') $q->whereIn('sc.location_type_id', (array) $val);
+            })
+            ->when($request->codes, function ($q, $codes) {
+                $codes = is_string($codes)
+                    ? array_values(array_filter(array_map('trim', explode(',', $codes))))
+                    : (array) $codes;
+
+                $q->whereExists(function ($sq) use ($codes) {
+                    $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
+                    if (count($codes) > 1) {
+                        $sq->whereIn('v.code', $codes);
+                    } elseif (count($codes) === 1) {
+                        $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
+                    }
+                });
+            })
+            ->where(DB::raw($dateSql), '=', $d0)  // D0 only
+            ->selectRaw('
+                COALESCE(SUM(sc.cash_sales_amount), 0)      AS cash_sales_amount,
+                COALESCE(SUM(sc.cashless_sales_amount), 0)  AS cashless_sales_amount,
+                COALESCE(SUM(sc.coin_float_amount), 0)      AS coin_float_amount
+            ')
+            ->first();
+
+        // attach to existing totals; keep as integers (minor units)
+        $totals->cash_sales_amount     = (int) ($kpis->cash_sales_amount ?? 0);
+        $totals->cashless_sales_amount = (int) ($kpis->cashless_sales_amount ?? 0);
+        $totals->coin_float_amount     = (int) ($kpis->coin_float_amount ?? 0);
+
+        // --- Pagination (unchanged)
+        $perPage   = ($request->numberPerPage === 'All') ? 10000 : (int)($request->numberPerPage ?? 100);
         $paginator = $q->paginate($perPage)->appends($request->query());
 
-        // return paginator + the actual D0/D1/D2 dates for header labels
         return [$paginator, ['d0' => $d0, 'd1' => $d1, 'd2' => $d2], $totals];
     }
+
 
 
     private function getSalesSubTotal($dataCols)
