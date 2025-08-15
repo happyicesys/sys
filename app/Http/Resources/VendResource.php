@@ -42,6 +42,7 @@ class VendResource extends JsonResource
             'begin_date' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('Y-m-d') : null,
             'begin_date_short' => isset($this->begin_date) ? Carbon::parse($this->begin_date)->setTimezone($this->getUserTimezone())->format('ymd') : null,
             'deliveryProductMappingVends' => DeliveryProductMappingVendResource::collection($this->whenLoaded('deliveryProductMappingVends')),
+            'customerVendBindings' => CustomerVendBindingResource::collection($this->whenLoaded('customerVendBindings')),
             // 'is_using_server_price' => $this->is_using_server_price,
             'serial_num' => isset($this->serial_num) ? $this->serial_num : null,
             'server_price_type' => isset($this->server_price_type) ? $this->server_price_type : null,

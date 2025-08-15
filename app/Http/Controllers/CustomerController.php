@@ -282,6 +282,7 @@ class CustomerController extends Controller
             'category',
             'category.categoryGroup',
             'contact',
+            'customerVendBindings.vend:id,code,customer_id',
             'deliveryAddress',
             'firstTransaction',
             'photos',

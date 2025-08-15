@@ -161,6 +161,11 @@ class Customer extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function customerVendBindings()
+    {
+        return $this->hasMany(CustomerVendBinding::class)->orderBy('created_at');
+    }
+
     public function deliveryAddress()
     {
         // return $this->morphOne(Address::class, 'modelable')->ofMany('type', 'max');

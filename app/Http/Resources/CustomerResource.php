@@ -26,6 +26,7 @@ class CustomerResource extends JsonResource
             'category_id' => CategoryResource::make($this->whenLoaded('category')),
             'code' => $this->code,
             'created_at' => Carbon::parse($this->created_at)->toDateString(),
+            'customerVendBindings' => CustomerVendBindingResource::collection($this->whenLoaded('customerVendBindings')),
             'person_json' => $this->person_json,
             'name' => $this->name,
             'first_transaction_id' => $this->first_transaction_id,

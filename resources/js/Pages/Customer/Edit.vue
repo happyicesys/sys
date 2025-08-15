@@ -607,6 +607,51 @@
                     </span>
                   </div>
 
+                  <div class="relative pt-2 m-5">
+                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                      <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-start">
+                      <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Machine Binding History </span>
+                    </div>
+                  </div>
+                  <nav aria-label="Progress">
+                    <ol role="list" class="overflow-hidden">
+                      <li v-for="(customerVendBinding, customerVendBindingIndex) in customerVendBindings" :key="customerVendBinding.id" :class="[customerVendBindingIndex !== customerVendBindings.length - 1? 'pb-3' : 'relative bg-gray-300 rounded']">
+                        <template v-if="true">
+                          <span class="group relative flex items-start">
+                            <span class="flex h-9 items-center">
+                              <span class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full" :class="[customerVendBinding.is_binding ? 'bg-green-600' : 'bg-red-600']">
+                                <LockClosedIcon class="h-5 w-5 text-white" aria-hidden="true" v-if="customerVendBinding.is_binding"/>
+                                <LockOpenIcon class="h-5 w-5 text-white" aria-hidden="true" v-if="!customerVendBinding.is_binding"/>
+                              </span>
+                            </span>
+                            <span class="ml-4 flex min-w-0 flex-col">
+                              <span class="text-sm font-medium">
+                                {{ customerVendBinding?.vend.code }}
+                              </span>
+                              <span class="text-sm text-gray-500">{{ customerVendBinding.created_at ? formatDatetime(customerVendBinding.created_at) : '' }}</span>
+                            </span>
+                          </span>
+                        </template>
+                      </li>
+                    </ol>
+                  </nav>
+                  <template v-if="!customerVendBindings || !customerVendBindings.length">
+                    <span class="group relative flex items-start">
+                      <span class="flex h-9 items-center">
+                        <span class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-red-600">
+                          <MinusCircleIcon class="h-5 w-5 text-white" aria-hidden="true"/>
+                        </span>
+                      </span>
+                      <span class="ml-4 flex min-w-0 flex-col pt-2">
+                        <span class="text-sm font-medium">
+                          No Records Found
+                        </span>
+                      </span>
+                    </span>
+                  </template>
+
                   <!-- Photo Section -->
                 <div class="sm:col-span-6 mt-5 pb-1 md:pt-5 md:pb-3">
                   <div class="relative">
@@ -674,7 +719,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import UploadFileInput from '@/Components/UploadFileInput.vue';
-import { ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, ExclamationCircleIcon, StopCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, MinusCircleIcon, StopCircleIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { Dropdown, Tooltip, Menu, vTooltip } from 'floating-vue';
 import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
@@ -703,6 +748,7 @@ const booleanStrictOptions = ref([
 
 const countryOptions = ref([]);
 const customer = ref([]);
+const customerVendBindings = ref([]);
 const frequencyPerWeekOptions = ref([]);
 const isExisting = ref(1);
 const locationTypeOptions = ref([]);
@@ -851,6 +897,8 @@ onMounted(() => {
     id: vend.id,
     full_name: vend.code,
   }));
+
+  customerVendBindings.value = props.customer ? props.customer.customer_vend_bindings : [];
 });
 
 function compareSellingPrice(channel) {

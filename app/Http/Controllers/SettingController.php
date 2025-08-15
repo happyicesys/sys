@@ -256,12 +256,19 @@ class SettingController extends Controller
 
     public function edit(Request $request, $id)
     {
+        $vendInit = Vend::withoutGlobalScopes()
+            ->where('id', $id)
+            ->first();
+
+        $type = $vendInit->customer?->server_price_type ?? SellingPrice::TYPE_1;
+
         $vend = Vend::withoutGlobalScopes()
         ->with([
             'cashlessTerminal',
             'customer',
             'customer.deliveryAddress',
             'customer.contact',
+            'customerVendBindings.customer',
             'deliveryProductMappingVends.deliveryProductMapping.deliveryPlatformOperator.deliveryPlatform',
             'key',
             'logs',
@@ -272,6 +279,12 @@ class SettingController extends Controller
             'simcard',
             'upcomingProductMapping',
             'vendConfig',
+            'vendChannels:id,amount,amount2,code,vend_id,product_id',
+            'vendChannels.product:id,name,code,desc',
+            'vendChannels.product.thumbnail',
+            'vendChannels.product.sellingPrices' => function ($query) use ($type) {
+                $query->where('type', $type);
+            },
             'vendModel',
             'vendPrefix',
             'vendSerialNumber',

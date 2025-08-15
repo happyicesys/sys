@@ -100,12 +100,15 @@ class DatabaseSeeder extends Seeder
             // ProductAvailabilitySeeder::class,
 
             // LicenseeRoleSeeder::class,
-            RolePermissionSyncSeeder::class
+            // RolePermissionSyncSeeder::class
 
             // DcvendAuthSeeder::class,
 
             // DeliveryPlatformDispensingSeeder::class,
             // VendContractSeeder::class,
+
+// RolePermissionSyncSeeder::class,
+            BackfillCustomerVendBindingsSeeder::class
         ]);
     }
 }

@@ -365,6 +365,11 @@ class Vend extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    public function customerVendBindings()
+    {
+        return $this->hasMany(CustomerVendBinding::class)->orderBy('created_at');
+    }
+
     public function deliveryProductMappingVends()
     {
         return $this->hasMany(DeliveryProductMappingVend::class)->where('is_active', true)->whereNull('end_date');

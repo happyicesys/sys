@@ -630,6 +630,76 @@
                   {{ form.errors.upcoming_product_mapping_id }}
                 </div>
             </div>
+
+            <!-- Vend Channels Section -->
+              <div class="flex flex-col sm:col-span-5">
+                <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+                  <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                    <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                      <table class="table-fixed min-w-full divide-y divide-gray-300">
+                        <thead class="bg-gray-50">
+                          <tr>
+                            <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"> # </th>
+                            <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_id"> Image </th>
+                            <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_id"> Product </th>
+                            <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                              <div class="flex justify-center">
+                                <span> P1 </span>
+                                <span v-if="profile && profile.base_currency">
+                                  ({{ profile.base_currency.currency_symbol }})
+                                </span>
+                                <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Actual Price on Vending Machine'"></ExclamationCircleIcon>
+                              </div>
+                            </th>
+                            <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
+                              <div class="flex justify-center">
+                                <span> P2 </span>
+                                <span v-if="profile && profile.base_currency">
+                                  ({{ profile.base_currency.currency_symbol }})
+                                </span>
+                                <ExclamationCircleIcon class="w-5 h-5 self-center pl-1" v-tooltip="'Discounted Price on 2nd Purchase'"></ExclamationCircleIcon>
+                              </div>
+                            </th>
+                            <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"> Ref Price {{ vend?.customer?.selling_price_type }} </th>
+                          </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                          <tr v-for="(channel, channelIndex) in vendChannels" :key="channel.id" :class="channelIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-900"> {{ channel.code }} </td>
+                            <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center" v-if="vend.product_mapping_id">
+                              <div class="flex justify-center items-center">
+                                <img class="h-16 w-16 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
+                              </div>
+                            </td>
+                            <td class="py-4 text-sm font-semibold text-center text-gray-900" v-if="vend.product_mapping_id">
+                              <span v-if="channel.product && channel.product.code"> {{ channel.product.code }} </span>
+                              <span class="break-normal text-xs" v-if="channel.product && channel.product.name"> <br> {{ channel.product.name }} </span>
+                            </td>
+                            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" >
+                              <!-- :class="compareSellingPrice(channel)" -->
+                              {{ (channel.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            </td>
+                            <td
+                              class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800"
+                              v-if="vendChannels.some(channel => 'amount2' in channel)"
+                            >
+                              {{ (channel.amount2/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                            </td>
+                            <td
+                              class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800"
+                            >
+                              {{ channel.product && channel.product.selling_prices[0] ? (channel.product.selling_prices[0].amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) : null }}
+                            </td>
+                          </tr>
+                          <tr v-if="!vendChannels || !vendChannels.length">
+                            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-xs font-normal sm:pl-6 text-center text-gray-900" colspan="6"> No Results Found </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
             <hr class="sm:col-span-6">
 
             <div class="sm:col-span-6">
@@ -845,53 +915,35 @@
               <div class="w-full border-t border-gray-300"></div>
             </div>
             <div class="relative flex justify-start">
-              <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Customer History </span>
+              <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded"> Customer Binding History </span>
             </div>
           </div>
           <nav aria-label="Progress">
             <ol role="list" class="overflow-hidden">
-              <li v-for="(customer, customerIndex) in vend.customer_movement_history_json" :key="customer.id" :class="[customerIndex !== vend.customer_movement_history_json.length - 1? 'pb-3' : 'relative bg-gray-300 rounded']">
+              <li v-for="(customerVendBinding, customerVendBindingIndex) in customerVendBindings" :key="customerVendBinding.id" :class="[customerVendBindingIndex !== customerVendBindings.length - 1? 'pb-3' : 'relative bg-gray-300 rounded']">
                 <template v-if="true">
                   <span class="group relative flex items-start">
                     <span class="flex h-9 items-center">
-                      <span class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full" :class="[customer.is_binding ? 'bg-green-600' : 'bg-red-600']">
-                        <LockClosedIcon class="h-5 w-5 text-white" aria-hidden="true" v-if="customer.is_binding"/>
-                        <LockOpenIcon class="h-5 w-5 text-white" aria-hidden="true" v-if="!customer.is_binding"/>
+                      <span class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full" :class="[customerVendBinding.is_binding ? 'bg-green-600' : 'bg-red-600']">
+                        <LockClosedIcon class="h-5 w-5 text-white" aria-hidden="true" v-if="customerVendBinding.is_binding"/>
+                        <LockOpenIcon class="h-5 w-5 text-white" aria-hidden="true" v-if="!customerVendBinding.is_binding"/>
                       </span>
                     </span>
                     <span class="ml-4 flex min-w-0 flex-col">
                       <span class="text-sm font-medium">
-                        <span v-if="customer.virtual_customer_prefix">
-                          {{ customer.virtual_customer_prefix }}-{{ customer.virtual_customer_code }}
+                        <span v-if="customerVendBinding.customer?.virtual_customer_prefix">
+                          {{ customerVendBinding.customer.virtual_customer_prefix }}-{{ customerVendBinding.customer.virtual_customer_code }}
                         </span>
-                        {{ customer.name }}
+                        {{ customerVendBinding?.customer.name }}
                       </span>
-                      <span class="text-sm text-gray-500">{{ customer.created_at }}</span>
+                      <span class="text-sm text-gray-500">{{ customerVendBinding.created_at ? formatDatetime(customerVendBinding.created_at) : '' }}</span>
                     </span>
                   </span>
                 </template>
-                <!-- <template v-else-if="customerIndex === vend.customer_movement_history_json.length - 1">
-                  <a :href="'/customers/' + customer.id + '/edit'" class="group relative flex items-start" aria-current="step">
-                    <span class="flex h-9 items-center" aria-hidden="true">
-                      <span class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-indigo-600 bg-white">
-                        <span class="h-2.5 w-2.5 rounded-full bg-indigo-600" />
-                      </span>
-                    </span>
-                    <span class="ml-4 flex min-w-0 flex-col text-blue-600">
-                      <span class="text-sm font-medium">
-                        <span v-if="customer.virtual_customer_prefix">
-                          {{ customer.virtual_customer_prefix }}-{{ customer.virtual_customer_code }}
-                        </span>
-                        {{ customer.name }}
-                      </span>
-                      <span class="text-sm text-gray-500">{{ customer.created_at }}</span>
-                    </span>
-                  </a>
-                </template> -->
               </li>
             </ol>
           </nav>
-          <template v-if="!vend.customer_movement_history_json || !vend.customer_movement_history_json.length">
+          <template v-if="!customerVendBindings || !customerVendBindings.length">
             <span class="group relative flex items-start">
               <span class="flex h-9 items-center">
                 <span class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-red-600">
@@ -1112,7 +1164,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
-import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
+import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
@@ -1170,11 +1222,13 @@ const cashlessTerminalOptions = ref([])
 const clawMachineBoardOptions = ref([])
 const clawMachineBodyOptions = ref([])
 const countryOptions = ref([])
+const customerVendBindings = ref([])
 const lcdMonitorOptions = ref([])
 const ledMatrixPanelOptions = ref([])
 const menuFrameOptions = ref([])
 const modemTypeOptions = ref([])
 const modemUnitOptions = ref([])
+const operatorCountry = usePage().props.auth.operatorCountry;
 const keyOptions = ref([])
 const isExisting = ref(1)
 const operatorOptions = ref([])
@@ -1184,6 +1238,7 @@ const serverPriceTypeOptions = ref([])
 const simcardOptions = ref([])
 const upcomingProductMappingOptions = ref([])
 const toast = useToast()
+const vendChannels = ref([]);
 const vendConfigOptions = ref([])
 const vendContractOptions = ref([])
 const vendModelOptions = ref([])
@@ -1398,11 +1453,25 @@ onMounted(() => {
     },
   }) : useForm(getDefaultForm())
 
+
+  customerVendBindings.value = props.vend.customer_vend_bindings
+
   adminCustomerOptions.value = props.adminCustomerOptions.data.map(customer => ({
     id: customer.id,
     full_name: customer.person_id && customer.virtual_customer_code ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name + ' [cms]'  : customer.name,
   }))
+
+  vendChannels.value = props.vend ? props.vend.vend_channels : [];
 })
+
+function compareSellingPrice(channel) {
+  if (channel.product && channel.product.selling_prices[0] && channel.product.selling_prices[0].amount) {
+    if (channel.amount != channel.product.selling_prices[0].amount) {
+      return 'text-red-500';
+    }
+  }
+  return 'text-gray-800';
+}
 
 function formatDatetime(datetime) {
   return datetime ? moment(datetime).format('YYYY-MM-DD hh:mm a') : ''
