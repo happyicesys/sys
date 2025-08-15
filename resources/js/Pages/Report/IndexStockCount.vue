@@ -563,9 +563,9 @@ onMounted(() => {
 
 // replace your current dayLabel with this:
 const dayLabel = (key) => {
-  if (key === 'd0') return 'Today';
-  if (key === 'd1') return 'Yesterday';
-  return '2 days ago'; // d2
+  if (key === 'd0') return 'Yesterday';
+  if (key === 'd1') return '2 Days Ago';
+  return '3 days ago'; // d2
 };
 
 // (optional) tiny helper to show the actual date as a tooltip

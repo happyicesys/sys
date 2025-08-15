@@ -1182,9 +1182,9 @@ class ReportController extends Controller
     {
         $tz  = $this->getUserTimezone();
         $end = Carbon::parse($request->date_to ?? Carbon::today($tz), $tz)->toDateString();
-        $d0  = $end;
-        $d1  = Carbon::parse($end)->subDay()->toDateString();
-        $d2  = Carbon::parse($end)->subDays(2)->toDateString();
+        $d0  = Carbon::parse($end)->subDay()->toDateString();
+        $d1  = Carbon::parse($end)->subDays(2)->toDateString();
+        $d2  = Carbon::parse($end)->subDays(3)->toDateString();
 
         // Uses sc.* (stock_counts) alias, so we can reuse it in both queries
         $dateSql = "DATE(CONCAT(sc.year,'-',LPAD(sc.month,2,'0'),'-',LPAD(sc.day,2,'0')))";

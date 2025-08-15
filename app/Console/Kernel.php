@@ -30,7 +30,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('refund:payment-gateway-every-ten-minutes')->everyTenMinutes();
         $schedule->command('sync:voucher-status-daily')->daily();
         $schedule->command('telescope:prune --hours=48')->dailyAt('01:00');
-        $schedule->command('save:today-stock-count')->daily();
+        $schedule->command('save:today-stock-count')->dailyAt('23:59');
         // $schedule->command('release:voucher-lock-every-2-mins')->everyMinute();
     }
 
