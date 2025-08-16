@@ -1591,6 +1591,7 @@ font-size:13px;
       visited: true,
   })
 
+  const authUser = usePage().props.auth.user
   const authOperator = usePage().props.auth.operator
   const baseUrl = ref(props.indexType === 'customers' ? '/vends/customers' : '/vends')
   const booleanOptions = ref([])
@@ -1636,7 +1637,6 @@ font-size:13px;
   const now = ref(moment().format('HH:mm:ss'))
 
 onMounted(() => {
-  // console.log(props.vends)
 filters.value.visited = true
 vendChannelErrorsOptions.value = [
     // {'id': '', 'desc': 'All'},
@@ -1719,13 +1719,21 @@ operatorOptions.value = [
     ...props.operatorOptions.data.map((data) => {return {id: data.id, code:data.code, full_name: data.full_name}})
 ]
 sellingPriceTypeOptions.value = Object.entries(props.sellingPriceTypeOptions).map(([id, name]) => ({id: id, value: name}))
-statusOptions.value = [
+
+if(authUser.is_production_status_only) {
+  statusOptions.value = [
+    {id: 'factory', value: 'Factory (JB)'},
+]
+}else {
+  statusOptions.value = [
     {id: 'all', value: 'All'},
     {id: 'factory', value: 'Factory (JB)'},
     {id: 'active', value: 'Active'},
     {id: 'inactive', value: 'Not Active'},
     {id: 'disposed', value: 'Disposed'},
-]
+  ]
+}
+
 vendModelOptions.value = [
     {id: 'all', value: 'All'},
     ...props.vendModelOptions.data.map((data) => {return {id: data.id, value: data.name}})
@@ -1761,7 +1769,7 @@ filters.value.locationType = locationTypeOptions.value[0]
 		operatorOptions.value.find(operator => operator.code == 'HIESG'),
 	] : [],
 ] : operatorOptions.value[0]
-filters.value.status = statusOptions.value[2]
+filters.value.status = statusOptions.value[0]
 // vendOptions.value = props.vendOptions.data.map((vend) => {return {id: vend.id, code: vend.code}})
 })
 

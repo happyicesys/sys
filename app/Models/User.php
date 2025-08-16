@@ -27,6 +27,7 @@ class User extends Authenticatable
         'name',
         'email',
         'is_active',
+        'is_production_status_only',
         'operator_id',
         'password',
         'password_confirmation',
@@ -53,6 +54,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'is_production_status_only' => 'boolean',
     ];
 
     // protected $with = ['vends'];

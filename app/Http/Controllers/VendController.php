@@ -154,6 +154,16 @@ class VendController extends Controller
             }
         }
 
+        if(auth()->user()->is_production_status_only) {
+            $request->merge([
+                'status' => 'factory'
+            ]);
+        }else {
+            $request->merge([
+                'status' => $request->status != null ? $request->status : 'active'
+            ]);
+        }
+
 
         if (!$request->operators) {
             $userOperator = auth()->user()->operator;

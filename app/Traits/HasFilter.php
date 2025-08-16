@@ -183,7 +183,6 @@ trait HasFilter {
             'is_door_open' => $request->is_door_open != null ? $request->is_door_open : 'all',
             'is_online' => $request->is_online != null ? $request->is_online : 'all',
             'is_sensor' => $request->is_sensor != null ? $request->is_sensor : 'all',
-            'status' => $request->status != null ? $request->status : 'active',
             // 'is_testing' => $request->is_testing != null ? $request->is_testing : 'all',
         ]);
 
