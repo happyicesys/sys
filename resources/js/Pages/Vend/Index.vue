@@ -81,7 +81,7 @@
           >
           </MultiSelect>
         </div>
-        <div v-if="permissions.includes('admin-access vend-machines')">
+        <div>
           <label for="text" class="block text-sm font-medium text-gray-700">
             Machine Status
           </label>
@@ -132,7 +132,7 @@
         <SearchInput :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Fan Speed" v-model="filters.fanSpeedLowerThan" @keyup.enter="onSearchFilterUpdated()">
             Fan Speed &lt;&lt;
         </SearchInput>
-        <div v-if="permissions.includes('admin-access vend-machines')">
+        <div>
           <label for="text" class="block text-sm font-medium text-gray-700">
             Operator
           </label>
