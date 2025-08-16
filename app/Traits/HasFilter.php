@@ -10,6 +10,23 @@ use Illuminate\Support\Facades\Http;
 
 trait HasFilter {
 
+    public function filterUserHasOperator($query)
+    {
+        if(auth()->check()) {
+            $operatorId = auth()->user()->operator_id;
+            $isHappyIce = $operatorId == 1 ? true : false;
+            if($isHappyIce) {
+              $operatorId = null;
+            }
+            if($operatorId) {
+                $query = $query->whereHas('operator', function($query) use ($operatorId) {
+                    $query->where('id', $operatorId);
+                });
+            }
+        }
+        return $query;
+    }
+
     public function filterOperator($query)
     {
         if(auth()->check()) {

@@ -79,6 +79,26 @@
                   Remarks
                 </FormTextarea>
               </div>
+              <div class="sm:col-span-6">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Machine Email Alert User(s)
+                </label>
+                <MultiSelect
+                  v-model="form.email_recipients"
+                  :options="emailUserOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  mode="tags"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.email_recipients">
+                  {{ form.errors.email_recipients }}
+                </div>
+              </div>
 
               <div class="sm:col-span-6">
                 <div class="flex space-x-1 mt-5 justify-end">
@@ -614,6 +634,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
     countries: [Array, Object],
+    emailUserOptions: Object,
     operator: Object,
     timezones: [Array, Object],
     type: String,
@@ -644,6 +665,7 @@ const props = defineProps({
     is_active_vend: booleanOptions.value[1],
     prefix_code: ''
   })
+  const emailUserOptions = ref([])
   const loading = ref(false)
 
   const operatorPaymentGateways = ref([])
@@ -664,6 +686,7 @@ onMounted(() => {
     countryOptions.value = props.countries.data
     deliveryPlatformOperators.value = props.operator ? props.operator.data.deliveryPlatformOperators : null
     deliveryPlatformOperatorTypes.value = props.deliveryPlatformOperatorTypes
+    emailUserOptions.value = props.emailUserOptions.data
     form.value = props.operator ? useForm(props.operator.data) : useForm(getDefaultForm())
     timezoneOptions.value = props.timezones.map((timezone, index) => {return {id: index, name: timezone}})
     operatorPaymentGatewayTypes.value = props.operatorPaymentGatewayTypes
@@ -688,6 +711,7 @@ function getDefaultForm() {
     delivery_platform_field4: '',
     delivery_platform_oauth_client_id: '',
     delivery_platform_oauth_client_secret: '',
+    email_recipients: [],
     endpoint: '',
     payment_gateway_id: '',
     payment_gateway_type: '',
@@ -834,6 +858,7 @@ function submit() {
     form.value
       .transform((data) => ({
         ...data,
+        email_recipients: data.email_recipients.map((recipient) => recipient.id),
         timezone: data.timezone ? data.timezone.name : null,
         country_id: data.country_id ? data.country_id.id : null,
       }))

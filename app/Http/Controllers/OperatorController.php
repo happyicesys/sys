@@ -6,6 +6,7 @@ use App\Http\Resources\CountryResource;
 use App\Http\Resources\DeliveryPlatformResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentGatewayResource;
+use App\Http\Resources\UserResource;
 use App\Http\Resources\VendResource;
 use App\Models\Country;
 use App\Models\Customer;
@@ -15,7 +16,9 @@ use App\Models\Operator;
 use App\Models\OperatorPaymentGateway;
 use App\Models\OperatorVend;
 use App\Models\PaymentGateway;
+use App\Models\User;
 use App\Models\Vend;
+use App\Traits\HasFilter;
 use Carbon\Carbon;
 use DateTimeZone;
 use Illuminate\Http\Request;
@@ -23,6 +26,8 @@ use Inertia\Inertia;
 
 class OperatorController extends Controller
 {
+    use HasFilter;
+
     public function __construct()
     {
         $this->middleware(['permission:read operators']);
@@ -200,6 +205,24 @@ class OperatorController extends Controller
                 DeliveryPlatformOperator::TYPE_SANDBOX,
                 DeliveryPlatformOperator::TYPE_PRODUCTION
             ],
+            'emailUserOptions' => UserResource::collection(
+                    User::query()
+                    ->where('is_active', true)
+                    ->where(function($query) {
+                        $operatorId = auth()->user()->operator_id;
+                        $isHappyIce = $operatorId == 1 ? true : false;
+                        if($isHappyIce) {
+                          $operatorId = null;
+                        }
+                        if($operatorId) {
+                            $query = $query->whereHas('operator', function($query) use ($operatorId) {
+                                $query->where('id', $operatorId);
+                            });
+                        }
+                    })
+                    ->orderBy('name')
+                    ->get()
+            ),
             'operatorPaymentGatewayTypes' => [
                 OperatorPaymentGateway::TYPE_SANDBOX,
                 OperatorPaymentGateway::TYPE_PRODUCTION
@@ -248,12 +271,29 @@ class OperatorController extends Controller
             'country_id' => 'required',
             'name' => 'required',
             'timezone' => 'required',
+            'email_recipients' => ['nullable','array'],
+            'email_recipients.*.email' => ['required','email'],
+            'email_recipients.*.label' => ['nullable','string','max:255'],
         ]);
 
         if(!$request->has('gst_vat_rate') or $request->gst_vat_rate == null) {
             $request->merge(['gst_vat_rate' => 0]);
         }
-        $operator = Operator::create($request->all());
+        $operator = Operator::create(
+            collect($request->all())->except('email_recipients')->toArray()
+        );
+
+        // Save recipients into json column
+        $operator->email_recipients_json = collect($request->input('email_recipients', []))
+            ->map(fn($r) => [
+                'email' => strtolower(trim($r['email'] ?? '')),
+                'label' => trim($r['label'] ?? ''),
+            ])
+            ->filter(fn($r) => !empty($r['email']))
+            ->unique('email')
+            ->values()
+            ->all();
+        $operator->save();
 
         // return redirect()->route('operators');
         return redirect()->route('operators.edit', [$operator->id]);
@@ -280,10 +320,27 @@ class OperatorController extends Controller
     {
         $request->validate([
             'name' => 'required',
+            'email_recipients' => ['nullable','array'],
+            'email_recipients.*.email' => ['required','email'],
+            'email_recipients.*.label' => ['nullable','string','max:255'],
         ]);
 
         $operator = Operator::findOrFail($operatorId);
-        $operator->update($request->all());
+        $operator->update(
+            collect($request->all())->except('email_recipients')->toArray()
+        );
+
+        $operator->email_recipients_json = collect($request->input('email_recipients', []))
+            ->map(fn($r) => [
+                'email' => strtolower(trim($r['email'] ?? '')),
+                'label' => trim($r['label'] ?? ''),
+            ])
+            ->filter(fn($r) => !empty($r['email']))
+            ->unique('email')
+            ->values()
+            ->all();
+
+        $operator->save();
 
         return redirect()->route('operators.edit', [$operatorId]);
     }

@@ -100,7 +100,7 @@ class RolePermissionSyncSeeder extends Seeder
 
             ['machine-settings',
             ['read', 'export'],
-            ['superadmin', 'admin', 'supervisor', 'technician']],
+            ['superadmin', 'admin', 'supervisor', 'technician', 'production_jb']],
 
             ['apk-settings',
             ['read', 'export'],

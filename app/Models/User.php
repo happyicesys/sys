@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Traits\HasFilter;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -13,7 +14,7 @@ use Laravel\Passport\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, HasRoles, Notifiable;
+    use HasApiTokens, HasFactory, HasFilter, HasRoles, Notifiable;
 
     protected $guard_name = 'web';
     /**
@@ -79,27 +80,35 @@ class User extends Authenticatable
         // return '/vends/customers';
         $currentRole = (int)$this->roles()->first()->id;
 
-        if($currentRole == 19 or $currentRole == 21) {
-            return '/dashboard';
-        }else {
-            return '/vends/customers';
-        }
-        // return match((int)$this->roles()->first()->id) {
-        //     1 => '/vends',
-        //     2 => '/vends',
-        //     3 => '/vends',
-        //     4 => '/vends',
-        //     5 => '/vends',
-        //     6 => '/vends',
-        //     7 => '/vends',
-        //     8 => '/vends',
-        //     9 => '/vends',
-        //     10 => '/vends',
-        //     11 => '/vends',
-        //     12 => '/vends',
-        //     13 => '/vends',
-        //     14 => '/dashboard',
-        // };
+        // if($currentRole == 19 or $currentRole == 21) {
+        //     return '/dashboard';
+        // }else {
+        //     return '/vends/customers';
+        // }
+        return match((int)$this->roles()->first()->id) {
+            1 => '/vends/customers',
+            2 => '/vends/customers',
+            3 => '/vends/customers',
+            4 => '/vends/customers',
+            5 => '/vends/customers',
+            6 => '/vends/customers',
+            7 => '/vends/customers',
+            8 => '/vends/customers',
+            9 => '/vends/customers',
+            10 => '/vends/customers',
+            11 => '/vends/customers',
+            12 => '/vends/customers',
+            13 => '/vends/customers',
+            14 => '/vends/customers',
+            15 => '/vends/customers',
+            16 => '/vends/customers',
+            17 => '/vends/customers',
+            18 => '/vends/customers',
+            19 => '/dashboard',
+            20 => '/vends/customers',
+            21 => '/dashboard',
+            22 => '/settings',
+        };
     }
 
     // relationships

@@ -23,6 +23,7 @@ class Operator extends Model
         'created_at',
         'created_by',
         'deactivated_at',
+        'email_recipients_json',
         'gst_vat_rate',
         'name',
         'is_active',
@@ -31,6 +32,10 @@ class Operator extends Model
         'remarks',
         'timezone',
         'updated_by',
+    ];
+
+    protected $casts = [
+        'email_recipients_json' => 'json',
     ];
 
     // relationships
