@@ -154,6 +154,25 @@ class VendController extends Controller
             }
         }
 
+
+        if (!$request->operators) {
+            $userOperator = auth()->user()->operator;
+
+            if ($userOperator && $userOperator->code === 'HIPL') {
+                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG'];
+
+                $operatorIds = Operator::whereIn('code', $relatedCodes)
+                    ->pluck('id')
+                    ->filter()
+                    ->values()
+                    ->toArray();
+
+                $request->merge(['operators' => $operatorIds]);
+            } else {
+                $request->merge(['operators' => [$userOperator?->id]]);
+            }
+        }
+
         $request->merge([
             'indexType' => 'vends',
             'numberPerPage' => isset($request->numberPerPage) ? $request->numberPerPage : 50,
