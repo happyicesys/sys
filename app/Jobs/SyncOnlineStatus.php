@@ -121,6 +121,17 @@ class SyncOnlineStatus implements ShouldQueue
 
                     $vend->save();
                 }
+        });
+
+        Vend::doesntHave('customer')
+            ->chunk(100, function ($vends) use ($now) {
+                foreach ($vends as $vend) {
+                    // Update online status
+                    $vend->is_online = $vend->last_updated_at && $vend->last_updated_at->diffInMinutes($now) < 15;
+                    $vend->is_temp_active = $vend->temp_updated_at && $vend->temp_updated_at->diffInMinutes($now) < 15;
+
+                    $vend->save();
+                }
             });
 
         // Update ModemUnit online status
