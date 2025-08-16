@@ -125,7 +125,7 @@ class VendController extends Controller
     )
     {
         $this->middleware(['permission:read vend-customers'])->only('indexCustomer');
-        $this->middleware(['permission:read vend-machines'])->only('index');
+        $this->middleware(['permission:read machine-view'])->only('index');
         $this->middleware(['permission:read transactions'])->only('transactionIndex');
         $this->cmsService = $cmsService;
         $this->historyService = $historyService;

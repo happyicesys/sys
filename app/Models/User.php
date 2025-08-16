@@ -107,7 +107,7 @@ class User extends Authenticatable
             19 => '/dashboard',
             20 => '/vends/customers',
             21 => '/dashboard',
-            22 => '/settings',
+            22 => '/vends',
         };
     }
 
