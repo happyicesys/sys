@@ -190,7 +190,7 @@
                   </MultiSelect>
               </div>
           </div>
-          <dl class="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <!-- <dl class="grid grid-cols-1 md:grid-cols-4 gap-2">
             <div class="col-span-1 overflow-hidden rounded-lg bg-gray-100 mt-1 px-4 py-3 shadow">
                 <dt class="truncate text-sm font-medium text-gray-500">Cash Sales ({{ operatorCountry.currency_symbol }})</dt>
                 <dd class="mt-1 text-2xl font-semibold tracking-normal text-gray-900">
@@ -209,7 +209,7 @@
                     {{((totals['coin_float_amount'] ? totals['coin_float_amount'] : 0)/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                 </dd>
             </div>
-        </dl>
+        </dl> -->
       </div>
 
        <div class="mt-6 flex flex-col">
@@ -232,17 +232,17 @@
 
                         <TableHead>Product Name</TableHead>
 
-                        <TableHead class="text-center" :colspan="4" :title="dayTitle(pivotDates?.d0)">
+                        <TableHead class="text-center" :colspan="5" :title="dayTitle(pivotDates?.d0)">
                         {{ dayLabel('d0') }} <br>
                         {{ dayTitle(pivotDates?.d0) }}
                         </TableHead>
                         <th class="w-2 bg-gray-300 p-1" aria-hidden="true"></th> <!-- spacer -->
-                        <TableHead class="text-center" :colspan="4" :title="dayTitle(pivotDates?.d1)">
+                        <TableHead class="text-center" :colspan="5" :title="dayTitle(pivotDates?.d1)">
                         {{ dayLabel('d1') }} <br>
                         {{ dayTitle(pivotDates?.d1) }}
                         </TableHead>
                         <th class="w-2 bg-gray-300 p-1" aria-hidden="true"></th> <!-- spacer -->
-                        <TableHead class="text-center" :colspan="4" :title="dayTitle(pivotDates?.d2)">
+                        <TableHead class="text-center" :colspan="5" :title="dayTitle(pivotDates?.d2)">
                         {{ dayLabel('d2') }}<br>
                         {{ dayTitle(pivotDates?.d2) }}
                         </TableHead>
@@ -256,47 +256,56 @@
 
                         <!-- D0 -->
                         <TableHeadSort modelName="stock_value_d0" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_value_d0')">
-                        Stock Value $
+                        Stock Value in Machine $
                         </TableHeadSort>
                         <TableHeadSort modelName="qty_vend_d0" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('qty_vend_d0')">
-                        Qty in Machine
+                        Stock Qty in Machine
                         </TableHeadSort>
                         <TableHeadSort modelName="qty_warehouse_d0" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('qty_warehouse_d0')">
-                        Qty in Warehouse
+                        Stock Qty in Warehouse
                         </TableHeadSort>
-                        <TableHeadSort class="border-block" modelName="stock_cost_d0" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_cost_d0')">
-                        Stock cost $
+                        <TableHeadSort modelName="stock_cost_d0" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_cost_d0')">
+                        Total Stock cost $
                         </TableHeadSort>
+                        <TableHead>
+                        Dollar Value $
+                        </TableHead>
                         <th class="w-2 bg-gray-300 p-0" aria-hidden="true"></th> <!-- spacer -->
 
                         <!-- D1 -->
                         <TableHeadSort modelName="stock_value_d1" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_value_d1')">
-                        Stock Value $
+                        Stock Value in Machine $
                         </TableHeadSort>
                         <TableHeadSort modelName="qty_vend_d1" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('qty_vend_d1')">
-                        Qty in Machine
+                        Stock Qty in Machine
                         </TableHeadSort>
                         <TableHeadSort modelName="qty_warehouse_d1" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('qty_warehouse_d1')">
-                        Qty in Warehouse
+                        Stock Qty in Warehouse
                         </TableHeadSort>
-                        <TableHeadSort class="border-block" modelName="stock_cost_d1" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_cost_d1')">
-                        Stock cost $
+                        <TableHeadSort modelName="stock_cost_d1" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_cost_d1')">
+                        Total Stock cost $
                         </TableHeadSort>
+                        <TableHead>
+                        Dollar Value $
+                        </TableHead>
                         <th class="w-2 bg-gray-300 p-0" aria-hidden="true"></th> <!-- spacer -->
 
                         <!-- D2 -->
                         <TableHeadSort modelName="stock_value_d2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_value_d2')">
-                        Stock Value $
+                        Stock Value in Machine $
                         </TableHeadSort>
                         <TableHeadSort modelName="qty_vend_d2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('qty_vend_d2')">
-                        Qty in Machine
+                        Stock Qty in Machine
                         </TableHeadSort>
                         <TableHeadSort modelName="qty_warehouse_d2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('qty_warehouse_d2')">
-                        Qty in Warehouse
+                        Stock Qty in Warehouse
                         </TableHeadSort>
-                        <TableHeadSort class="border-block" modelName="stock_cost_d2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_cost_d2')">
-                        Stock cost $
+                        <TableHeadSort modelName="stock_cost_d2" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('stock_cost_d2')">
+                        Total Stock cost $
                         </TableHeadSort>
+                        <TableHead>
+                        Dollar Value $
+                        </TableHead>
                         <th class="w-2 bg-gray-300 p-0" aria-hidden="true"></th> <!-- spacer -->
                     </tr>
                 </thead>
@@ -327,6 +336,7 @@
                         <TableData inputClass="text-right border-block">
                             {{(row.stock_cost_d0 ?? 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                         </TableData>
+                        <td></td>
                         <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td> <!-- spacer -->
 
                         <!-- D1 -->
@@ -342,6 +352,7 @@
                         <TableData inputClass="text-right border-block">
                             {{(row.stock_cost_d1 ?? 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                         </TableData>
+                        <td></td>
                         <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td> <!-- spacer -->
 
                         <!-- D2 -->
@@ -357,8 +368,90 @@
                         <TableData inputClass="text-right border-block">
                             {{(row.stock_cost_d2 ?? 0).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)})}}
                         </TableData>
+                        <td></td>
                         <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td> <!-- spacer -->
                     </tr>
+                    <!-- Receivable - Daily cash sales -->
+                    <tr class="divide-x divide-gray-300 bg-white text-sm text-gray-900">
+                    <td colspan="3" class="text-left px-2 py-2">Receivable - Daily cash sales</td>
+
+                    <!-- d0 group: leave metric columns blank, put number in last column "Dollar Value $" -->
+                    <td></td><td></td><td></td><td class="border-block"></td>
+                    <td class="text-right px-2 py-2">
+                        {{ Number(props.totals?.cash_sales_amount_d0 ?? 0)
+                            .toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                    </td>
+
+                    <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td>
+
+                    <!-- d1 -->
+                    <td></td><td></td><td></td><td class="border-block"></td>
+                    <td class="text-right px-2 py-2">
+                        {{ Number(props.totals?.cash_sales_amount_d1 ?? 0)
+                            .toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                    </td>
+
+                    <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td>
+
+                    <!-- d2 -->
+                    <td></td><td></td><td></td><td class="border-block"></td>
+                    <td class="text-right px-2 py-2">
+                        {{ Number(props.totals?.cash_sales_amount_d2 ?? 0)
+                            .toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                    </td>
+                    <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td>
+                    </tr>
+
+                    <!-- Receivable - Daily cashless sales -->
+                    <tr class="divide-x divide-gray-300 bg-white text-sm text-gray-900">
+                    <td colspan="3" class="text-left px-2 py-2">Receivable - Daily cashless sales</td>
+                    <td></td><td></td><td></td><td class="border-block"></td>
+                    <td class="text-right px-2 py-2">
+                        {{ Number(props.totals?.cashless_sales_amount_d0 ?? 0)
+                            .toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                    </td>
+                    <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td>
+
+                    <td></td><td></td><td></td><td class="border-block"></td>
+                    <td class="text-right px-2 py-2">
+                        {{ Number(props.totals?.cashless_sales_amount_d1 ?? 0)
+                            .toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                    </td>
+                    <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td>
+
+                    <td></td><td></td><td></td><td class="border-block"></td>
+                    <td class="text-right px-2 py-2">
+                        {{ Number(props.totals?.cashless_sales_amount_d2 ?? 0)
+                            .toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                    </td>
+                    <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td>
+                    </tr>
+
+                    <!-- Coin Float in machines -->
+                    <tr class="divide-x divide-gray-300 bg-white text-sm text-gray-900">
+                    <td colspan="3" class="text-left px-2 py-2">Coin Float in machines</td>
+                    <td></td><td></td><td></td><td class="border-block"></td>
+                    <td class="text-right px-2 py-2">
+                        {{ Number(props.totals?.coin_float_amount_d0 ?? 0)
+                            .toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                    </td>
+                    <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td>
+
+                    <td></td><td></td><td></td><td class="border-block"></td>
+                    <td class="text-right px-2 py-2">
+                        {{ Number(props.totals?.coin_float_amount_d1 ?? 0)
+                            .toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                    </td>
+                    <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td>
+
+                    <td></td><td></td><td></td><td class="border-block"></td>
+                    <td class="text-right px-2 py-2">
+                        {{ Number(props.totals?.coin_float_amount_d2 ?? 0)
+                            .toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
+                    </td>
+                    <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td>
+                    </tr>
+
 
                     <tr v-if="!(stockCounts.data && stockCounts.data.length)">
                         <td colspan="30" class="py-4 text-sm font-medium text-center">
@@ -366,7 +459,7 @@
                         </td>
                     </tr>
                     </tbody>
-                    <tfoot class="bg-gray-50 font-normal"  v-if="!(stockCounts.data && stockCounts.data.length)">
+                    <tfoot class="bg-gray-50 font-normal"  v-if="(stockCounts.data && stockCounts.data.length)">
                         <tr>
                             <td colspan="30" class="w-1 bg-gray-300 p-0" aria-hidden="true">.</td>
                         </tr>
@@ -388,6 +481,7 @@
                             {{ Number(props.totals?.stock_cost_d0 ?? 0)
                                 .toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
                             </td>
+                            <td></td>
                             <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td>
 
                             <!-- D1 -->
@@ -405,6 +499,7 @@
                             {{ Number(props.totals?.stock_cost_d1 ?? 0)
                                 .toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
                             </td>
+                            <td></td>
                             <td class="w-2 bg-gray-300 p-0" aria-hidden="true"></td>
 
                             <!-- D2 -->
@@ -412,6 +507,7 @@
                             {{ Number(props.totals?.stock_value_d2 ?? 0)
                                 .toLocaleString(undefined, { minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent) }) }}
                             </td>
+                            <td></td>
                             <td class="text-right px-1 py-2">
                             {{ Number(props.totals?.qty_vend_d2 ?? 0).toLocaleString() }}
                             </td>

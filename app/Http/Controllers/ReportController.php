@@ -578,70 +578,114 @@ class ReportController extends Controller
             'visited'       => $request->boolean('visited'),
             'sortKey'       => $request->input('sortKey', 'product_code'),
             'sortBy'        => $request->input('sortBy', false),
-            'numberPerPage' => 'All', // <- export all rows
+            'numberPerPage' => 'All',
         ]);
 
-        // ------- get the same pivot rows/totals you use on the page -------
+        // ------- same pivot as page -------
         [$paginator, $pivotDates, $totals] = $this->getStockCountPivot3dQuery($request);
         $rows = collect($paginator->items());
 
-        $d0 = Carbon::parse($pivotDates['d0'])->toDateString(); // e.g. 2025-08-13
+        // d0 = yesterday of end date, d1 = -2 days, d2 = -3 days
+        $d0 = Carbon::parse($pivotDates['d0'])->toDateString();
         $d1 = Carbon::parse($pivotDates['d1'])->toDateString();
         $d2 = Carbon::parse($pivotDates['d2'])->toDateString();
 
-        // Build a flat export dataset with dated column headers
-        $exportRows = $rows->map(function ($r) use ($d0, $d1, $d2) {
-            // $r is stdClass from the query
-            return [
-                'Product ID'                   => $r->product_code,
-                'Product Name'                 => $r->product_name,
+        // ----- Build a single canonical header list (order matters) -----
+        $headers = [
+            'Product ID',
+            'Product Name',
 
-                "{$d0} Stock Value"            => (float) ($r->stock_value_d0 ?? 0),
-                "{$d0} Qty in Machine"         => (int)   ($r->qty_vend_d0 ?? 0),
-                "{$d0} Qty in Warehouse"       => (int)   ($r->qty_warehouse_d0 ?? 0),
-                "{$d0} Stock Cost"             => (float) ($r->stock_cost_d0 ?? 0),
+            "{$d0} Stock Value",
+            "{$d0} Qty in Machine",
+            "{$d0} Qty in Warehouse",
+            "{$d0} Stock Cost",
+            "{$d0} Dollar Value",
 
-                "{$d1} Stock Value"            => (float) ($r->stock_value_d1 ?? 0),
-                "{$d1} Qty in Machine"         => (int)   ($r->qty_vend_d1 ?? 0),
-                "{$d1} Qty in Warehouse"       => (int)   ($r->qty_warehouse_d1 ?? 0),
-                "{$d1} Stock Cost"             => (float) ($r->stock_cost_d1 ?? 0),
+            "{$d1} Stock Value",
+            "{$d1} Qty in Machine",
+            "{$d1} Qty in Warehouse",
+            "{$d1} Stock Cost",
+            "{$d1} Dollar Value",
 
-                "{$d2} Stock Value"            => (float) ($r->stock_value_d2 ?? 0),
-                "{$d2} Qty in Machine"         => (int)   ($r->qty_vend_d2 ?? 0),
-                "{$d2} Qty in Warehouse"       => (int)   ($r->qty_warehouse_d2 ?? 0),
-                "{$d2} Stock Cost"             => (float) ($r->stock_cost_d2 ?? 0),
-            ];
-        });
+            "{$d2} Stock Value",
+            "{$d2} Qty in Machine",
+            "{$d2} Qty in Warehouse",
+            "{$d2} Stock Cost",
+            "{$d2} Dollar Value",
+        ];
 
-        // Append a subtotal row (matches the <tfoot> on the page)
-        $exportRows->push([
-            'Product ID'                     => 'Subtotal',
-            'Product Name'                   => null,
+        $template = array_fill_keys($headers, null);
 
-            "{$d0} Stock Value"              => (float) ($totals->stock_value_d0 ?? 0),
-            "{$d0} Qty in Machine"           => (int)   ($totals->qty_vend_d0 ?? 0),
-            "{$d0} Qty in Warehouse"         => (int)   ($totals->qty_warehouse_d0 ?? 0),
-            "{$d0} Stock Cost"               => (float) ($totals->stock_cost_d0 ?? 0),
+        // Helper to build a product row with all keys present
+        $makeProductRow = function ($r) use ($template, $d0, $d1, $d2) {
+            $row = $template;
 
-            "{$d1} Stock Value"              => (float) ($totals->stock_value_d1 ?? 0),
-            "{$d1} Qty in Machine"           => (int)   ($totals->qty_vend_d1 ?? 0),
-            "{$d1} Qty in Warehouse"         => (int)   ($totals->qty_warehouse_d1 ?? 0),
-            "{$d1} Stock Cost"               => (float) ($totals->stock_cost_d1 ?? 0),
+            $row['Product ID']   = $r->product_code;
+            $row['Product Name'] = $r->product_name;
 
-            "{$d2} Stock Value"              => (float) ($totals->stock_value_d2 ?? 0),
-            "{$d2} Qty in Machine"           => (int)   ($totals->qty_vend_d2 ?? 0),
-            "{$d2} Qty in Warehouse"         => (int)   ($totals->qty_warehouse_d2 ?? 0),
-            "{$d2} Stock Cost"               => (float) ($totals->stock_cost_d2 ?? 0),
-        ]);
+            // d0
+            $row["{$d0} Stock Value"]      = (float) ($r->stock_value_d0 ?? 0);
+            $row["{$d0} Qty in Machine"]   = (int)   ($r->qty_vend_d0 ?? 0);
+            $row["{$d0} Qty in Warehouse"] = (int)   ($r->qty_warehouse_d0 ?? 0);
+            $row["{$d0} Stock Cost"]       = (float) ($r->stock_cost_d0 ?? 0);
+            // Dollar Value left null for product rows
 
-        // Stream the file
+            // d1
+            $row["{$d1} Stock Value"]      = (float) ($r->stock_value_d1 ?? 0);
+            $row["{$d1} Qty in Machine"]   = (int)   ($r->qty_vend_d1 ?? 0);
+            $row["{$d1} Qty in Warehouse"] = (int)   ($r->qty_warehouse_d1 ?? 0);
+            $row["{$d1} Stock Cost"]       = (float) ($r->stock_cost_d1 ?? 0);
+
+            // d2
+            $row["{$d2} Stock Value"]      = (float) ($r->stock_value_d2 ?? 0);
+            $row["{$d2} Qty in Machine"]   = (int)   ($r->qty_vend_d2 ?? 0);
+            $row["{$d2} Qty in Warehouse"] = (int)   ($r->qty_warehouse_d2 ?? 0);
+            $row["{$d2} Stock Cost"]       = (float) ($r->stock_cost_d2 ?? 0);
+
+            return $row;
+        };
+
+        // Build product rows
+        $exportRows = $rows->map($makeProductRow);
+
+        // Helper to build KPI rows with only "Dollar Value" filled
+        $makeKpiRow = function (string $label, $d0Val, $d1Val, $d2Val) use ($template, $d0, $d1, $d2) {
+            $row = $template;
+            $row['Product ID']   = null;
+            $row['Product Name'] = $label;
+
+            $row["{$d0} Dollar Value"] = (float) ($d0Val ?? 0);
+            $row["{$d1} Dollar Value"] = (float) ($d1Val ?? 0);
+            $row["{$d2} Dollar Value"] = (float) ($d2Val ?? 0);
+            return $row;
+        };
+
+        // Append the 3 KPI rows (values already RM from getStockCountPivot3dQuery)
+        $exportRows->push($makeKpiRow(
+            'Receivable - Daily cash sales',
+            $totals->cash_sales_amount_d0 ?? 0,
+            $totals->cash_sales_amount_d1 ?? 0,
+            $totals->cash_sales_amount_d2 ?? 0,
+        ));
+
+        $exportRows->push($makeKpiRow(
+            'Receivable - Daily cashless sales',
+            $totals->cashless_sales_amount_d0 ?? 0,
+            $totals->cashless_sales_amount_d1 ?? 0,
+            $totals->cashless_sales_amount_d2 ?? 0,
+        ));
+
+        $exportRows->push($makeKpiRow(
+            'Coin Float in machines',
+            $totals->coin_float_amount_d0 ?? 0,
+            $totals->coin_float_amount_d1 ?? 0,
+            $totals->coin_float_amount_d2 ?? 0,
+        ));
+
+        // --- Stream the file ---
         return (new FastExcel($this->yieldOneByOne($exportRows)))
-            ->download('Stock_Count_'.Carbon::now()->format('Ymd_His').'.xlsx', function ($row) {
-                // $row is already a key=>value array with the headers we want
-                return $row;
-            });
+            ->download('Stock_Count_'.Carbon::now()->format('Ymd_His').'.xlsx', fn ($row) => $row);
     }
-
 
     public function exportUnitCostProductExcel(Request $request)
     {
@@ -1304,14 +1348,15 @@ class ReportController extends Controller
         $d1  = Carbon::parse($end)->subDays(2)->toDateString();
         $d2  = Carbon::parse($end)->subDays(3)->toDateString();
 
-        // Uses sc.* (stock_counts) alias, so we can reuse it in both queries
+        // sc.* date expression reused in SELECT/WHERE
         $dateSql = "DATE(CONCAT(sc.year,'-',LPAD(sc.month,2,'0'),'-',LPAD(sc.day,2,'0')))";
 
-        // --- your existing per-product 3-day pivot (unchanged) --------------------
+        // ---------- Per-product 3-day pivot ----------
         $q = DB::table('stock_count_items as sci')
             ->join('stock_counts as sc', 'sc.id', '=', 'sci.stock_count_id')
             ->join('products as p', 'p.id', '=', 'sci.product_id')
-            // filters
+
+            // Filters
             ->when($request->operators, function ($q, $ids) {
                 if (is_array($ids) && !in_array('all', $ids, true)) {
                     $q->whereIn('sc.operator_id', $ids);
@@ -1344,34 +1389,66 @@ class ReportController extends Controller
                     $q->whereIn('sci.product_id', $ids);
                 }
             })
+
             ->whereIn(DB::raw($dateSql), [$d0, $d1, $d2])
+
             ->select([
                 'p.id   as product_id',
                 'p.code as product_code',
                 'p.name as product_name',
+
+                // qty in machine (sum), qty in warehouse (once)
                 DB::raw("SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d0"),
                 DB::raw("SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d1"),
                 DB::raw("SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d2"),
+
                 DB::raw("MAX(CASE WHEN {$dateSql} = '{$d0}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d0"),
                 DB::raw("MAX(CASE WHEN {$dateSql} = '{$d1}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d1"),
                 DB::raw("MAX(CASE WHEN {$dateSql} = '{$d2}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d2"),
+
+                // stock value in machine (already stored in cents on sci)
                 DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d0"),
                 DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d1"),
                 DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d2"),
-                DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sci.stock_cost_amount  ELSE 0 END) / 100, 2) AS stock_cost_d0"),
-                DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sci.stock_cost_amount  ELSE 0 END) / 100, 2) AS stock_cost_d1"),
-                DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sci.stock_cost_amount  ELSE 0 END) / 100, 2) AS stock_cost_d2"),
+
+                // ==== FIXED COSTS: machine-only cost + warehouse cost ONCE (use saved unit_cost_amount) ====
+                DB::raw("
+                    ROUND((
+                        /* machine-only cost */
+                        SUM(CASE WHEN {$dateSql} = '{$d0}' THEN (sci.unit_cost_amount * sci.qty_vend) ELSE 0 END)
+                        /* + warehouse cost once */
+                        + (MAX(CASE WHEN {$dateSql} = '{$d0}' THEN sci.qty_warehouse ELSE 0 END)
+                           * MAX(CASE WHEN {$dateSql} = '{$d0}' THEN sci.unit_cost_amount ELSE 0 END))
+                    ) / 100, 2) AS stock_cost_d0
+                "),
+                DB::raw("
+                    ROUND((
+                        SUM(CASE WHEN {$dateSql} = '{$d1}' THEN (sci.unit_cost_amount * sci.qty_vend) ELSE 0 END)
+                        + (MAX(CASE WHEN {$dateSql} = '{$d1}' THEN sci.qty_warehouse ELSE 0 END)
+                           * MAX(CASE WHEN {$dateSql} = '{$d1}' THEN sci.unit_cost_amount ELSE 0 END))
+                    ) / 100, 2) AS stock_cost_d1
+                "),
+                DB::raw("
+                    ROUND((
+                        SUM(CASE WHEN {$dateSql} = '{$d2}' THEN (sci.unit_cost_amount * sci.qty_vend) ELSE 0 END)
+                        + (MAX(CASE WHEN {$dateSql} = '{$d2}' THEN sci.qty_warehouse ELSE 0 END)
+                           * MAX(CASE WHEN {$dateSql} = '{$d2}' THEN sci.unit_cost_amount ELSE 0 END))
+                    ) / 100, 2) AS stock_cost_d2
+                "),
             ])
             ->groupBy('p.id', 'p.code', 'p.name');
 
-        // sorting (unchanged) …
+        // Sorting (unchanged)
         $sortKey = $request->input('sortKey', 'product_code');
         $desc    = filter_var($request->input('sortBy', false), FILTER_VALIDATE_BOOLEAN);
         $dir     = $desc ? 'desc' : 'asc';
-        $allowed = ['product_code','qty_vend_d0','qty_vend_d1','qty_vend_d2',
-                    'qty_warehouse_d0','qty_warehouse_d1','qty_warehouse_d2',
-                    'stock_value_d0','stock_value_d1','stock_value_d2',
-                    'stock_cost_d0','stock_cost_d1','stock_cost_d2'];
+        $allowed = [
+            'product_code',
+            'qty_vend_d0','qty_vend_d1','qty_vend_d2',
+            'qty_warehouse_d0','qty_warehouse_d1','qty_warehouse_d2',
+            'stock_value_d0','stock_value_d1','stock_value_d2',
+            'stock_cost_d0','stock_cost_d1','stock_cost_d2'
+        ];
         if (!in_array($sortKey, $allowed, true)) $sortKey = 'product_code';
         if ($sortKey === 'product_code') {
             $q->orderByRaw('CAST(product_code AS UNSIGNED) '.$dir)->orderBy('product_code', $dir);
@@ -1379,7 +1456,7 @@ class ReportController extends Controller
             $q->orderBy($sortKey, $dir);
         }
 
-        // totals from the pivot rows (unchanged)
+        // Totals (sum the already-in-RM aliases)
         $totals = DB::query()
             ->fromSub((clone $q)->reorder(), 'rows')
             ->selectRaw('
@@ -1400,9 +1477,7 @@ class ReportController extends Controller
             ')
             ->first();
 
-        // --- NEW: money KPIs from stock_counts (D0 only) --------------------------
-        // If you want D0+D1+D2 together, replace ->where(DB::raw($dateSql), $d0)
-        // with ->whereIn(DB::raw($dateSql), [$d0,$d1,$d2])
+        // Money KPIs (cash, cashless, coin float) for d0/d1/d2
         $kpis = DB::table('stock_counts as sc')
             ->when($request->operators, function ($q, $ids) {
                 if (is_array($ids) && !in_array('all', $ids, true)) {
@@ -1424,33 +1499,36 @@ class ReportController extends Controller
 
                 $q->whereExists(function ($sq) use ($codes) {
                     $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
-                    if (count($codes) > 1) {
-                        $sq->whereIn('v.code', $codes);
-                    } elseif (count($codes) === 1) {
-                        $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
-                    }
+                    if (count($codes) > 1) $sq->whereIn('v.code', $codes);
+                    elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
                 });
             })
-            ->where(DB::raw($dateSql), '=', $d0)  // D0 only
-            ->selectRaw('
-                COALESCE(SUM(sc.cash_sales_amount), 0)      AS cash_sales_amount,
-                COALESCE(SUM(sc.cashless_sales_amount), 0)  AS cashless_sales_amount,
-                COALESCE(SUM(sc.coin_float_amount), 0)      AS coin_float_amount
-            ')
+            ->whereIn(DB::raw($dateSql), [$d0, $d1, $d2])
+            ->selectRaw("
+                ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sc.cash_sales_amount     ELSE 0 END) / 100, 2) AS cash_sales_amount_d0,
+                ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sc.cash_sales_amount     ELSE 0 END) / 100, 2) AS cash_sales_amount_d1,
+                ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sc.cash_sales_amount     ELSE 0 END) / 100, 2) AS cash_sales_amount_d2,
+
+                ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sc.cashless_sales_amount ELSE 0 END) / 100, 2) AS cashless_sales_amount_d0,
+                ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sc.cashless_sales_amount ELSE 0 END) / 100, 2) AS cashless_sales_amount_d1,
+                ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sc.cashless_sales_amount ELSE 0 END) / 100, 2) AS cashless_sales_amount_d2,
+
+                ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sc.coin_float_amount     ELSE 0 END) / 100, 2) AS coin_float_amount_d0,
+                ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sc.coin_float_amount     ELSE 0 END) / 100, 2) AS coin_float_amount_d1,
+                ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sc.coin_float_amount     ELSE 0 END) / 100, 2) AS coin_float_amount_d2
+            ")
             ->first();
 
-        // attach to existing totals; keep as integers (minor units)
-        $totals->cash_sales_amount     = (int) ($kpis->cash_sales_amount ?? 0);
-        $totals->cashless_sales_amount = (int) ($kpis->cashless_sales_amount ?? 0);
-        $totals->coin_float_amount     = (int) ($kpis->coin_float_amount ?? 0);
+        foreach ((array) $kpis as $k => $v) {
+            $totals->{$k} = $v ?? 0;
+        }
 
-        // --- Pagination (unchanged)
+        // Pagination
         $perPage   = ($request->numberPerPage === 'All') ? 10000 : (int)($request->numberPerPage ?? 100);
         $paginator = $q->paginate($perPage)->appends($request->query());
 
         return [$paginator, ['d0' => $d0, 'd1' => $d1, 'd2' => $d2], $totals];
     }
-
 
 
     private function getSalesSubTotal($dataCols)

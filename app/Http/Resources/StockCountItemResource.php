@@ -22,6 +22,7 @@ class StockCountItemResource extends JsonResource
             'product_id' => $this->product_id,
             'qty_vend' => $this->qty_vend,
             'qty_warehouse' => $this->qty_warehouse,
+            'unit_cost_amount' => $this->unit_cost_amount,
         ];
     }
 }

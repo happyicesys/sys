@@ -14,6 +14,7 @@ class StockCountItem extends Model
         'product_id',
         'qty_vend',
         'qty_warehouse',
+        'unit_cost_amount',
     ];
 
     // mutator and accessor
@@ -25,6 +26,13 @@ class StockCountItem extends Model
     }
 
     protected function stockValueAmount(): Attribute
+    {
+        return Attribute::make(
+            get: fn (string $value) => $value/ 100 ,
+        );
+    }
+
+    protected function unitCostAmount(): Attribute
     {
         return Attribute::make(
             get: fn (string $value) => $value/ 100 ,

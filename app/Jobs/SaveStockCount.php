@@ -84,9 +84,6 @@ class SaveStockCount implements ShouldQueue
         // Build per-product aggregates + not-yet-synced picked qty
         $perProducts = DB::table('vend_channels as vc')
             ->join('products as p', 'p.id', '=', 'vc.product_id')
-            ->leftJoin('unit_costs as uc', function ($j) {
-                $j->on('uc.product_id', '=', 'vc.product_id')->where('uc.is_current', true);
-            })
             ->leftJoin(DB::raw('
                 (
                     SELECT
@@ -96,7 +93,7 @@ class SaveStockCount implements ShouldQueue
                     JOIN ops_job_items oji ON oji.id = ojic.ops_job_item_id
                     JOIN ops_jobs oj ON oj.id = oji.ops_job_id
                     WHERE DATE(oj.date) >= CURRENT_DATE
-                      AND oji.cms_transaction_id IS NULL
+                    AND oji.cms_transaction_id IS NULL
                     GROUP BY ojic.product_id
                 ) ny
             '), 'ny.product_id', '=', 'vc.product_id')
@@ -105,19 +102,32 @@ class SaveStockCount implements ShouldQueue
             ->where('vc.capacity', '>', 0)
             ->groupBy('vc.product_id', 'p.code')
             ->select('vc.product_id', 'p.code')
-            ->selectRaw('COALESCE(SUM(vc.qty), 0)               AS qty_vend')
-            ->selectRaw('COALESCE(SUM(vc.amount * vc.qty), 0)   AS value_cents')
-            ->selectRaw('COALESCE(SUM(vc.qty * uc.cost), 0)     AS cost_cents')
-            ->selectRaw('COALESCE(ny.not_yet_sync_qty, 0)       AS not_yet_sync_qty')
+            // machine totals per product (no warehouse here)
+            ->selectRaw('COALESCE(SUM(vc.qty), 0)             AS qty_vend')
+            ->selectRaw('COALESCE(SUM(vc.amount * vc.qty), 0) AS value_cents')
+            // latest unit cost per product (one value, not per-channel)
+            ->selectRaw('(
+                SELECT uc2.cost
+                FROM unit_costs uc2
+                WHERE uc2.product_id = vc.product_id
+                ORDER BY uc2.is_current DESC, uc2.date_from DESC, uc2.created_at DESC
+                LIMIT 1
+            ) AS unit_cost_cents')
+            ->selectRaw('COALESCE(ny.not_yet_sync_qty, 0)     AS not_yet_sync_qty')
             ->get();
 
-        // Upsert items; pass RM to money fields so mutators store cents
+        // Upsert items; pass cents to money fields (mutators handle cents)
         $seen = [];
         foreach ($perProducts as $row) {
             $seen[] = (int) $row->product_id;
 
+            // warehouse qty once per product
             $cmsAvailable = $cmsQtyByCode[$row->code] ?? 0;
-            $qtyWarehouse = max(0, $cmsAvailable - (int) $row->not_yet_sync_qty);
+            $qtyWarehouse = max(0, (int) $cmsAvailable - (int) $row->not_yet_sync_qty);
+
+            // cost = latest_unit_cost × (sum channel qty + warehouse qty)
+            $unitCostCents = (int) ($row->unit_cost_cents ?? 0);
+            $stockCost     = $unitCostCents * (int) $row->qty_vend;
 
             $stockCount->stockCountItems()->updateOrCreate(
                 ['product_id' => (int) $row->product_id],
@@ -125,13 +135,14 @@ class SaveStockCount implements ShouldQueue
                     'product_id'         => (int) $row->product_id,
                     'qty_vend'           => (int) $row->qty_vend,
                     'qty_warehouse'      => (int) $qtyWarehouse,
-                    'stock_value_amount' => ((int) $row->value_cents),
-                    'stock_cost_amount'  => ((int) $row->cost_cents)
+                    'stock_value_amount' => (int) $row->value_cents,  // machine value only
+                    'stock_cost_amount'  => (int) $stockCost,         // total cost (machine+WH)
+                    'unit_cost_amount' => (int) $unitCostCents, // latest unit cost
                 ]
             );
         }
 
-        // Optional: remove items that no longer exist on this vend
+        // Optional cleanup unchanged…
         if (!empty($seen)) {
             $stockCount->stockCountItems()->whereNotIn('product_id', $seen)->delete();
         }
