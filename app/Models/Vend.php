@@ -246,6 +246,8 @@ class Vend extends Model
         'begin_date' => 'datetime',
         'customer_movement_history_json' => 'json',
         'is_disposed' => 'boolean',
+        'is_online' => 'boolean',
+        'is_temp_active' => 'boolean',
         'is_using_server_price' => 'boolean',
         'last_updated_at' => 'datetime',
         'mqtt_last_updated_at' => 'datetime',
