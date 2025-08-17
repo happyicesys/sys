@@ -1069,7 +1069,7 @@
 										:class="[
 											channelIndex > 0 && (String(channel.code)[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'col-start-1' : '',
 											channel.product && !channel.product.is_available ? 'bg-red-200' : '',
-											channel.product && channel.product.limit_qty > 0 ? 'bg-grey-300' : ''
+											channel.product && channel.product.limit_qty > 0 ? 'bg-gray-300' : ''
 										]"
 								>
 									<span :class="[channelIndex > 0 && (String(channel.code)[0] !== String(vend.vendChannelsJson[channelIndex - 1]['code'])[0]) ? 'border-t-4 pt-1' : '']">
