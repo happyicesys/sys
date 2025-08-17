@@ -3,6 +3,7 @@
 namespace App\Jobs\Vend;
 
 use App\Models\Vend;
+use Carbon\Carbon;
 use DB;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -105,6 +106,11 @@ class SaveVendChannelsJson implements ShouldQueue
                         'name' => $channel->product->name,
                         'thumbnail' => $channel->product->thumbnail ? $channel->product->thumbnail->only(['id', 'full_url', 'modelable_id', 'modelable_type', 'type']) : null,
                         'is_available' => $channel->product->is_available,
+                        'limit_qty' => DB::table('product_limits')
+                            ->where('product_id', $channel->product->id)
+                            ->whereDate('date', Carbon::today())
+                            ->orderByDesc('created_at')
+                            ->value('qty'),
                     ] : null,
                     'last_stock_in_qty' => $channel->latestOpsJobItemChannel?->actual_qty ?? null,
                     'server_amount' => $channel->server_amount ? $channel->server_amount/ 100 : null,

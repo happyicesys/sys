@@ -247,14 +247,21 @@ class VendDataService
           case 'REFILL':
             break;
           case 'REQQR':
-              // temporary disabled for now
-              // $timezone = $vend->operator->timezone ?? 'Asia/Singapore';
-              // $nowHour = Carbon::now($timezone)->format('H');
-              // if ($nowHour >= 0 && $nowHour < 6) {
-              //     break;
-              // }
-              GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)->onQueue('high');
-              break;
+            $timezone = $vend->operator->timezone ?? 'Asia/Singapore';
+
+            // Hardcoded maintenance window
+            $start = Carbon::create(2025, 8, 24, 0, 0, 0, $timezone);
+            $end   = Carbon::create(2025, 8, 24, 6, 0, 0, $timezone);
+
+            $now = Carbon::now($timezone);
+
+            if ($now->between($start, $end)) {
+                break; // skip during maintenance
+            }
+
+            GetPaymentGatewayQR::dispatch($originalInput, $processedInput, $vend)
+                ->onQueue('high');
+            break;
           case 'STATIS1':
             UpdateVendStatistics::dispatch($processedInput, $vend)->onQueue('default');
             break;
