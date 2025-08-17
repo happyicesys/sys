@@ -113,7 +113,7 @@ class SaveStockCount implements ShouldQueue
                 ORDER BY uc2.is_current DESC, uc2.date_from DESC, uc2.created_at DESC
                 LIMIT 1
             ) AS unit_cost_cents')
-            ->selectRaw('COALESCE(ny.not_yet_sync_qty, 0)     AS not_yet_sync_qty')
+            // ->selectRaw('COALESCE(ny.not_yet_sync_qty, 0)     AS not_yet_sync_qty')
             ->get();
 
         // Upsert items; pass cents to money fields (mutators handle cents)
@@ -123,7 +123,8 @@ class SaveStockCount implements ShouldQueue
 
             // warehouse qty once per product
             $cmsAvailable = $cmsQtyByCode[$row->code] ?? 0;
-            $qtyWarehouse = max(0, (int) $cmsAvailable - (int) $row->not_yet_sync_qty);
+            // $qtyWarehouse = max(0, (int) $cmsAvailable - (int) $row->not_yet_sync_qty);
+            $qtyWarehouse = max(0, (int) $cmsAvailable);
 
             // cost = latest_unit_cost × (sum channel qty + warehouse qty)
             $unitCostCents = (int) ($row->unit_cost_cents ?? 0);

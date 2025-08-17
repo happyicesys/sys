@@ -1348,15 +1348,14 @@ class ReportController extends Controller
         $d1  = Carbon::parse($end)->subDays(2)->toDateString();
         $d2  = Carbon::parse($end)->subDays(3)->toDateString();
 
-        // sc.* date expression reused in SELECT/WHERE
         $dateSql = "DATE(CONCAT(sc.year,'-',LPAD(sc.month,2,'0'),'-',LPAD(sc.day,2,'0')))";
 
-        // ---------- Per-product 3-day pivot ----------
+        // ---------- rows (per product, 3 days) ----------
         $q = DB::table('stock_count_items as sci')
             ->join('stock_counts as sc', 'sc.id', '=', 'sci.stock_count_id')
             ->join('products as p', 'p.id', '=', 'sci.product_id')
 
-            // Filters
+            // filters
             ->when($request->operators, function ($q, $ids) {
                 if (is_array($ids) && !in_array('all', $ids, true)) {
                     $q->whereIn('sc.operator_id', $ids);
@@ -1377,11 +1376,8 @@ class ReportController extends Controller
 
                 $q->whereExists(function ($sq) use ($codes) {
                     $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
-                    if (count($codes) > 1) {
-                        $sq->whereIn('v.code', $codes);
-                    } elseif (count($codes) === 1) {
-                        $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
-                    }
+                    if (count($codes) > 1) $sq->whereIn('v.code', $codes);
+                    elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
                 });
             })
             ->when($request->products, function ($q, $ids) {
@@ -1397,7 +1393,7 @@ class ReportController extends Controller
                 'p.code as product_code',
                 'p.name as product_name',
 
-                // qty in machine (sum), qty in warehouse (once)
+                // qty in machine (sum) + qty in warehouse (once)
                 DB::raw("SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d0"),
                 DB::raw("SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d1"),
                 DB::raw("SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sci.qty_vend ELSE 0 END) AS qty_vend_d2"),
@@ -1406,17 +1402,20 @@ class ReportController extends Controller
                 DB::raw("MAX(CASE WHEN {$dateSql} = '{$d1}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d1"),
                 DB::raw("MAX(CASE WHEN {$dateSql} = '{$d2}' THEN sci.qty_warehouse ELSE 0 END) AS qty_warehouse_d2"),
 
-                // stock value in machine (already stored in cents on sci)
+                // unit cost (RM) per day, directly from sci
+                DB::raw("ROUND(MAX(CASE WHEN {$dateSql} = '{$d0}' THEN sci.unit_cost_amount ELSE 0 END) / 100, 2) AS unit_cost_d0"),
+                DB::raw("ROUND(MAX(CASE WHEN {$dateSql} = '{$d1}' THEN sci.unit_cost_amount ELSE 0 END) / 100, 2) AS unit_cost_d1"),
+                DB::raw("ROUND(MAX(CASE WHEN {$dateSql} = '{$d2}' THEN sci.unit_cost_amount ELSE 0 END) / 100, 2) AS unit_cost_d2"),
+
+                // stock value in machine (RM)
                 DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d0}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d0"),
                 DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d1}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d1"),
                 DB::raw("ROUND(SUM(CASE WHEN {$dateSql} = '{$d2}' THEN sci.stock_value_amount ELSE 0 END) / 100, 2) AS stock_value_d2"),
 
-                // ==== FIXED COSTS: machine-only cost + warehouse cost ONCE (use saved unit_cost_amount) ====
+                // stock cost (RM) = machine cost + ONE warehouse cost
                 DB::raw("
                     ROUND((
-                        /* machine-only cost */
                         SUM(CASE WHEN {$dateSql} = '{$d0}' THEN (sci.unit_cost_amount * sci.qty_vend) ELSE 0 END)
-                        /* + warehouse cost once */
                         + (MAX(CASE WHEN {$dateSql} = '{$d0}' THEN sci.qty_warehouse ELSE 0 END)
                            * MAX(CASE WHEN {$dateSql} = '{$d0}' THEN sci.unit_cost_amount ELSE 0 END))
                     ) / 100, 2) AS stock_cost_d0
@@ -1438,12 +1437,13 @@ class ReportController extends Controller
             ])
             ->groupBy('p.id', 'p.code', 'p.name');
 
-        // Sorting (unchanged)
+        // sorting
         $sortKey = $request->input('sortKey', 'product_code');
         $desc    = filter_var($request->input('sortBy', false), FILTER_VALIDATE_BOOLEAN);
         $dir     = $desc ? 'desc' : 'asc';
         $allowed = [
             'product_code',
+            'unit_cost_d0','unit_cost_d1','unit_cost_d2',
             'qty_vend_d0','qty_vend_d1','qty_vend_d2',
             'qty_warehouse_d0','qty_warehouse_d1','qty_warehouse_d2',
             'stock_value_d0','stock_value_d1','stock_value_d2',
@@ -1456,10 +1456,11 @@ class ReportController extends Controller
             $q->orderBy($sortKey, $dir);
         }
 
-        // Totals (sum the already-in-RM aliases)
+        // ---------- totals from the row aliases ----------
         $totals = DB::query()
             ->fromSub((clone $q)->reorder(), 'rows')
             ->selectRaw('
+                /* sums shown in footer */
                 SUM(stock_value_d0)   AS stock_value_d0,
                 SUM(qty_vend_d0)      AS qty_vend_d0,
                 SUM(qty_warehouse_d0) AS qty_warehouse_d0,
@@ -1473,11 +1474,16 @@ class ReportController extends Controller
                 SUM(stock_value_d2)   AS stock_value_d2,
                 SUM(qty_vend_d2)      AS qty_vend_d2,
                 SUM(qty_warehouse_d2) AS qty_warehouse_d2,
-                SUM(stock_cost_d2)    AS stock_cost_d2
+                SUM(stock_cost_d2)    AS stock_cost_d2,
+
+                /* weighted average unit cost per day = total_cost / total_qty */
+                SUM(unit_cost_d0) AS unit_cost_d0,
+                SUM(unit_cost_d1) AS unit_cost_d1,
+                SUM(unit_cost_d2) AS unit_cost_d2
             ')
             ->first();
 
-        // Money KPIs (cash, cashless, coin float) for d0/d1/d2
+        // ---------- KPIs (cash/cashless/coin) ----------
         $kpis = DB::table('stock_counts as sc')
             ->when($request->operators, function ($q, $ids) {
                 if (is_array($ids) && !in_array('all', $ids, true)) {
@@ -1519,11 +1525,21 @@ class ReportController extends Controller
             ")
             ->first();
 
+        // merge KPI fields + pre-compute "Dollar Value" (cash+cashless+coin) for the footer
         foreach ((array) $kpis as $k => $v) {
             $totals->{$k} = $v ?? 0;
         }
+        $totals->dollar_value_d0 = ($totals->cash_sales_amount_d0 ?? 0)
+                                 + ($totals->cashless_sales_amount_d0 ?? 0)
+                                 + ($totals->coin_float_amount_d0 ?? 0);
+        $totals->dollar_value_d1 = ($totals->cash_sales_amount_d1 ?? 0)
+                                 + ($totals->cashless_sales_amount_d1 ?? 0)
+                                 + ($totals->coin_float_amount_d1 ?? 0);
+        $totals->dollar_value_d2 = ($totals->cash_sales_amount_d2 ?? 0)
+                                 + ($totals->cashless_sales_amount_d2 ?? 0)
+                                 + ($totals->coin_float_amount_d2 ?? 0);
 
-        // Pagination
+        // pagination
         $perPage   = ($request->numberPerPage === 'All') ? 10000 : (int)($request->numberPerPage ?? 100);
         $paginator = $q->paginate($perPage)->appends($request->query());
 
