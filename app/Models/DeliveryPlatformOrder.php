@@ -43,6 +43,7 @@ class DeliveryPlatformOrder extends Model
     ];
 
     const GRAB_STATUS_MAPPING = [
+        Grab::STATE_NEW => self::STATUS_PENDING,
         Grab::STATE_PENDING => self::STATUS_PENDING,
         Grab::STATE_ACCEPTED => self::STATUS_ACCEPTED,
         Grab::STATE_DRIVER_ALLOCATED => self::STATUS_ASSIGNED,

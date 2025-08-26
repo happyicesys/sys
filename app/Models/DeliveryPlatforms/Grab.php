@@ -550,6 +550,7 @@ class Grab extends DeliveryPlatform implements DeliveryPlatformInterface
     const PAYMENT_TYPE_CASH = 'CASH';
     const PAYMENT_TYPE_CASHLESS = 'CASHLESS';
 
+    const STATE_NEW = 'NEW';
     const STATE_PENDING = 'PENDING';
     const STATE_ACCEPTED = 'ACCEPTED';
     const STATE_DRIVER_ALLOCATED = 'DRIVER_ALLOCATED';
