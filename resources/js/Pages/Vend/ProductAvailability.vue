@@ -54,7 +54,7 @@
                   </div>
               </div>
               </div>
-            <div class="max-h-[600px] md:max-h-[800px] overflow-y-auto shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+            <div class="overflow-scroll max-h-[900px] md:max-h-[1500px] shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
               <table class="min-w-full divide-y divide-gray-300">
                 <thead class="bg-gray-100 sticky top-0 z-10">
                   <tr>

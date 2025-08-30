@@ -148,7 +148,7 @@
 
       <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
-          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
+          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll max-h-[900px] md:max-h-[1500px]">
             <table class="min-w-full border-separate" style="border-spacing: 0">
                 <thead class="bg-gray-100">
                   <tr class="divide-x divide-gray-200">

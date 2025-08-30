@@ -19,12 +19,19 @@ class DeliveryPlatformRefNumber extends Model
 
     protected $fillable = [
         'delivery_platform_id',
+        'operator_id',
         'ref_number',
+        'remarks',
         'status',
     ];
 
     public function deliveryPlatform()
     {
         return $this->belongsTo(DeliveryPlatform::class);
+    }
+
+    public function operator()
+    {
+        return $this->belongsTo(Operator::class);
     }
 }

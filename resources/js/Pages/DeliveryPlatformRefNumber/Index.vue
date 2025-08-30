@@ -1,0 +1,326 @@
+<template>
+
+  <Head title="Delivery Platform Ref Number" />
+
+  <BreezeAuthenticatedLayout>
+    <template #header>
+      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+        Delivery Platform Ref Number
+      </h2>
+    </template>
+
+    <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
+      <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
+        <div class="flex justify-end">
+          <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          @click="router.visit('/delivery-platform-ref-numbers/create')"
+          >
+            <PlusIcon class="h-4 w-4" aria-hidden="true"/>
+            <span>
+              Create
+            </span>
+          </Button>
+        </div>
+          <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+          <SearchInput placeholderStr="Ref Number" v-model="filters.ref_number">
+            Ref Number
+          </SearchInput>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Operator
+            </label>
+            <MultiSelect
+              v-model="filters.operators"
+              :options="operatorOptions"
+              trackBy="id"
+              valueProp="id"
+              label="full_name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            ></MultiSelect>
+          </div>
+        </div>
+
+
+
+        <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
+          <div class="mt-3">
+            <div class="flex space-x-1">
+              <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              @click="onSearchFilterUpdated()"
+              >
+                <MagnifyingGlassIcon class="h-4 w-4" aria-hidden="true"/>
+                <span>
+                  Search
+                </span>
+              </Button>
+              <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-gray-300 px-8 py-3 md:px-5 text-sm font-medium leading-4 text-gray-800 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              @click="resetFilters()"
+              >
+                <BackspaceIcon class="h-4 w-4" aria-hidden="true"/>
+                <span>
+                  Reset
+                </span>
+              </Button>
+              <!-- <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
+                  @click.prevent="onExportExcelClicked()">
+                  <div class="flex space-x-1">
+                      <div>
+                          <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>
+                          <svg v-if="loading" aria-hidden="true" class="mr-2 w-4 h-4 text-gray-200 animate-spin dark:text-gray-400 fill-red-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+                              <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
+                          </svg>
+                      </div>
+                      <span>
+                          Export Excel
+                      </span>
+                  </div>
+              </Button> -->
+              <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
+                  @click.prevent="onExportCsvClicked()">
+                  <div class="flex space-x-1">
+                      <div>
+                          <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>
+                          <svg v-if="loading" aria-hidden="true" class="mr-2 w-4 h-4 text-gray-200 animate-spin dark:text-gray-400 fill-red-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+                              <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
+                          </svg>
+                      </div>
+                      <span>
+                          Export CSV
+                      </span>
+                  </div>
+              </Button>
+            </div>
+          </div>
+          <div class="flex flex-col space-y-2">
+              <p class="text-sm text-gray-700 leading-5 flex space-x-1">
+                  <span>Showing</span>
+                  <span class="font-medium">{{ deliveryPlatformRefNumbers.meta.from ?? 0 }}</span>
+                  <span>to</span>
+                  <span class="font-medium">{{ deliveryPlatformRefNumbers.meta.to ?? 0 }}</span>
+                  <span>of</span>
+                  <span class="font-medium">{{ deliveryPlatformRefNumbers.meta.total }}</span>
+                  <span>results</span>
+              </p>
+              <MultiSelect
+                  v-model="filters.numberPerPage"
+                  :options="numberPerPageOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  @selected="onSearchFilterUpdated"
+              >
+              </MultiSelect>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex flex-col">
+       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
+            <table class="min-w-full border-separate" style="border-spacing: 0">
+                <thead class="bg-gray-100">
+                  <tr class="divide-x divide-gray-200">
+                    <TableHead>
+                      #
+                    </TableHead>
+                    <TableHeadSort modelName="value" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('value')">
+                      Value
+                    </TableHeadSort>
+                    <TableHeadSort modelName="operator_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_id')">
+                      Operator
+                    </TableHeadSort>
+                    <TableHead>
+                      Name
+                    </TableHead>
+                    <TableHead>
+                      Email
+                    </TableHead>
+                    <TableHead>
+                    </TableHead>
+                  </tr>
+                </thead>
+                  <tbody class="bg-white">
+                    <tr v-for="(deliveryPlatformRefNumber, deliveryPlatformRefNumberIndex) in deliveryPlatformRefNumbers.data" :key="deliveryPlatformRefNumber.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
+                      <TableData :currentIndex="deliveryPlatformRefNumberIndex" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
+                        {{ deliveryPlatformRefNumbers.meta.from + deliveryPlatformRefNumberIndex }}
+                      </TableData>
+                      <TableData :currentIndex="deliveryPlatformRefNumberIndex" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-left">
+                        {{ deliveryPlatformRefNumber.value }}
+                      </TableData>
+                      <TableData :currentIndex="deliveryPlatformRefNumberIndex" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
+                        {{ deliveryPlatformRefNumber.operator?.code }}
+                      </TableData>
+                      <TableData :currentIndex="deliveryPlatformRefNumberIndex" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
+                        {{ deliveryPlatformRefNumber.name }}
+                      </TableData>
+                      <TableData :currentIndex="deliveryPlatformRefNumberIndex" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
+                        {{ deliveryPlatformRefNumber.email }}
+                      </TableData>
+                      <TableData :currentIndex="deliveryPlatformRefNumberIndex" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
+                        <div class="flex justify-center space-x-1">
+                          <Button
+                            type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+                            @click="router.visit(`/delivery-platform-ref-numbers/${deliveryPlatformRefNumber.id}/edit`)"
+                          >
+                            <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
+                            <span>
+                                Edit
+                            </span>
+                          </Button>
+                          <Button
+                            type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
+                            @click="onDeleteClicked(deliveryPlatformRefNumber)"
+                          >
+                            <TrashIcon class="w-4 h-4"></TrashIcon>
+                            <span>
+                                Delete
+                            </span>
+                          </Button>
+                        </div>
+                      </TableData>
+                      </tr>
+                <tr v-if="!deliveryPlatformRefNumbers.data.length">
+                  <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
+                      No Results Found
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <Paginator v-if="deliveryPlatformRefNumbers.data.length" :links="deliveryPlatformRefNumbers.links" :meta="deliveryPlatformRefNumbers.meta"></Paginator>
+          </div>
+      </div>
+    </div>
+  </div>
+  </BreezeAuthenticatedLayout>
+</template>
+
+<script setup>
+import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
+import Button from '@/Components/Button.vue';
+import Create from '@/Pages/HidCard/Create.vue';
+import Edit from '@/Pages/HidCard/Edit.vue';
+import Paginator from '@/Components/Paginator.vue';
+import SearchInput from '@/Components/SearchInput.vue';
+import MultiSelect from '@/Components/MultiSelect.vue';
+import { ArrowDownTrayIcon, BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import TableHead from '@/Components/TableHead.vue';
+import TableData from '@/Components/TableData.vue';
+import TableHeadSort from '@/Components/TableHeadSort.vue';
+import { ref, onMounted } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
+import moment from 'moment'
+
+const props = defineProps({
+  deliveryPlatformRefNumbers: Object,
+  operatorOptions: [Array, Object],
+  vendOptions: [Array, Object],
+})
+
+const filters = ref({
+  name: '',
+  email: '',
+  value: '',
+  operator_id: '',
+  sortKey: '',
+  sortBy: true,
+  numberPerPage: 100,
+})
+const loading = ref(false)
+const operatorOptions = ref([])
+const deliveryPlatformRefNumber = ref()
+const type = ref('')
+const numberPerPageOptions = ref([])
+
+onMounted(() => {
+  numberPerPageOptions.value = [
+    { id: 100, value: 100 },
+    { id: 200, value: 200 },
+    { id: 500, value: 500 },
+    { id: 'All', value: 'All' },
+  ]
+  operatorOptions.value = [
+    { id: 'all', full_name: 'All' },
+    ...props.operatorOptions.data.map((data) => {
+      return { id: data.id, code: data.code, full_name: data.full_name };
+    }),
+  ];
+  filters.value.operator_id = operatorOptions.value[0]
+  filters.value.numberPerPage = numberPerPageOptions.value[0]
+})
+
+function onExportCsvClicked() {
+    loading.value = true
+    axios({
+        method: 'get',
+        url: '/delivery-platform-ref-numbers/csv',
+        params: {
+          ...filters.value,
+          operator_id: filters.value.operator_id?.id ?? '',
+        },
+        responseType: 'blob',
+    }).then(response => {
+        fileDownload(response.data, 'HIDCards' + moment().format('YYMMDDhhmmss') +'.csv')
+    }).catch(error => {
+        console.log(error)
+    }).finally(() => {
+        loading.value = false
+    })
+}
+
+function onExportExcelClicked() {
+    loading.value = true
+    axios({
+        method: 'get',
+        url: '/delivery-platform-ref-numbers/excel',
+        params: {
+          ...filters.value,
+          operator_id: filters.value.operator_id?.id ?? '',
+        },
+        responseType: 'blob',
+    }).then(response => {
+        fileDownload(response.data, 'HIDCards' + moment().format('YYMMDDhhmmss') +'.xlsx')
+    }).catch(error => {
+        console.log(error)
+    }).finally(() => {
+        loading.value = false
+    })
+}
+
+function onDeleteClicked(deliveryPlatformRefNumber) {
+  const approval = confirm('Are you sure to delete ' + deliveryPlatformRefNumber.value + '?');
+  if (!approval) {
+      return;
+  }
+  router.delete('/delivery-platform-ref-numbers/' + deliveryPlatformRefNumber.id)
+}
+
+function onSearchFilterUpdated() {
+  router.get('/delivery-platform-ref-numbers', {
+      ...filters.value,
+      operator_id: filters.value.operator_id?.id ?? '',
+      numberPerPage: filters.value.numberPerPage.id,
+  }, {
+      preserveState: true,
+      replace: true,
+  })
+}
+
+function resetFilters() {
+  router.get('/delivery-platform-ref-numbers')
+}
+
+function sortTable(sortKey) {
+  filters.value.sortKey = sortKey
+  filters.value.sortBy = !filters.value.sortBy
+  onSearchFilterUpdated()
+}
+
+</script>
