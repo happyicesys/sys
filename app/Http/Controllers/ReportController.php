@@ -14,12 +14,14 @@ use App\Http\Resources\ProductStockCountResource;
 use App\Http\Resources\SalesReportResource;
 use App\Http\Resources\StockCountResource;
 use App\Http\Resources\StockCountItemResource;
+use App\Http\Resources\StockCountDayGraphResource;
 use App\Http\Resources\VendContractResource;
 use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendModelResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Http\Resources\VendSnapshotDBResource;
+use App\Http\Resources\VendTransactionGraphResource;
 use App\Models\Category;
 use App\Models\CategoryGroup;
 use App\Models\Customer;
@@ -495,6 +497,46 @@ class ReportController extends Controller
         ]);
     }
 
+    public function indexStockCountDashboard(Request $request)
+    {
+        // ---- Default operators
+        if (!$request->operators) {
+            if (auth()->user()->operator->code == 'HIPL') {
+                $request->merge(['operators' => [
+                    auth()->user()->operator_id,
+                    Operator::where('code', 'HIMD')->first()?->id,
+                    Operator::where('code', 'LEA')->first()?->id,
+                    Operator::where('code', 'DCVIC')->first()?->id,
+                    Operator::where('code', 'HIESG')->first()?->id,
+                ]]);
+            } else {
+                $request->merge(['operators' => [auth()->user()->operator_id]]);
+            }
+        }
+
+        // ---- Build graphs (they already honor operators, vendPrefixes, codes, etc)
+        $dayGraph = $this->getStockCountDayGraph($request);
+        $qtyGraph = $this->getStockCountQtyDayGraph($request);
+
+        return Inertia::render('Report/IndexStockCountDashboard', [
+            'dayGraphData'        => StockCountDayGraphResource::collection($dayGraph),
+            'qtyGraphData'        => StockCountDayGraphResource::collection($qtyGraph),
+            'locationTypeOptions' => LocationTypeResource::collection(
+                LocationType::orderBy('sequence')->get()
+            ),
+            'operatorOptions'     => OperatorResource::collection(
+                Operator::orderBy('name')->get()
+            ),
+            'productOptions'      => ProductResource::collection(
+                Product::where('is_inventory', true)->orderBy('name')->orderBy('code')->get()
+            ),
+            'vendPrefixOptions'   => VendPrefixResource::collection(
+                VendPrefix::orderBy('name')->get()
+            ),
+        ]);
+    }
+
+
 
     public function exportUnitCostVendExcel(Request $request)
     {
@@ -960,6 +1002,192 @@ class ReportController extends Controller
 
         return $transactionsQuery;
     }
+
+    private function getStockCountDayGraph(Request $request)
+    {
+        $tz   = $this->getUserTimezone();
+        $from = now($tz)->startOfMonth()->subMonth()->startOfDay();
+        $to   = now($tz)->endOfDay();
+
+        if ($request->filled('day_date_from')) $from = Carbon::parse($request->day_date_from, $tz)->startOfDay();
+        if ($request->filled('day_date_to'))   $to   = Carbon::parse($request->day_date_to,   $tz)->endOfDay();
+
+        $dateSql = "DATE(CONCAT(sc.year,'-',LPAD(sc.month,2,'0'),'-',LPAD(sc.day,2,'0')))";
+
+        // ----- coin float (simple sum per day) -----
+        $coin = DB::table('stock_counts as sc')
+            ->when($request->operators, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) $q->whereIn('sc.operator_id', $ids);
+            })
+            ->when($request->vendPrefixes, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) $q->whereIn('sc.vend_prefix_id', $ids);
+            })
+            ->when($request->location_type_id ?? $request->locationType, function ($q, $val) {
+                if ($val !== 'all') $q->whereIn('sc.location_type_id', (array) $val);
+            })
+            ->when($request->codes, function ($q, $codes) {
+                $codes = is_string($codes) ? array_values(array_filter(array_map('trim', explode(',', $codes)))) : (array)$codes;
+                $q->whereExists(function ($sq) use ($codes) {
+                    $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
+                    if (count($codes) > 1) $sq->whereIn('v.code', $codes);
+                    elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
+                });
+            })
+            ->whereBetween(DB::raw($dateSql), [$from->toDateString(), $to->toDateString()])
+            ->groupBy(DB::raw($dateSql))
+            ->selectRaw("$dateSql as d")
+            ->selectRaw('SUM(sc.coin_float_amount) / 100.0 as coin_float_rm')
+            ->pluck('coin_float_rm', 'd');
+
+        // ----- STOCK VALUE & (pivot-style) STOCK COST per day -----
+        // Build a per-product-per-day subquery that mimics getStockCountPivot3dQuery:
+        //   machine_cost_cents = SUM(unit_cost * qty_vend)
+        //   wh_qty = MAX(qty_warehouse), wh_uc = MAX(unit_cost)
+        //   stock_cost_rm_per_product = (machine_cost_cents + wh_qty * wh_uc) / 100
+        // Also carry stock_value_amount to sum later.
+        $perProductPerDay = DB::table('stock_count_items as sci')
+            ->join('stock_counts as sc', 'sc.id', '=', 'sci.stock_count_id')
+            ->when($request->operators, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) $q->whereIn('sc.operator_id', $ids);
+            })
+            ->when($request->vendPrefixes, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) $q->whereIn('sc.vend_prefix_id', $ids);
+            })
+            ->when($request->location_type_id ?? $request->locationType, function ($q, $val) {
+                if ($val !== 'all') $q->whereIn('sc.location_type_id', (array) $val);
+            })
+            ->when($request->codes, function ($q, $codes) {
+                $codes = is_string($codes) ? array_values(array_filter(array_map('trim', explode(',', $codes)))) : (array)$codes;
+                $q->whereExists(function ($sq) use ($codes) {
+                    $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
+                    if (count($codes) > 1) $sq->whereIn('v.code', $codes);
+                    elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
+                });
+            })
+            ->whereBetween(DB::raw($dateSql), [$from->toDateString(), $to->toDateString()])
+            ->groupBy(DB::raw($dateSql), 'sci.product_id')
+            ->selectRaw("$dateSql as d")
+            ->selectRaw('SUM(sci.unit_cost_amount * sci.qty_vend)               as machine_cost_cents')
+            ->selectRaw('MAX(sci.qty_warehouse)                                 as wh_qty')
+            ->selectRaw('MAX(sci.unit_cost_amount)                              as wh_uc_cents')
+            ->selectRaw('SUM(sci.stock_value_amount)                            as stock_value_cents');
+
+        $rows = DB::query()
+            ->fromSub($perProductPerDay, 'ppd')
+            ->groupBy('d')
+            ->selectRaw('d')
+            // pivot-style stock cost (RM)
+            ->selectRaw('SUM( (machine_cost_cents + wh_qty * wh_uc_cents) / 100.0 ) as stock_cost_rm')
+            // stock value in machines (RM)
+            ->selectRaw('SUM( stock_value_cents / 100.0 ) as stock_value_rm')
+            ->get()
+            ->keyBy('d');
+
+        // ----- assemble continuous daily series -----
+        $series = [];
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $d   = $cursor->toDateString();
+            $y   = (int)$cursor->year;
+            $m   = (int)$cursor->month;
+            $day = (int)$cursor->day;
+
+            $row = $rows->get($d);
+            $series[] = (object) [
+                'amount'     => $row?->stock_value_rm ?? 0.0, // y (left): Stock Value in Machines (RM)
+                'count'      => $row?->stock_cost_rm  ?? 0.0, // y1 (right): Total Stock Cost - before GST (RM)
+                'coin_float' => $coin[$d]            ?? 0.0,
+
+                'date'       => $d,
+                'day'        => $day,
+                'month'      => $m,
+                'month_name' => Carbon::createFromDate($y, $m, 1)->format('F'),
+                'year'       => $y,
+            ];
+
+            $cursor->addDay();
+        }
+
+        usort($series, fn($a,$b) => strcmp($a->date, $b->date));
+        return collect($series);
+    }
+
+    private function getStockCountQtyDayGraph(Request $request)
+    {
+        $tz   = $this->getUserTimezone();
+        $from = now($tz)->startOfMonth()->subMonth()->startOfDay();
+        $to   = now($tz)->endOfDay();
+
+        if ($request->filled('day_date_from')) $from = Carbon::parse($request->day_date_from, $tz)->startOfDay();
+        if ($request->filled('day_date_to'))   $to   = Carbon::parse($request->day_date_to,   $tz)->endOfDay();
+
+        $dateSql = "DATE(CONCAT(sc.year,'-',LPAD(sc.month,2,'0'),'-',LPAD(sc.day,2,'0')))";
+
+        // Per product, per day:
+        // - machine_qty  = SUM(qty_vend)
+        // - warehouse_qty = MAX(qty_warehouse) (to avoid multiplying counts across rows)
+        $perProductPerDay = DB::table('stock_count_items as sci')
+            ->join('stock_counts as sc', 'sc.id', '=', 'sci.stock_count_id')
+            ->when($request->operators, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) $q->whereIn('sc.operator_id', $ids);
+            })
+            ->when($request->vendPrefixes, function ($q, $ids) {
+                if (is_array($ids) && !in_array('all', $ids, true)) $q->whereIn('sc.vend_prefix_id', $ids);
+            })
+            ->when($request->location_type_id ?? $request->locationType, function ($q, $val) {
+                if ($val !== 'all') $q->whereIn('sc.location_type_id', (array) $val);
+            })
+            ->when($request->codes, function ($q, $codes) {
+                $codes = is_string($codes) ? array_values(array_filter(array_map('trim', explode(',', $codes)))) : (array)$codes;
+                $q->whereExists(function ($sq) use ($codes) {
+                    $sq->from('vends as v')->whereColumn('v.id', 'sc.vend_id');
+                    if (count($codes) > 1) $sq->whereIn('v.code', $codes);
+                    elseif (count($codes) === 1) $sq->where('v.code', 'LIKE', '%'.$codes[0].'%');
+                });
+            })
+            ->whereBetween(DB::raw($dateSql), [$from->toDateString(), $to->toDateString()])
+            ->groupBy(DB::raw($dateSql), 'sci.product_id')
+            ->selectRaw("$dateSql as d")
+            ->selectRaw('SUM(sci.qty_vend)     as machine_qty')
+            ->selectRaw('MAX(sci.qty_warehouse) as warehouse_qty');
+
+        // Aggregate to a single row per day
+        $rows = DB::query()
+            ->fromSub($perProductPerDay, 'ppd')
+            ->groupBy('d')
+            ->selectRaw('d')
+            ->selectRaw('SUM(machine_qty)   as machine_qty')
+            ->selectRaw('SUM(warehouse_qty) as warehouse_qty')
+            ->get()
+            ->keyBy('d');
+
+        // Build continuous daily series
+        $series = [];
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $d   = $cursor->toDateString();
+            $y   = (int)$cursor->year;
+            $m   = (int)$cursor->month;
+            $day = (int)$cursor->day;
+
+            $row = $rows->get($d);
+            $series[] = (object)[
+                'date'          => $d,
+                'day'           => $day,
+                'month'         => $m,
+                'month_name'    => Carbon::createFromDate($y, $m, 1)->format('F'),
+                'year'          => $y,
+                'machine_qty'   => $row?->machine_qty   ?? 0,
+                'warehouse_qty' => $row?->warehouse_qty ?? 0,
+            ];
+
+            $cursor->addDay();
+        }
+
+        usort($series, fn($a,$b) => strcmp($a->date, $b->date));
+        return collect($series);
+    }
+
 
     private function getUnitCostByVendQuery($request)
     {

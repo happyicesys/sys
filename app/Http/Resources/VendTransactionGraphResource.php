@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Database\Eloquent\Model; // add this
 
 class VendTransactionGraphResource extends JsonResource
 {
@@ -14,18 +15,34 @@ class VendTransactionGraphResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // Is the underlying resource an Eloquent model?
+        $isModel = $this->resource instanceof Model;
+
         return [
-            'amount' => $this->amount/ 100,
-            'count' => $this->count,
-            'customer' => CustomerResource::make($this->whenLoaded('customer')),
-            'date' => $this->date,
-            'day' => $this->day,
-            'month' => $this->month,
+            // ❗ If your new dayGraphData already uses RM values, keep as-is.
+            // If you still feed cents elsewhere, division by 100 remains correct.
+            'amount' => $this->amount / 100,
+            'count'  => $this->count,
+
+            // Only include relationships when it's an Eloquent model with the relation loaded
+            'customer' => $this->when(
+                $isModel && $this->resource->relationLoaded('customer'),
+                fn () => CustomerResource::make($this->resource->customer)
+            ),
+            'product' => $this->when(
+                $isModel && $this->resource->relationLoaded('product'),
+                fn () => ProductResource::make($this->resource->product)
+            ),
+            'vend' => $this->when(
+                $isModel && $this->resource->relationLoaded('vend'),
+                fn () => VendResource::make($this->resource->vend)
+            ),
+
+            'date'       => $this->date,
+            'day'        => $this->day,
+            'month'      => $this->month,
             'month_name' => $this->month_name,
-            'product' => ProductResource::make($this->whenLoaded('product')),
-            'product_id' => isset($this->product_id) ? $this->product_id : null,
-            'vend' => VendResource::make($this->whenLoaded('vend')),
-            'year' => $this->year,
+            'year'       => $this->year,
         ];
     }
 }
