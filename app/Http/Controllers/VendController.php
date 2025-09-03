@@ -1268,7 +1268,10 @@ class VendController extends Controller
                 'sequence' => $productMappingItem?->sequence,
                 'thumbnail' => $product?->thumbnail?->full_url,
                 'server_price' => $serverPrice,
-                'labels' => $product?->tagBindings->map(fn($tb) => ['name' => $tb->tag?->name])->toArray() ?? [],
+                'labels' => $product?->tagBindings->map(fn($tb) => [
+                    'id' => $tb->tag?->id,
+                    'name' => $tb->tag?->name
+                    ])->toArray() ?? [],
             ];
 
             if ($product?->translated_names_json) {
@@ -1432,6 +1435,7 @@ class VendController extends Controller
             ...$vend->apkSettings[0]->settings_parameter_json,
             'promoLabelItems' => $campaignItems->map(function($campaignItem) {
                 return [
+                    'id' => isset($campaignItem->tagBindings[0]) ? $campaignItem->tagBindings[0]->tag->id : null,
                     'label' => isset($campaignItem->tagBindings[0]) ? $campaignItem->tagBindings[0]->tag->name : null,
                     'bundle_qty' => $campaignItem->qty,
                     'promo_type' => CampaignItem::PROMO_TYPE_MAPPINGS[$campaignItem->promo_type],

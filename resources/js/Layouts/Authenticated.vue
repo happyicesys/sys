@@ -336,7 +336,7 @@ const smallLogoUrl = usePage().props.smallLogoUrl
                                 </span>
                                 </Link>
                             </div>
-                            <Disclosure as="div" v-else class="space-y-1" v-slot="{ open }">
+                            <Disclosure as="div" v-else class="flex flex-col justify-start space-y-1" v-slot="{ open }">
                                 <DisclosureButton
                                     v-if="permissions.includes(item.permission)"
                                     :class="[item.current ? 'bg-gray-100 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900', 'group w-full flex items-center pl-2 pr-1 py-2 text-left text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500']">
@@ -356,11 +356,11 @@ const smallLogoUrl = usePage().props.smallLogoUrl
                                         <path d="M6 6L14 10L6 14V6Z" fill="currentColor" />
                                     </svg>
                                 </DisclosureButton>
-                                <DisclosurePanel class="space-y-1 py-2 bg-gray-100">
+                                <DisclosurePanel class="-ml-2 space-y-1 py-2 bg-gray-100">
                                     <Link v-for="subItem in item.children" :key="subItem.name" as="a"
                                             :href="subItem.href">
                                         <DisclosureButton
-                                            class="group w-full flex items-center pl-3 pr-2 py-2 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-200"
+                                            class="group w-full flex items-center pl-2 pr-2 py-2 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-200"
                                             v-if="subItem && (!subItem.permission || (subItem.permission && permissions.includes(subItem.permission)))"
                                             >
                                             {{ subItem.name }}
@@ -456,7 +456,7 @@ const smallLogoUrl = usePage().props.smallLogoUrl
                             </BreezeResponsiveNavLink>
                         </div>
                         <Disclosure as="div" v-else class="space-y-1" v-slot="{ open }">
-                            <DisclosureButton class="pt-2 pb-2 mb-1 pl-4 space-y-1 flex" v-if="permissions.includes(item.permission)">
+                            <DisclosureButton class="pt-2 pb-2 mb-1 pl-4 space-y-1 flex w-full justify-start text-left" v-if="permissions.includes(item.permission)">
                                 <span class="flex flex-col">
                                     <span>
                                         {{ item.name }}
@@ -470,13 +470,13 @@ const smallLogoUrl = usePage().props.smallLogoUrl
                                     <path d="M6 6L14 10L6 14V6Z" fill="currentColor" />
                                 </svg>
                             </DisclosureButton>
-                            <DisclosurePanel class="py-1 space-y-1">
+                            <DisclosurePanel class="-ml-2 py-1 space-y-1">
                                 <Link v-for="subItem in item.children" :key="subItem.name" as="a"
                                         :href="subItem.href"
                                 >
                                     <DisclosureButton
                                         v-if="subItem && (!subItem.permission || (subItem.permission && permissions.includes(subItem.permission)))"
-                                        class="group w-full flex items-center pl-11 pr-2 py-3 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-50">
+                                        class="group w-full flex items-center justify-start text-left pl-2 pr-2 py-3 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-50">
                                         {{ subItem.name }}
                                     </DisclosureButton>
                                 </Link>
