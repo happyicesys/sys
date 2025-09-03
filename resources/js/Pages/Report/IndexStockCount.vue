@@ -214,7 +214,9 @@
 
        <div class="mt-6 flex flex-col">
        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
-          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll max-h-[900px] md:max-h-[1500px]">
+          <!-- Use viewport-based height and bottom padding so the last rows (totals)
+               are reachable even with sticky headers and page footer. -->
+          <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-auto max-h-[75vh] pb-16">
               <table class="min-w-full border-separate" style="border-spacing: 0">
                 <thead class="bg-gray-100">
                     <!-- Row 1: static cols + day groups -->
