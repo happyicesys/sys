@@ -312,20 +312,38 @@ onBeforeMount(() => {
       spanGaps: false
     })
 
-    dayGraphDatasets.value.push({
-      label: `${month} Coin Float (${operatorCountry.currency_symbol})`,
-      data: coin,
-      yAxisID: 'y1',
-      type: 'line',
-      order: 1,
-      backgroundColor: hexToRGBA('#374151', 0.15),
-      borderColor: '#374151',
-      borderDash: [6, 4],
-      pointRadius: 0,
-      pointHoverRadius: 6,
-      pointHitRadius: 20,
-      spanGaps: false
-    })
+
+      // Assign different colors for this month and last month coin float lines
+      let coinFloatColor = '#374151';
+      let coinFloatBg = hexToRGBA('#374151', 0.15);
+      let coinFloatDash = [6, 4];
+      let coinFloatBorderWidth = 5;
+      if (idx === 0) { // This month
+        coinFloatColor = '#2563eb'; // blue
+        coinFloatBg = hexToRGBA('#2563eb', 0.15);
+        coinFloatDash = [6, 4];
+        coinFloatBorderWidth = 5;
+      } else if (idx === 1) { // Last month
+        coinFloatColor = '#dc2626'; // red
+        coinFloatBg = hexToRGBA('#dc2626', 0.15);
+        coinFloatDash = [6, 4]; // different dash pattern
+        coinFloatBorderWidth = 5; // wider red dotted line
+      }
+      dayGraphDatasets.value.push({
+        label: `${month} Coin Float (${operatorCountry.currency_symbol})`,
+        data: coin,
+        yAxisID: 'y1',
+        type: 'line',
+        order: 1,
+        backgroundColor: coinFloatBg,
+        borderColor: coinFloatColor,
+        borderDash: coinFloatDash,
+        borderWidth: coinFloatBorderWidth,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHitRadius: 20,
+        spanGaps: false
+      })
 
     dayGraphDatasets.value.push({
       label: `${month} Stock Value (${operatorCountry.currency_symbol})`,
