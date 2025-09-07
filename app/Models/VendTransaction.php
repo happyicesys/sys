@@ -30,6 +30,7 @@ class VendTransaction extends Model
 
     protected $casts = [
         'items_json' => 'json',
+        'label_json' => 'json',
         'location_type_json' => 'json',
         'meta_json' => 'json',
         'transaction_datetime' => 'datetime',
@@ -49,6 +50,7 @@ class VendTransaction extends Model
         'is_payment_received',
         'is_refunded',
         'items_json',
+        'label_json',
         'location_type_id',
         'location_type_json',
         'meta_json',
