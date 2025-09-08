@@ -199,6 +199,7 @@ class VendTransactionService
             'operator_id' => $customer?->operator?->id ?? 1,
             'unit_cost_id' => $input['unitCostID'],
             'gst_vat_rate' => $input['gstVatRate'],
+            'label_json' => isset($input['label']) ? $input['label'] : null,
             'meta_json' => [
                 'apk_ver' => isset($vend->apk_ver_json['apkver']) ? $vend->apk_ver_json['apkver'] : null,
                 'firmware_ver' => isset($vend->firmware_ver) ? dechex($vend->firmware_ver) : null,
@@ -296,6 +297,7 @@ class VendTransactionService
             'isMultiple' => isset($input['isMultiple']) ? $input['isMultiple'] : false,
             'isPaymentReceived' => $isPaymentReceived,
             'isSuccessful' => $isSuccessful,
+            'label' => isset($input['label']) ? $input['label'] : null,
             'orderID' => isset($input['orderID']) ? $input['orderID'] : null,
             'originalJson' => isset($input['originalJson']) ? $input['originalJson'] : null,
             // 'paymentGatewayLogID' => isset($paymentGatewayLog) ? $paymentGatewayLog->id : null,
@@ -324,6 +326,7 @@ class VendTransactionService
         $data['amount'] = isset($input['Price']) ? (isset($input['transf_info']) ? ($input['Price'] * 100) : $input['Price']) : 0;
         $data['dcvendUserID'] = isset($input['dcvend_user_id']) ? $input['dcvend_user_id'] : null;
         $data['dcvendDiscountAmount'] = isset($input['dcvend_discount_amount']) ? $input['dcvend_discount_amount'] : null;
+        $data['label'] = isset($input['label']) ? $input['label'] : null;
         $data['orderID'] = isset($input['ORDRID']) ? $input['ORDRID'] : null;
         $data['paymentMethodCode'] = isset($input['PAY_TYPE']) ? $input['PAY_TYPE'] : null;
         $data['planItemID'] = isset($input['plan_item_id']) ? $input['plan_item_id'] : null;
