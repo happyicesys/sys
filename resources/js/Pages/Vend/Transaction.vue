@@ -615,6 +615,9 @@
                         <TableHead>
                             Voucher
                         </TableHead>
+                        <TableHead>
+                            Label(s)
+                        </TableHead>
                       </tr>
                   </thead>
                   <tbody class="bg-white">
@@ -724,6 +727,29 @@
                             </div>
 
                         </TableData>
+                        <TableData
+                        :currentIndex="vendTransactionIndex"
+                        :totalLength="vendTransactions.length"
+                        inputClass="text-left"
+                        >
+                        <template v-if="normalizedLabels(vendTransaction).length">
+                            <div class="flex flex-wrap gap-1">
+                            <div
+                                v-for="tag in normalizedLabels(vendTransaction)"
+                                :key="(tag.id ?? tag.slug ?? tag) + '-' + vendTransaction.id"
+                                class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs border w-fit hover:cursor-default break-all"
+                                :class="chipClass(tag)"
+                                title="Label"
+                            >
+                                <span class="font-semibold grow-0">
+                                {{ displayTagName(tag) }}
+                                </span>
+                            </div>
+                            </div>
+                        </template>
+                        <!-- else: render nothing (empty cell) -->
+                        </TableData>
+
                       </tr>
                       <tr v-if="vendTransaction.vendTransactionItems" v-for="(vendTransactionItem, vendTransactionItemIndex) in vendTransaction.vendTransactionItems" class="divide-x">
                         <td v-if="vendTransactionItemIndex == 0" class="border-b border-gray-200" colspan="7" :rowspan="vendTransaction.vendTransactionItems.length"></td>
@@ -1057,6 +1083,83 @@ function onExportCsvClicked() {
         loadingCsv.value = false
     })
 }
+
+function chipClass(tag) {
+  // Reuse name/slug/id as the key
+  const raw = (typeof tag === 'object' && tag !== null)
+    ? (tag.slug ?? tag.name ?? String(tag.id ?? ''))
+    : String(tag ?? '');
+
+  const keyStr = raw.toLowerCase();
+
+  // Optional: hand-map special labels if you want fixed colors
+  if (keyStr.includes('priority') || keyStr.includes('urgent')) {
+    return 'bg-red-100 text-red-800 border-red-300';
+  }
+  if (keyStr.includes('promo') || keyStr.includes('voucher')) {
+    return 'bg-green-100 text-green-800 border-green-300';
+  }
+
+  // Deterministic color by hashing the label text
+  const palettes = [
+    'bg-gray-100 text-gray-800 border-gray-300',
+    'bg-blue-100 text-blue-800 border-blue-300',
+    'bg-green-100 text-green-800 border-green-300',
+    'bg-yellow-100 text-yellow-800 border-yellow-300',
+    'bg-purple-100 text-purple-800 border-purple-300',
+    'bg-pink-100 text-pink-800 border-pink-300',
+    'bg-indigo-100 text-indigo-800 border-indigo-300',
+  ];
+  let hash = 0;
+  for (let i = 0; i < keyStr.length; i++) {
+    hash = (hash * 31 + keyStr.charCodeAt(i)) >>> 0;
+  }
+  return palettes[hash % palettes.length];
+}
+
+
+function normalizedLabels(tx) {
+  // Accept: array of objects, array of IDs, or JSON string
+  let raw = tx.label_json;
+
+  if (!raw) return [];
+
+  // If it’s a JSON string, parse it
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw); } catch { return []; }
+  }
+
+  // If it’s array of objects: [{id, slug, name}], return as-is
+  if (Array.isArray(raw) && raw.length && typeof raw[0] === 'object') {
+    return raw;
+  }
+
+  // If it’s array of IDs: [1,2,3] – we can't resolve names here.
+  // Still return IDs so at least something shows up.
+  if (Array.isArray(raw)) {
+    return raw;
+  }
+
+  return [];
+}
+
+function displayTagName(tag) {
+  // Prefer name → slug → id
+  const val = typeof tag === 'object' && tag !== null
+    ? (tag.name ?? tag.slug ?? tag.id ?? '')
+    : tag;
+
+  return prettify(val);
+}
+
+function prettify(str) {
+  if (!str) return '';
+  // Your Tag::name mutator uses lowercase_with_underscores – prettify it:
+  return String(str)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 
 function onExportExcelClicked() {
     // window.open('/vends/transactions/excel', '_blank');

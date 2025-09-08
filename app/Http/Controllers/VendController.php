@@ -1487,6 +1487,24 @@ class VendController extends Controller
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vend_transactions.vend_prefix_id')
+            ->leftJoinSub(function ($q) {
+                $q->from('tag_bindings')
+                ->join('tags', 'tags.id', '=', 'tag_bindings.tag_id')
+                ->where('tag_bindings.modelable_type', \App\Models\VendTransaction::class)
+                ->selectRaw("
+                    tag_bindings.modelable_id,
+                    JSON_ARRAYAGG(
+                        JSON_OBJECT(
+                        'id', tags.id,
+                        'slug', tags.slug,
+                        'name', tags.name
+                        )
+                    ) AS label_json
+                ")
+                ->groupBy('tag_bindings.modelable_id');
+            }, 'tx_labels', function ($join) {
+                $join->on('vend_transactions.id', '=', 'tx_labels.modelable_id');
+            })
             ->filterTransactionIndex($request)
             ->select(
                 'vend_transactions.id',
@@ -1516,7 +1534,8 @@ class VendController extends Controller
                 'vend_transactions.is_payment_received',
                 'vend_transactions.items_json',
                 'vend_transactions.meta_json',
-                'vend_transactions.vend_transaction_json'
+                'vend_transactions.vend_transaction_json',
+                DB::raw('tx_labels.label_json AS label_json')
             )->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 
