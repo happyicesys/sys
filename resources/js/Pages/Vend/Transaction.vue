@@ -352,6 +352,20 @@
                 >
                 </MultiSelect>
             </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">
+                    Label(s)
+                </label>
+                <MultiSelect
+                    v-model="filters.tag"
+                    :options="tagOptions"
+                    valueProp="id"
+                    label="name"
+                    placeholder="Select tag"
+                    open-direction="bottom"
+                    class="mt-1"
+                />
+            </div>
         </div>
 
           <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -737,8 +751,7 @@
                             <div
                                 v-for="tag in normalizedLabels(vendTransaction)"
                                 :key="(tag.id ?? tag.slug ?? tag) + '-' + vendTransaction.id"
-                                class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs border w-fit hover:cursor-default break-all"
-                                :class="chipClass(tag)"
+                                class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs border w-fit hover:cursor-default bd-indigo-300 bg-indigo-100 text-indigo-800"
                                 title="Label"
                             >
                                 <span class="font-semibold grow-0">
@@ -836,6 +849,7 @@ const props = defineProps({
     latestExports: Object,
     locationTypeOptions: Object,
     paymentMethods: Object,
+    tagOptions: Object,
     vends: Object,
     vendTransactions: Object,
     totals: [Object, Array],
@@ -855,6 +869,7 @@ const locationTypeOptions = ref([])
 const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([])
 const permissions = usePage().props.auth.permissions
+const tagOptions = ref([]);
 const toast = useToast()
 const vendContractOptions = ref([])
 const vendPrefixOptions = ref([])
@@ -863,6 +878,7 @@ const vmcByteOptions = ref([])
 let intervalId = null;
 
 onMounted(() => {
+    console.log(props.vendTransactions)
     // intervalId = setInterval(fetchLatestExports, 15000);
     filters.value.visited = true
     vendChannelErrorOptions.value = [
@@ -904,6 +920,11 @@ onMounted(() => {
         {id: 'true', value: 'Successful'},
         {id: 'false', value: 'Unsuccessful'},
     ]
+    tagOptions.value = [
+        { id: 'all', name: 'All' },       // default
+        { id: 'any', name: 'Any' },
+        ...props.tagOptions.data.map(t => ({ id: t.id, name: t.name }))
+    ];
     vendContractOptions.value = [
       {id: 'all', value: 'All'},
       ...props.vendContractOptions.data.map((data) => {return {id: data.id, value: data.name}})
@@ -939,6 +960,7 @@ onMounted(() => {
     filters.value.is_multiple = booleanOptions.value[0]
     filters.value.is_payment_received = booleanOptions.value[0]
     filters.value.is_refunded = booleanOptions.value[0]
+    filters.value.tag = tagOptions.value[0];
 })
 
 onUnmounted(() => {
@@ -973,6 +995,8 @@ const filters = ref({
     sortKey: '',
     sortBy: false,
     numberPerPage: 50,
+    tag: '',  // 👈 default
+    // tag_match_all: false,
     vendContracts: [],
     vendModels: [],
     vendPrefixes: [],
@@ -1051,6 +1075,7 @@ function onExportCsvClicked() {
             is_voucher: filters.value.is_voucher ? filters.value.is_voucher.id : '',
             paymentMethods: filters.value.paymentMethods.map(pm => pm.id),
             numberPerPage: filters.value.numberPerPage.id,
+            tag: filters.value.tag ? filters.value.tag.id : '',
             vendContracts: filters.value.vendContracts.map(vc => vc.id),
             vendModels: filters.value.vendModels.map(vm => vm.id),
             vendPrefixes: filters.value.vendPrefixes.map(vp => vp.id),
@@ -1085,14 +1110,12 @@ function onExportCsvClicked() {
 }
 
 function chipClass(tag) {
-  // Reuse name/slug/id as the key
-  const raw = (typeof tag === 'object' && tag !== null)
+  const raw = (typeof tag === 'object' && tag)
     ? (tag.slug ?? tag.name ?? String(tag.id ?? ''))
     : String(tag ?? '');
-
   const keyStr = raw.toLowerCase();
 
-  // Optional: hand-map special labels if you want fixed colors
+  // special labels
   if (keyStr.includes('priority') || keyStr.includes('urgent')) {
     return 'bg-red-100 text-red-800 border-red-300';
   }
@@ -1100,7 +1123,7 @@ function chipClass(tag) {
     return 'bg-green-100 text-green-800 border-green-300';
   }
 
-  // Deterministic color by hashing the label text
+  // much larger palette (20+)
   const palettes = [
     'bg-gray-100 text-gray-800 border-gray-300',
     'bg-blue-100 text-blue-800 border-blue-300',
@@ -1109,7 +1132,21 @@ function chipClass(tag) {
     'bg-purple-100 text-purple-800 border-purple-300',
     'bg-pink-100 text-pink-800 border-pink-300',
     'bg-indigo-100 text-indigo-800 border-indigo-300',
+    'bg-amber-100 text-amber-800 border-amber-300',
+    'bg-lime-100 text-lime-800 border-lime-300',
+    'bg-teal-100 text-teal-800 border-teal-300',
+    'bg-cyan-100 text-cyan-800 border-cyan-300',
+    'bg-sky-100 text-sky-800 border-sky-300',
+    'bg-violet-100 text-violet-800 border-violet-300',
+    'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300',
+    'bg-rose-100 text-rose-800 border-rose-300',
+    'bg-orange-100 text-orange-800 border-orange-300',
+    'bg-emerald-100 text-emerald-800 border-emerald-300',
+    'bg-stone-100 text-stone-800 border-stone-300',
+    'bg-slate-100 text-slate-800 border-slate-300',
+    'bg-neutral-100 text-neutral-800 border-neutral-300',
   ];
+
   let hash = 0;
   for (let i = 0; i < keyStr.length; i++) {
     hash = (hash * 31 + keyStr.charCodeAt(i)) >>> 0;
@@ -1118,9 +1155,10 @@ function chipClass(tag) {
 }
 
 
+
 function normalizedLabels(tx) {
   // Accept: array of objects, array of IDs, or JSON string
-  let raw = tx.label_json;
+  let raw = tx.labelJson;
 
   if (!raw) return [];
 
@@ -1216,6 +1254,7 @@ function onSearchFilterUpdated() {
         is_voucher: filters.value.is_voucher ? filters.value.is_voucher.id : '',
         paymentMethods: filters.value.paymentMethods.map((paymentMethod) => { return paymentMethod.id }),
         numberPerPage: filters.value.numberPerPage.id,
+        tag: filters.value.tag ? filters.value.tag.id : '',
         vendContracts: filters.value.vendContracts.map((vendContract) => { return vendContract.id }),
         vendModels: filters.value.vendModels.map(vm => vm.id),
         vendPrefixes: filters.value.vendPrefixes.map((vendPrefix) => { return vendPrefix.id }),
@@ -1224,6 +1263,18 @@ function onSearchFilterUpdated() {
         replace: true,
     })
 }
+
+function onTagsChanged(val) {
+  const hasAll = val.some(t => (t.id ?? t) === 'all');
+  const hasAny = val.some(t => (t.id ?? t) === 'any');
+
+  if (hasAll && val.length > 1) {
+    filters.value.tags = [{ id: 'all', name: 'All' }];
+  } else if (hasAny && val.length > 1) {
+    filters.value.tags = [{ id: 'any', name: 'Any' }];
+  }
+}
+
 
 function resetFilters() {
     router.get('/vends/transactions')

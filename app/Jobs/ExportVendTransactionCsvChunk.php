@@ -7,7 +7,9 @@ use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
 use App\Models\ExportJob;
 use App\Models\ExportJobChunk;
+use App\Models\Tag;
 use App\Models\User;
+use DB;
 use App\Jobs\ZipVendTransactionCsvExport;
 use Illuminate\Bus\Queueable;
 use Illuminate\Http\Request;
@@ -86,7 +88,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 'Product Code', 'Product Name', 'Price Type', 'Amount', 'Amount Breakdown',
                 'Unit Cost', 'Payment Method', 'Error Code', 'Location Type',
                 'Operator', 'Is Successful', 'Is Refunded', 'Is Multiple',
-                'Multiple Qty', 'TXN Source', 'Member ID', 'HID Card ID', 'Voucher'
+                'Multiple Qty', 'TXN Source', 'Member ID', 'HID Card ID', 'Voucher', 'Labels'
             ]);
 
             VendTransaction::query()
@@ -123,6 +125,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                     'vend_channels.amount AS vend_channel_amount',
                     'vend_channels.amount2 AS vend_channel_amount2',
                     'vend_channel_errors.code AS vend_channel_error_code',
+                    DB::raw('vend_transactions.label_json AS label_ids_json'),
                 ])
                 ->orderBy('vend_transactions.id')
                 ->skip($this->chunkIndex * $this->chunkSize)
@@ -130,7 +133,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 ->chunk(500, function ($transactions) use ($stream) {
                     $transactionIds = $transactions->pluck('id');
 
-                    // 🔁 Pull related vendTransactionItems for current chunk
+                    // Pull items for this chunk (unchanged)
                     $items = VendTransactionItem::with([
                         'vendChannel:id,code,amount',
                         'product:id,code,name',
@@ -141,7 +144,37 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                     ->get()
                     ->groupBy('vend_transaction_id');
 
-                    foreach ($transactions as $transactionIndex => $txn) {
+                    // 🔹 Gather all tag IDs used in this chunk
+                    $tagIds = $transactions->pluck('label_ids_json')
+                        ->filter()
+                        ->flatMap(function ($val) {
+                            if (is_array($val)) return $val;
+                            $arr = json_decode($val, true);
+                            return is_array($arr) ? $arr : [];
+                        })
+                        ->unique()
+                        ->values();
+
+                    // 🔹 Fetch tag metadata once; key by id
+                    $tagMap = \App\Models\Tag::whereIn('id', $tagIds)
+                        ->get(['id','name','slug'])
+                        ->keyBy('id');
+
+                    foreach ($transactions as $txn) {
+                        // normalize label IDs for this txn
+                        $ids = is_array($txn->label_ids_json)
+                            ? $txn->label_ids_json
+                            : (json_decode($txn->label_ids_json, true) ?: []);
+
+                        // Build Labels string (stable order optional)
+                        $labelStr = collect($ids)
+                            ->map(fn($id) => $tagMap->get($id))
+                            ->filter()
+                            ->sortBy(fn($t) => mb_strtolower($t->name ?? $t->slug ?? '')) // optional
+                            ->map(fn($t) => $t->name ?? $t->slug)
+                            ->implode(', ');
+
+                        // existing JSON parsing
                         $txn_json = is_array($txn->vend_transaction_json)
                             ? $txn->vend_transaction_json
                             : json_decode($txn->vend_transaction_json, true);
@@ -157,10 +190,10 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             ? ($txn->amount - $txnItems->sum(fn ($item) => $item->vendChannel?->amount ?? 0)) / 100
                             : $main_amount;
 
-                        // ✏️ Write parent row
+                        // ✏️ Parent row — append $labelStr at the end
                         fputcsv($stream, [
                             $txn->order_id,
-                            Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
+                            \Carbon\Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
                             $txn->vend_code ?? '',
                             $txn->vend_prefix_name ?? '',
                             $txn->customer_id + 20000,
@@ -183,15 +216,16 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                             $txn->is_multiple ? $txnItems->count() : 1,
                             $txn->interface_type,
                             $txn_json['dcvend_user_id'] ?? '',
-                            isset($meta_json['hid_card_id']) ? $meta_json['hid_card_id'] : '',
-                            isset($meta_json['vouchers']) && $meta_json['vouchers'] ? $meta_json['vouchers'][0]['code'] : '',
+                            $meta_json['hid_card_id'] ?? '',
+                            (!empty($meta_json['vouchers']) ? ($meta_json['vouchers'][0]['code'] ?? '') : ''),
+                            $labelStr, // 👈 new
                         ]);
 
-                        // ✏️ Write child item rows
+                        // ✏️ Child item rows — keep Labels empty (or use $labelStr if you prefer)
                         foreach ($txnItems as $item) {
                             fputcsv($stream, [
                                 $txn->order_id,
-                                Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
+                                \Carbon\Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
                                 $txn->vend_code ?? '',
                                 $txn->vend_prefix_name ?? '',
                                 $txn->customer_id + 20000,
@@ -216,10 +250,12 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                                 $txn_json['dcvend_user_id'] ?? '',
                                 '',
                                 '',
+                                '', // Labels for item rows
                             ]);
                         }
                     }
                 });
+
 
 
             rewind($stream);

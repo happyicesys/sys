@@ -28,7 +28,9 @@ class VendTransactionResource extends JsonResource
             'is_payment_received' => $this->is_payment_received,
             'is_refunded' => isset($this->is_refunded) && $this->is_refunded ? true : false,
             'itemsJson' => $this->items_json,
-            'label_json' => $this->label_json ? json_decode($this->label_json, true) : null,
+            'labelJson' => is_string($this->label_json)
+                ? json_decode($this->label_json, true)
+                : ($this->label_json ?? null),
             'metaJson' => $this->meta_json,
             'order_id' => $this->order_id,
             'operator_code' => isset($this->operator_code) ? $this->operator_code : null,

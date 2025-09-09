@@ -388,6 +388,16 @@ class VendTransaction extends Model
                 });
             });
         })
+        ->when($request->filled('tag') && $request->tag !== 'all', function ($q) use ($request) {
+            // dd($request->tag);
+            if ($request->tag === 'any') {
+                // any label at all
+                $q->whereRaw('JSON_LENGTH(COALESCE(vend_transactions.label_json, JSON_ARRAY())) > 0');
+            } else {
+                // specific tag id
+                $q->whereJsonContains('vend_transactions.label_json', (int) $request->tag);
+            }
+        })
         ->when($request->vendContracts, function($query, $search) {
             if(!in_array('all', $search)){
                 $query->whereIn('vend_transactions.vend_contract_id', $search);

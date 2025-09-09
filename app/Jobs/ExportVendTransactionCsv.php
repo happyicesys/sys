@@ -6,7 +6,9 @@ use App\Models\Operator;
 use App\Models\VendTransaction;
 use App\Models\VendTransactionItem;
 use App\Models\ExportJob;
+use App\Models\Tag;
 use App\Models\User;
+use DB;
 use Illuminate\Bus\Queueable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -73,7 +75,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                 'Product Code', 'Product Name', 'Price Type', 'Amount', 'Amount Breakdown',
                 'Unit Cost', 'Payment Method', 'Error Code', 'Location Type',
                 'Operator', 'Is Successful', 'Is Refunded', 'Is Multiple',
-                'Multiple Qty', 'TXN Source', 'Member ID', 'HID Card ID', 'Voucher',
+                'Multiple Qty', 'TXN Source', 'Member ID', 'HID Card ID', 'Voucher', 'Labels'
             ]);
 
             VendTransaction::query()
@@ -110,23 +112,51 @@ class ExportVendTransactionCsv implements ShouldQueue
                     'vend_channels.amount AS vend_channel_amount',
                     'vend_channels.amount2 AS vend_channel_amount2',
                     'vend_channel_errors.code AS vend_channel_error_code',
+                    DB::raw('vend_transactions.label_json AS label_ids_json'),
                 ])
                 ->orderBy('vend_transactions.id')
                 ->chunk(500, function ($transactions) use ($stream) {
                     $transactionIds = $transactions->pluck('id');
 
-                    // 🔁 Pull related vendTransactionItems for current chunk
+                    // Pull items for this chunk (unchanged)
                     $items = VendTransactionItem::with([
                         'vendChannel:id,code,amount',
                         'product:id,code,name',
                         'unitCost:id,cost',
                         'vendChannelError:id,code,desc',
-                    ])
-                    ->whereIn('vend_transaction_id', $transactionIds)
+                    ])->whereIn('vend_transaction_id', $transactionIds)
                     ->get()
                     ->groupBy('vend_transaction_id');
 
-                    foreach ($transactions as $transactionIndex => $txn) {
+                    // 👇 Gather all tag IDs in this chunk (works if casted to array or raw JSON string)
+                    $tagIds = $transactions->pluck('label_ids_json')
+                        ->filter()
+                        ->flatMap(function ($val) {
+                            if (is_array($val)) return $val;
+                            $arr = json_decode($val, true);
+                            return is_array($arr) ? $arr : [];
+                        })
+                        ->unique()
+                        ->values();
+
+                    // 👇 Fetch tag names/slugs once; key by id
+                    $tagMap = Tag::whereIn('id', $tagIds)
+                        ->get(['id','name','slug'])
+                        ->keyBy('id');
+
+                    foreach ($transactions as $txn) {
+                        // normalize label IDs for this txn
+                        $ids = is_array($txn->label_ids_json)
+                            ? $txn->label_ids_json
+                            : (json_decode($txn->label_ids_json, true) ?: []);
+
+                        // build "Labels" string
+                        $labelStr = collect($ids)->map(function ($id) use ($tagMap) {
+                            $t = $tagMap->get($id);
+                            return $t->name ?? $t->slug ?? (string)$id;
+                        })->implode(', ');
+
+                        // existing JSON parsing
                         $txn_json = is_array($txn->vend_transaction_json)
                             ? $txn->vend_transaction_json
                             : json_decode($txn->vend_transaction_json, true);
@@ -139,13 +169,13 @@ class ExportVendTransactionCsv implements ShouldQueue
 
                         $main_amount = $txn->amount / 100;
                         $multipleBreakdown = $txn->is_multiple
-                            ? ($txn->amount - $txnItems->sum(fn ($item) => $item->vendChannel?->amount ?? 0)) / 100
+                            ? ($txn->amount - $txnItems->sum(fn($it) => $it->vendChannel?->amount ?? 0)) / 100
                             : $main_amount;
 
-                        // ✏️ Write parent row
+                        // ✏️ Parent row — append $labelStr at the end
                         fputcsv($stream, [
                             $txn->order_id,
-                            Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
+                            \Carbon\Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
                             $txn->vend_code ?? '',
                             $txn->vend_prefix_name ?? '',
                             $txn->customer_id + 20000,
@@ -162,27 +192,28 @@ class ExportVendTransactionCsv implements ShouldQueue
                             $txn->vend_channel_error_code,
                             $txn->location_type_name,
                             $txn->operator_code,
-                            in_array($txn->vend_channel_error_code, [null, 0, 6]) ? 'Successful' : 'Unsuccessful',
+                            in_array($txn->vend_channel_error_code, [null,0,6]) ? 'Successful' : 'Unsuccessful',
                             $txn->is_refunded ? 'Yes' : '',
                             $txn->is_multiple ? 'Yes' : 'No',
                             $txn->is_multiple ? $txnItems->count() : 1,
                             $txn->interface_type,
                             $txn_json['dcvend_user_id'] ?? '',
-                            isset($meta_json['hid_card_id']) ? $meta_json['hid_card_id'] : '',
-                            isset($meta_json['vouchers']) && $meta_json['vouchers'] ? $meta_json['vouchers'][0]['code'] : '',
+                            $meta_json['hid_card_id'] ?? '',
+                            (!empty($meta_json['vouchers']) ? ($meta_json['vouchers'][0]['code'] ?? '') : ''),
+                            $labelStr, // 👈 new
                         ]);
 
-                        // ✏️ Write child item rows
+                        // ✏️ Child item rows — keep Labels empty (or repeat $labelStr if you prefer)
                         foreach ($txnItems as $item) {
                             fputcsv($stream, [
                                 $txn->order_id,
-                                Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
+                                \Carbon\Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
                                 $txn->vend_code ?? '',
                                 $txn->vend_prefix_name ?? '',
                                 $txn->customer_id + 20000,
                                 $txn->person_id ? $txn->virtual_customer_code : '',
                                 $txn->customer_name,
-                                (int) $item->vend_channel_code,
+                                (int)$item->vend_channel_code,
                                 $item->product->code ?? '',
                                 $item->product->name ?? '',
                                 'P1',
@@ -193,7 +224,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                                 $item->vendChannelError->code ?? '',
                                 $txn->location_type_name,
                                 $txn->operator_code,
-                                in_array($item->vendChannelError->code ?? null, [null, 0, 6]) ? 'Successful' : 'Unsuccessful',
+                                in_array($item->vendChannelError->code ?? null, [null,0,6]) ? 'Successful' : 'Unsuccessful',
                                 '',
                                 $txn->is_multiple ? 'Yes' : 'No',
                                 0,
@@ -201,6 +232,7 @@ class ExportVendTransactionCsv implements ShouldQueue
                                 $txn_json['dcvend_user_id'] ?? '',
                                 '',
                                 '',
+                                '', // 👈 Labels for item row (leave empty or put $labelStr)
                             ]);
                         }
                     }

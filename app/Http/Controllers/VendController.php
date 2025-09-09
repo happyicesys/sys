@@ -19,6 +19,7 @@ use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentGatewayLogResource;
 use App\Http\Resources\PaymentMethodResource;
 use App\Http\Resources\ProductResource;
+use App\Http\Resources\TagResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendDBResource;
 use App\Http\Resources\VendResource;
@@ -56,6 +57,7 @@ use App\Models\Product;
 use App\Models\ProductMapping;
 use App\Models\ProductMappingItem;
 use App\Models\SellingPrice;
+use App\Models\Tag;
 use App\Models\User;
 use App\Models\Vend;
 use App\Models\VendChannel;
@@ -1487,24 +1489,6 @@ class VendController extends Controller
             ->join('vends', 'vends.id', '=', 'vend_transactions.vend_id')
             ->leftJoin('vend_contracts', 'vend_contracts.id', '=', 'vends.vend_contract_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vend_transactions.vend_prefix_id')
-            ->leftJoinSub(function ($q) {
-                $q->from('tag_bindings')
-                ->join('tags', 'tags.id', '=', 'tag_bindings.tag_id')
-                ->where('tag_bindings.modelable_type', \App\Models\VendTransaction::class)
-                ->selectRaw("
-                    tag_bindings.modelable_id,
-                    JSON_ARRAYAGG(
-                        JSON_OBJECT(
-                        'id', tags.id,
-                        'slug', tags.slug,
-                        'name', tags.name
-                        )
-                    ) AS label_json
-                ")
-                ->groupBy('tag_bindings.modelable_id');
-            }, 'tx_labels', function ($join) {
-                $join->on('vend_transactions.id', '=', 'tx_labels.modelable_id');
-            })
             ->filterTransactionIndex($request)
             ->select(
                 'vend_transactions.id',
@@ -1535,7 +1519,16 @@ class VendController extends Controller
                 'vend_transactions.items_json',
                 'vend_transactions.meta_json',
                 'vend_transactions.vend_transaction_json',
-                DB::raw('tx_labels.label_json AS label_json')
+                DB::raw("
+                (
+                    SELECT JSON_ARRAYAGG(
+                            JSON_OBJECT('id', t.id, 'slug', t.slug, 'name', t.name)
+                        )
+                    FROM JSON_TABLE(COALESCE(vend_transactions.label_json, '[]'),
+                                    '$[*]' COLUMNS(tag_id BIGINT PATH '$')) jt
+                    JOIN tags t ON t.id = jt.tag_id
+                ) AS label_json
+                ")
             )->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
             ->withQueryString();
 
@@ -1638,6 +1631,9 @@ class VendController extends Controller
             'paymentMethods' => PaymentMethodResource::collection(PaymentMethod::orderBy('name')->get()),
             'vendTransactions' => VendTransactionResource::collection(
                 $vendTransactions
+            ),
+            'tagOptions' => TagResource::collection(
+                Tag::orderBy('name')->get()
             ),
             'totals' => $totals,
             'vendChannelErrors' => VendChannelErrorResource::collection(VendChannelError::orderBy('code')->get()),
@@ -1849,9 +1845,37 @@ class VendController extends Controller
                 'vend_channels.amount2 AS vend_channel_amount2',
                 'vend_channel_errors.desc AS vend_channel_error_desc',
                 'vend_channel_errors.code AS vend_channel_error_code',
+                DB::raw('vend_transactions.label_json AS label_ids_json'),
             ])
             ->chunk(500, function ($transactions) use (&$data) {
+                // 1) Collect all tag IDs used in this chunk
+                $tagIds = $transactions->pluck('label_ids_json')
+                    ->filter()
+                    ->flatMap(function ($val) {
+                        if (is_array($val)) return $val;
+                        $arr = json_decode($val, true);
+                        return is_array($arr) ? $arr : [];
+                    })
+                    ->unique()
+                    ->values();
+
+                // 2) Fetch once, key by id
+                $tagMap = Tag::whereIn('id', $tagIds)
+                    ->get(['id', 'name', 'slug'])
+                    ->keyBy('id');
+
                 foreach ($transactions as $txn) {
+                    // normalize txn's label IDs
+                    $ids = is_array($txn->label_ids_json)
+                        ? $txn->label_ids_json
+                        : (json_decode($txn->label_ids_json, true) ?: []);
+
+                    // 3) Build label string (use name -> slug -> id)
+                    $labelStr = collect($ids)->map(function ($id) use ($tagMap) {
+                        $t = $tagMap->get($id);
+                        return $t->name ?? $t->slug ?? (string) $id;
+                    })->implode(', ');
+
                     $txn_json = is_array($txn->vend_transaction_json) ? $txn->vend_transaction_json : json_decode($txn->vend_transaction_json, true);
                     $main_amount = $txn->amount / 100;
 
@@ -1859,9 +1883,10 @@ class VendController extends Controller
                         ? ($txn->amount - $txn->vendTransactionItems->sum(fn ($item) => $item->vendChannel?->amount ?? 0)) / 100
                         : $main_amount;
 
+                    // 4) Put labels into the main row (keep item rows empty or repeat, your choice)
                     $data[] = [
                         'order_id' => $txn->order_id,
-                        'transaction_datetime' => Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
+                        'transaction_datetime' => \Carbon\Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
                         'machine_id' => $txn->vend_code ?? '',
                         'machine_prefix' => $txn->vend_prefix_name ?? '',
                         'customer_id' => $txn->customer_id + 20000,
@@ -1886,19 +1911,19 @@ class VendController extends Controller
                         'member_id' => $txn_json['dcvend_user_id'] ?? '',
                         'hid_card_id' => $txn->meta_json['hid_card_id'] ?? '',
                         'voucher' => isset($txn->meta_json['vouchers']) ? $txn->meta_json['vouchers'][0]['code'] : '',
-
+                        'labels' => $labelStr, // 👈 add this column
                     ];
 
                     foreach ($txn->vendTransactionItems as $item) {
                         $data[] = [
                             'order_id' => $txn->order_id,
-                            'transaction_datetime' => Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
+                            'transaction_datetime' => \Carbon\Carbon::parse($txn->transaction_datetime)->toDateTimeString(),
                             'machine_id' => $txn->vend_code ?? '',
                             'machine_prefix' => $txn->vend_prefix_name ?? '',
                             'customer_id' => $txn->customer_id + 20000,
                             'customer_code' => $txn->person_id ? $txn->virtual_customer_code : '',
                             'customer_name' => $txn->customer_name,
-                            'channel' => (int)$item->vend_channel_code,
+                            'channel' => (int) $item->vend_channel_code,
                             'product_code' => $item->product->code ?? '',
                             'product_name' => $item->product->name ?? '',
                             'price_type' => 'P1',
@@ -1915,6 +1940,7 @@ class VendController extends Controller
                             'multiple_qty' => 0,
                             'txn_src' => $txn->interface_type,
                             'member_id' => $txn_json['dcvend_user_id'] ?? '',
+                            'labels' => '', // or $labelStr if you want to repeat per item row
                         ];
                     }
                 }
