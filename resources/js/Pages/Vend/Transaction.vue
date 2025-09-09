@@ -354,7 +354,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">
-                    Label(s)
+                    Campaign Label(s)
                 </label>
                 <MultiSelect
                     v-model="filters.tag"
@@ -630,7 +630,7 @@
                             Voucher
                         </TableHead>
                         <TableHead>
-                            Label(s)
+                            Campaign Label(s)
                         </TableHead>
                       </tr>
                   </thead>

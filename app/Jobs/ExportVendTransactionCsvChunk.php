@@ -88,7 +88,7 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                 'Product Code', 'Product Name', 'Price Type', 'Amount', 'Amount Breakdown',
                 'Unit Cost', 'Payment Method', 'Error Code', 'Location Type',
                 'Operator', 'Is Successful', 'Is Refunded', 'Is Multiple',
-                'Multiple Qty', 'TXN Source', 'Member ID', 'HID Card ID', 'Voucher', 'Labels'
+                'Multiple Qty', 'TXN Source', 'Member ID', 'HID Card ID', 'Voucher', 'Campaign Labels'
             ]);
 
             VendTransaction::query()
