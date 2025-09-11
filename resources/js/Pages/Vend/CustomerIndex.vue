@@ -1632,14 +1632,14 @@
 							>
 									<div class="flex flex-col">
 											<span class="font-bold">
-													MDB Cashless Device
+													Cashless Status
 											</span>
 											<span>
 													{{vend.parameterJson['CSHLStat'] == 3 ? 'Active' : (vend.parameterJson['CSHLStat'] == 1 ? 'Inactive' : 'NA') }}
 											</span>
 									</div>
 							</div>
-							<!-- <div
+							<div
 									class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
 									:class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
 									v-if="vend.acbVmcPaJson && 'CSHL_MFG' in vend.acbVmcPaJson"
@@ -1652,7 +1652,7 @@
 													{{vend.acbVmcPaJson['CSHL_MFG'] ? vend.acbVmcPaJson['CSHL_MFG'] : 'NA' }}
 											</span>
 									</div>
-							</div> -->
+							</div>
 						</div>
 					</TableData>
 					<TableData :currentIndex="vendIndex" :totalLength="vends.length" inputClass="text-center" v-if="indexType === 'customers' && !roles.includes('operator_3pl')">
