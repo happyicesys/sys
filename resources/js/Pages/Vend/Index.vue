@@ -62,6 +62,22 @@
         <!-- <SearchInput class="md:block" :class="[showAllFilters ? 'block' : 'hidden']" placeholderStr="Cust ID" v-model="filters.customer_code" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
             Cust ID
         </SearchInput> -->
+        <div>
+          <label for="text" class="block text-sm font-medium text-gray-700">
+              Has Customer
+          </label>
+          <MultiSelect
+              v-model="filters.has_customer"
+              :options="booleanOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+          >
+          </MultiSelect>
+        </div>
         <SearchInput placeholderStr="Customer" v-model="filters.customer" v-if="permissions.includes('admin-access vend-machines')" @keyup.enter="onSearchFilterUpdated()">
           Customer
         </SearchInput>
@@ -326,22 +342,6 @@
             <MultiSelect
                 v-model="filters.lcd_monitor_id"
                 :options="lcdMonitorOptions"
-                trackBy="id"
-                valueProp="id"
-                label="value"
-                placeholder="Select"
-                open-direction="bottom"
-                class="mt-1"
-            >
-            </MultiSelect>
-          </div>
-          <div>
-            <label for="text" class="block text-sm font-medium text-gray-700">
-                Has Customer
-            </label>
-            <MultiSelect
-                v-model="filters.has_customer"
-                :options="booleanOptions"
                 trackBy="id"
                 valueProp="id"
                 label="value"
