@@ -335,7 +335,7 @@
             >
             </MultiSelect>
           </div>
-          <div :class="[showAllFilters ? 'block' : 'hidden']">
+          <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
                 Has Customer
             </label>
