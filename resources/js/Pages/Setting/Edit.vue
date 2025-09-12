@@ -393,9 +393,6 @@
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2">
                     Modem Model
-                    <span class="text-red-500">
-                      *
-                    </span>
                     <span v-if="form.modem_type_id && form.modem_type_id.id">
                       <a class="text-blue-700" target="_blank" :href="'/modem-types?id=' + form.modem_type_id.id">
                         <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>
@@ -517,6 +514,9 @@
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   LCD Monitor
                 </label>
+                <span class="text-red-500">
+                  *
+                </span>
                 <MultiSelect
                   v-model="form.lcd_monitor_id"
                   :options="lcdMonitorOptions"
@@ -605,9 +605,6 @@
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   <div class="flex space-x-2 items-center">
                     Product Mapping (upcoming)
-                    <span class="text-red-500">
-                      *
-                    </span>
                     <span v-if="form.upcoming_product_mapping_id && form.upcoming_product_mapping_id.id">
                       <a class="text-blue-700" target="_blank" :href="'/product-mappings/' + form.upcoming_product_mapping_id.id + '/edit'">
                         <ArrowTopRightOnSquareIcon class="w-4 h-4"></ArrowTopRightOnSquareIcon>

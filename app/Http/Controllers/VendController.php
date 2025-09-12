@@ -2237,6 +2237,16 @@ class VendController extends Controller
             ]);
         }
 
+        $request->validate([
+            'lcd_monitor_id' => 'required',
+            'menu_frame_id' => 'required',
+            'operator_id' => 'required',
+            'product_mapping_id' => 'required',
+            'vend_config_id' => 'required',
+            'vend_model_id' => 'required',
+            'vend_prefix_id' => 'required',    
+        ]);
+
         $vend->update([
             'name' => $request->name,
             'begin_date' => $request->begin_date,
