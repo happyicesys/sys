@@ -41,6 +41,7 @@ class Vend extends Model
     ];
 
     const LCD_MONITOR_MAPPINGS = [
+        99 => 'N/A',
         1 => 'WaveShare 7 inch 1024x600',
         2 => 'WaveShare 10.1 inch 1920x1200',
         3 => 'WaveShare 10.1HP-CAPLCD (Type-C) 1280x800'

@@ -2244,7 +2244,7 @@ class VendController extends Controller
             'product_mapping_id' => 'required',
             'vend_config_id' => 'required',
             'vend_model_id' => 'required',
-            'vend_prefix_id' => 'required',    
+            'vend_prefix_id' => 'required',
         ]);
 
         $vend->update([

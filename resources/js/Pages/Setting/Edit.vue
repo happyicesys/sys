@@ -513,10 +513,10 @@
             <div class="sm:col-span-3">
                 <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   LCD Monitor
+                  <span class="text-red-500">
+                    *
+                  </span>
                 </label>
-                <span class="text-red-500">
-                  *
-                </span>
                 <MultiSelect
                   v-model="form.lcd_monitor_id"
                   :options="lcdMonitorOptions"
