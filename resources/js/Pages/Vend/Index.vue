@@ -858,8 +858,11 @@
                     :class="[vend.modem_unit_is_online ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']"
                 >
                     <div class="flex flex-col">
-                        <span class="font-bold">
+                        <span class="font-bold" v-if="vend.modem_unit_last_updated_at">
                             {{vend.modem_unit_is_online ? 'Online' : 'Offline'}}
+                        </span>
+                        <span class="font-bold" v-else>
+                            {{'N/A'}}
                         </span>
                         <span v-if="vend.modem_unit_last_updated_at">
                             {{vend.modem_unit_last_updated_at}}
@@ -1347,7 +1350,7 @@
                       </span>
                   </div>
               </div>
-              <!-- <div
+              <div
                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                   :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MFG'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
                   v-if="vend.acbVmcPaJson && 'CSHL_MFG' in vend.acbVmcPaJson"
@@ -1361,7 +1364,7 @@
                       </span>
                   </div>
               </div>
-              <div
+              <!--<div
                   class="inline-flex justify-center items-center rounded px-1.5 py-0.5 text-xs font-medium border min-w-full"
                   :class="[vend.is_active || vend.is_testing ? (vend.acbVmcPaJson['CSHL_MDL'] ? 'bg-green-200' : 'bg-gray-200') : 'bg-gray-200 text-gray-400']"
                   v-if="vend.acbVmcPaJson && 'CSHL_MDL' in vend.acbVmcPaJson"
