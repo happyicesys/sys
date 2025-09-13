@@ -112,6 +112,7 @@ class DatabaseSeeder extends Seeder
 
             // FixYesterdayStockCostSeeder::class,
             // RolePermissionSyncSeeder::class,
+            SyncCustomerVendBindingsFromVendsSeeder::class
         ]);
     }
 }
