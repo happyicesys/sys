@@ -8,6 +8,7 @@ use App\Http\Resources\OperatorResource;
 use App\Http\Resources\PaymentGatewayResource;
 use App\Http\Resources\UserResource;
 use App\Http\Resources\VendResource;
+use App\Models\AlertEmailItem;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\DeliveryPlatform;
@@ -21,6 +22,8 @@ use App\Models\Vend;
 use App\Traits\HasFilter;
 use Carbon\Carbon;
 use DateTimeZone;
+use DB;
+use Illuminate\Support\Collection;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -206,22 +209,29 @@ class OperatorController extends Controller
                 DeliveryPlatformOperator::TYPE_PRODUCTION
             ],
             'emailUserOptions' => UserResource::collection(
-                    User::query()
+                User::query()
+                    ->select('id','name','email','operator_id','is_active')
                     ->where('is_active', true)
                     ->where(function($query) {
                         $operatorId = auth()->user()->operator_id;
-                        $isHappyIce = $operatorId == 1 ? true : false;
-                        if($isHappyIce) {
-                          $operatorId = null;
-                        }
-                        if($operatorId) {
-                            $query = $query->whereHas('operator', function($query) use ($operatorId) {
-                                $query->where('id', $operatorId);
+                        $isHappyIce = $operatorId == 1;
+                        if (!$isHappyIce && $operatorId) {
+                            // Include users from current operator OR superuser group (operator_id = 1)
+                            $query->where(function($q) use ($operatorId) {
+                                $q->whereHas('operator', function($oq) use ($operatorId) {
+                                    $oq->where('id', $operatorId);
+                                })
+                                ->orWhere('operator_id', 1);
                             });
                         }
+                        // If superuser, show all active users by default
                     })
                     ->orderBy('name')
                     ->get()
+                    ->map(function ($user) {
+                        $user->email = $user->email ?: 'no email';
+                        return $user;
+                    })
             ),
             'operatorPaymentGatewayTypes' => [
                 OperatorPaymentGateway::TYPE_SANDBOX,
@@ -295,6 +305,15 @@ class OperatorController extends Controller
             ->all();
         $operator->save();
 
+        // after $operator->save();
+        $customEmails = collect($operator->email_recipients_json['customs'] ?? [])->pluck('email');
+        $userEmails = User::whereIn('id', $operator->email_recipients_json['user_ids'] ?? [])
+            ->whereNotNull('email')
+            ->pluck('email');
+            // dd($userEmails);
+        $this->syncAlertEmailItemsGeneric($operator, $userEmails->merge($customEmails));
+
+
         // return redirect()->route('operators');
         return redirect()->route('operators.edit', [$operator->id]);
     }
@@ -319,31 +338,62 @@ class OperatorController extends Controller
     public function update(Request $request, $operatorId)
     {
         $request->validate([
-            'name' => 'required',
-            'email_recipients' => ['nullable','array'],
-            'email_recipients.*.email' => ['required','email'],
-            'email_recipients.*.label' => ['nullable','string','max:255'],
+            'name' => ['required', 'string', 'max:255'],
+            'email_user_ids' => ['nullable','array'],
+            'email_user_ids.*' => ['integer','exists:users,id'],
+            'email_customs' => ['nullable','array'],
+            'email_customs.*.email' => ['required','email'],
+            'email_customs.*.label' => ['nullable','string','max:255'],
         ]);
 
         $operator = Operator::findOrFail($operatorId);
-        $operator->update(
-            collect($request->all())->except('email_recipients')->toArray()
-        );
 
-        $operator->email_recipients_json = collect($request->input('email_recipients', []))
+        // Update the rest of the fields
+        $payload = collect($request->all())->except(['email_user_ids','email_customs'])->toArray();
+        $operator->update($payload);
+
+        // Normalize the JSON we keep for the UI
+        $userIds = collect($request->input('email_user_ids', []))
+            ->map(fn($v) => (int) $v)->filter()->values();
+
+        $customs = collect($request->input('email_customs', []))
             ->map(fn($r) => [
                 'email' => strtolower(trim($r['email'] ?? '')),
                 'label' => trim($r['label'] ?? ''),
             ])
             ->filter(fn($r) => !empty($r['email']))
             ->unique('email')
-            ->values()
-            ->all();
+            ->values();
 
+        $operator->email_recipients_json = [
+            'user_ids' => $userIds->all(),
+            'customs'  => $customs->all(),
+        ];
         $operator->save();
+
+        // Flatten to email items (with user_id when available) for alert_email_items
+        $userEmailItems = User::whereIn('id', $userIds)
+            ->whereNotNull('email')
+            ->get(['id','email'])
+            ->map(fn($u) => [
+                'email'   => strtolower(trim((string) $u->email)),
+                'user_id' => (int) $u->id,
+            ]);
+
+        $customEmailItems = $customs->pluck('email')
+            ->map(fn($e) => [
+                'email'   => strtolower(trim((string) $e)),
+                'user_id' => null,
+            ]);
+
+        $items = $userEmailItems->merge($customEmailItems);
+
+        $this->syncAlertEmailItemsGeneric($operator, $items);
 
         return redirect()->route('operators.edit', [$operatorId]);
     }
+
+
 
     public function delete($operatorId)
     {
@@ -416,4 +466,56 @@ class OperatorController extends Controller
         }
         $paymentGatewayOperator->delete();
     }
+
+    protected function syncAlertEmailItemsGeneric(?Operator $operator, Collection $emails, array $flags = []): void
+    {
+        $defaults = [
+            'is_active' => true,
+            'is_send_channel_error_log' => true,
+            'is_send_offline_notification' => true,
+            'is_send_power_restored_notification' => true,
+        ];
+        $flags = array_replace($defaults, $flags);
+
+        DB::transaction(function () use ($operator, $emails, $flags) {
+            $q = AlertEmailItem::query();
+            $operator ? $q->where('operator_id', $operator->id)
+                    : $q->whereNull('operator_id');
+            $q->delete();
+
+            // Coerce to items with email + optional user_id
+            $items = $emails
+                ->map(function ($e) {
+                    if (is_array($e)) {
+                        $email = strtolower(trim((string) ($e['email'] ?? '')));
+                        $userId = isset($e['user_id']) && is_numeric($e['user_id']) ? (int) $e['user_id'] : null;
+                        return ['email' => $email, 'user_id' => $userId];
+                    }
+                    $email = strtolower(trim((string) $e));
+                    return ['email' => $email, 'user_id' => null];
+                })
+                ->filter(fn($it) => $it['email'] !== '')
+                ->unique('email')
+                ->values();
+
+            if ($items->isEmpty()) return;
+
+            $now = now();
+            $rows = $items->map(fn($it) => [
+                'operator_id' => $operator?->id,
+                'user_id'     => $it['user_id'],
+                'email'       => $it['email'],
+                'is_active'   => $flags['is_active'],
+                'is_send_channel_error_log'    => $flags['is_send_channel_error_log'],
+                'is_send_offline_notification' => $flags['is_send_offline_notification'],
+                'is_send_power_restored_notification' => $flags['is_send_power_restored_notification'],
+                'created_at'  => $now,
+                'updated_at'  => $now,
+            ])->all();
+
+            AlertEmailItem::insert($rows);
+        });
+    }
+
+
 }

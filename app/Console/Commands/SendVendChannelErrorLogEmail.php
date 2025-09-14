@@ -2,62 +2,61 @@
 
 namespace App\Console\Commands;
 
-use App\Mail\VendChannelErrorLogsMail;
-use App\Models\Vend;
+use App\Models\Operator;
 use App\Models\VendChannelErrorLog;
+use App\Services\AlertEmailService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Mail;
 
 class SendVendChannelErrorLogEmail extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'send:channel-error-logs-email';
+    protected $signature = 'send:channel-error-logs-email {--hours=24}';
+    protected $description = 'Send aggregated vending channel error logs emails (grouped by Operator)';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Send Vending Machine Error Logs Email';
-
-    /**
-     * Execute the console command.
-     *
-     * @return int
-     */
-    public function handle()
+    public function __construct(protected AlertEmailService $alertEmailService)
     {
-        $intervalHours = 24;
-        $now = Carbon::now();
-        $vendChannelErrorLogs = VendChannelErrorLog::with([
-            'vendChannel',
-            'vendChannel.vend',
-            'vendChannel.vend.customer',
-            'vendChannelError'
-        ])
-            ->leftJoin('vend_channels', 'vend_channels.id', '=', 'vend_channel_error_logs.vend_channel_id')
-            ->leftJoin('vends', 'vends.id', '=', 'vend_channels.vend_id')
-            ->where('vend_channel_error_logs.created_at', '>=', $now->subHours($intervalHours))
+        parent::__construct();
+    }
+
+    public function handle(): int
+    {
+        $intervalHours = (int) $this->option('hours') ?: 24;
+        $since = Carbon::now()->subHours($intervalHours);
+
+        $logs = VendChannelErrorLog::with([
+                'vendChannel',
+                'vendChannel.vend',
+                'vendChannel.vend.operator',
+                'vendChannel.vend.customer',
+                'vendChannelError',
+            ])
+            ->where('created_at', '>=', $since)
             ->where('is_error_cleared', false)
-            ->orderBy('vends.code')
-            ->orderBy('vend_channel_error_logs.created_at')
-            ->select('*', 'vend_channel_error_logs.created_at')
             ->get();
 
+        if ($logs->isEmpty()) {
+            return self::SUCCESS;
+        }
 
+        $byOperator = $logs
+            ->filter(fn ($log) => $log->vendChannel?->vend)
+            ->groupBy(fn ($log) => $log->vendChannel->vend->operator_id);
 
-        Mail::to([
-            'daniel.ma@happyice.com.sg',
-            'kent@happyice.com.sg',
-            'stephen@happyice.com.sg',
-            'brianlee@happyice.com.my',
-            'technician1@happyice.com.sg',
-            ])
-            ->send(new VendChannelErrorLogsMail($vendChannelErrorLogs, $intervalHours));
+        foreach ($byOperator as $operatorId => $opLogs) {
+            $vendGroups = $opLogs
+                ->groupBy(fn ($log) => $log->vendChannel->vend_id)
+                ->map(fn ($vendLogs) => $vendLogs->sortBy('created_at')->values());
+
+            $vendGroups = $vendGroups->sortBy(function ($vendLogs) {
+                $vend = $vendLogs->first()->vendChannel->vend;
+                return sprintf('%08s', (string) ($vend->code ?? ''));
+            });
+
+            $operator = $operatorId ? Operator::find($operatorId) : null;
+
+            $this->alertEmailService->sendChannelErrorLogsForOperator($operator, $vendGroups);
+        }
+
+        return self::SUCCESS;
     }
 }

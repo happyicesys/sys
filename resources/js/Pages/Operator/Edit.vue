@@ -80,7 +80,7 @@
                 </FormTextarea>
               </div>
               <div class="sm:col-span-6">
-                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                <label class="flex justify-start text-sm font-medium text-gray-700">
                   Machine Email Alert User(s)
                 </label>
                 <MultiSelect
@@ -93,8 +93,7 @@
                   open-direction="bottom"
                   class="mt-1"
                   mode="tags"
-                >
-                </MultiSelect>
+                />
                 <div class="text-sm text-red-600" v-if="form.errors.email_recipients">
                   {{ form.errors.email_recipients }}
                 </div>
@@ -611,6 +610,7 @@
                   </div>
                 </div>
               </div>
+
               </div>
           </form>
         </div>
@@ -675,6 +675,12 @@ const props = defineProps({
   const typeName = ref('')
   const vends = ref([])
 
+  const isEmail = (v) => /[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/.test(String(v||''));
+  const toEmailObj = (v) => {
+    if (typeof v === 'string') return { email: v.toLowerCase().trim(), label: '' };
+    return { email: String(v.email||'').toLowerCase().trim(), label: String(v.label||'').trim() };
+  };
+
 onMounted(() => {
     if(props.type == 'create') {
         typeName.value = 'Create New'
@@ -687,7 +693,31 @@ onMounted(() => {
     deliveryPlatformOperators.value = props.operator ? props.operator.data.deliveryPlatformOperators : null
     deliveryPlatformOperatorTypes.value = props.deliveryPlatformOperatorTypes
     emailUserOptions.value = props.emailUserOptions.data
-    form.value = props.operator ? useForm(props.operator.data) : useForm(getDefaultForm())
+      .map(u => ({
+        ...u,
+        // show: "Full Name (email)" or "Full Name (no email)"
+        name: `${u.name}${u.email ? ` (${u.email})` : ' no email'}`
+      }));
+
+    const existingUserIds = props.operator?.data?.email_user_ids ?? [];
+    const existingCustoms = props.operator?.data?.email_customs ?? [];
+
+    const userOptionsById = new Map(emailUserOptions.value.map(u => [u.id, u]));
+    const mixedRecipients = [
+      ...existingUserIds
+        .map(id => userOptionsById.get(id))
+        .filter(Boolean),
+      ...existingCustoms.map(toEmailObj),
+    ];
+
+    form.value = props.operator
+      ? useForm({
+          ...props.operator.data,
+          email_recipients: Array.isArray(mixedRecipients) ? mixedRecipients : [],
+        })
+      : useForm(getDefaultForm());
+
+
     timezoneOptions.value = props.timezones.map((timezone, index) => {return {id: index, name: timezone}})
     operatorPaymentGatewayTypes.value = props.operatorPaymentGatewayTypes
     operatorPaymentGateways.value = props.operator ? props.operator.data.operatorPaymentGateways : null
@@ -856,12 +886,49 @@ function submit() {
   form.value.clearErrors()
   if(props.type === 'update') {
     form.value
-      .transform((data) => ({
-        ...data,
-        email_recipients: data.email_recipients.map((recipient) => recipient.id),
-        timezone: data.timezone ? data.timezone.name : null,
-        country_id: data.country_id ? data.country_id.id : null,
-      }))
+      .transform((data) => {
+        const items = Array.isArray(data.email_recipients) ? data.email_recipients : [];
+
+        const email_user_ids = new Set();
+        const email_customs = [];
+
+        items.forEach((it) => {
+          // If it's a selected user option (object with id)
+          if (it && typeof it === 'object' && 'id' in it && Number(it.id)) {
+            email_user_ids.add(Number(it.id));
+            return;
+          }
+          // If it's a raw id (edge case)
+          if ((typeof it === 'string' || typeof it === 'number') && String(it).match(/^\d+$/)) {
+            email_user_ids.add(Number(it));
+            return;
+          }
+          // If it's an email object or email string (tag)
+          if (it && typeof it === 'object' && it.email) {
+            const obj = toEmailObj(it);
+            if (isEmail(obj.email)) email_customs.push(obj);
+            return;
+          }
+          if (typeof it === 'string' && isEmail(it)) {
+            email_customs.push(toEmailObj(it));
+          }
+        });
+
+        // de-dupe custom emails
+        const customsDeduped = email_customs.reduce((acc, cur) => {
+          if (!acc.find(x => x.email === cur.email)) acc.push(cur);
+          return acc;
+        }, []);
+
+        return {
+          ...data,
+          timezone: data.timezone ? data.timezone.name : null,
+          country_id: data.country_id ? data.country_id.id : null,
+          // send both to backend:
+          email_user_ids: Array.from(email_user_ids),
+          email_customs: customsDeduped,
+        };
+      })
       .post('/operators/' + form.value.id + '/update', {
       preserveState: true,
       replace: true,

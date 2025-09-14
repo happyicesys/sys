@@ -2,41 +2,34 @@
 
 namespace App\Mail;
 
+use App\Models\Operator;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Collection;
 
-class VendChannelErrorLogsMail extends Mailable
+class VendChannelErrorLogsMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
-    public $vendChannelErrorLogs;
-    public $intervalHours;
-    public $now;
+    public ?Operator $operator;
+    /** @var Collection  // keyed by vend_id => Collection<VendChannelErrorLog> */
+    public Collection $vendErrorsByVend;
+    public Carbon $now;
 
-    /**
-     * Create a new message instance.
-     *
-     * @return void
-     */
-    public function __construct($vendChannelErrorLogs, $intervalHours)
+    public function __construct(?Operator $operator, Collection $vendErrorsByVend)
     {
-        $this->vendChannelErrorLogs = $vendChannelErrorLogs;
-        $this->intervalHours = $intervalHours;
+        $this->operator = $operator;
+        $this->vendErrorsByVend = $vendErrorsByVend;
         $this->now = Carbon::now();
     }
 
-    /**
-     * Build the message.
-     *
-     * @return $this
-     */
     public function build()
     {
         return $this
-            ->subject('Vending Machine Channel Error Logs ('.$this->now->format('y-m-d').')')
+            ->subject('Channel Error Logs - ' . ($this->operator?->name ?? 'Global') . ' (' . $this->now->format('Y-m-d') . ')')
             ->view('emails.vend-channel-error-logs');
     }
 }

@@ -13,6 +13,15 @@ return new class extends Migration
     {
         Schema::create('alert_email_items', function (Blueprint $table) {
             $table->id();
+            $table->string('email');
+            $table->boolean('is_active')->default(true);
+            $table->boolean('is_send_channel_error_log')->default(false);
+            $table->boolean('is_send_offline_notification')->default(false);
+            $table->boolean('is_send_power_restored_notification')->default(false);
+            $table->unsignedBigInteger('operator_id')->nullable()->index();
+            $table->foreign('operator_id')->references('id')->on('operators')->onDelete('cascade');
+            $table->unsignedBigInteger('user_id')->nullable()->index();
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->timestamps();
         });
     }

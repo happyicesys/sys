@@ -7,35 +7,49 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class OperatorResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return array|\Illuminate\Contracts\Support\Arrayable|\JsonSerializable
-     */
     public function toArray($request)
     {
+        $emailRecipientsJson = $this->email_recipients_json ?? [];
+
+        // Safe timezone mapping
+        $tzList  = DateTimeZone::listIdentifiers();
+        $tzName  = $this->timezone;
+        $tzIndex = null;
+        if ($tzName !== null) {
+            $found = array_search($tzName, $tzList, true);
+            $tzIndex = ($found !== false) ? $found : null;
+        }
+
         return [
-            'id' => $this->id,
-            'address' => AddressResource::make($this->whenLoaded('address')),
-            'code' => $this->code,
-            'customers' => CustomerResource::collection($this->whenLoaded('customers')),
-            'deliveryPlatformOperators' => DeliveryPlatformOperatorResource::collection($this->whenLoaded('deliveryPlatformOperators')),
-            'email_recipients' => $this->email_recipients_json ?? [],
-            'name' => $this->name,
-            'gst_vat_rate' => $this->gst_vat_rate,
-            'full_name' => $this->code.' - '.$this->name,
-            'remarks' => $this->remarks,
+            'id'          => $this->id,
+            'code'        => $this->code,
+            'name'        => $this->name,
+            'full_name'   => $this->code . ' - ' . $this->name,
+            'remarks'     => $this->remarks,
+            'gst_vat_rate'=> $this->gst_vat_rate,
+            'is_active'   => (bool) $this->is_active,
+
             'timezone' => [
-                'id' => array_search($this->timezone, DateTimeZone::listIdentifiers()),
-                'name' => $this->timezone,
+                'id'   => $tzIndex,
+                'name' => $tzName,
             ],
-            'country' => CountryResource::make($this->whenLoaded('country')),
+
+            'country'    => CountryResource::make($this->whenLoaded('country')),
             'country_id' => CountryResource::make($this->whenLoaded('country')),
+
             'address' => AddressResource::make($this->whenLoaded('address')),
-            'is_active' => $this->is_active ? true : false,
-            'vends' => VendResource::collection($this->whenLoaded('vends')),
-            'operatorPaymentGateways' => OperatorPaymentGatewayResource::collection($this->whenLoaded('operatorPaymentGateways')),
+
+            'customers'                => CustomerResource::collection($this->whenLoaded('customers')),
+            'vends'                    => VendResource::collection($this->whenLoaded('vends')),
+            'deliveryPlatformOperators'=> DeliveryPlatformOperatorResource::collection($this->whenLoaded('deliveryPlatformOperators')),
+            'operatorPaymentGateways'  => OperatorPaymentGatewayResource::collection($this->whenLoaded('operatorPaymentGateways')),
+
+            // Current UI field (single multiselect backing)
+            'email_recipients' => $emailRecipientsJson,
+
+            // Back-compat fields; will be [] when json is a flat string array
+            'email_user_ids' => data_get($emailRecipientsJson, 'user_ids', []),
+            'email_customs'  => data_get($emailRecipientsJson, 'customs', []),
         ];
     }
 }
