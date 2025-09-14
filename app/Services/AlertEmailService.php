@@ -10,6 +10,7 @@ use App\Models\Operator;
 use App\Models\Vend;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class AlertEmailService
 {
@@ -21,11 +22,28 @@ class AlertEmailService
     {
         $emails = $this->recipients($operator, 'is_send_channel_error_log');
         if ($emails->isEmpty() || $vendErrorsByVend->isEmpty()) {
+            Log::info('AlertEmail: no recipients or empty errors for VendChannelErrorLogsMail', [
+                'operator_id' => $operator?->id,
+                'recipient_count' => $emails->count(),
+                'vend_count' => $vendErrorsByVend->count(),
+            ]);
             return 0;
         }
 
+        $vendCount = $vendErrorsByVend->count();
+        Log::info('AlertEmail: queuing VendChannelErrorLogsMail', [
+            'operator_id' => $operator?->id,
+            'recipient_count' => $emails->count(),
+            'vend_count' => $vendCount,
+            'recipients' => $emails->all(),
+        ]);
         foreach ($emails as $email) {
             Mail::to($email)->queue(new VendChannelErrorLogsMail($operator, $vendErrorsByVend));
+            Log::info('AlertEmail: queued VendChannelErrorLogsMail', [
+                'operator_id' => $operator?->id,
+                'recipient' => $email,
+                'vend_count' => $vendCount,
+            ]);
         }
 
         return $emails->count();
@@ -38,11 +56,26 @@ class AlertEmailService
     {
         $emails = $this->recipients($vend->operator, 'is_send_offline_notification');
         if ($emails->isEmpty()) {
+            Log::info('AlertEmail: no recipients for VendOfflineNotificationMail', [
+                'vend_id' => $vend->id,
+                'operator_id' => $vend->operator_id,
+            ]);
             return 0;
         }
 
+        Log::info('AlertEmail: queuing VendOfflineNotificationMail', [
+            'vend_id' => $vend->id,
+            'operator_id' => $vend->operator_id,
+            'recipient_count' => $emails->count(),
+            'recipients' => $emails->all(),
+        ]);
         foreach ($emails as $email) {
             Mail::to($email)->queue(new VendOfflineNotificationMail($vend));
+            Log::info('AlertEmail: queued VendOfflineNotificationMail', [
+                'vend_id' => $vend->id,
+                'operator_id' => $vend->operator_id,
+                'recipient' => $email,
+            ]);
         }
 
         return $emails->count();
@@ -55,11 +88,26 @@ class AlertEmailService
     {
         $emails = $this->recipients($vend->operator, 'is_send_power_restored_notification');
         if ($emails->isEmpty()) {
+            Log::info('AlertEmail: no recipients for VendPowerRestoredNotificationMail', [
+                'vend_id' => $vend->id,
+                'operator_id' => $vend->operator_id,
+            ]);
             return 0;
         }
 
+        Log::info('AlertEmail: queuing VendPowerRestoredNotificationMail', [
+            'vend_id' => $vend->id,
+            'operator_id' => $vend->operator_id,
+            'recipient_count' => $emails->count(),
+            'recipients' => $emails->all(),
+        ]);
         foreach ($emails as $email) {
             Mail::to($email)->queue(new VendPowerRestoredNotificationMail($vend));
+            Log::info('AlertEmail: queued VendPowerRestoredNotificationMail', [
+                'vend_id' => $vend->id,
+                'operator_id' => $vend->operator_id,
+                'recipient' => $email,
+            ]);
         }
 
         return $emails->count();
