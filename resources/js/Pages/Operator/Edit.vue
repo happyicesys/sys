@@ -97,6 +97,9 @@
                 <div class="text-sm text-red-600" v-if="form.errors.email_recipients">
                   {{ form.errors.email_recipients }}
                 </div>
+                <label class="flex justify-start text-sm font-medium text-blue-500 pt-2">
+                  ** Please make sure the user has a valid email address, the binded user will receive channel error alert email, machine offline alerts, power restoration alerts. **
+                </label>
               </div>
 
               <div class="sm:col-span-6">
