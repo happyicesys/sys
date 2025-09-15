@@ -70,7 +70,7 @@ class AlertEmailService
             'recipients' => $emails->all(),
         ]);
         foreach ($emails as $email) {
-            Mail::to($email)->queue(new VendOfflineNotificationMail($vend));
+            Mail::to($email)->queue(new VendOfflineNotificationMail((int) $vend->getKey()));
             Log::info('AlertEmail: queued VendOfflineNotificationMail', [
                 'vend_id' => $vend->id,
                 'operator_id' => $vend->operator_id,
@@ -102,7 +102,7 @@ class AlertEmailService
             'recipients' => $emails->all(),
         ]);
         foreach ($emails as $email) {
-            Mail::to($email)->queue(new VendPowerRestoredNotificationMail($vend));
+            Mail::to($email)->queue(new VendPowerRestoredNotificationMail((int) $vend->getKey()));
             Log::info('AlertEmail: queued VendPowerRestoredNotificationMail', [
                 'vend_id' => $vend->id,
                 'operator_id' => $vend->operator_id,

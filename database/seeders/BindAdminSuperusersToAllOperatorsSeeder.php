@@ -44,7 +44,6 @@ class BindAdminSuperusersToAllOperatorsSeeder extends Seeder
         $now = now();
 
         DB::transaction(function () use ($operatorIds, $superusers, $now) {
-            $superuserIds = $superusers->pluck('user_id')->unique()->values();
             foreach ($operatorIds as $operatorId) {
                 // Avoid duplicates: gather existing emails for this operator
                 $existing = AlertEmailItem::query()
@@ -76,38 +75,8 @@ class BindAdminSuperusersToAllOperatorsSeeder extends Seeder
                 if (!empty($rows)) {
                     AlertEmailItem::insert($rows);
                 }
-
-                // Also sync operator.email_recipients_json to include these user_ids
-                $operator = Operator::find($operatorId);
-                if ($operator) {
-                    $json = is_array($operator->email_recipients_json) ? $operator->email_recipients_json : [];
-
-                    $existingUserIds = collect(data_get($json, 'user_ids', []))
-                        ->map(fn($v) => (int) $v)
-                        ->filter()
-                        ->unique()
-                        ->values();
-
-                    $customs = collect(data_get($json, 'customs', []))
-                        ->map(function ($r) {
-                            return [
-                                'email' => strtolower(trim((string) data_get($r, 'email', ''))),
-                                'label' => trim((string) data_get($r, 'label', '')),
-                            ];
-                        })
-                        ->filter(fn($r) => !empty($r['email']))
-                        ->unique('email')
-                        ->values();
-
-                    $mergedUserIds = $existingUserIds->merge($superuserIds)->unique()->values()->all();
-
-                    $operator->email_recipients_json = [
-                        'user_ids' => $mergedUserIds,
-                        'customs'  => $customs->all(),
-                    ];
-                    $operator->save();
-                }
             }
         });
     }
 }
+

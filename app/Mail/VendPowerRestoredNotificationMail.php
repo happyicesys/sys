@@ -14,11 +14,12 @@ use Illuminate\Queue\SerializesModels;
 
 class VendPowerRestoredNotificationMail extends Mailable implements ShouldQueue
 {
-    use Queueable, SerializesModels;
+    use Queueable; // avoid SerializesModels to prevent model rehydrate issues
 
     public $baseUrl;
     public $now;
-    public $vend;
+    public int $vendId;
+    public $vend; // populated in build()
     public $vendPrefixName;
 
     /**
@@ -26,12 +27,11 @@ class VendPowerRestoredNotificationMail extends Mailable implements ShouldQueue
      *
      * @return void
      */
-    public function __construct(Vend $vend)
+    public function __construct(int $vendId)
     {
         $this->baseUrl = env('APP_URL');
         $this->now = Carbon::now();
-        $this->vend = $vend;
-        $this->vendPrefixName = $vend->vendPrefix ? $vend->vendPrefix->name : '';
+        $this->vendId = $vendId;
     }
 
     // public function envelope()
@@ -47,8 +47,11 @@ class VendPowerRestoredNotificationMail extends Mailable implements ShouldQueue
      */
     public function build()
     {
+        $vend = Vend::withoutGlobalScopes()->with('vendPrefix')->findOrFail($this->vendId);
+        $this->vend = $vend;
+        $this->vendPrefixName = $vend->vendPrefix ? $vend->vendPrefix->name : '';
         return $this
-        ->subject('ID: '.$this->vend->code.' Machine Offline Alert >= 50 mins ('.$this->now->format('y-m-d').') - Recovered')
+        ->subject('ID: '.$vend->code.' Machine Offline Alert >= 50 mins ('.$this->now->format('y-m-d').') - Recovered')
             ->view('emails.power-restored-alert');
     }
 }
