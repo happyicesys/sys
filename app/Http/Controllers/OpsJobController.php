@@ -49,6 +49,8 @@ class OpsJobController extends Controller
 
     public function index(Request $request)
     {
+        $isDriver = auth()->user()->hasRole('driver');
+
         if(!$request->operators) {
             if(auth()->user()->operator->code == 'HIPL') {
                 $request->merge(['operators' => [
@@ -70,6 +72,13 @@ class OpsJobController extends Controller
             'date_from' => $request->date_from ? Carbon::parse($request->date_from)->setTimezone($this->getUserTimezone())->startOfDay() : Carbon::today()->subDays(3)->setTimezone($this->getUserTimezone())->startOfDay(),
             'date_to' => $request->date_to ? Carbon::parse($request->date_to)->setTimezone($this->getUserTimezone())->endOfDay() : Carbon::today()->addWeek()->setTimezone($this->getUserTimezone())->endOfDay(),
         ]);
+
+        // If the current user is a driver, always restrict to their own jobs
+        if ($isDriver) {
+            $request->merge([
+                'delivered_by' => auth()->id(),
+            ]);
+        }
 
         $opsJobs = OpsJob::query()
             ->with(['createdBy', 'deliveredBy', 'operator', 'pickedBy', 'updatedBy'])
@@ -282,7 +291,11 @@ class OpsJobController extends Controller
                 $opsJobs
             ),
             'userOptions' => UserResource::collection(
-                User::orderBy('name')->get()
+                User::when($isDriver, function ($q) {
+                        $q->where('id', auth()->id());
+                    })
+                    ->orderBy('name')
+                    ->get()
             ),
         ]);
     }

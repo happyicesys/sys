@@ -67,6 +67,7 @@
                     placeholder="Select"
                     open-direction="bottom"
                     class="mt-1"
+                    :disabled="isDriver"
                 >
                 </MultiSelect>
             </div>
@@ -511,6 +512,9 @@ const filters = ref({
   numberPerPage: 100,
 })
 const authOperator = usePage().props.auth.operator
+const authUser = usePage().props.auth.user
+const authRoles = usePage().props.auth.roles || []
+const isDriver = authRoles.includes('driver')
 const showAddressModal = ref(false)
 const showModal = ref(false)
 const operatorCountry = usePage().props.auth.operatorCountry
@@ -536,6 +540,14 @@ onMounted(() => {
     ...props.userOptions.data.map((data) => {return {id: data.id, value: data.name}})
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
+
+  // If driver: default Delivered By to self and lock the control
+  if (isDriver && authUser) {
+    const selfOption = userOptions.value.find(u => u.id === authUser.id)
+    if (selfOption) {
+      filters.value.delivered_by = selfOption
+    }
+  }
 
   filters.value.operators = authOperator ? [
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
@@ -569,8 +581,8 @@ function onDeleteClicked(opsJob) {
 function onSearchFilterUpdated() {
   router.get('/ops-jobs', {
       ...filters.value,
-      created_by: filters.value.created_by.id,
-      delivered_by: filters.value.delivered_by.id,
+      created_by: filters.value.created_by?.id,
+      delivered_by: filters.value.delivered_by?.id,
       operators: filters.value.operators.map(operator => operator.id),
       numberPerPage: filters.value.numberPerPage.id,
   }, {
