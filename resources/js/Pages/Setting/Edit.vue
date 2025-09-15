@@ -931,7 +931,7 @@
                         <span v-if="customerVendBinding.customer?.virtual_customer_prefix">
                           {{ customerVendBinding.customer.virtual_customer_prefix }}-{{ customerVendBinding.customer.virtual_customer_code }}
                         </span>
-                        {{ customerVendBinding?.customer.name }}
+                        {{ customerVendBinding?.customer?.name }}
                       </span>
                       <span class="text-sm text-gray-500">{{ customerVendBinding.created_at ? formatDatetime(customerVendBinding.created_at) : '' }}</span>
                     </span>
