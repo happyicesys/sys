@@ -1524,9 +1524,14 @@ class VendController extends Controller
                     SELECT JSON_ARRAYAGG(
                             JSON_OBJECT('id', t.id, 'slug', t.slug, 'name', t.name)
                         )
-                    FROM JSON_TABLE(COALESCE(vend_transactions.label_json, '[]'),
-                                    '$[*]' COLUMNS(tag_id BIGINT PATH '$')) jt
-                    JOIN tags t ON t.id = jt.tag_id
+                    FROM JSON_TABLE(
+                            COALESCE(vend_transactions.label_json, '[]'),
+                            '$[*]' COLUMNS(
+                                tag_id BIGINT PATH '$',
+                                tag_name VARCHAR(255) PATH '$'
+                            )
+                        ) jt
+                    JOIN tags t ON (t.id = jt.tag_id OR t.name = jt.tag_name)
                 ) AS label_json
                 ")
             )->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)

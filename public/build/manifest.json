@@ -4389,48 +4389,48 @@
       "_MultiSelect.vue_vue_type_style_index_1_lang.54dc6fed.js"
     ]
   },
-  "resources/js/Pages/Report/IndexStockCount.css": {
-    "file": "assets/IndexStockCount.7c9f8c42.css",
-    "src": "resources/js/Pages/Report/IndexStockCount.css"
+  "resources/js/Pages/Welcome.css": {
+    "file": "assets/Welcome.b7da5231.css",
+    "src": "resources/js/Pages/Welcome.css"
   },
-  "resources/js/Pages/Vend/IndexComponent.css": {
-    "file": "assets/IndexComponent.8b3a4ee5.css",
-    "src": "resources/js/Pages/Vend/IndexComponent.css"
+  "resources/js/Pages/Vend/Index.css": {
+    "file": "assets/Index.8b3a4ee5.css",
+    "src": "resources/js/Pages/Vend/Index.css"
   },
   "resources/js/Pages/Report/IndexSnapshot.css": {
     "file": "assets/IndexSnapshot.8b3a4ee5.css",
     "src": "resources/js/Pages/Report/IndexSnapshot.css"
   },
-  "resources/js/Pages/DeliveryProductMappingVend/Index.css": {
-    "file": "assets/Index.8b3a4ee5.css",
-    "src": "resources/js/Pages/DeliveryProductMappingVend/Index.css"
-  },
-  "resources/js/Pages/Vend/CustomerIndex.css": {
-    "file": "assets/CustomerIndex.c948f66b.css",
-    "src": "resources/js/Pages/Vend/CustomerIndex.css"
-  },
-  "filepond-plugin-file-validate-size.css": {
-    "file": "assets/filepond-plugin-file-validate-size.7611e422.css",
-    "src": "filepond-plugin-file-validate-size.css"
-  },
-  "main.css": {
-    "file": "assets/main.768eba40.css",
-    "src": "main.css"
-  },
-  "resources/js/Pages/Welcome.css": {
-    "file": "assets/Welcome.b7da5231.css",
-    "src": "resources/js/Pages/Welcome.css"
-  },
-  "resources/js/Pages/ProductMapping/Table.css": {
-    "file": "assets/Table.e3b0c442.css",
-    "src": "resources/js/Pages/ProductMapping/Table.css"
+  "resources/js/Pages/Report/IndexStockCount.css": {
+    "file": "assets/IndexStockCount.7c9f8c42.css",
+    "src": "resources/js/Pages/Report/IndexStockCount.css"
   },
   "MultiSelect.css": {
     "file": "assets/MultiSelect.5c8bc91d.css",
     "src": "MultiSelect.css"
   },
+  "resources/js/Pages/Vend/IndexComponent.css": {
+    "file": "assets/IndexComponent.8b3a4ee5.css",
+    "src": "resources/js/Pages/Vend/IndexComponent.css"
+  },
+  "resources/js/Pages/Vend/CustomerIndex.css": {
+    "file": "assets/CustomerIndex.c948f66b.css",
+    "src": "resources/js/Pages/Vend/CustomerIndex.css"
+  },
+  "resources/js/Pages/ProductMapping/Table.css": {
+    "file": "assets/Table.e3b0c442.css",
+    "src": "resources/js/Pages/ProductMapping/Table.css"
+  },
   "resources/js/app.css": {
     "file": "assets/app.327c64d7.css",
     "src": "resources/js/app.css"
+  },
+  "main.css": {
+    "file": "assets/main.768eba40.css",
+    "src": "main.css"
+  },
+  "filepond-plugin-file-validate-size.css": {
+    "file": "assets/filepond-plugin-file-validate-size.7611e422.css",
+    "src": "filepond-plugin-file-validate-size.css"
   }
 }

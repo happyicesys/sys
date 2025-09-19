@@ -128,32 +128,56 @@ class ExportVendTransactionCsv implements ShouldQueue
                     ->get()
                     ->groupBy('vend_transaction_id');
 
-                    // 👇 Gather all tag IDs in this chunk (works if casted to array or raw JSON string)
-                    $tagIds = $transactions->pluck('label_ids_json')
+                    // Collect all label values (ints and strings) across this chunk
+                    $rawLabelVals = $transactions->pluck('label_ids_json')
                         ->filter()
                         ->flatMap(function ($val) {
                             if (is_array($val)) return $val;
                             $arr = json_decode($val, true);
                             return is_array($arr) ? $arr : [];
-                        })
+                        });
+
+                    $tagIds = $rawLabelVals
+                        ->filter(fn($v) => is_int($v) || (is_string($v) && ctype_digit($v)))
+                        ->map(fn($v) => (int)$v)
                         ->unique()
                         ->values();
 
-                    // 👇 Fetch tag names/slugs once; key by id
-                    $tagMap = Tag::whereIn('id', $tagIds)
+                    $tagNames = $rawLabelVals
+                        ->filter(fn($v) => is_string($v) && !ctype_digit($v))
+                        ->unique()
+                        ->values();
+
+                    // Fetch tags by id or by name/slug
+                    $tagsById = Tag::whereIn('id', $tagIds)
                         ->get(['id','name','slug'])
                         ->keyBy('id');
 
+                    $tagsByNameSlug = $tagNames->isEmpty()
+                        ? []
+                        : Tag::whereIn('name', $tagNames)
+                            ->orWhereIn('slug', $tagNames)
+                            ->get(['id','name','slug'])
+                            ->reduce(function($carry, $tag) {
+                                $carry[$tag->name] = $tag;
+                                $carry[$tag->slug] = $tag;
+                                return $carry;
+                            }, []);
+
                     foreach ($transactions as $txn) {
-                        // normalize label IDs for this txn
-                        $ids = is_array($txn->label_ids_json)
+                        // Normalize label values for this txn (could be ints or strings)
+                        $vals = is_array($txn->label_ids_json)
                             ? $txn->label_ids_json
                             : (json_decode($txn->label_ids_json, true) ?: []);
 
-                        // build "Labels" string
-                        $labelStr = collect($ids)->map(function ($id) use ($tagMap) {
-                            $t = $tagMap->get($id);
-                            return $t->name ?? $t->slug ?? (string)$id;
+                        // Build labels string honoring provided order
+                        $labelStr = collect($vals)->map(function ($v) use ($tagsById, $tagsByNameSlug) {
+                            if (is_int($v) || (is_string($v) && ctype_digit($v))) {
+                                $t = $tagsById->get((int)$v);
+                            } else {
+                                $t = $tagsByNameSlug[$v] ?? null;
+                            }
+                            return $t->name ?? $t->slug ?? (string)$v;
                         })->implode(', ');
 
                         // existing JSON parsing
