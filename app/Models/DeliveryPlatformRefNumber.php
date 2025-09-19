@@ -18,6 +18,7 @@ class DeliveryPlatformRefNumber extends Model
     ];
 
     protected $fillable = [
+        'created_at',
         'delivery_platform_id',
         'operator_id',
         'ref_number',
@@ -33,5 +34,17 @@ class DeliveryPlatformRefNumber extends Model
     public function operator()
     {
         return $this->belongsTo(Operator::class);
+    }
+
+    public function deliveryProductMappingVends()
+    {
+        return $this->hasMany(DeliveryProductMappingVend::class);
+    }
+
+    public function currentDeliveryProductMappingVend()
+    {
+        return $this->hasOne(DeliveryProductMappingVend::class)
+            ->whereNull('end_date')
+            ->latest('id');
     }
 }

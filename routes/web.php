@@ -16,6 +16,7 @@ use App\Http\Controllers\DeliveryPlatformController;
 use App\Http\Controllers\DeliveryPlatformOrderController;
 use App\Http\Controllers\DeliveryProductMappingController;
 use App\Http\Controllers\DeliveryProductMappingVendController;
+use App\Http\Controllers\DeliveryPlatformRefNumberController;
 use App\Http\Controllers\HidCardController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\KeyController;
@@ -223,6 +224,14 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('delivery-product-mapping-vends')->group(function() {
         Route::get('/', [DeliveryProductMappingVendController::class, 'index'])->name('delivery-product-mapping-vends');
+    });
+
+    Route::prefix('delivery-platform-ref-numbers')->group(function() {
+        Route::get('/', [DeliveryPlatformRefNumberController::class, 'index'])->name('delivery-platform-ref-numbers');
+        Route::get('/create', [DeliveryPlatformRefNumberController::class, 'create'])->name('delivery-platform-ref-numbers.create');
+        Route::post('/', [DeliveryPlatformRefNumberController::class, 'store'])->name('delivery-platform-ref-numbers.store');
+        Route::get('/{id}/edit', [DeliveryPlatformRefNumberController::class, 'edit'])->name('delivery-platform-ref-numbers.edit');
+        Route::post('/{id}/update', [DeliveryPlatformRefNumberController::class, 'update'])->name('delivery-platform-ref-numbers.update');
     });
 
     Route::prefix('delivery-platform-operators')->group(function() {

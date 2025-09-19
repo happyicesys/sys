@@ -6,6 +6,7 @@ use App\Http\Resources\DeliveryProductMappingResource;
 use App\Http\Resources\DeliveryProductMappingBulkResource;
 use App\Http\Resources\DeliveryProductMappingItemResource;
 use App\Http\Resources\DeliveryPlatformOperatorResource;
+use App\Http\Resources\DeliveryPlatformRefNumberResource;
 use App\Http\Resources\OperatorResource;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\ProductMappingResource;
@@ -14,6 +15,7 @@ use App\Http\Resources\VendResource;
 use App\Models\DeliveryPlatform;
 use App\Models\DeliveryPlatforms\Grab;
 use App\Models\DeliveryPlatformOperator;
+use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryProductMapping;
 use App\Models\DeliveryProductMappingBulk;
 use App\Models\DeliveryProductMappingItem;
@@ -314,6 +316,13 @@ class DeliveryProductMappingController extends Controller
             'bundleSalesOptions' => $this->deliveryProductMappingService->getBundleSalesOptions($deliveryProductMapping),
             'deliveryProductMapping' => DeliveryProductMappingResource::make(
                 $deliveryProductMapping
+            ),
+            'platformRefNumberOptions' => DeliveryPlatformRefNumberResource::collection(
+                DeliveryPlatformRefNumber::query()
+                    ->where('operator_id', $deliveryProductMapping->operator_id)
+                    ->where('status', DeliveryPlatformRefNumber::STATUS_ACTIVE)
+                    ->orderBy('ref_number')
+                    ->get()
             ),
             'productOptions' => ProductResource::collection(
                 Product::with([

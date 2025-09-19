@@ -20,12 +20,14 @@ class DeliveryPlatformOrderResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'delivery_platform_ref_number_id' => $this->delivery_platform_ref_number_id,
             'campaign_json' => $this->campaign_json,
             'delivery_platform_id' => $this->delivery_platform_id,
             'deliveryPlatform' => DeliveryPlatformResource::make($this->whenLoaded('deliveryPlatform')),
             'delivery_platform_operator_id' => $this->delivery_platform_operator_id,
             'deliveryPlatformOrderComplaint' => DeliveryPlatformOrderComplaintResource::make($this->whenLoaded('deliveryPlatformOrderComplaint')),
             'deliveryPlatformOperator' => DeliveryPlatformOperatorResource::make($this->whenLoaded('deliveryPlatformOperator')),
+            'deliveryPlatformRefNumber' => DeliveryPlatformRefNumberResource::make($this->whenLoaded('deliveryPlatformRefNumber')),
             'deliveryPlatformOrderItems' => DeliveryPlatformOrderItemResource::collection($this->whenLoaded('deliveryPlatformOrderItems')),
             'delivery_product_mapping_vend_id' => $this->delivery_product_mapping_vend_id,
             'deliveryProductMappingVend' => DeliveryProductMappingVendResource::make($this->whenLoaded('deliveryProductMappingVend')),

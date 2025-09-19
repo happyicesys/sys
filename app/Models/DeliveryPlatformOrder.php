@@ -74,6 +74,7 @@ class DeliveryPlatformOrder extends Model
         'delivered_datetime',
         'delivery_platform_id',
         'delivery_platform_operator_id',
+        'delivery_platform_ref_number_id',
         'delivery_product_mapping_vend_id',
         'dispensed_at',
         'driver_phone_number',
@@ -153,6 +154,11 @@ class DeliveryPlatformOrder extends Model
         return $this->hasMany(DeliveryPlatformOrderItem::class);
     }
 
+    public function deliveryPlatformRefNumber()
+    {
+        return $this->belongsTo(DeliveryPlatformRefNumber::class);
+    }
+
     public function deliveryProductMappingVend()
     {
         return $this->belongsTo(DeliveryProductMappingVend::class)->where('is_active', true)->latest();
@@ -208,8 +214,13 @@ class DeliveryPlatformOrder extends Model
             $query->where('order_id', 'LIKE', "%{$search}%");
         })
         ->when($request->platform_ref_id, function($query, $search) {
-            $query->whereHas('deliveryProductMappingVend', function($query) use ($search) {
-                $query->where('platform_ref_id', 'LIKE', "{$search}%");
+            $query->where(function($q) use ($search) {
+                $q->whereHas('deliveryProductMappingVend', function($q2) use ($search) {
+                    $q2->where('platform_ref_id', 'LIKE', "{$search}%");
+                })
+                ->orWhereHas('deliveryPlatformRefNumber', function($q3) use ($search) {
+                    $q3->where('ref_number', 'LIKE', "{$search}%");
+                });
             });
         })
         ->when($request->short_order_id, function($query, $search) {

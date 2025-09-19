@@ -509,9 +509,23 @@
               </div>
 
               <div class="sm:col-span-2" v-if="form.product_mapping_id">
-                <FormInput v-model="form.platform_ref_id" :error="form.errors.platform_ref_id" placeholderStr="Platform ID">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
                   Platform ID (Store ID)
-                </FormInput>
+                </label>
+                <MultiSelect
+                  v-model="form.platform_ref_number"
+                  :options="platformRefNumberOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="ref_number"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+                <div class="text-sm text-red-600" v-if="form.errors.platform_ref_id">
+                  {{ form.errors.platform_ref_id }}
+                </div>
               </div>
 
               <div class="sm:col-span-1" v-if="form.product_mapping_id">
@@ -733,6 +747,7 @@ const props = defineProps({
     productOptions: Object,
     type: String,
     unbindedVendOptions: [Array, Object],
+    platformRefNumberOptions: [Array, Object],
   })
 
   const bundleSalesErrorMsg = ref('')
@@ -757,6 +772,7 @@ const props = defineProps({
   // const permissions = usePage().props.auth.permissions
   const vend = ref()
   const unbindedVendOptions = ref([])
+  const platformRefNumberOptions = ref([])
 
 onMounted(() => {
     if(props.type == 'create') {
@@ -795,6 +811,10 @@ onMounted(() => {
 
     unbindedVendOptions.value = [
       ...props.unbindedVendOptions.data.map((data) => {return {id: data.id, full_name: data.cust_full_name}})
+    ]
+
+    platformRefNumberOptions.value = [
+      ...props.platformRefNumberOptions.data.map((d) => ({ id: d.id, ref_number: d.ref_number }))
     ]
 })
 
@@ -890,7 +910,7 @@ function bindVend(vendId) {
   router.post(
     '/delivery-product-mappings/' + form.value.id + '/bind-vend', {
       vend_id: vendId,
-      platform_ref_id: form.value.platform_ref_id,
+      platform_ref_id: form.value.platform_ref_number ? form.value.platform_ref_number.ref_number : form.value.platform_ref_id,
     }, {
     preserveState: false,
     preserveScroll: true,

@@ -82,6 +82,8 @@ class DeliveryPlatformService
           $deliveryPlatformOrder->delivery_platform_id = $this->deliveryPlatformOperator->deliveryPlatform->id;
           $deliveryPlatformOrder->delivery_platform_operator_id = $this->deliveryPlatformOperator->id;
           $deliveryPlatformOrder->delivery_product_mapping_vend_id = $deliveryProductMappingVend->id;
+          // also persist the ref number linkage for easier joins/filtering later
+          $deliveryPlatformOrder->delivery_platform_ref_number_id = $deliveryProductMappingVend->delivery_platform_ref_number_id;
           $deliveryPlatformOrder->save();
           // dd($deliveryPlatformOrder->toArray());
           $this->createDeliveryPlatformOrderItems($deliveryPlatformOrder, $input);
@@ -103,11 +105,18 @@ class DeliveryPlatformService
 
     switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
-        $response = $this->model->checkOrderCancelable($deliveryPlatformOrder->order_id, $deliveryPlatformOrder->deliveryProductMappingVend->platform_ref_id);
+        $response = $this->model->checkOrderCancelable(
+          $deliveryPlatformOrder->order_id,
+          $this->merchantIdFromOrder($deliveryPlatformOrder)
+        );
 
         if($response['success']) {
           if($response['data']['cancelable']) {
-            $response = $this->model->cancelOrder($deliveryPlatformOrder->order_id, $deliveryPlatformOrder->deliveryProductMappingVend->platform_ref_id, 1001);
+            $response = $this->model->cancelOrder(
+              $deliveryPlatformOrder->order_id,
+              $this->merchantIdFromOrder($deliveryPlatformOrder),
+              1001
+            );
             $deliveryPlatformOrder->is_cancelled = true;
             $deliveryPlatformOrder->status = DeliveryPlatformOrder::GRAB_STATUS_MAPPING[Grab::STATE_CANCELLED];
             $deliveryPlatformOrder->status_json = array_merge_recursive($deliveryPlatformOrder->status_json, [
@@ -484,9 +493,10 @@ class DeliveryPlatformService
                       'operator:id,name,country_id',
                       'operator.country:id,name,code,currency_name,currency_symbol,currency_exponent'
                   ]),
-              'deliveryProductMappingVendChannels:id,amount,delivery_product_mapping_item_id,delivery_product_mapping_vend_id,order_qty,is_active,vend_channel_code,vend_channel_id'
+              'deliveryProductMappingVendChannels:id,amount,delivery_product_mapping_item_id,delivery_product_mapping_vend_id,order_qty,is_active,vend_channel_code,vend_channel_id',
+              'deliveryPlatformRefNumber:id,ref_number'
           ])
-          ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'vend_id', 'vend_code')
+          ->select('id', 'delivery_product_mapping_id', 'platform_ref_id', 'delivery_platform_ref_number_id', 'vend_id', 'vend_code')
           ->findOrFail($deliveryProductMappingVend->id);
 
       // Use eager-loaded collection to avoid extra query
@@ -494,7 +504,7 @@ class DeliveryPlatformService
 
       // Build shared structure
       $response = [
-          'merchantID' => (string) $deliveryProductMappingVendObj->platform_ref_id,
+          'merchantID' => (string) $this->merchantIdFromMappingVend($deliveryProductMappingVendObj),
           'partnerMerchantID' => (string) $deliveryProductMappingVendObj->vend_code,
           'currency' => $this->getGrabMenuCurrency($deliveryProductMappingVendObj),
           'sellingTimes' => [$this->getGrabMenuSellingTimes()],
@@ -568,15 +578,15 @@ class DeliveryPlatformService
 
       switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
         case 'grab':
-          $response = $this->model->notifyUpdatedMenu([
-            'merchantID' => $deliveryProductMappingVend->platform_ref_id,
+        $response = $this->model->notifyUpdatedMenu([
+            'merchantID' => $this->merchantIdFromMappingVend($deliveryProductMappingVend),
           ]);
           // dd($response, $deliveryProductMappingVend->platform_ref_id);
           if($response['code'] === 401) {
             SyncDeliveryPlatformOauthByOperator::dispatchSync($this->deliveryPlatformOperator);
 
             $response = $this->model->notifyUpdatedMenu([
-              'merchantID' => $deliveryProductMappingVend->platform_ref_id,
+              'merchantID' => $this->merchantIdFromMappingVend($deliveryProductMappingVend),
             ]);
             // $this->notifyUpdatedMenu($deliveryProductMappingVend);
           }
@@ -595,7 +605,7 @@ class DeliveryPlatformService
     switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $response = $this->model->pauseStore([
-          'merchantID' => $deliveryProductMappingVend->platform_ref_id,
+          'merchantID' => $this->merchantIdFromMappingVend($deliveryProductMappingVend),
           true,
           '24h'
         ]);
@@ -614,7 +624,7 @@ class DeliveryPlatformService
     switch($this->deliveryPlatformOperator->deliveryPlatform->slug) {
       case 'grab':
         $response = $this->model->updateMenuRecord([
-          'merchantID' => $deliveryProductMappingVendChannel->deliveryProductMappingVend->platform_ref_id,
+          'merchantID' => $this->merchantIdFromMappingVend($deliveryProductMappingVendChannel->deliveryProductMappingVend),
           'field' => 'ITEM',
           'id' => (string) $deliveryProductMappingVendChannel->deliveryProductMappingItem->product->code,
           'price' => $deliveryProductMappingVendChannel->amount,
@@ -1059,5 +1069,17 @@ class DeliveryPlatformService
       'sellingTimeID' => $params['sellingTimeID'],
       'items' => $params['items'],
     ];
+  }
+
+  private function merchantIdFromOrder(DeliveryPlatformOrder $order): ?string
+  {
+    return $order->deliveryPlatformRefNumber?->ref_number
+      ?? $order->deliveryProductMappingVend?->platform_ref_id;
+  }
+
+  private function merchantIdFromMappingVend(DeliveryProductMappingVend $mappingVend): ?string
+  {
+    return $mappingVend->deliveryPlatformRefNumber?->ref_number
+      ?? $mappingVend->platform_ref_id;
   }
 }

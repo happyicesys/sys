@@ -47,7 +47,7 @@ class TagController extends Controller
     public function create(Request $request)
     {
         $request->validate([
-            'name' => 'required',
+            'name' => 'required|unique:tags,name',
         ]);
 
         Tag::create($request->all());
@@ -58,7 +58,7 @@ class TagController extends Controller
     public function update(Request $request, $tagId)
     {
         $request->validate([
-            'name' => 'required',
+            'name' => 'required|unique:tags,name,'.$tagId,
         ]);
 
         $tag = Tag::findOrFail($tagId);

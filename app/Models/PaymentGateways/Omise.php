@@ -27,6 +27,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
     const PAYMENT_METHOD_WECHATPAY = 210;
     const PAYMENT_METHOD_ALIPAYPLUS_DANA = 211;
     const PAYMENT_METHOD_DUITNOW = 301;
+    const PAYMENT_METHOD_TOUCH_N_GO = 302;
     const PAYMENT_METHOD_PROMPTPAY = 401;
 
     const PAYMENT_METHOD_MAPPING = [
@@ -39,6 +40,7 @@ class Omise extends PaymentGateway implements PaymentGatewayInterface
         self::PAYMENT_METHOD_ALIPAYPLUS_KAKAOPAY => 'alipayplus_mpm',
         self::PAYMENT_METHOD_ALIPAYPLUS_TRUEMONEY => 'alipayplus_mpm',
         self::PAYMENT_METHOD_DUITNOW => 'duitnow_qr',
+        self::PAYMENT_METHOD_TOUCH_N_GO => 'touch_n_go',
         self::PAYMENT_METHOD_PROMPTPAY => 'promptpay',
         self::PAYMENT_METHOD_WECHATPAY => 'wechat_pay_mpm',
         self::PAYMENT_METHOD_ALIPAYPLUS_DANA => 'alipayplus_mpm',

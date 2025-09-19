@@ -175,6 +175,7 @@ const navigation = [
         tagline: null,
         children: [
             {name: 'Machines', href: '/delivery-product-mapping-vends', permission: 'read delivery-platform-vends'},
+            {name: 'Platform ID', href: '/delivery-platform-ref-numbers', permission: 'read delivery-platform-vends'},
             {name: 'Orders', href: '/delivery-platform-orders', permission: 'read delivery-platform-orders'},
             {name: 'Product Mapping', href: '/delivery-product-mappings', permission: 'read delivery-platform-product-mappings'},
             {name: 'Campaign', href: '/delivery-platform-campaigns', permission: 'read delivery-platform-campaigns'},
@@ -360,7 +361,7 @@ const smallLogoUrl = usePage().props.smallLogoUrl
                                     <Link v-for="subItem in item.children" :key="subItem.name" as="a"
                                             :href="subItem.href">
                                         <DisclosureButton
-                                            class="group w-full flex items-center pl-2 pr-2 py-2 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-200"
+                                            class="group w-full flex items-center pl-4 pr-2 py-2 text-sm font-medium text-gray-600 rounded-md hover:text-gray-900 hover:bg-gray-200"
                                             v-if="subItem && (!subItem.permission || (subItem.permission && permissions.includes(subItem.permission)))"
                                             >
                                             {{ subItem.name }}

@@ -1,31 +1,25 @@
 <template>
 
-  <Head title="Delivery Platform Ref Number" />
+  <Head title="Delivery Platform IDs" />
 
   <BreezeAuthenticatedLayout>
     <template #header>
       <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Delivery Platform Ref Number
+        Delivery Platform IDs
       </h2>
     </template>
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
-        <div class="flex justify-end">
-          <Button class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          @click="router.visit('/delivery-platform-ref-numbers/create')"
-          >
+        <div class="flex justify-end mb-4">
+          <Link href="/delivery-platform-ref-numbers/create" class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
             <PlusIcon class="h-4 w-4" aria-hidden="true"/>
             <span>
               Create
             </span>
-          </Button>
+          </Link>
         </div>
-          <!-- <div class="flex flex-col md:flex-row md:space-x-3 space-y-1 md:space-y-0"> -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
-          <SearchInput placeholderStr="Ref Number" v-model="filters.ref_number">
-            Ref Number
-          </SearchInput>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Operator
@@ -39,11 +33,33 @@
               placeholder="Select"
               open-direction="bottom"
               class="mt-1"
-            ></MultiSelect>
+              mode="tags"
+            >
+            </MultiSelect>
+          </div>
+          <SearchInput placeholderStr="Platform ID" v-model="filters.ref_number">
+            Platform ID
+          </SearchInput>
+          <SearchInput placeholderStr="Machine ID" v-model="filters.current_vend_code">
+            Current Machine ID
+          </SearchInput>
+          <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">
+              Status
+            </label>
+            <MultiSelect
+              v-model="filters.is_active"
+              :options="booleanOptions"
+              trackBy="id"
+              valueProp="id"
+              label="value"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            >
+            </MultiSelect>
           </div>
         </div>
-
-
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
           <div class="mt-3">
@@ -63,36 +79,6 @@
                 <span>
                   Reset
                 </span>
-              </Button>
-              <!-- <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
-                  @click.prevent="onExportExcelClicked()">
-                  <div class="flex space-x-1">
-                      <div>
-                          <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>
-                          <svg v-if="loading" aria-hidden="true" class="mr-2 w-4 h-4 text-gray-200 animate-spin dark:text-gray-400 fill-red-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
-                              <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
-                          </svg>
-                      </div>
-                      <span>
-                          Export Excel
-                      </span>
-                  </div>
-              </Button> -->
-              <Button type="button" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-400 hover:bg-gray-100"
-                  @click.prevent="onExportCsvClicked()">
-                  <div class="flex space-x-1">
-                      <div>
-                          <ArrowDownTrayIcon v-if="!loading" class="h-4 w-4" aria-hidden="true"/>
-                          <svg v-if="loading" aria-hidden="true" class="mr-2 w-4 h-4 text-gray-200 animate-spin dark:text-gray-400 fill-red-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
-                              <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
-                          </svg>
-                      </div>
-                      <span>
-                          Export CSV
-                      </span>
-                  </div>
               </Button>
             </div>
           </div>
@@ -123,7 +109,7 @@
       </div>
 
       <div class="mt-6 flex flex-col">
-       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
+       <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8 px-3">
           <div class="shadow-sm ring-1 ring-black ring-opacity-5 overflow-scroll">
             <table class="min-w-full border-separate" style="border-spacing: 0">
                 <thead class="bg-gray-100">
@@ -131,113 +117,119 @@
                     <TableHead>
                       #
                     </TableHead>
-                    <TableHeadSort modelName="value" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('value')">
-                      Value
+                    <TableHeadSort modelName="ref_number" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('ref_number')">
+                      Platform ID
                     </TableHeadSort>
-                    <TableHeadSort modelName="operator_id" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('operator_id')">
+                    <TableHead>
+                      Binding Count
+                    </TableHead>
+                    <TableHeadSort modelName="current_vend_code" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('current_vend_code')">
+                      Current Machine ID
+                    </TableHeadSort>
+                    <TableHead>
                       Operator
+                    </TableHead>
+                    <TableHeadSort modelName="status" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('status')">
+                      Status
+                    </TableHeadSort>
+                    <TableHeadSort modelName="created_at" :sortKey="filters.sortKey" :sortBy="filters.sortBy" @sort-table="sortTable('created_at')">
+                      Created At
                     </TableHeadSort>
                     <TableHead>
-                      Name
-                    </TableHead>
-                    <TableHead>
-                      Email
-                    </TableHead>
-                    <TableHead>
+                      Remarks
                     </TableHead>
                   </tr>
                 </thead>
-                  <tbody class="bg-white">
-                    <tr v-for="(deliveryPlatformRefNumber, deliveryPlatformRefNumberIndex) in deliveryPlatformRefNumbers.data" :key="deliveryPlatformRefNumber.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
-                      <TableData :currentIndex="deliveryPlatformRefNumberIndex" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
-                        {{ deliveryPlatformRefNumbers.meta.from + deliveryPlatformRefNumberIndex }}
-                      </TableData>
-                      <TableData :currentIndex="deliveryPlatformRefNumberIndex" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-left">
-                        {{ deliveryPlatformRefNumber.value }}
-                      </TableData>
-                      <TableData :currentIndex="deliveryPlatformRefNumberIndex" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
-                        {{ deliveryPlatformRefNumber.operator?.code }}
-                      </TableData>
-                      <TableData :currentIndex="deliveryPlatformRefNumberIndex" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
-                        {{ deliveryPlatformRefNumber.name }}
-                      </TableData>
-                      <TableData :currentIndex="deliveryPlatformRefNumberIndex" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
-                        {{ deliveryPlatformRefNumber.email }}
-                      </TableData>
-                      <TableData :currentIndex="deliveryPlatformRefNumberIndex" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
-                        <div class="flex justify-center space-x-1">
-                          <Button
-                            type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-                            @click="router.visit(`/delivery-platform-ref-numbers/${deliveryPlatformRefNumber.id}/edit`)"
-                          >
-                            <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                            <span>
-                                Edit
-                            </span>
-                          </Button>
-                          <Button
-                            type="button" class="bg-red-300 hover:bg-red-400 px-3 py-2 text-xs text-red-800 flex space-x-1"
-                            @click="onDeleteClicked(deliveryPlatformRefNumber)"
-                          >
-                            <TrashIcon class="w-4 h-4"></TrashIcon>
-                            <span>
-                                Delete
-                            </span>
-                          </Button>
+                <tbody class="bg-white">
+                  <tr v-for="(refNumber, idx) in deliveryPlatformRefNumbers.data" :key="refNumber.id" class="divide-x divide-y-2 divide-gray-300 odd:bg-white even:bg-gray-100">
+                    <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
+                      {{ deliveryPlatformRefNumbers.meta.from + idx }}
+                    </TableData>
+                    <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-left">
+                      <Link :href="`/delivery-platform-ref-numbers/${refNumber.id}/edit`" class="text-blue-600 hover:text-blue-800">
+                        {{ refNumber.ref_number }}
+                      </Link>
+                    </TableData>
+                    <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
+                      <div
+                        class="inline-flex rounded-full px-1.5 py-0.5 text-xs border w-fit bg-blue-100 text-blue-800 border-blue-300"
+                      >
+                        <div class="flex space-x-1">
+                          <span class="font-semibold grow-0">
+                            {{ refNumber.binding_count }}
+                          </span>
                         </div>
-                      </TableData>
-                      </tr>
-                <tr v-if="!deliveryPlatformRefNumbers.data.length">
-                  <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
-                      No Results Found
-                  </td>
-                </tr>
-              </tbody>
+                      </div>
+                    </TableData>
+                    <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
+                      {{ refNumber.current_vend_code ?? '' }}
+                    </TableData>
+                    <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
+                      <span v-if="refNumber.operator">{{ refNumber.operator.code }} - {{ refNumber.operator.name }}</span>
+                    </TableData>
+                    <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
+                      <span v-if="refNumber.status === 1" class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10">
+                        {{ refNumber.status_label }}
+                      </span>
+                      <span v-else class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10">
+                        {{ refNumber.status_label }}
+                      </span>
+                    </TableData>
+                    <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
+                      {{ refNumber.created_at }}
+                    </TableData>
+                    <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-left">
+                      {{ refNumber.remarks }}
+                    </TableData>
+                  </tr>
+                </tbody>
             </table>
-            <Paginator v-if="deliveryPlatformRefNumbers.data.length" :links="deliveryPlatformRefNumbers.links" :meta="deliveryPlatformRefNumbers.meta"></Paginator>
           </div>
+          <div class="flex justify-end py-3">
+            <nav class="px-1 py-2" aria-label="Pagination" v-if="deliveryPlatformRefNumbers.meta.links.length > 3">
+              <ol class="inline-flex items-center space-x-1">
+                <li v-for="(link, linkIndex) in deliveryPlatformRefNumbers.meta.links" :key="linkIndex">
+                  <Link as="button" :href="link.url ? link.url : ''" class="relative inline-flex items-center rounded px-2.5 py-1 border text-sm font-medium hover:bg-gray-100" :class="[link.active ? 'z-10 border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-gray-300 bg-white text-gray-500']">
+                    <span v-html="link.label"></span>
+                  </Link>
+                </li>
+              </ol>
+            </nav>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
   </BreezeAuthenticatedLayout>
 </template>
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-import Create from '@/Pages/HidCard/Create.vue';
-import Edit from '@/Pages/HidCard/Edit.vue';
-import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { ArrowDownTrayIcon, BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
+import { BackspaceIcon, MagnifyingGlassIcon, PlusIcon } from '@heroicons/vue/20/solid';
 import { ref, onMounted } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
-import moment from 'moment'
+import { Head, Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   deliveryPlatformRefNumbers: Object,
-  operatorOptions: [Array, Object],
-  vendOptions: [Array, Object],
+  operatorOptions: Object,
 })
 
-const filters = ref({
-  name: '',
-  email: '',
-  value: '',
-  operator_id: '',
-  sortKey: '',
-  sortBy: true,
-  numberPerPage: 100,
-})
-const loading = ref(false)
+  const filters = ref({
+    ref_number: '',
+  current_vend_code: '',
+    operators: [],
+    sortKey: 'created_at',
+    sortBy: false,
+    numberPerPage: 100,
+  })
 const operatorOptions = ref([])
-const deliveryPlatformRefNumber = ref()
-const type = ref('')
 const numberPerPageOptions = ref([])
+const booleanOptions = ref([])
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -246,66 +238,26 @@ onMounted(() => {
     { id: 500, value: 500 },
     { id: 'All', value: 'All' },
   ]
+  booleanOptions.value = [
+    { id: 'all', value: 'All' },
+    { id: 'true', value: 'Yes' },
+    { id: 'false', value: 'No' },
+  ]
   operatorOptions.value = [
-    { id: 'all', full_name: 'All' },
-    ...props.operatorOptions.data.map((data) => {
-      return { id: data.id, code: data.code, full_name: data.full_name };
-    }),
-  ];
-  filters.value.operator_id = operatorOptions.value[0]
+    {id: 'all', full_name: 'All'},
+    ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
+  ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
+  filters.value.operators = [operatorOptions.value[0]]
+  // default to Yes
+  filters.value.is_active = booleanOptions.value[1]
 })
-
-function onExportCsvClicked() {
-    loading.value = true
-    axios({
-        method: 'get',
-        url: '/delivery-platform-ref-numbers/csv',
-        params: {
-          ...filters.value,
-          operator_id: filters.value.operator_id?.id ?? '',
-        },
-        responseType: 'blob',
-    }).then(response => {
-        fileDownload(response.data, 'HIDCards' + moment().format('YYMMDDhhmmss') +'.csv')
-    }).catch(error => {
-        console.log(error)
-    }).finally(() => {
-        loading.value = false
-    })
-}
-
-function onExportExcelClicked() {
-    loading.value = true
-    axios({
-        method: 'get',
-        url: '/delivery-platform-ref-numbers/excel',
-        params: {
-          ...filters.value,
-          operator_id: filters.value.operator_id?.id ?? '',
-        },
-        responseType: 'blob',
-    }).then(response => {
-        fileDownload(response.data, 'HIDCards' + moment().format('YYMMDDhhmmss') +'.xlsx')
-    }).catch(error => {
-        console.log(error)
-    }).finally(() => {
-        loading.value = false
-    })
-}
-
-function onDeleteClicked(deliveryPlatformRefNumber) {
-  const approval = confirm('Are you sure to delete ' + deliveryPlatformRefNumber.value + '?');
-  if (!approval) {
-      return;
-  }
-  router.delete('/delivery-platform-ref-numbers/' + deliveryPlatformRefNumber.id)
-}
 
 function onSearchFilterUpdated() {
   router.get('/delivery-platform-ref-numbers', {
       ...filters.value,
-      operator_id: filters.value.operator_id?.id ?? '',
+      operators: filters.value.operators.map((operator) => { return operator.id }),
+      is_active: filters.value.is_active.id,
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,
@@ -318,9 +270,11 @@ function resetFilters() {
 }
 
 function sortTable(sortKey) {
-  filters.value.sortKey = sortKey
   filters.value.sortBy = !filters.value.sortBy
+  filters.value.sortKey = sortKey
   onSearchFilterUpdated()
 }
-
 </script>
+
+<style scoped>
+</style>
