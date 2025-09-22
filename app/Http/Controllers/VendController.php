@@ -1475,6 +1475,8 @@ class VendController extends Controller
         $numberPerPage = $request->numberPerPage ? $request->numberPerPage : 50;
         $className = get_class(new Customer());
 
+        // dd($request->all());
+
         $vendTransactions = VendTransaction::query()
             ->with([
                 'vendTransactionItems.product',
