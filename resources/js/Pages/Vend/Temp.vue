@@ -46,6 +46,7 @@
           </div>
           <div class="pl-1 py-2 text-left">
               <Button
+                  type="button"
                   class="border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 px-7 sm:px-3"
                   @click="back()">
                   <ArrowUturnLeftIcon class="mr-2 flex-shrink-0 h-4 w-4 text-gray-400 group-hover:text-gray-500" aria-hidden="true" />
@@ -409,7 +410,11 @@ router.get('/vends/' + vend.value.id + '/temp/' + props.type.value + '?duration=
 }
 
 function back() {
-window.history.back();
+  if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    router.visit('/vends')
+  }
 }
 
 function getVendTempsData() {
