@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <Modal :open="showModal" @modalClose="$emit('modalClose')">
+    <Modal :open="showModal" @modalClose="onModalClose">
       <template #header >
         <div class="flex flex-col md:flex-row space-x-2" :class="[vend.is_active ? 'text-black' : 'text-gray-500']">
           <span class="text-gray-600" v-if="props.profile">
@@ -440,6 +440,13 @@ function onChannelErrorClicked(channelData) {
 
 function onErrorListModalClosed() {
   showErrorListModal.value = false
+}
+
+function onModalClose() {
+  // Prevent closing parent modal while child ErrorList is open
+  if (!showErrorListModal.value) {
+    emit('modalClose')
+  }
 }
 
 function formatDatetime(value) {
