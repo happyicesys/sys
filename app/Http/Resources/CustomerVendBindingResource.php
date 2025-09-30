@@ -27,6 +27,7 @@ class CustomerVendBindingResource extends JsonResource
             'user_id' => $this->user_id,
             'vend' => VendResource::make($this->whenLoaded('vend')),
             'vend_id' => $this->vend_id,
+            'vend_prefix_id' => $this->vend_prefix_id,
         ];
     }
 }

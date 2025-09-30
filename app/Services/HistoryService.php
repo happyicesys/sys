@@ -15,6 +15,7 @@ class HistoryService
       'is_binding' => $isBinding,
       'user_id' => auth()->user()->id,
       'vend_id' => $vend->id,
+      'vend_prefix_id' => $vend->vend_prefix_id,
     ]);
 
     // $movementHistoryArr = $vend->customer_movement_history_json;

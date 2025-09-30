@@ -13,6 +13,7 @@ class CustomerVendBinding extends Model
         'is_binding',
         'user_id',
         'vend_id',
+        'vend_prefix_id',
     ];
 
     protected $casts = [
