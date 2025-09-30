@@ -628,7 +628,10 @@
                             </span>
                             <span class="ml-4 flex min-w-0 flex-col">
                               <span class="text-sm font-medium">
-                                {{ customerVendBinding?.vend.code }}
+                                <span v-if="customerVendBinding.vend_prefix">
+                                  {{ customerVendBinding.vend_prefix.name }} -
+                                </span>
+                                 {{ customerVendBinding?.vend.code }}
                               </span>
                               <span class="text-sm text-gray-500">{{ customerVendBinding.created_at ? formatDatetime(customerVendBinding.created_at) : '' }}</span>
                             </span>

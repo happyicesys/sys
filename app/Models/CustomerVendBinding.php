@@ -44,6 +44,11 @@ class CustomerVendBinding extends Model
         return $this->belongsTo(Vend::class);
     }
 
+    public function vendPrefix()
+    {
+        return $this->belongsTo(VendPrefix::class);
+    }
+
     public function scopeBinding($query)
     {
         return $query->where('is_binding', true);
