@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\DeliveryPlatformRefNumber;
+use App\Http\Resources\DeliveryProductMappingVendResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -32,6 +33,7 @@ class DeliveryPlatformRefNumberResource extends JsonResource
             'status_label' => isset(DeliveryPlatformRefNumber::STATUS_MAPPINGS[$this->status]) ? DeliveryPlatformRefNumber::STATUS_MAPPINGS[$this->status] : 'Unknown',
             'created_at' => $this->created_at ? $this->created_at->format('d/m/Y H:i A') : null,
             'updated_at' => $this->updated_at ? $this->updated_at->format('d/m/Y H:i A') : null,
+            'delivery_product_mapping_vends' => DeliveryProductMappingVendResource::collection($this->whenLoaded('deliveryProductMappingVends')),
         ];
     }
 }

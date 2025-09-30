@@ -131,6 +131,7 @@ const navigation = [
             {name: 'Categories', href: '/category-groups?classname=App\\Models\\Product', 'permission': 'read product-categories'},
             {name: 'SubCategories', href: '/categories?classname=App\\Models\\Product', 'permission': 'read product-subcategories'},
             {name: 'Campaign Labels', href: '/tags?classname=App\\Models\\Product', 'permission': 'read product-campaign-labels'},
+            {name: 'Campaigns', href: '/campaigns', 'permission': 'read product-campaign-labels'},
         ]
     },
     {

@@ -77,6 +77,59 @@
               </div>
             </form>
           </div>
+          <div class="shadow-sm ring-1 ring-black ring-opacity-5 p-5">
+            <div class="relative mb-5">
+              <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                <div class="w-full border-t border-gray-300"></div>
+              </div>
+              <div class="relative flex justify-start">
+                <span class="px-2 bg-white text-lg font-medium text-gray-900 rounded">Binding History</span>
+              </div>
+            </div>
+
+            <nav aria-label="Binding History">
+              <ol role="list" class="overflow-hidden">
+                <li
+                  v-for="(entry, entryIndex) in bindingHistory"
+                  :key="entry.id"
+                  :class="[entryIndex !== bindingHistory.length - 1 ? 'pb-3' : 'relative bg-gray-300 rounded']"
+                >
+                  <span class="group relative flex items-start">
+                    <span class="flex h-9 items-center">
+                      <span
+                        class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full"
+                        :class="[entry.is_binding ? 'bg-green-600' : 'bg-red-600']"
+                      >
+                        <LockClosedIcon class="h-5 w-5 text-white" aria-hidden="true" v-if="entry.is_binding" />
+                        <LockOpenIcon class="h-5 w-5 text-white" aria-hidden="true" v-else />
+                      </span>
+                    </span>
+                    <span class="ml-4 flex min-w-0 flex-col">
+                      <span class="text-sm font-medium">
+                        {{ entry.description }}
+                      </span>
+                      <span class="text-sm text-gray-500">{{ formatDatetime(entry.moment) }}</span>
+                    </span>
+                  </span>
+                </li>
+              </ol>
+            </nav>
+
+            <template v-if="!bindingHistory.length">
+              <span class="group relative flex items-start">
+                <span class="flex h-9 items-center">
+                  <span class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-red-600">
+                    <MinusCircleIcon class="h-5 w-5 text-white" aria-hidden="true" />
+                  </span>
+                </span>
+                <span class="ml-4 flex min-w-0 flex-col pt-2">
+                  <span class="text-sm font-medium">
+                    No Records Found
+                  </span>
+                </span>
+              </span>
+            </template>
+          </div>
         </div>
       </div>
     </div>
@@ -86,11 +139,12 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue'
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import FormInput from '@/Components/FormInput.vue'
 import Button from '@/Components/Button.vue'
 import MultiSelect from '@/Components/MultiSelect.vue'
-import { CheckCircleIcon } from '@heroicons/vue/20/solid'
+import { CheckCircleIcon, LockClosedIcon, LockOpenIcon, MinusCircleIcon } from '@heroicons/vue/20/solid'
+import moment from 'moment'
 
 const props = defineProps({
   deliveryPlatformRefNumber: Object,
@@ -99,6 +153,7 @@ const props = defineProps({
 
 const operatorOptions = ref([])
 const booleanOptions = ref([])
+const bindingHistory = ref([])
 
 const form = ref(useForm(getDefaultForm()))
 
@@ -117,6 +172,19 @@ onMounted(() => {
   form.value.is_active = props.deliveryPlatformRefNumber.data.status === 1 ? booleanOptions.value[0] : booleanOptions.value[1]
 })
 
+watch(
+  () => props.deliveryPlatformRefNumber,
+  (newValue) => {
+    if (!newValue || !newValue.data) {
+      bindingHistory.value = []
+      return
+    }
+
+    bindingHistory.value = buildBindingHistory(newValue.data.delivery_product_mapping_vends || [])
+  },
+  { immediate: true }
+)
+
 function getDefaultForm() {
   return {
     id: null,
@@ -125,6 +193,57 @@ function getDefaultForm() {
     remarks: '',
     is_active: { id: 'true', value: 'Active' },
   }
+}
+
+function buildBindingHistory(vendBindings) {
+  const entries = []
+
+  vendBindings.forEach((binding) => {
+    const machineCode = binding.vend?.code
+    const customerName = binding.vend?.customer?.name
+    const contextParts = []
+    if (machineCode) {
+      contextParts.push(`Machine ${machineCode}`)
+    }
+    if (customerName) {
+      contextParts.push(customerName)
+    }
+    const context = contextParts.length ? ` (${contextParts.join(' · ')})` : ''
+
+    const bindMoment = parseToMoment(binding.created_at_iso || binding.created_at)
+    if (bindMoment) {
+      entries.push({
+        id: `${binding.id}-bind`,
+        is_binding: true,
+        description: `Bound${context}`,
+        moment: bindMoment,
+      })
+    }
+
+    const unbindMoment = parseToMoment(binding.end_date_iso || binding.end_date)
+    if (unbindMoment) {
+      entries.push({
+        id: `${binding.id}-unbind`,
+        is_binding: false,
+        description: `Unbound${context}`,
+        moment: unbindMoment,
+      })
+    }
+  })
+
+  return entries.sort((a, b) => b.moment.valueOf() - a.moment.valueOf())
+}
+
+function parseToMoment(value) {
+  if (!value) {
+    return null
+  }
+  const parsed = value.includes('T') ? moment(value) : moment(value, 'YYMMDD hh:mma')
+  return parsed.isValid() ? parsed : null
+}
+
+function formatDatetime(momentObj) {
+  return momentObj ? momentObj.clone().format('YYYY-MM-DD hh:mm a') : ''
 }
 
 function submit() {
@@ -142,4 +261,3 @@ function submit() {
     })
 }
 </script>
-

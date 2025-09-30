@@ -64,9 +64,23 @@
           <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
             Machine ID
           </SearchInput>
-          <SearchInput placeholderStr="Platform ID" v-model="filters.platform_ref_id">
-            Platform ID
-          </SearchInput>
+          <div>
+            <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              Platform ID
+            </label>
+            <MultiSelect
+              v-model="selectedPlatformRefNumber"
+              :options="platformRefNumberOptions"
+              trackBy="id"
+              valueProp="id"
+              label="ref_number"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              :canClear="false"
+            >
+            </MultiSelect>
+          </div>
           <div>
               <label for="text" class="block text-sm font-medium text-gray-700">
                   Binding Status
@@ -370,7 +384,7 @@ import { BackspaceIcon, MagnifyingGlassIcon, MagnifyingGlassCircleIcon, PauseCir
 import TableHead from '@/Components/TableHead.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import TableData from '@/Components/TableData.vue';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -378,6 +392,7 @@ const props = defineProps({
   deliveryPlatformTypeOptions: [Array, Object],
   deliveryProductMappingOptions: Object,
   operatorOptions: Object,
+  platformRefNumberOptions: [Array, Object],
   totals: Object,
 })
 
@@ -402,6 +417,8 @@ const deliveryProductMappingOptions = ref([])
 const deliveryProductMappingVendModel = ref()
 const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([])
+const platformRefNumberOptions = ref([])
+const selectedPlatformRefNumber = ref(null)
 const numberPerPageOptions = ref([])
 const showChannelOverviewModal = ref(false)
 const permissions = usePage().props.auth.permissions
@@ -432,6 +449,10 @@ onMounted(() => {
 		{id: 'all', full_name: 'All'},
     ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
+  platformRefNumberOptions.value = [
+    { id: 'all', ref_number: 'All' },
+    ...(props.platformRefNumberOptions?.data || []).map((data) => ({ id: data.id, ref_number: data.ref_number })),
+  ]
 
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   filters.value.is_active = booleanOptions.value[0]
@@ -441,6 +462,16 @@ onMounted(() => {
 		operatorOptions.value.find(operator => operator.id === authOperator.id),
 		...authOperator.code == 'HIPL' ? [operatorOptions.value.find(operator => operator.code == 'HIMD')] : [],
 	] : operatorOptions.value[0]
+  const preselectedPlatformRef = platformRefNumberOptions.value.find(option => option.ref_number === filters.value.platform_ref_id)
+  selectedPlatformRefNumber.value = preselectedPlatformRef ?? platformRefNumberOptions.value[0]
+})
+
+watch(selectedPlatformRefNumber, (newValue) => {
+  if (!newValue || newValue.id === 'all') {
+    filters.value.platform_ref_id = ''
+    return
+  }
+  filters.value.platform_ref_id = newValue.ref_number
 })
 
 function onChannelOverviewClicked(deliveryProductMappingVend) {
@@ -460,6 +491,7 @@ function onSearchFilterUpdated() {
       operators: filters.value.operators.map((operator) => { return operator.id }),
       is_active: filters.value.is_active.id,
       numberPerPage: filters.value.numberPerPage.id,
+      platform_ref_id: filters.value.platform_ref_id || undefined,
   }, {
       preserveState: true,
       replace: true,

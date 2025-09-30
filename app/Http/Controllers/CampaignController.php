@@ -34,9 +34,7 @@ class CampaignController extends Controller
         return Inertia::render('Campaign/Index', [
             'campaigns' => CampaignResource::collection(
                 Campaign::query()
-                    ->with([
-                        'vends',
-                    ])
+                    ->with(['operator'])
                     ->filterIndex($request)
                     ->when($request->sortKey, function($query, $search) use ($request) {
                         $query->orderBy($search, filter_var($request->sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc' );
@@ -45,7 +43,7 @@ class CampaignController extends Controller
                     ->withQueryString()
             ),
             'operatorOptions' => OperatorResource::collection(
-                Operator::all()
+                Operator::orderBy('name')->get()
             ),
         ]);
     }
@@ -55,7 +53,30 @@ class CampaignController extends Controller
      */
     public function create()
     {
-        //
+        request()->validate([
+            'name' => 'required|string|max:255',
+            'operator_id' => 'nullable|integer|exists:operators,id',
+            'is_active' => 'nullable|boolean',
+            'slug' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'start_at' => 'nullable|date',
+            'end_at' => 'nullable|date|after_or_equal:start_at',
+        ]);
+
+        $payload = [
+            'name' => request('name'),
+            'operator_id' => request('operator_id') ?: auth()->user()->operator_id,
+            'is_active' => filter_var(request('is_active', true), FILTER_VALIDATE_BOOLEAN),
+            'slug' => request('slug'),
+            'description' => request('description'),
+            'start_at' => request('start_at'),
+            'end_at' => request('end_at'),
+            'remarks' => request('remarks'),
+        ];
+
+        Campaign::create($payload);
+
+        return redirect()->route('campaigns');
     }
 
     /**

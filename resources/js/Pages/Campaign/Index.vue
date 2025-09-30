@@ -11,17 +11,14 @@
 
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
-        <div class="flex justify-end">
-          <Link :href="'/campaigns/create'">
-            <Button
-              type="button" class="inline-flex space-x-1 items-center rounded-md border border-green bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-            >
-              <PlusIcon class="h-4 w-4" aria-hidden="true"/>
-              <span>
-                Create
-              </span>
-            </Button>
-          </Link>
+        <div class="flex justify-end mb-3">
+          <Button
+            type="button"
+            class="inline-flex space-x-1 items-center rounded-md border bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white hover:bg-green-600"
+            @click="showCreate = true"
+          >
+            <span>+ Create</span>
+          </Button>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="Name" v-model="filters.name">
@@ -106,9 +103,19 @@
                       Name
                     </TableHead>
                     <TableHead>
-                      Binded Machine(s)
+                      Active
                     </TableHead>
                     <TableHead>
+                      Operator
+                    </TableHead>
+                    <TableHead>
+                      Start
+                    </TableHead>
+                    <TableHead>
+                      End
+                    </TableHead>
+                    <TableHead>
+                      Remarks
                     </TableHead>
                   </tr>
                 </thead>
@@ -120,43 +127,20 @@
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
                       {{ campaign.name }}
                     </TableData>
-                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-left">
-                      <ul class="divide-y divide-gray-200">
-                        <li class="flex flex-col py-1 px-3 space-x-2" v-for="(deliveryPlatformCampaignItem, deliveryPlatformCampaignItemIndex) in campaign.deliveryPlatformCampaignItems">
-                          <span class="text-blue-700 flex space-x-2">
-                            <span>
-                              {{ deliveryPlatformCampaignItemIndex + 1 }}.
-                            </span>
-                            <span>
-                              {{ deliveryPlatformCampaignItem.settings_label }}
-                            </span>
-                          </span>
-                          <ul class="divide-y divide-gray-200 pl-3">
-                            <li class="flex py-1 px-3 space-x-2" v-for="item in deliveryPlatformCampaignItem.items_json">
-                              <span v-if="item && 'full_name' in item">
-                                {{ item.full_name ? item.full_name : item.name }}
-                              </span>
-                            </li>
-                          </ul>
-                        </li>
-                      </ul>
+                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
+                      {{ campaign.is_active ? 'Yes' : 'No' }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
-                      {{ campaign.deliveryProductMapping.name }}
+                      {{ campaign.operator?.full_name ?? '-' }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
-                      <div class="flex justify-center space-x-1">
-                        <Link :href="'/delivery-platform-campaigns/' + campaign.id + '/edit'">
-                          <Button
-                            type="button" class="bg-gray-300 hover:bg-gray-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-                          >
-                            <PencilSquareIcon class="w-4 h-4"></PencilSquareIcon>
-                            <span>
-                                Edit
-                            </span>
-                          </Button>
-                        </Link>
-                      </div>
+                      {{ campaign.start_at ?? '-' }}
+                    </TableData>
+                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
+                      {{ campaign.end_at ?? '-' }}
+                    </TableData>
+                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
+                      {{ campaign.remarks ?? '' }}
                     </TableData>
                   </tr>
                   <tr v-if="!campaigns.data.length">
@@ -170,6 +154,68 @@
           </div>
       </div>
     </div>
+    <!-- Create Modal -->
+    <div v-if="showCreate" class="fixed inset-0 z-50 flex items-center justify-center">
+      <div class="absolute inset-0 modal-backdrop" @click="showCreate = false"></div>
+      <div class="relative bg-white rounded shadow-lg w-full max-w-2xl p-5">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-lg font-semibold">Create Campaign</h3>
+          <button @click="showCreate = false" class="text-gray-500 hover:text-gray-700">✕</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Name</label>
+            <input v-model="createForm.name" type="text" class="mt-1 w-full border rounded px-2 py-1" placeholder="e.g. Cornetto Promo" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Operator</label>
+            <MultiSelect
+              v-model="createForm.operator"
+              :options="operatorOptions"
+              trackBy="id"
+              valueProp="id"
+              label="full_name"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Active</label>
+            <select v-model="createForm.is_active" class="mt-1 w-full border rounded px-2 py-1">
+              <option :value="true">Yes</option>
+              <option :value="false">No</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Slug</label>
+            <input v-model="createForm.slug" type="text" class="mt-1 w-full border rounded px-2 py-1" placeholder="friendly-identifier" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700">Description</label>
+            <textarea v-model="createForm.description" class="mt-1 w-full border rounded px-2 py-1" rows="2" placeholder="Shown in APK/UI"></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Start At</label>
+            <input v-model="createForm.start_at" type="datetime-local" class="mt-1 w-full border rounded px-2 py-1" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">End At</label>
+            <input v-model="createForm.end_at" type="datetime-local" class="mt-1 w-full border rounded px-2 py-1" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700">Remarks</label>
+            <input v-model="createForm.remarks" type="text" class="mt-1 w-full border rounded px-2 py-1" />
+          </div>
+        </div>
+
+        <div class="mt-4 flex justify-end space-x-2">
+          <Button class="bg-gray-300 text-gray-800 hover:bg-gray-400" @click="showCreate = false">Cancel</Button>
+          <Button class="bg-green-500 text-white hover:bg-green-600" @click="submitCreate">Create</Button>
+        </div>
+      </div>
+    </div>
   </div>
   </BreezeAuthenticatedLayout>
 </template>
@@ -177,48 +223,43 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
-import DatePicker from '@/Components/DatePicker.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import moment from 'moment';
-import Complaint from '@/Pages/DeliveryPlatformOrder/Complaint.vue';
-import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
-import TableHeadSort from '@/Components/TableHeadSort.vue';
 import { ref, onMounted } from 'vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   campaigns: Object,
-  deliveryPlatformOperatorOptions: Object,
-  deliveryPlatformOrderStatusOptions: Object,
-  deliveryPlatformTypeOptions: [Array, Object],
   operatorOptions: Object,
-  totals: Object,
 })
 
 const filters = ref({
-  order_id: '',
-  short_order_id: '',
-  vend_code: '',
-  date_from: moment().format('YYYY-MM-DD'),
-  date_to: moment().format('YYYY-MM-DD'),
-  delivery_platform_type_id: '',
-  has_complaint: 'all',
-  operator_id: '',
-  sortKey: '',
+  name: '',
+  operators: [],
+  sortKey: 'created_at',
   sortBy: false,
-  status: '',
   numberPerPage: 100,
 })
-const authOperator = usePage().props.auth.operator
-const deliveryPlatformTypeOptions = ref([])
 const operatorOptions = ref([])
-const operatorCountry = usePage().props.auth.operatorCountry
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
+
+// Create modal state
+const showCreate = ref(false)
+const createForm = ref({
+  name: '',
+  operator: null,
+  is_active: true,
+  slug: '',
+  description: '',
+  start_at: '',
+  end_at: '',
+  remarks: '',
+})
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -228,34 +269,30 @@ onMounted(() => {
     { id: 'All', value: 'All' },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
-  deliveryPlatformTypeOptions.value = [
-    {id: 'all', name: 'All'},
-    ...Object.keys(props.deliveryPlatformTypeOptions).map((deliveryPlatformType, index) => {return {id: deliveryPlatformType, name: deliveryPlatformType}})
-  ]
   operatorOptions.value = [
     {id: 'all', full_name: 'All'},
     ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
-  filters.value.delivery_platform_type_id = deliveryPlatformTypeOptions.value.find(deliveryPlatformType => deliveryPlatformType.id === 'all')
-  filters.value.operator_id = authOperator ? operatorOptions.value.find(operator => operator.id === authOperator.id) : operatorOptions.value[0]
+  // Default selection to 'All' for tags mode (expects array)
+  filters.value.operators = [operatorOptions.value[0]]
 })
 
 function onSearchFilterUpdated() {
-  router.get('/delivery-platform-campaigns', {
-      ...filters.value,
-      delivery_platform_type_id: filters.value.delivery_platform_type_id.id,
-      operator_id: filters.value.operator_id.id,
-      status: filters.value.status.id,
-      has_complaint: filters.value.has_complaint.id,
-      numberPerPage: filters.value.numberPerPage.id,
-  }, {
-      preserveState: true,
-      replace: true,
-  })
+  const selected = Array.isArray(filters.value.operators) ? filters.value.operators : []
+  const hasAll = selected.find(o => o?.id === 'all')
+  const operatorsParam = hasAll || selected.length === 0 ? 'all' : selected.map(o => o.id)
+
+  router.get('/campaigns', {
+    name: filters.value.name,
+    operators: operatorsParam,
+    sortKey: filters.value.sortKey,
+    sortBy: filters.value.sortBy,
+    numberPerPage: filters.value.numberPerPage.id,
+  }, { preserveState: true, replace: true })
 }
 
 function resetFilters() {
-  router.get('/delivery-platform-campaigns')
+  router.get('/campaigns')
 }
 
 function sortTable(sortKey) {
@@ -264,4 +301,28 @@ function sortTable(sortKey) {
   onSearchFilterUpdated()
 }
 
+function submitCreate() {
+  router.post('/campaigns/create', {
+    name: createForm.value.name,
+    operator_id: createForm.value.operator?.id || null,
+    is_active: createForm.value.is_active,
+    slug: createForm.value.slug,
+    description: createForm.value.description,
+    start_at: createForm.value.start_at || null,
+    end_at: createForm.value.end_at || null,
+    remarks: createForm.value.remarks,
+  }, {
+    preserveState: true,
+    replace: true,
+    onSuccess: () => {
+      showCreate.value = false
+      createForm.value = { name: '', operator: null, is_active: true, slug: '', description: '', start_at: '', end_at: '', remarks: '' }
+    }
+  })
+}
+
 </script>
+
+<style scoped>
+.modal-backdrop { background: rgba(0,0,0,0.4); }
+</style>

@@ -83,6 +83,11 @@ class DeliveryProductMapping extends Model
             $query->whereHas('deliveryProductMappingVends.vend', function($query) use ($request) {
                 $query->where('code', 'LIKE', "{$request->vend_code}%");
             });
+        })
+        ->when($request->platform_ref_id, function($query, $search) {
+            $query->whereHas('deliveryProductMappingVends', function($query) use ($search) {
+                $query->where('platform_ref_id', 'LIKE', "{$search}%");
+            });
         });
 
         return $query;

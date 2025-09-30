@@ -32,6 +32,10 @@ class DeliveryProductMappingVendResource extends JsonResource
             'deliveryProductMappingVendChannels' => DeliveryProductMappingVendChannelResource::collection($this->whenLoaded('deliveryProductMappingVendChannels')),
             'platform_ref_id' => $this->platform_ref_id,
             'start_date' => $this->start_date ? Carbon::parse($this->start_date)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null,
+            'start_date_iso' => $this->start_date ? Carbon::parse($this->start_date)->setTimezone($this->getUserTimezone())->toIso8601String() : null,
+            'created_at' => $this->created_at ? Carbon::parse($this->created_at)->setTimezone($this->getUserTimezone())->format('ymd h:ia') : null,
+            'created_at_iso' => $this->created_at ? Carbon::parse($this->created_at)->setTimezone($this->getUserTimezone())->toIso8601String() : null,
+            'end_date_iso' => $this->end_date ? Carbon::parse($this->end_date)->setTimezone($this->getUserTimezone())->toIso8601String() : null,
         ];
     }
 }

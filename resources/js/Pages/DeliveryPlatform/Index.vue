@@ -30,6 +30,23 @@
           <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
             Machine ID
           </SearchInput>
+          <div>
+            <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              Platform ID
+            </label>
+            <MultiSelect
+              v-model="selectedPlatformRefNumber"
+              :options="platformRefNumberOptions"
+              trackBy="id"
+              valueProp="id"
+              label="ref_number"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              :canClear="false"
+            >
+            </MultiSelect>
+          </div>
         </div>
 
         <div class="flex flex-col space-y-3 md:flex-row md:space-y-0 justify-between mt-5">
@@ -222,16 +239,18 @@ import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIc
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
   deliveryProductMappings: Object,
+  platformRefNumberOptions: [Array, Object],
 })
 
 const filters = ref({
   name: '',
   vend_code: '',
+  platform_ref_id: '',
   sortKey: '',
   sortBy: true,
   numberPerPage: 100,
@@ -240,6 +259,8 @@ const showModal = ref(false)
 const deliveryProductMapping = ref()
 const type = ref('')
 const numberPerPageOptions = ref([])
+const platformRefNumberOptions = ref([])
+const selectedPlatformRefNumber = ref(null)
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -249,6 +270,20 @@ onMounted(() => {
     { id: 'All', value: 'All' },
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
+  platformRefNumberOptions.value = [
+    { id: 'all', ref_number: 'All' },
+    ...(props.platformRefNumberOptions?.data || []).map((data) => ({ id: data.id, ref_number: data.ref_number })),
+  ]
+  const preselectedPlatformRef = platformRefNumberOptions.value.find(option => option.ref_number === filters.value.platform_ref_id)
+  selectedPlatformRefNumber.value = preselectedPlatformRef ?? platformRefNumberOptions.value[0]
+})
+
+watch(selectedPlatformRefNumber, (newValue) => {
+  if (!newValue || newValue.id === 'all') {
+    filters.value.platform_ref_id = ''
+    return
+  }
+  filters.value.platform_ref_id = newValue.ref_number
 })
 
 function onCreateClicked() {
@@ -269,6 +304,7 @@ function onSearchFilterUpdated() {
   router.get('/delivery-product-mappings', {
       ...filters.value,
       numberPerPage: filters.value.numberPerPage.id,
+      platform_ref_id: filters.value.platform_ref_id || undefined,
   }, {
       preserveState: true,
       replace: true,

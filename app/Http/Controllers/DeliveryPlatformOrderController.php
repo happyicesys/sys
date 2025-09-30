@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\DeliveryPlatformOperatorResource;
 use App\Http\Resources\DeliveryPlatformOrderResource;
+use App\Http\Resources\DeliveryPlatformRefNumberResource;
 use App\Http\Resources\OperatorResource;
 use App\Exports\DeliveryPlatformOrderExport;
 use App\Models\DeliveryPlatformOperator;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryPlatformOrderItem;
+use App\Models\DeliveryPlatformRefNumber;
 use App\Models\Operator;
 use App\Services\DeliveryPlatformService;
 use App\Traits\GetUserTimezone;
@@ -103,6 +105,12 @@ class DeliveryPlatformOrderController extends Controller
             ],
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
+            ),
+            'platformRefNumberOptions' => DeliveryPlatformRefNumberResource::collection(
+                DeliveryPlatformRefNumber::query()
+                    ->where('status', DeliveryPlatformRefNumber::STATUS_ACTIVE)
+                    ->orderBy('ref_number')
+                    ->get()
             ),
             'totals' => $totals,
         ]);

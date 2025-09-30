@@ -106,7 +106,16 @@ class DeliveryPlatformRefNumberController extends Controller
 
     public function edit(Request $request, $id)
     {
-        $refNumber = DeliveryPlatformRefNumber::with('operator')->findOrFail($id);
+        $refNumber = DeliveryPlatformRefNumber::with([
+            'operator',
+            'deliveryProductMappingVends' => function($query) {
+                $query->with([
+                    'vend:id,code,name,customer_id',
+                    'vend.customer:id,code,name,virtual_customer_prefix,virtual_customer_code',
+                    'deliveryProductMapping:id,name',
+                ])->orderByDesc('created_at');
+            },
+        ])->findOrFail($id);
 
         return Inertia::render('DeliveryPlatformRefNumber/Edit', [
             'deliveryPlatformRefNumber' => new DeliveryPlatformRefNumberResource($refNumber),

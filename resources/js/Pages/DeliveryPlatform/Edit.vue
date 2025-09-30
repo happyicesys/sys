@@ -907,10 +907,17 @@ function addDeliveryProductMappingItem() {
 }
 
 function bindVend(vendId) {
+  const selectedPlatformRefNumber = form.value.platform_ref_number
+  const platformRefId = selectedPlatformRefNumber ? selectedPlatformRefNumber.ref_number : form.value.platform_ref_id
+  const platformRefNumberId = selectedPlatformRefNumber
+    ? selectedPlatformRefNumber.id
+    : (platformRefNumberOptions.value.find((option) => option.ref_number === platformRefId)?.id ?? null)
+
   router.post(
     '/delivery-product-mappings/' + form.value.id + '/bind-vend', {
       vend_id: vendId,
-      platform_ref_id: form.value.platform_ref_number ? form.value.platform_ref_number.ref_number : form.value.platform_ref_id,
+      platform_ref_id: platformRefId,
+      delivery_platform_ref_number_id: platformRefNumberId,
     }, {
     preserveState: false,
     preserveScroll: true,

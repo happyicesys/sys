@@ -32,6 +32,7 @@ use App\Services\DeliveryProductMappingService;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class DeliveryProductMappingController extends Controller
@@ -76,6 +77,12 @@ class DeliveryProductMappingController extends Controller
                     ->paginate($numberPerPage === 'All' ? 10000 : $numberPerPage)
                     ->withQueryString()
             ),
+            'platformRefNumberOptions' => DeliveryPlatformRefNumberResource::collection(
+                DeliveryPlatformRefNumber::query()
+                    ->where('status', DeliveryPlatformRefNumber::STATUS_ACTIVE)
+                    ->orderBy('ref_number')
+                    ->get()
+            ),
         ]);
     }
 
@@ -83,15 +90,34 @@ class DeliveryProductMappingController extends Controller
     {
         $request->validate([
             'platform_ref_id' => 'required',
+            'vend_id' => 'required|exists:vends,id',
+            'delivery_platform_ref_number_id' => 'nullable|exists:delivery_platform_ref_numbers,id',
         ]);
 
         $deliveryProductMapping = DeliveryProductMapping::findOrFail($id);
+
+        $platformRefNumberId = $request->delivery_platform_ref_number_id;
+        if (! $platformRefNumberId) {
+            $platformRefNumberId = DeliveryPlatformRefNumber::query()
+                ->where('ref_number', $request->platform_ref_id)
+                ->where('operator_id', $deliveryProductMapping->operator_id)
+                ->where('status', DeliveryPlatformRefNumber::STATUS_ACTIVE)
+                ->value('id');
+        }
+
+        if (! $platformRefNumberId) {
+            throw ValidationException::withMessages([
+                'platform_ref_id' => 'Selected platform reference is invalid or inactive.',
+            ]);
+        }
+
         $vend = Vend::findOrFail($request->vend_id);
 
         $deliveryProductMappingVend = DeliveryProductMappingVend::create([
             'customer_id' => $vend->customer_id,
             'delivery_product_mapping_id' => $deliveryProductMapping->id,
             'platform_ref_id' => $request->platform_ref_id,
+            'delivery_platform_ref_number_id' => $platformRefNumberId,
             'vend_code' => $vend->code,
             'vend_id' => $vend->id,
         ]);
@@ -516,6 +542,22 @@ class DeliveryProductMappingController extends Controller
     public function unbindVend($deliveryProductMappingVendId)
     {
         $deliveryProductMappingVend = DeliveryProductMappingVend::findOrFail($deliveryProductMappingVendId);
+        $deliveryProductMappingVend->loadMissing('deliveryProductMapping:id,operator_id');
+
+        if (! $deliveryProductMappingVend->delivery_platform_ref_number_id && $deliveryProductMappingVend->platform_ref_id) {
+            $platformRefNumberId = DeliveryPlatformRefNumber::query()
+                ->where('ref_number', $deliveryProductMappingVend->platform_ref_id)
+                ->when($deliveryProductMappingVend->deliveryProductMapping, function ($query, $deliveryProductMapping) {
+                    $query->where('operator_id', $deliveryProductMapping->operator_id);
+                })
+                ->where('status', DeliveryPlatformRefNumber::STATUS_ACTIVE)
+                ->value('id');
+
+            if ($platformRefNumberId) {
+                $deliveryProductMappingVend->delivery_platform_ref_number_id = $platformRefNumberId;
+            }
+        }
+
         $deliveryProductMappingVend->end_date = Carbon::now();
         $deliveryProductMappingVend->save();
 

@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Http\Resources\DeliveryPlatformOperatorResource;
+use App\Http\Resources\DeliveryPlatformRefNumberResource;
 use App\Http\Resources\DeliveryProductMappingResource;
 use App\Http\Resources\DeliveryProductMappingVendResource;
 use App\Http\Resources\OperatorResource;
 use App\Models\DeliveryProductMappingVend;
 use App\Models\DeliveryPlatformOperator;
+use App\Models\DeliveryPlatformRefNumber;
 use App\Models\DeliveryPlatformOrder;
 use App\Models\DeliveryProductMapping;
 use App\Models\Operator;
@@ -120,6 +122,12 @@ class DeliveryProductMappingVendController extends Controller
             ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::all()
+            ),
+            'platformRefNumberOptions' => DeliveryPlatformRefNumberResource::collection(
+                DeliveryPlatformRefNumber::query()
+                    ->where('status', DeliveryPlatformRefNumber::STATUS_ACTIVE)
+                    ->orderBy('ref_number')
+                    ->get()
             ),
             'totals' => $totals,
         ]);

@@ -22,9 +22,23 @@
           <SearchInput placeholderStr="Machine ID" v-model="filters.vend_code">
             Machine ID
           </SearchInput>
-          <SearchInput placeholderStr="Platform ID" v-model="filters.platform_ref_id">
-            Platform ID
-          </SearchInput>
+          <div>
+            <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+              Platform ID
+            </label>
+            <MultiSelect
+              v-model="selectedPlatformRefNumber"
+              :options="platformRefNumberSelectOptions"
+              trackBy="id"
+              valueProp="id"
+              label="ref_number"
+              placeholder="Select"
+              open-direction="bottom"
+              class="mt-1"
+              :canClear="false"
+            >
+            </MultiSelect>
+          </div>
           <div>
             <label for="text" class="block text-sm font-medium text-gray-700">
               Operator
@@ -502,7 +516,7 @@ import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import TableHeadSort from '@/Components/TableHeadSort.vue';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -513,6 +527,7 @@ const props = defineProps({
   deliveryPlatformTypeOptions: [Array, Object],
   deliveryPlatformOrderStatusOptions: Object,
   operatorOptions: Object,
+  platformRefNumberOptions: [Array, Object],
   totals: Object,
 })
 
@@ -543,6 +558,8 @@ const loading = ref(false)
 const model = ref()
 const operatorCountry = usePage().props.auth.operatorCountry
 const operatorOptions = ref([])
+const platformRefNumberSelectOptions = ref([])
+const selectedPlatformRefNumber = ref(null)
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
 const showDeliveryPlatformOrderComplaintModal = ref(false)
@@ -577,6 +594,10 @@ onMounted(() => {
 			{id: 'all', full_name: 'All'},
       ...props.operatorOptions.data.map((data) => {return {id: data.id, code: data.code, full_name: data.full_name}})
   ]
+  platformRefNumberSelectOptions.value = [
+    { id: 'all', ref_number: 'All' },
+    ...(props.platformRefNumberOptions?.data || []).map((data) => ({ id: data.id, ref_number: data.ref_number })),
+  ]
   filters.value.date_filter_type = dateFilterTypeOptions.value[0]
   filters.value.delivery_platform_type_id = deliveryPlatformTypeOptions.value.find(deliveryPlatformType => deliveryPlatformType.id === 'all')
   filters.value.has_complaint = booleanOptions.value[0]
@@ -591,6 +612,16 @@ onMounted(() => {
 		] : [],
 	] : operatorOptions.value[0]
   filters.value.status = props.deliveryPlatformOrderStatusOptions[0]
+  const preselectedPlatformRef = platformRefNumberSelectOptions.value.find(option => option.ref_number === filters.value.platform_ref_id)
+  selectedPlatformRefNumber.value = preselectedPlatformRef ?? platformRefNumberSelectOptions.value[0]
+})
+
+watch(selectedPlatformRefNumber, (newValue) => {
+  if (!newValue || newValue.id === 'all') {
+    filters.value.platform_ref_id = ''
+    return
+  }
+  filters.value.platform_ref_id = newValue.ref_number
 })
 
 function getCampaignSettingsName(deliveryPlatformOrder, campaignID) {
@@ -627,6 +658,7 @@ function onExportExcelClicked() {
           operators: filters.value.operators.map(operator => operator.id),
           has_complaint: filters.value.has_complaint.id,
           status: filters.value.status.id,
+          platform_ref_id: filters.value.platform_ref_id || undefined,
         },
         responseType: 'blob',
     }).then(response => {
@@ -648,6 +680,7 @@ function onSearchFilterUpdated() {
       status: filters.value.status.id,
       has_complaint: filters.value.has_complaint.id,
       numberPerPage: filters.value.numberPerPage.id,
+      platform_ref_id: filters.value.platform_ref_id || undefined,
   }, {
       preserveState: true,
       replace: true,
