@@ -80,14 +80,14 @@ class VendParameterService
             'disableP1P2CrossGrp' => $parameters['disableP1P2CrossGrp'],
 
             'enableBuy1Free1' => $parameters['enableBuy1Free1'],
-            'buy1free1X' => $parameters['buy1free1X'],
-            'buy1free1Y' => $parameters['buy1free1Y'],
+            'buy1free1X' => $parameters['buy1free1X'] ?? -1,
+            'buy1free1Y' => $parameters['buy1free1Y'] ?? -1,
             'buy1free1StartDate' => $parameters['buy1free1StartDate'],
             'buy1free1EndDate' => $parameters['buy1free1EndDate'],
 
             'enableBuy2Free1' => $parameters['enableBuy2Free1'],
-            'buy2free1X' => $parameters['buy2free1X'],
-            'buy2free1Y' => $parameters['buy2free1Y'],
+            'buy2free1X' => $parameters['buy2free1X'] ?? -1,
+            'buy2free1Y' => $parameters['buy2free1Y'] ?? -1,
             'buy2free1StartDate' => $parameters['buy2free1StartDate'],
             'buy2free1EndDate' => $parameters['buy2free1EndDate'],
 
