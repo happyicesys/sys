@@ -114,7 +114,7 @@ class DatabaseSeeder extends Seeder
             // RolePermissionSyncSeeder::class,
             // SyncCustomerVendBindingsFromVendsSeeder::class
             // BindAdminSuperusersToAllOperatorsSeeder::class,
-            DeliveryPlatformRefNumberSeeder::class,
+            // DeliveryPlatformRefNumberSeeder::class,
             OperatorPaymentGatewaySeeder::class,
         ]);
     }
