@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Jobs\PublishMqtt;
 use App\Jobs\RefundOmiseJob;
 use App\Models\Country;
+use App\Models\PaymentGateways\Fiuu;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\PaymentGateways\Omise;
+use App\Models\OperatorPaymentGateway;
 use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
 use App\Models\PaymentMethod;
@@ -114,6 +116,25 @@ class PaymentController extends Controller
         $refId = $input['data']['id'];
         $qrRefID = isset($input['data']['source']) && isset($input['data']['source']['provider_references']) && isset($input['data']['source']['provider_references']['reference_number_1']) ? $input['data']['source']['provider_references']['reference_number_1'] : null;
       break;
+      case 'fiuu':
+        switch($input['status'] ?? null) {
+          case '00':
+          case '0':
+            $status = PaymentGatewayLog::STATUS_APPROVE;
+            break;
+          case '22':
+            $status = PaymentGatewayLog::STATUS_PENDING;
+            break;
+          case '11':
+          case '1':
+          default:
+            $status = PaymentGatewayLog::STATUS_DECLINE;
+            break;
+        }
+        $orderId = $input['orderid'] ?? null;
+        $refId = $input['tranID'] ?? null;
+        $qrRefID = null;
+      break;
     }
 
     $paymentGatewayLogSearchStatus = PaymentGatewayLog::STATUS_PENDING;
@@ -140,6 +161,26 @@ class PaymentController extends Controller
       case 'omise':
           $method = isset($input['data']['source']['type']) ? $input['data']['source']['type'] : null;
           break;
+      case 'fiuu':
+          $method = $input['channel'] ?? null;
+          break;
+    }
+
+    if($company === 'fiuu' && $paymentGatewayLog) {
+      $operatorPaymentGateway = $paymentGatewayLog->operatorPaymentGateway;
+      if($operatorPaymentGateway) {
+        $fiuuGateway = new Fiuu(
+          $operatorPaymentGateway->key1,
+          $operatorPaymentGateway->key2,
+          $operatorPaymentGateway->key3,
+          $operatorPaymentGateway->type === OperatorPaymentGateway::TYPE_SANDBOX
+        );
+
+        if(!$fiuuGateway->verifyResponse($input)) {
+          Log::warning('Fiuu callback signature mismatch', ['payload' => $input]);
+          return;
+        }
+      }
     }
 
     $updatedPaymentGatewayLog = PaymentGatewayLog::updateOrCreate([
@@ -150,6 +191,7 @@ class PaymentController extends Controller
       'qr_ref_id' => $qrRefID,
       'ref_id' => $refId,
       'status' => $status,
+      'response' => $input,
     ]);
 
     if($updatedPaymentGatewayLog and $status === PaymentGatewayLog::STATUS_APPROVE) {
@@ -222,6 +264,9 @@ class PaymentController extends Controller
           break;
         case 'omise':
           $paymentMethod = array_search($paymentGatewayLog->method, Omise::PAYMENT_METHOD_MAPPING);
+          break;
+        case 'fiuu':
+          $paymentMethod = array_search($paymentGatewayLog->method, Fiuu::PAYMENT_METHOD_MAPPING);
           break;
       }
 

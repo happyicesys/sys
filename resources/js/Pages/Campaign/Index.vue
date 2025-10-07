@@ -12,13 +12,14 @@
     <div class="m-2 sm:mx-5 sm:my-3 px-1 sm:px-2 lg:px-3">
       <div class="-mx-4 sm:-mx-6 lg:-mx-8 bg-white rounded-md border my-3 px-3 md:px-3 py-3 ">
         <div class="flex justify-end mb-3">
-          <Button
-            type="button"
-            class="inline-flex space-x-1 items-center rounded-md border bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white hover:bg-green-600"
-            @click="showCreate = true"
-          >
-            <span>+ Create</span>
-          </Button>
+          <Link :href="'/campaigns/create'">
+            <Button
+              type="button"
+              class="inline-flex space-x-1 items-center rounded-md border bg-green-500 px-5 py-3 md:px-4 text-sm font-medium leading-4 text-white hover:bg-green-600"
+            >
+              <span>+ Create</span>
+            </Button>
+          </Link>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
           <SearchInput placeholderStr="Name" v-model="filters.name">
@@ -154,68 +155,6 @@
           </div>
       </div>
     </div>
-    <!-- Create Modal -->
-    <div v-if="showCreate" class="fixed inset-0 z-50 flex items-center justify-center">
-      <div class="absolute inset-0 modal-backdrop" @click="showCreate = false"></div>
-      <div class="relative bg-white rounded shadow-lg w-full max-w-2xl p-5">
-        <div class="flex justify-between items-center mb-3">
-          <h3 class="text-lg font-semibold">Create Campaign</h3>
-          <button @click="showCreate = false" class="text-gray-500 hover:text-gray-700">✕</button>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Name</label>
-            <input v-model="createForm.name" type="text" class="mt-1 w-full border rounded px-2 py-1" placeholder="e.g. Cornetto Promo" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Operator</label>
-            <MultiSelect
-              v-model="createForm.operator"
-              :options="operatorOptions"
-              trackBy="id"
-              valueProp="id"
-              label="full_name"
-              placeholder="Select"
-              open-direction="bottom"
-              class="mt-1"
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Active</label>
-            <select v-model="createForm.is_active" class="mt-1 w-full border rounded px-2 py-1">
-              <option :value="true">Yes</option>
-              <option :value="false">No</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Slug</label>
-            <input v-model="createForm.slug" type="text" class="mt-1 w-full border rounded px-2 py-1" placeholder="friendly-identifier" />
-          </div>
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700">Description</label>
-            <textarea v-model="createForm.description" class="mt-1 w-full border rounded px-2 py-1" rows="2" placeholder="Shown in APK/UI"></textarea>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Start At</label>
-            <input v-model="createForm.start_at" type="datetime-local" class="mt-1 w-full border rounded px-2 py-1" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700">End At</label>
-            <input v-model="createForm.end_at" type="datetime-local" class="mt-1 w-full border rounded px-2 py-1" />
-          </div>
-          <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-gray-700">Remarks</label>
-            <input v-model="createForm.remarks" type="text" class="mt-1 w-full border rounded px-2 py-1" />
-          </div>
-        </div>
-
-        <div class="mt-4 flex justify-end space-x-2">
-          <Button class="bg-gray-300 text-gray-800 hover:bg-gray-400" @click="showCreate = false">Cancel</Button>
-          <Button class="bg-green-500 text-white hover:bg-green-600" @click="submitCreate">Create</Button>
-        </div>
-      </div>
-    </div>
   </div>
   </BreezeAuthenticatedLayout>
 </template>
@@ -230,7 +169,7 @@ import { BackspaceIcon, MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { ref, onMounted } from 'vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   campaigns: Object,
@@ -247,19 +186,6 @@ const filters = ref({
 const operatorOptions = ref([])
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
-
-// Create modal state
-const showCreate = ref(false)
-const createForm = ref({
-  name: '',
-  operator: null,
-  is_active: true,
-  slug: '',
-  description: '',
-  start_at: '',
-  end_at: '',
-  remarks: '',
-})
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -301,28 +227,4 @@ function sortTable(sortKey) {
   onSearchFilterUpdated()
 }
 
-function submitCreate() {
-  router.post('/campaigns/create', {
-    name: createForm.value.name,
-    operator_id: createForm.value.operator?.id || null,
-    is_active: createForm.value.is_active,
-    slug: createForm.value.slug,
-    description: createForm.value.description,
-    start_at: createForm.value.start_at || null,
-    end_at: createForm.value.end_at || null,
-    remarks: createForm.value.remarks,
-  }, {
-    preserveState: true,
-    replace: true,
-    onSuccess: () => {
-      showCreate.value = false
-      createForm.value = { name: '', operator: null, is_active: true, slug: '', description: '', start_at: '', end_at: '', remarks: '' }
-    }
-  })
-}
-
 </script>
-
-<style scoped>
-.modal-backdrop { background: rgba(0,0,0,0.4); }
-</style>

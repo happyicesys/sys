@@ -96,6 +96,16 @@ class VendTransactionService
 
                 $transaction = $this->createVendTransaction($vend, $processedInput, $isCurrentTime);
 
+                if ($transaction) {
+                    $this->updateVendPaymentTimestamps(
+                        $vend,
+                        $transaction->transaction_datetime instanceof Carbon
+                            ? $transaction->transaction_datetime->copy()
+                            : Carbon::parse($transaction->transaction_datetime),
+                        $processedInput['paymentClassification'] ?? null
+                    );
+                }
+
                 if($processedInput['vouchers']) {
                     foreach($processedInput['vouchers'] as $voucher) {
                         $this->voucherService->updateUsedVoucher($voucher['code']);
@@ -216,6 +226,48 @@ class VendTransactionService
         return $vendTransaction;
     }
 
+    private function updateVendPaymentTimestamps(Vend $vend, Carbon $transactionTime, ?string $paymentClassification): void
+    {
+        $attributes = [];
+
+        if ($this->shouldUpdateVendTimestamp($vend->last_vend_transaction_at, $transactionTime)) {
+            $attributes['last_vend_transaction_at'] = $transactionTime;
+        }
+
+        switch ($paymentClassification) {
+            case 'cash':
+                if ($this->shouldUpdateVendTimestamp($vend->last_cash_vend_transaction_at, $transactionTime)) {
+                    $attributes['last_cash_vend_transaction_at'] = $transactionTime;
+                }
+                break;
+            case 'card':
+                if ($this->shouldUpdateVendTimestamp($vend->last_card_vend_transaction_at, $transactionTime)) {
+                    $attributes['last_card_vend_transaction_at'] = $transactionTime;
+                }
+                break;
+            case 'cashless':
+                if ($this->shouldUpdateVendTimestamp($vend->last_cashless_vend_transaction_at, $transactionTime)) {
+                    $attributes['last_cashless_vend_transaction_at'] = $transactionTime;
+                }
+                break;
+        }
+
+        if (!empty($attributes)) {
+            $vend->forceFill($attributes)->save();
+        }
+    }
+
+    private function shouldUpdateVendTimestamp($currentValue, Carbon $candidate): bool
+    {
+        if (is_null($currentValue)) {
+            return true;
+        }
+
+        $current = $currentValue instanceof Carbon ? $currentValue : Carbon::parse($currentValue);
+
+        return $candidate->greaterThan($current);
+    }
+
     private function createVendTransactionItem($vendTransaction, $input)
     {
         $vendTransactionItem = VendTransactionItem::create([
@@ -247,6 +299,19 @@ class VendTransactionService
         $isPaymentReceived = false;
         $isSuccessful = false;
         $paymentMethod = isset($input['paymentMethodCode']) ? PaymentMethod::where('code', $input['paymentMethodCode'])->first() : null;
+        $paymentClassification = null;
+
+        if ($paymentMethod) {
+            $paymentCode = (int) $paymentMethod->code;
+
+            if ($paymentCode === 0) {
+                $paymentClassification = 'cash';
+            } elseif ($paymentCode === 1) {
+                $paymentClassification = 'card';
+            } elseif (!is_null($paymentMethod->payment_gateway_id)) {
+                $paymentClassification = 'cashless';
+            }
+        }
         $product = null;
         $unitCost = null;
         $unitCostId = null;
@@ -303,6 +368,7 @@ class VendTransactionService
             // 'paymentGatewayLogID' => isset($paymentGatewayLog) ? $paymentGatewayLog->id : null,
             'paymentMethodCode' => isset($input['paymentMethodCode']) ? $input['paymentMethodCode'] : null,
             'paymentMethodID' => $paymentMethod ? $paymentMethod->id : null,
+            'paymentClassification' => $paymentClassification,
             'planItemID' => isset($input['planItemID']) ? $input['planItemID'] : null,
             'productID' => $product ? $product->id : null,
             'qty' => isset($input['qty']) ? $input['qty'] : 1,

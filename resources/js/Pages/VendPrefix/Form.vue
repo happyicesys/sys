@@ -52,8 +52,27 @@
                   (Maximum 4 options)
                 </small>
               </span>
-              <div class="text-sm text-red-600" v-if="form.errors.operator_id">
-                {{ form.errors.operator_id }}
+              <div class="text-sm text-red-600" v-if="form.errors.productMappings">
+                {{ form.errors.productMappings }}
+              </div>
+            </div>
+            <div class="sm:col-span-6">
+              <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                Upcoming Product Mapping
+              </label>
+              <MultiSelect
+                v-model="form.upcomingProductMapping"
+                :options="upcomingOptions()"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="top"
+                class="mt-1"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.upcomingProductMapping">
+                {{ form.errors.upcomingProductMapping }}
               </div>
             </div>
             <div class="sm:col-span-6">
@@ -132,7 +151,7 @@ import Modal from '@/Components/Modal.vue';
 import MultiSelect from '@/Components/MultiSelect.vue'
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
 import { useForm, usePage } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 
 const authOperator = usePage().props.auth.operator
 
@@ -158,21 +177,73 @@ onMounted(() => {
   operatorOptions.value = [
     ...props.operatorOptions.data.map((data) => {return {id: data.id, full_name: data.full_name}})
   ]
-  productMappingOptions.value = props.productMappingOptions.data.map((data) => {return {id: data.id, value: data.name}})
-// console.log(productMappingOptions.value)
-  // productMappingOptions.value = [
-  //   ...props.productMappingOptions.data.map((data) => {return {id: data.id, name: data.name}})
-  // ]
+  productMappingOptions.value = props.productMappingOptions.data.map((data) => {
+    return { id: data.id, value: data.name }
+  })
   vendConfigOptions.value = props.vendConfigOptions
-  form.value = props.vendPrefix ? useForm(
-  {
-    ...props.vendPrefix,
-    // product_mapping_id: productMappingOptions.value.find(productMapping => productMapping.id === props.vendPrefix.product_mapping_id),
-    productMappings: props.vendPrefix.productMappings.map(productMapping => productMappingOptions.value.find(productMappingOption => productMappingOption.id === productMapping.id)),
-    operator_id: props.vendPrefix.operator_id ? operatorOptions.value.find(operator => operator.id == props.vendPrefix.operator_id) : operatorOptions.value.find(operator => operator.id == authOperator.id),
-    // vend_config_id: vendConfigOptions.value.find(vendConfig => vendConfig.id === props.vendPrefix.vend_config_id),
-  }) : useForm(getDefaultForm())
+  form.value = props.vendPrefix
+    ? useForm({
+        ...props.vendPrefix,
+        productMappings: props.vendPrefix.productMappings
+          .map((productMapping) => findProductMappingOption(productMapping.id))
+          .filter(Boolean),
+        operator_id: props.vendPrefix.operator_id
+          ? operatorOptions.value.find((operator) => operator.id == props.vendPrefix.operator_id)
+          : operatorOptions.value.find((operator) => operator.id == authOperator.id),
+        upcomingProductMapping: buildInitialUpcomingSelection(props.vendPrefix.productMappings),
+      })
+    : useForm(getDefaultForm())
+  ensureUpcomingValid()
 })
+
+watch(
+  () => form.value.productMappings,
+  () => {
+    ensureUpcomingValid()
+  },
+  { deep: true }
+)
+
+function findProductMappingOption(id) {
+  const numericId = Number(id)
+  return productMappingOptions.value.find((option) => Number(option.id) === numericId)
+}
+
+function buildInitialUpcomingSelection(productMappings = []) {
+  for (const productMapping of productMappings || []) {
+    const upcoming = productMapping.upcomingProductMappings && productMapping.upcomingProductMappings[0]
+    if (upcoming) {
+      const option = findProductMappingOption(upcoming.id)
+      if (option) {
+        return option
+      }
+    }
+  }
+
+  return null
+}
+
+function upcomingOptions() {
+  const selectedIds = new Set(
+    (form.value.productMappings || []).map((item) => Number(item.id))
+  )
+
+  return productMappingOptions.value.filter((option) => !selectedIds.has(Number(option.id)))
+}
+
+function ensureUpcomingValid() {
+  if (!form.value.upcomingProductMapping) {
+    return
+  }
+
+  const selectedIds = new Set(
+    (form.value.productMappings || []).map((item) => Number(item.id))
+  )
+
+  if (selectedIds.has(Number(form.value.upcomingProductMapping.id))) {
+    form.value.upcomingProductMapping = null
+  }
+}
 
 function getDefaultForm() {
   return {
@@ -180,6 +251,7 @@ function getDefaultForm() {
     desc: '',
     operator_id: '',
     productMappings: [],
+    upcomingProductMapping: null,
   }
 }
 
@@ -193,6 +265,7 @@ function submit() {
         ...data,
         operator_id: data.operator_id.id,
         productMappings: data.productMappings.map(productMapping => productMapping.id),
+        upcomingProductMapping: data.upcomingProductMapping ? data.upcomingProductMapping.id : null,
       }
     })
     .post('/vend-prefixes/create', {
@@ -211,6 +284,7 @@ function submit() {
           ...data,
           operator_id: data.operator_id.id,
           productMappings: data.productMappings.map(productMapping => productMapping.id),
+          upcomingProductMapping: data.upcomingProductMapping ? data.upcomingProductMapping.id : null,
         }
       })
       .post('/vend-prefixes/' + form.value.id + '/update', {

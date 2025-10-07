@@ -124,7 +124,20 @@ class VendPrefixController extends Controller
             'name' => 'required',
         ]);
 
-        VendPrefix::create($request->all());
+        $vendPrefix = VendPrefix::create($request->all());
+
+        $productMappingIds = array_values(array_unique(array_filter(
+            array_map('intval', (array) $request->input('productMappings', [])),
+            fn ($id) => $id > 0
+        )));
+
+        if ($productMappingIds) {
+            $vendPrefix->productMappings()->sync($productMappingIds);
+        }
+
+        $upcomingProductMappingId = (int) $request->input('upcomingProductMapping');
+
+        $this->syncUpcomingProductMapping($productMappingIds, $upcomingProductMappingId);
 
         return redirect()->route('vend-prefixes');
     }
@@ -139,7 +152,24 @@ class VendPrefixController extends Controller
 
         $model->update($request->all());
 
-        $model->productMappings()->sync($request->productMappings);
+        $existingProductMappingIds = $model->productMappings()->pluck('product_mappings.id')->all();
+
+        $productMappingIds = array_values(array_unique(array_filter(
+            array_map('intval', (array) $request->input('productMappings', [])),
+            fn ($id) => $id > 0
+        )));
+
+        $model->productMappings()->sync($productMappingIds);
+
+        $upcomingProductMappingId = (int) $request->input('upcomingProductMapping');
+
+        $this->syncUpcomingProductMapping($productMappingIds, $upcomingProductMappingId);
+
+        $removedProductMappings = array_diff($existingProductMappingIds, $productMappingIds);
+
+        if ($removedProductMappings) {
+            $this->syncUpcomingProductMapping($removedProductMappings, null);
+        }
 
         // validate if product mapping is no longer in vend prefix, unmap the product mapping id of vend
         $vends = $model->vends;
@@ -165,5 +195,27 @@ class VendPrefixController extends Controller
         $model->delete();
 
         return redirect()->route('vend-prefixes');
+    }
+
+    protected function syncUpcomingProductMapping(array $productMappingIds, ?int $upcomingProductMappingId): void
+    {
+        $productMappingIds = array_filter(
+            array_map('intval', $productMappingIds),
+            fn ($id) => $id > 0
+        );
+
+        foreach ($productMappingIds as $productMappingId) {
+            $productMapping = ProductMapping::find($productMappingId);
+
+            if (! $productMapping) {
+                continue;
+            }
+
+            $syncIds = $upcomingProductMappingId && $upcomingProductMappingId > 0
+                ? [$upcomingProductMappingId]
+                : [];
+
+            $productMapping->upcomingProductMappings()->sync($syncIds);
+        }
     }
 }

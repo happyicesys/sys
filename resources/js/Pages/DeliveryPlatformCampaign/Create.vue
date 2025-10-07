@@ -116,42 +116,48 @@ const props = defineProps({
   deliveryProductMappingOptions: Object,
 })
 
-const deliveryPlatformOperatorOptions = ref([])
-const form = ref(
-  useForm(getDefaultForm())
-)
+const authUser = computed(() => usePage().props.auth.user)
+
+const deliveryPlatformOperatorOptions = ref(mapDeliveryPlatformOperators(props.deliveryPlatformOperatorOptions))
+const form = ref(useForm(getDefaultForm()))
 const permissions = usePage().props.auth.permissions
 
 onMounted(() => {
+    deliveryPlatformOperatorOptions.value = mapDeliveryPlatformOperators(props.deliveryPlatformOperatorOptions)
     form.value = useForm(getDefaultForm())
-    deliveryPlatformOperatorOptions.value = [
-      ...props.deliveryPlatformOperatorOptions.data.map((data) => {
-      return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
-    ]
+    setOperatorFromMapping(form.value.delivery_product_mapping_id)
 })
 
 function getDefaultForm() {
+  const defaultDeliveryProductMapping = getDefaultDeliveryProductMappingOption()
+
   return {
     name: '',
-    delivery_product_mapping_id: '',
-    delivery_platform_operator_id: '',
+    delivery_product_mapping_id: defaultDeliveryProductMapping || '',
+    delivery_platform_operator_id: getDefaultDeliveryPlatformOperatorOption(defaultDeliveryProductMapping) || '',
     remarks: '',
   }
 }
 
 function onDeliveryProductMappingSelected() {
+  const selectedMapping = form.value.delivery_product_mapping_id
+
+  if (!selectedMapping || !selectedMapping.id) {
+    form.value.delivery_platform_operator_id = ''
+    deliveryPlatformOperatorOptions.value = mapDeliveryPlatformOperators(props.deliveryPlatformOperatorOptions)
+    return
+  }
+
   router.reload({
     only: ['deliveryPlatformOperatorOptions'],
     data: {
-      delivery_product_mapping_id: form.value.delivery_product_mapping_id.id,
+      delivery_product_mapping_id: selectedMapping.id,
     },
     replace: true,
     preserveState: true,
     onSuccess: page => {
-      deliveryPlatformOperatorOptions.value = [
-        ...props.deliveryPlatformOperatorOptions.data.map((data) => {
-        return {id: data.id, name: data.deliveryPlatform.name + ' (' + data.type + ')'}})
-      ]
+      deliveryPlatformOperatorOptions.value = mapDeliveryPlatformOperators(page.props.deliveryPlatformOperatorOptions)
+      setOperatorFromMapping(selectedMapping)
     }
   })
 }
@@ -169,5 +175,53 @@ function submit() {
     preserveState: true,
     replace: true,
   })
+}
+
+function mapDeliveryPlatformOperators(resource) {
+  if (!resource || !resource.data) {
+    return []
+  }
+
+  return resource.data.map((data) => {
+    const platformName = data.deliveryPlatform?.name ?? ''
+    const typeLabel = data.type ? ` (${data.type})` : ''
+
+    return {
+      id: data.id,
+      name: `${platformName}${typeLabel}`.trim(),
+    }
+  })
+}
+
+function getDefaultDeliveryProductMappingOption() {
+  const mappingOptions = props.deliveryProductMappingOptions?.data ?? []
+
+  if (!mappingOptions.length) {
+    return null
+  }
+
+  const operatorId = authUser.value?.operator_id
+
+  return mappingOptions.find((option) => option.operator_id === operatorId) ?? mappingOptions[0]
+}
+
+function getDefaultDeliveryPlatformOperatorOption(mappingOption) {
+  if (!mappingOption) {
+    return null
+  }
+
+  return deliveryPlatformOperatorOptions.value.find((option) => option.id === mappingOption.delivery_platform_operator_id) ?? deliveryPlatformOperatorOptions.value[0] ?? null
+}
+
+function setOperatorFromMapping(mappingOption) {
+  if (!mappingOption) {
+    return
+  }
+
+  const operatorOption = getDefaultDeliveryPlatformOperatorOption(mappingOption)
+
+  if (operatorOption) {
+    form.value.delivery_platform_operator_id = operatorOption
+  }
 }
 </script>

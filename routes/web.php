@@ -129,6 +129,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
 
     Route::prefix('campaigns')->group(function() {
         Route::get('/', [CampaignController::class, 'index'])->name('campaigns');
+        Route::get('/create', [CampaignController::class, 'createView'])->name('campaigns.create');
         Route::post('/create', [CampaignController::class, 'create']);
         Route::post('/{id}/update', [CampaignController::class, 'update']);
         Route::delete('/{id}', [CampaignController::class, 'delete']);

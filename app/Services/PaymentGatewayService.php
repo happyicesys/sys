@@ -4,6 +4,7 @@ namespace App\Services;
 use App\Models\OperatorPaymentGateway;
 use App\Models\PaymentGateway;
 use App\Models\PaymentGatewayLog;
+use App\Models\PaymentGateways\Fiuu;
 use App\Models\PaymentGateways\Omise;
 use App\Models\PaymentGateways\Midtrans;
 use App\Models\Vend;
@@ -39,6 +40,7 @@ class PaymentGatewayService
 
         $paymentRequest = $this->createPaymentRequest($vend, $params);
         $response = $paymentRequest['response'];
+        $rawResponse = $paymentRequest['raw_response'] ?? null;
         $operatorPaymentGateway = $paymentRequest['operatorPaymentGateway'];
 
         switch ($operatorPaymentGateway->paymentGateway->name) {
@@ -78,6 +80,37 @@ class PaymentGatewayService
                     $errorMsg .= $response['code'] . ' ' . $response['message'];
                 }
                 break;
+            case 'fiuu':
+                $isCreateInput = true;
+                $rawHtml = '';
+                if (is_string($rawResponse)) {
+                    $rawHtml = $rawResponse;
+                } elseif ($rawResponse instanceof \Illuminate\Http\Client\Response) {
+                    $rawHtml = $rawResponse->body();
+                } elseif (is_array($response) && isset($response['html'])) {
+                    $rawHtml = base64_decode($response['html']);
+                }
+
+                if ($rawHtml) {
+                    $decodedHtml = html_entity_decode($rawHtml);
+
+                    $qrString = $this->extractFiuuQrString($decodedHtml);
+                    if ($qrString) {
+                        $qrCodeText = $qrString;
+                    }
+
+                    $qrImage = $this->extractFiuuQrImage($decodedHtml);
+                    if ($qrImage) {
+                        $qrCodeUrl = $qrImage;
+                        $isRequiredDecode = true;
+                    }
+                }
+
+                if (!$qrCodeText && !$qrCodeUrl) {
+                    $errorMsg .= 'Error: Unable to extract Fiuu QR response.';
+                    $isCreateInput = false;
+                }
+                break;
         }
         // dd(file_get_contents($qrCodeUrl));
         // dd($qrCodeUrl, $isCreateInput, $isRequiredDecode, $isResizeImage);
@@ -85,7 +118,10 @@ class PaymentGatewayService
         if($isRequiredDecode) {
           if($isResizeImage) {
 
-            if(filter_var($qrCodeUrl, FILTER_VALIDATE_URL) !== false) {
+            if($this->isDataUri($qrCodeUrl)) {
+                $imagick = new Imagick();
+                $imagick->readImageBlob($this->decodeDataUri($qrCodeUrl));
+            }elseif(filter_var($qrCodeUrl, FILTER_VALIDATE_URL) !== false) {
                 $imagick = new Imagick();
                 $imagick->readImageBlob(file_get_contents($qrCodeUrl));
             }else {
@@ -103,7 +139,10 @@ class PaymentGatewayService
             // $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $imagick->getImageBlob(), 'public');
 // dd($imagick->getImageBlob());
           }else {
-            if(isset($params['type']) and $params['type'] == 'alipayplus_mpm') {
+            if($this->isDataUri($qrCodeUrl)) {
+              $binary = $this->decodeDataUri($qrCodeUrl);
+              $img = Storage::put('/qr-code/'.$params['metadata']['order_id'].'.png', $binary, 'public');
+            }elseif(isset($params['type']) and $params['type'] == 'alipayplus_mpm') {
               $imagick = new Imagick();
               $imagick->setBackgroundColor(new ImagickPixel('transparent'));
               $imagick->readImageBlob(file_get_contents($qrCodeUrl));
@@ -175,6 +214,7 @@ class PaymentGatewayService
 
             $paymentGatewayLog = PaymentGatewayLog::create([
                 'request' => $params['request'],
+                'response' => $paymentRequest['response'],
                 'order_id' => $params['metadata']['order_id'],
                 'amount' => $params['amount'],
                 'qr_url' => $qrCodeUrl,
@@ -226,6 +266,15 @@ class PaymentGatewayService
                     ''
                 ),
             'return_uri' => $params['return_uri'] ?? env('APP_URL'),
+            'callback_url' => $params['callback_url'] ?? null,
+            'cancel_url' => $params['cancel_url'] ?? null,
+            'country' => $params['country'] ?? optional($operatorPaymentGateway->paymentGateway->country)->code ?? 'MY',
+            'channel_code' => $params['channel_code'] ?? null,
+            'channel' => $params['channel'] ?? null,
+            'customer_name' => $params['customer_name'] ?? 'Guest',
+            'customer_email' => $params['customer_email'] ?? 'guest@example.com',
+            'customer_phone' => $params['customer_phone'] ?? '0000000000',
+            'description' => $params['description'] ?? 'Purchase',
         ];
 
         $response = $paymentGateway->createPayment($processedParams);
@@ -234,8 +283,20 @@ class PaymentGatewayService
             $this->errorService->throwErrorWithMqtt('Payment creation failed: ' . $response->body(), $vend);
         }
 
+        $contentType = $response->header('Content-Type');
+        $isJson = $contentType && str_contains(strtolower($contentType), 'application/json');
+
+        $responsePayload = $isJson ? $response->json() : [
+            'html' => base64_encode($response->body()),
+        ];
+
+        if (method_exists($paymentGateway, 'getLastRequestDetails')) {
+            $responsePayload['request_details'] = $paymentGateway->getLastRequestDetails();
+        }
+
         return [
-            'response' => $response->json(),
+            'response' => $responsePayload,
+            'raw_response' => $response,
             'operatorPaymentGateway' => $operatorPaymentGateway,
         ];
     }
@@ -259,6 +320,16 @@ class PaymentGatewayService
                             break;
                         case 'omise' :
                             $obj = new Omise($operatorPaymentGateway->key1, $operatorPaymentGateway->key2);
+                            $obj->setOperatorPaymentGateway($operatorPaymentGateway);
+                            return $obj;
+                            break;
+                        case 'fiuu':
+                            $obj = new Fiuu(
+                                $operatorPaymentGateway->key1,
+                                $operatorPaymentGateway->key2,
+                                $operatorPaymentGateway->key3,
+                                $operatorPaymentGateway->type === OperatorPaymentGateway::TYPE_SANDBOX
+                            );
                             $obj->setOperatorPaymentGateway($operatorPaymentGateway);
                             return $obj;
                             break;
@@ -290,5 +361,58 @@ class PaymentGatewayService
         }
 
         return $envName;
+    }
+
+    private function extractFiuuQrString(string $html): ?string
+    {
+        $patterns = [
+            '/name="qr_string"\s+value="([^"]+)"/i',
+            '/id="qr_string"\s+value="([^"]+)"/i',
+            '/name="qrString"\s+value="([^"]+)"/i',
+            '/id="qrString"\s+value="([^"]+)"/i',
+            '/"qr_string"\s*:\s*"([^"]+)"/i',
+            '/"qrString"\s*:\s*"([^"]+)"/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $html, $matches)) {
+                return html_entity_decode($matches[1]);
+            }
+        }
+
+        return null;
+    }
+
+    private function extractFiuuQrImage(string $html): ?string
+    {
+        $patterns = [
+            '/<img[^>]+src="(data:image\/[^"]+)"[^>]*>/i',
+            '/<img[^>]+src="(https?:[^\"]+)"[^>]*>/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $html, $matches)) {
+                return $matches[1];
+            }
+        }
+
+        return null;
+    }
+
+    private function isDataUri(string $value): bool
+    {
+        return str_starts_with($value, 'data:image');
+    }
+
+    private function decodeDataUri(string $value): string
+    {
+        if (!str_contains($value, ',')) {
+            return $value;
+        }
+
+        [, $data] = explode(',', $value, 2);
+        $decoded = base64_decode($data);
+
+        return $decoded !== false ? $decoded : '';
     }
 }

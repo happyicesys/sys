@@ -2,57 +2,69 @@
 
 namespace Database\Seeders;
 
-use App\Models\Country;
 use App\Models\Operator;
 use App\Models\OperatorPaymentGateway;
 use App\Models\PaymentGateway;
-use App\Models\PaymentGateways\Midtrans;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Collection;
 
 class OperatorPaymentGatewaySeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     *
-     * @return void
-     */
-    public function run()
+    public function run(): void
     {
-        $country = Country::create([
-            'code' => 'ID',
-            'name' => 'Indonesia',
-            'phone_code' => 62,
-            'sequence' => 5,
-            'currency_name' => 'IDR',
-            'currency_symbol' => 'Rp',
+        if (!config('app.debug')) {
+            return;
+        }
+
+        $operators = Operator::all();
+        if ($operators->isEmpty()) {
+            return;
+        }
+
+        $fiuuGateway = PaymentGateway::firstOrCreate([
+            'name' => 'fiuu',
+        ], [
+            'classname' => '\\App\\Models\\PaymentGateways\\Fiuu',
+            'remarks' => 'Fiuu hosted payment gateway',
+            'key1_name' => 'merchant_id',
+            'key2_name' => 'verify_key',
+            'key3_name' => 'secret_key',
         ]);
 
-        $operator = Operator::create([
-            'code' => 'ID',
-            'name' => 'Indonesia',
-            'timezone' => 'Asia/Jakarta',
-            'country_id' => $country->id,
-        ]);
+        $sandboxCredentials = [
+            'merchant_id' => env('FIUU_SANDBOX_MERCHANT_ID', 'SB_happyice'),
+            'verify_key' => env('FIUU_SANDBOX_VERIFY_KEY', 'sample_verify_key'),
+            'secret_key' => env('FIUU_SANDBOX_SECRET_KEY', 'sample_secret_key'),
+        ];
 
-        $paymentGateway = PaymentGateway::create([
-            'name' => 'midtrans',
-        ]);
+        $productionCredentials = [
+            'merchant_id' => env('FIUU_MERCHANT_ID'),
+            'verify_key' => env('FIUU_VERIFY_KEY'),
+            'secret_key' => env('FIUU_SECRET_KEY'),
+        ];
 
-        OperatorPaymentGateway::create([
-            'operator_id' => $operator->id,
-            'payment_gateway_id' => $paymentGateway->id,
-            'key1' => 'SB-Mid-server-USybf0_T3EbRgMHnibomesGv',
-            'key2' => 'SB-Mid-client-FmaI0dG1j09oCvs0',
-            'type' => 'sandbox',
-        ]);
+        foreach ($operators as $operator) {
+            foreach ([
+                OperatorPaymentGateway::TYPE_SANDBOX => $sandboxCredentials,
+                OperatorPaymentGateway::TYPE_PRODUCTION => $productionCredentials,
+            ] as $type => $credentials) {
+                if (empty(array_filter($credentials, fn ($value) => filled($value)))) {
+                    continue;
+                }
 
-        OperatorPaymentGateway::create([
-            'operator_id' => $operator->id,
-            'payment_gateway_id' => $paymentGateway->id,
-            'key1' => 'Mid-server-w4POgfA3U1kyaXi_lafzNSXY',
-            'key2' => 'Mid-client-kFCRRbSOwNBg3FFs',
-            'type' => 'production',
-        ]);
+                OperatorPaymentGateway::updateOrCreate(
+                    [
+                        'operator_id' => $operator->id,
+                        'payment_gateway_id' => $fiuuGateway->id,
+                        'type' => $type,
+                    ],
+                    [
+                        'key1' => $credentials['merchant_id'],
+                        'key2' => $credentials['verify_key'],
+                        'key3' => $credentials['secret_key'],
+                    ]
+                );
+            }
+        }
     }
 }

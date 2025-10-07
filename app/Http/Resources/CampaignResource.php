@@ -23,11 +23,16 @@ class CampaignResource extends JsonResource
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,
-            'start_at' => $this->start_at,
-            'end_at' => $this->end_at,
+            'start_at' => $this->start_at ? Carbon::parse($this->start_at)->setTimezone($this->getUserTimezone())->toDateString() : null,
+            'end_at' => $this->end_at ? Carbon::parse($this->end_at)->setTimezone($this->getUserTimezone())->toDateString() : null,
             'operator_id' => $this->operator_id,
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'remarks' => $this->remarks,
+            'promo_type' => $this->promo_type,
+            'bundle_qty' => $this->bundle_qty,
+            'value' => $this->value,
+            'labels_x' => TagResource::collection($this->whenLoaded('labelsX')),
+            'labels_y' => TagResource::collection($this->whenLoaded('labelsY')),
         ];
     }
 }
