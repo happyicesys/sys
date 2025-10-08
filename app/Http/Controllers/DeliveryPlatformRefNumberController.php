@@ -27,6 +27,11 @@ class DeliveryPlatformRefNumberController extends Controller
             'deliveryPlatformRefNumbers' => DeliveryPlatformRefNumberResource::collection(
                 DeliveryPlatformRefNumber::with(['operator', 'currentDeliveryProductMappingVend'])
                     ->withCount('deliveryProductMappingVends')
+                    ->withCount([
+                        'deliveryProductMappingVends as active_delivery_product_mapping_vends_count' => function ($query) {
+                            $query->whereNull('end_date');
+                        },
+                    ])
                     ->addSelect([
                         'current_vend_code_sort' => DeliveryProductMappingVend::select('vend_code')
                             ->whereColumn('delivery_product_mapping_vend.delivery_platform_ref_number_id', 'delivery_platform_ref_numbers.id')
@@ -42,11 +47,15 @@ class DeliveryPlatformRefNumberController extends Controller
                             $q->where('vend_code', 'LIKE', "{$search}%");
                         });
                     })
-                    ->when($request->has('is_active'), function($query) use ($request) {
+                    ->when($request->has('is_active') && $request->is_active !== 'all', function($query) use ($request) {
                         if ($request->is_active === 'true') {
-                            $query->where('status', DeliveryPlatformRefNumber::STATUS_ACTIVE);
+                            $query->whereHas('deliveryProductMappingVends', function($q) {
+                                $q->whereNull('end_date');
+                            });
                         } elseif ($request->is_active === 'false') {
-                            $query->where('status', DeliveryPlatformRefNumber::STATUS_INACTIVE);
+                            $query->whereDoesntHave('deliveryProductMappingVends', function($q) {
+                                $q->whereNull('end_date');
+                            });
                         }
                     })
                     ->when($request->operators, function($query, $search) {
@@ -58,6 +67,8 @@ class DeliveryPlatformRefNumberController extends Controller
                         $direction = filter_var($sortBy, FILTER_VALIDATE_BOOLEAN) ? 'asc' : 'desc';
                         if ($sortKey === 'current_vend_code') {
                             $query->orderBy('current_vend_code_sort', $direction);
+                        } elseif ($sortKey === 'status') {
+                            $query->orderBy('active_delivery_product_mapping_vends_count', $direction);
                         } else {
                             $query->orderBy($sortKey, $direction);
                         }

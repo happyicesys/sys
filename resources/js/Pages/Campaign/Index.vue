@@ -118,6 +118,9 @@
                     <TableHead>
                       Remarks
                     </TableHead>
+                    <TableHead>
+                      Action
+                    </TableHead>
                   </tr>
                 </thead>
                 <tbody class="bg-white">
@@ -143,6 +146,19 @@
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
                       {{ campaign.remarks ?? '' }}
                     </TableData>
+                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
+                      <div class="flex justify-center space-x-1">
+                        <Link :href="'/campaigns/' + campaign.id + '/edit'">
+                          <Button
+                            type="button"
+                            class="bg-gray-300 hover:bg-gray-400 px-2 py-1 text-xs text-gray-800 flex space-x-1"
+                          >
+                            <PencilSquareIcon class="w-4 h-4" />
+                            <span>Edit</span>
+                          </Button>
+                        </Link>
+                      </div>
+                    </TableData>
                   </tr>
                   <tr v-if="!campaigns.data.length">
                     <td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
@@ -165,7 +181,7 @@ import Button from '@/Components/Button.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { BackspaceIcon, MagnifyingGlassIcon } from '@heroicons/vue/20/solid';
+import { BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon } from '@heroicons/vue/20/solid';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
 import { ref, onMounted } from 'vue';

@@ -168,11 +168,11 @@
                       <span v-if="refNumber.operator">{{ refNumber.operator.code }} - {{ refNumber.operator.name }}</span>
                     </TableData>
                     <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
-                      <span v-if="refNumber.status === 1" class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10">
-                        {{ refNumber.status_label }}
+                      <span v-if="refNumber.binding_status === 1" class="inline-flex items-center rounded-md bg-green-300 px-1.5 py-0.5 text-xs font-medium text-green-800 ring-1 ring-inset ring-indigo-700/10">
+                        {{ refNumber.binding_status_label }}
                       </span>
                       <span v-else class="inline-flex items-center rounded-md bg-red-200 px-1.5 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-indigo-700/10">
-                        {{ refNumber.status_label }}
+                        {{ refNumber.binding_status_label }}
                       </span>
                     </TableData>
                     <TableData :currentIndex="idx" :totalLength="deliveryPlatformRefNumbers.length" inputClass="text-center">
@@ -219,14 +219,15 @@ const props = defineProps({
   operatorOptions: Object,
 })
 
-  const filters = ref({
-    ref_number: '',
+const filters = ref({
+  ref_number: '',
   current_vend_code: '',
-    operators: [],
-    sortKey: 'created_at',
-    sortBy: false,
-    numberPerPage: 100,
-  })
+  operators: [],
+  sortKey: 'created_at',
+  sortBy: false,
+  numberPerPage: 100,
+  is_active: null,
+})
 const operatorOptions = ref([])
 const numberPerPageOptions = ref([])
 const booleanOptions = ref([])
@@ -240,8 +241,8 @@ onMounted(() => {
   ]
   booleanOptions.value = [
     { id: 'all', value: 'All' },
-    { id: 'true', value: 'Yes' },
-    { id: 'false', value: 'No' },
+    { id: 'true', value: 'Active' },
+    { id: 'false', value: 'Inactive' },
   ]
   operatorOptions.value = [
     {id: 'all', full_name: 'All'},
@@ -249,7 +250,7 @@ onMounted(() => {
   ]
   filters.value.numberPerPage = numberPerPageOptions.value[0]
   filters.value.operators = [operatorOptions.value[0]]
-  // default to Yes
+  // default to Active
   filters.value.is_active = booleanOptions.value[1]
 })
 
@@ -257,7 +258,7 @@ function onSearchFilterUpdated() {
   router.get('/delivery-platform-ref-numbers', {
       ...filters.value,
       operators: filters.value.operators.map((operator) => { return operator.id }),
-      is_active: filters.value.is_active.id,
+      is_active: filters.value.is_active?.id ?? 'all',
       numberPerPage: filters.value.numberPerPage.id,
   }, {
       preserveState: true,

@@ -27,10 +27,20 @@ class DeliveryPlatformRefNumberResource extends JsonResource
             'current_vend_code' => $this->whenLoaded('currentDeliveryProductMappingVend', function() {
                 return $this->currentDeliveryProductMappingVend?->vend_code;
             }, null),
+            'active_binding_count' => $this->when(isset($this->active_delivery_product_mapping_vends_count), function () {
+                return (int) $this->active_delivery_product_mapping_vends_count;
+            }, 0),
+            'has_active_binding' => $this->when(
+                isset($this->active_delivery_product_mapping_vends_count),
+                fn () => (int) $this->active_delivery_product_mapping_vends_count > 0,
+                false
+            ),
             'ref_number' => $this->ref_number,
             'remarks' => $this->remarks,
             'status' => $this->status,
             'status_label' => isset(DeliveryPlatformRefNumber::STATUS_MAPPINGS[$this->status]) ? DeliveryPlatformRefNumber::STATUS_MAPPINGS[$this->status] : 'Unknown',
+            'binding_status' => (int) ($this->active_delivery_product_mapping_vends_count ?? 0) > 0 ? DeliveryPlatformRefNumber::STATUS_ACTIVE : DeliveryPlatformRefNumber::STATUS_INACTIVE,
+            'binding_status_label' => (int) ($this->active_delivery_product_mapping_vends_count ?? 0) > 0 ? 'Active' : 'Inactive',
             'created_at' => $this->created_at ? $this->created_at->format('d/m/Y H:i A') : null,
             'updated_at' => $this->updated_at ? $this->updated_at->format('d/m/Y H:i A') : null,
             'delivery_product_mapping_vends' => DeliveryProductMappingVendResource::collection($this->whenLoaded('deliveryProductMappingVends')),
