@@ -572,6 +572,20 @@ function toggleActivateDeactivate() {
 
 function unbindProductMappingItem(productMappingItem) {
   productMappingItems.value.splice(productMappingItems.value.indexOf(productMappingItem), 1)
+
+    router.delete('/product-mappings/items/' + productMappingItem.id, {
+      onSuccess: (page) => {
+        productMappingItems.value = props.productMapping
+        ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems))
+        : []
+        toast.success("Product Mapping Item Deleted", {
+          timeout: 3000
+        });
+      },
+      preserveState: true,
+      preserveScroll: true,
+      replace: true,
+    })
 }
 
 function replicateProductMapping() {

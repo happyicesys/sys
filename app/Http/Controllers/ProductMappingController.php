@@ -218,6 +218,15 @@ class ProductMappingController extends Controller
         });
     }
 
+    public function deleteItem($productMappingItemID)
+    {
+        $item = ProductMappingItem::findOrFail($productMappingItemID);
+        $productMappingId = $item->product_mapping_id;
+        $item->delete();
+
+        return redirect()->back();
+    }
+
     public function edit(Request $request, $id)
     {
         $productMappingInit = ProductMapping::findOrFail($id);

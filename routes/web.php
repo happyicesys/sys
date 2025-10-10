@@ -435,6 +435,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::delete('/{id}', [ProductMappingController::class, 'delete']);
         Route::post('/{id}/items/create', [ProductMappingController::class, 'createItem']);
         Route::post('/items/{itemID}/update', [ProductMappingController::class, 'updateItem']);
+        Route::delete('/items/{itemID}', [ProductMappingController::class, 'deleteItem']);
         Route::post('/replicate', [ProductMappingController::class, 'replicate']);
         Route::post('/items/{item}/sequence', [ProductMappingController::class, 'updateItemSequence']);
 
