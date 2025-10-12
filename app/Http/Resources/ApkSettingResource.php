@@ -18,6 +18,7 @@ class ApkSettingResource extends JsonResource
             'id' => $this->id,
             'campaignImages' => AttachmentResource::collection($this->whenLoaded('campaignImages')),
             'campaignItems' => CampaignItemResource::collection($this->whenLoaded('campaignItems')),
+            'campaigns' => CampaignResource::collection($this->whenLoaded('campaigns')),
             'campaignVideos' => AttachmentResource::collection($this->whenLoaded('campaignVideos')),
             'name' => $this->name,
             'images' => AttachmentResource::collection($this->whenLoaded('images')),

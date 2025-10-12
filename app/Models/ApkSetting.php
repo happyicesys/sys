@@ -40,6 +40,11 @@ class ApkSetting extends Model
         return $this->hasMany(CampaignItem::class);
     }
 
+    public function campaigns()
+    {
+        return $this->belongsToMany(Campaign::class, 'apk_setting_campaign')->withTimestamps();
+    }
+
     public function campaignVideos()
     {
         return $this->morphMany(Attachment::class, 'modelable')->where('type', ApkSetting::FILE_TYPE_CAMPAIGN_VIDEO)->oldest();

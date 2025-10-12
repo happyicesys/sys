@@ -1420,21 +1420,29 @@ class VendController extends Controller
     public function getVendParameters($vendCode) {
         $campaignItems = [];
         $vend = Vend::where('code', $vendCode)->firstOrFail();
-        $apkSettings = $vend->apkSettings;
+        $apkSetting = $vend->apkSettings()
+            ->with([
+                'campaignItems.tagBindings.tag',
+                'campaigns.labelsX',
+                'campaigns.labelsY',
+            ])
+            ->first();
 
-        if(!$vend->apkSettings or !isset($apkSettings[0])) {
+        if(!$apkSetting) {
             abort(response([
                 'error_code' => 400,
                 'error_message' => 'Parameters not found',
             ], 400));
         }
 
-        if(isset($apkSettings[0]) and $apkSettings[0]->campaignItems) {
-            $campaignItems = $apkSettings[0]->campaignItems;
+        if($apkSetting->campaignItems) {
+            $campaignItems = $apkSetting->campaignItems;
         }
 
+        $campaignBindings = $apkSetting->campaigns ?? collect();
+
         $data = [
-            ...$vend->apkSettings[0]->settings_parameter_json,
+            ...$apkSetting->settings_parameter_json,
             'promoLabelItems' => $campaignItems->map(function($campaignItem) {
                 return [
                     'id' => isset($campaignItem->tagBindings[0]) ? $campaignItem->tagBindings[0]->tag->id : null,
@@ -1444,6 +1452,22 @@ class VendController extends Controller
                     'value' => $campaignItem->value,
                 ];
             }),
+            'campaigns' => $campaignBindings->map(function($campaign) {
+                return [
+                    'bundle_qty' => $campaign->bundle_qty,
+                    'id' => $campaign->id,
+                    'label' => $campaign->name ?? $campaign->slug ?? (string) $campaign->id,
+                    'labels_x' => collect($campaign->labelsX)->pluck('id')->values()->all(),
+                    'labels_y' => collect($campaign->labelsY)->pluck('id')->values()->all(),
+                    'promo_type' => $campaign->promo_type,
+                    'slug' => $campaign->slug ?? $campaign->name ?? null,
+                    'value' => $campaign->value,
+                    'start_date' => optional($campaign->start_at)?->toDateString(),
+                    'end_date' => optional($campaign->end_at)?->toDateString(),
+                    'min_basket_value' => $campaign->min_basket_value,
+                    'max_discount_value' => $campaign->max_discount_value,
+                ];
+            })->values(),
         ];
 
         return $data;

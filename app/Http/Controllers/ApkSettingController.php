@@ -5,15 +5,14 @@ namespace App\Http\Controllers;
 use App\Jobs\PublishMqtt;
 use App\Models\ApkSetting;
 use App\Models\ApkSettingVend;
+use App\Models\Campaign;
 use App\Models\CampaignItem;
 use App\Models\Operator;
-use App\Models\Product;
-use App\Models\Tag;
 use App\Models\Vend;
 use App\Models\VendPrefix;
 use App\Http\Resources\ApkSettingResource;
+use App\Http\Resources\CampaignResource;
 use App\Http\Resources\OperatorResource;
-use App\Http\Resources\TagResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Services\TagBindingService;
@@ -86,6 +85,30 @@ class ApkSettingController extends Controller
         $this->tagBindingService->sync($campaignItemObj, $request->tags);
     }
 
+    public function bindCampaigns(Request $request, $id)
+    {
+        $apkSetting = ApkSetting::findOrFail($id);
+
+        $validated = $request->validate([
+            'campaign_ids' => ['required', 'array', 'min:1'],
+            'campaign_ids.*' => ['integer', 'exists:campaigns,id'],
+        ]);
+
+        $campaignIds = collect($validated['campaign_ids'])
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (!count($campaignIds)) {
+            return redirect()->back();
+        }
+
+        $apkSetting->campaigns()->syncWithoutDetaching($campaignIds);
+
+        return redirect()->route('apk-settings.edit', [$apkSetting->id]);
+    }
+
     public function deleteCampaignItem($id)
     {
         $campaignItem = CampaignItem::findOrFail($id);
@@ -109,6 +132,15 @@ class ApkSettingController extends Controller
         return redirect()->route('apk-settings.edit', [$apkSetting->id]);
     }
 
+    public function unbindCampaign($id, $campaignId)
+    {
+        $apkSetting = ApkSetting::findOrFail($id);
+
+        $apkSetting->campaigns()->detach($campaignId);
+
+        return redirect()->route('apk-settings.edit', [$apkSetting->id]);
+    }
+
     public function edit(Request $request, $id)
     {
         $apkSetting = ApkSetting::query()
@@ -116,23 +148,22 @@ class ApkSettingController extends Controller
                 'campaignImages',
                 'campaignVideos',
                 'images',
+                'campaigns.operator',
+                'campaigns.labelsX',
+                'campaigns.labelsY',
                 'campaignItems.tagBindings.tag',
                 'vends.customer',
                 'videos',
             ])
             ->findOrFail($id);
 
-        $className = get_class(new Product());
-
         return Inertia::render('ApkSetting/Edit', [
             'apkSetting' => ApkSettingResource::make($apkSetting),
+            'campaignOptions' => CampaignResource::collection(
+                Campaign::with(['operator'])->orderBy('name')->get()
+            ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
-            ),
-            'productTagOptions' => TagResource::collection(
-                Tag::where('classname', $className)
-                    ->orderBy('name')
-                    ->get()
             ),
             'unbindedVendOptions' => VendResource::collection(
                 Vend::with([

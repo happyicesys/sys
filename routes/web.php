@@ -93,6 +93,8 @@ Route::middleware(['auth', 'cors'])->group(function() {
     Route::prefix('apk-settings')->group(function() {
         Route::get('/', [ApkSettingController::class, 'index'])->name('apk-settings');
         Route::get('/create', [ApkSettingController::class, 'create']);
+        Route::post('/{id}/campaigns/bind', [ApkSettingController::class, 'bindCampaigns']);
+        Route::delete('/{id}/campaigns/{campaignId}', [ApkSettingController::class, 'unbindCampaign']);
         Route::post('{id}/create-campaign-item', [ApkSettingController::class, 'createCampaignItem']);
         Route::delete('/campaign-items/{id}/delete-campaign-item', [ApkSettingController::class, 'deleteCampaignItem']);
         Route::get('/{id}/edit', [ApkSettingController::class, 'edit'])->name('apk-settings.edit');
@@ -131,6 +133,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/', [CampaignController::class, 'index'])->name('campaigns');
         Route::get('/create', [CampaignController::class, 'createView'])->name('campaigns.create');
         Route::post('/create', [CampaignController::class, 'create']);
+        Route::get('/{campaign}/edit', [CampaignController::class, 'edit'])->name('campaigns.edit');
         Route::post('/{id}/update', [CampaignController::class, 'update']);
         Route::delete('/{id}', [CampaignController::class, 'delete']);
     });

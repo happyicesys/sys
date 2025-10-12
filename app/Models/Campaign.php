@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Str;
 use App\Models\Operator;
 use App\Models\Tag;
@@ -32,16 +33,19 @@ class Campaign extends Model
         'slug',
         'description',
         'promo_type',
+        'is_using_qty',
         'bundle_qty',
         'value',
+        'min_basket_value',
+        'max_discount_value',
         'start_at',
         'end_at',
     ];
 
     protected $casts = [
+        'is_using_qty' => 'string',
         'start_at' => 'datetime',
         'end_at' => 'datetime',
-        'value' => 'decimal:2',
     ];
 
     protected static function booted()
@@ -95,5 +99,60 @@ class Campaign extends Model
     public function labelsY()
     {
         return $this->tags()->wherePivot('type', 'y');
+    }
+
+    public function apkSettings()
+    {
+        return $this->belongsToMany(ApkSetting::class, 'apk_setting_campaign')->withTimestamps();
+    }
+
+    protected function value(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $this->convertStoredIntegerToDecimal($value),
+            set: fn ($value) => $this->convertDecimalToStoredInteger($value)
+        );
+    }
+
+    protected function minBasketValue(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $this->convertStoredIntegerToDecimal($value),
+            set: fn ($value) => $this->convertDecimalToStoredInteger($value)
+        );
+    }
+
+    protected function maxDiscountValue(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => $this->convertStoredIntegerToDecimal($value),
+            set: fn ($value) => $this->convertDecimalToStoredInteger($value)
+        );
+    }
+
+    private function convertDecimalToStoredInteger($value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $value = trim($value);
+
+            if ($value === '') {
+                return null;
+            }
+        }
+
+        return (int) round((float) $value * 100);
+    }
+
+    private function convertStoredIntegerToDecimal($value): ?float
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return round(((int) $value) / 100, 2);
     }
 }

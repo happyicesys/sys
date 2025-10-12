@@ -29,10 +29,25 @@ class CampaignResource extends JsonResource
             'operator' => OperatorResource::make($this->whenLoaded('operator')),
             'remarks' => $this->remarks,
             'promo_type' => $this->promo_type,
+            'is_using_qty' => $this->is_using_qty,
             'bundle_qty' => $this->bundle_qty,
             'value' => $this->value,
+            'min_basket_value' => $this->min_basket_value,
+            'max_discount_value' => $this->max_discount_value,
             'labels_x' => TagResource::collection($this->whenLoaded('labelsX')),
             'labels_y' => TagResource::collection($this->whenLoaded('labelsY')),
+            'pivot' => $this->whenPivotLoaded('apk_setting_campaign', function () {
+                return [
+                    'apk_setting_id' => $this->pivot->apk_setting_id,
+                    'campaign_id' => $this->pivot->campaign_id,
+                    'created_at' => optional($this->pivot->created_at)
+                        ? Carbon::parse($this->pivot->created_at)->setTimezone($this->getUserTimezone())->toDateTimeString()
+                        : null,
+                    'updated_at' => optional($this->pivot->updated_at)
+                        ? Carbon::parse($this->pivot->updated_at)->setTimezone($this->getUserTimezone())->toDateTimeString()
+                        : null,
+                ];
+            }),
         ];
     }
 }

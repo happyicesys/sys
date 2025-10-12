@@ -10,8 +10,11 @@
               </FormInput>
             </div>
             <div class="sm:col-span-3">
-              <label for="operator" class="flex justify-start text-sm font-medium text-gray-700">
-                Operator
+              <label for="operator" class="flex justify-start text-sm font-medium text-gray-700 space-x-1">
+                <span>
+                  Operator
+                </span>
+                <span class="text-red-600">*</span>
               </label>
               <MultiSelect
                 v-model="form.operator"
@@ -28,8 +31,26 @@
                 {{ form.errors.operator_id }}
               </div>
             </div>
-            <div class="sm:col-span-3">
-              <label class="flex justify-start text-sm font-medium text-gray-700">Promotion Type</label>
+            <div class="sm:col-span-6">
+              <FormInput v-model="form.slug" :error="form.errors.slug" required="true">
+                Slug (Appear in Machine Display)
+              </FormInput>
+            </div>
+            <div class="sm:col-span-6">
+              <FormTextarea v-model="form.description" :error="form.errors.description" rows="3">
+                Description
+              </FormTextarea>
+            </div>
+            <div class="sm:col-span-6 pt-2">
+              <hr>
+            </div>
+            <div class="sm:col-span-4">
+              <label class="flex justify-start text-sm font-medium text-gray-700 space-x-1">
+                <span>
+                  Promotion Type
+                </span>
+                <span class="text-red-600">*</span>
+              </label>
               <MultiSelect
                 v-model="form.promo_type"
                 :options="promoTypeOptions"
@@ -44,26 +65,6 @@
               <div class="text-sm text-red-600" v-if="form.errors.promo_type">
                 {{ form.errors.promo_type }}
               </div>
-            </div>
-            <div class="sm:col-span-3">
-              <FormInput v-model="form.bundle_qty" :error="form.errors.bundle_qty" inputType="number" placeholderStr="Bundle quantity">
-                Bundle Quantity
-              </FormInput>
-            </div>
-            <div class="sm:col-span-6">
-              <FormInput v-model="form.slug" :error="form.errors.slug">
-                Slug
-              </FormInput>
-            </div>
-            <div class="sm:col-span-6">
-              <FormTextarea v-model="form.description" :error="form.errors.description" rows="3">
-                Description
-              </FormTextarea>
-            </div>
-            <div class="sm:col-span-3">
-              <FormInput v-model="form.value" :error="form.errors.value" inputType="number" placeholderStr="Discount value">
-                Value
-              </FormInput>
             </div>
             <div class="sm:col-span-3">
               <label class="flex justify-start text-sm font-medium text-gray-700">Labels X</label>
@@ -83,7 +84,7 @@
                 {{ labelsXError }}
               </div>
             </div>
-            <div class="sm:col-span-3">
+            <div class="sm:col-span-3" v-if="!isFreeItemPromo">
               <label class="flex justify-start text-sm font-medium text-gray-700">Labels Y</label>
               <MultiSelect
                 v-model="form.labels_y"
@@ -102,19 +103,69 @@
               </div>
             </div>
             <div class="sm:col-span-3">
-              <DatePicker v-model="form.start_at" :error="form.errors.start_at">
-                Start At
-              </DatePicker>
+              <label class="flex justify-start text-sm font-medium text-gray-700 space-x-1">
+                <span>
+                  Discount Basis
+                </span>
+                <span class="text-red-600">*</span>
+              </label>
+              <MultiSelect
+                v-model="form.is_using_qty"
+                :options="isUsingQtyOptions"
+                trackBy="id"
+                valueProp="id"
+                label="name"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+                required="true"
+              >
+              </MultiSelect>
+              <div class="text-sm text-red-600" v-if="form.errors.is_using_qty">
+                {{ form.errors.is_using_qty }}
+              </div>
             </div>
-            <div class="sm:col-span-3">
-              <DatePicker v-model="form.end_at" :error="form.errors.end_at" :minDate="form.start_at">
-                End At
-              </DatePicker>
-            </div>
-            <div class="sm:col-span-6">
-              <FormInput v-model="form.remarks" :error="form.errors.remarks">
-                Remarks
+            <div class="sm:col-span-3" v-if="showBundleQtyField">
+              <FormInput v-model="form.bundle_qty" :error="form.errors.bundle_qty" inputType="number" placeholderStr="Bundle quantity">
+                Bundle Quantity X
               </FormInput>
+            </div>
+            <div class="sm:col-span-3" v-if="showValueField">
+              <FormInput v-model="form.value" :error="form.errors.value" inputType="number" placeholderStr="Discount value">
+                Value X
+              </FormInput>
+            </div>
+            <!-- <div class="sm:col-span-3" v-if="!isFreeItemPromo">
+              <FormInput
+                v-model="form.min_basket_value"
+                :error="form.errors.min_basket_value"
+                inputType="number"
+                placeholderStr="Minimum basket amount"
+              >
+                Min Basket Value
+              </FormInput>
+            </div>
+            <div class="sm:col-span-3" v-if="!isFreeItemPromo">
+              <FormInput
+                v-model="form.max_discount_value"
+                :error="form.errors.max_discount_value"
+                inputType="number"
+                placeholderStr="Maximum discount amount"
+              >
+                Max Discount Value
+              </FormInput>
+            </div> -->
+            <div class="sm:col-span-6 grid grid-cols-1 gap-y-3 sm:grid-cols-2 sm:gap-x-3">
+              <div>
+                <DatePicker v-model="form.start_at" :error="form.errors.start_at">
+                  Start At
+                </DatePicker>
+              </div>
+              <div>
+                <DatePicker v-model="form.end_at" :error="form.errors.end_at" :minDate="form.start_at">
+                  End At
+                </DatePicker>
+              </div>
             </div>
 
             <div class="sm:col-span-6">
@@ -151,7 +202,7 @@ import FormTextarea from '@/Components/FormTextarea.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowUturnLeftIcon, CheckCircleIcon } from '@heroicons/vue/20/solid';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -182,10 +233,53 @@ const authUser = computed(() => usePage().props.auth.user)
 const operatorOptions = ref([])
 const tagOptions = ref([])
 const promoTypeOptions = ref([])
+const isUsingQtyOptions = ref(getIsUsingQtyOptions())
 const form = ref(useForm(getDefaultForm()))
 
 const labelsXError = computed(() => form.value.errors.labels_x ?? form.value.errors['labels_x.0'] ?? null)
 const labelsYError = computed(() => form.value.errors.labels_y ?? form.value.errors['labels_y.0'] ?? null)
+const isFreeItemPromo = computed(() => form.value.promo_type?.name === 'Free Item')
+const selectedIsUsingQty = computed(() => {
+  const value = form.value.is_using_qty
+
+  if (value && typeof value === 'object') {
+    return value.id ?? null
+  }
+
+  return value ?? null
+})
+const showBundleQtyField = computed(() => selectedIsUsingQty.value === 'qty' || selectedIsUsingQty.value === 'both')
+const showValueField = computed(() => !isFreeItemPromo.value && (selectedIsUsingQty.value === 'amount' || selectedIsUsingQty.value === 'both'))
+
+watch(
+  () => form.value.promo_type?.name,
+  (promoName) => {
+    if (promoName === 'Free Item') {
+      form.value.value = ''
+      form.value.labels_y = []
+      form.value.min_basket_value = ''
+      form.value.max_discount_value = ''
+      form.value.clearErrors('value')
+      form.value.clearErrors('labels_y')
+      form.value.clearErrors('min_basket_value')
+      form.value.clearErrors('max_discount_value')
+    }
+  }
+)
+
+watch(showBundleQtyField, (shouldShow) => {
+  if (!shouldShow) {
+    form.value.bundle_qty = ''
+    form.value.clearErrors('bundle_qty')
+  }
+})
+
+watch(showValueField, (shouldShow) => {
+  if (!shouldShow) {
+    form.value.value = ''
+    form.value.clearErrors('value')
+  }
+})
 
 onMounted(() => {
   operatorOptions.value = mapOperatorOptions(props.operatorOptions)
@@ -223,6 +317,14 @@ function mapTagOptions(optionsResource) {
   }))
 }
 
+function getIsUsingQtyOptions() {
+  return [
+    { id: 'qty', name: 'By Qty' },
+    { id: 'amount', name: 'By Amount' },
+    { id: 'both', name: 'Both' },
+  ]
+}
+
 function getDefaultOperator() {
   if (!operatorOptions.value.length) {
     return null
@@ -238,6 +340,26 @@ function getDefaultPromoType() {
   }
 
   return promoTypeOptions.value[0]
+}
+
+function getDefaultIsUsingQty() {
+  if (!isUsingQtyOptions.value.length) {
+    isUsingQtyOptions.value = getIsUsingQtyOptions()
+  }
+
+  return isUsingQtyOptions.value[0] ?? null
+}
+
+function findIsUsingQtyOption(value) {
+  if (value === undefined || value === null) {
+    return getDefaultIsUsingQty()
+  }
+
+  const normalizedValue = typeof value === 'boolean'
+    ? (value ? 'qty' : 'amount')
+    : String(value)
+
+  return isUsingQtyOptions.value.find(option => option.id === normalizedValue) ?? getDefaultIsUsingQty()
 }
 
 function getTodayDateString() {
@@ -286,10 +408,13 @@ function mapCampaignToForm(campaign) {
     name: campaign.name ?? '',
     operator: operatorOption ?? getDefaultOperator(),
     promo_type: promoTypeOption ?? getDefaultPromoType(),
+    is_using_qty: findIsUsingQtyOption(campaign.is_using_qty),
     bundle_qty: campaign.bundle_qty !== null && campaign.bundle_qty !== undefined ? String(campaign.bundle_qty) : '',
     slug: campaign.slug ?? '',
     description: campaign.description ?? '',
     value: campaign.value !== null && campaign.value !== undefined ? String(campaign.value) : '',
+    min_basket_value: campaign.min_basket_value !== null && campaign.min_basket_value !== undefined ? String(campaign.min_basket_value) : '',
+    max_discount_value: campaign.max_discount_value !== null && campaign.max_discount_value !== undefined ? String(campaign.max_discount_value) : '',
     labels_x: labelsX,
     labels_y: labelsY,
     start_at: campaign.start_at ?? '',
@@ -308,10 +433,13 @@ function getDefaultForm() {
     name: '',
     operator: getDefaultOperator(),
     promo_type: getDefaultPromoType(),
+    is_using_qty: getDefaultIsUsingQty(),
     bundle_qty: '',
     slug: '',
     description: '',
     value: '',
+    min_basket_value: '',
+    max_discount_value: '',
     labels_x: [],
     labels_y: [],
     start_at: getTodayDateString(),
@@ -327,10 +455,13 @@ function submit() {
     name: data.name,
     operator_id: data.operator ? data.operator.id : null,
     promo_type: data.promo_type ? data.promo_type.id : null,
+    is_using_qty: data.is_using_qty ? data.is_using_qty.id : null,
     bundle_qty: data.bundle_qty !== '' && data.bundle_qty !== null ? Number(data.bundle_qty) : null,
     slug: data.slug ?? null,
     description: data.description ?? null,
     value: data.value !== '' && data.value !== null ? Number(data.value) : null,
+    min_basket_value: data.min_basket_value !== '' && data.min_basket_value !== null ? Number(data.min_basket_value) : null,
+    max_discount_value: data.max_discount_value !== '' && data.max_discount_value !== null ? Number(data.max_discount_value) : null,
     labels_x: Array.isArray(data.labels_x) ? data.labels_x.map(tag => tag.id) : [],
     labels_y: Array.isArray(data.labels_y) ? data.labels_y.map(tag => tag.id) : [],
     start_at: data.start_at || null,
