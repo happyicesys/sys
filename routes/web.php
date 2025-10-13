@@ -134,7 +134,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::get('/create', [CampaignController::class, 'createView'])->name('campaigns.create');
         Route::post('/create', [CampaignController::class, 'create']);
         Route::get('/{campaign}/edit', [CampaignController::class, 'edit'])->name('campaigns.edit');
-        Route::post('/{id}/update', [CampaignController::class, 'update']);
+        Route::post('/{campaign}/update', [CampaignController::class, 'update']);
         Route::delete('/{id}', [CampaignController::class, 'delete']);
     });
 

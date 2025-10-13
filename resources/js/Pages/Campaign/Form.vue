@@ -68,7 +68,7 @@
                 {{ form.errors.promo_type }}
               </div>
             </div>
-            <div class="sm:col-span-3">
+            <div class="sm:col-span-3" v-if="!isFreeItemPromo">
               <label class="flex justify-start text-sm font-medium text-gray-700">Labels X</label>
               <MultiSelect
                 v-model="form.labels_x"
@@ -86,8 +86,10 @@
                 {{ labelsXError }}
               </div>
             </div>
-            <div class="sm:col-span-3" v-if="!isFreeItemPromo">
-              <label class="flex justify-start text-sm font-medium text-gray-700">Labels Y</label>
+            <div class="sm:col-span-3">
+              <label class="flex justify-start text-sm font-medium text-gray-700">
+                {{ isFreeItemPromo ? 'Labels' : 'Labels Y' }}
+              </label>
               <MultiSelect
                 v-model="form.labels_y"
                 :options="tagOptions"
@@ -240,7 +242,7 @@ const form = ref(useForm(getDefaultForm()))
 
 const labelsXError = computed(() => form.value.errors.labels_x ?? form.value.errors['labels_x.0'] ?? null)
 const labelsYError = computed(() => form.value.errors.labels_y ?? form.value.errors['labels_y.0'] ?? null)
-const isFreeItemPromo = computed(() => form.value.promo_type?.name === 'Free Item')
+const isFreeItemPromo = computed(() => isPromoTypeFreeItem(form.value.promo_type))
 const selectedIsUsingQty = computed(() => {
   const value = form.value.is_using_qty
 
@@ -254,17 +256,26 @@ const showBundleQtyField = computed(() => selectedIsUsingQty.value === 'qty' || 
 const showValueField = computed(() => !isFreeItemPromo.value && (selectedIsUsingQty.value === 'amount' || selectedIsUsingQty.value === 'both'))
 
 watch(
-  () => form.value.promo_type?.name,
-  (promoName) => {
-    if (promoName === 'Free Item') {
+  () => form.value.promo_type,
+  (newPromo, oldPromo) => {
+    const nowFreeItem = isPromoTypeFreeItem(newPromo)
+    const wasFreeItem = isPromoTypeFreeItem(oldPromo)
+
+    if (nowFreeItem) {
+      if (!Array.isArray(form.value.labels_y) || form.value.labels_y.length === 0) {
+        form.value.labels_y = Array.isArray(form.value.labels_x) ? [...form.value.labels_x] : []
+      }
+      form.value.labels_x = []
       form.value.value = ''
-      form.value.labels_y = []
       form.value.min_basket_value = ''
       form.value.max_discount_value = ''
-      form.value.clearErrors('value')
+      form.value.clearErrors('labels_x')
       form.value.clearErrors('labels_y')
+      form.value.clearErrors('value')
       form.value.clearErrors('min_basket_value')
       form.value.clearErrors('max_discount_value')
+    } else if (wasFreeItem && (!Array.isArray(form.value.labels_x) || form.value.labels_x.length === 0)) {
+      form.value.labels_x = Array.isArray(form.value.labels_y) ? [...form.value.labels_y] : []
     }
   }
 )
@@ -352,6 +363,25 @@ function getDefaultIsUsingQty() {
   return isUsingQtyOptions.value[0] ?? null
 }
 
+function isPromoTypeFreeItem(promo) {
+  if (!promo) {
+    return false
+  }
+
+  if (typeof promo === 'string') {
+    return promo === 'Item' || promo === 'Free Item'
+  }
+
+  if (typeof promo === 'object') {
+    const id = promo.id ?? promo.value ?? null
+    const name = promo.name ?? null
+
+    return id === 'Item' || name === 'Free Item'
+  }
+
+  return false
+}
+
 function findIsUsingQtyOption(value) {
   if (value === undefined || value === null) {
     return getDefaultIsUsingQty()
@@ -407,19 +437,26 @@ function mapCampaignToForm(campaignResource) {
     ? promoTypeOptions.value.find(option => option.id === campaign.promo_type)
     : null
 
-  const labelsX = extractCollectionValues(campaign.labels_x).map((tag) => {
+  let labelsX = extractCollectionValues(campaign.labels_x).map((tag) => {
     return tagOptions.value.find(option => option.id === tag.id) ?? {
       id: tag.id,
       name: tag.name ?? tag.slug ?? `Tag ${tag.id}`,
     }
   })
 
-  const labelsY = extractCollectionValues(campaign.labels_y).map((tag) => {
+  let labelsY = extractCollectionValues(campaign.labels_y).map((tag) => {
     return tagOptions.value.find(option => option.id === tag.id) ?? {
       id: tag.id,
       name: tag.name ?? tag.slug ?? `Tag ${tag.id}`,
     }
   })
+
+  if (isPromoTypeFreeItem(promoTypeOption ?? campaign.promo_type)) {
+    if (!labelsY.length && labelsX.length) {
+      labelsY = [...labelsX]
+    }
+    labelsX = []
+  }
 
   return {
     id: campaign.id ?? null,
@@ -469,23 +506,30 @@ function getDefaultForm() {
 function submit() {
   form.value.clearErrors()
 
-  const request = form.value.transform((data) => ({
-    name: data.name,
-    operator_id: data.operator ? data.operator.id : null,
-    promo_type: data.promo_type ? data.promo_type.id : null,
-    is_using_qty: data.is_using_qty ? data.is_using_qty.id : null,
-    bundle_qty: data.bundle_qty !== '' && data.bundle_qty !== null ? Number(data.bundle_qty) : null,
-    slug: data.slug ?? null,
-    description: data.description ?? null,
-    value: data.value !== '' && data.value !== null ? Number(data.value) : null,
-    min_basket_value: data.min_basket_value !== '' && data.min_basket_value !== null ? Number(data.min_basket_value) : null,
-    max_discount_value: data.max_discount_value !== '' && data.max_discount_value !== null ? Number(data.max_discount_value) : null,
-    labels_x: Array.isArray(data.labels_x) ? data.labels_x.map(tag => tag.id) : [],
-    labels_y: Array.isArray(data.labels_y) ? data.labels_y.map(tag => tag.id) : [],
-    start_at: data.start_at || null,
-    end_at: data.end_at || null,
-    remarks: data.remarks && data.remarks.trim() !== '' ? data.remarks : null,
-  }))
+  const request = form.value.transform((data) => {
+    const isFreeItem = isPromoTypeFreeItem(data.promo_type)
+    const labelXIds = Array.isArray(data.labels_x) ? data.labels_x.map(tag => tag.id) : []
+    const labelYIds = Array.isArray(data.labels_y) ? data.labels_y.map(tag => tag.id) : []
+    const labelsForFreeItem = labelYIds.length ? labelYIds : labelXIds
+
+    return {
+      name: data.name,
+      operator_id: data.operator ? data.operator.id : null,
+      promo_type: data.promo_type ? data.promo_type.id : null,
+      is_using_qty: data.is_using_qty ? data.is_using_qty.id : null,
+      bundle_qty: data.bundle_qty !== '' && data.bundle_qty !== null ? Number(data.bundle_qty) : null,
+      slug: data.slug ?? null,
+      description: data.description ?? null,
+      value: data.value !== '' && data.value !== null ? Number(data.value) : null,
+      min_basket_value: data.min_basket_value !== '' && data.min_basket_value !== null ? Number(data.min_basket_value) : null,
+      max_discount_value: data.max_discount_value !== '' && data.max_discount_value !== null ? Number(data.max_discount_value) : null,
+      labels_x: isFreeItem ? [] : labelXIds,
+      labels_y: isFreeItem ? labelsForFreeItem : labelYIds,
+      start_at: data.start_at || null,
+      end_at: data.end_at || null,
+      remarks: data.remarks && data.remarks.trim() !== '' ? data.remarks : null,
+    }
+  })
 
   const url = props.type === 'update' && form.value.id
     ? `/campaigns/${form.value.id}/update`

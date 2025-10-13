@@ -107,6 +107,18 @@
                       Active
                     </TableHead>
                     <TableHead>
+                      Promotion Type
+                    </TableHead>
+                    <TableHead>
+                      Discount Basis
+                    </TableHead>
+                    <TableHead>
+                      Bundle Qty
+                    </TableHead>
+                    <TableHead>
+                      Value
+                    </TableHead>
+                    <TableHead>
                       Operator
                     </TableHead>
                     <TableHead>
@@ -114,6 +126,12 @@
                     </TableHead>
                     <TableHead>
                       End
+                    </TableHead>
+                    <TableHead>
+                      Labels X
+                    </TableHead>
+                    <TableHead>
+                      Labels Y
                     </TableHead>
                     <TableHead>
                       Remarks
@@ -135,6 +153,18 @@
                       {{ campaign.is_active ? 'Yes' : 'No' }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
+                      {{ campaign.promo_type ?? '-' }}
+                    </TableData>
+                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
+                      {{ formatDiscountBasis(campaign.is_using_qty) }}
+                    </TableData>
+                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
+                      {{ campaign.bundle_qty ?? '-' }}
+                    </TableData>
+                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
+                      {{ formatValue(campaign.value) }}
+                    </TableData>
+                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
                       {{ campaign.operator?.name ?? '-' }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
@@ -142,6 +172,12 @@
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
                       {{ campaign.end_at ?? '-' }}
+                    </TableData>
+                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-left">
+                      {{ formatLabels(campaign.labels_x) }}
+                    </TableData>
+                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-left">
+                      {{ formatLabels(campaign.labels_y) }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-left">
                       {{ campaign.remarks ?? '' }}
@@ -202,6 +238,11 @@ const filters = ref({
 const operatorOptions = ref([])
 const numberPerPageOptions = ref([])
 const permissions = usePage().props.auth.permissions
+const discountBasisLabels = {
+  qty: 'By Qty',
+  amount: 'By Amount',
+  both: 'Both',
+}
 
 onMounted(() => {
   numberPerPageOptions.value = [
@@ -241,6 +282,65 @@ function sortTable(sortKey) {
   filters.value.sortKey = sortKey
   filters.value.sortBy = !filters.value.sortBy
   onSearchFilterUpdated()
+}
+
+function formatDiscountBasis(basis) {
+  if (basis === null || basis === undefined || basis === '') {
+    return '-'
+  }
+
+  const key = typeof basis === 'object'
+    ? (basis?.id ?? basis?.value ?? null)
+    : basis
+
+  if (!key) {
+    return '-'
+  }
+
+  return discountBasisLabels[String(key)] ?? '-'
+}
+
+function formatValue(value) {
+  if (value === null || value === undefined || value === '') {
+    return '-'
+  }
+
+  const numeric = Number(value)
+
+  if (Number.isNaN(numeric)) {
+    return String(value)
+  }
+
+  return numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function unwrapCollection(resource) {
+  if (!resource) {
+    return []
+  }
+
+  if (Array.isArray(resource)) {
+    return resource
+  }
+
+  if (Array.isArray(resource.data)) {
+    return resource.data
+  }
+
+  return []
+}
+
+function formatLabels(labels) {
+  const items = unwrapCollection(labels)
+
+  if (!items.length) {
+    return '-'
+  }
+
+  return items
+    .map(label => label?.name ?? label?.slug ?? '')
+    .filter(Boolean)
+    .join(', ')
 }
 
 </script>
