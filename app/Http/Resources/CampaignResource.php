@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Campaign;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -15,6 +16,14 @@ class CampaignResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $labelsX = $this->relationLoaded('labelsX') ? $this->labelsX : collect();
+        $labelsY = $this->relationLoaded('labelsY') ? $this->labelsY : collect();
+
+        if ($this->promo_type === Campaign::TYPE_ITEM && $labelsY->isEmpty() && $labelsX->isNotEmpty()) {
+            $labelsY = $labelsX;
+            $labelsX = collect();
+        }
+
         return [
             'id' => $this->id,
             'uuid' => $this->uuid,
@@ -34,8 +43,8 @@ class CampaignResource extends JsonResource
             'value' => $this->value,
             'min_basket_value' => $this->min_basket_value,
             'max_discount_value' => $this->max_discount_value,
-            'labels_x' => TagResource::collection($this->whenLoaded('labelsX')),
-            'labels_y' => TagResource::collection($this->whenLoaded('labelsY')),
+            'labels_x' => TagResource::collection($labelsX),
+            'labels_y' => TagResource::collection($labelsY),
             'pivot' => $this->whenPivotLoaded('apk_setting_campaign', function () {
                 return [
                     'apk_setting_id' => $this->pivot->apk_setting_id,

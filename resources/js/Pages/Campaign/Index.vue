@@ -177,7 +177,7 @@
                       {{ formatLabels(campaign.labels_x) }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-left">
-                      {{ formatLabels(campaign.labels_y) }}
+                      {{ formatLabels(campaign.labels_y, isPromoTypeFreeItem(campaign.promo_type) ? campaign.labels_x : null) }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-left">
                       {{ campaign.remarks ?? '' }}
@@ -330,17 +330,39 @@ function unwrapCollection(resource) {
   return []
 }
 
-function formatLabels(labels) {
-  const items = unwrapCollection(labels)
-
-  if (!items.length) {
-    return '-'
-  }
-
-  return items
+function extractLabelNames(resource) {
+  return unwrapCollection(resource)
     .map(label => label?.name ?? label?.slug ?? '')
     .filter(Boolean)
-    .join(', ')
+}
+
+function formatLabels(labels, fallback = null) {
+  const names = extractLabelNames(labels)
+
+  if (!names.length && fallback) {
+    const fallbackNames = extractLabelNames(fallback)
+    return fallbackNames.length ? fallbackNames.join(', ') : '-'
+  }
+
+  return names.length ? names.join(', ') : '-'
+}
+
+function isPromoTypeFreeItem(promoType) {
+  if (!promoType) {
+    return false
+  }
+
+  if (typeof promoType === 'string') {
+    return promoType === 'Item' || promoType === 'Free Item'
+  }
+
+  if (typeof promoType === 'object') {
+    const id = promoType.id ?? promoType.value ?? null
+    const name = promoType.name ?? null
+    return id === 'Item' || name === 'Free Item'
+  }
+
+  return false
 }
 
 </script>
