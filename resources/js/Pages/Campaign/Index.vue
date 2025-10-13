@@ -135,7 +135,7 @@
                       {{ campaign.is_active ? 'Yes' : 'No' }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
-                      {{ campaign.operator?.full_name ?? '-' }}
+                      {{ campaign.operator?.name ?? '-' }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
                       {{ campaign.start_at ?? '-' }}
@@ -143,7 +143,7 @@
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
                       {{ campaign.end_at ?? '-' }}
                     </TableData>
-                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">
+                    <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-left">
                       {{ campaign.remarks ?? '' }}
                     </TableData>
                     <TableData :currentIndex="campaignIndex" :totalLength="campaigns.length" inputClass="text-center">

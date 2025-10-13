@@ -1439,7 +1439,9 @@ class VendController extends Controller
             $campaignItems = $apkSetting->campaignItems;
         }
 
-        $campaignBindings = $apkSetting->campaigns ?? collect();
+        $campaignBindings = collect($apkSetting->campaigns)->filter(function ($campaign) {
+            return (bool) ($campaign->is_active ?? false);
+        });
 
         $data = [
             ...$apkSetting->settings_parameter_json,

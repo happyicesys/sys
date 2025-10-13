@@ -73,8 +73,8 @@ class CampaignController extends Controller
     {
         $validated = request()->validate([
             'name' => 'required|string|max:255',
-            'operator_id' => 'nullable|integer|exists:operators,id',
-            'slug' => 'nullable|string|max:255',
+            'operator_id' => 'required|integer|exists:operators,id',
+            'slug' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
             'promo_type' => 'required|string|in:' . implode(',', array_keys(Campaign::TYPES_MAPPING)),
             'is_using_qty' => 'required|string|in:qty,amount,both',
@@ -162,7 +162,60 @@ class CampaignController extends Controller
      */
     public function update(Request $request, Campaign $campaign)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'operator_id' => 'required|integer|exists:operators,id',
+            'slug' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'promo_type' => 'required|string|in:' . implode(',', array_keys(Campaign::TYPES_MAPPING)),
+            'is_using_qty' => 'required|string|in:qty,amount,both',
+            'bundle_qty' => 'nullable|integer|min:1',
+            'value' => 'nullable|numeric|min:0',
+            'min_basket_value' => 'nullable|numeric|min:0',
+            'max_discount_value' => 'nullable|numeric|min:0',
+            'start_at' => 'nullable|date',
+            'end_at' => 'nullable|date|after_or_equal:start_at',
+            'remarks' => 'nullable|string|max:1000',
+            'labels_x' => 'nullable|array',
+            'labels_x.*' => 'integer|exists:tags,id',
+            'labels_y' => 'nullable|array',
+            'labels_y.*' => 'integer|exists:tags,id',
+        ]);
+
+        $campaign->update([
+            'name' => $validated['name'],
+            'operator_id' => $validated['operator_id'],
+            'slug' => $validated['slug'],
+            'description' => $validated['description'] ?? null,
+            'promo_type' => $validated['promo_type'],
+            'is_using_qty' => $validated['is_using_qty'],
+            'bundle_qty' => $validated['bundle_qty'] ?? null,
+            'value' => $validated['value'] ?? null,
+            'min_basket_value' => $validated['min_basket_value'] ?? null,
+            'max_discount_value' => $validated['max_discount_value'] ?? null,
+            'start_at' => $validated['start_at'] ?? null,
+            'end_at' => $validated['end_at'] ?? null,
+            'remarks' => $validated['remarks'] ?? null,
+        ]);
+
+        $labelsXPivot = collect($validated['labels_x'] ?? [])
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->mapWithKeys(fn ($id) => [$id => ['type' => 'x']])
+            ->toArray();
+
+        $labelsYPivot = collect($validated['labels_y'] ?? [])
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->mapWithKeys(fn ($id) => [$id => ['type' => 'y']])
+            ->toArray();
+
+        $campaign->labelsX()->sync($labelsXPivot);
+        $campaign->labelsY()->sync($labelsYPivot);
+
+        return redirect()->route('campaigns');
     }
 
     /**

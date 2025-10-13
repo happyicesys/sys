@@ -183,7 +183,7 @@
                       </ul>
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformCampaignIndex" :totalLength="deliveryPlatformCampaigns.length" inputClass="text-center">
-                      {{ deliveryPlatformCampaign.deliveryProductMapping.name }}
+                      {{ deliveryPlatformCampaign.deliveryProductMapping?.name }}
                     </TableData>
                     <TableData :currentIndex="deliveryPlatformCampaignIndex" :totalLength="deliveryPlatformCampaigns.length" inputClass="text-center">
                       <div class="flex justify-center space-x-1">

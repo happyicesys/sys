@@ -25,6 +25,7 @@
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
+                :required="true"
               >
               </MultiSelect>
               <div class="text-sm text-red-600" v-if="form.errors.operator_id">
@@ -60,6 +61,7 @@
                 placeholder="Select"
                 open-direction="bottom"
                 class="mt-1"
+                :required="true"
               >
               </MultiSelect>
               <div class="text-sm text-red-600" v-if="form.errors.promo_type">
@@ -367,20 +369,36 @@ function getTodayDateString() {
   return today.toISOString().slice(0, 10)
 }
 
-function extractCollectionValues(resource) {
-  if (!resource) {
-    return []
+function unwrapResource(resource) {
+  if (resource === null || resource === undefined) {
+    return null
   }
 
   if (Array.isArray(resource)) {
     return resource
   }
 
-  return resource.data ?? []
+  if (typeof resource === 'object' && Object.prototype.hasOwnProperty.call(resource, 'data')) {
+    return resource.data
+  }
+
+  return resource
 }
 
-function mapCampaignToForm(campaign) {
-  const operatorId = campaign.operator_id ?? campaign.operator?.id ?? null
+function extractCollectionValues(resource) {
+  const unwrapped = unwrapResource(resource)
+
+  if (!unwrapped) {
+    return []
+  }
+
+  return Array.isArray(unwrapped) ? unwrapped : [unwrapped]
+}
+
+function mapCampaignToForm(campaignResource) {
+  const campaign = unwrapResource(campaignResource) ?? {}
+  const operator = unwrapResource(campaign.operator)
+  const operatorId = campaign.operator_id ?? operator?.id ?? null
   const operatorOption = operatorId
     ? operatorOptions.value.find(option => option.id === operatorId)
     : null
