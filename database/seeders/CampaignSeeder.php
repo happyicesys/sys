@@ -82,14 +82,24 @@ class CampaignSeeder extends Seeder
                 'remarks' => 'While stocks last.',
                 'start_at' => Carbon::today()->startOfDay(),
                 'end_at' => Carbon::today()->addMonths(1)->endOfDay(),
-                'labels_x' => ['bulla_classics_pint'],
-                'labels_y' => ['bulla_frozen_yogurt'],
+                'labels_x' => [],
+                'labels_y' => ['bulla_classics_pint'],
             ],
         ];
 
         foreach ($campaigns as $campaignData) {
-            $labelsX = $this->resolveTags(Arr::get($campaignData, 'labels_x', []));
-            $labelsY = $this->resolveTags(Arr::get($campaignData, 'labels_y', []));
+            $labelsXSlugs = Arr::get($campaignData, 'labels_x', []);
+            $labelsYSlugs = Arr::get($campaignData, 'labels_y', []);
+
+            if (Arr::get($campaignData, 'promo_type') === Campaign::TYPE_ITEM) {
+                if (empty($labelsYSlugs) && !empty($labelsXSlugs)) {
+                    $labelsYSlugs = $labelsXSlugs;
+                }
+                $labelsXSlugs = [];
+            }
+
+            $labelsX = $this->resolveTags($labelsXSlugs);
+            $labelsY = $this->resolveTags($labelsYSlugs);
 
             $campaign = Campaign::updateOrCreate(
                 ['slug' => $campaignData['slug']],
@@ -104,13 +114,13 @@ class CampaignSeeder extends Seeder
             );
 
             if ($campaign) {
-                if ($labelsX->isNotEmpty()) {
-                    $campaign->labelsX()->sync($labelsX->mapWithKeys(fn ($id) => [$id => ['type' => 'x']])->toArray(), false);
-                }
+                $campaign->labelsX()->sync(
+                    $labelsX->mapWithKeys(fn ($id) => [$id => ['type' => 'x']])->toArray()
+                );
 
-                if ($labelsY->isNotEmpty()) {
-                    $campaign->labelsY()->sync($labelsY->mapWithKeys(fn ($id) => [$id => ['type' => 'y']])->toArray(), false);
-                }
+                $campaign->labelsY()->sync(
+                    $labelsY->mapWithKeys(fn ($id) => [$id => ['type' => 'y']])->toArray()
+                );
             }
         }
     }
