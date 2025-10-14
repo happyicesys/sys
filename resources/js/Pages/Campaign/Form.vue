@@ -139,7 +139,7 @@
                 Value X
               </FormInput>
             </div>
-            <!-- <div class="sm:col-span-3" v-if="!isFreeItemPromo">
+            <div class="sm:col-span-3" v-if="!isFreeItemPromo">
               <FormInput
                 v-model="form.min_basket_value"
                 :error="form.errors.min_basket_value"
@@ -158,7 +158,7 @@
               >
                 Max Discount Value
               </FormInput>
-            </div> -->
+            </div>
             <div class="sm:col-span-6 grid grid-cols-1 gap-y-3 sm:grid-cols-2 sm:gap-x-3">
               <div>
                 <DatePicker v-model="form.start_at" :error="form.errors.start_at">
