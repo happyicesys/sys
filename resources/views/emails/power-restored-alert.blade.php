@@ -21,6 +21,9 @@
             {{ optional($vend->last_updated_at)->format('y-m-d h:ia') ?? 'N/A' }}
             )
         </p>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">
+            Offline threshold: {{ $thresholdMinutes }} minutes.
+        </p>
     </div>
 </div>
 @endsection

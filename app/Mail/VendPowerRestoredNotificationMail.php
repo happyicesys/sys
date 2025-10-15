@@ -7,10 +7,6 @@ use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Address;
-use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Queue\SerializesModels;
 
 class VendPowerRestoredNotificationMail extends Mailable implements ShouldQueue
 {
@@ -19,6 +15,7 @@ class VendPowerRestoredNotificationMail extends Mailable implements ShouldQueue
     public $baseUrl;
     public $now;
     public int $vendId;
+    public int $thresholdMinutes;
     public $vend; // populated in build()
     public $vendPrefixName;
 
@@ -27,11 +24,12 @@ class VendPowerRestoredNotificationMail extends Mailable implements ShouldQueue
      *
      * @return void
      */
-    public function __construct(int $vendId)
+    public function __construct(int $vendId, int $thresholdMinutes)
     {
         $this->baseUrl = env('APP_URL');
         $this->now = Carbon::now();
         $this->vendId = $vendId;
+        $this->thresholdMinutes = $thresholdMinutes;
     }
 
     // public function envelope()
@@ -47,11 +45,11 @@ class VendPowerRestoredNotificationMail extends Mailable implements ShouldQueue
      */
     public function build()
     {
-        $vend = Vend::withoutGlobalScopes()->with('vendPrefix')->findOrFail($this->vendId);
+        $vend = Vend::withoutGlobalScopes()->with('vendPrefix', 'customer')->findOrFail($this->vendId);
         $this->vend = $vend;
         $this->vendPrefixName = $vend->vendPrefix ? $vend->vendPrefix->name : '';
         return $this
-        ->subject('ID: '.$vend->code.' Machine Offline Alert >= 50 mins ('.$this->now->format('y-m-d').') - Recovered')
+        ->subject('ID: '.$vend->code.' Machine Offline Alert >= '.$this->thresholdMinutes.' mins ('.$this->now->format('y-m-d').') - Recovered')
             ->view('emails.power-restored-alert');
     }
 }

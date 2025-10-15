@@ -52,6 +52,7 @@ use App\Http\Controllers\VendCriteriaBindingController;
 use App\Http\Controllers\VendModelController;
 use App\Http\Controllers\VendPrefixController;
 use App\Http\Controllers\VendSerialNumberController;
+use App\Http\Controllers\VendAlertParameterController;
 use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\ZoneController;
 use Carbon\Carbon;
@@ -466,6 +467,11 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/vend/{id}/parameter', [SettingController::class, 'updateParameter']);
         Route::post('/vend/store', [SettingController::class, 'store']);
         Route::post('/{id}/toggle-activation', [SettingController::class, 'toggleActivation']);
+    });
+
+    Route::prefix('machine-alert-parameters')->group(function() {
+        Route::get('/', [VendAlertParameterController::class, 'index'])->name('machine-alert-parameters');
+        Route::post('/bulk-update', [VendAlertParameterController::class, 'bulkUpdate'])->name('machine-alert-parameters.bulk-update');
     });
 
     Route::prefix('simcards')->group(function() {

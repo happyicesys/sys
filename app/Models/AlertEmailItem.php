@@ -12,6 +12,7 @@ class AlertEmailItem extends Model
         'is_send_channel_error_log',
         'is_send_offline_notification',
         'is_send_power_restored_notification',
+        'is_send_transaction_no_entry_notification',
         'operator_id',
         'user_id',
     ];
@@ -21,6 +22,7 @@ class AlertEmailItem extends Model
         'is_send_channel_error_log' => 'boolean',
         'is_send_offline_notification' => 'boolean',
         'is_send_power_restored_notification' => 'boolean',
+        'is_send_transaction_no_entry_notification' => 'boolean',
     ];
 
     public function operator()

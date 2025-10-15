@@ -17,6 +17,7 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();
         $schedule->command('send:channel-error-logs-email')->cron('30 16 * * *');
+        $schedule->command('send:vend-transaction-no-entry-email')->cron('15 16 * * *');
         $schedule->command('delete:vend-data')->dailyAt('01:30');
         $schedule->command('delete:vend-temp')->dailyAt('01:30');
         $schedule->command('sync:vend-online-status')->everyMinute();

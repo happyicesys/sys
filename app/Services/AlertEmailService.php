@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\VendChannelErrorLogsMail;
 use App\Mail\VendOfflineNotificationMail;
 use App\Mail\VendPowerRestoredNotificationMail;
+use App\Mail\VendTransactionNoEntryNotificationMail;
 use App\Models\AlertEmailItem;
 use App\Models\Operator;
 use App\Models\Vend;
@@ -54,31 +55,17 @@ class AlertEmailService
      */
     public function sendVendOfflineNotificationMail(Vend $vend): int
     {
-        $emails = $this->recipients($vend->operator, 'is_send_offline_notification');
-        if ($emails->isEmpty()) {
-            Log::info('AlertEmail: no recipients for VendOfflineNotificationMail', [
-                'vend_id' => $vend->id,
-                'operator_id' => $vend->operator_id,
-            ]);
-            return 0;
-        }
+        $thresholdMinutes = $vend->offlineAlertMinutes();
 
-        Log::info('AlertEmail: queuing VendOfflineNotificationMail', [
-            'vend_id' => $vend->id,
-            'operator_id' => $vend->operator_id,
-            'recipient_count' => $emails->count(),
-            'recipients' => $emails->all(),
-        ]);
-        foreach ($emails as $email) {
-            Mail::to($email)->queue(new VendOfflineNotificationMail((int) $vend->getKey()));
-            Log::info('AlertEmail: queued VendOfflineNotificationMail', [
-                'vend_id' => $vend->id,
-                'operator_id' => $vend->operator_id,
-                'recipient' => $email,
-            ]);
-        }
-
-        return $emails->count();
+        return $this->queueVendNotification(
+            $vend,
+            'is_send_offline_notification',
+            fn () => new VendOfflineNotificationMail((int) $vend->getKey(), $thresholdMinutes),
+            'VendOfflineNotificationMail',
+            [
+                'threshold_minutes' => $thresholdMinutes,
+            ]
+        );
     }
 
     /**
@@ -86,28 +73,67 @@ class AlertEmailService
      */
     public function sendVendPowerRestoredNotificationMail(Vend $vend): int
     {
-        $emails = $this->recipients($vend->operator, 'is_send_power_restored_notification');
-        if ($emails->isEmpty()) {
-            Log::info('AlertEmail: no recipients for VendPowerRestoredNotificationMail', [
-                'vend_id' => $vend->id,
-                'operator_id' => $vend->operator_id,
+        $thresholdMinutes = $vend->powerRestoredAlertMinutes();
+
+        return $this->queueVendNotification(
+            $vend,
+            'is_send_power_restored_notification',
+            fn () => new VendPowerRestoredNotificationMail((int) $vend->getKey(), $thresholdMinutes),
+            'VendPowerRestoredNotificationMail',
+            [
+                'threshold_minutes' => $thresholdMinutes,
+            ]
+        );
+    }
+
+    /**
+     * TRANSACTION NO ENTRY: aggregated per-operator email containing all machines that exceeded threshold.
+     *
+     * @param \App\Models\Operator|null $operator
+     * @param \Illuminate\Support\Collection<int, array<string, mixed>> $vendSummaries
+     */
+    public function sendVendTransactionNoEntryNotificationMail(?Operator $operator, Collection $vendSummaries): int
+    {
+        $vendSummaries = $vendSummaries->filter(function ($summary) {
+            $threshold = (int) ($summary['threshold_hours'] ?? 0);
+            return $threshold > 0;
+        });
+
+        if ($vendSummaries->isEmpty()) {
+            Log::info('AlertEmail: no machines met criteria for VendTransactionNoEntryNotificationMail', [
+                'operator_id' => $operator?->id,
             ]);
             return 0;
         }
 
-        Log::info('AlertEmail: queuing VendPowerRestoredNotificationMail', [
-            'vend_id' => $vend->id,
-            'operator_id' => $vend->operator_id,
+        $emails = $this->recipients($operator, 'is_send_transaction_no_entry_notification');
+
+        $baseContext = [
+            'operator_id' => $operator?->id,
+            'vend_count' => $vendSummaries->count(),
+            'mail' => 'VendTransactionNoEntryNotificationMail',
+        ];
+
+        if ($emails->isEmpty()) {
+            Log::info('AlertEmail: no recipients for VendTransactionNoEntryNotificationMail', $baseContext);
+            return 0;
+        }
+
+        Log::info('AlertEmail: queuing VendTransactionNoEntryNotificationMail', array_merge($baseContext, [
             'recipient_count' => $emails->count(),
             'recipients' => $emails->all(),
-        ]);
+        ]));
+
+        $payload = $vendSummaries
+            ->map(fn ($summary) => $summary)
+            ->values()
+            ->all();
+
         foreach ($emails as $email) {
-            Mail::to($email)->queue(new VendPowerRestoredNotificationMail((int) $vend->getKey()));
-            Log::info('AlertEmail: queued VendPowerRestoredNotificationMail', [
-                'vend_id' => $vend->id,
-                'operator_id' => $vend->operator_id,
+            Mail::to($email)->queue(new VendTransactionNoEntryNotificationMail($operator?->id, $payload));
+            Log::info('AlertEmail: queued VendTransactionNoEntryNotificationMail', array_merge($baseContext, [
                 'recipient' => $email,
-            ]);
+            ]));
         }
 
         return $emails->count();
@@ -131,5 +157,45 @@ class AlertEmailService
             ->filter()
             ->unique()
             ->values();
+    }
+
+    /**
+     * Helper: queue per-vend notification emails with shared logging.
+     *
+     * @param callable(): \Illuminate\Mail\Mailable $mailableFactory
+     */
+    protected function queueVendNotification(
+        Vend $vend,
+        string $flag,
+        callable $mailableFactory,
+        string $logKey,
+        array $context = []
+    ): int {
+        $emails = $this->recipients($vend->operator, $flag);
+
+        $baseContext = array_merge([
+            'vend_id' => $vend->id,
+            'operator_id' => $vend->operator_id,
+            'mail' => $logKey,
+        ], $context);
+
+        if ($emails->isEmpty()) {
+            Log::info("AlertEmail: no recipients for {$logKey}", $baseContext);
+            return 0;
+        }
+
+        Log::info("AlertEmail: queuing {$logKey}", array_merge($baseContext, [
+            'recipient_count' => $emails->count(),
+            'recipients' => $emails->all(),
+        ]));
+
+        foreach ($emails as $email) {
+            Mail::to($email)->queue($mailableFactory());
+            Log::info("AlertEmail: queued {$logKey}", array_merge($baseContext, [
+                'recipient' => $email,
+            ]));
+        }
+
+        return $emails->count();
     }
 }

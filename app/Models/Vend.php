@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\OpsJob;
+use App\Models\VendAlertSetting;
 use App\Models\VendTemp;
 use App\Models\Scopes\OperatorVendFilterScope;
 use Carbon\Carbon;
@@ -77,6 +78,9 @@ class Vend extends Model
         self::PICK_TYPE_DELIVERED => 'Stock In',
     ];
 
+    public const DEFAULT_OFFLINE_ALERT_MINUTES = 50;
+    public const DEFAULT_POWER_RESTORED_ALERT_MINUTES = 50;
+    public const DEFAULT_NO_SALES_ALERT_HOURS = 7;
 
     const CAMPAIGN_PARAMETER_SETTINGS = [
         'enablePromoHeaderText' => [
@@ -423,9 +427,29 @@ class Vend extends Model
         return $this->belongsToMany(User::class);
     }
 
+    public function alertSetting()
+    {
+        return $this->hasOne(VendAlertSetting::class);
+    }
+
     public function vendChannels()
     {
         return $this->hasMany(VendChannel::class)->where('is_active', true)->where('capacity', '>', 0)->orderBy('code');
+    }
+
+    public function offlineAlertMinutes(): int
+    {
+        return (int) ($this->alertSetting?->offline_after_minutes ?? static::DEFAULT_OFFLINE_ALERT_MINUTES);
+    }
+
+    public function powerRestoredAlertMinutes(): int
+    {
+        return (int) ($this->alertSetting?->power_restored_after_minutes ?? static::DEFAULT_POWER_RESTORED_ALERT_MINUTES);
+    }
+
+    public function noSalesAlertHours(): int
+    {
+        return (int) ($this->alertSetting?->no_sales_after_hours ?? static::DEFAULT_NO_SALES_ALERT_HOURS);
     }
 
     public function vendChannelsWithoutClaw()
