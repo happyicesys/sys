@@ -875,6 +875,162 @@
             </div>
             </div>
 
+            <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
+              <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div class="w-full border-t border-gray-300"></div>
+                </div>
+                <div class="relative flex justify-center ">
+                  <span class="px-3 bg-white text-lg font-medium text-gray-900 rounded-md">Old Campaign Item Bindings</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="sm:col-span-6 grid grid-cols-1 gap-3 sm:grid-cols-6 pb-5 mb-3 bg-gray-200 rounded p-4">
+              <div class="sm:col-span-3">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Labels
+                </label>
+                <MultiSelect
+                  v-model="form.tags"
+                  :options="productTagOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="name"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                  mode="tags"
+                >
+                </MultiSelect>
+              </div>
+
+              <div class="sm:col-span-1">
+                <FormInput v-model="form.qty">
+                  <div class="flex flex-col space-y-1">
+                    <span class="text-base">
+                      Bundle Qty
+                    </span>
+                  </div>
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-1">
+                <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
+                  Promo Type
+                </label>
+                <MultiSelect
+                  v-model="form.promo_type"
+                  :options="promoTypeOptions"
+                  trackBy="id"
+                  valueProp="id"
+                  label="value"
+                  placeholder="Select"
+                  open-direction="bottom"
+                  class="mt-1"
+                >
+                </MultiSelect>
+              </div>
+
+              <div class="sm:col-span-1">
+                <FormInput v-model="form.value">
+                  <div class="flex flex-col space-y-1">
+                    <span class="text-base">
+                      Value
+                    </span>
+                  </div>
+                </FormInput>
+              </div>
+
+              <div class="sm:col-span-6 lg:col-span-1 flex items-end">
+                <Button
+                  type="button"
+                  @click="addCampaignItem()"
+                  class="bg-green-500 hover:bg-green-600 text-white flex space-x-1 sm:mt-0"
+                  :class="[!canAddCampaignItem ? 'opacity-50 cursor-not-allowed' : '']"
+                  :disabled="!canAddCampaignItem"
+                >
+                  <PlusCircleIcon class="w-4 h-4"></PlusCircleIcon>
+                  <span>
+                    Add Item
+                  </span>
+                </Button>
+              </div>
+            </div>
+
+            <div class="sm:col-span-6 flex flex-col mt-3">
+            <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-3 lg:-mx-5">
+              <div class="inline-block min-w-full py-2 align-middle md:px-4 lg:px-6">
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                  <table class="min-w-full divide-y divide-gray-300">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          #
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Labels
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Bundle Qty
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Promo Type
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Value
+                        </th>
+                        <th scope="col" class="px-3 py-3.5 text-center text-sm font-semibold text-gray-900">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                      <tr v-for="(campaignItem, campaignItemIndex) in campaignItems" :key="campaignItem.id ?? campaignItemIndex" :class="campaignItemIndex % 2 === 0 ? undefined : 'bg-gray-50'">
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 text-center">
+                          {{ campaignItemIndex + 1 }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-left">
+                          <div class="flex flex-wrap gap-1">
+                            <span
+                              v-for="(tagBinding, tagBindingIndex) in campaignItem.tagBindings"
+                              :key="tagBinding.id ?? tagBindingIndex"
+                              class="inline-flex rounded px-1 py-0.5 text-xs border w-fit bg-blue-100 text-blue-800 border-blue-300"
+                            >
+                              {{ formatTagBindingName(tagBinding) }}
+                            </span>
+                          </div>
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          {{ campaignItem.qty }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          {{ campaignItem.promo_type || 'N/A' }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-gray-900 sm:pl-6 text-center">
+                          {{ formatCampaignValue(campaignItem.value) }}
+                        </td>
+                        <td class="whitespace-nowrap py-4 text-sm text-center">
+                          <Button
+                            class="bg-red-400 hover:bg-red-500 text-white"
+                            @click="deleteCampaignItem(campaignItem)"
+                          >
+                            <BackspaceIcon class="w-4 h-4"></BackspaceIcon>
+                          </Button>
+                        </td>
+                      </tr>
+                      <tr v-if="!campaignItems?.length">
+                        <td colspan="6" class="whitespace-nowrap py-4 text-sm font-medium text-gray-600 text-center">
+                          No Records Found
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            </div>
+
             </div>
 
             <div class="sm:col-span-6 py-4">
@@ -1056,7 +1212,7 @@ import FormInput from '@/Components/FormInput.vue';
 import FormTextarea from '@/Components/FormTextarea.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import { ArrowDownCircleIcon, ArrowPathIcon, ArrowUpCircleIcon, BackspaceIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { useToast } from "vue-toastification";
 import axios from 'axios';
@@ -1065,6 +1221,7 @@ const props = defineProps({
     apkSetting: Object,
     campaignOptions: Object,
     operatorOptions: Object,
+    productTagOptions: Object,
     unbindedVendOptions: Object,
   })
 
@@ -1083,16 +1240,37 @@ const promoBannerKindOptions = ref([
   {id: 'picture', value: 'Picture'},
 ])
 
+const promoTypeOptions = ref([
+  {id: '1', value: 'Amount'},
+  {id: '2', value: 'Percent'},
+])
+
 const isShowCampaignSection = ref(false)
 const isShowVendSection = ref(false)
 const operatorOptions = ref([])
 const campaignOptions = ref([])
+const productTagOptions = ref([])
 const campaignBindings = ref([])
+const campaignItems = ref([])
 const selectedCampaigns = ref([])
 const toast = useToast()
 const form = ref(
   useForm(getDefaultForm())
 )
+const canAddCampaignItem = computed(() => {
+  const currentForm = form.value || {}
+  const tags = Array.isArray(currentForm.tags) ? currentForm.tags : []
+  const qty = currentForm.qty
+  const promoType = currentForm.promo_type
+  const value = currentForm.value
+
+  const hasTags = tags.some(tag => (tag && (tag.id ?? tag)))
+  const hasQty = qty !== '' && qty !== null && qty !== undefined
+  const hasPromoType = Boolean(promoType && (promoType.id ?? promoType))
+  const hasValue = value !== '' && value !== null && value !== undefined
+
+  return hasTags && hasQty && hasPromoType && hasValue
+})
 const apkSetting = ref([])
 const unbindedVendOptions = ref([])
 const vends = ref([])
@@ -1101,7 +1279,12 @@ onMounted(() => {
   apkSetting.value = props.apkSetting.data
   operatorOptions.value = props.operatorOptions.data
   campaignOptions.value = props.campaignOptions?.data ?? []
+  productTagOptions.value = props.productTagOptions?.data?.map(tag => ({
+    id: tag.id,
+    name: tag.name,
+  })) ?? []
   campaignBindings.value = props.apkSetting.data.campaigns ?? []
+  campaignItems.value = mapCampaignItems(props.apkSetting.data.campaignItems ?? [])
   unbindedVendOptions.value = props.unbindedVendOptions.data
   vends.value = props.apkSetting.data.vends
 
@@ -1153,6 +1336,18 @@ onMounted(() => {
 
   }) : useForm(getDefaultForm())
 
+  if (!Array.isArray(form.value.tags)) {
+    form.value.tags = []
+  }
+  if (!form.value.qty) {
+    form.value.qty = ''
+  }
+  if (!form.value.promo_type) {
+    form.value.promo_type = ''
+  }
+  if (form.value.value === undefined) {
+    form.value.value = ''
+  }
 })
 
 function getDefaultForm() {
@@ -1192,6 +1387,11 @@ function getDefaultForm() {
     discountPercent02: '',
     enableDiscount03: '',
     discountPercent03: '',
+
+    tags: [],
+    qty: '',
+    promo_type: '',
+    value: '',
 
     enableLabelPromo: '',
     labelPromoStartDate: '',
@@ -1257,6 +1457,100 @@ function submit() {
       })
 }
 
+function addCampaignItem() {
+  if (!apkSetting.value?.id) {
+    return;
+  }
+
+  form.value.clearErrors();
+
+  const tagIds = Array.from(new Set(
+    (form.value.tags || [])
+      .map(tag => tag?.id ?? tag)
+      .filter(Boolean)
+  ));
+
+  const hasQty = form.value.qty !== '' && form.value.qty !== null && form.value.qty !== undefined;
+  const hasPromoType = Boolean(form.value.promo_type && (form.value.promo_type.id ?? form.value.promo_type));
+  const hasValue = form.value.value !== '' && form.value.value !== null && form.value.value !== undefined;
+
+  if (!tagIds.length || !hasQty || !hasPromoType || !hasValue) {
+    return;
+  }
+
+  router.post('/apk-settings/' + apkSetting.value.id + '/create-campaign-item', {
+    qty: form.value.qty,
+    promo_type: form.value.promo_type?.id ?? form.value.promo_type,
+    value: form.value.value,
+    tags: tagIds,
+  },
+  {
+    onSuccess: () => {
+      toast.success("Campaign item added successfully", {
+        timeout: 3000
+      });
+      form.value.tags = [];
+      form.value.qty = '';
+      form.value.promo_type = '';
+      form.value.value = '';
+      router.reload({
+        only: ['apkSetting'],
+        replace: true,
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: (page) => {
+          refreshApkSetting(page);
+        }
+      })
+    },
+    onError: () => {
+      toast.error("Failed, Please Try Again", {
+        timeout: 3000
+      });
+    },
+    preserveState: true,
+    preserveScroll: true,
+    replace: true,
+  })
+}
+
+function deleteCampaignItem(campaignItem) {
+  if (!campaignItem?.id) {
+    return;
+  }
+
+  const approval = confirm('Are you sure you want to remove this campaign item?');
+  if (!approval) {
+    return;
+  }
+
+  router.delete('/apk-settings/campaign-items/' + campaignItem.id + '/delete-campaign-item',
+  {
+    onSuccess: () => {
+      toast.success("Campaign item removed successfully", {
+        timeout: 3000
+      });
+      router.reload({
+        only: ['apkSetting'],
+        replace: true,
+        preserveState: true,
+        preserveScroll: true,
+        onSuccess: (page) => {
+          refreshApkSetting(page);
+        }
+      })
+    },
+    onError: () => {
+      toast.error("Failed, Please Try Again", {
+        timeout: 3000
+      });
+    },
+    preserveState: true,
+    preserveScroll: true,
+    replace: true,
+  })
+}
+
 function bindCampaigns() {
   const campaignIds = Array.from(new Set(
     (selectedCampaigns.value || [])
@@ -1283,8 +1577,7 @@ function bindCampaigns() {
         preserveState: true,
         preserveScroll: true,
         onSuccess: (page) => {
-          apkSetting.value = page.props.apkSetting.data;
-          campaignBindings.value = page.props.apkSetting.data.campaigns ?? [];
+          refreshApkSetting(page);
         }
       })
     },
@@ -1297,6 +1590,60 @@ function bindCampaigns() {
     preserveScroll: true,
     replace: true,
   })
+}
+
+function mapCampaignItems(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  const tagLookup = new Map(
+    (productTagOptions.value || []).map(tag => [tag.id, tag.name])
+  );
+
+  return items.map(item => ({
+    ...item,
+    tagBindings: (item.tagBindings || []).map(binding => ({
+      ...binding,
+      name: binding.name
+        ?? binding.tag?.name
+        ?? tagLookup.get(binding.tag?.id ?? binding.tag_id ?? binding.id)
+        ?? binding.tag?.slug
+        ?? (binding.tag?.id || binding.tag_id || binding.id ? `Tag ${binding.tag?.id ?? binding.tag_id ?? binding.id}` : 'Tag'),
+    })),
+  }));
+}
+
+function formatTagBindingName(tagBinding) {
+  if (!tagBinding) {
+    return 'Tag';
+  }
+
+  if (tagBinding.name) {
+    return tagBinding.name;
+  }
+
+  if (tagBinding.tag?.name) {
+    return tagBinding.tag.name;
+  }
+
+  if (tagBinding.tag?.slug) {
+    return tagBinding.tag.slug;
+  }
+
+  if (tagBinding.tag_id !== undefined && tagBinding.tag_id !== null) {
+    return `Tag ${tagBinding.tag_id}`;
+  }
+
+  if (tagBinding.tag?.id !== undefined && tagBinding.tag?.id !== null) {
+    return `Tag ${tagBinding.tag.id}`;
+  }
+
+  if (tagBinding.id !== undefined && tagBinding.id !== null) {
+    return `Tag ${tagBinding.id}`;
+  }
+
+  return 'Tag';
 }
 
 function formatCampaignLabels(labels) {
@@ -1342,6 +1689,18 @@ function formatCampaignValue(value) {
   return numericValue % 1 === 0 ? numericValue.toString() : numericValue.toFixed(2);
 }
 
+function refreshApkSetting(page) {
+  const data = page?.props?.apkSetting?.data;
+  if (!data) {
+    return;
+  }
+
+  apkSetting.value = data;
+  campaignBindings.value = data.campaigns ?? [];
+  campaignItems.value = mapCampaignItems(data.campaignItems ?? []);
+  vends.value = data.vends ?? vends.value;
+}
+
 function bindVendItem() {
   if(vends.value.indexOf(form.value.vend_id) < 0) {
     vends.value.push(form.value.vend_id)
@@ -1374,8 +1733,7 @@ function unbindCampaign(campaign) {
         preserveState: true,
         preserveScroll: true,
         onSuccess: (page) => {
-          apkSetting.value = page.props.apkSetting.data;
-          campaignBindings.value = page.props.apkSetting.data.campaigns ?? [];
+          refreshApkSetting(page);
         }
       })
     },
