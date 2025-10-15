@@ -8,11 +8,13 @@ use App\Models\ApkSettingVend;
 use App\Models\Campaign;
 use App\Models\CampaignItem;
 use App\Models\Operator;
+use App\Models\Tag;
 use App\Models\Vend;
 use App\Models\VendPrefix;
 use App\Http\Resources\ApkSettingResource;
 use App\Http\Resources\CampaignResource;
 use App\Http\Resources\OperatorResource;
+use App\Http\Resources\TagResource;
 use App\Http\Resources\VendResource;
 use App\Http\Resources\VendPrefixResource;
 use App\Services\TagBindingService;
@@ -164,6 +166,9 @@ class ApkSettingController extends Controller
             ),
             'operatorOptions' => OperatorResource::collection(
                 Operator::orderBy('name')->get()
+            ),
+            'productTagOptions' => TagResource::collection(
+                Tag::orderBy('name')->get()
             ),
             'unbindedVendOptions' => VendResource::collection(
                 Vend::with([
