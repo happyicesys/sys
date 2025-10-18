@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\OpsJob;
 use App\Models\VendAlertSetting;
+use App\Models\VendLog;
 use App\Models\VendTemp;
 use App\Models\Scopes\OperatorVendFilterScope;
 use Carbon\Carbon;
@@ -80,7 +81,7 @@ class Vend extends Model
 
     public const DEFAULT_OFFLINE_ALERT_MINUTES = 50;
     public const DEFAULT_POWER_RESTORED_ALERT_MINUTES = 50;
-    public const DEFAULT_NO_SALES_ALERT_HOURS = 7;
+    public const DEFAULT_NO_SALES_ALERT_HOURS = 72;
 
     const CAMPAIGN_PARAMETER_SETTINGS = [
         'enablePromoHeaderText' => [
@@ -430,6 +431,11 @@ class Vend extends Model
     public function alertSetting()
     {
         return $this->hasOne(VendAlertSetting::class);
+    }
+
+    public function eventLogs()
+    {
+        return $this->hasMany(VendLog::class)->latest('occurred_at');
     }
 
     public function vendChannels()

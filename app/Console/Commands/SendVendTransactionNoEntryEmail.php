@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Operator;
 use App\Models\Vend;
+use App\Models\VendLog;
 use App\Services\AlertEmailService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -76,6 +77,20 @@ class SendVendTransactionNoEntryEmail extends Command
         if ($qualified->isEmpty()) {
             return self::SUCCESS;
         }
+
+        $qualified->each(function (array $summary) use ($now) {
+            VendLog::create([
+                'vend_id' => $summary['id'],
+                'event' => VendLog::EVENT_NO_TRANSACTION,
+                'subject' => sprintf('No transactions for >= %s hrs', $summary['threshold_hours']),
+                'context' => [
+                    'threshold_hours' => $summary['threshold_hours'],
+                    'hours_since_last_transaction' => $summary['hours_since_last_transaction'],
+                    'last_transaction_at' => $summary['last_transaction_at'],
+                ],
+                'occurred_at' => $now,
+            ]);
+        });
 
         $byOperator = $qualified->groupBy(function (array $summary) {
             return $summary['operator_id'] ?? 'global';

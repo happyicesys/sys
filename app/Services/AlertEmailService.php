@@ -9,6 +9,7 @@ use App\Mail\VendTransactionNoEntryNotificationMail;
 use App\Models\AlertEmailItem;
 use App\Models\Operator;
 use App\Models\Vend;
+use App\Models\VendLog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -57,7 +58,7 @@ class AlertEmailService
     {
         $thresholdMinutes = $vend->offlineAlertMinutes();
 
-        return $this->queueVendNotification(
+        $recipientCount = $this->queueVendNotification(
             $vend,
             'is_send_offline_notification',
             fn () => new VendOfflineNotificationMail((int) $vend->getKey(), $thresholdMinutes),
@@ -66,6 +67,21 @@ class AlertEmailService
                 'threshold_minutes' => $thresholdMinutes,
             ]
         );
+
+        if ($recipientCount > 0) {
+            VendLog::create([
+                'vend_id' => $vend->id,
+                'event' => VendLog::EVENT_POWER_OFF,
+                'subject' => sprintf('Offline alert queued (%d recipients)', $recipientCount),
+                'context' => [
+                    'threshold_minutes' => $thresholdMinutes,
+                    'recipients' => $recipientCount,
+                ],
+                'occurred_at' => now(),
+            ]);
+        }
+
+        return $recipientCount;
     }
 
     /**
@@ -75,7 +91,7 @@ class AlertEmailService
     {
         $thresholdMinutes = $vend->powerRestoredAlertMinutes();
 
-        return $this->queueVendNotification(
+        $recipientCount = $this->queueVendNotification(
             $vend,
             'is_send_power_restored_notification',
             fn () => new VendPowerRestoredNotificationMail((int) $vend->getKey(), $thresholdMinutes),
@@ -84,6 +100,21 @@ class AlertEmailService
                 'threshold_minutes' => $thresholdMinutes,
             ]
         );
+
+        if ($recipientCount > 0) {
+            VendLog::create([
+                'vend_id' => $vend->id,
+                'event' => VendLog::EVENT_POWER_RESTORED,
+                'subject' => sprintf('Power restored alert queued (%d recipients)', $recipientCount),
+                'context' => [
+                    'threshold_minutes' => $thresholdMinutes,
+                    'recipients' => $recipientCount,
+                ],
+                'occurred_at' => now(),
+            ]);
+        }
+
+        return $recipientCount;
     }
 
     /**

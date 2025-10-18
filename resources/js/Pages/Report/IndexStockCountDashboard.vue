@@ -346,7 +346,7 @@ onBeforeMount(() => {
       })
 
     dayGraphDatasets.value.push({
-      label: `${month} Stock Value (${operatorCountry.currency_symbol})`,
+      label: `${month} Stock Value in Machines (${operatorCountry.currency_symbol})`,
       data: amount,
       backgroundColor: idx % 2 === 0 ? hexToRGBA(colors[idx] || '#3e95cd', 0.2) : hexToRGBA(colors[idx] || '#3e95cd', 1),
       borderColor: idx % 2 === 0 ? hexToRGBA(colors[idx] || '#3e95cd', 0.2) : hexToRGBA(colors[idx] || '#3e95cd', 1),

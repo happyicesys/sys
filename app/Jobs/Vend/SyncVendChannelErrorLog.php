@@ -6,6 +6,7 @@ use App\Models\Vend;
 use App\Models\VendChannel;
 use App\Models\VendChannelError;
 use App\Models\VendChannelErrorLog;
+use App\Models\VendLog;
 use App\Jobs\Vend\SaveVendChannelErrorLogsJson;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -65,6 +66,18 @@ class SyncVendChannelErrorLog implements ShouldQueue
                         'vend_channel_id' => $vendChannel->id,
                         'vend_channel_error_id' => $vendChannelError->id
                     ]);
+
+                    VendLog::create([
+                        'vend_id' => $vend->id,
+                        'event' => VendLog::EVENT_CHANNEL_ERROR,
+                        'subject' => sprintf('Channel %s error %s', $vendChannelCode, $vendChannelErrorCode),
+                        'context' => [
+                            'vend_channel_error_log_id' => $vendChannelErrorLog->id,
+                            'channel_code' => $vendChannelCode,
+                            'error_code' => $vendChannelErrorCode,
+                        ],
+                        'occurred_at' => now(),
+                    );
 
                     if($vendTransactionId) {
                         $vendChannelErrorLog->vend_transaction_id = $vendTransactionId;

@@ -314,6 +314,46 @@
               </MultiSelect>
             </div>
 
+            <div class="sm:col-span-3">
+              <label class="flex justify-start text-base font-medium text-gray-700">
+                Enable Label Promo?
+              </label>
+              <span class="text-sm text-gray-600">
+                (Display label promo banner on machine)
+              </span>
+              <MultiSelect
+                v-model="form.enableLabelPromo"
+                :options="booleanStrictOptions"
+                trackBy="id"
+                valueProp="id"
+                label="value"
+                placeholder="Select"
+                open-direction="bottom"
+                class="mt-1"
+              >
+              </MultiSelect>
+            </div>
+
+            <div class="sm:col-span-3">
+              <DatePicker v-model="form.labelPromoStartDate">
+                <div class="flex flex-col space-y-1">
+                  <span class="text-base">
+                    Label Promo Start Date
+                  </span>
+                </div>
+              </DatePicker>
+            </div>
+
+            <div class="sm:col-span-3">
+              <DatePicker v-model="form.labelPromoEndDate">
+                <div class="flex flex-col space-y-1">
+                  <span class="text-base">
+                    Label Promo End Date
+                  </span>
+                </div>
+              </DatePicker>
+            </div>
+
 
             <div class="sm:col-span-6 pt-2 pb-1 md:pt-5 md:pb-3">
               <div class="relative">
