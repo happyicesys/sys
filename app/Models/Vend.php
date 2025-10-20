@@ -61,7 +61,9 @@ class Vend extends Model
         4 => 'Left Square (A) + Right Rectangle (L) 左方右长',
         5 => 'Model E - Potrait',
         6 => 'Model F - Landscape',
-        7 => 'Model EF - Half Landscape'
+        7 => 'Model EF - Half Landscape',
+        8 => 'Model F - Display box - Landscape (small)',
+        9 => 'Model F - Display box - Portrait (big)',
     ];
 
     const MODEM_TYPE_MAPPINGS = [

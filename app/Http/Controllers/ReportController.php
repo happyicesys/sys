@@ -1277,39 +1277,105 @@ class ReportController extends Controller
         : Carbon::today()->setTimezone($this->getUserTimezone());
 
         $currentMonthFormatted = $currentDate->format('Y-m');
+        $rangeStart = $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay();
+        $rangeEnd = $currentDate->copy()->endOfMonth()->endOfDay();
 
-        $queryVendTransactions = DB::table('vend_transactions')
+        $singleTransactions = DB::table('vend_transactions')
             ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
-            ->leftJoin('products', 'vend_transactions.product_id', '=', 'products.id')
+            ->leftJoin('vend_channels', 'vend_transactions.vend_channel_id', '=', 'vend_channels.id')
+            ->leftJoin('products', function($join) {
+                $join->on('products.id', '=', 'vend_transactions.product_id')
+                    ->orOn('products.id', '=', 'vend_channels.product_id');
+            })
             ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
             ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
             ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
             ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
             ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
-            ->where('vend_transactions.created_at', '>=', $currentDate->copy()->subMonths(2)->startOfMonth()->startOfDay())
-            ->where('vend_transactions.created_at', '<=', $currentDate->copy()->endOfMonth()->endOfDay())
-            ->whereIn('vend_transaction_json->SErr', [0, 6]);
+            ->whereBetween('vend_transactions.created_at', [$rangeStart, $rangeEnd])
+            ->whereIn('vend_transaction_json->SErr', [0, 6])
+            ->where(function($query) {
+                $query->where('vend_transactions.is_multiple', false)
+                    ->orWhereNotExists(function($subQuery) {
+                        $subQuery->select(DB::raw(1))
+                            ->from('vend_transaction_items')
+                            ->whereColumn('vend_transaction_items.vend_transaction_id', 'vend_transactions.id');
+                    });
+            });
 
-        $queryVendTransactions = $this->filterVendTransactionReport($queryVendTransactions, $request);
-        $queryVendTransactions = $this->filterOperatorVendTransactionDB($queryVendTransactions);
+        $singleTransactions = $this->filterVendTransactionReport($singleTransactions, $request);
+        $singleTransactions = $this->filterOperatorVendTransactionDB($singleTransactions);
 
-        $queryVendTransactions = $queryVendTransactions
+        $singleRevenueExpression = 'COALESCE(vend_transactions.revenue, vend_transactions.amount, 0)';
+        $singleUnitCostExpression = 'COALESCE(vend_transactions.unit_cost, 0)';
+        $singleGrossProfitExpression = 'COALESCE(vend_transactions.gross_profit, (' . $singleRevenueExpression . ' - ' . $singleUnitCostExpression . '))';
+        $singleCountExpression = 'CASE WHEN vend_transactions.success_qty IS NULL OR vend_transactions.success_qty = 0 THEN 1 ELSE vend_transactions.success_qty END';
+
+        $singleAggregated = $singleTransactions
+            ->whereNotNull('products.id')
             ->select(
-                'products.id',
+                'products.id as id',
+                'products.name',
+                'products.code',
+                DB::raw('PERIOD_DIFF(DATE_FORMAT("' . $currentMonthFormatted . '-01", "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) AS month_diff'),
+                DB::raw('SUM(' . $singleCountExpression . ') AS count'),
+                DB::raw('SUM(' . $singleRevenueExpression . ') AS revenue'),
+                DB::raw('SUM(' . $singleGrossProfitExpression . ') AS gross_profit'),
+                DB::raw('ROUND(SUM(' . $singleGrossProfitExpression . ') * 100 / NULLIF(SUM(' . $singleRevenueExpression . '), 0), 1) AS gross_profit_margin')
+            )
+            ->groupBy('products.id', 'month_diff');
+
+        $multiTransactions = DB::table('vend_transaction_items')
+            ->join('vend_transactions', 'vend_transaction_items.vend_transaction_id', '=', 'vend_transactions.id')
+            ->leftJoin('vends', 'vend_transactions.vend_id', '=', 'vends.id')
+            ->leftJoin('vend_channels', 'vend_transaction_items.vend_channel_id', '=', 'vend_channels.id')
+            ->leftJoin('products', function($join) {
+                $join->on('products.id', '=', 'vend_transaction_items.product_id')
+                    ->orOn('products.id', '=', 'vend_channels.product_id');
+            })
+            ->leftJoin('customers', 'customers.id', '=', 'vend_transactions.customer_id')
+            ->leftJoin('categories', 'categories.id', '=', 'customers.category_id')
+            ->leftJoin('category_groups', 'category_groups.id', '=', 'categories.category_group_id')
+            ->leftJoin('operators', 'operators.id', '=', 'vend_transactions.operator_id')
+            ->leftJoin('vend_prefixes', 'vend_prefixes.id', '=', 'vends.vend_prefix_id')
+            ->whereBetween('vend_transactions.created_at', [$rangeStart, $rangeEnd])
+            ->whereIn('vend_transaction_items.vend_channel_error_code', [0, 6])
+            ->where('vend_transactions.is_multiple', true);
+
+        $multiTransactions = $this->filterVendTransactionReport($multiTransactions, $request);
+        $multiTransactions = $this->filterOperatorVendTransactionDB($multiTransactions);
+
+        $multiRevenueExpression = 'COALESCE(
+                vend_channels.amount,
+                ROUND(
+                    CASE
+                        WHEN vend_transactions.success_qty IS NOT NULL AND vend_transactions.success_qty > 0 THEN ' . $singleRevenueExpression . ' / NULLIF(vend_transactions.success_qty, 0)
+                        WHEN vend_transactions.qty IS NOT NULL AND vend_transactions.qty > 0 THEN ' . $singleRevenueExpression . ' / NULLIF(vend_transactions.qty, 0)
+                        ELSE 0
+                    END
+                ),
+                0
+            )';
+        $multiUnitCostExpression = 'ROUND(COALESCE(vend_transaction_items.unit_cost, 0) * 100)';
+        $multiGrossProfitExpression = '(' . $multiRevenueExpression . ' - ' . $multiUnitCostExpression . ')';
+        $multiAggregated = $multiTransactions
+            ->whereNotNull('products.id')
+            ->select(
+                'products.id as id',
                 'products.name',
                 'products.code',
                 DB::raw('PERIOD_DIFF(DATE_FORMAT("' . $currentMonthFormatted . '-01", "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) AS month_diff'),
                 DB::raw('COUNT(*) AS count'),
-                DB::raw('SUM(revenue) AS revenue'),
-                DB::raw('SUM(gross_profit) AS gross_profit'),
-                DB::raw('ROUND(SUM(gross_profit) * 100 / SUM(revenue), 1) AS gross_profit_margin'),
-                DB::raw('SUM(CASE WHEN PERIOD_DIFF(DATE_FORMAT("' . $currentMonthFormatted . '-01", "%Y%m"), DATE_FORMAT(vend_transactions.created_at, "%Y%m")) = 0 THEN revenue ELSE 0 END) AS this_month_revenue')
+                DB::raw('SUM(' . $multiRevenueExpression . ') AS revenue'),
+                DB::raw('SUM(' . $multiGrossProfitExpression . ') AS gross_profit'),
+                DB::raw('ROUND(SUM(' . $multiGrossProfitExpression . ') * 100 / NULLIF(SUM(' . $multiRevenueExpression . '), 0), 1) AS gross_profit_margin')
             )
             ->groupBy('products.id', 'month_diff');
 
+        $combinedTransactions = $singleAggregated->unionAll($multiAggregated);
 
         $products = DB::query()
-            ->fromSub($queryVendTransactions, 'transac')
+            ->fromSub($combinedTransactions, 'transac')
             ->select(
                 'id',
                 'name',
