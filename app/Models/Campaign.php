@@ -16,7 +16,8 @@ class Campaign extends Model
 
     const TYPE_PERCENTAGE = 'Percentage';
     const TYPE_AMOUNT = 'Amount';
-    const TYPE_ITEM = 'Item';
+    const TYPE_ITEM = 'Free';
+    const LEGACY_TYPE_ITEM = 'Item';
 
     const TYPES_MAPPING = [
         self::TYPE_PERCENTAGE => 'Percentage',
@@ -128,6 +129,28 @@ class Campaign extends Model
             get: fn ($value) => $this->convertStoredIntegerToDecimal($value),
             set: fn ($value) => $this->convertDecimalToStoredInteger($value)
         );
+    }
+
+    protected function promoType(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => self::normalizePromoType($value),
+            set: fn ($value) => self::normalizePromoType($value)
+        );
+    }
+
+    public static function normalizePromoType(?string $type): ?string
+    {
+        if ($type === null) {
+            return null;
+        }
+
+        return $type === self::LEGACY_TYPE_ITEM ? self::TYPE_ITEM : $type;
+    }
+
+    public static function promoTypeValidationValues(): array
+    {
+        return array_unique(array_merge(array_keys(self::TYPES_MAPPING), [self::LEGACY_TYPE_ITEM]));
     }
 
     private function convertDecimalToStoredInteger($value): ?int

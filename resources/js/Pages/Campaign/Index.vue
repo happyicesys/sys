@@ -353,13 +353,13 @@ function isPromoTypeFreeItem(promoType) {
   }
 
   if (typeof promoType === 'string') {
-    return promoType === 'Item' || promoType === 'Free Item'
+    return promoType === 'Free' || promoType === 'Item' || promoType === 'Free Item'
   }
 
   if (typeof promoType === 'object') {
     const id = promoType.id ?? promoType.value ?? null
     const name = promoType.name ?? null
-    return id === 'Item' || name === 'Free Item'
+    return id === 'Free' || id === 'Item' || name === 'Free Item'
   }
 
   return false

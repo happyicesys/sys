@@ -76,7 +76,7 @@ class CampaignController extends Controller
             'operator_id' => 'required|integer|exists:operators,id',
             'slug' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'promo_type' => 'required|string|in:' . implode(',', array_keys(Campaign::TYPES_MAPPING)),
+            'promo_type' => 'required|string|in:' . implode(',', Campaign::promoTypeValidationValues()),
             'is_using_qty' => 'required|string|in:qty,amount,both',
             'bundle_qty' => 'nullable|integer|min:1',
             'value' => 'nullable|numeric|min:0',
@@ -91,13 +91,15 @@ class CampaignController extends Controller
             'labels_y.*' => 'integer|exists:tags,id',
         ]);
 
+        $promoType = Campaign::normalizePromoType($validated['promo_type']);
+
         $payload = [
             'name' => $validated['name'],
             'operator_id' => $validated['operator_id'] ?? auth()->user()->operator_id,
             'is_active' => true,
             'slug' => $validated['slug'] ?? null,
             'description' => $validated['description'] ?? null,
-            'promo_type' => $validated['promo_type'],
+            'promo_type' => $promoType,
             'is_using_qty' => $validated['is_using_qty'],
             'bundle_qty' => $validated['bundle_qty'] ?? null,
             'value' => $validated['value'] ?? null,
@@ -167,7 +169,7 @@ class CampaignController extends Controller
             'operator_id' => 'required|integer|exists:operators,id',
             'slug' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'promo_type' => 'required|string|in:' . implode(',', array_keys(Campaign::TYPES_MAPPING)),
+            'promo_type' => 'required|string|in:' . implode(',', Campaign::promoTypeValidationValues()),
             'is_using_qty' => 'required|string|in:qty,amount,both',
             'bundle_qty' => 'nullable|integer|min:1',
             'value' => 'nullable|numeric|min:0',
@@ -182,12 +184,14 @@ class CampaignController extends Controller
             'labels_y.*' => 'integer|exists:tags,id',
         ]);
 
+        $promoType = Campaign::normalizePromoType($validated['promo_type']);
+
         $campaign->update([
             'name' => $validated['name'],
             'operator_id' => $validated['operator_id'],
             'slug' => $validated['slug'],
             'description' => $validated['description'] ?? null,
-            'promo_type' => $validated['promo_type'],
+            'promo_type' => $promoType,
             'is_using_qty' => $validated['is_using_qty'],
             'bundle_qty' => $validated['bundle_qty'] ?? null,
             'value' => $validated['value'] ?? null,
