@@ -70,6 +70,8 @@ class ExportVendTransactionCsvChunk implements ShouldQueue
                         Operator::where('code', 'HIMD')->first()?->id,
                         Operator::where('code', 'LEA')->first()?->id,
                         Operator::where('code', 'DCVIC')->first()?->id,
+                        Operator::where('code', 'HIESG')->first()?->id,
+                        Operator::where('code', 'IP')->first()?->id,
                     ]]);
                 } else {
                     $request->merge(['operators' => [$user->operator_id]]);

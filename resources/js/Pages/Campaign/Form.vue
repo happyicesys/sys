@@ -68,7 +68,7 @@
                 {{ form.errors.promo_type }}
               </div>
             </div>
-            <div class="sm:col-span-3" v-if="!isFreeItemPromo">
+            <div class="sm:col-span-3">
               <label class="flex justify-start text-sm font-medium text-gray-700">Labels X</label>
               <MultiSelect
                 v-model="form.labels_x"
@@ -87,9 +87,7 @@
               </div>
             </div>
             <div class="sm:col-span-3">
-              <label class="flex justify-start text-sm font-medium text-gray-700">
-                {{ isFreeItemPromo ? 'Labels' : 'Labels Y' }}
-              </label>
+              <label class="flex justify-start text-sm font-medium text-gray-700">Labels Y</label>
               <MultiSelect
                 v-model="form.labels_y"
                 :options="tagOptions"
@@ -139,7 +137,7 @@
                 Value X
               </FormInput>
             </div>
-            <div class="sm:col-span-3" v-if="!isFreeItemPromo">
+            <div class="sm:col-span-3">
               <FormInput
                 v-model="form.min_basket_value"
                 :error="form.errors.min_basket_value"
@@ -149,7 +147,7 @@
                 Min Basket Value
               </FormInput>
             </div>
-            <div class="sm:col-span-3" v-if="!isFreeItemPromo">
+            <div class="sm:col-span-3">
               <FormInput
                 v-model="form.max_discount_value"
                 :error="form.errors.max_discount_value"
@@ -257,25 +255,10 @@ const showValueField = computed(() => !isFreeItemPromo.value && (selectedIsUsing
 
 watch(
   () => form.value.promo_type,
-  (newPromo, oldPromo) => {
-    const nowFreeItem = isPromoTypeFreeItem(newPromo)
-    const wasFreeItem = isPromoTypeFreeItem(oldPromo)
-
-    if (nowFreeItem) {
-      if (!Array.isArray(form.value.labels_y) || form.value.labels_y.length === 0) {
-        form.value.labels_y = Array.isArray(form.value.labels_x) ? [...form.value.labels_x] : []
-      }
-      form.value.labels_x = []
+  (newPromo) => {
+    if (isPromoTypeFreeItem(newPromo)) {
       form.value.value = ''
-      form.value.min_basket_value = ''
-      form.value.max_discount_value = ''
-      form.value.clearErrors('labels_x')
-      form.value.clearErrors('labels_y')
       form.value.clearErrors('value')
-      form.value.clearErrors('min_basket_value')
-      form.value.clearErrors('max_discount_value')
-    } else if (wasFreeItem && (!Array.isArray(form.value.labels_x) || form.value.labels_x.length === 0)) {
-      form.value.labels_x = Array.isArray(form.value.labels_y) ? [...form.value.labels_y] : []
     }
   }
 )
@@ -451,13 +434,6 @@ function mapCampaignToForm(campaignResource) {
     }
   })
 
-  if (isPromoTypeFreeItem(promoTypeOption ?? campaign.promo_type)) {
-    if (!labelsY.length && labelsX.length) {
-      labelsY = [...labelsX]
-    }
-    labelsX = []
-  }
-
   return {
     id: campaign.id ?? null,
     name: campaign.name ?? '',
@@ -507,10 +483,8 @@ function submit() {
   form.value.clearErrors()
 
   const request = form.value.transform((data) => {
-    const isFreeItem = isPromoTypeFreeItem(data.promo_type)
     const labelXIds = Array.isArray(data.labels_x) ? data.labels_x.map(tag => tag.id) : []
     const labelYIds = Array.isArray(data.labels_y) ? data.labels_y.map(tag => tag.id) : []
-    const labelsForFreeItem = labelYIds.length ? labelYIds : labelXIds
 
     return {
       name: data.name,
@@ -523,8 +497,8 @@ function submit() {
       value: data.value !== '' && data.value !== null ? Number(data.value) : null,
       min_basket_value: data.min_basket_value !== '' && data.min_basket_value !== null ? Number(data.min_basket_value) : null,
       max_discount_value: data.max_discount_value !== '' && data.max_discount_value !== null ? Number(data.max_discount_value) : null,
-      labels_x: isFreeItem ? [] : labelXIds,
-      labels_y: isFreeItem ? labelsForFreeItem : labelYIds,
+      labels_x: labelXIds,
+      labels_y: labelYIds,
       start_at: data.start_at || null,
       end_at: data.end_at || null,
       remarks: data.remarks && data.remarks.trim() !== '' ? data.remarks : null,

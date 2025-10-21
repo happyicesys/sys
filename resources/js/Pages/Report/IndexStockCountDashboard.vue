@@ -205,7 +205,7 @@ onMounted(() => {
   filters.value.operators = authOperator ? [
     operatorOptions.value.find(o => o?.id === authOperator.id),
     ...(authOperator.code === 'HIPL'
-      ? ['HIMD','LEA','DCVIC','HIESG'].map(c => operatorOptions.value.find(o => o?.code === c))
+      ? ['HIMD','LEA','DCVIC','HIESG','IP'].map(c => operatorOptions.value.find(o => o?.code === c))
       : []),
   ].filter(Boolean) : [operatorOptions.value[0]]
   filters.value.vendPrefixes = [vendPrefixOptions.value[0]]

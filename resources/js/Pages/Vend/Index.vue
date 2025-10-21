@@ -1770,6 +1770,7 @@ filters.value.locationType = locationTypeOptions.value[0]
 		operatorOptions.value.find(operator => operator.code == 'LEA'),
 		operatorOptions.value.find(operator => operator.code == 'DCVIC'),
 		operatorOptions.value.find(operator => operator.code == 'HIESG'),
+		operatorOptions.value.find(operator => operator.code == 'IP'),
 	] : [],
 ] : operatorOptions.value[0]
 filters.value.status = statusOptions.value[0]

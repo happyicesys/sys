@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Campaign;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -18,11 +17,6 @@ class CampaignResource extends JsonResource
     {
         $labelsX = $this->relationLoaded('labelsX') ? $this->labelsX : collect();
         $labelsY = $this->relationLoaded('labelsY') ? $this->labelsY : collect();
-
-        if ($this->promo_type === Campaign::TYPE_ITEM && $labelsY->isEmpty() && $labelsX->isNotEmpty()) {
-            $labelsY = $labelsX;
-            $labelsX = collect();
-        }
 
         return [
             'id' => $this->id,

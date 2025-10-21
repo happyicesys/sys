@@ -171,7 +171,7 @@ class VendController extends Controller
             $userOperator = auth()->user()->operator;
 
             if ($userOperator && $userOperator->code === 'HIPL') {
-                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG'];
+                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP'];
 
                 $operatorIds = Operator::whereIn('code', $relatedCodes)
                     ->pluck('id')
@@ -379,7 +379,7 @@ class VendController extends Controller
             $userOperator = auth()->user()->operator;
 
             if ($userOperator && $userOperator->code === 'HIPL') {
-                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG'];
+                $relatedCodes = ['HIPL', 'HIMD', 'LEA', 'DCVIC', 'HIESG', 'IP'];
 
                 $operatorIds = Operator::whereIn('code', $relatedCodes)
                     ->pluck('id')
@@ -1487,6 +1487,7 @@ class VendController extends Controller
                     Operator::where('code', 'LEA')->first()?->id,
                     Operator::where('code', 'DCVIC')->first()?->id,
                     Operator::where('code', 'HIESG')->first()?->id,
+                    Operator::where('code', 'IP')->first()?->id,
                 ]]);
             }else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -1718,6 +1719,8 @@ class VendController extends Controller
                     Operator::where('code', 'HIMD')->first()?->id,
                     Operator::where('code', 'LEA')->first()?->id,
                     Operator::where('code', 'DCVIC')->first()?->id,
+                    Operator::where('code', 'HIESG')->first()?->id,
+                    Operator::where('code', 'IP')->first()?->id,
                 ]]);
             }else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
@@ -2105,6 +2108,7 @@ class VendController extends Controller
                     Operator::where('code', 'LEA')->first()?->id,
                     Operator::where('code', 'DCVIC')->first()?->id,
                     Operator::where('code', 'HIESG')->first()?->id,
+                    Operator::where('code', 'IP')->first()?->id,
                 ]]);
             }else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);

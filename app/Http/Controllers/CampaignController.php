@@ -124,18 +124,6 @@ class CampaignController extends Controller
             ->mapWithKeys(fn ($id) => [$id => ['type' => 'y']])
             ->toArray();
 
-        if ($validated['promo_type'] === Campaign::TYPE_ITEM) {
-            if (empty($labelsYPivot) && !empty($labelsXPivot)) {
-                $labelsYPivot = collect(array_keys($labelsXPivot))
-                    ->map(fn ($id) => (int) $id)
-                    ->unique()
-                    ->mapWithKeys(fn ($id) => [$id => ['type' => 'y']])
-                    ->toArray();
-            }
-
-            $labelsXPivot = [];
-        }
-
         $campaign->labelsX()->sync($labelsXPivot);
         $campaign->labelsY()->sync($labelsYPivot);
 
@@ -223,18 +211,6 @@ class CampaignController extends Controller
             ->unique()
             ->mapWithKeys(fn ($id) => [$id => ['type' => 'y']])
             ->toArray();
-
-        if ($validated['promo_type'] === Campaign::TYPE_ITEM) {
-            if (empty($labelsYPivot) && !empty($labelsXPivot)) {
-                $labelsYPivot = collect(array_keys($labelsXPivot))
-                    ->map(fn ($id) => (int) $id)
-                    ->unique()
-                    ->mapWithKeys(fn ($id) => [$id => ['type' => 'y']])
-                    ->toArray();
-            }
-
-            $labelsXPivot = [];
-        }
 
         $campaign->labelsX()->sync($labelsXPivot);
         $campaign->labelsY()->sync($labelsYPivot);

@@ -59,6 +59,7 @@ class OpsJobController extends Controller
                     Operator::where('code', 'LEA')->first()?->id,
                     Operator::where('code', 'DCVIC')->first()?->id,
                     Operator::where('code', 'HIESG')->first()?->id,
+                    Operator::where('code', 'IP')->first()?->id,
                 ]]);
             }else {
                 $request->merge(['operators' => [auth()->user()->operator_id]]);
