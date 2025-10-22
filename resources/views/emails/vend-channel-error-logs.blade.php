@@ -1,81 +1,92 @@
 @extends('mail')
 
 @section('content')
-<!-- This example requires Tailwind CSS v2.0+ -->
-<div class="bg-white shadow overflow-hidden sm:rounded-lg">
-    <div class="px-4 py-5 sm:px-6">
-      <h3 class="text-lg leading-6 font-medium text-gray-900">VM Channel Error Logs</h3>
-      <p class="mt-1 max-w-2xl text-sm text-gray-500">Time Range ({{\Carbon\Carbon::parse($now)->subHours($intervalHours)->format('y-m-d h:ia')}} to {{\Carbon\Carbon::parse($now)->format('y-m-d h:ia')}})</p>
-    </div>
-    <!-- This example requires Tailwind CSS v2.0+ -->
-    <div class="px-4 sm:px-6 lg:px-8">
-      <div class="mt-8 flex flex-col">
-        <div class="-my-2 -mx-4 sm:-mx-6 lg:-mx-8">
-          <div class="inline-block min-w-full py-2 align-middle">
-            <div class="shadow-sm ring-1 ring-black ring-opacity-5">
-              <table class="min-w-full border-separate" style="border-spacing: 0">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                      #
-                    </th>
-                    <th scope="col" class="sticky top-0 z-10 border-b border-gray-300 bg-gray-50 bg-opacity-75 py-3.5 pl-4 pr-3 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:pl-6 lg:pl-8">
-                      VM Code
-                    </th>
-                    <th scope="col" class="sticky top-0 z-10 hidden border-b border-gray-300 bg-gray-50 bg-opacity-75 px-3 py-3.5 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter sm:table-cell">
-                      Channel Code
-                    </th>
-                    <th scope="col" class="sticky top-0 z-10 hidden border-b border-gray-300 bg-gray-50 bg-opacity-75 px-3 py-3.5 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter lg:table-cell">
-                      Error Code
-                    </th>
-                    <th scope="col" class="sticky top-0 z-10 hidden border-b border-gray-300 bg-gray-50 bg-opacity-75 px-3 py-3.5 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter lg:table-cell">
-                      Customer
-                    </th>
-                    <th scope="col" class="sticky top-0 z-10 hidden border-b border-gray-300 bg-gray-50 bg-opacity-75 px-3 py-3.5 text-center text-sm font-semibold text-gray-900 backdrop-blur backdrop-filter lg:table-cell">
-                      Created At
-                    </th>
-                  </tr>
-                </thead>
-                @php
-                    $counter = 0;
-                @endphp
-                <tbody class="bg-white">
-                  @foreach($vendChannelErrorLogs as $vendChannelErrorLog)
-                    @php
-                        $counter += 1;
-                    @endphp
-                    <tr>
-                      <td class="whitespace-nowrap border-b border-gray-200 py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8">
-                        {{$counter}}
-                      </td>
-                      <td class="whitespace-nowrap border-b border-gray-200 py-4 pl-4 pr-3 text-right text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8">
-                        {{$vendChannelErrorLog->vendChannel->vend->code}}
-                      </td>
-                      <td class="whitespace-nowrap border-b border-gray-200 py-4 pl-4 pr-3 text-center text-sm font-medium text-gray-900 sm:pl-6 lg:pl-8">
-                        {{$vendChannelErrorLog->vendChannel->code}}
-                      </td>
-                      <td class="whitespace-nowrap border-b border-gray-200 px-3 py-4 text-sm text-center text-gray-500 hidden lg:table-cell">
-                        {{$vendChannelErrorLog->vendChannelError->code }}
-                      </td>
-                      <td class="whitespace-nowrap border-b border-gray-200 px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
-                        {{
-                          $vendChannelErrorLog->vendChannel->vend && $vendChannelErrorLog->vendChannel->vend->customer ? $vendChannelErrorLog->vendChannel->vend->customer->code.'-'.$vendChannelErrorLog->vendChannel->vend->customer->name :
-                          null
-                        }}
-                      </td>
-                      <td class="whitespace-nowrap border-b border-gray-200 px-3 py-4 text-sm text-gray-500 hidden lg:table-cell">
-                        {{$vendChannelErrorLog->created_at->format('ymd h:ia')}}
-                      </td>
-                    </tr>
-                  @endforeach
-                  <!-- More people... -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width: 720px; margin: 0 auto; font-family: Arial, sans-serif; color: #1a202c;">
+    <tr>
+        <td style="padding: 24px;">
+            <h2 style="margin: 0 0 12px; font-size: 20px; font-weight: 600; color: #0f172a;">
+                VM Channel Error Logs
+            </h2>
+            <p style="margin: 0 0 16px; font-size: 14px; color: #475569;">
+                Time Range ({{ $now->copy()->subHours($intervalHours)->format('Y-m-d h:ia') }} to {{ $now->format('Y-m-d h:ia') }})
+            </p>
 
-  </div>
+            <table cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; border: 1px solid #e2e8f0; font-size: 14px;">
+                <thead>
+                    <tr style="background-color: #f8fafc;">
+                        <th align="center" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #475569; width: 50px;">
+                            #
+                        </th>
+                        <th align="left" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #475569;">
+                            VM Code
+                        </th>
+                        <th align="center" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #475569;">
+                            Channel Code
+                        </th>
+                        <th align="center" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #475569;">
+                            Error Code
+                        </th>
+                        <th align="left" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #475569;">
+                            Customer
+                        </th>
+                        <th align="center" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #475569;">
+                            Logged At
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($vendChannelErrorLogs as $log)
+                        @php
+                            $vendChannel = $log->vendChannel;
+                            $vend = $vendChannel?->vend;
+                            $customer = $vend?->customer;
+                        @endphp
+                        <tr style="{{ $loop->odd ? 'background-color: #ffffff;' : 'background-color: #f8fafc;' }}">
+                            <td align="center" valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #0f172a;">
+                                {{ $loop->iteration }}
+                            </td>
+                            <td valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
+                                <div style="font-weight: 600;">
+                                    {{ $vend->code ?? '—' }}
+                                </div>
+                                @if (!empty($vend?->name))
+                                    <div style="margin-top: 4px; font-size: 12px; color: #334155;">
+                                        {{ $vend->name }}
+                                    </div>
+                                @endif
+                            </td>
+                            <td align="center" valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
+                                {{ $vendChannel->code ?? '—' }}
+                            </td>
+                            <td align="center" valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
+                                {{ $log->vendChannelError->code ?? '—' }}
+                            </td>
+                            <td valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
+                                @if ($customer)
+                                    <div style="font-weight: 600;">
+                                        {{ $customer->code ?? '' }}
+                                    </div>
+                                    <div style="margin-top: 4px; font-size: 12px; color: #334155;">
+                                        {{ $customer->name ?? '' }}
+                                    </div>
+                                @else
+                                    <span style="color: #94a3b8;">N/A</span>
+                                @endif
+                            </td>
+                            <td align="center" valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
+                                {{ optional($log->created_at)->format('Y-m-d h:ia') ?? '—' }}
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" align="center" style="padding: 18px; border-bottom: 1px solid #e2e8f0; color: #64748b;">
+                                No channel errors detected for this window.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </td>
+    </tr>
+</table>
 @endsection

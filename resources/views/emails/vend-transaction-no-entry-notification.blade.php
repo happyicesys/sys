@@ -49,14 +49,6 @@
                                         <span style="font-size: 12px; color: #64748b;">({{ $item['vend_prefix_name'] }})</span>
                                     @endif
                                 </div>
-                                <div style="font-size: 12px; color: #64748b; margin-top: 2px;">
-                                    ID: {{ $item['id'] ?? '-' }}
-                                </div>
-                                @if (!empty($item['name']))
-                                    <div style="font-size: 12px; color: #334155; margin-top: 4px;">
-                                        {{ $item['name'] }}
-                                    </div>
-                                @endif
                             </td>
                             <td valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
                                 @if (!empty($item['customer']))
