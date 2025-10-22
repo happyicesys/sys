@@ -474,6 +474,7 @@ class OperatorController extends Controller
             'is_send_channel_error_log' => true,
             'is_send_offline_notification' => true,
             'is_send_power_restored_notification' => true,
+            'is_send_transaction_no_entry_notification' => true,
         ];
         $flags = array_replace($defaults, $flags);
 
@@ -509,6 +510,7 @@ class OperatorController extends Controller
                 'is_send_channel_error_log'    => $flags['is_send_channel_error_log'],
                 'is_send_offline_notification' => $flags['is_send_offline_notification'],
                 'is_send_power_restored_notification' => $flags['is_send_power_restored_notification'],
+                'is_send_transaction_no_entry_notification' => $flags['is_send_transaction_no_entry_notification'],
                 'created_at'  => $now,
                 'updated_at'  => $now,
             ])->all();
