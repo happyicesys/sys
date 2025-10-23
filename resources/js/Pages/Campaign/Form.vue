@@ -251,7 +251,7 @@ const selectedIsUsingQty = computed(() => {
   return value ?? null
 })
 const showBundleQtyField = computed(() => selectedIsUsingQty.value === 'qty' || selectedIsUsingQty.value === 'both')
-const showValueField = computed(() => !isFreeItemPromo.value && (selectedIsUsingQty.value === 'amount' || selectedIsUsingQty.value === 'both'))
+const showValueField = computed(() => !isFreeItemPromo.value)
 
 watch(
   () => form.value.promo_type,
