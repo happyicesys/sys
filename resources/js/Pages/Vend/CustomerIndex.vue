@@ -1710,19 +1710,30 @@
 										</div>
 
 								</div>
-								<Link :href="'/vends/' + vend.vend_id + '/edit'" v-if="permissions.includes('admin-access vend-customers')">
-									<Button
-									type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
-									>
-									<EllipsisHorizontalCircleIcon class="w-4 h-4"></EllipsisHorizontalCircleIcon>
-									<span>
-											more
-									</span>
-									</Button>
-								</Link>
-							</div>
+					<Link :href="'/vends/' + vend.vend_id + '/edit'" v-if="permissions.includes('admin-access vend-customers')">
+						<Button
+						type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
+						>
+						<EllipsisHorizontalCircleIcon class="w-4 h-4"></EllipsisHorizontalCircleIcon>
+						<span>
+								more
 						</span>
-					</TableData>
+						</Button>
+					</Link>
+					<Button
+						type="button"
+						class="bg-orange-400 hover:bg-orange-500 px-3 py-2 text-xs text-white flex space-x-1 items-center"
+						@click="openLogModal(vend)"
+						v-if="permissions.includes('admin-access vend-customers')"
+					>
+						<ClockIcon class="w-4 h-4" />
+						<span>
+								Log
+						</span>
+					</Button>
+				</div>
+			</span>
+		</TableData>
 				</tr>
 				<tr v-if="!vends.data.length">
 					<td colspan="24" class="relative whitespace-nowrap py-4 pr-4 pl-3 text-sm font-medium sm:pr-6 lg:pr-8 text-center">
@@ -1795,6 +1806,11 @@ v-if="showMapMarkerModal"
 @modalClose="onMapMarkerModalClose"
 >
 </MapMarker>
+<VendLogModal
+	:open="showLogModal"
+	:vend="logVend"
+	@close="closeLogModal"
+/>
 
 </BreezeAuthenticatedLayout>
 </template>
@@ -1841,6 +1857,7 @@ font-size:13px;
 	import Create from '@/Pages/Vend/Create.vue';
 	import DatePicker from '@/Components/DatePicker.vue';
 	import Form from '@/Pages/Vend/Form.vue';
+	import VendLogModal from '@/Components/VendLogModal.vue';
 	import MapMarker from '@/Components/MapMarker.vue';
 	import Paginator from '@/Components/Paginator.vue';
 	import PickList from '@/Pages/Vend/PickList.vue';
@@ -1848,7 +1865,7 @@ font-size:13px;
 	import SearchInput from '@/Components/SearchInput.vue';
 	import Toast from '@/Components/Toast.vue';
 	import MultiSelect from '@/Components/MultiSelect.vue';
-	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon} from '@heroicons/vue/20/solid';
+	import { ArrowDownTrayIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClockIcon, EllipsisHorizontalCircleIcon, ExclamationCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PlayCircleIcon, ClipboardDocumentCheckIcon, MapPinIcon} from '@heroicons/vue/20/solid';
 	import TableHead from '@/Components/TableHead.vue';
 	import TableData from '@/Components/TableData.vue';
 	import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -1961,9 +1978,11 @@ font-size:13px;
 	const showMapMarkerModal = ref(false)
 	const showPickListModal = ref(false)
 	const showProductAvailabilityModal = ref(false)
+	const showLogModal = ref(false)
 	const statusOptions = ref([])
 	const type = ref('')
 	const vend = ref()
+	const logVend = ref(null)
 
 	const vends = ref(getVendsField())
 	const vendChannelErrorsOptions = ref([])
@@ -2153,6 +2172,16 @@ function onChannelOverviewClicked(vendData) {
 
 function onChannelOverviewClosed() {
 		showChannelOverviewModal.value = false
+}
+
+function openLogModal(vendData) {
+		logVend.value = vendData.vend
+		showLogModal.value = true
+}
+
+function closeLogModal() {
+		showLogModal.value = false
+		logVend.value = null
 }
 
 function onCreateClicked() {

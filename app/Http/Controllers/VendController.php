@@ -128,6 +128,7 @@ class VendController extends Controller
     {
         $this->middleware(['permission:read vend-customers'])->only('indexCustomer');
         $this->middleware(['permission:read machine-view'])->only('index');
+        $this->middleware(['permission:read machine-view|read vend-customers'])->only('logs');
         $this->middleware(['permission:read transactions'])->only('transactionIndex');
         $this->cmsService = $cmsService;
         $this->historyService = $historyService;
@@ -2560,6 +2561,27 @@ class VendController extends Controller
             ),
             'type' => 'update',
             'vend' => $vend,
+        ]);
+    }
+
+    public function logs(Request $request, Vend $vend)
+    {
+        $perPage = (int) $request->input('per_page', 10);
+
+        $logs = $vend->eventLogs()
+            ->select(['id', 'event', 'subject', 'context', 'occurred_at', 'created_at'])
+            ->orderByDesc('occurred_at')
+            ->paginate($perPage > 0 ? $perPage : 10);
+
+        return response()->json([
+            'data' => $logs->items(),
+            'meta' => [
+                'current_page' => $logs->currentPage(),
+                'per_page' => $logs->perPage(),
+                'has_more_pages' => $logs->hasMorePages(),
+                'next_page' => $logs->currentPage() + 1,
+                'total' => $logs->total(),
+            ],
         ]);
     }
 

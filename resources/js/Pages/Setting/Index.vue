@@ -894,6 +894,16 @@
                               </span>
                             </Button>
                           </Link>
+                          <Button
+                            type="button"
+                            class="bg-orange-400 hover:bg-orange-500 px-3 py-2 text-xs text-white flex space-x-1 items-center"
+                            @click="openLogModal(vend)"
+                          >
+                            <ClockIcon class="w-4 h-4" />
+                            <span>
+                                Log
+                            </span>
+                          </Button>
                           <!-- <Link :href="'/settings/vend/' + vend.id + '/parameter'">
                             <Button
                               type="button" class="bg-blue-300 hover:bg-blue-400 px-3 py-2 text-xs text-gray-800 flex space-x-1"
@@ -938,15 +948,17 @@
     </div>
   </div>
   </BreezeAuthenticatedLayout>
+  <VendLogModal :open="historyModalOpen" :vend="historyVend" @close="closeHistoryModal" />
 </template>
 
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import VendLogModal from '@/Components/VendLogModal.vue';
 import Paginator from '@/Components/Paginator.vue';
 import SearchInput from '@/Components/SearchInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
-import { AdjustmentsHorizontalIcon, BackspaceIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import { AdjustmentsHorizontalIcon, BackspaceIcon, ClockIcon, MagnifyingGlassIcon, PencilSquareIcon, PlusIcon, TrashIcon } from '@heroicons/vue/20/solid';
 import SingleSortItem from '@/Components/SingleSortItem.vue';
 import TableHead from '@/Components/TableHead.vue';
 import TableData from '@/Components/TableData.vue';
@@ -1044,6 +1056,8 @@ const filters = ref({
     {id: 'inactive', value: 'Inactive'},
     {id: 'disposed', value: 'Disposed'},
 ])
+const historyModalOpen = ref(false)
+const historyVend = ref(null)
 
 onMounted(() => {
     numberPerPageOptions.value = [
@@ -1202,5 +1216,15 @@ function sortTable(sortKey) {
   filters.value.sortKey = sortKey
   filters.value.sortBy = !filters.value.sortBy
   onSearchFilterUpdated()
+}
+
+function openLogModal(vendItem) {
+  historyVend.value = vendItem
+  historyModalOpen.value = true
+}
+
+function closeHistoryModal() {
+  historyModalOpen.value = false
+  historyVend.value = null
 }
 </script>

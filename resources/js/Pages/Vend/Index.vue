@@ -1417,6 +1417,16 @@
                 </span>
                 </Button>
               </Link>
+              <Button
+                type="button"
+                class="bg-orange-400 hover:bg-orange-500 px-3 py-2 text-xs text-white flex space-x-1 items-center"
+                @click="openLogModal(vend)"
+              >
+                <ClockIcon class="w-4 h-4" />
+                <span>
+                    Log
+                </span>
+              </Button>
             </div>
           </TableData>
         </tr>
@@ -1464,6 +1474,11 @@
   @modalClose="onPickListModalClose"
 >
 </PickList>
+<VendLogModal
+  :open="showLogModal"
+  :vend="logVend"
+  @close="closeLogModal"
+/>
 
 </BreezeAuthenticatedLayout>
 </template>
@@ -1505,15 +1520,16 @@ font-size:13px;
 <script setup>
   import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
   import Button from '@/Components/Button.vue';
-  import ChannelOverview from '@/Pages/Vend/ChannelOverview.vue';
-  import Create from '@/Pages/Vend/Create.vue';
-  import DatePicker from '@/Components/DatePicker.vue';
-  import Form from '@/Pages/Vend/Form.vue';
-  import Paginator from '@/Components/Paginator.vue';
-  import PickList from '@/Pages/Vend/PickList.vue';
+import ChannelOverview from '@/Pages/Vend/ChannelOverview.vue';
+import Create from '@/Pages/Vend/Create.vue';
+import DatePicker from '@/Components/DatePicker.vue';
+import Form from '@/Pages/Vend/Form.vue';
+import Paginator from '@/Components/Paginator.vue';
+import PickList from '@/Pages/Vend/PickList.vue';
   import SearchInput from '@/Components/SearchInput.vue';
-  import MultiSelect from '@/Components/MultiSelect.vue';
-  import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, EllipsisHorizontalCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon, ClipboardDocumentCheckIcon} from '@heroicons/vue/20/solid';
+import MultiSelect from '@/Components/MultiSelect.vue';
+import VendLogModal from '@/Components/VendLogModal.vue';
+import { ArrowDownTrayIcon, ArrowPathIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon, ClockIcon, EllipsisHorizontalCircleIcon, MagnifyingGlassIcon, BackspaceIcon, PencilSquareIcon, ClipboardDocumentCheckIcon} from '@heroicons/vue/20/solid';
   import TableHead from '@/Components/TableHead.vue';
   import TableData from '@/Components/TableData.vue';
   import TableHeadSort from '@/Components/TableHeadSort.vue';
@@ -1622,10 +1638,12 @@ font-size:13px;
   const showCreateModal = ref(false)
   const showEditModal = ref(false)
   const showPickListModal = ref(false)
+  const showLogModal = ref(false)
   const statusOptions = ref([])
   const toast = useToast()
   const type = ref('')
   const vend = ref()
+  const logVend = ref(null)
 
   const vends = ref(getVendsField())
   const vendChannelErrorsOptions = ref([])
@@ -1808,6 +1826,16 @@ function onChannelOverviewClicked(vendData) {
 
 function onChannelOverviewClosed() {
     showChannelOverviewModal.value = false
+}
+
+function openLogModal(vendData) {
+    logVend.value = vendData
+    showLogModal.value = true
+}
+
+function closeLogModal() {
+    showLogModal.value = false
+    logVend.value = null
 }
 
 function onCreateClicked() {
