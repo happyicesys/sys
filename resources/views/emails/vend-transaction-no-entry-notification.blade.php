@@ -35,6 +35,9 @@
                             Last Transaction Time
                         </th>
                         <th align="left" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #475569;">
+                            Triggered Types
+                        </th>
+                        <th align="left" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #475569;">
                             Transaction Types
                         </th>
                         <th align="center" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #475569;">
@@ -45,6 +48,10 @@
                 <tbody>
                     @forelse ($vends as $index => $item)
                         <tr style="{{ $index % 2 === 0 ? 'background-color: #ffffff;' : 'background-color: #f8fafc;' }}">
+                            @php
+                                $transactionTypes = collect($item['transaction_types'] ?? []);
+                                $triggeredTypes = collect($item['triggered_types'] ?? []);
+                            @endphp
                             <td valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
                                 <div style="font-weight: 600;">
                                     {{ $item['code'] ?? '-' }}
@@ -83,21 +90,34 @@
                                 @endif
                             </td>
                             <td valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
-                                @php
-                                    $transactionTypes = collect([
-                                        'Transaction' => $item['last_transaction_at'] ?? null,
-                                        'Cash' => $item['last_cash_vend_transaction_at'] ?? null,
-                                        'Card' => $item['last_card_vend_transaction_at'] ?? null,
-                                        'Cashless' => $item['last_cashless_vend_transaction_at'] ?? null,
-                                    ])->filter();
-                                @endphp
+                                @if ($triggeredTypes->isEmpty())
+                                    <span style="color: #94a3b8;">N/A</span>
+                                @else
+                                    @foreach ($triggeredTypes as $type)
+                                        <div style="font-size: 12px; color: #334155; {{ !$loop->last ? 'margin-bottom: 4px;' : '' }}">
+                                            <span style="font-weight: 600; color: #0f172a;">{{ $type['label'] ?? '-' }}:</span>
+                                            @if (!empty($type['timestamp']))
+                                                {{ \Carbon\Carbon::parse($type['timestamp'])->format('Y-m-d H:i') }}
+                                            @endif
+                                            @if (!empty($type['hours_since']))
+                                                <span style="color: #64748b;">({{ number_format($type['hours_since'], 2) }} hrs)</span>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                @endif
+                            </td>
+                            <td valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
                                 @if ($transactionTypes->isEmpty())
                                     <span style="color: #94a3b8;">N/A</span>
                                 @else
-                                    @foreach ($transactionTypes as $label => $timestamp)
+                                    @foreach ($transactionTypes as $type)
                                         <div style="font-size: 12px; color: #334155; {{ !$loop->last ? 'margin-bottom: 4px;' : '' }}">
-                                            <span style="font-weight: 600; color: #0f172a;">{{ $label }}:</span>
-                                            {{ \Carbon\Carbon::parse($timestamp)->format('Y-m-d H:i') }}
+                                            <span style="font-weight: 600; color: #0f172a;">{{ $type['label'] ?? '-' }}:</span>
+                                            @if (!empty($type['timestamp']))
+                                                {{ \Carbon\Carbon::parse($type['timestamp'])->format('Y-m-d H:i') }}
+                                            @else
+                                                <span style="color: #94a3b8;">N/A</span>
+                                            @endif
                                         </div>
                                     @endforeach
                                 @endif
@@ -114,7 +134,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" align="center" style="padding: 18px; border-bottom: 1px solid #e2e8f0; color: #64748b;">
+                            <td colspan="8" align="center" style="padding: 18px; border-bottom: 1px solid #e2e8f0; color: #64748b;">
                                 No machines met the criteria.
                             </td>
                         </tr>

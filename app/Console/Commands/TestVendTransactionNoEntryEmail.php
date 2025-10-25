@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Mail;
+use App\Support\VendNoTransactionSummary;
 
 class TestVendTransactionNoEntryEmail extends Command
 {
@@ -59,43 +60,8 @@ class TestVendTransactionNoEntryEmail extends Command
         }
 
         $qualified = $vends->map(function (Vend $vend) use ($now, $hoursOverride) {
-            $thresholdHours = $hoursOverride !== null
-                ? (int) $hoursOverride
-                : (int) $vend->noSalesAlertHours();
-
-            if ($thresholdHours <= 0) {
-                return null;
-            }
-
-            $lastTransaction = $vend->last_vend_transaction_at;
-            if (!$lastTransaction) {
-                return null;
-            }
-
-            $diffMinutes = $lastTransaction->diffInMinutes($now);
-            if ($diffMinutes < $thresholdHours * 60) {
-                return null;
-            }
-
-            $hoursSince = round($diffMinutes / 60, 2);
-
-            return [
-                'id' => $vend->id,
-                'code' => $vend->code,
-                'name' => $vend->name,
-                'operator_id' => $vend->operator_id,
-                'vend_prefix_name' => $vend->vendPrefix?->name,
-                'customer' => $vend->customer ? [
-                    'code' => $vend->customer->code,
-                    'name' => $vend->customer->name,
-                ] : null,
-                'threshold_hours' => $thresholdHours,
-                'hours_since_last_transaction' => $hoursSince,
-                'last_transaction_at' => $lastTransaction?->toIso8601String(),
-                'last_cash_vend_transaction_at' => $vend->last_cash_vend_transaction_at?->toIso8601String(),
-                'last_card_vend_transaction_at' => $vend->last_card_vend_transaction_at?->toIso8601String(),
-                'last_cashless_vend_transaction_at' => $vend->last_cashless_vend_transaction_at?->toIso8601String(),
-            ];
+            $override = $hoursOverride !== null ? (int) $hoursOverride : null;
+            return VendNoTransactionSummary::fromVend($vend, $now, $override);
         })->filter();
 
         if ($qualified->isEmpty()) {
