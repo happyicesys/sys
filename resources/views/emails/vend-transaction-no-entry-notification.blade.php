@@ -34,6 +34,9 @@
                         <th align="center" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #475569;">
                             Last Transaction Time
                         </th>
+                        <th align="left" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #475569;">
+                            Transaction Types
+                        </th>
                         <th align="center" style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #475569;">
                             Link
                         </th>
@@ -45,9 +48,9 @@
                             <td valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
                                 <div style="font-weight: 600;">
                                     {{ $item['code'] ?? '-' }}
-                                    @if (!empty($item['vend_prefix_name']))
+                                    {{-- @if (!empty($item['vend_prefix_name']))
                                         <span style="font-size: 12px; color: #64748b;">({{ $item['vend_prefix_name'] }})</span>
-                                    @endif
+                                    @endif --}}
                                 </div>
                             </td>
                             <td valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
@@ -79,9 +82,29 @@
                                     <span style="color: #94a3b8;">N/A</span>
                                 @endif
                             </td>
+                            <td valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
+                                @php
+                                    $transactionTypes = collect([
+                                        'Transaction' => $item['last_transaction_at'] ?? null,
+                                        'Cash' => $item['last_cash_vend_transaction_at'] ?? null,
+                                        'Card' => $item['last_card_vend_transaction_at'] ?? null,
+                                        'Cashless' => $item['last_cashless_vend_transaction_at'] ?? null,
+                                    ])->filter();
+                                @endphp
+                                @if ($transactionTypes->isEmpty())
+                                    <span style="color: #94a3b8;">N/A</span>
+                                @else
+                                    @foreach ($transactionTypes as $label => $timestamp)
+                                        <div style="font-size: 12px; color: #334155; {{ !$loop->last ? 'margin-bottom: 4px;' : '' }}">
+                                            <span style="font-weight: 600; color: #0f172a;">{{ $label }}:</span>
+                                            {{ \Carbon\Carbon::parse($timestamp)->format('Y-m-d H:i') }}
+                                        </div>
+                                    @endforeach
+                                @endif
+                            </td>
                             <td align="center" valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
                                 @if (!empty($item['code']))
-                                    <a href="{{ $baseUrl }}/vends/customers?codes={{ $item['code'] }}" style="color: #1d4ed8; text-decoration: none; font-weight: 600;">
+                                    <a href="{{ $baseUrl }}/vends/customers?operators=all&codes={{ $item['code'] }}" style="color: #1d4ed8; text-decoration: none; font-weight: 600;">
                                         View
                                     </a>
                                 @else
@@ -91,7 +114,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" align="center" style="padding: 18px; border-bottom: 1px solid #e2e8f0; color: #64748b;">
+                            <td colspan="7" align="center" style="padding: 18px; border-bottom: 1px solid #e2e8f0; color: #64748b;">
                                 No machines met the criteria.
                             </td>
                         </tr>

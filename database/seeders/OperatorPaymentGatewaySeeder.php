@@ -24,7 +24,6 @@ class OperatorPaymentGatewaySeeder extends Seeder
         $fiuuGateway = PaymentGateway::firstOrCreate([
             'name' => 'fiuu',
         ], [
-            'classname' => '\\App\\Models\\PaymentGateways\\Fiuu',
             'remarks' => 'Fiuu hosted payment gateway',
             'key1_name' => 'merchant_id',
             'key2_name' => 'verify_key',

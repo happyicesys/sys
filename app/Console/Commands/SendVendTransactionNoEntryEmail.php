@@ -71,6 +71,9 @@ class SendVendTransactionNoEntryEmail extends Command
                 'threshold_hours' => $thresholdHours,
                 'hours_since_last_transaction' => $hoursSince,
                 'last_transaction_at' => $lastTransaction?->toIso8601String(),
+                'last_cash_vend_transaction_at' => $vend->last_cash_vend_transaction_at?->toIso8601String(),
+                'last_card_vend_transaction_at' => $vend->last_card_vend_transaction_at?->toIso8601String(),
+                'last_cashless_vend_transaction_at' => $vend->last_cashless_vend_transaction_at?->toIso8601String(),
             ];
         })->filter();
 

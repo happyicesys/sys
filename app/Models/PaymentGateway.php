@@ -11,7 +11,6 @@ class PaymentGateway extends Model
 
     protected $fillable = [
         'name',
-        'classname',
         'country_id',
         'default_payment_method_id',
         'remarks',

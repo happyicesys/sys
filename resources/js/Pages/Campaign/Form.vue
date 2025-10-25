@@ -134,7 +134,7 @@
             </div>
             <div class="sm:col-span-3" v-if="showValueField">
               <FormInput v-model="form.value" :error="form.errors.value" inputType="number" placeholderStr="Discount value">
-                Value X
+                {{ valueFieldLabel }}
               </FormInput>
             </div>
             <div class="sm:col-span-3">
@@ -252,6 +252,7 @@ const selectedIsUsingQty = computed(() => {
 })
 const showBundleQtyField = computed(() => selectedIsUsingQty.value === 'qty' || selectedIsUsingQty.value === 'both')
 const showValueField = computed(() => !isFreeItemPromo.value)
+const valueFieldLabel = computed(() => getValueFieldLabel(form.value.promo_type))
 
 watch(
   () => form.value.promo_type,
@@ -477,6 +478,28 @@ function getDefaultForm() {
     end_at: '',
     remarks: '',
   }
+}
+
+function getValueFieldLabel(promoType) {
+  const promoId = typeof promoType === 'object'
+    ? promoType?.id ?? promoType?.value ?? null
+    : promoType ?? null
+
+  const promoName = typeof promoType === 'object'
+    ? promoType?.name ?? promoType?.label ?? null
+    : promoType ?? null
+
+  const normalized = (promoId ?? promoName ?? '').toString().toLowerCase()
+
+  if (normalized.includes('percent')) {
+    return 'Discount Percent Value (%)'
+  }
+
+  if (normalized.includes('amount')) {
+    return 'Discount Amount Value ($)'
+  }
+
+  return 'Discount Value'
 }
 
 function submit() {
