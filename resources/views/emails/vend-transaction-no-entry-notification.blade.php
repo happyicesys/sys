@@ -124,7 +124,7 @@
                             </td>
                             <td align="center" valign="top" style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
                                 @if (!empty($item['code']))
-                                    <a href="{{ $baseUrl }}/vends/customers?operators=all&codes={{ $item['code'] }}" style="color: #1d4ed8; text-decoration: none; font-weight: 600;">
+                                    <a href="{{ $baseUrl }}/vends/customers?operators[]=all&codes={{ $item['code'] }}" style="color: #1d4ed8; text-decoration: none; font-weight: 600;">
                                         View
                                     </a>
                                 @else
