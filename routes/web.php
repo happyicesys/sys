@@ -570,6 +570,7 @@ Route::middleware(['auth', 'cors'])->group(function() {
         Route::post('/{id}/unbind-customer/{returnUrl?}', [VendController::class, 'unbindCustomer']);
         Route::post('/{id}/unbind-customer-deactivate/{returnUrl?}', [VendController::class, 'unbindCustomerDeactivate']);
         Route::post('/pick-lists', [VendController::class, 'pickLists']);
+        Route::post('/{id}/promote-upcoming-product-mapping', [VendController::class, 'promoteUpcomingProductMapping']);
         Route::post('/{id}/replace-product-mapping', [VendController::class, 'replaceProductMapping']);
         Route::post('/{id}/upload-attachments', [VendController::class, 'uploadAttachment']);
     });

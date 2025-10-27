@@ -14,6 +14,17 @@ class VendPrefixResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $upcomingProductMappingsUnique = collect();
+
+        if ($this->relationLoaded('productMappings')) {
+            $upcomingProductMappingsUnique = $this->productMappings
+                ->flatMap(function ($productMapping) {
+                    return $productMapping->upcomingProductMappings;
+                })
+                ->unique('id')
+                ->values();
+        }
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -22,6 +33,7 @@ class VendPrefixResource extends JsonResource
             'operator_id' => $this->operator_id,
             'productMappings' => ProductMappingResource::collection($this->whenLoaded('productMappings')),
             'product_mapping_id' => $this->product_mapping_id,
+            'upcomingProductMappingsUnique' => ProductMappingResource::collection($upcomingProductMappingsUnique),
             'vendConfigs' => VendConfigResource::collection($this->whenLoaded('vendConfigs')),
             // 'vend_config_id' => $this->vend_config_id,
         ];

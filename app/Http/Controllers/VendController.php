@@ -2651,6 +2651,26 @@ class VendController extends Controller
         return redirect()->back();
     }
 
+    public function promoteUpcomingProductMapping(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'upcoming_product_mapping_id' => ['required', 'integer', 'exists:product_mappings,id'],
+        ]);
+
+        $vend = Vend::with('vendPrefix')->findOrFail($id);
+        $vend->product_mapping_id = $validated['upcoming_product_mapping_id'];
+        $vend->upcoming_product_mapping_id = null;
+        $vend->save();
+
+        if ($vend->vendPrefix) {
+            $vend->vendPrefix
+                ->productMappings()
+                ->syncWithoutDetaching([$validated['upcoming_product_mapping_id']]);
+        }
+
+        return redirect()->back();
+    }
+
     public function updateDCVendsCountries($operatorCode)
     {
 

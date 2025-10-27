@@ -250,12 +250,13 @@
                     inputClass="text-center"
                   >
                     <div class="flex flex-col space-y-1">
-                      <span v-for="productMapping in vendPrefix.productMappings" :key="productMapping.id">
+                      <span
+                        v-for="upcomingProductMapping in uniqueUpcomingProductMappings(vendPrefix)"
+                        :key="upcomingProductMapping.id"
+                      >
                         <a
-                          v-for="upcomingProductMapping in productMapping.upcomingProductMappings"
-                          :key="upcomingProductMapping.id"
                           :href="'/product-mappings/' + upcomingProductMapping.id + '/edit'"
-                          class="text-blue-600 flex flex-col space-y-1"
+                          class="text-blue-600"
                           target="_blank"
                         >
                           {{ upcomingProductMapping.name }}
@@ -498,9 +499,48 @@ function onModalClose() {
   showModal.value = false;
 }
 
+function normalizeCollection(collection) {
+  if (Array.isArray(collection)) {
+    return collection;
+  }
+
+  if (collection && Array.isArray(collection.data)) {
+    return collection.data;
+  }
+
+  return [];
+}
+
+function uniqueUpcomingProductMappings(vendPrefix) {
+  const normalizedUpcoming = normalizeCollection(
+    vendPrefix?.upcomingProductMappingsUnique
+  );
+  if (normalizedUpcoming.length) {
+    return normalizedUpcoming;
+  }
+
+  const uniques = [];
+  const seen = new Set();
+
+  normalizeCollection(vendPrefix?.productMappings).forEach((productMapping) => {
+    normalizeCollection(productMapping?.upcomingProductMappings).forEach(
+      (upcoming) => {
+        const id = upcoming?.id;
+        if (!id || seen.has(id)) {
+          return;
+        }
+        seen.add(id);
+        uniques.push(upcoming);
+      }
+    );
+  });
+
+  return uniques;
+}
+
 function upcomingProductMappingIds(vendPrefix) {
-  return vendPrefix.productMappings.reduce((ids, productMapping) => {
-    const upcomingIds = productMapping.upcomingProductMappings.map(
+  return normalizeCollection(vendPrefix?.productMappings).reduce((ids, productMapping) => {
+    const upcomingIds = normalizeCollection(productMapping?.upcomingProductMappings).map(
       (upcoming) => upcoming.id
     );
     return ids.concat(upcomingIds);
@@ -509,7 +549,7 @@ function upcomingProductMappingIds(vendPrefix) {
 
 function filteredProductMappings(vendPrefix) {
   const upcomingIds = upcomingProductMappingIds(vendPrefix);
-  return vendPrefix.productMappings.filter(
+  return normalizeCollection(vendPrefix?.productMappings).filter(
     (productMapping) => !upcomingIds.includes(productMapping.id)
   );
 }

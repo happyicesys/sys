@@ -626,6 +626,22 @@
                 <div class="text-sm text-red-600" v-if="form.errors.upcoming_product_mapping_id">
                   {{ form.errors.upcoming_product_mapping_id }}
                 </div>
+                <div class="flex justify-end mt-2" v-if="showPromoteUpcoming">
+                  <Button
+                    type="button"
+                    :class="[
+                      'bg-blue-500 hover:bg-blue-600 text-white flex space-x-1',
+                      isPromoting ? 'opacity-50 cursor-not-allowed' : '',
+                    ]"
+                    :disabled="isPromoting"
+                    @click.prevent="promoteUpcomingProductMapping"
+                  >
+                    <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
+                    <span>
+                      Update Product Mapping
+                    </span>
+                  </Button>
+                </div>
             </div>
 
             <!-- Vend Channels Section -->
@@ -637,8 +653,8 @@
                         <thead class="bg-gray-50">
                           <tr>
                             <th scope="col" class="w-1/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900"> # </th>
-                            <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_id"> Image </th>
-                            <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="vend.product_mapping_id"> Product </th>
+                            <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="form.product_mapping_id"> Image </th>
+                            <th scope="col" class="w-3/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900" v-if="form.product_mapping_id"> Product </th>
                             <th scope="col" class="w-2/12 px-3 py-3.5 text-center text-xs font-semibold text-gray-900">
                               <div class="flex justify-center">
                                 <span> P1 </span>
@@ -663,12 +679,12 @@
                         <tbody class="bg-white">
                           <tr v-for="(channel, channelIndex) in vendChannels" :key="channel.id" :class="channelIndex % 2 === 0 ? undefined : 'bg-gray-50'">
                             <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold sm:pl-6 text-center text-gray-900"> {{ channel.code }} </td>
-                            <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center" v-if="vend.product_mapping_id">
+                            <td class="whitespace-nowrap text-sm  font-semibold text-gray-900 text-center" v-if="form.product_mapping_id">
                               <div class="flex justify-center items-center">
                                 <img class="h-16 w-16 rounded-full" :src="channel.product.thumbnail.full_url" alt="" v-if="channel.product && channel.product.thumbnail"/>
                               </div>
                             </td>
-                            <td class="py-4 text-sm font-semibold text-center text-gray-900" v-if="vend.product_mapping_id">
+                            <td class="py-4 text-sm font-semibold text-center text-gray-900" v-if="form.product_mapping_id">
                               <span v-if="channel.product && channel.product.code"> {{ channel.product.code }} </span>
                               <span class="break-normal text-xs" v-if="channel.product && channel.product.name"> <br> {{ channel.product.name }} </span>
                             </td>
@@ -715,7 +731,7 @@
                 <Button
                   type="button"
                   class="bg-blue-500 hover:bg-blue-600 text-white flex space-x-1"
-                  v-if="permissions.includes('update vend-settings') && vend.upcoming_product_mapping_id"
+                  v-if="permissions.includes('update vend-settings') && form.upcoming_product_mapping_id"
                   @click.prevent="replaceProductMapping(vend.id)"
                 >
                   <ArrowPathIcon class="w-4 h-4"></ArrowPathIcon>
@@ -1162,7 +1178,7 @@ import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
 import { useToast } from "vue-toastification";
@@ -1242,6 +1258,18 @@ const vendModelOptions = ref([])
 const vendPrefixOptions = ref([])
 const vendSerialNumberOptions = ref([])
 const versionOptions = ref([])
+const isPromoting = ref(false)
+
+const showPromoteUpcoming = computed(() => {
+  const upcomingId = form.value?.upcoming_product_mapping_id?.id
+  const currentId = form.value?.product_mapping_id?.id
+
+  if (upcomingId === undefined || upcomingId === null || upcomingId === '') {
+    return false
+  }
+
+  return String(upcomingId) !== String(currentId ?? '')
+})
 
 function getDefaultForm() {
   return {
@@ -1415,7 +1443,7 @@ onMounted(() => {
     status: statusOptions.value.find(status => status.id == (props.vend.is_disposed == 1 ? 'disposed' : (props.vend.is_testing == 1 ? 'factory' : props.vend.is_active == 1 ? 'active' : 'inactive'))),
     operator_id: props.vend ? props.vend.operator_id ? operatorOptions.value.find(operator => operator.id == props.vend.operator_id) : null : null,
     trigger_log_date: moment().format('YYYY-MM-DD'),
-    upcoming_product_mapping_id: props.vend.upcoming_product_mapping_id ? upcomingProductMappingOptions.value.find(upcomingProductMapping => upcomingProductMapping.id === props.vend.upcoming_product_mapping_id) : upcomingProductMappingOptions.value[1],
+    upcoming_product_mapping_id: computeUpcomingSelection(props.vend.upcoming_product_mapping_id),
     vend_config_id: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id) : null : null,
     vend_config_version: props.vend ? props.vend.vend_config_id ? vendConfigOptions.value.find(vendConfig => vendConfig.id == props.vend.vend_config_id).version : null : null,
     vend_contract_id: props.vend ? props.vend.vend_contract_id ? vendContractOptions.value.find(vendContract => vendContract.id == props.vend.vend_contract_id) : null : null,
@@ -1474,6 +1502,31 @@ function formatDatetime(datetime) {
   return datetime ? moment(datetime).format('YYYY-MM-DD hh:mm a') : ''
 }
 
+function computeUpcomingSelection(existingId = null) {
+  const normalizedId = existingId ? existingId : null
+  if (normalizedId) {
+    const matched = upcomingProductMappingOptions.value.find(
+      (option) => option.id === normalizedId
+    )
+    if (matched) {
+      return matched
+    }
+  }
+
+  const available = upcomingProductMappingOptions.value.filter((option) => option.id)
+
+  if (available.length === 1) {
+    return available[0]
+  }
+
+  return null
+}
+
+function refreshUpcomingSelection() {
+  const currentId = form.value.upcoming_product_mapping_id?.id || null
+  form.value.upcoming_product_mapping_id = computeUpcomingSelection(currentId)
+}
+
 function onVendConfigSelected() {
   form.value.vend_prefix_id = ''
   form.value.product_mapping_id = ''
@@ -1487,8 +1540,21 @@ function onVendConfigSelected() {
     replace: true,
     preserveState: true,
     onSuccess: page => {
-      vendPrefixOptions.value = props.vendPrefixOptions.data
-      productMappingOptions.value = props.productMappingOptions.data
+      vendPrefixOptions.value = page.props.vendPrefixOptions
+        ? [
+            { id: '', name: '--- Clear ---'},
+            ...page.props.vendPrefixOptions.data,
+          ]
+        : []
+      productMappingOptions.value = [
+        { id: '', name: '--- Clear ---'},
+        ...page.props.productMappingOptions.data,
+      ]
+      upcomingProductMappingOptions.value = [
+        { id: '', name: '--- Clear ---'},
+        ...page.props.upcomingProductMappingOptions.data,
+      ]
+      refreshUpcomingSelection()
     }
   })
 }
@@ -1504,8 +1570,85 @@ function onVendPrefixSelected() {
     replace: true,
     preserveState: true,
     onSuccess: page => {
-      productMappingOptions.value = props.productMappingOptions.data
+      productMappingOptions.value = [
+        { id: '', name: '--- Clear ---'},
+        ...page.props.productMappingOptions.data,
+      ]
+      upcomingProductMappingOptions.value = [
+        { id: '', name: '--- Clear ---'},
+        ...page.props.upcomingProductMappingOptions.data,
+      ]
+      refreshUpcomingSelection()
     }
+  })
+}
+
+function promoteUpcomingProductMapping() {
+  const upcomingSelection = form.value.upcoming_product_mapping_id
+
+  if (isPromoting.value || !upcomingSelection || !upcomingSelection.id) {
+    return
+  }
+
+  const approval = confirm('Are you sure you want to update the current product mapping to the selected upcoming product mapping?')
+  if (!approval) {
+    return
+  }
+
+  const upcomingId = upcomingSelection.id
+  const upcomingName = upcomingSelection.name || upcomingSelection.value || ''
+
+  isPromoting.value = true
+
+  router.post('/vends/' + form.value.id + '/promote-upcoming-product-mapping', {
+    upcoming_product_mapping_id: upcomingId,
+  }, {
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+    onSuccess: () => {
+      if (!productMappingOptions.value.some((option) => String(option.id) === String(upcomingId))) {
+        productMappingOptions.value.push({
+          id: upcomingId,
+          name: upcomingName,
+        })
+      }
+
+      const matchedCurrentOption = productMappingOptions.value.find(
+        (option) => String(option.id) === String(upcomingId)
+      )
+
+      if (matchedCurrentOption) {
+        form.value.product_mapping_id = matchedCurrentOption
+      } else {
+        form.value.product_mapping_id = {
+          id: upcomingId,
+          name: upcomingName,
+        }
+      }
+
+      form.value.upcoming_product_mapping_id = null
+      upcomingProductMappingOptions.value = upcomingProductMappingOptions.value.filter((option) => {
+        if (!option.id) {
+          return true
+        }
+        return String(option.id) !== String(upcomingId)
+      })
+
+      refreshUpcomingSelection()
+
+      toast.success('Product mapping updated successfully.', {
+        timeout: 3000,
+      })
+    },
+    onError: () => {
+      toast.error('Failed to update product mapping. Please try again.', {
+        timeout: 3000,
+      })
+    },
+    onFinish: () => {
+      isPromoting.value = false
+    },
   })
 }
 

@@ -282,15 +282,6 @@ class ProductMappingController extends Controller
         return Inertia::render('ProductMapping/Edit', [
             'priceTypeOptions' => SellingPrice::TYPE_MAPPINGS,
             'productMapping'   => ProductMappingResource::make($productMapping),
-            'upcomingProductMappingOptions' => ProductMappingResource::collection(
-                ProductMapping::query()
-                    ->whereHas('vendPrefixes', function($query) use ($productMapping) {
-                        $query->whereIn('vend_prefix_id', $productMapping->vendPrefixes->pluck('id'));
-                    })
-                    ->where('id', '!=', $id)
-                    ->orderBy('name')
-                    ->get()
-            ),
             'products' => ProductResource::collection(
                 Product::with(['thumbnail'])
                     ->where('is_inventory', true)
@@ -315,8 +306,6 @@ class ProductMappingController extends Controller
         // ]);
         $productMapping = ProductMapping::findOrFail($productMappingId);
         $productMapping->fill($request->all());
-
-        $productMapping->upcomingProductMappings()->sync($request->upcomingProductMappings);
 
         if($request->productMappingItems) {
            $productMapping->productMappingItems()->delete();

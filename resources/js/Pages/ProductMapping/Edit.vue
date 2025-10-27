@@ -38,27 +38,6 @@
                   </FormInput>
                 </div>
                 <div class="sm:col-span-6">
-                  <label for="text" class="flex justify-start text-sm font-medium text-gray-700">
-                    Upcoming Product Mapping(s)
-                  </label>
-                  <MultiSelect
-                    v-model="form.upcomingProductMappings"
-                    :options="upcomingProductMappingOptions"
-                    trackBy="id"
-                    valueProp="id"
-                    label="value"
-                    placeholder="Select"
-                    open-direction="bottom"
-                    mode="tags"
-                    class="mt-1"
-                  >
-                  </MultiSelect>
-                  <div class="text-sm text-red-600" v-if="form.errors.upcomingProductMappings">
-                    {{ form.errors.upcomingProductMappings }}
-                  </div>
-                </div>
-
-                <div class="sm:col-span-6">
                   <FormTextarea v-model="form.remarks" :error="form.errors.remarks">
                     Remarks
                   </FormTextarea>
@@ -356,7 +335,6 @@ const props = defineProps({
   priceTypeOptions: Object,
   products: Object,
   productMapping: Object,
-  upcomingProductMappingOptions: Object,
 })
 
 const emit = defineEmits(['modalClose'])
@@ -369,7 +347,6 @@ const priceTypeOptions = ref([])
 const productOptions = ref([])
 const productMappingItems = ref([])
 const toast = useToast()
-const upcomingProductMappingOptions = ref([])
 
 onMounted(() => {
 
@@ -382,8 +359,6 @@ onMounted(() => {
   productMappingItems.value = props.productMapping
   ? JSON.parse(JSON.stringify(props.productMapping.data.productMappingItems))
   : []
-  upcomingProductMappingOptions.value = props.upcomingProductMappingOptions.data.map((data) => ({ id: data.id, value: data.name }));
-
   form.value = props.productMapping ? useForm({
     ...props.productMapping.data,
     // selling_price_type: priceTypeOptions.value.find((data) => data.id == props.productMapping.data.selling_price_type),
@@ -406,7 +381,6 @@ function getDefaultForm() {
     sequence: '',
     sortKey: '',
     sortBy: false,
-    upcomingProductMappings: [],
   }
 }
 
@@ -444,7 +418,6 @@ function submit() {
       productMappingItems: productMappingItems.value.map((item) => ({
         ...item,
       })),
-      upcomingProductMappings: JSON.parse(JSON.stringify(form.value.upcomingProductMappings)).map((data) => data.id),
       is_active: data.is_active.id,
     }))
     .post('/product-mappings/' + form.value.id + '/update', {

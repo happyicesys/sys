@@ -135,9 +135,12 @@ class VendPrefixController extends Controller
             $vendPrefix->productMappings()->sync($productMappingIds);
         }
 
-        $upcomingProductMappingId = (int) $request->input('upcomingProductMapping');
+        $upcomingProductMappingIds = array_values(array_unique(array_filter(
+            array_map('intval', (array) $request->input('upcomingProductMappings', [])),
+            fn ($id) => $id > 0
+        )));
 
-        $this->syncUpcomingProductMapping($productMappingIds, $upcomingProductMappingId);
+        $this->syncUpcomingProductMappings($productMappingIds, $upcomingProductMappingIds);
 
         return redirect()->route('vend-prefixes');
     }
@@ -161,14 +164,17 @@ class VendPrefixController extends Controller
 
         $model->productMappings()->sync($productMappingIds);
 
-        $upcomingProductMappingId = (int) $request->input('upcomingProductMapping');
+        $upcomingProductMappingIds = array_values(array_unique(array_filter(
+            array_map('intval', (array) $request->input('upcomingProductMappings', [])),
+            fn ($id) => $id > 0
+        )));
 
-        $this->syncUpcomingProductMapping($productMappingIds, $upcomingProductMappingId);
+        $this->syncUpcomingProductMappings($productMappingIds, $upcomingProductMappingIds);
 
         $removedProductMappings = array_diff($existingProductMappingIds, $productMappingIds);
 
         if ($removedProductMappings) {
-            $this->syncUpcomingProductMapping($removedProductMappings, null);
+            $this->syncUpcomingProductMappings($removedProductMappings, []);
         }
 
         // validate if product mapping is no longer in vend prefix, unmap the product mapping id of vend
@@ -197,7 +203,7 @@ class VendPrefixController extends Controller
         return redirect()->route('vend-prefixes');
     }
 
-    protected function syncUpcomingProductMapping(array $productMappingIds, ?int $upcomingProductMappingId): void
+    protected function syncUpcomingProductMappings(array $productMappingIds, array $upcomingProductMappingIds): void
     {
         $productMappingIds = array_filter(
             array_map('intval', $productMappingIds),
@@ -211,11 +217,7 @@ class VendPrefixController extends Controller
                 continue;
             }
 
-            $syncIds = $upcomingProductMappingId && $upcomingProductMappingId > 0
-                ? [$upcomingProductMappingId]
-                : [];
-
-            $productMapping->upcomingProductMappings()->sync($syncIds);
+            $productMapping->upcomingProductMappings()->sync($upcomingProductMappingIds);
         }
     }
 }
