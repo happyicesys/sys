@@ -115,8 +115,9 @@ class DatabaseSeeder extends Seeder
             // SyncCustomerVendBindingsFromVendsSeeder::class
             // BindAdminSuperusersToAllOperatorsSeeder::class,
             // DeliveryPlatformRefNumberSeeder::class,
-            OperatorPaymentGatewaySeeder::class,
+            // OperatorPaymentGatewaySeeder::class,
             // CampaignSeeder::class,
+            VendTempMetricsBackfillSeeder::class,
         ]);
     }
 }

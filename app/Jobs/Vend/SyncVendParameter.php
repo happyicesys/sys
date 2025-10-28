@@ -2,6 +2,7 @@
 
 namespace App\Jobs\Vend;
 
+use App\Jobs\Vend\AnalyzeVendTempWithAi;
 use App\Models\Vend;
 use App\Models\VendFan;
 use App\Models\VendTemp;
@@ -65,6 +66,11 @@ class SyncVendParameter implements ShouldQueue
 
             if(isset($input['TEMP'])) {
                 $temp = $input['TEMP'];
+                $snapshot = [
+                    't2' => $input['t2'] ?? null,
+                    't3' => $input['t3'] ?? null,
+                    't4' => $input['t4'] ?? null,
+                ];
 
                 if($temp == VendTemp::TEMPERATURE_ERROR) {
                     $vend->is_temp_error = true;
@@ -104,6 +110,8 @@ class SyncVendParameter implements ShouldQueue
                     if(isset($input['t2'])) {
                         $this->vendTempService->runVendTempAlert($temp, $input['t2']);
                     }
+
+                    $this->dispatchAiAnalysis($vend, $createdTemp->id, $snapshot);
                 }
             }
             $vend->temp_updated_at = Carbon::now();
@@ -115,5 +123,16 @@ class SyncVendParameter implements ShouldQueue
     {
         $vend->parameter_json = $input;
         $vend->save();
+    }
+
+    private function dispatchAiAnalysis(Vend $vend, int $latestTempId, array $snapshot = []): void
+    {
+        $aiService = app(\App\Services\VendTempAiService::class);
+
+        if (!$aiService->isEnabled()) {
+            return;
+        }
+
+        AnalyzeVendTempWithAi::dispatch($vend->id, $latestTempId, $snapshot)->onQueue('default');
     }
 }

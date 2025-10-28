@@ -31,4 +31,15 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'base_uri' => env('OPENAI_BASE_URI', 'https://api.openai.com/v1'),
+        'vend_temp' => [
+            'enabled' => env('VEND_TEMP_AI_ENABLED', false),
+            'model' => env('VEND_TEMP_AI_MODEL', 'gpt-4o-mini'),
+            'window_minutes' => env('VEND_TEMP_AI_WINDOW_MINUTES', 45),
+            'max_samples' => env('VEND_TEMP_AI_MAX_SAMPLES', 30),
+        ],
+    ],
+
 ];
