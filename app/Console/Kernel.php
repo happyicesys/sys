@@ -33,6 +33,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('telescope:prune --hours=48')->dailyAt('01:00');
         $schedule->command('save:today-stock-count')->dailyAt('23:59');
         $schedule->command('vend-temp:compute-metrics')->dailyAt('00:20');
+        $schedule->command('gp:compute-metrics')->dailyAt('00:40');
         // $schedule->command('release:voucher-lock-every-2-mins')->everyMinute();
     }
 

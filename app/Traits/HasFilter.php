@@ -178,6 +178,98 @@ trait HasFilter {
         return $query;
     }
 
+    public function filterGpMetricsReport($query, $request, string $locationTypeColumn = 'gm.transaction_location_type_id')
+    {
+        $query->when($request->has('visited'), function ($query) use ($request) {
+            if ($request->visited == 'true') {
+                $query->whereRaw('1 = 1');
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        })
+        ->when($request->categories, function ($query, $search) {
+            $query->whereIn('gm.category_id', $search);
+        })
+        ->when($request->categoryGroups, function ($query, $search) {
+            $query->whereIn('gm.category_group_id', $search);
+        })
+        ->when($request->codes, function ($query, $search) {
+            if (strpos($search, ',') !== false) {
+                $codes = array_filter(array_map('trim', explode(',', $search)));
+                if (!empty($codes)) {
+                    $query->whereIn('vends.code', $codes);
+                }
+            } else {
+                $query->where('vends.code', 'LIKE', "{$search}%");
+            }
+        })
+        ->when($request->customer_code, function ($query, $search) {
+            $query->where('customers.code', 'LIKE', "%{$search}%");
+        })
+        ->when($request->customer_name, function ($query, $search) {
+            $query->where(function ($subQuery) use ($search) {
+                $subQuery->where('customers.name', 'LIKE', "%{$search}%")
+                    ->orWhere('vends.name', 'LIKE', "%{$search}%");
+            });
+        })
+        ->when($request->customer, function ($query, $search) {
+            $query->where(function ($subQuery) use ($search) {
+                $subQuery->where('customers.virtual_customer_code', 'LIKE', "{$search}%")
+                    ->orWhere('vend_prefixes.name', 'LIKE', "{$search}%")
+                    ->orWhere('customers.name', 'LIKE', "%{$search}%");
+            });
+        })
+        ->when($request->is_binded_customer, function ($query, $search) {
+            if ($search != 'all') {
+                if ($search == 'true') {
+                    $query->where('gm.is_binded_customer', true);
+                } else {
+                    $query->where('gm.is_binded_customer', false);
+                }
+            }
+        })
+        ->when($request->location_type_id, function ($query, $search) use ($locationTypeColumn) {
+            if ($search != 'all') {
+                $query->where($locationTypeColumn, $search);
+            }
+        })
+        ->when($request->operators, function ($query, $search) {
+            if (is_array($search) && !in_array('all', $search, true)) {
+                $query->whereIn('gm.operator_id', $search);
+            }
+        })
+        ->when($request->product_code, function ($query, $search) {
+            $query->where('products.code', 'LIKE', "%{$search}%");
+        })
+        ->when($request->product_name, function ($query, $search) {
+            $query->where('products.name', 'LIKE', "%{$search}%");
+        })
+        ->when($request->vendContracts, function ($query, $search) {
+            if (is_array($search) && !in_array('all', $search, true)) {
+                $query->whereIn('gm.vend_contract_id', $search);
+            }
+        })
+        ->when($request->vendModels, function ($query, $search) {
+            if (is_array($search) && !in_array('all', $search, true)) {
+                $query->whereIn('gm.vend_model_id', $search);
+            }
+        })
+        ->when($request->vendPrefixes, function ($query, $search) {
+            if (is_array($search) && !in_array('all', $search, true)) {
+                if (in_array('single-ud', $search, true)) {
+                    $search = array_unique(array_merge($search, [56, 57, 58, 60, 63, 64, 76, 83]));
+                    $index = array_search('single-ud', $search, true);
+                    if ($index !== false) {
+                        unset($search[$index]);
+                    }
+                }
+                $query->whereIn('gm.vend_prefix_id', $search);
+            }
+        });
+
+        return $query;
+    }
+
     public function filterVendsDB($query, $request)
     {
         $request->merge([
