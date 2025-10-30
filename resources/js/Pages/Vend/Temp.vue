@@ -23,6 +23,23 @@
       <!-- <div class="py-5"> -->
       <!-- <div class="max-w-10xl mx-auto sm:px-6 lg:px-8"> -->
       <div class="p-4 sm:px-6 lg:px-8">
+          <div class="pl-1 pb-4 w-full md:w-96">
+              <label class="block text-sm font-medium text-gray-700">
+                  Machine
+              </label>
+              <MultiSelect
+                  v-model="selectedVendOption"
+                  :options="vendSelectionOptions"
+                  valueProp="id"
+                  label="label"
+                  placeholder="Search by code, customer, or ref ID"
+                  open-direction="bottom"
+                  class="mt-1"
+                  :can-clear="false"
+                  @selected="onVendSelected"
+              >
+              </MultiSelect>
+          </div>
           <div class="flex flex-col items-start pl-1">
               <h2 class="font-semibold text-md md:text-lg text-gray-700 leading-tight" v-if="vend.customer_code">
                   <span v-if="vend.virtual_customer_prefix && vend.virtual_customer_code">
@@ -238,10 +255,11 @@
 <script setup>
 import BreezeAuthenticatedLayout from '@/Layouts/Authenticated.vue';
 import Button from '@/Components/Button.vue';
+import MultiSelect from '@/Components/MultiSelect.vue';
 import DatetimePicker from '@/Components/DatetimePicker.vue';
 import Graph from '@/Components/Graph.vue';
 import { ArrowDownTrayIcon, ArrowUturnLeftIcon } from '@heroicons/vue/20/solid'
-import { ref, onBeforeMount, watch } from 'vue';
+import { computed, ref, onBeforeMount, watch } from 'vue';
 import { Head, router, usePage, usePoll } from '@inertiajs/vue3';
 import moment from 'moment';
 
@@ -258,6 +276,7 @@ fans: [String, Object, Array],
 vendObj: Object,
 vendTempsObj: Object,
 vendFansObj: Object,
+vendOptions: [Array, Object],
 });
 
 // usePoll(2000, {
@@ -276,6 +295,25 @@ const labels = ref([])
 const datasets = ref([])
 const permissions = usePage().props.auth.permissions
 const vend = ref(props.vendObj.data)
+const selectedVendOption = ref(null);
+const vendSelectionOptions = computed(() => {
+  return (props.vendOptions ?? []).map((option) => {
+    const virtualCustomer = option.virtual_customer_prefix && option.virtual_customer_code
+      ? `${option.virtual_customer_prefix}-${option.virtual_customer_code}`
+      : null;
+    const segments = [
+      option.code,
+      option.customer_name,
+      virtualCustomer,
+      option.customer_ref_id ? ` #${option.customer_ref_id}` : null,
+    ].filter(Boolean);
+
+    return {
+      ...option,
+      label: segments.join(' • '),
+    };
+  });
+});
 const vendTemps = ref()
 const vendFans = ref()
 const types = ref([1, 2]) // Default to [1, 2]
@@ -334,6 +372,26 @@ plugins: {
   },
 },
 })
+
+watch(() => props.vendObj.data, (newVend) => {
+  if (newVend) {
+    vend.value = newVend;
+  }
+}, { immediate: true });
+
+watch(
+  () => [vendSelectionOptions.value, vend.value ? vend.value.id : null],
+  ([options, currentVendId]) => {
+    if (!currentVendId) {
+      selectedVendOption.value = null;
+      return;
+    }
+
+    const match = options.find((option) => option.id === currentVendId);
+    selectedVendOption.value = match ?? null;
+  },
+  { immediate: true }
+);
 
 const forceRerender = () => {
 componentKey.value += 1;
@@ -415,6 +473,36 @@ function back() {
   } else {
     router.visit('/vends')
   }
+}
+
+function onVendSelected(option) {
+  if (!option || option.id === vend.value.id) {
+    return;
+  }
+
+  const query = {
+    ...filters.value,
+    types: types.value,
+  };
+
+  if (fans.value && Array.isArray(fans.value) && fans.value.length) {
+    query.fans = fans.value;
+  }
+
+  if (props.request && props.request.durationType) {
+    query.durationType = props.request.durationType;
+  }
+
+  router.get(
+    route('temp', {
+      id: option.id,
+      type: props.type.value,
+    }),
+    query,
+    {
+      preserveScroll: true,
+    },
+  );
 }
 
 function getVendTempsData() {

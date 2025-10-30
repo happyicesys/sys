@@ -991,6 +991,29 @@ class VendController extends Controller
             )
             ->get();
 
+        $vendOptions = DB::table('vends')
+            ->leftJoin('customers', 'customers.id', '=', 'vends.customer_id')
+            ->select(
+                'vends.id',
+                'vends.code',
+                'customers.name as customer_name',
+                'customers.virtual_customer_prefix',
+                'customers.virtual_customer_code',
+                DB::raw('CASE WHEN customers.id IS NOT NULL THEN customers.id + ' . Customer::RUNNING_NUMBER_INIT . ' END AS customer_ref_id')
+            )
+            ->orderBy('vends.code')
+            ->get()
+            ->map(function ($vendOption) {
+                return [
+                    'id' => $vendOption->id,
+                    'code' => $vendOption->code,
+                    'customer_name' => $vendOption->customer_name,
+                    'customer_ref_id' => $vendOption->customer_ref_id,
+                    'virtual_customer_prefix' => $vendOption->virtual_customer_prefix,
+                    'virtual_customer_code' => $vendOption->virtual_customer_code,
+                ];
+            });
+
         return Inertia::render('Vend/Temp', [
             'duration' => $duration,
             'type' => [
@@ -1007,6 +1030,7 @@ class VendController extends Controller
             'startDateString' => $startDate->format('y-m-d H:i'),
             'endDateString' => $endDate->format('y-m-d H:i'),
             'tempError' => VendTemp::TEMPERATURE_ERROR,
+            'vendOptions' => $vendOptions,
         ]);
     }
 
