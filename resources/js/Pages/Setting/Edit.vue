@@ -689,14 +689,13 @@
                               <span class="break-normal text-xs" v-if="channel.product && channel.product.name"> <br> {{ channel.product.name }} </span>
                             </td>
                             <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center" >
-                              <!-- :class="compareSellingPrice(channel)" -->
-                              {{ (channel.amount/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                              {{ formatCurrency(channel.amount) }}
                             </td>
                             <td
                               class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800"
                               v-if="vendChannels.some(channel => 'amount2' in channel)"
                             >
-                              {{ (channel.amount2/ (Math.pow(10, operatorCountry.currency_exponent))).toLocaleString(undefined, {minimumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent), maximumFractionDigits: (operatorCountry.is_currency_exponent_hidden ? 0 : operatorCountry.currency_exponent)}) }}
+                              {{ formatCurrency(channel.amount2) }}
                             </td>
                             <td
                               class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-6 text-center text-gray-800"
@@ -1178,7 +1177,7 @@ import FormInput from '@/Components/FormInput.vue';
 import MultiSelect from '@/Components/MultiSelect.vue';
 import SearchAddressInput from '@/Components/SearchAddressInput.vue';
 import { ArrowPathIcon, ArrowUpTrayIcon, ArrowTopRightOnSquareIcon, ArrowUturnLeftIcon, CheckCircleIcon, MinusCircleIcon, CheckIcon, LockClosedIcon, LockOpenIcon, ExclamationCircleIcon, PaperClipIcon, XCircleIcon } from '@heroicons/vue/20/solid';
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { fromPairs } from 'lodash';
 import { useToast } from "vue-toastification";
@@ -1202,6 +1201,7 @@ const props = defineProps({
     type: String,
     upcomingProductMappingOptions: Object,
     vend: Object,
+    selectedProductMapping: Object,
     vendConfigOptions: Object,
     vendContractOptions: Object,
     vendModelOptions: Object,
@@ -1214,6 +1214,7 @@ const form = ref(
   useForm(getDefaultForm())
 )
 
+const page = usePage();
 const adminCustomerOptions = ref([])
 
 const booleanStrictOptions = ref([
@@ -1241,17 +1242,19 @@ const ledMatrixPanelOptions = ref([])
 const menuFrameOptions = ref([])
 const modemTypeOptions = ref([])
 const modemUnitOptions = ref([])
-const operatorCountry = usePage().props.auth.operatorCountry;
+const operatorCountry = page.props.auth.operatorCountry;
 const keyOptions = ref([])
 const isExisting = ref(1)
 const operatorOptions = ref([])
-const permissions = usePage().props.auth.permissions
+const permissions = page.props.auth.permissions
 const productMappingOptions = ref([])
 const serverPriceTypeOptions = ref([])
 const simcardOptions = ref([])
 const upcomingProductMappingOptions = ref([])
 const toast = useToast()
 const vendChannels = ref([]);
+const originalVendChannels = ref([]);
+const selectedProductMapping = ref(props.selectedProductMapping ?? null);
 const vendConfigOptions = ref([])
 const vendContractOptions = ref([])
 const vendModelOptions = ref([])
@@ -1259,6 +1262,7 @@ const vendPrefixOptions = ref([])
 const vendSerialNumberOptions = ref([])
 const versionOptions = ref([])
 const isPromoting = ref(false)
+let hasMounted = false;
 
 const showPromoteUpcoming = computed(() => {
   const upcomingId = form.value?.upcoming_product_mapping_id?.id
@@ -1486,7 +1490,15 @@ onMounted(() => {
     full_name: customer.person_id && customer.virtual_customer_code ? customer.virtual_customer_code + ' (' + customer.virtual_customer_prefix + ') - ' + customer.name + ' [cms]'  : customer.name,
   }))
 
-  vendChannels.value = props.vend ? props.vend.vend_channels : [];
+  const initialChannels = props.vend && Array.isArray(props.vend.vend_channels) ? props.vend.vend_channels : [];
+  originalVendChannels.value = initialChannels ? JSON.parse(JSON.stringify(initialChannels)) : [];
+  vendChannels.value = Array.isArray(originalVendChannels.value) ? [...originalVendChannels.value] : [];
+
+  if (selectedProductMapping.value) {
+    applyMappingPreview(selectedProductMapping.value);
+  }
+
+  hasMounted = true;
 })
 
 function compareSellingPrice(channel) {
@@ -1496,6 +1508,28 @@ function compareSellingPrice(channel) {
     }
   }
   return 'text-gray-800';
+}
+
+function formatCurrency(amount) {
+  if (amount === null || amount === undefined) {
+    return '-';
+  }
+
+  const numericAmount = Number(amount);
+
+  if (Number.isNaN(numericAmount)) {
+    return '-';
+  }
+
+  const exponent = operatorCountry?.currency_exponent ?? 0;
+  const divisor = Math.pow(10, exponent);
+  const minimumFractionDigits = operatorCountry?.is_currency_exponent_hidden ? 0 : exponent;
+  const maximumFractionDigits = operatorCountry?.is_currency_exponent_hidden ? 0 : exponent;
+
+  return (numericAmount / divisor).toLocaleString(undefined, {
+    minimumFractionDigits,
+    maximumFractionDigits,
+  });
 }
 
 function formatDatetime(datetime) {
@@ -1526,6 +1560,183 @@ function refreshUpcomingSelection() {
   const currentId = form.value.upcoming_product_mapping_id?.id || null
   form.value.upcoming_product_mapping_id = computeUpcomingSelection(currentId)
 }
+
+function extractOptionId(option) {
+  if (!option) {
+    return null;
+  }
+
+  if (typeof option === 'object') {
+    if (option.id !== undefined && option.id !== null && option.id !== '') {
+      return option.id;
+    }
+
+    if (option.value !== undefined && option.value !== null && option.value !== '') {
+      return option.value;
+    }
+
+    return null;
+  }
+
+  if (option === '') {
+    return null;
+  }
+
+  return option;
+}
+
+function normalizeProductForChannel(product) {
+  if (!product) {
+    return null;
+  }
+
+  const sellingPrices = product.selling_prices ?? product.sellingPrices ?? [];
+
+  return {
+    ...product,
+    selling_prices: sellingPrices,
+  };
+}
+
+function buildChannelFromMappingItem(item, index) {
+  if (!item) {
+    return null;
+  }
+
+  const sellingPrice = item.sellingPrice ?? item.selling_price ?? null;
+  const amount = item.server_amount ?? sellingPrice?.amount ?? null;
+
+  return {
+    id: `mapping-${item.id ?? index}`,
+    code: item.channel_code,
+    amount,
+    amount2: item.server_amount2 ?? null,
+    product: normalizeProductForChannel(item.product),
+  };
+}
+
+function applyMappingPreview(mapping) {
+  if (!mapping) {
+    resetMappingPreview();
+    return;
+  }
+
+  const items = Array.isArray(mapping.productMappingItems)
+    ? mapping.productMappingItems
+    : Array.isArray(mapping.product_mapping_items)
+      ? mapping.product_mapping_items
+      : [];
+
+  if (!items.length) {
+    resetMappingPreview();
+    return;
+  }
+
+  if (selectedProductMapping.value !== mapping) {
+    selectedProductMapping.value = mapping;
+  }
+
+  const channels = items
+    .map((item, index) => buildChannelFromMappingItem(item, index))
+    .filter((channel) => channel && channel.code);
+
+  vendChannels.value = channels;
+}
+
+function resetMappingPreview() {
+  selectedProductMapping.value = null;
+  vendChannels.value = Array.isArray(originalVendChannels.value) ? [...originalVendChannels.value] : [];
+}
+
+function fetchProductMappingPreviewById(mappingId) {
+  if (!mappingId) {
+    resetMappingPreview();
+    return;
+  }
+
+  const data = {
+    product_mapping_id: mappingId,
+  };
+
+  const vendPrefixId = extractOptionId(form.value.vend_prefix_id);
+  if (vendPrefixId) {
+    data.vend_prefix_id = vendPrefixId;
+  }
+
+  const vendConfigId = extractOptionId(form.value.vend_config_id);
+  if (vendConfigId) {
+    data.vend_config_id = vendConfigId;
+  }
+
+  router.reload({
+    only: ['selectedProductMapping'],
+    data,
+    replace: true,
+    preserveState: true,
+    onSuccess: (page) => {
+      applyMappingPreview(page.props.selectedProductMapping ?? null);
+    },
+    onError: () => {
+      resetMappingPreview();
+    },
+  });
+}
+
+watch(
+  () => extractOptionId(form.value.product_mapping_id),
+  (newId, oldId) => {
+    if (!hasMounted) {
+      return;
+    }
+
+    const normalizedNew = newId ? String(newId) : null;
+    const normalizedOld = oldId ? String(oldId) : null;
+
+    if (normalizedNew === normalizedOld) {
+      return;
+    }
+
+    if (!normalizedNew) {
+      resetMappingPreview();
+      return;
+    }
+
+    fetchProductMappingPreviewById(normalizedNew);
+  }
+);
+
+watch(
+  () => page.props.value.selectedProductMapping,
+  (mapping) => {
+    if (!hasMounted || mapping === undefined) {
+      return;
+    }
+
+    if (!mapping) {
+      resetMappingPreview();
+      return;
+    }
+
+    applyMappingPreview(mapping);
+  }
+);
+
+watch(
+  () => page.props.value.vend?.vend_channels,
+  (channels) => {
+    if (channels === undefined) {
+      return;
+    }
+
+    const snapshot = Array.isArray(channels) ? JSON.parse(JSON.stringify(channels)) : [];
+    originalVendChannels.value = snapshot;
+
+    if (!selectedProductMapping.value) {
+      vendChannels.value = [...snapshot];
+    }
+  },
+  { deep: true }
+);
 
 function onVendConfigSelected() {
   form.value.vend_prefix_id = ''

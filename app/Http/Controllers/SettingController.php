@@ -371,6 +371,36 @@ class SettingController extends Controller
         ]);
         $upcomingProductMappingOptions = ProductMapping::find($vend->product_mapping_id) ? ProductMapping::find($vend->product_mapping_id)->upcomingProductMappings : [];
 
+        $selectedProductMapping = null;
+        if ($request->has('product_mapping_id')) {
+            $requestedProductMappingId = $request->product_mapping_id;
+            if ($requestedProductMappingId === '' || $requestedProductMappingId === null) {
+                $requestedProductMappingId = null;
+            }
+            $selectedProductMappingId = $requestedProductMappingId ?: $vend->product_mapping_id;
+
+            if ($selectedProductMappingId) {
+                $selectedProductMapping = ProductMapping::query()
+                    ->with([
+                        'productMappingItems' => function ($query) {
+                            $query->orderByRaw('CASE WHEN sequence IS NULL THEN 1 ELSE 0 END')
+                                ->orderBy('sequence')
+                                ->orderBy('channel_code');
+                        },
+                        'productMappingItems.product' => function ($query) use ($type) {
+                            $query->with([
+                                'thumbnail',
+                                'sellingPrices' => function ($query) use ($type) {
+                                    $query->where('type', $type);
+                                },
+                            ]);
+                        },
+                        'productMappingItems.sellingPrice',
+                    ])
+                    ->find($selectedProductMappingId);
+            }
+        }
+
         return Inertia::render('Setting/Edit', [
             'cashlessTerminalOptions' => CashlessTerminalResource::collection(
                 CashlessTerminal::orderBy('code')->get()
@@ -455,6 +485,9 @@ class SettingController extends Controller
                     ->orderBy('code')
                     ->get()
             ),
+            'selectedProductMapping' => $selectedProductMapping
+                ? ProductMappingResource::make($selectedProductMapping)
+                : null,
             'versionOptions' => VendConfig::VERSION,
             'type' => 'update',
         ]);
